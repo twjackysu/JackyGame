@@ -85,7 +85,7 @@ export class MapScene extends Phaser.Scene {
     this.tweens.add({ targets: glow, alpha: 0.6, duration: 170, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [3] });
 
     this.drawHud(states);
-    const gear = this.add.text(GAME_WIDTH - 44, 44, '⚙', { fontFamily: UI_FONT, fontSize: '44px', color: '#c8d0f0', stroke: '#000', strokeThickness: 4 })
+    const gear = this.add.text(44, 70, '⚙', { fontFamily: UI_FONT, fontSize: '44px', color: '#c8d0f0', stroke: '#000', strokeThickness: 4 })
       .setOrigin(0.5).setDepth(800).setPadding(12, 12, 12, 12).setInteractive({ useHandCursor: true });
     gear.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();

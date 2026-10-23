@@ -188,6 +188,7 @@ export class CardScene extends Phaser.Scene {
   }
 
   private render(highlight?: { slots?: number[]; targets?: { side: 'me' | 'opp'; idx: number[] } }): void {
+    this.tweens.killTweensOf(this.layer.list);
     this.layer.removeAll(true);
     const s = this.st;
     const [me, op] = s.sides;
@@ -227,6 +228,25 @@ export class CardScene extends Phaser.Scene {
     }
     // 比分
     const [t0, t1] = pv.totals;
+    // 放牌前預覽：每個可放位置顯示「本夜分差」的變化
+    if (highlight && this.selected >= 0) {
+      for (const a of this.playsFor(this.selected)) {
+        if (a.type !== 'play') continue;
+        const idx = a.slot ?? a.target;
+        if (idx === undefined) continue;
+        const onOpp = a.slot === undefined && highlight.targets?.side === 'opp';
+        const npv = previewNight(peekAction(s, a));
+        const d = (npv.totals[0] - npv.totals[1]) - (t0 - t1);
+        const label = d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0';
+        const col = d > 0 ? '#7dffb0' : d < 0 ? '#ff9a8a' : '#c8c0b0';
+        const y = onOpp ? OPP_Y - CH / 2 - 22 : MY_Y + CH / 2 + 22;
+        const tx = this.add.text(slotX(idx), y, label, {
+          fontFamily: TITLE_FONT, fontSize: '28px', fontStyle: '900', color: col, stroke: '#000', strokeThickness: 5,
+        }).setOrigin(0.5);
+        this.layer.add(tx);
+        this.tweens.add({ targets: tx, scale: 1.12, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      }
+    }
     this.layer.add(this.add.text(GAME_WIDTH / 2, 790, `本夜　我 ${t0} : ${t1} 對手`, {
       fontFamily: TITLE_FONT, fontSize: '36px', fontStyle: '700', color: t0 > t1 ? '#7dffb0' : t0 < t1 ? '#ff9a8a' : '#ffffff',
       stroke: '#000', strokeThickness: 5,
