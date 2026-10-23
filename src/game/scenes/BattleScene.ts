@@ -976,6 +976,8 @@ export class BattleScene extends Phaser.Scene {
     const atkName = ENEMIES[this.bs.enemies[tel.enemy]?.id ?? '']?.attacks.find((a) => a.id === tel.attack)?.name ?? '';
     this.hint.setText(`${atkName}　${TELE_HINT[tel.telegraph]}`).setColor(Phaser.Display.Color.IntegerToColor(color).rgba).setY(990).setAlpha(0);
     this.tweens.add({ targets: this.hint, alpha: 1, duration: 150 });
+    const gestureIcon = this.gestureIcon(tel.telegraph, color);
+    this.tweens.add({ targets: this.buttonBar, alpha: 0.06, duration: 200 });
     SFX.blip();
     this.mode = 'defense';
 
@@ -998,6 +1000,7 @@ export class BattleScene extends Phaser.Scene {
     this.defense = undefined;
     this.ringG.clear();
     this.tweens.add({ targets: [this.edge, this.hint], alpha: 0, duration: 250 });
+    this.tweens.add({ targets: gestureIcon, alpha: 0, duration: 200, onComplete: () => gestureIcon.destroy() });
     if (ev) {
       this.tweens.add({ targets: ev.aura, alpha: 0, duration: 300 });
       this.tweens.add({ targets: ev.root, x: ev.x, y: ev.y, scale: 1, duration: 350, ease: 'Cubic.Out' });
@@ -1007,6 +1010,44 @@ export class BattleScene extends Phaser.Scene {
     this.bs = r.state;
     await this.play(r.events);
     this.step();
+  }
+
+  /** 手勢圖示（👆點擊 / 👉滑動 / ✋長按），在提示字下方循環示範 */
+  private gestureIcon(tele: Telegraph, color: number): Phaser.GameObjects.Container {
+    const c = this.add.container(GAME_WIDTH / 2, 1100).setDepth(890);
+    const g = this.add.graphics();
+    const finger = this.add.graphics();
+    finger.fillStyle(0xffffff, 1).fillCircle(0, 0, 16);
+    finger.fillStyle(0xffffff, 0.9).fillRoundedRect(-9, 0, 18, 50, 8);
+    c.add([g, finger]);
+    const tws: Phaser.Tweens.Tween[] = [];
+    c.once(Phaser.GameObjects.Events.DESTROY, () => tws.forEach((t) => t.remove()));
+    if (tele === 'white') {
+      tws.push(this.tweens.add({ targets: finger, y: 12, scale: 0.9, duration: 220, yoyo: true, repeat: -1, repeatDelay: 250 }));
+      tws.push(this.tweens.addCounter({
+        from: 0, to: 1, duration: 470, repeat: -1,
+        onUpdate: (tw) => {
+          const v = tw.getValue() ?? 0;
+          g.clear().lineStyle(4, color, 1 - v).strokeCircle(0, 0, 20 + v * 50);
+        },
+      }));
+    } else if (tele === 'red') {
+      g.lineStyle(6, color, 0.9).lineBetween(-90, 0, 90, 0).lineBetween(90, 0, 70, -16).lineBetween(90, 0, 70, 16);
+      finger.setX(-80);
+      tws.push(this.tweens.add({ targets: finger, x: 80, duration: 300, ease: 'Quad.In', repeat: -1, repeatDelay: 300 }));
+    } else {
+      tws.push(this.tweens.addCounter({
+        from: 0, to: 1, duration: 800, repeat: -1,
+        onUpdate: (tw) => {
+          const v = tw.getValue() ?? 0;
+          g.clear().lineStyle(6, 0x333344, 1).strokeCircle(0, 0, 44);
+          g.lineStyle(6, color, 1).beginPath().arc(0, 0, 44, -Math.PI / 2, -Math.PI / 2 + v * Math.PI * 2).strokePath();
+        },
+      }));
+    }
+    c.setAlpha(0);
+    this.tweens.add({ targets: c, alpha: 1, duration: 150 });
+    return c;
   }
 
   private untilReal(t: number): Promise<void> {
