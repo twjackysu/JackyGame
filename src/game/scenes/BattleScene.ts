@@ -24,7 +24,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { session } from '../session';
 import { grantXp } from '../../core/state/gameState';
 import {
-  UI_FONT, bigText, floatNumber, hitStop, pressBounce, shockRing, slowMo, sparks, wait,
+  UI_FONT, bigText, floatNumber, hitStop, pressBounce, setBaseSpeed, shockRing, slowMo, sparks, wait,
 } from '../fx/feel';
 
 export interface BattleSceneData {
@@ -487,6 +487,31 @@ export class BattleScene extends Phaser.Scene {
     this.roundText = this.add.text(GAME_WIDTH - 24, 40, '', {
       fontFamily: UI_FONT, fontSize: '22px', color: '#aab4dd', stroke: '#000', strokeThickness: 3,
     }).setOrigin(1, 0.5).setDepth(500);
+    const spd = this.add.text(GAME_WIDTH - 24, 150, '', {
+      fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4,
+      backgroundColor: '#0a0d1acc', padding: { x: 12, y: 6 },
+    }).setOrigin(1, 0.5).setDepth(520).setInteractive({ useHandCursor: true });
+    const applySpeed = () => {
+      setBaseSpeed(this, this.speed);
+      spd.setText(this.speed > 1 ? '⏩ ×2' : '▶ ×1');
+    };
+    spd.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      this.speed = this.speed > 1 ? 1 : 2;
+      try {
+        localStorage.setItem('jackygame.battleSpeed', String(this.speed));
+      } catch {
+        /* 無法儲存就算了 */
+      }
+      SFX.uiTap();
+      applySpeed();
+    });
+    try {
+      this.speed = Number(localStorage.getItem('jackygame.battleSpeed') ?? 1) > 1 ? 2 : 1;
+    } catch {
+      this.speed = 1;
+    }
+    applySpeed();
     this.add.text(24, 40, '行動順序', { fontFamily: UI_FONT, fontSize: '20px', color: '#7f89b0' }).setOrigin(0, 0.5).setDepth(500);
     this.add.text(36, 938, '星燼', {
       fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 3,
@@ -619,6 +644,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private coachStep = 0;
+  private speed = 1;
   private coach?: Phaser.GameObjects.Container;
 
   /** 教學戰提示（序章）：依序教 攻擊時機 → 燈印 → 共鳴 */

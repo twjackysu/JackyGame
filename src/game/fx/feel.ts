@@ -21,13 +21,33 @@ export async function hitStop(scene: Phaser.Scene, ms: number): Promise<void> {
   scene.tweens.resumeAll();
 }
 
+const baseSpeed = new WeakMap<Phaser.Scene, number>();
+const slowCount = new WeakMap<Phaser.Scene, number>();
+
+/** 設定場景基礎速度（戰鬥 ×2），慢動作結束後回到這個值 */
+export function setBaseSpeed(scene: Phaser.Scene, v: number): void {
+  baseSpeed.set(scene, v);
+  if ((slowCount.get(scene) ?? 0) <= 0) {
+    scene.tweens.timeScale = v;
+    scene.time.timeScale = v;
+  }
+}
+
 /** 慢動作：補間與計時器一起放慢 */
 export async function slowMo(scene: Phaser.Scene, scale: number, realMs: number): Promise<void> {
-  scene.tweens.timeScale = scale;
-  scene.time.timeScale = scale;
+  const base = baseSpeed.get(scene) ?? 1;
+  const n = (slowCount.get(scene) ?? 0) + 1;
+  slowCount.set(scene, n);
+  scene.tweens.timeScale = base * scale;
+  scene.time.timeScale = base * scale;
   await realWait(realMs);
-  scene.tweens.timeScale = 1;
-  scene.time.timeScale = 1;
+  const left = (slowCount.get(scene) ?? 1) - 1;
+  slowCount.set(scene, left);
+  if (left <= 0) {
+    const b = baseSpeed.get(scene) ?? 1;
+    scene.tweens.timeScale = b;
+    scene.time.timeScale = b;
+  }
 }
 
 export interface NumberStyle {
