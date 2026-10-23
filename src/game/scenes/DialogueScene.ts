@@ -430,9 +430,114 @@ export class DialogueScene extends Phaser.Scene {
       });
       return;
     }
-    // 尚未實作的事件（商店、命名…）：先略過
+    if (kind === 'shop' || kind === 'summary') {
+      const p = kind === 'shop' ? this.shop() : this.summary(id);
+      void p.then(() => {
+        this.runner.resume('done');
+        this.advance();
+      });
+      return;
+    }
+    // 尚未實作的事件（命名…）：先略過
     this.runner.resume('win');
     this.advance();
+  }
+
+  /** 雜貨店（簡易版）：用金幣買戰鬥道具 */
+  private shop(): Promise<void> {
+    return new Promise((resolve) => {
+      const s = session.state;
+      const disc = Number(s.flags['shop_discount_ch1'] ?? 0);
+      const goods: [string, string, number][] = [
+        ['potion_s', '小回復藥（HP+60）', 30], ['lamp_oil', '燈油（SP+2）', 40],
+      ];
+      const ui = this.add.container(0, 0).setDepth(300);
+      const dim = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setInteractive();
+      const g = this.add.graphics();
+      g.fillStyle(0x0a0d1a, 0.97).fillRoundedRect(40, 330, GAME_WIDTH - 80, 560, 24);
+      g.lineStyle(2, 0xffd27a, 0.8).strokeRoundedRect(40, 330, GAME_WIDTH - 80, 560, 24);
+      const title = this.add.text(GAME_WIDTH / 2, 380, disc ? `雜貨店（折扣 ${disc}%）` : '雜貨店', { fontFamily: TITLE_FONT, fontSize: '36px', color: '#ffd27a' }).setOrigin(0.5);
+      const gold = this.add.text(GAME_WIDTH / 2, 430, '', { fontFamily: UI_FONT, fontSize: '26px', color: '#ffe6a0' }).setOrigin(0.5);
+      ui.add([dim, g, title, gold]);
+      const refresh: (() => void)[] = [];
+      const upd = () => {
+        gold.setText(`金幣 ${s.gold}`);
+        refresh.forEach((f) => f());
+      };
+      goods.forEach(([id, name, price0], i) => {
+        const price = Math.round(price0 * (1 - disc / 100));
+        const y = 520 + i * 120;
+        const row = this.add.container(GAME_WIDTH / 2, y);
+        const rb = this.add.graphics();
+        const t = this.add.text(-260, 0, '', { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff' }).setOrigin(0, 0.5);
+        const pt = this.add.text(260, 0, `${price} 金 ▶ 購買`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a' }).setOrigin(1, 0.5);
+        row.add([rb, t, pt]).setSize(580, 96).setInteractive({ useHandCursor: true });
+        refresh.push(() => {
+          const ok = s.gold >= price;
+          rb.clear().fillStyle(0x18203a, 1).fillRoundedRect(-290, -48, 580, 96, 16).lineStyle(2, ok ? 0xffd27a : 0x3a4060, 1).strokeRoundedRect(-290, -48, 580, 96, 16);
+          t.setText(`${name}　持有 ${s.inventory[id] ?? 0}`);
+          pt.setColor(ok ? '#ffd27a' : '#5a6380');
+        });
+        row.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+          ev.stopPropagation();
+          if (s.gold < price) {
+            SFX.uiCancel();
+            return;
+          }
+          s.gold -= price;
+          s.inventory[id] = (s.inventory[id] ?? 0) + 1;
+          SFX.itemGet();
+          pressBounce(this, row);
+          upd();
+        });
+        ui.add(row);
+      });
+      const leave = this.add.text(GAME_WIDTH / 2, 830, '離開', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '700', color: '#aab4dd' })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
+      leave.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+        ev.stopPropagation();
+        SFX.uiCancel();
+        session.save();
+        ui.destroy();
+        resolve();
+      });
+      ui.add(leave);
+      upd();
+    });
+  }
+
+  /** 章節結算：偏移值、羈絆、聲望、等級 */
+  private summary(id: string): Promise<void> {
+    return new Promise((resolve) => {
+      const s = session.state;
+      const ui = this.add.container(0, 0).setDepth(300);
+      const dim = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.8).setInteractive();
+      const [a, b] = CHAPTER_TITLE[id] ?? [id, ''];
+      const lines = [
+        `劇情偏移值　${s.divergence}`,
+        `連恩　Lv ${s.members.lian?.level ?? 1}　金幣 ${s.gold}`,
+        ...(['io', 'rourke', 'serin'] as const).filter((c) => s.affinity[c] > 0 || s.party.includes(c)).map((c) => `${SPEAKER_NAMES[c]} 羈絆　${'♥'.repeat(Math.min(5, Math.ceil(s.affinity[c] / 10)))}${s.affinity[c]}`),
+        `灰燈鎮聲望 ${s.reputation.town}　騎士團 ${s.reputation.order}`,
+        `攻略筆記 ${s.codex.length} 條`,
+      ];
+      const t1 = this.add.text(GAME_WIDTH / 2, 330, `${a}　${b}　完`, { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5);
+      ui.add([dim, t1]);
+      lines.forEach((l, i) => {
+        const t = this.add.text(GAME_WIDTH / 2, 450 + i * 64, l, { fontFamily: UI_FONT, fontSize: '28px', color: '#ffffff' }).setOrigin(0.5).setAlpha(0);
+        this.tweens.add({ targets: t, alpha: 1, x: { from: GAME_WIDTH / 2 + 40, to: GAME_WIDTH / 2 }, delay: 300 + i * 220, duration: 300 });
+        this.time.delayedCall(300 + i * 220, () => SFX.uiTap());
+        ui.add(t);
+      });
+      const hint = this.add.text(GAME_WIDTH / 2, 1000, '點擊繼續', { fontFamily: UI_FONT, fontSize: '26px', color: '#aab4dd' }).setOrigin(0.5);
+      ui.add(hint);
+      this.time.delayedCall(600 + lines.length * 220, () => {
+        dim.once('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+          ev.stopPropagation();
+          ui.destroy();
+          resolve();
+        });
+      });
+    });
   }
 
   private onWake(outcome: string): void {

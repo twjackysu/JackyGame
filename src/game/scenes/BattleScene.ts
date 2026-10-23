@@ -155,10 +155,12 @@ export class BattleScene extends Phaser.Scene {
     this.isWebGL = this.renderer.type === Phaser.WEBGL;
     generateCombatantArt(this);
     this.makeTextures();
-    const enemies = ENCOUNTERS[this.data0.encounter] ?? ['mist_wolf'];
+    const enemies = [...(ENCOUNTERS[this.data0.encounter] ?? ['mist_wolf'])];
+    // 劇情分歧：吹口哨讓狼群回來 → 狼王戰多一隻霧狼（ch1）
+    if (this.data0.story && this.data0.encounter === 'boss_wolfking' && session.state.flags['wolfpack_returned']) enemies.push('mist_wolf');
     this.bs = createBattle({
       party: this.data0.party, enemies, seed: this.data0.seed,
-      items: this.data0.story ? { potion_s: session.state.inventory['potion_s'] ?? 0 } : { potion_s: 2, lamp_oil: 1 },
+      items: this.data0.story ? { potion_s: session.state.inventory['potion_s'] ?? 0, lamp_oil: session.state.inventory['lamp_oil'] ?? 0 } : { potion_s: 2, lamp_oil: 1 },
       flags: this.data0.story ? { tutorialEmber: this.data0.tutorial, guidingLight: !!session.state.flags['guidingLight'] } : { guidingLight: true },
     }).state;
     const boss = enemies.some((id) => id.startsWith('boss_'));
@@ -1375,8 +1377,10 @@ export class BattleScene extends Phaser.Scene {
           if (v) bigText(this, v.x, v.y - 150, 'LEVEL UP', '#7dffb0', 40, 900);
         }
       }
-      const used = (session.state.inventory['potion_s'] ?? 0) - (this.bs.items.potion_s ?? 0);
-      if (used > 0) session.state.inventory['potion_s'] = Math.max(0, (session.state.inventory['potion_s'] ?? 0) - used);
+      for (const it of ['potion_s', 'lamp_oil'] as const) {
+        const left = this.bs.items[it];
+        if (left !== undefined) session.state.inventory[it] = left;
+      }
     }
     const label = story ? (win ? '繼續 ▶' : '重新振作') : win ? (next ? '繼續前進 ▶' : '回到標題') : '再試一次';
     const btn = this.add.container(GAME_WIDTH / 2, 800).setDepth(970);
