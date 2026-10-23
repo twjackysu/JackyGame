@@ -4,7 +4,8 @@ import Phaser from 'phaser';
 export type BackdropId =
   | 'town' | 'tavern' | 'forest' | 'lake' | 'ruins' | 'mine' | 'bellhall' | 'deep'
   | 'capital_gate' | 'capital' | 'tourney' | 'inn' | 'market' | 'academy' | 'rooftop' | 'sewer'
-  | 'depths' | 'archive' | 'lab' | 'furnace';
+  | 'depths' | 'archive' | 'lab' | 'furnace'
+  | 'rift' | 'rift_camp' | 'rift_core';
 
 // 注意：不能在模組頂層引用 config 的常數（config → scenes → 這裡 會循環 import）
 const W = 720;
@@ -1719,9 +1720,295 @@ const DRAW_CH4: Record<Ch4Id, (c: C2) => void> = {
   },
 };
 
+// ======================================================================
+// 終章「燈火」：墜星裂谷
+// ======================================================================
+type Ch5Id = 'rift' | 'rift_camp' | 'rift_core';
+
+/** 墜落的流星（拖曳光尾）。 */
+function meteor(c: C2, x: number, y: number, len: number, ang: number, col: string, w = 2): void {
+  const x1 = x - Math.cos(ang) * len;
+  const y1 = y - Math.sin(ang) * len;
+  const g = c.createLinearGradient(x, y, x1, y1);
+  g.addColorStop(0, `rgba(${col},0.95)`);
+  g.addColorStop(1, `rgba(${col},0)`);
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  c.strokeStyle = g;
+  c.lineWidth = w;
+  c.lineCap = 'round';
+  c.beginPath(); c.moveTo(x, y); c.lineTo(x1, y1); c.stroke();
+  c.restore();
+  glow(c, x, y, w * 7, `rgba(${col},0.55)`);
+  c.fillStyle = '#ffffff';
+  c.fillRect(x - w * 0.6, y - w * 0.6, w * 1.2, w * 1.2);
+}
+
+/** 天空的撕裂口：鋸齒狀裂縫透出紫焰。 */
+function skyTear(c: C2, r: () => number, x0: number, y0: number, x1: number, y1: number, wid: number): void {
+  const n = 14;
+  const top: [number, number][] = [];
+  const bot: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const x = x0 + (x1 - x0) * t;
+    const y = y0 + (y1 - y0) * t + (r() - 0.5) * 18;
+    const h = wid * Math.sin(Math.PI * t) * (0.6 + r() * 0.5);
+    top.push([x + (r() - 0.5) * 8, y - h]);
+    bot.push([x + (r() - 0.5) * 8, y + h]);
+  }
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  for (let i = 0; i <= n; i += 2) {
+    const [x, y] = top[i]!;
+    glow(c, x, y + wid * 0.5, wid * 3, 'rgba(150,80,255,0.12)');
+  }
+  c.restore();
+  const path = (): void => {
+    c.beginPath();
+    top.forEach(([x, y], i) => (i === 0 ? c.moveTo(x, y) : c.lineTo(x, y)));
+    for (let i = bot.length - 1; i >= 0; i--) c.lineTo(bot[i]![0], bot[i]![1]);
+    c.closePath();
+  };
+  path();
+  const g = c.createLinearGradient(0, y0 - wid, 0, y1 + wid);
+  g.addColorStop(0, '#e8c8ff');
+  g.addColorStop(0.5, '#a050ff');
+  g.addColorStop(1, '#ff9a60');
+  c.fillStyle = g;
+  c.fill();
+  c.strokeStyle = 'rgba(255,240,255,0.8)';
+  c.lineWidth = 1.2;
+  c.stroke();
+}
+
+/** 峽谷岩壁剪影（從某一側往內延伸的鋸齒崖面）。 */
+function cliff(c: C2, r: () => number, side: 1 | -1, top: number, bot: number, reach: number, body: string, rim: string): void {
+  const x0 = side === 1 ? 0 : W;
+  const pts: [number, number][] = [];
+  for (let y = top; y <= bot; y += 26) {
+    const k = (y - top) / (bot - top);
+    const d = (reach * (0.55 + 0.45 * Math.sin(k * 3.1 + reach)) + (r() - 0.5) * 30) * Math.min(1, 0.25 + k * 5);
+    pts.push([x0 + side * d, y]);
+  }
+  c.fillStyle = body;
+  c.beginPath();
+  c.moveTo(x0, top);
+  for (const [x, y] of pts) c.lineTo(x, y);
+  c.lineTo(x0, bot);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = rim;
+  c.lineWidth = 2;
+  c.beginPath();
+  pts.forEach(([x, y], i) => (i === 0 ? c.moveTo(x, y) : c.lineTo(x, y)));
+  c.stroke();
+}
+
+/** 浮空岩塊（上亮下暗，底部垂掛碎石）。 */
+function floatRock(c: C2, x: number, y: number, w: number, h: number, rim: string): void {
+  c.fillStyle = '#0c0814';
+  c.beginPath();
+  c.moveTo(x - w / 2, y);
+  c.lineTo(x - w * 0.3, y - h * 0.25);
+  c.lineTo(x + w * 0.25, y - h * 0.3);
+  c.lineTo(x + w / 2, y);
+  c.lineTo(x + w * 0.15, y + h * 0.7);
+  c.lineTo(x, y + h);
+  c.lineTo(x - w * 0.2, y + h * 0.6);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = rim;
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(x - w / 2, y);
+  c.lineTo(x - w * 0.3, y - h * 0.25);
+  c.lineTo(x + w * 0.25, y - h * 0.3);
+  c.lineTo(x + w / 2, y);
+  c.stroke();
+}
+
+function campfire(c: C2, x: number, y: number, s: number): void {
+  glow(c, x, y - 10 * s, 220 * s, 'rgba(255,150,70,0.28)');
+  glow(c, x, y - 10 * s, 70 * s, 'rgba(255,190,110,0.6)');
+  c.strokeStyle = '#2a160a';
+  c.lineWidth = 6 * s;
+  c.lineCap = 'round';
+  c.beginPath(); c.moveTo(x - 22 * s, y + 4 * s); c.lineTo(x + 20 * s, y - 6 * s); c.stroke();
+  c.beginPath(); c.moveTo(x + 22 * s, y + 4 * s); c.lineTo(x - 20 * s, y - 6 * s); c.stroke();
+  const flame = (h: number, w: number, col: string): void => {
+    c.fillStyle = col;
+    c.beginPath();
+    c.moveTo(x - w * s, y);
+    c.quadraticCurveTo(x - w * 0.9 * s, y - h * 0.5 * s, x, y - h * s);
+    c.quadraticCurveTo(x + w * 0.9 * s, y - h * 0.5 * s, x + w * s, y);
+    c.closePath();
+    c.fill();
+  };
+  flame(42, 16, 'rgba(255,110,40,0.9)');
+  flame(30, 10, 'rgba(255,190,90,0.95)');
+  flame(16, 5, 'rgba(255,250,220,1)');
+}
+
+const DRAW_CH5: Record<Ch5Id, (c: C2) => void> = {
+  // 裂谷邊緣：被撕裂的夜空、流星雨、深不見底的峽谷與谷底紫光
+  rift: (c) => {
+    grad(c, [[0, '#04030c'], [0.35, '#120a26'], [0.6, '#0a0614'], [0.85, '#160a24'], [1, '#2a0e30']]);
+    const r = rng(501);
+    stars(c, r, 260, 760);
+    glow(c, 360, 260, 420, 'rgba(120,60,220,0.16)');
+    skyTear(c, r, 40, 140, 690, 330, 26);
+    skyTear(c, r, 380, 90, 650, 60, 10);
+    for (let i = 0; i < 16; i++) {
+      meteor(c, 40 + r() * 660, 80 + r() * 560, 60 + r() * 160, 1.0 + r() * 0.35, r() < 0.4 ? '255,170,110' : '200,170,255', 1 + r() * 2.2);
+    }
+    // 遠景峽谷層（越遠越淡）
+    cliff(c, r, 1, 560, H, 250, '#1a1028', 'rgba(190,140,255,0.35)');
+    cliff(c, r, -1, 540, H, 260, '#1a1028', 'rgba(190,140,255,0.35)');
+    glow(c, 360, 1120, 380, 'rgba(170,80,255,0.45)');
+    glow(c, 360, 1180, 200, 'rgba(255,170,120,0.35)');
+    cliff(c, r, 1, 680, H, 170, '#0e0818', 'rgba(220,170,255,0.45)');
+    cliff(c, r, -1, 660, H, 180, '#0e0818', 'rgba(220,170,255,0.45)');
+    // 前景崖頂（視點所在的邊緣）
+    c.fillStyle = '#050309';
+    c.beginPath();
+    c.moveTo(0, 1060);
+    for (let x = 0; x <= W; x += 40) c.lineTo(x, 1040 + Math.sin(x * 0.02) * 20 + (r() - 0.5) * 16 + (x > 260 && x < 460 ? 30 : 0));
+    c.lineTo(W, H); c.lineTo(0, H); c.closePath(); c.fill();
+    // 向上飄散的星燼
+    for (let i = 0; i < 80; i++) {
+      c.fillStyle = r() < 0.5 ? `rgba(210,160,255,${0.3 + r() * 0.5})` : `rgba(255,180,120,${0.3 + r() * 0.5})`;
+      c.fillRect(120 + r() * 480, 600 + r() * 560, 1.8, 1.8);
+    }
+  },
+
+  // 最後的營火：岩棚上的小小火光，頭頂是浩瀚星河，遠處谷底微光
+  rift_camp: (c) => {
+    grad(c, [[0, '#03040e'], [0.4, '#0c1030'], [0.62, '#1a1236'], [0.78, '#120a1e'], [1, '#06040a']]);
+    const r = rng(502);
+    stars(c, r, 520, 900);
+    // 銀河帶（斜貫天空）
+    for (let i = 0; i < 26; i++) {
+      const t = r();
+      const x = -40 + t * 820;
+      const y = 700 - t * 560 + (r() - 0.5) * 120;
+      glow(c, x, y, 60 + r() * 70, r() < 0.3 ? 'rgba(255,190,220,0.08)' : 'rgba(170,170,255,0.09)');
+    }
+    for (let i = 0; i < 360; i++) {
+      const t = r();
+      c.fillStyle = `rgba(240,236,255,${0.2 + r() * 0.6})`;
+      c.fillRect(-40 + t * 820 + (r() - 0.5) * 60, 700 - t * 560 + (r() - 0.5) * 100, 1.3, 1.3);
+    }
+    for (const [x, y] of [[140, 180], [560, 120], [300, 90], [620, 420]] as [number, number][]) {
+      glow(c, x, y, 14, 'rgba(220,220,255,0.6)');
+      c.fillStyle = '#fff'; c.fillRect(x - 1.2, y - 1.2, 2.4, 2.4);
+    }
+    meteor(c, 520, 260, 180, 2.5, '230,210,255', 1.6);
+    meteor(c, 220, 460, 120, 2.3, '255,200,160', 1.2);
+    // 遠處的峽谷與谷底的微光
+    c.fillStyle = '#100a1c';
+    c.beginPath(); c.moveTo(0, 820);
+    for (let x = 0; x <= W; x += 30) c.lineTo(x, 800 + Math.sin(x * 0.015) * 40 + (r() - 0.5) * 20);
+    c.lineTo(W, H); c.lineTo(0, H); c.fill();
+    glow(c, 470, 960, 260, 'rgba(160,80,255,0.35)');
+    glow(c, 470, 980, 110, 'rgba(255,170,130,0.25)');
+    c.fillStyle = '#07050d';
+    c.beginPath(); c.moveTo(0, 900); c.lineTo(250, 920); c.lineTo(380, 1000); c.lineTo(330, H); c.lineTo(0, H); c.fill();
+    c.beginPath(); c.moveTo(W, 880); c.lineTo(600, 910); c.lineTo(540, 1000); c.lineTo(600, H); c.lineTo(W, H); c.fill();
+    // 前景岩棚
+    c.fillStyle = '#05040a';
+    c.beginPath();
+    c.moveTo(0, 1060);
+    c.quadraticCurveTo(200, 1010, 420, 1030);
+    c.quadraticCurveTo(560, 1040, W, 1090);
+    c.lineTo(W, H); c.lineTo(0, H); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(255,170,110,0.45)';
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(80, 1046); c.quadraticCurveTo(220, 1012, 420, 1030); c.stroke();
+    campfire(c, 240, 1040, 1);
+    // 火星飄升
+    for (let i = 0; i < 26; i++) {
+      c.fillStyle = `rgba(255,${160 + Math.floor(r() * 80)},90,${0.3 + r() * 0.6})`;
+      c.fillRect(220 + r() * 50 + (r() - 0.5) * i * 3, 1000 - r() * 260, 1.8, 1.8);
+    }
+  },
+
+  // 裂谷之心：宇宙深淵、浮空岩、日蝕之光
+  rift_core: (c) => {
+    grad(c, [[0, '#020108'], [0.5, '#0a0418'], [1, '#14061e']]);
+    const r = rng(503);
+    stars(c, r, 420, H);
+    // 星雲
+    for (let i = 0; i < 18; i++) {
+      glow(c, r() * W, r() * H, 120 + r() * 200, r() < 0.5 ? 'rgba(120,50,220,0.08)' : 'rgba(255,110,90,0.05)');
+    }
+    // 日蝕：黑盤＋燃燒日冕
+    const ex = 360;
+    const ey = 420;
+    glow(c, ex, ey, 460, 'rgba(150,70,255,0.25)');
+    glow(c, ex, ey, 240, 'rgba(255,160,80,0.35)');
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 90; i++) {
+      const a = (i / 90) * Math.PI * 2;
+      const len = 140 + r() * 140;
+      const g = c.createLinearGradient(ex + Math.cos(a) * 110, ey + Math.sin(a) * 110, ex + Math.cos(a) * len, ey + Math.sin(a) * len);
+      g.addColorStop(0, 'rgba(255,210,150,0.5)');
+      g.addColorStop(1, 'rgba(160,80,255,0)');
+      c.strokeStyle = g;
+      c.lineWidth = 1 + r() * 3;
+      c.beginPath();
+      c.moveTo(ex + Math.cos(a) * 110, ey + Math.sin(a) * 110);
+      c.lineTo(ex + Math.cos(a) * len, ey + Math.sin(a) * len);
+      c.stroke();
+    }
+    const cr = c.createRadialGradient(ex, ey, 104, ex, ey, 160);
+    cr.addColorStop(0, 'rgba(255,250,230,1)');
+    cr.addColorStop(0.15, 'rgba(255,180,100,0.8)');
+    cr.addColorStop(1, 'rgba(150,60,255,0)');
+    c.fillStyle = cr;
+    c.beginPath(); c.arc(ex, ey, 160, 0, Math.PI * 2); c.fill();
+    c.restore();
+    c.fillStyle = '#020104';
+    c.beginPath(); c.arc(ex, ey, 108, 0, Math.PI * 2); c.fill();
+    // 漩渦狀的光帶
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 5; k++) {
+      c.strokeStyle = `rgba(${k % 2 ? '255,160,110' : '170,110,255'},${0.18 - k * 0.025})`;
+      c.lineWidth = 3;
+      c.beginPath();
+      c.ellipse(ex, ey + 40, 220 + k * 70, 50 + k * 22, -0.12, 0, Math.PI * 2);
+      c.stroke();
+    }
+    c.restore();
+    // 浮空岩群
+    for (const [x, y, w, h] of [[90, 760, 140, 90], [620, 700, 120, 80], [180, 360, 70, 44], [600, 260, 60, 40], [470, 920, 90, 60], [70, 1100, 110, 70], [650, 1060, 130, 80], [300, 1000, 60, 40]] as [number, number, number, number][]) {
+      floatRock(c, x, y, w, h, 'rgba(255,190,140,0.55)');
+    }
+    // 中央承台（決戰之地）
+    glow(c, 360, 1110, 260, 'rgba(170,90,255,0.35)');
+    c.fillStyle = '#08050e';
+    c.beginPath();
+    c.ellipse(360, 1110, 250, 46, 0, 0, Math.PI * 2);
+    c.fill();
+    c.beginPath();
+    c.moveTo(110, 1110); c.lineTo(260, 1230); c.lineTo(360, 1280); c.lineTo(460, 1230); c.lineTo(610, 1110); c.fill();
+    c.strokeStyle = 'rgba(220,170,255,0.7)';
+    c.lineWidth = 2;
+    c.beginPath(); c.ellipse(360, 1110, 250, 46, 0, Math.PI, Math.PI * 2); c.stroke();
+    // 漂浮星屑
+    for (let i = 0; i < 90; i++) {
+      c.fillStyle = r() < 0.5 ? `rgba(210,160,255,${0.3 + r() * 0.5})` : `rgba(255,200,140,${0.3 + r() * 0.5})`;
+      c.fillRect(r() * W, 500 + r() * 700, 1.8, 1.8);
+    }
+  },
+};
+
 const DRAW: Record<Exclude<BackdropId, 'ruins'>, (c: CanvasRenderingContext2D) => void> = {
   ...DRAW_CH3,
   ...DRAW_CH4,
+  ...DRAW_CH5,
   town: (c) => {
     grad(c, [[0, '#070912'], [0.45, '#1c1830'], [0.62, '#2a1c24'], [1, '#0a0708']]);
     const r = rng(3);
@@ -2121,6 +2408,12 @@ export function backdropFor(script: string, location: string): BackdropId {
     if (location === 'star_furnace') return 'furnace';
     return 'depths';
   }
+  if (script === 'ch5') {
+    if (location === 'rift_edge') return 'rift';
+    if (location === 'last_campfire') return 'rift_camp';
+    if (location === 'rift_core') return 'rift_core';
+    return 'rift';
+  }
   if (location === 'tavern' || location === 'general_store') return 'tavern';
   if (location === 'orphanage' || location === 'town_gate') return 'town';
   if (location === 'mist_lake') return 'lake';
@@ -2140,5 +2433,7 @@ export function battleBackdropFor(encounter: string): BackdropId | null {
   if (encounter === 'ch4_gate') return 'academy';
   if (encounter === 'ch4_lab_a' || encounter === 'ch4_lab_b') return 'lab';
   if (encounter === 'boss_valderan') return 'furnace';
+  if (encounter === 'ch5_rift') return 'rift';
+  if (encounter === 'boss_starfall') return 'rift_core';
   return null;
 }

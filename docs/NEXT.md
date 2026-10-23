@@ -1,16 +1,14 @@
 # 下一步（依優先順序，最上面先做）
 
-> **設計已定稿（D-013）**。序章 → 第 1 章 → 第 2 章 → 第 3 章都可以從頭玩到尾（機器人驗證，第 4 輪）。進度大幅超前 PLAN（M6 第 3 章原訂 10/31）。
-> 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch3.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`）；敵人/遭遇 `src/data/combatants.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；隊伍面板 `src/game/ui/partyPanel.ts`。
-> 除錯入口：`?debug&chapter=2|3&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?scene=Battle&enc=rourke_1&party=lian,serin,liora&lv=12`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
+> **設計已定稿（D-013）**。序章～終章全部可以玩到結局（三結局；機器人第 4 輪驗證各章）。進度大幅超前 PLAN：接下來是**深度、手感、Boss 機制、打磨**。
+> 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch5.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`）；敵人/遭遇 `src/data/combatants.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；隊伍面板 `src/game/ui/partyPanel.ts`。
+> 除錯入口：`?debug&chapter=2|3|4|5&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?scene=Battle&enc=rourke_1&party=lian,serin,liora&lv=12`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
 
-1. **M7 第 4 章「星核」**（見下方第 2 項細節，現在是最高優先）。
-   - 附註（第 4 輪後段查過）：機器人「永遠出第一張可出的牌」在第 3 章連贏大賽三場，但無頭模擬中同樣的天真出牌對五位對手只有 21–26% 勝率、完美 AI 玩家 41–59% → AI 不算弱，該次多半是運氣（CardScene 每局隨機種子）。若之後機器人多次連勝再查 CardScene 與模擬的差異（例如手牌排序讓「第一張」剛好是強牌）。
-2. **第 4 章細節**（研究院地下，Lv 13–16）：見 `docs/design/10-story-ch2-final.md` §第 4 章。比照第 3 章做法：
-   - 先自己定好契約（地點/旗標/遭遇/燼牌 id），**同一則訊息**派兩個子代理（劇本 `ch4.ts`+測試、美術），自己做資料接線（`combatants.ts`、`maps.ts` ch4 + `currentChapter`、`session.ts` SCRIPTS、DialogueScene `ENCOUNTER_LEVEL_FLOOR`/finish/PORTRAIT、MapScene 背景、BootScene `?chapter=4`）。
-   - 依 3-5 選擇分歧：`exposed_valderan`（正面突破）/ `double_agent`（內應潛入）；`rourke_turned` / `rourke_lost`；`tourney_champion`。
-   - Boss 瓦爾德蘭 3 階段：階段 2「反燈印」（3 回合內用引路之光清掉，否則引爆）需要引擎新機制 + 測試；階段 3「星空舞台」大演出。
-   - 第 4 章結尾 `chapterCard` 'ch5'；MapScene 目標列 `ch4_complete` 文字。
+1. **全程通關驗證 + 存檔相容**（最高優先）：機器人從新遊戲一路跑到 `GOAL=ch5_complete`（預計 15–18 分鐘，timeout 給 30）。第 4 輪只做過「新遊戲→ch3_complete」和各章 `?chapter=N` 單章。注意 ch3→ch4→ch5 銜接時的隊伍（伊歐離隊/回歸、洛克）與等級保底。
+2. **Boss 特殊機制**（「好玩」與「震撼」的關鍵，D-027 刻意延後）：
+   - 瓦爾德蘭階段 2「反燈印」：在我方身上放標記，3 回合內沒用引路之光清掉就引爆（引擎新狀態 + BattleScene 顯示 + 測試）；階段 3「星空舞台」演出（背景翻轉成星空、伊歐歌聲 BGM 變奏）。
+   - 蝕星者：階段 2「吞噬記憶」隨機封印一個技能；階段 3「刪除之眼」（新的可攻擊目標，伊歐 HP 持續下降）；階段 4「全員共鳴」可放 10 盞燈的終極共鳴（最華麗的演出）。可以考慮把蝕星者拆成 2–3 段戰鬥（像洛克 D-026）在中間插劇情。
+   - 片尾：開發統計彩蛋（遊玩時間、完美次數、燈印總數、偏移值）。
 3. **洛克決鬥偏簡單**：模擬新手 100%。考慮 `boss_rourke_1` ATK 42→48、或第 3 段加紅光連段；保持說服是主要解法。
 4. **第 3 章 BGM/演出**：王都探索曲、洛克決鬥曲（程序音樂 `src/audio/music.ts`）；燼牌大賽加觀眾歡呼音效、冠軍演出。
 5. **戰鬥手感**：`fxDamage` 白閃多段攻擊 tint 殘留檢查；敵人 `ART.glow`（美術已提供）在戰鬥中沒畫出來，比照英雄加上。

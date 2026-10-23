@@ -10,10 +10,11 @@ import { generateCombatantArt } from '../art/silhouettes';
 import { TITLE_FONT, UI_FONT, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
 import { HERO_COLOR, openParty } from '../ui/partyPanel';
-import { drawMapCh2, drawMapCh3, drawMapCh4 } from '../art/mapArt';
+import { drawMapCh2, drawMapCh3, drawMapCh4, drawMapCh5 } from '../art/mapArt';
 import { session } from '../session';
 
 type NodeState = 'locked' | 'open' | 'done';
+const ENDING_NAME: Record<string, string> = { light: '燈火長明', crown: '新的大司星', dream: '餘燼之夢' };
 
 export class MapScene extends Phaser.Scene {
   private token!: Phaser.GameObjects.Container;
@@ -91,11 +92,12 @@ export class MapScene extends Phaser.Scene {
   private drawBackground(): void {
     const map = this.map;
     const key = `bg_map_${map.id}`;
-    if ((map.id === 'ch2' || map.id === 'ch3' || map.id === 'ch4') && !this.textures.exists(key)) {
+    if (map.id !== 'ch1' && !this.textures.exists(key)) {
       const tex = this.textures.createCanvas(key, GAME_WIDTH, GAME_HEIGHT);
       if (tex) {
         const c = tex.getContext();
-        if (map.id === 'ch4') drawMapCh4(c, GAME_WIDTH, GAME_HEIGHT);
+        if (map.id === 'ch5') drawMapCh5(c, GAME_WIDTH, GAME_HEIGHT);
+        else if (map.id === 'ch4') drawMapCh4(c, GAME_WIDTH, GAME_HEIGHT);
         else if (map.id === 'ch3') drawMapCh3(c, GAME_WIDTH, GAME_HEIGHT);
         else drawMapCh2(c, GAME_WIDTH, GAME_HEIGHT);
         tex.refresh();
@@ -265,7 +267,7 @@ export class MapScene extends Phaser.Scene {
     const wicks = ['wick_lake', 'wick_hunter', 'wick_shrine'].filter((f) => s.flags[f]).length;
     let goal = next ? `目標：前往「${next.title}」` : '目標：探索';
     if (map.id === 'ch1' && s.flags['ch1_met_bern'] && !s.flags['ch1_legacy']) goal += `　燈芯 ${wicks}/3`;
-    if (map.id === 'ch4' && s.flags['ch4_complete']) goal = '第四章 完成！（終章製作中）';
+    if (map.id === 'ch5' && s.flags['ch5_complete']) goal = `全劇終・結局「${ENDING_NAME[String(s.flags['ending'])] ?? '？'}」`;
     this.add.text(GAME_WIDTH / 2, 140, goal, { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff' }).setOrigin(0.5).setDepth(91);
     const menu = this.add.text(GAME_WIDTH - 28, 70, '☰', { fontFamily: UI_FONT, fontSize: '40px', color: '#aab4dd' })
       .setOrigin(1, 0.5).setDepth(91).setInteractive({ useHandCursor: true });

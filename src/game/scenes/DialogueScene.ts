@@ -38,6 +38,7 @@ const CHAPTER_TITLE: Record<string, [string, string]> = {
   ch3: ['第三章', '星冠'],
   ch4: ['第四章', '星核'],
   ch5: ['終章', '燈火'],
+  fin: ['終幕', '謝謝你的遊玩'],
 };
 
 const BOX_Y = 1030;
@@ -46,6 +47,7 @@ const ENCOUNTER_LEVEL_FLOOR: Record<string, number> = {
   mine_a: 5, mine_b: 6, bell_hall: 7, deep_1: 7, deep_2: 8, deep_3: 8, boss_bellworm: 8,
   sewer_rats: 9, alley_thugs: 10, academy_guard: 11, rourke_1: 12, rourke_2: 12, rourke_3: 12,
   ch4_gate: 13, ch4_lab_a: 14, ch4_lab_b: 14, boss_valderan: 15,
+  ch5_rift: 16, boss_starfall: 17,
 };
 
 export class DialogueScene extends Phaser.Scene {
@@ -741,8 +743,9 @@ export class DialogueScene extends Phaser.Scene {
       const s = session.state;
       if (this.scriptId === 'ch0') s.location = { region: 'ch1', node: 'orphanage' };
       // 章節結束（含第 2 章完結）一律回地圖：地圖目標列會顯示「第二章 完成！」，重訪地點也不會被踢回標題
-      if (this.scriptId === 'ch0' || this.scriptId === 'ch1' || this.scriptId === 'ch2' || this.scriptId === 'ch3' || this.scriptId === 'ch4') {
-        if (this.scriptId === 'ch4' && s.flags['ch4_complete']) session.setScriptPos('map', 'ch4');
+      if (this.scriptId !== 'demo') {
+        if (this.scriptId === 'ch5' && s.flags['ch5_complete']) session.setScriptPos('map', 'ch5');
+        else if (this.scriptId === 'ch4' && s.flags['ch4_complete']) session.setScriptPos('map', 'ch4');
         else if (this.scriptId === 'ch3' && s.flags['ch3_complete']) session.setScriptPos('map', 'ch3');
         else if (this.scriptId === 'ch2' && s.flags['ch2_complete']) session.setScriptPos('map', 'ch2');
         session.save();

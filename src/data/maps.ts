@@ -3,8 +3,9 @@ import { CH1_ENTRIES } from './dialogue/ch1';
 import { CH2_ENTRIES } from './dialogue/ch2';
 import { CH3_ENTRIES } from './dialogue/ch3';
 import { CH4_ENTRIES } from './dialogue/ch4';
+import { CH5_ENTRIES } from './dialogue/ch5';
 
-export type ChapterId = 'ch1' | 'ch2' | 'ch3' | 'ch4';
+export type ChapterId = 'ch1' | 'ch2' | 'ch3' | 'ch4' | 'ch5';
 
 export interface ChapterMap {
   id: ChapterId;
@@ -122,9 +123,20 @@ export const CHAPTER_MAPS: Record<ChapterId, ChapterMap> = {
       { text: '地下', x: 30, y: 450, color: '#c8a0ff' },
     ],
   },
+  ch5: {
+    id: 'ch5',
+    title: '終章　墜星裂谷',
+    entries: CH5_ENTRIES,
+    pos: { rift_edge: [360, 360], last_campfire: [360, 700], rift_core: [360, 1040] },
+    edges: [['rift_edge', 'last_campfire'], ['last_campfire', 'rift_core']],
+    done: { rift_edge: 'ch5_descent', last_campfire: 'ch5_vow', rift_core: 'ch5_complete' },
+    start: 'rift_edge',
+    completeFlag: 'ch5_complete',
+    labels: [{ text: '墜星裂谷', x: 30, y: 210, color: '#ffb0d8' }],
+  },
 };
 
 /** 目前章節：前一章完成後進入下一章地圖。 */
 export function currentChapter(flags: Record<string, unknown>): ChapterId {
-  return flags['ch3_complete'] ? 'ch4' : flags['ch2_complete'] ? 'ch3' : flags['ch1_complete'] ? 'ch2' : 'ch1';
+  return flags['ch4_complete'] ? 'ch5' : flags['ch3_complete'] ? 'ch4' : flags['ch2_complete'] ? 'ch3' : flags['ch1_complete'] ? 'ch2' : 'ch1';
 }

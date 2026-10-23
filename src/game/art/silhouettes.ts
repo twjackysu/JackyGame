@@ -405,6 +405,7 @@ export function generateCombatantArt(scene: Phaser.Scene): void {
 
   generateCh3Combatants(scene);
   generateCh4Combatants(scene);
+  generateCh5Combatants(scene);
 }
 
 /** 對話立繪用（剪影，正面半身）。 */
@@ -2004,3 +2005,217 @@ function generateCh4Portraits(scene: Phaser.Scene): void {
 
 /** 第四章說話者 id → 立繪材質 key。 */
 export const CH4_PORTRAITS: Record<string, string> = { tia: 'npc_tia', contact: 'npc_researcher' };
+
+// ======================================================================
+// 終章「燈火」：墜星裂谷
+// ======================================================================
+function generateCh5Combatants(scene: Phaser.Scene): void {
+  // ---------------- 裂谷墜影：墜星碎片拼成的影獸，裂隙透出紫焰與餘燼 ----------------
+  canvasArt(scene, 'enemy_rift_spawn', 200, 200, (c) => {
+    const V = 0xa060ff;
+    const E = 0xff8a40;
+    const rim = '#e0c4ff';
+    const shard = (y0: number, y1: number): CanvasGradient => vgrad(c, y0, y1, [[0, '#2c1e48'], [0.55, '#120c22'], [1, '#05030a']]);
+    glow(c, 100, 104, 96, 0x6a2cc0, 0.25);
+    glow(c, 100, 190, 60, E, 0.25);
+    // 漂浮的碎片尾（下半身不著地）
+    for (const [x, y, w, h, t] of [[60, 160, 14, 30, -0.4], [88, 176, 12, 22, -0.1], [116, 178, 12, 24, 0.15], [142, 162, 14, 28, 0.45], [100, 194, 8, 10, 0]] as [number, number, number, number, number][]) {
+      c.save(); c.translate(x, y); c.rotate(t);
+      lit(c, sh([[0, -h / 2], [w / 2, 0], [0, h / 2], [-w / 2, 0]]), shard(-h / 2, h / 2), rim, 1.2, 1.2);
+      c.restore();
+      glow(c, x, y + 6, 10, E, 0.3);
+    }
+    // 主軀：嶙峋碎晶聚合
+    lit(c, sh([[50, 150], [34, 116], [40, 80], [64, 58], [100, 46], [138, 56], [164, 82], [168, 118], [150, 152], [100, 166]]), shard(46, 166), rim, 2.5, 2);
+    // 背脊上翹起的星石尖刺
+    for (const [x, y, h, t] of [[56, 70, 40, -0.7], [78, 54, 52, -0.35], [104, 46, 60, 0.02], [130, 52, 50, 0.38], [154, 70, 42, 0.72], [36, 100, 30, -1.1], [168, 102, 30, 1.1]] as [number, number, number, number][]) {
+      c.save(); c.translate(x, y); c.rotate(t);
+      lit(c, sh([[-9, 6], [-3, -h * 0.6], [0, -h], [5, -h * 0.55], [9, 6]]), shard(-h, 6), rim, 1.5, 1.5);
+      c.restore();
+      const tx = x + Math.sin(t) * h;
+      const ty = y - Math.cos(t) * h;
+      sparkle(c, tx, ty, 2.6, V, 0.9);
+    }
+    // 前爪（碎片鉤）
+    lit(c, sh([[48, 130], [22, 150], [10, 178], [26, 170], [36, 182], [44, 160], [62, 146]]), shard(130, 182), rim, 1.5, 1.5);
+    lit(c, sh([[152, 130], [178, 150], [190, 178], [174, 170], [164, 182], [156, 160], [138, 146]]), shard(130, 182), rim, -1.5, 1.5);
+    // 裂隙：紫焰與餘燼
+    seam(c, [[100, 60], [92, 84], [104, 104], [96, 132], [102, 158]], V, 1.6);
+    seam(c, [[64, 80], [78, 100], [66, 124]], E, 1.2);
+    seam(c, [[140, 78], [126, 102], [140, 128]], E, 1.2);
+    seam(c, [[44, 112], [60, 118]], V, 1);
+    seam(c, [[156, 112], [140, 118]], V, 1);
+    // 胸口墜星核
+    glow(c, 100, 112, 34, V, 0.8);
+    starPath(c, 100, 112, 10, 4);
+    c.fillStyle = '#f4e4ff';
+    c.fill();
+    // 頭部（尖顎）＋三眼
+    lit(c, sh([[72, 84], [86, 66], [100, 62], [114, 66], [128, 84], [116, 98], [100, 104], [84, 98]]), shard(62, 104), rim, 1.5, 1.5);
+    glowEye(c, 88, 82, 4.4, E, 0.3);
+    glowEye(c, 112, 82, 4.4, E, -0.3);
+    glowEye(c, 100, 72, 3, V, 0);
+    // 周身飄散的星屑
+    for (const [x, y, rr, col] of [[18, 40, 2.4, V], [182, 34, 2.4, E], [12, 120, 1.8, E], [190, 130, 1.8, V], [100, 12, 2, V], [150, 10, 1.6, E]] as [number, number, number, number][]) {
+      sparkle(c, x, y, rr * 1.6, col, 0.9);
+    }
+  }, { x: 100, y: 112, color: 0xa060ff, scale: 0.9 });
+
+  // ---------------- 蝕星者（終章頭目）：被蝕的星辰，燃燒日冕、龜裂外殼、獨眼 ----------------
+  canvasArt(scene, 'enemy_boss_starfall', 340, 340, (c) => {
+    const V = 0x9a5cff;
+    const E = 0xffa050;
+    const cx = 170;
+    const cy = 160;
+    const R = 92;
+    // 外圍蝕光
+    glow(c, cx, cy, 170, 0x5a20b0, 0.32);
+    glow(c, cx, cy, 130, E, 0.18);
+    // 觸鬚（後層，向下與兩側垂落）
+    const tendril = (pts: P[], w: number): void => {
+      c.save();
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      c.strokeStyle = '#0c0618';
+      c.lineWidth = w;
+      c.beginPath();
+      c.moveTo(pts[0]![0], pts[0]![1]);
+      for (let i = 1; i < pts.length - 1; i++) {
+        const mx = (pts[i]![0] + pts[i + 1]![0]) / 2;
+        const my = (pts[i]![1] + pts[i + 1]![1]) / 2;
+        c.quadraticCurveTo(pts[i]![0], pts[i]![1], mx, my);
+      }
+      const last = pts[pts.length - 1]!;
+      c.lineTo(last[0], last[1]);
+      c.stroke();
+      c.globalCompositeOperation = 'lighter';
+      c.strokeStyle = rgba(V, 0.55);
+      c.lineWidth = w * 0.22;
+      c.stroke();
+      c.restore();
+      sparkle(c, last[0], last[1], 3, V, 0.8);
+    };
+    const T: [P[], number][] = [
+      [[[120, 230], [90, 280], [60, 300], [30, 334]], 14],
+      [[[146, 244], [134, 290], [110, 316], [96, 338]], 12],
+      [[[170, 250], [176, 296], [160, 320], [170, 338]], 13],
+      [[[196, 244], [212, 290], [236, 314], [244, 338]], 12],
+      [[[222, 228], [256, 270], [290, 292], [318, 330]], 14],
+      [[[86, 200], [44, 220], [20, 260], [8, 292]], 11],
+      [[[256, 196], [296, 216], [320, 254], [334, 284]], 11],
+      [[[84, 120], [44, 100], [22, 70], [12, 40]], 9],
+      [[[256, 118], [298, 96], [318, 66], [330, 34]], 9],
+    ];
+    for (const [pts, w] of T) tendril(pts, w);
+    // 燃燒日冕（射線）
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    const r0 = rng5(7);
+    for (let i = 0; i < 48; i++) {
+      const a = (i / 48) * Math.PI * 2 + r0() * 0.05;
+      const len = R + 20 + r0() * 52 + (i % 4 === 0 ? 30 : 0);
+      const g = c.createLinearGradient(cx + Math.cos(a) * R, cy + Math.sin(a) * R, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+      g.addColorStop(0, rgba(i % 3 === 0 ? 0xffe0a0 : E, 0.75));
+      g.addColorStop(1, rgba(V, 0));
+      c.strokeStyle = g;
+      c.lineWidth = 2 + r0() * 4;
+      c.beginPath();
+      c.moveTo(cx + Math.cos(a) * (R - 4), cy + Math.sin(a) * (R - 4));
+      c.lineTo(cx + Math.cos(a + 0.04) * len, cy + Math.sin(a + 0.04) * len);
+      c.stroke();
+    }
+    const cor = c.createRadialGradient(cx, cy, R - 6, cx, cy, R + 34);
+    cor.addColorStop(0, 'rgba(255,240,200,0.95)');
+    cor.addColorStop(0.18, rgba(E, 0.85));
+    cor.addColorStop(0.55, rgba(0xc04060, 0.35));
+    cor.addColorStop(1, rgba(V, 0));
+    c.fillStyle = cor;
+    c.beginPath(); c.arc(cx, cy, R + 34, 0, Math.PI * 2); c.fill();
+    c.restore();
+    // 黑暗球體（蝕殼）
+    const body = c.createRadialGradient(cx - 26, cy - 30, 10, cx, cy, R);
+    body.addColorStop(0, '#2a1c44');
+    body.addColorStop(0.6, '#110a20');
+    body.addColorStop(1, '#040208');
+    c.fillStyle = body;
+    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.fill();
+    // 殼緣亮邊
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    c.strokeStyle = 'rgba(255,220,170,0.9)';
+    c.lineWidth = 2.2;
+    c.beginPath(); c.arc(cx, cy, R - 1, 0, Math.PI * 2); c.stroke();
+    c.strokeStyle = rgba(V, 0.6);
+    c.lineWidth = 5;
+    c.beginPath(); c.arc(cx, cy, R - 5, Math.PI * 0.9, Math.PI * 1.6); c.stroke();
+    c.restore();
+    // 外殼浮起的碎片板
+    for (const [a, d, s] of [[-2.4, R + 10, 14], [-0.7, R + 14, 12], [0.5, R + 8, 10], [2.5, R + 12, 12], [1.6, R + 16, 9]] as [number, number, number][]) {
+      const px = cx + Math.cos(a) * d;
+      const py = cy + Math.sin(a) * d;
+      c.save(); c.translate(px, py); c.rotate(a + Math.PI / 2);
+      lit(c, sh([[-s, 0], [-s * 0.4, -s * 0.6], [s * 0.6, -s * 0.5], [s, 0.2 * s], [0, s * 0.5]]),
+        vgrad(c, -s, s, [[0, '#2a1c40'], [1, '#08050e']]), '#ffd8a8', 1, 1.5);
+      c.restore();
+    }
+    // 龜裂（透出熔燼光）
+    seam(c, [[cx - 80, cy - 40], [cx - 58, cy - 34], [cx - 50, cy - 12], [cx - 30, cy - 4]], E, 1.6);
+    seam(c, [[cx + 70, cy - 56], [cx + 54, cy - 38], [cx + 58, cy - 18], [cx + 38, cy - 4]], E, 1.6);
+    seam(c, [[cx - 60, cy + 66], [cx - 40, cy + 44], [cx - 22, cy + 40]], E, 1.4);
+    seam(c, [[cx + 62, cy + 64], [cx + 44, cy + 46], [cx + 26, cy + 40]], E, 1.4);
+    seam(c, [[cx - 10, cy - 90], [cx - 4, cy - 66], [cx - 14, cy - 50]], V, 1.4);
+    seam(c, [[cx + 12, cy + 90], [cx + 4, cy + 66], [cx + 12, cy + 52]], V, 1.4);
+    seam(c, [[cx - 86, cy + 20], [cx - 64, cy + 18], [cx - 56, cy + 30]], V, 1.2);
+    seam(c, [[cx + 88, cy + 14], [cx + 66, cy + 18], [cx + 58, cy + 30]], V, 1.2);
+    // 巨大獨眼：眼窩 → 虹膜 → 縱瞳
+    c.fillStyle = '#020104';
+    c.beginPath(); c.ellipse(cx, cy + 4, 58, 34, 0, 0, Math.PI * 2); c.fill();
+    glow(c, cx, cy + 4, 80, V, 0.6);
+    c.save();
+    c.beginPath(); c.ellipse(cx, cy + 4, 54, 30, 0, 0, Math.PI * 2); c.clip();
+    const iris = c.createRadialGradient(cx, cy + 4, 4, cx, cy + 4, 34);
+    iris.addColorStop(0, '#fff6e0');
+    iris.addColorStop(0.25, '#ffc070');
+    iris.addColorStop(0.55, rgba(V, 1));
+    iris.addColorStop(1, '#2a0c50');
+    c.fillStyle = iris;
+    c.beginPath(); c.arc(cx, cy + 4, 34, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'lighter';
+    c.strokeStyle = 'rgba(255,220,160,0.4)';
+    c.lineWidth = 1;
+    for (let i = 0; i < 28; i++) {
+      const a = (i / 28) * Math.PI * 2;
+      c.beginPath();
+      c.moveTo(cx + Math.cos(a) * 12, cy + 4 + Math.sin(a) * 12);
+      c.lineTo(cx + Math.cos(a) * 32, cy + 4 + Math.sin(a) * 32);
+      c.stroke();
+    }
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = '#05020a';
+    c.beginPath(); c.ellipse(cx, cy + 4, 6, 24, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.9)';
+    c.beginPath(); c.ellipse(cx - 14, cy - 8, 6, 3.6, -0.4, 0, Math.PI * 2); c.fill();
+    c.restore();
+    // 上下眼瞼的亮緣
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    c.strokeStyle = rgba(0xffd8a0, 0.9);
+    c.lineWidth = 1.8;
+    c.beginPath(); c.ellipse(cx, cy + 4, 58, 34, 0, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
+    c.strokeStyle = rgba(V, 0.8);
+    c.beginPath(); c.ellipse(cx, cy + 4, 58, 34, 0, Math.PI * 0.08, Math.PI * 0.92); c.stroke();
+    c.restore();
+    // 前層觸鬚（從球體下緣捲出）
+    tendril([[134, 236], [118, 266], [128, 290], [110, 312]], 8);
+    tendril([[206, 236], [222, 266], [212, 290], [230, 312]], 8);
+    // 環繞的墜星
+    for (const [x, y, rr, col] of [[40, 150, 3, E], [300, 150, 3, E], [170, 16, 3.4, 0xffe0a0], [70, 40, 2.4, V], [270, 40, 2.4, V], [24, 214, 2, V], [316, 214, 2, V]] as [number, number, number, number][]) {
+      sparkle(c, x, y, rr * 1.6, col, 0.95);
+    }
+  }, { x: 170, y: 164, color: 0x9a5cff, scale: 1.25 });
+}
+
+function rng5(seed: number): () => number {
+  let s = seed;
+  return () => (s = (s * 16807) % 2147483647) / 2147483647;
+}

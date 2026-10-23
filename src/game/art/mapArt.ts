@@ -654,3 +654,143 @@ export function drawMapCh4(c: CanvasRenderingContext2D, W: number, H: number): v
   const nodes: [number, number][] = [[360, 320], [180, 520], [550, 560], [360, 740], [170, 900], [400, 1060]];
   for (const [nx, ny] of nodes) radial(c, X(nx), Y(ny), 70, 'rgba(6,4,12,0.55)');
 }
+
+/** 終章：墜星裂谷 — 撕裂天空下的崖緣 → 岩棚營火 → 發光的深淵核心。 */
+export function drawMapCh5(c: CanvasRenderingContext2D, W: number, H: number): void {
+  const sy = H / 1280;
+  const sx = W / 720;
+  const Y = (y: number): number => y * sy;
+  const X = (x: number): number => x * sx;
+  const r = rng(51);
+
+  const bg = c.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#04030c');
+  bg.addColorStop(0.25, '#140a2a');
+  bg.addColorStop(0.45, '#0a0614');
+  bg.addColorStop(0.7, '#120822');
+  bg.addColorStop(1, '#3a1040');
+  c.fillStyle = bg;
+  c.fillRect(0, 0, W, H);
+  for (let i = 0; i < 140; i++) {
+    c.fillStyle = `rgba(230,230,255,${0.15 + r() * 0.55})`;
+    c.fillRect(r() * W, r() * Y(330), 1.5, 1.5);
+  }
+
+  // 撕裂的天空
+  const tear: [number, number, number][] = [];
+  for (let i = 0; i <= 12; i++) {
+    const t = i / 12;
+    tear.push([X(30 + t * 660), Y(120 + t * 70 + (r() - 0.5) * 16), Y(18 * Math.sin(Math.PI * t) * (0.6 + r() * 0.5))]);
+  }
+  for (const [x, y] of tear) radial(c, x, y, 60, 'rgba(150,80,255,0.18)');
+  c.beginPath();
+  tear.forEach(([x, y, h], i) => (i === 0 ? c.moveTo(x, y - h) : c.lineTo(x, y - h)));
+  for (let i = tear.length - 1; i >= 0; i--) c.lineTo(tear[i]![0], tear[i]![1] + tear[i]![2]);
+  c.closePath();
+  const tg = c.createLinearGradient(0, Y(100), 0, Y(210));
+  tg.addColorStop(0, '#f0d8ff');
+  tg.addColorStop(0.5, '#a050ff');
+  tg.addColorStop(1, '#ff9a60');
+  c.fillStyle = tg;
+  c.fill();
+
+  // 流星
+  const meteor = (x: number, y: number, len: number, col: string): void => {
+    const a = 1.1;
+    const g = c.createLinearGradient(x, y, x - Math.cos(a) * len, y - Math.sin(a) * len);
+    g.addColorStop(0, `rgba(${col},0.95)`);
+    g.addColorStop(1, `rgba(${col},0)`);
+    c.strokeStyle = g;
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(x - Math.cos(a) * len, y - Math.sin(a) * len); c.stroke();
+    radial(c, x, y, 12, `rgba(${col},0.6)`);
+  };
+  for (let i = 0; i < 10; i++) meteor(X(60 + r() * 600), Y(60 + r() * 300), Y(50 + r() * 90), r() < 0.4 ? '255,170,110' : '210,180,255');
+
+  // 峽谷兩壁一路向下收窄
+  const wall = (side: 1 | -1, col: string, edge: string, reach: number): void => {
+    const x0 = side === 1 ? 0 : W;
+    c.fillStyle = col;
+    c.beginPath();
+    c.moveTo(x0, Y(400));
+    const pts: [number, number][] = [];
+    for (let y = 400; y <= 1280; y += 40) {
+      const k = (y - 400) / 880;
+      pts.push([x0 + side * X(reach + Math.sin(y * 0.02 + side) * 26 + k * 60 + (r() - 0.5) * 20), Y(y)]);
+    }
+    for (const [x, y] of pts) c.lineTo(x, y);
+    c.lineTo(x0, H); c.closePath(); c.fill();
+    c.strokeStyle = edge;
+    c.lineWidth = 1.5;
+    c.beginPath();
+    pts.forEach(([x, y], i) => (i === 0 ? c.moveTo(x, y) : c.lineTo(x, y)));
+    c.stroke();
+  };
+  wall(1, '#0c0816', 'rgba(190,130,255,0.35)', 170);
+  wall(-1, '#0c0816', 'rgba(190,130,255,0.35)', 170);
+
+  // 崖緣（y190–420）：兩側崖壁向中央合抱，留出往下的裂口
+  c.fillStyle = '#0c0816';
+  c.beginPath();
+  c.moveTo(0, Y(260));
+  c.lineTo(X(120), Y(300)); c.lineTo(X(220), Y(330)); c.lineTo(X(290), Y(400)); c.lineTo(X(300), Y(420));
+  c.lineTo(X(230), Y(470)); c.lineTo(0, Y(470)); c.closePath(); c.fill();
+  c.beginPath();
+  c.moveTo(X(420), Y(420)); c.lineTo(X(440), Y(390)); c.lineTo(X(520), Y(320)); c.lineTo(X(620), Y(290)); c.lineTo(W, Y(250));
+  c.lineTo(W, Y(470)); c.lineTo(X(490), Y(470)); c.closePath(); c.fill();
+  c.strokeStyle = 'rgba(210,160,255,0.55)';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(0, Y(260)); c.lineTo(X(120), Y(300)); c.lineTo(X(220), Y(330)); c.lineTo(X(290), Y(400));
+  c.moveTo(X(440), Y(390)); c.lineTo(X(520), Y(320)); c.lineTo(X(620), Y(290)); c.lineTo(W, Y(250));
+  c.stroke();
+
+  // 深淵核心（底部）
+  radial(c, X(360), Y(1080), 420, 'rgba(170,80,255,0.5)');
+  radial(c, X(360), Y(1080), 200, 'rgba(255,170,120,0.4)');
+  c.fillStyle = '#040208';
+  c.beginPath(); c.arc(X(360), Y(1080), X(54), 0, Math.PI * 2); c.fill();
+  c.strokeStyle = 'rgba(255,220,170,0.9)';
+  c.lineWidth = 2;
+  c.beginPath(); c.arc(X(360), Y(1080), X(54), 0, Math.PI * 2); c.stroke();
+  for (let k = 0; k < 4; k++) {
+    c.strokeStyle = `rgba(${k % 2 ? '255,170,120' : '180,120,255'},${0.32 - k * 0.06})`;
+    c.lineWidth = 2;
+    c.beginPath(); c.ellipse(X(360), Y(1090), X(110 + k * 50), Y(22 + k * 10), -0.1, 0, Math.PI * 2); c.stroke();
+  }
+  // 浮空岩
+  for (const [x, y, w] of [[230, 980, 40], [500, 950, 34], [270, 1180, 30], [470, 1200, 44], [360, 900, 24]] as [number, number, number][]) {
+    c.fillStyle = '#0a0612';
+    c.beginPath();
+    c.moveTo(X(x - w / 2), Y(y)); c.lineTo(X(x + w / 2), Y(y - 4)); c.lineTo(X(x + 4), Y(y + w * 0.6)); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(255,190,140,0.5)';
+    c.lineWidth = 1;
+    c.beginPath(); c.moveTo(X(x - w / 2), Y(y)); c.lineTo(X(x + w / 2), Y(y - 4)); c.stroke();
+  }
+
+  // 中段岩棚＋小營火（y≈700）
+  c.fillStyle = '#07050c';
+  c.beginPath();
+  c.moveTo(X(170), Y(690));
+  c.quadraticCurveTo(X(300), Y(668), X(470), Y(686));
+  c.lineTo(X(460), Y(720)); c.lineTo(X(380), Y(760)); c.lineTo(X(280), Y(752)); c.lineTo(X(190), Y(720));
+  c.closePath(); c.fill();
+  c.strokeStyle = 'rgba(255,170,110,0.5)';
+  c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(X(170), Y(690)); c.quadraticCurveTo(X(300), Y(668), X(470), Y(686)); c.stroke();
+  radial(c, X(420), Y(676), 110, 'rgba(255,150,70,0.35)');
+  c.fillStyle = 'rgba(255,140,60,0.95)';
+  c.beginPath(); c.moveTo(X(412), Y(682)); c.quadraticCurveTo(X(414), Y(670), X(420), Y(660)); c.quadraticCurveTo(X(426), Y(670), X(428), Y(682)); c.fill();
+  c.fillStyle = 'rgba(255,240,200,1)';
+  c.beginPath(); c.moveTo(X(417), Y(682)); c.quadraticCurveTo(X(418), Y(676), X(420), Y(670)); c.quadraticCurveTo(X(422), Y(676), X(423), Y(682)); c.fill();
+
+  // 星燼往上飄
+  for (let i = 0; i < 90; i++) {
+    c.fillStyle = r() < 0.5 ? `rgba(210,160,255,${0.25 + r() * 0.5})` : `rgba(255,190,130,${0.25 + r() * 0.5})`;
+    c.fillRect(X(160 + r() * 400), Y(420 + r() * 840), 1.6, 1.6);
+  }
+
+  // 節點下方壓暗，保持可讀
+  const nodes: [number, number][] = [[360, 360], [360, 700], [360, 1040]];
+  for (const [nx, ny] of nodes) radial(c, X(nx), Y(ny), 70, 'rgba(6,4,12,0.55)');
+}

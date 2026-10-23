@@ -203,6 +203,25 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'false_lamp', name: '仿燈印・爆', telegraph: 'red', windUpMs: 550, mul: 1.8, weight: 1, phase: 2 },
     ],
   },
+  // ───────── 終章：墜星裂谷 ─────────
+  rift_spawn: {
+    id: 'rift_spawn', name: '裂谷墜影', level: 16, hp: 280, atk: 48, def: 16, spd: 14, breakMax: 40, weak: ['light'], xp: 100,
+    attacks: [
+      { id: 'shard_rain', name: '碎星', telegraph: 'white', windUpMs: 600, mul: 0.5, hits: [0, 250, 500], weight: 2 },
+      { id: 'dive', name: '墜擊', telegraph: 'red', windUpMs: 650, mul: 1.5, weight: 1 },
+    ],
+  },
+  // 蝕星者（終局 Boss）：階段 1 墜星雨（紅光）；階段 2 吞噬（吸星燼、蝕化全體）
+  boss_starfall: {
+    id: 'boss_starfall', name: '蝕星者', level: 18, hp: 1500, atk: 50, def: 20, spd: 11, breakMax: 160, weak: ['light'], resist: ['phys'],
+    actionsPerRound: 2, xp: 0,
+    attacks: [
+      { id: 'meteor', name: '墜星雨', telegraph: 'red', windUpMs: 650, mul: 1.2, weight: 3 },
+      { id: 'gaze', name: '凝視', telegraph: 'white', windUpMs: 700, mul: 0.45, hits: [0, 350, 700], weight: 2 },
+      { id: 'meteor_storm', name: '流星暴', telegraph: 'red', windUpMs: 750, mul: 0.8, aoe: true, weight: 1, phase: 2 },
+      { id: 'devour_memory', name: '吞噬記憶', telegraph: 'purple', windUpMs: 800, mul: 0.6, aoe: true, status: 'umbra', weight: 2, phase: 2, drainEmber: 3 },
+    ],
+  },
 };
 
 export const ENCOUNTERS: Record<string, string[]> = {
@@ -234,4 +253,7 @@ export const ENCOUNTERS: Record<string, string[]> = {
   ch4_lab_a: ['proto_weapon', 'rune_hound'],
   ch4_lab_b: ['star_golem', 'proto_weapon'],
   boss_valderan: ['boss_valderan'],
+  // 終章
+  ch5_rift: ['rift_spawn', 'rift_spawn'],
+  boss_starfall: ['boss_starfall'],
 };
