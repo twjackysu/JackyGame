@@ -69,7 +69,7 @@ export const ch1_inn: DialogueScript = {
 ```
 4. **全域狀態** `GameState`：隊伍、背包、旗標 `Record<string, number|boolean|string>`、聲望、偏移值、筆記、羈絆、位置、遊玩時間。單一來源，變更時發事件。
 5. **存檔**：
-   - `localStorage`（PWA 與 Capacitor WebView 都可用），鍵 `jackygame.save.v1.slot{0..2}` + `autosave`。
+   - `localStorage`（PWA 與 Capacitor WebView 都可用），P0 只有單一自動存檔 `jackygame.save.v1.auto`（+ 寫入前備份 `.bak`）；手動存檔槽為 P1。
    - 自動存檔時機：場景切換、戰鬥結束、對話結束、`visibilitychange → hidden`、`pagehide`。
    - JSON 包含 `version`，讀取時跑 migration。寫入前序列化測試（vitest 驗證 round-trip）。
    - 若 localStorage 不可用（隱私模式），退回記憶體並提示。
