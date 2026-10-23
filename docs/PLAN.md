@@ -14,7 +14,7 @@
 - [x] 技術骨架：Vite + Phaser 3 + TS、標題場景（程式美術）、i18n、SFX 合成器
 - [x] PWA（manifest、SW、圖示）
 - [x] CI（typecheck/test/build）、Android APK → Releases `latest`
-- [ ] GitHub Pages：**等 Jacky 啟用**（見 FOR_JACKY.md）
+- [x] GitHub Pages：已啟用並部署成功（10/24）
 - [x] 01 市場調查　[x] 02 世界觀　[x] 03 核心玩法　[x] 04 內容規劃　[x] 05 美術音效　[x] 06 技術架構
 - [x] 07 UI/UX 線框　[x] 08 序章 + 第 1 章劇本　[x] 09 P0 資料表　[x] 10 第 2 章～終章大綱
 - [x] 第一次獨立審查（子代理）→ 已修正：燼牌 v2 原創化、序章改版、戰鬥規則補遺、隊伍與地圖順序（D-009～D-012）

@@ -23,7 +23,7 @@
 - 狼王模擬新手勝率 94%（目標 70–85%）；鐘喉蠕蟲新手 1–3%、中等 85%（D-021）。實機手感確認後再調。
 - `weakRevealed` 只是顯示用狀態，傷害公式不讀。
 - 第 2 章完成後重訪任何第 2 章地點也會回到標題（DialogueScene `finish()`）；第 3 章做好時改成回地圖。
-- Pages 部署失敗是因為 Pages 未啟用（等 Jacky，見 FOR_JACKY），**不要再花時間修**。CI（含 Playwright 煙霧測試）與 Android APK 都是綠燈。
+- GitHub Pages 已啟用、部署成功（10/24 第 3 輪起）：https://twjackysu.github.io/JackyGame/ 。CI（含 Playwright 煙霧測試）、Pages、Android APK 全綠。
 - 標題「新的旅程」在淡入期間按下的軟鎖：Phaser 的 fadeOut 其實是 force，可能不是真問題；已用 `fadeOutThen()`（`src/game/fx/feel.ts`，逾時保險）統一所有淡出轉場。
 
 ## 工具與注意事項

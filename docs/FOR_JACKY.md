@@ -4,13 +4,6 @@
 
 ## 待處理
 
-### 1. 啟用 GitHub Pages（PWA 網址需要）— 2026-10-23
-- 現況：`deploy-pages.yml` 建置成功，但 `actions/configure-pages` 回報 `Create Pages site failed. Resource not accessible by integration`（工作流程的 token 沒有權限幫 repo 開啟 Pages）。
-- 請到 **Settings → Pages → Build and deployment → Source** 選 **GitHub Actions**。
-- 之後到 Actions → 「Deploy to GitHub Pages」→ **Run workflow** 重跑一次（或等下一次 push 自動部署）。
-- 網址：https://twjackysu.github.io/JackyGame/
-- 在你啟用之前，Android APK（Releases 的 `latest`）照常產出，不受影響。
-
 ### 2. iOS 建置（回國後，需 Mac + Xcode）
 - 見 README「iOS 安裝」。專案在 `ios/`（Capacitor 8，使用 Swift Package Manager，不需要 CocoaPods）。
 
@@ -19,4 +12,5 @@
 - Android 目前是 debug 簽章 APK；上架需要你自己的 release keystore（不能放進 repo）。
 
 ## 已完成
-（無）
+- ~~啟用 GitHub Pages~~：2026-10-24 起「Deploy to GitHub Pages」已成功（PWA：https://twjackysu.github.io/JackyGame/ ）。謝謝！
+
