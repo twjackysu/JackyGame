@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { playMusic } from '../../audio/music';
+import { session } from '../session';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -18,6 +19,8 @@ const UI_FONT =
 export class TitleScene extends Phaser.Scene {
   private sigil?: Phaser.GameObjects.Container;
   private busy = false;
+  private prompt?: Phaser.GameObjects.Text;
+  private menu?: Phaser.GameObjects.Container;
 
   constructor() {
     super('Title');
@@ -155,7 +158,9 @@ export class TitleScene extends Phaser.Scene {
     }
 
     // Pulsing tap prompt.
-    const prompt = this.add
+    this.busy = false;
+    this.menu = undefined;
+    const prompt = (this.prompt = this.add
       .text(cx, 1000, t('title.tapToStart'), {
         fontFamily: UI_FONT,
         fontSize: '44px',
@@ -165,7 +170,7 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setLetterSpacing(12)
       .setShadow(0, 0, '#ffb35a', 16, false, true)
-      .setAlpha(skipIntro ? 1 : 0);
+      .setAlpha(skipIntro ? 1 : 0));
     this.tweens.add({
       targets: prompt,
       alpha: { from: 0.25, to: 1 },
@@ -217,19 +222,63 @@ export class TitleScene extends Phaser.Scene {
     burst.explode(28 + Math.floor(rng() * 12));
     this.time.delayedCall(1000, () => burst.destroy());
 
-    if (this.busy) return;
-    this.busy = true;
+    if (this.busy || this.menu) return;
     const cam = this.cameras.main;
     cam.flash(250, 255, 220, 170);
     cam.shake(250, 0.012);
-    this.time.delayedCall(350, () => {
-      cam.fadeOut(500, 0, 0, 0);
-      cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        // 暫時：直接進入示範連戰（M2 會改成 繼續／新的旅程 選單）
-        this.busy = false;
-        this.scene.start('Battle', { encounter: 'forest_a', chain: ['forest_b', 'shrine_boar', 'boss_wolfking'] });
+    this.showMenu();
+  }
+
+  private showMenu(): void {
+    if (this.prompt) {
+      this.tweens.killTweensOf(this.prompt);
+      this.tweens.add({ targets: this.prompt, alpha: 0, duration: 200 });
+    }
+    const cx = GAME_WIDTH / 2;
+    const items: [string, () => void][] = [];
+    if (session.hasSave()) items.push(['繼續旅程', () => this.go(() => this.continueGame())]);
+    items.push(['新的旅程', () => this.go(() => {
+      session.newGame();
+      this.scene.start('Dialogue', { script: 'ch0' });
+    })]);
+    items.push(['戰鬥演示', () => this.go(() => this.scene.start('Battle', {
+      encounter: 'forest_a', chain: ['forest_b', 'shrine_boar', 'boss_wolfking'],
+    }))]);
+    const menu = (this.menu = this.add.container(0, 0));
+    items.forEach(([label, fn], i) => {
+      const y = 900 + i * 110;
+      const c = this.add.container(cx, y);
+      const g = this.add.graphics();
+      g.fillStyle(0x0a0d1a, 0.85).fillRoundedRect(-200, -42, 400, 84, 20);
+      g.lineStyle(2, 0xffd27a, i === 0 ? 1 : 0.5).strokeRoundedRect(-200, -42, 400, 84, 20);
+      const tx = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: '34px', color: '#ffffff' }).setOrigin(0.5).setLetterSpacing(6);
+      c.add([g, tx]).setSize(400, 84).setInteractive({ useHandCursor: true }).setAlpha(0);
+      this.tweens.add({ targets: c, alpha: 1, y: y - 10, delay: 100 + i * 80, duration: 300, ease: 'Cubic.Out' });
+      c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+        ev.stopPropagation();
+        SFX.confirm();
+        fn();
       });
+      menu.add(c);
     });
+  }
+
+  private continueGame(): void {
+    const s = session.load();
+    const pos = s ? session.scriptPos() : null;
+    if (pos) this.scene.start('Dialogue', { script: pos.script, node: pos.node });
+    else {
+      session.newGame();
+      this.scene.start('Dialogue', { script: 'ch0' });
+    }
+  }
+
+  private go(fn: () => void): void {
+    if (this.busy) return;
+    this.busy = true;
+    const cam = this.cameras.main;
+    cam.fadeOut(500, 0, 0, 0);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, fn);
   }
 
   private drawSky(): void {

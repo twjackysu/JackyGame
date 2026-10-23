@@ -21,6 +21,7 @@ import { GestureTracker, type Gesture } from '../../core/input/gesture';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silhouettes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { session } from '../session';
 import {
   UI_FONT, bigText, floatNumber, hitStop, pressBounce, shockRing, slowMo, sparks, wait,
 } from '../fx/feel';
@@ -31,6 +32,10 @@ export interface BattleSceneData {
   /** 示範連戰：勝利後接下一場 */
   chain?: string[];
   seed?: number;
+  /** 劇情戰：結束後回到 DialogueScene（wake，帶 outcome） */
+  story?: boolean;
+  /** 新手教學戰：星燼全滿、提示較多 */
+  tutorial?: boolean;
 }
 
 type Mode = 'busy' | 'command' | 'panel' | 'timing' | 'defense' | 'end';
@@ -76,8 +81,8 @@ function eventTime(p: Phaser.Input.Pointer): number {
 
 export class BattleScene extends Phaser.Scene {
   private bs!: BattleState;
-  private data0: Required<Pick<BattleSceneData, 'encounter' | 'party' | 'chain'>> & { seed: number } = {
-    encounter: 'forest_a', party: [], chain: [], seed: 1,
+  private data0: Required<Pick<BattleSceneData, 'encounter' | 'party' | 'chain'>> & { seed: number; story: boolean; tutorial: boolean } = {
+    encounter: 'forest_a', party: [], chain: [], seed: 1, story: false, tutorial: false,
   };
   private mode: Mode = 'busy';
   private heroes: UnitView[] = [];
@@ -128,6 +133,8 @@ export class BattleScene extends Phaser.Scene {
       party: data.party ?? partyIds.map((id) => ({ id, level: lv })),
       chain: data.chain ?? [],
       seed: data.seed ?? ((Math.random() * 1e9) | 0),
+      story: !!data.story,
+      tutorial: !!data.tutorial,
     };
     this.mode = 'busy';
     this.heroes = [];
@@ -147,7 +154,9 @@ export class BattleScene extends Phaser.Scene {
     this.makeTextures();
     const enemies = ENCOUNTERS[this.data0.encounter] ?? ['mist_wolf'];
     this.bs = createBattle({
-      party: this.data0.party, enemies, seed: this.data0.seed, items: { potion_s: 2, lamp_oil: 1 }, flags: { guidingLight: true },
+      party: this.data0.party, enemies, seed: this.data0.seed,
+      items: this.data0.story ? { potion_s: session.state.inventory['potion_s'] ?? 0 } : { potion_s: 2, lamp_oil: 1 },
+      flags: this.data0.story ? { tutorialEmber: this.data0.tutorial, guidingLight: !!session.state.flags['guidingLight'] } : { guidingLight: true },
     }).state;
     const boss = enemies.some((id) => id.startsWith('boss_'));
 
@@ -1326,7 +1335,12 @@ export class BattleScene extends Phaser.Scene {
     }
     await wait(this, 600);
     const next = win ? this.data0.chain[0] : this.data0.encounter;
-    const label = win ? (next ? '繼續前進 ▶' : '回到標題') : '再試一次';
+    const story = this.data0.story;
+    if (story && win) {
+      const used = (session.state.inventory['potion_s'] ?? 0) - (this.bs.items.potion_s ?? 0);
+      if (used > 0) session.state.inventory['potion_s'] = Math.max(0, (session.state.inventory['potion_s'] ?? 0) - used);
+    }
+    const label = story ? (win ? '繼續 ▶' : '重新振作') : win ? (next ? '繼續前進 ▶' : '回到標題') : '再試一次';
     const btn = this.add.container(GAME_WIDTH / 2, 800).setDepth(970);
     const bg = this.add.graphics();
     bg.fillStyle(0x0a0d1a, 0.95).fillRoundedRect(-200, -50, 400, 100, 24);
@@ -1340,7 +1354,10 @@ export class BattleScene extends Phaser.Scene {
       pressBounce(this, btn);
       this.cameras.main.fadeOut(350, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        if (win && !next) this.scene.start('Title');
+        if (story) {
+          this.scene.stop();
+          this.scene.wake('Dialogue', { outcome: win ? 'win' : 'lose' });
+        } else if (win && !next) this.scene.start('Title');
         else {
           this.scene.restart({
             encounter: next, party: this.data0.party, chain: win ? this.data0.chain.slice(1) : this.data0.chain,

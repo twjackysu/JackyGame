@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { BattleScene } from './scenes/BattleScene';
+import { DialogueScene } from './scenes/DialogueScene';
 
 /** Portrait 9:16 design resolution. Everything is laid out in these units. */
 export const GAME_WIDTH = 720;
@@ -35,6 +36,6 @@ export function createGameConfig(parent: string | HTMLElement): Phaser.Types.Cor
     input: {
       activePointers: 3,
     },
-    scene: [BootScene, TitleScene, BattleScene],
+    scene: [BootScene, TitleScene, BattleScene, DialogueScene],
   };
 }

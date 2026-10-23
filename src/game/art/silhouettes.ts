@@ -211,5 +211,43 @@ export function generateCombatantArt(scene: Phaser.Scene): void {
   });
 }
 
+/** 對話立繪用（剪影，正面半身）。 */
+export function generatePortraitArt(scene: Phaser.Scene): void {
+  make(scene, 'hero_serin', 150, 230, (g, s) => {
+    const o = { fill: 0x161a2c, rim: 0xc8d4ff };
+    // 劍
+    g.lineStyle(5 * s, 0xc8d4ff, 1);
+    g.lineBetween(128 * s, 40 * s, 128 * s, 200 * s);
+    g.lineStyle(10 * s, 0x2a2e40, 1);
+    g.lineBetween(114 * s, 190 * s, 142 * s, 190 * s);
+    // 身體與鎧甲
+    rimPoly(g, [[52, 92], [98, 92], [116, 124], [120, 230], [30, 230], [34, 124]], o, s);
+    // 馬尾長髮
+    rimPoly(g, [[56, 30], [94, 30], [104, 70], [112, 140], [96, 116], [92, 88], [58, 88], [44, 70]], { fill: 0x2a2440, rim: 0xe8d8ff }, s);
+    // 臉
+    rimPoly(g, [[64, 46], [86, 46], [90, 72], [75, 88], [60, 72]], { fill: 0x1c2036, rim: 0xffffff, rimWidth: 2 }, s);
+    // 胸甲星紋
+    g.fillStyle(0xc8d4ff, 0.9);
+    g.fillTriangle(75 * s, 120 * s, 82 * s, 134 * s, 68 * s, 134 * s);
+  });
+  const knight = (key: string, crest: number, rim: number) =>
+    make(scene, key, 170, 240, (g, s) => {
+      const o = { fill: 0x12141f, rim };
+      rimPoly(g, [[40, 98], [130, 98], [154, 132], [160, 240], [10, 240], [16, 132]], o, s);
+      rimPoly(g, [[14, 100], [56, 90], [60, 128], [10, 136]], { ...o, fill: 0x1e2130 }, s);
+      rimPoly(g, [[114, 90], [156, 100], [160, 136], [110, 128]], { ...o, fill: 0x1e2130 }, s);
+      rimPoly(g, [[85, 22], [112, 36], [116, 92], [54, 92], [58, 36]], { ...o, fill: 0x1a1c28 }, s);
+      // 面罩縫
+      g.fillStyle(0x6a7aa8, 1);
+      g.fillRect(64 * s, 58 * s, 42 * s, 5 * s);
+      // 盔頂羽飾
+      rimPoly(g, [[84, 24], [96, 0], [110, 6], [92, 30]], { fill: crest, rim: 0xffffff, rimWidth: 1.5 }, s);
+      g.fillStyle(rim, 0.9);
+      g.fillTriangle(85 * s, 140 * s, 95 * s, 160 * s, 75 * s, 160 * s);
+    });
+  knight('npc_knight', 0x3a4a7a, 0x9fb0d8);
+  knight('npc_gwen', 0x8a2a2a, 0xffd27a);
+}
+
 export const heroArtKey = (id: string): string => `hero_${id}`;
 export const enemyArtKey = (id: string): string => `enemy_${id}`;
