@@ -244,6 +244,7 @@ export class TitleScene extends Phaser.Scene {
     items.push(['戰鬥演示', () => this.go(() => this.scene.start('Battle', {
       encounter: 'forest_a', chain: ['forest_b', 'shrine_boar', 'boss_wolfking'],
     }))]);
+    items.push(['燼牌演示', () => this.go(() => this.scene.start('Cards', { match: 'demo' }))]);
     const menu = (this.menu = this.add.container(0, 0));
     items.forEach(([label, fn], i) => {
       const y = 900 + i * 110;

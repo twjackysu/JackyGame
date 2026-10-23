@@ -421,7 +421,16 @@ export class DialogueScene extends Phaser.Scene {
       });
       return;
     }
-    // 尚未實作的事件（燼牌、商店…）：先略過
+    if (kind === 'cards') {
+      session.save();
+      this.cameras.main.fadeOut(300, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        this.scene.sleep();
+        this.scene.run('Cards', { match: id, story: true });
+      });
+      return;
+    }
+    // 尚未實作的事件（商店、命名…）：先略過
     this.runner.resume('win');
     this.advance();
   }
