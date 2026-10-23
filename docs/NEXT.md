@@ -4,12 +4,13 @@
 > 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch5.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`）；敵人/遭遇 `src/data/combatants.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；隊伍面板 `src/game/ui/partyPanel.ts`。
 > 除錯入口：`?debug&chapter=2|3|4|5&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?scene=Battle&enc=rourke_1&party=lian,serin,liora&lv=12`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
 
-1. **全程通關驗證 + 存檔相容**（最高優先）：機器人從新遊戲一路跑到 `GOAL=ch5_complete`（預計 15–18 分鐘，timeout 給 30）。第 4 輪只做過「新遊戲→ch3_complete」和各章 `?chapter=N` 單章。注意 ch3→ch4→ch5 銜接時的隊伍（伊歐離隊/回歸、洛克）與等級保底。
+1. **第 1 章：輸給伯恩後獵人小屋「！」一直亮**（全程機器人第 4 輪發現，非軟鎖但會誤導玩家）：燼牌輸了、狼徑還沒清時，地圖應改成提示「先去狼徑」或小屋提供再戰；檢查 `src/data/maps.ts` ch1 `done.hunter_hut = 'wick_hunter'` 與 MapScene 目標列。
+   - 已驗證：新遊戲 → 終章結局全程通關約 17.6 分鐘（`GOAL=ch5_complete`、timeout 26 分）。
 2. **Boss 特殊機制**（「好玩」與「震撼」的關鍵，D-027 刻意延後）：
    - 瓦爾德蘭階段 2「反燈印」：在我方身上放標記，3 回合內沒用引路之光清掉就引爆（引擎新狀態 + BattleScene 顯示 + 測試）；階段 3「星空舞台」演出（背景翻轉成星空、伊歐歌聲 BGM 變奏）。
    - 蝕星者：階段 2「吞噬記憶」隨機封印一個技能；階段 3「刪除之眼」（新的可攻擊目標，伊歐 HP 持續下降）；階段 4「全員共鳴」可放 10 盞燈的終極共鳴（最華麗的演出）。可以考慮把蝕星者拆成 2–3 段戰鬥（像洛克 D-026）在中間插劇情。
    - 片尾：開發統計彩蛋（遊玩時間、完美次數、燈印總數、偏移值）。
-3. **洛克決鬥**：第 4 輪末 ATK 調高（47/49/51），尚未重跑模擬；確認新手勝率仍 ≥ 80%。
+3. **洛克決鬥偏簡單**：ATK 調高（47/49/51）後模擬新手仍 100%（HP 損失 32–50%）。可再加紅光連段或讓三段之間 HP 不回滿（BattleSceneData 傳入 hp）；說服仍是主要解法。
 4. **第 3 章 BGM/演出**：王都探索曲、洛克決鬥曲（程序音樂 `src/audio/music.ts`）；燼牌大賽加觀眾歡呼音效、冠軍演出。
 5. **戰鬥手感**：`fxDamage` 白閃多段攻擊 tint 殘留檢查。（敵人 `ART.glow` 脈動光點第 4 輪已加上）
 6. **燼牌打磨**：拖曳出牌、教學局逐步提示、熄燈獎勵提示、餘燼牌標記；收藏（`s.cards`，如「星冠」）影響出戰牌組（P1）。
