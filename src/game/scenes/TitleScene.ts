@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
+import { playMusic } from '../../audio/music';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -202,6 +203,7 @@ export class TitleScene extends Phaser.Scene {
   private onTap(p: Phaser.Input.Pointer, rng: () => number): void {
     SFX.confirm();
     SFX.hit();
+    playMusic('title');
 
     // Burst of sparks at the tap point.
     const burst = this.add.particles(p.worldX, p.worldY, 'ember', {

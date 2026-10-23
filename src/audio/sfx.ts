@@ -60,6 +60,12 @@ function getNoise(ac: AudioContext): AudioBuffer {
   return noiseBuffer;
 }
 
+/** Shared audio graph for other modules (music). Null until audio is available. */
+export function getAudio(): { ctx: AudioContext; master: GainNode } | null {
+  const ac = getCtx();
+  return ac && master ? { ctx: ac, master } : null;
+}
+
 /** Resume the AudioContext on the first user gesture. Safe to call multiple times. */
 export function installAudioUnlock(target: EventTarget = window): void {
   const events = ['pointerdown', 'touchend', 'keydown'] as const;
