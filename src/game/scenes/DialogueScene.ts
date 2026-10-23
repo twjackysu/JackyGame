@@ -10,7 +10,7 @@ import { generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
 import { backdropFor, backdropKey } from '../art/backdrops';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks } from '../fx/feel';
-import { SCRIPTS, session } from '../session';
+import { RENAMEABLE, SCRIPTS, session, withNames } from '../session';
 import type { BattleSceneData } from './BattleScene';
 
 export interface DialogueSceneData {
@@ -20,6 +20,7 @@ export interface DialogueSceneData {
 
 const PORTRAIT: Record<string, string> = {
   lian: 'hero_lian', serin: 'hero_serin', rourke: 'hero_rourke', io: 'hero_io', girl: 'hero_io', knight: 'npc_knight', guard: 'npc_knight', gwen: 'npc_gwen',
+  mara: 'npc_mara', hanna: 'npc_hanna', toby: 'npc_toby', farrow: 'npc_farrow', bern: 'npc_bern',
 };
 const NAME_COLOR: Record<string, string> = {
   lian: '#ffb565', serin: '#c8d4ff', rourke: '#e0705a', io: '#7fd8ff', liora: '#ff7a5a', gwen: '#ffd27a', knight: '#9fb0d8',
@@ -76,7 +77,7 @@ export class DialogueScene extends Phaser.Scene {
     this.buildBox();
     this.input.on('pointerdown', () => this.onTap());
     this.events.on(Phaser.Scenes.Events.WAKE, (_: unknown, d?: { outcome?: string }) => this.onWake(d?.outcome ?? 'win'));
-    stopMusic(0.6);
+    this.ambientMusic(0.6);
     this.cameras.main.fadeIn(500, 0, 0, 0);
     this.time.delayedCall(300, () => this.advance());
   }
@@ -196,7 +197,8 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   private showLine(speaker: string, text: string): void {
-    const name = SPEAKER_NAMES[speaker] ?? speaker;
+    const name = withNames(SPEAKER_NAMES[speaker] ?? speaker);
+    text = withNames(text);
     this.setPortrait(speaker);
     if (this.box.alpha < 1) this.tweens.add({ targets: this.box, alpha: 1, duration: 200 });
     this.nameBg.clear();
@@ -309,7 +311,7 @@ export class DialogueScene extends Phaser.Scene {
       if (tag) {
         parts.push(this.add.text(-296, -h / 2 + 22, tag, { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: tagColor }).setOrigin(0, 0.5));
       }
-      parts.push(this.add.text(-296, tag ? 12 : 0, o.text, {
+      parts.push(this.add.text(-296, tag ? 12 : 0, withNames(o.text), {
         fontFamily: UI_FONT, fontSize: '27px', color: locked ? '#5a6380' : '#ffffff', wordWrap: { width: 590, useAdvancedWrap: true },
       }).setOrigin(0, 0.5));
       c.add(parts);
@@ -434,17 +436,60 @@ export class DialogueScene extends Phaser.Scene {
       });
       return;
     }
-    if (kind === 'shop' || kind === 'summary') {
-      const p = kind === 'shop' ? this.shop() : this.summary(id);
+    if (kind === 'shop' || kind === 'summary' || kind === 'rename') {
+      const p = kind === 'shop' ? this.shop() : kind === 'rename' ? this.rename(id) : this.summary(id);
       void p.then(() => {
         this.runner.resume('done');
         this.advance();
       });
       return;
     }
-    // 尚未實作的事件（命名…）：先略過
+    // 未知事件：略過
     this.runner.resume('win');
     this.advance();
+  }
+
+  /** 替同伴取名：4 個候選名（手機上避免文字輸入框與鍵盤遮擋） */
+  private rename(id: string): Promise<void> {
+    return new Promise((resolve) => {
+      const r = RENAMEABLE[id];
+      if (!r) {
+        resolve();
+        return;
+      }
+      const s = session.state;
+      const ui = this.add.container(0, 0).setDepth(300);
+      const dim = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.72).setInteractive();
+      const g = this.add.graphics();
+      g.fillStyle(0x0a0d1a, 0.97).fillRoundedRect(60, 360, GAME_WIDTH - 120, 600, 24);
+      g.lineStyle(2, 0x7fd8ff, 0.8).strokeRoundedRect(60, 360, GAME_WIDTH - 120, 600, 24);
+      const title = this.add.text(GAME_WIDTH / 2, 420, '為她取個名字', { fontFamily: TITLE_FONT, fontSize: '38px', color: '#7fd8ff' }).setOrigin(0.5);
+      const sub = this.add.text(GAME_WIDTH / 2, 470, '之後的故事都會這樣稱呼她', { fontFamily: UI_FONT, fontSize: '22px', color: '#8a94b8' }).setOrigin(0.5);
+      ui.add([dim, g, title, sub]);
+      r.options.forEach((nm, i) => {
+        const y = 560 + i * 100;
+        const row = this.add.container(GAME_WIDTH / 2, y);
+        const rb = this.add.graphics();
+        rb.fillStyle(0x14203a, 1).fillRoundedRect(-240, -40, 480, 80, 16).lineStyle(2, 0x7fd8ff, 0.7).strokeRoundedRect(-240, -40, 480, 80, 16);
+        const t = this.add.text(0, 0, nm, { fontFamily: TITLE_FONT, fontSize: '36px', color: '#ffffff' }).setOrigin(0.5);
+        row.add([rb, t]).setSize(480, 80).setInteractive({ useHandCursor: true });
+        row.setAlpha(0);
+        this.tweens.add({ targets: row, alpha: 1, delay: 80 * i, duration: 220 });
+        row.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+          ev.stopPropagation();
+          s.flags[r.flag] = nm;
+          SFX.levelUp();
+          pressBounce(this, row);
+          this.cameras.main.flash(200, 127, 216, 255);
+          this.time.delayedCall(220, () => {
+            session.save();
+            ui.destroy();
+            resolve();
+          });
+        });
+        ui.add(row);
+      });
+    });
   }
 
   /** 雜貨店（簡易版）：用金幣買戰鬥道具 */
@@ -546,10 +591,16 @@ export class DialogueScene extends Phaser.Scene {
 
   private onWake(outcome: string): void {
     this.cameras.main.fadeIn(400, 0, 0, 0);
-    stopMusic(0.5);
+    this.ambientMusic(0.5);
     this.runner.resume(outcome);
     session.save();
     this.time.delayedCall(300, () => this.advance());
+  }
+
+  /** 序章保持寂靜（冷開場），其餘章節播放探索曲 */
+  private ambientMusic(fade: number): void {
+    if (this.scriptId === 'ch0') stopMusic(fade);
+    else playMusic('explore', fade);
   }
 
   private async chapterCard(id: string): Promise<void> {
@@ -557,7 +608,7 @@ export class DialogueScene extends Phaser.Scene {
     this.tweens.add({ targets: this.box, alpha: 0, duration: 200 });
     const dim = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 1).setDepth(400).setAlpha(0);
     this.tweens.add({ targets: dim, alpha: 0.92, duration: 500 });
-    playMusic('title');
+    playMusic('explore');
     await new Promise((r) => this.time.delayedCall(500, r));
     SFX.resonance();
     const t1 = this.add.text(GAME_WIDTH / 2, 560, a, { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5).setDepth(401).setAlpha(0);

@@ -21,7 +21,7 @@ import { GestureTracker, type Gesture } from '../../core/input/gesture';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silhouettes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { session } from '../session';
+import { session, withNames } from '../session';
 import { grantXp } from '../../core/state/gameState';
 import {
   UI_FONT, bigText, floatNumber, hitStop, pressBounce, setBaseSpeed, shockRing, slowMo, sparks, wait,
@@ -161,8 +161,12 @@ export class BattleScene extends Phaser.Scene {
     this.bs = createBattle({
       party: this.data0.party, enemies, seed: this.data0.seed,
       items: this.data0.story ? { potion_s: session.state.inventory['potion_s'] ?? 0, lamp_oil: session.state.inventory['lamp_oil'] ?? 0 } : { potion_s: 2, lamp_oil: 1 },
-      flags: this.data0.story ? { tutorialEmber: this.data0.tutorial, guidingLight: !!session.state.flags['guidingLight'] } : { guidingLight: true },
+      flags: this.data0.story ? {
+        tutorialEmber: this.data0.tutorial, guidingLight: !!session.state.flags['guidingLight'],
+        ambushed: this.data0.encounter === 'caravan' && !!session.state.flags['caravan_ambushed'],
+      } : { guidingLight: true },
     }).state;
+    for (const h of this.bs.heroes) h.name = withNames(h.name);
     const boss = enemies.some((id) => id.startsWith('boss_'));
 
     this.drawBackground(boss);
@@ -183,7 +187,7 @@ export class BattleScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onPointer('move', p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onPointer('up', p));
 
-    playMusic('battle');
+    playMusic(boss ? 'boss' : 'battle');
     this.cameras.main.fadeIn(350, 0, 0, 0);
     void this.intro(boss);
   }
@@ -205,6 +209,12 @@ export class BattleScene extends Phaser.Scene {
       await wait(this, 900);
     } else {
       await wait(this, 650);
+    }
+    if (this.bs.flags.ambushed) {
+      this.cameras.main.shake(350, 0.008);
+      SFX.hitHeavy();
+      bigText(this, GAME_WIDTH / 2, 600, '伏擊！先手被奪', '#ff7a6a', 52, 900);
+      await wait(this, 900);
     }
     this.step();
   }

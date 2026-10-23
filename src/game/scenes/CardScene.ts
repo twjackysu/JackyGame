@@ -99,7 +99,7 @@ export class CardScene extends Phaser.Scene {
     this.drawTable();
     this.layer = this.add.container(0, 0);
     stopMusic(0.4);
-    this.time.delayedCall(500, () => playMusic('title'));
+    this.time.delayedCall(500, () => playMusic('cards'));
     this.cameras.main.fadeIn(400, 0, 0, 0);
     this.render();
     this.banner(this.opp.intro, 2200);

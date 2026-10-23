@@ -88,7 +88,8 @@ export interface BattleState {
   rngState: number;
   lampAtk: number;
   items: Partial<Record<ItemId, number>>;
-  flags: { tutorialEmber?: boolean; guidingLight?: boolean };
+  /** ambushed：被伏擊，第 1 輪我方不行動 */
+  flags: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean };
   usedOnce: string[];
   /** 霧：判定窗口倍率 & 剩餘回合 */
   windowScale: number;
@@ -138,7 +139,7 @@ export interface CreateBattleOptions {
   party: { id: HeroId; level: number; hp?: number }[];
   enemies: string[];
   seed: number;
-  flags?: { tutorialEmber?: boolean; guidingLight?: boolean };
+  flags?: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean };
   items?: Partial<Record<ItemId, number>>;
 }
 
@@ -292,7 +293,8 @@ function startRound(s: BattleState, ev: BattleEvent[]) {
     }
   });
   entries.sort((a, b) => b.spd - a.spd || a.order - b.order);
-  s.queue = entries.map((e) => e.ref);
+  const ambush = s.round === 1 && !!s.flags.ambushed;
+  s.queue = entries.filter((e) => !(ambush && e.ref.side === 'hero')).map((e) => e.ref);
   void ev;
 }
 

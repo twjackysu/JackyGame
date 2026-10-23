@@ -84,7 +84,7 @@ export class MapScene extends Phaser.Scene {
     this.tweens.add({ targets: glow, alpha: 0.6, duration: 170, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [3] });
 
     this.drawHud(states);
-    playMusic('title');
+    playMusic('explore');
     this.cameras.main.fadeIn(400, 0, 0, 0);
     this.input.on('pointerdown', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       if (over.length === 0) this.closeBubble();

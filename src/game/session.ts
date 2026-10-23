@@ -61,3 +61,19 @@ if (typeof document !== 'undefined') {
     if (document.visibilityState === 'hidden') session.save();
   });
 }
+
+/** 玩家可替同伴改名（目前只有伊歐）：預設名 → 存在 flags 的鍵 */
+export const RENAMEABLE: Record<string, { def: string; flag: string; options: string[] }> = {
+  io: { def: '伊歐', flag: 'name_io', options: ['伊歐', '露希', '霜鈴', '小星'] },
+};
+
+/** 把文字中的預設名替換成玩家取的名字 */
+export function withNames(text: string): string {
+  if (!current) return text;
+  let out = text;
+  for (const r of Object.values(RENAMEABLE)) {
+    const v = current.flags[r.flag];
+    if (typeof v === 'string' && v && v !== r.def) out = out.split(r.def).join(v);
+  }
+  return out;
+}

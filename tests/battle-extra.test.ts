@@ -364,3 +364,13 @@ describe('taunt', () => {
     expect(targets.size).toBeGreaterThan(1);
   });
 });
+
+describe('伏擊（caravan_ambushed）', () => {
+  it('第 1 輪我方不行動，第 2 輪恢復', () => {
+    const s = createBattle({ party: [{ id: 'lian', level: 4 }], enemies: ['mist_wolf'], seed: 3, flags: { ambushed: true } }).state;
+    expect(s.actor?.side).toBe('enemy');
+    expect(s.queue.every((r) => r.side === 'enemy')).toBe(true);
+    const n = createBattle({ party: [{ id: 'lian', level: 4 }], enemies: ['mist_wolf'], seed: 3 }).state;
+    expect([n.actor, ...n.queue].some((r) => r?.side === 'hero')).toBe(true);
+  });
+});

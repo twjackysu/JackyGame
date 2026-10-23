@@ -11,9 +11,24 @@ export interface Track {
   arpWave: OscillatorType;
   arpOctave: number;
   padVolume: number;
-  bassPattern: number[]; // 16 步，1 = 彈根音
-  drums?: { kick: number[]; hat: number[] }; // 16 步
+  bassPattern: number[]; // 16 步，1 = 彈根音；2 = 彈高八度根音（八度跳躍低音）
+  drums?: { kick: number[]; hat: number[]; snare?: number[] }; // 16 步
   volume: number;
+  // ---- 以下為選用欄位（省略時沿用原本行為，舊曲目不受影響） ----
+  /** 琶音音量（預設 0.09） */
+  arpVolume?: number;
+  /** 琶音長度（以 16 分音符為單位，預設 1.8；越短越有撥弦感） */
+  arpLen?: number;
+  /** 琶音低通截止頻率（預設 3200） */
+  arpLp?: number;
+  /** pad 波形（預設 sawtooth） */
+  padWave?: OscillatorType;
+  /** 低音波形（預設 triangle；sawtooth 會自動加低通，聽起來較厚重） */
+  bassWave?: OscillatorType;
+  /** 低音音量（預設 0.22） */
+  bassVolume?: number;
+  /** 低音長度（以 16 分音符為單位，預設 1.6） */
+  bassLen?: number;
 }
 
 const midiHz = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);
@@ -57,6 +72,88 @@ export const TRACKS: Record<string, Track> = {
     },
     volume: 0.45,
   },
+  // 頭目戰（狼王）：E 小調 150 BPM、弗里幾亞 bII 張力（i – VI – bII – V7），
+  // 鋸齒低音 + 八度跳躍、四拍大鼓 + 反拍小鼓 + 16 分踩鈸，緊迫推進。
+  boss: {
+    id: 'boss',
+    bpm: 150,
+    chords: [
+      { root: 40, tones: [0, 3, 7, 12] }, // Em
+      { root: 36, tones: [0, 4, 7, 12] }, // C
+      { root: 41, tones: [0, 4, 7, 12] }, // F（bII，弗里幾亞色彩）
+      { root: 35, tones: [0, 4, 7, 10] }, // B7（屬和弦，回到 Em 的拉力）
+    ],
+    arp: [0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 2, 3, 2, 1],
+    arpWave: 'sawtooth',
+    arpOctave: 24,
+    arpVolume: 0.06,
+    arpLen: 1.1,
+    arpLp: 2400,
+    padVolume: 0.035,
+    padWave: 'square',
+    bassPattern: [1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 2],
+    bassWave: 'sawtooth',
+    bassVolume: 0.2,
+    bassLen: 0.9,
+    drums: {
+      kick: [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+      hat: [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+    },
+    volume: 0.42,
+  },
+  // 探索（城鎮／森林地圖、對話）：F 大調 80 BPM、溫暖抒情（I – vi – IV – V），
+  // 正弦琶音稀疏柔和、三角波 pad、無打擊。
+  explore: {
+    id: 'explore',
+    bpm: 80,
+    chords: [
+      { root: 53, tones: [0, 4, 7, 11] }, // Fmaj7
+      { root: 50, tones: [0, 3, 7, 10] }, // Dm7
+      { root: 46, tones: [0, 4, 7, 14] }, // Bbadd9
+      { root: 48, tones: [0, 5, 7, 10] }, // C7sus4
+    ],
+    arp: [0, -1, 2, -1, 1, -1, 3, -1, 2, -1, 1, -1, 0, -1, -1, -1],
+    arpWave: 'sine',
+    arpOctave: 12,
+    arpVolume: 0.08,
+    arpLen: 3.2,
+    arpLp: 2200,
+    padVolume: 0.05,
+    padWave: 'triangle',
+    bassPattern: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    bassLen: 6,
+    bassVolume: 0.18,
+    volume: 0.45,
+  },
+  // 卡牌小遊戲：C 大調 112 BPM、俏皮撥弦（I – vi – ii – V），
+  // 短促三角波琶音、跳躍低音、輕巧的大鼓與踩鈸。
+  cards: {
+    id: 'cards',
+    bpm: 112,
+    chords: [
+      { root: 48, tones: [0, 4, 7, 12] }, // C
+      { root: 45, tones: [0, 3, 7, 12] }, // Am
+      { root: 50, tones: [0, 3, 7, 10] }, // Dm7
+      { root: 43, tones: [0, 4, 7, 10] }, // G7
+    ],
+    arp: [0, 2, 3, -1, 1, 2, -1, 3, 2, -1, 1, 3, -1, 2, 0, -1],
+    arpWave: 'triangle',
+    arpOctave: 24,
+    arpVolume: 0.1,
+    arpLen: 0.7,
+    arpLp: 4200,
+    padVolume: 0.025,
+    padWave: 'triangle',
+    bassPattern: [1, 0, 0, 2, 0, 0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 0],
+    bassLen: 1.0,
+    bassVolume: 0.18,
+    drums: {
+      kick: [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      hat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0],
+    },
+    volume: 0.4,
+  },
 };
 
 let current: { track: Track; timer: number; out: GainNode; step: number; nextTime: number } | null = null;
@@ -83,11 +180,24 @@ function note(ac: AudioContext, out: AudioNode, wave: OscillatorType, hz: number
   o.stop(t + dur + 0.05);
 }
 
+// 噪音緩衝依長度快取，避免每拍重新產生（頭目曲 16 分踩鈸時可省下大量配置）
+const noiseCache = new Map<string, AudioBuffer>();
+
+function noiseBuffer(ac: AudioContext, dur: number): AudioBuffer {
+  const key = `${ac.sampleRate}:${dur}`;
+  let buf = noiseCache.get(key);
+  if (!buf) {
+    const len = Math.floor(ac.sampleRate * dur);
+    buf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    noiseCache.set(key, buf);
+  }
+  return buf;
+}
+
 function noiseHit(ac: AudioContext, out: AudioNode, t: number, dur: number, vol: number, hp: number): void {
-  const len = Math.floor(ac.sampleRate * dur);
-  const buf = ac.createBuffer(1, len, ac.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const buf = noiseBuffer(ac, dur);
   const src = ac.createBufferSource();
   src.buffer = buf;
   const f = ac.createBiquadFilter();
@@ -106,16 +216,23 @@ function scheduleStep(ac: AudioContext, tr: Track, out: GainNode, step: number, 
   const chord = tr.chords[bar]!;
   // pad：每小節開頭
   if (i === 0) {
-    for (const tone of chord.tones) note(ac, out, 'sawtooth', midiHz(chord.root + 12 + tone), t, s16 * 16, tr.padVolume, 900);
+    const padWave = tr.padWave ?? 'sawtooth';
+    for (const tone of chord.tones) note(ac, out, padWave, midiHz(chord.root + 12 + tone), t, s16 * 16, tr.padVolume, 900);
   }
   const a = tr.arp[i] ?? -1;
   if (a >= 0) {
     const tone = chord.tones[a % chord.tones.length] ?? 0;
-    note(ac, out, tr.arpWave, midiHz(chord.root + tr.arpOctave + tone), t, s16 * 1.8, 0.09, 3200);
+    note(ac, out, tr.arpWave, midiHz(chord.root + tr.arpOctave + tone), t, s16 * (tr.arpLen ?? 1.8), tr.arpVolume ?? 0.09, tr.arpLp ?? 3200);
   }
-  if (tr.bassPattern[i]) note(ac, out, 'triangle', midiHz(chord.root - 12), t, s16 * 1.6, 0.22);
+  const b = tr.bassPattern[i] ?? 0;
+  if (b) {
+    const bassWave = tr.bassWave ?? 'triangle';
+    const hz = midiHz(chord.root - 12 + (b === 2 ? 12 : 0));
+    note(ac, out, bassWave, hz, t, s16 * (tr.bassLen ?? 1.6), tr.bassVolume ?? 0.22, bassWave === 'triangle' || bassWave === 'sine' ? 0 : 700);
+  }
   if (tr.drums) {
     if (tr.drums.kick[i]) note(ac, out, 'sine', 70, t, 0.18, 0.5);
+    if (tr.drums.snare?.[i]) noiseHit(ac, out, t, 0.12, 0.16, 1500);
     if (tr.drums.hat[i]) noiseHit(ac, out, t, 0.04, 0.12, 7000);
   }
 }

@@ -259,6 +259,142 @@ export function generatePortraitArt(scene: Phaser.Scene): void {
     });
   knight('npc_knight', 0x3a4a7a, 0x9fb0d8);
   knight('npc_gwen', 0x8a2a2a, 0xffd27a);
+
+  // ---------------- 城鎮居民（通用立繪） ----------------
+  // 瑪拉：中年旅店老闆娘。頭頂髮髻 + 圍裙（胸兜 + 下擺），暖色燈光邊緣。
+  make(scene, 'npc_mara', 160, 235, (g, s) => {
+    const o = { fill: 0x1a1420, rim: LAMP_RIM };
+    // 髮髻
+    rimPoly(g, [[68, 10], [92, 10], [100, 24], [92, 38], [68, 38], [60, 24]], { fill: 0x2a1e26, rim: LAMP_RIM }, s);
+    // 盤起的頭髮
+    rimPoly(g, [[52, 40], [108, 40], [116, 76], [106, 102], [54, 102], [44, 76]], { fill: 0x2a1e26, rim: LAMP_RIM }, s);
+    // 身體（圓潤肩線）
+    rimPoly(g, [[50, 104], [110, 104], [132, 128], [142, 235], [18, 235], [28, 128]], o, s);
+    // 圍裙：胸兜 + 下擺
+    const apron = { fill: 0x2e2630, rim: 0xffd9a0, rimWidth: 2 };
+    rimPoly(g, [[62, 112], [98, 112], [104, 150], [56, 150]], apron, s);
+    rimPoly(g, [[46, 150], [114, 150], [122, 235], [38, 235]], apron, s);
+    // 圍裙腰帶
+    g.fillStyle(LAMP_RIM, 0.85);
+    g.fillRect(32 * s, 148 * s, 96 * s, 4 * s);
+    // 臉
+    rimPoly(g, [[64, 52], [96, 52], [100, 80], [80, 100], [60, 80]], { fill: 0x241c2a, rim: 0xffffff, rimWidth: 2 }, s);
+  });
+
+  // 漢娜：年長的孤兒院院長。略微駝背（頭較低）、大披肩、右手拄著拐杖，柔和米色邊緣。
+  make(scene, 'npc_hanna', 160, 235, (g, s) => {
+    const rim = 0xe8dcc8;
+    const o = { fill: 0x18161f, rim };
+    // 身體（窄肩、下垂）
+    rimPoly(g, [[52, 120], [108, 120], [124, 148], [130, 235], [30, 235], [36, 148]], o, s);
+    // 灰白短髮（淺色本體表現白髮）
+    rimPoly(g, [[56, 54], [104, 54], [112, 84], [104, 104], [56, 104], [48, 84]], { fill: 0x7e7888, rim: 0xffffff, offset: 1.5 }, s);
+    // 臉
+    rimPoly(g, [[64, 64], [96, 64], [98, 90], [80, 110], [62, 90]], { fill: 0x221e2a, rim: 0xffffff, rimWidth: 2 }, s);
+    // 披肩：寬三角垂墜
+    rimPoly(g, [[34, 112], [126, 112], [140, 152], [80, 200], [20, 152]], { fill: 0x2a2232, rim, rimWidth: 2.5 }, s);
+    // 披肩流蘇
+    g.fillStyle(rim, 0.7);
+    for (let i = 0; i < 6; i++) {
+      const x = 46 + i * 13;
+      const edgeY = 200 - Math.abs(x - 80) * 0.8; // 沿披肩下緣
+      g.fillRect(x * s, edgeY * s, 2 * s, 8 * s);
+    }
+    // 拐杖（右側）：杖身 + 彎把
+    g.lineStyle(5 * s, 0x2a2238, 1);
+    g.lineBetween(138 * s, 156 * s, 138 * s, 235 * s);
+    g.lineBetween(138 * s, 156 * s, 126 * s, 150 * s);
+    g.lineStyle(1.5 * s, rim, 0.9);
+    g.lineBetween(136 * s, 156 * s, 136 * s, 235 * s);
+    g.lineBetween(136 * s, 154 * s, 125 * s, 148 * s);
+    // 握杖的手
+    rimPoly(g, [[124, 146], [134, 146], [136, 158], [124, 158]], { fill: 0x221e2a, rim, rimWidth: 1.5, offset: 1 }, s);
+  });
+
+  // 托比：小男孩。身形矮小（頭頂約在 1/4 處）、亂翹的頭髮從歪戴的帽子下冒出、吊帶褲。
+  make(scene, 'npc_toby', 150, 230, (g, s) => {
+    const rim = 0xbfe6a0;
+    const o = { fill: 0x141a1c, rim };
+    // 身體（窄小）
+    rimPoly(g, [[52, 148], [98, 148], [114, 170], [118, 230], [32, 230], [36, 170]], o, s);
+    // 吊帶
+    g.lineStyle(3 * s, rim, 0.8);
+    g.lineBetween(58 * s, 152 * s, 62 * s, 230 * s);
+    g.lineBetween(92 * s, 152 * s, 88 * s, 230 * s);
+    // 亂翹的頭髮（兩側與後方的尖角）
+    rimPoly(g, [
+      [40, 92], [34, 80], [48, 84], [50, 72], [100, 72], [104, 84], [118, 80], [110, 96], [116, 108], [104, 112],
+      [106, 126], [94, 132], [56, 132], [44, 124], [46, 112], [32, 108],
+    ], { fill: 0x2a2018, rim }, s);
+    // 臉
+    rimPoly(g, [[58, 94], [92, 94], [96, 118], [75, 136], [56, 118]], { fill: 0x1e2426, rim: 0xffffff, rimWidth: 2 }, s);
+    // 帽子：帽頂 + 往左歪的帽簷
+    const cap = { fill: 0x24302a, rim, rimWidth: 2.5 };
+    rimPoly(g, [[52, 88], [56, 66], [76, 56], [96, 64], [102, 88]], cap, s);
+    rimPoly(g, [[24, 90], [102, 86], [102, 95], [30, 98]], cap, s);
+    // 額前翹起的一撮
+    rimPoly(g, [[66, 96], [72, 104], [78, 96], [84, 106], [88, 96]], { fill: 0x2a2018, rim, rimWidth: 1.5, offset: 1 }, s);
+  });
+
+  // 法羅：商隊領隊。寬簷帽、長外套、斜背包帶 + 腰側皮包，金棕色邊緣。
+  make(scene, 'npc_farrow', 170, 240, (g, s) => {
+    const rim = 0xd8c08a;
+    const o = { fill: 0x16141c, rim };
+    // 外套
+    rimPoly(g, [[50, 108], [120, 108], [146, 138], [152, 240], [18, 240], [24, 138]], o, s);
+    // 翻領（V 字）
+    g.fillStyle(rim, 0.55);
+    g.fillTriangle(62 * s, 112 * s, 85 * s, 160 * s, 74 * s, 112 * s);
+    g.fillTriangle(108 * s, 112 * s, 85 * s, 160 * s, 96 * s, 112 * s);
+    // 斜背包帶（左肩 → 右腰）
+    g.lineStyle(8 * s, 0x2a2018, 1);
+    g.lineBetween(42 * s, 118 * s, 132 * s, 200 * s);
+    g.lineStyle(2 * s, rim, 0.9);
+    g.lineBetween(40 * s, 114 * s, 130 * s, 196 * s);
+    // 腰側皮包
+    rimPoly(g, [[112, 190], [150, 186], [154, 226], [114, 230]], { fill: 0x2a2018, rim, rimWidth: 2 }, s);
+    g.fillStyle(rim, 0.9);
+    g.fillRect(128 * s, 196 * s, 8 * s, 6 * s);
+    // 臉
+    rimPoly(g, [[68, 62], [102, 62], [106, 90], [85, 108], [64, 90]], { fill: 0x201c26, rim: 0xffffff, rimWidth: 2 }, s);
+    // 寬簷帽：帽冠 + 寬帽簷 + 帽帶
+    const hat = { fill: 0x1e1a22, rim, rimWidth: 3 };
+    rimPoly(g, [[56, 58], [62, 24], [85, 16], [108, 24], [114, 58]], hat, s);
+    rimPoly(g, [[6, 62], [40, 52], [130, 52], [164, 62], [150, 72], [20, 72]], hat, s);
+    g.fillStyle(rim, 0.8);
+    g.fillRect(60 * s, 46 * s, 52 * s, 4 * s);
+  });
+
+  // 伯恩：魁梧的老鐵匠／長老。極寬肩、濃密灰白大鬍子、皮革工作圍裙、肩後扛著鍛鎚，爐火色邊緣。
+  make(scene, 'npc_bern', 170, 240, (g, s) => {
+    const rim = 0xff9a5a;
+    const o = { fill: 0x15111a, rim };
+    // 鍛鎚（從右肩後方露出）
+    g.lineStyle(6 * s, 0x2a2026, 1);
+    g.lineBetween(140 * s, 140 * s, 156 * s, 30 * s);
+    g.lineStyle(2 * s, rim, 0.8);
+    g.lineBetween(137 * s, 140 * s, 153 * s, 30 * s);
+    rimPoly(g, [[138, 14], [168, 20], [164, 44], [134, 38]], { fill: 0x2e2a34, rim: 0xffd2a8, rimWidth: 2 }, s);
+    // 身體（非常寬的肩膀）
+    rimPoly(g, [[34, 100], [136, 100], [164, 124], [170, 240], [0, 240], [6, 124]], o, s);
+    // 肩部肌肉隆起
+    rimPoly(g, [[6, 124], [26, 102], [56, 100], [52, 140], [10, 150]], { ...o, fill: 0x1d1720 }, s);
+    rimPoly(g, [[114, 100], [144, 102], [164, 124], [160, 150], [118, 140]], { ...o, fill: 0x1d1720 }, s);
+    // 皮革工作圍裙
+    rimPoly(g, [[50, 146], [120, 146], [128, 240], [42, 240]], { fill: 0x2a1c18, rim, rimWidth: 2 }, s);
+    // 頭（短髮／微禿的方頭）
+    rimPoly(g, [[60, 30], [110, 30], [118, 70], [110, 92], [60, 92], [52, 70]], { fill: 0x201a24, rim: 0xffffff, rimWidth: 2 }, s);
+    // 濃眉
+    g.fillStyle(0x8a8088, 1);
+    g.fillRect(64 * s, 58 * s, 16 * s, 5 * s);
+    g.fillRect(90 * s, 58 * s, 16 * s, 5 * s);
+    // 灰白大鬍子
+    rimPoly(g, [[54, 74], [116, 74], [122, 104], [106, 140], [85, 154], [64, 140], [48, 104]], {
+      fill: 0x6e6670, rim: 0xffffff, rimWidth: 1.5, offset: 1.5,
+    }, s);
+    g.fillStyle(0x4e4852, 1);
+    g.fillPoints(poly([[85, 96], [92, 146], [78, 146]], s), true);
+  });
 }
 
 export const heroArtKey = (id: string): string => `hero_${id}`;
