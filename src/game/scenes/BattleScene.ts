@@ -169,7 +169,14 @@ export class BattleScene extends Phaser.Scene {
         ambushed: this.data0.encounter === 'caravan' && !!session.state.flags['caravan_ambushed'],
       } : { guidingLight: true },
     }).state;
-    for (const h of this.bs.heroes) h.name = withNames(h.name);
+    for (const h of this.bs.heroes) {
+      h.name = withNames(h.name);
+      // 第 2 章：瑟琳獨自衝鋒時受的傷（serin_scar）→ 最大 HP −10%
+      if (this.data0.story && h.id === 'serin' && session.state.flags['serin_scar']) {
+        h.maxHp = Math.round(h.maxHp * 0.9);
+        h.hp = Math.min(h.hp, h.maxHp);
+      }
+    }
     const boss = enemies.some((id) => id.startsWith('boss_'));
 
     this.drawBackground(boss);
@@ -999,7 +1006,7 @@ export class BattleScene extends Phaser.Scene {
     this.edge.setTint(color);
     this.tweens.add({ targets: this.edge, alpha: tel.telegraph === 'white' ? 0.35 : 0.55, duration: 250 });
     const atkName = ENEMIES[this.bs.enemies[tel.enemy]?.id ?? '']?.attacks.find((a) => a.id === tel.attack)?.name ?? '';
-    this.hint.setText(`${atkName}　${TELE_HINT[tel.telegraph]}`).setColor(Phaser.Display.Color.IntegerToColor(color).rgba).setY(990).setAlpha(0);
+    this.hint.setText(`${atkName}　${getSettings().autoTiming ? '自動防守' : TELE_HINT[tel.telegraph]}`).setColor(Phaser.Display.Color.IntegerToColor(color).rgba).setY(990).setAlpha(0);
     this.tweens.add({ targets: this.hint, alpha: 1, duration: 150 });
     const gestureIcon = this.gestureIcon(tel.telegraph, color);
     this.tweens.add({ targets: this.buttonBar, alpha: 0.06, duration: 200 });

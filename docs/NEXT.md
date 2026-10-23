@@ -4,13 +4,12 @@
 > 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0.ts, ch1.ts, ch2.ts`；章節地圖資料 `src/data/maps.ts`；設定 `src/game/settings.ts` + `src/game/ui/settingsPanel.ts`。
 > 除錯入口：`?scene=Battle&enc=boss_bellworm&party=lian,serin,liora&lv=8`、`?scene=Dialogue&script=ch2&node=bell_hall`、`?scene=Map`、`?scene=Cards&match=liora_intro`，加 `&debug` 掛出 `window.__game`。
 
-1. **第 2 章通關驗證**（最高優先）：擴充 `scripts/playthrough.mjs`，讓它在 `ch1_complete` 後繼續玩第 2 章直到 `ch2_complete`（地圖會自動切到 ch2）。要跑 4 人隊伍（莉歐拉加入後 party 有 4 人，戰鬥只帶前 3 人）。修所有卡關點。
+1. **第 2 章通關驗證**（最高優先；第 3 輪機器人在新地圖程式下仍通關第 1 章，但停在 `ch1_complete` 旗標當下，尚未看到「第 1 章結尾 → 第 2 章地圖」轉場）：擴充 `scripts/playthrough.mjs`，讓它在 `ch1_complete` 後繼續玩第 2 章直到 `ch2_complete`（地圖會自動切到 ch2）。要跑 4 人隊伍（莉歐拉加入後 party 有 4 人，戰鬥只帶前 3 人）。修所有卡關點。
    - 機器人：`npx vite build --outDir /tmp/claude-0/bot/dist --emptyOutDir`、`python3 -m http.server 4180 -d /tmp/claude-0/bot/dist &`、`(WORKAROUNDS=0 node scripts/playthrough.mjs http://localhost:4180/?debug /tmp/claude-0/bot > log 2>&1 &)`，約 4 分鐘。機器人會關掉 render 加速（`RENDER=1` 可開）。
    - 可以加一個 `?debug&save=ch1done` 類的除錯入口直接從第 2 章開始，省時間。
 2. **第 2 章系統缺口**（10 §新系統，挑最有感的）：
-   - `blast_bottle`（爆燈瓶）道具效果：`src/core/battle/skills.ts` ITEMS 沒有 → 加「全體火屬性傷害」並在 BattleScene 道具面板顯示；戰鬥 items 傳入要加上它（BattleScene `createBattle` 的 items）。
+   - ~~`blast_bottle` 爆燈瓶道具~~（第 3 輪完成）。
    - 鐘喉蠕蟲階段 3「吞噬星燼」：EnemyDef 不支援 → 引擎加 `drainEmber` 攻擊效果 + 測試。
-   - `serin_scar`：瑟琳最大 HP −10%。
    - 隊伍替換（地圖 ☰ 旁加「隊伍」頁，選 3 人上場）。
    - 連攜技（P1，時間不夠就砍，見 PLAN 範圍保護）。
 3. **戰鬥手感**：`fxDamage` 白閃在多段攻擊時會不會殘留 tint；自動時機開啟時防守提示文字改為「自動防守」。

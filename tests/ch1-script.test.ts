@@ -114,6 +114,19 @@ describe('ch1 script', () => {
     expect(s.flags.ch1_complete).toBe(true);
   });
 
+  it('losing to Bern at cards, then clearing the wolf path still yields the wick (no soft-lock)', () => {
+    const s = newGame(0);
+    const pick: Picker = (node) => (node === 'hunter_ask' ? 1 : 0);
+    const visit = (node: string, outcome: 'win' | 'loseFirst' = 'win') => runEntry(s, node, pick, () => 0, outcome);
+    for (const n of ['orphanage', 'tavern', 'town_gate', 'forest_edge', 'mist_lake']) visit(n);
+    visit('hunter_hut', 'loseFirst');
+    expect(s.flags.wick_hunter).toBeUndefined();
+    expect(s.flags.bern_wait).toBeUndefined();
+    visit('wolf_path');
+    visit('hunter_hut', 'loseFirst'); // 仍會輸牌的玩家也拿得到
+    expect(s.flags.wick_hunter).toBe(true);
+  });
+
   it('hunter fallback route: clear wolf path, then Bern hands over the wick', () => {
     const s = newGame(0);
     const pick: Picker = (node) => (node === 'hunter_ask' ? 2 : 0);

@@ -347,7 +347,8 @@ export const CH1: DialogueScript = {
     // ───────── 1-7 獵人小屋（燈芯 2） ─────────
     hunter_hut: [
       { goto: 'hunter_done', if: { flag: 'wick_hunter' } },
-      { goto: 'hunter_return', if: { all: [{ flag: 'bern_wait' }, { flag: 'ch1_path_cleared' }] } },
+      // 狼徑已清（不論是否先答應過伯恩）→ 伯恩讓步，避免燼牌一直輸而卡關
+      { goto: 'hunter_return', if: { flag: 'ch1_path_cleared' } },
       { goto: 'hunter_waiting', if: { flag: 'bern_wait' } },
       { goto: 'hunter_ask', if: { flag: 'ch1_met_bern' } },
       { say: 'bern', text: '燈芯？那是我亡妻留下的。不能給。' },
