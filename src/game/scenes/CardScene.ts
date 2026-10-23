@@ -9,7 +9,7 @@ import {
 import { chooseAction, chooseTutorialAction } from '../../core/cards/ai';
 import { mulberry32 } from '../../core/rng';
 import {
-  DECK_BERN, DECK_LIORA, DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL, DECK_ROURKE_OFFICIAL_NO_LEGEND, DECK_ROURKE_TUTORIAL,
+  DECK_BERN, DECK_LIORA, DECK_PLAYER_CH3, DECK_TOURNEY_DEALER, DECK_TOURNEY_KNIGHT, DECK_TOURNEY_MINER, DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL, DECK_ROURKE_OFFICIAL_NO_LEGEND, DECK_ROURKE_TUTORIAL,
   DECK_TUTORIAL_PLAYER, type Keyword,
 } from '../../data/cards';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -45,6 +45,19 @@ const OPPONENTS: Record<string, Opponent> = {
   liora_intro: {
     name: '莉歐拉', ai: 0.2, intro: '爆破師莉歐拉：月相會改變戰局——滿月點亮中央、弦月照奇數燈座、血月讓對峙更兇。',
     config: { decks: [DECK_PLAYER_STARTER, DECK_LIORA] },
+  },
+  // 第 3 章：燼牌大賽三連戰
+  tourney_knight: {
+    name: '貝洛', ai: 0.15, intro: '大賽第一戰：騎士團代表。守望牌讓相鄰友牌不怕灼照。',
+    config: { decks: [DECK_PLAYER_CH3, DECK_TOURNEY_KNIGHT] },
+  },
+  tourney_miner: {
+    name: '葛蘭妲', ai: 0.25, intro: '大賽第二戰：礦工公會代表。小心孤燈——左右無牌時 +3。',
+    config: { decks: [DECK_PLAYER_CH3, DECK_TOURNEY_MINER] },
+  },
+  tourney_dealer: {
+    name: '薩伊', ai: 0.08, intro: '決賽：燼牌會莊家。他會吹熄你的牌，留一張強牌到最後一夜。',
+    config: { decks: [DECK_PLAYER_CH3, DECK_TOURNEY_DEALER] },
   },
   demo: { name: '洛克', ai: 0.15, intro: '燼牌：三夜兩勝。', config: { decks: [DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL_NO_LEGEND] } },
 };

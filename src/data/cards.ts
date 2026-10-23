@@ -88,6 +88,8 @@ export const CARD_LIST: readonly CardDef[] = [
   s('n_moonturn', '轉月', 'moonturn'),
   u('n_io', '霧中歌姬', 'neutral', 8, [], { legend: true, effect: 'io_draw' }),
   u('n_lian', '被逐的掌燈人', 'neutral', 6, [], { legend: true, effect: 'lian_rally' }),
+  // 第 3 章：燼牌大賽冠軍獎
+  u('n_starcrown', '星冠', 'neutral', 9, ['light'], { legend: true }),
 ];
 
 export const CARDS: Readonly<Record<string, CardDef>> = Object.fromEntries(CARD_LIST.map((c) => [c.id, c]));
@@ -190,4 +192,44 @@ export const DECK_LIORA: readonly string[] = [
   't_blacksmith',
   'n_oil',
   ...rep('n_moonturn', 2),
+];
+
+// ───────── 第 3 章：燼牌大賽 ─────────
+/** 玩家大賽牌組：起始牌組 + 兩張夥伴傳說（被逐的掌燈人、霧中歌姬）。 */
+export const DECK_PLAYER_CH3: readonly string[] = [...DECK_PLAYER_STARTER, 'n_lian', 'n_io'];
+
+/** 騎士團代表 貝洛（19）：守望＋高點數，穩紮穩打。 */
+export const DECK_TOURNEY_KNIGHT: readonly string[] = [
+  ...rep('t_bellringer', 3),
+  ...rep('t_archer', 3),
+  ...rep('t_blacksmith', 2),
+  ...rep('n_wanderer', 3),
+  ...rep('t_militia', 3),
+  't_watchman',
+  'c_bouncer',
+  'n_oil',
+  'n_gust',
+  'n_moonturn',
+];
+
+/** 礦工公會代表 葛蘭妲（19）：孤燈＋連燈，賭位置。 */
+export const DECK_TOURNEY_MINER: readonly string[] = [
+  ...rep('t_hunter', 2),
+  ...rep('n_lone_star', 3),
+  ...rep('c_smuggler', 2),
+  ...rep('t_militia', 3),
+  't_blacksmith',
+  ...rep('t_child', 3),
+  't_lamplighter',
+  'c_fire_eater',
+  'n_mage',
+  'n_oil',
+  'n_moonturn',
+];
+
+/** 燼牌會莊家 薩伊（20）：燼牌會全套 + 吹熄、夜風，壓軸。 */
+export const DECK_TOURNEY_DEALER: readonly string[] = [
+  ...DECK_ROURKE_OFFICIAL.filter((id) => id !== 't_militia'),
+  'c_cardsharp',
+  'c_fire_eater',
 ];

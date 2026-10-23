@@ -20,7 +20,7 @@ export class BootScene extends Phaser.Scene {
     // 除錯入口（06 §7）：?scene=Battle&enc=boss_wolfking
     const q = new URLSearchParams(window.location.search);
     // ?chapter=2：直接以「第 1 章已完成」的新存檔開始（測試第 2 章用）
-    if (q.get('chapter') === '2') {
+    if (q.get('chapter') === '2' || q.get('chapter') === '3') {
       const s = session.newGame();
       for (const f of Object.values(CHAPTER_MAPS.ch1.done)) s.flags[f] = true;
       Object.assign(s.flags, { wick_lake: true, wick_hunter: true, wick_shrine: true, io_named: true });
@@ -29,6 +29,15 @@ export class BootScene extends Phaser.Scene {
       for (const id of (q.get('join') ?? '').split(',').filter(Boolean)) applyEffects(s, [{ join: id as 'serin' }]);
       for (const m of Object.values(s.members)) if (m) m.level = Math.max(m.level, 5);
       s.location = { region: 'ch2', node: 'greylamp_plaza' };
+      // ?chapter=3：再加上「第 2 章已完成」（瑟琳、莉歐拉在隊，Lv9）
+      if (q.get('chapter') === '3') {
+        for (const f of Object.values(CHAPTER_MAPS.ch2.done)) s.flags[f] = true;
+        Object.assign(s.flags, { serin_stayed: true, serin_told_future: true, bond_serin_1: true, bond_liora_1: true });
+        applyEffects(s, [{ join: 'serin' }, { join: 'liora' }]);
+        for (const m of Object.values(s.members)) if (m) m.level = Math.max(m.level, 9);
+        s.gold += 120;
+        s.location = { region: 'ch3', node: 'capital_gate' };
+      }
       session.save();
     }
     if (q.get('scene') === 'Battle') this.scene.start('Battle');

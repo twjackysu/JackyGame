@@ -6,7 +6,7 @@ import { DialogueRunner, type DialogueStep, type ShownOption } from '../../core/
 import type { HeroId } from '../../core/battle/skills';
 import { SPEAKER_NAMES } from '../../data/dialogue/speakers';
 import { CHAPTER_MAPS, type ChapterId } from '../../data/maps';
-import { generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
+import { CH3_PORTRAITS, generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
 import { backdropFor, backdropKey } from '../art/backdrops';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
@@ -23,10 +23,11 @@ const PORTRAIT: Record<string, string> = {
   lian: 'portrait_lian', serin: 'portrait_serin', rourke: 'portrait_rourke', io: 'portrait_io', girl: 'portrait_io', knight: 'npc_knight', guard: 'npc_knight', gwen: 'npc_gwen',
   mara: 'npc_mara', hanna: 'npc_hanna', toby: 'npc_toby', farrow: 'npc_farrow', bern: 'npc_bern',
   liora: 'portrait_liora', dorn: 'npc_dorn', miner: 'npc_miner',
+  ...CH3_PORTRAITS,
 };
 const NAME_COLOR: Record<string, string> = {
   lian: '#ffb565', serin: '#c8d4ff', rourke: '#e0705a', io: '#7fd8ff', liora: '#ff7a5a', gwen: '#ffd27a', knight: '#9fb0d8',
-  dorn: '#d8a878', miner: '#b8a088',
+  dorn: '#d8a878', miner: '#b8a088', valderan: '#c8a8ff',
 };
 const STAT_NAME: Record<string, string> = { str: '力', agi: '敏', int: '智', cha: '魅' };
 const CHAPTER_TITLE: Record<string, [string, string]> = {
@@ -40,6 +41,7 @@ const BOX_Y = 1030;
 const ENCOUNTER_LEVEL_FLOOR: Record<string, number> = {
   ch0_tutorial: 3, forest_a: 3, forest_b: 3, path_a: 3, path_b: 3, caravan: 3, shrine_boar: 4, boss_wolfking: 4,
   mine_a: 5, mine_b: 6, bell_hall: 7, deep_1: 7, deep_2: 8, deep_3: 8, boss_bellworm: 8,
+  sewer_rats: 9, alley_thugs: 10, academy_guard: 11, rourke_1: 12, rourke_2: 12, rourke_3: 12,
 };
 
 export class DialogueScene extends Phaser.Scene {
@@ -446,6 +448,13 @@ export class DialogueScene extends Phaser.Scene {
       });
       return;
     }
+    if (kind === 'codexBurn') {
+      void this.codexBurn(id).then(() => {
+        this.runner.resume('done');
+        this.advance();
+      });
+      return;
+    }
     if (kind === 'shop' || kind === 'summary' || kind === 'rename') {
       const p = kind === 'shop' ? this.shop() : kind === 'rename' ? this.rename(id) : this.summary(id);
       void p.then(() => {
@@ -457,6 +466,95 @@ export class DialogueScene extends Phaser.Scene {
     // 未知事件：略過
     this.runner.resume('win');
     this.advance();
+  }
+
+  /** 知識失準：攻略筆記的一頁在眼前燃燒（第一次「原作知識」不再正確的大演出） */
+  private codexBurn(id: string): Promise<void> {
+    const PAGES: Record<string, { title: string; lines: string[]; truth: string }> = {
+      rourke_betrayal: {
+        title: '攻略筆記　第三章「星冠」',
+        lines: ['・洛克在旅店深夜背叛隊伍', '・他交給研究院的是', '　　「傳承之燈」', '・燈可以在第四章奪回'],
+        truth: '他交出去的，是伊歐。',
+      },
+    };
+    const page = PAGES[id] ?? { title: '攻略筆記', lines: ['……'], truth: '筆記錯了。' };
+    return new Promise((resolve) => {
+      const cx = GAME_WIDTH / 2;
+      const cy = 560;
+      const W = 520;
+      const H = 640;
+      const ui = this.add.container(0, 0).setDepth(320);
+      const dim = this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0).setInteractive();
+      ui.add(dim);
+      this.tweens.add({ targets: dim, fillAlpha: 0.82, duration: 500 });
+      const sheet = this.add.container(cx, cy + 40).setAlpha(0).setAngle(-3);
+      const pg = this.add.graphics();
+      pg.fillStyle(0xe8dcc0, 1).fillRoundedRect(-W / 2, -H / 2, W, H, 10);
+      pg.lineStyle(2, 0x8a7350, 1).strokeRoundedRect(-W / 2 + 14, -H / 2 + 14, W - 28, H - 28, 6);
+      pg.lineStyle(1, 0xc8b898, 1);
+      for (let y = -H / 2 + 120; y < H / 2 - 30; y += 48) pg.lineBetween(-W / 2 + 40, y, W / 2 - 40, y);
+      const title = this.add.text(0, -H / 2 + 64, page.title, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#3a2a18' }).setOrigin(0.5);
+      const body = this.add.text(-W / 2 + 48, -H / 2 + 118, page.lines.join('\n'), {
+        fontFamily: UI_FONT, fontSize: '30px', color: '#2a1e10', lineSpacing: 18,
+      });
+      sheet.add([pg, title, body]);
+      ui.add(sheet);
+      // 燃燒遮罩：從頁面底部往上推進的焦黑與火線
+      const burn = this.add.graphics();
+      sheet.add(burn);
+      const warn = this.add.text(cx, cy - H / 2 - 10, '⚠ 已偏移', { fontFamily: TITLE_FONT, fontSize: '54px', fontStyle: '900', color: '#ff5a3a', stroke: '#1a0505', strokeThickness: 8 })
+        .setOrigin(0.5).setAlpha(0).setDepth(330);
+      const truth = this.add.text(cx, cy + 40, page.truth, { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffe2c0', stroke: '#000', strokeThickness: 6, align: 'center' })
+        .setOrigin(0.5).setAlpha(0).setDepth(330);
+      ui.add([warn, truth]);
+      SFX.uiTap();
+      this.tweens.add({ targets: sheet, alpha: 1, y: cy, angle: -1.5, duration: 600, ease: 'Cubic.Out' });
+      const prog = { t: 0 };
+      this.time.delayedCall(1400, () => {
+        // 警告：頁面抖動、紅閃
+        SFX.hitHeavy();
+        this.cameras.main.shake(300, 0.01);
+        this.cameras.main.flash(200, 255, 60, 30);
+        this.tweens.add({ targets: warn, alpha: 1, scale: { from: 1.6, to: 1 }, duration: 260, ease: 'Back.Out' });
+        const emit = this.add.particles(0, 0, 'ember', {
+          x: { min: cx - W / 2, max: cx + W / 2 }, y: { min: cy + H / 2 - 20, max: cy + H / 2 },
+          lifespan: { min: 600, max: 1400 }, speedY: { min: -220, max: -80 }, speedX: { min: -40, max: 40 },
+          scale: { start: 0.8, end: 0 }, alpha: { start: 1, end: 0 }, frequency: 12, blendMode: 'ADD',
+        }).setDepth(325);
+        ui.add(emit);
+        this.tweens.add({
+          targets: prog, t: 1, duration: 2200, ease: 'Sine.easeIn',
+          onUpdate: () => {
+            const edge = H / 2 - prog.t * (H + 40);
+            burn.clear();
+            burn.fillStyle(0x0a0604, 1).fillRect(-W / 2 - 4, edge + 18, W + 8, H / 2 - edge + 4);
+            burn.fillStyle(0x3a1a08, 1).fillRect(-W / 2 - 4, edge + 6, W + 8, 14);
+            burn.fillStyle(0xff7a2a, 1).fillRect(-W / 2 - 4, edge, W + 8, 7);
+            burn.fillStyle(0xffe0a0, 1).fillRect(-W / 2 - 4, edge + 2, W + 8, 2);
+            emit.setPosition(0, (edge + H / 2) * 1 - H);
+          },
+          onComplete: () => {
+            emit.stop();
+            sparks(this, cx, cy, 60, 'ember', 0xff8a3d, 900);
+            this.tweens.add({ targets: sheet, alpha: 0, scale: 0.9, duration: 400 });
+            this.tweens.add({ targets: warn, alpha: 0, duration: 400 });
+            this.time.delayedCall(350, () => {
+              SFX.perfect();
+              this.tweens.add({ targets: truth, alpha: 1, duration: 700 });
+            });
+            this.time.delayedCall(2600, () => {
+              this.tweens.add({
+                targets: ui.list, alpha: 0, duration: 500,
+                onComplete: () => {
+                  ui.destroy();
+                  resolve();
+                },
+              });
+            });
+          },
+        });
+      });
+    });
   }
 
   /** 替同伴取名：4 個候選名（手機上避免文字輸入框與鍵盤遮擋） */
@@ -639,8 +737,9 @@ export class DialogueScene extends Phaser.Scene {
       const s = session.state;
       if (this.scriptId === 'ch0') s.location = { region: 'ch1', node: 'orphanage' };
       // 章節結束（含第 2 章完結）一律回地圖：地圖目標列會顯示「第二章 完成！」，重訪地點也不會被踢回標題
-      if (this.scriptId === 'ch0' || this.scriptId === 'ch1' || this.scriptId === 'ch2') {
-        if (this.scriptId === 'ch2' && s.flags['ch2_complete']) session.setScriptPos('map', 'ch2');
+      if (this.scriptId === 'ch0' || this.scriptId === 'ch1' || this.scriptId === 'ch2' || this.scriptId === 'ch3') {
+        if (this.scriptId === 'ch3' && s.flags['ch3_complete']) session.setScriptPos('map', 'ch3');
+        else if (this.scriptId === 'ch2' && s.flags['ch2_complete']) session.setScriptPos('map', 'ch2');
         session.save();
         this.scene.start('Map');
       } else {

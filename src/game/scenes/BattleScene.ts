@@ -23,7 +23,7 @@ import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silho
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { session, withNames } from '../session';
 import { getSettings } from '../settings';
-import { backdropKey, type BackdropId } from '../art/backdrops';
+import { backdropKey, battleBackdropFor } from '../art/backdrops';
 import { grantXp } from '../../core/state/gameState';
 import {
   UI_FONT, bigText, floatNumber, hitStop, pressBounce, setBaseSpeed, shockRing, slowMo, sparks, wait, fadeOutThen } from '../fx/feel';
@@ -270,9 +270,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private drawBackground(boss: boolean): void {
-    // 第 2 章（礦坑）遭遇：沿用對話背景（礦坑／鐘廳／深層）
-    const enc = this.data0.encounter;
-    const mine: BackdropId | null = enc === 'boss_bellworm' || enc.startsWith('deep_') ? 'deep' : enc === 'bell_hall' ? 'bellhall' : enc.startsWith('mine_') ? 'mine' : null;
+    // 第 2 章起的遭遇：沿用對話背景（礦坑／鐘廳／深層／王都各處）
+    const mine = battleBackdropFor(this.data0.encounter);
     if (mine) {
       this.add.image(0, 0, backdropKey(this, mine)).setOrigin(0, 0).setDepth(-10);
       const shade = this.add.graphics().setDepth(-9);

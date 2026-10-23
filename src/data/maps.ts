@@ -1,8 +1,9 @@
 // 節點地圖資料（07 §2）：每章的地點座標、路徑、完成旗標與標籤。MapScene 依目前章節選用。
 import { CH1_ENTRIES } from './dialogue/ch1';
 import { CH2_ENTRIES } from './dialogue/ch2';
+import { CH3_ENTRIES } from './dialogue/ch3';
 
-export type ChapterId = 'ch1' | 'ch2';
+export type ChapterId = 'ch1' | 'ch2' | 'ch3';
 
 export interface ChapterMap {
   id: ChapterId;
@@ -72,9 +73,34 @@ export const CHAPTER_MAPS: Record<ChapterId, ChapterMap> = {
       { text: '沉鐘礦坑', x: 30, y: 400, color: '#d8a878' },
     ],
   },
+  ch3: {
+    id: 'ch3',
+    title: '第三章　王都星冠城',
+    entries: CH3_ENTRIES,
+    pos: {
+      capital_gate: [360, 300], crown_plaza: [360, 470], rourke_lodging: [150, 600], tourney_hall: [570, 600],
+      night_market: [160, 780], academy: [560, 820], inn_night: [300, 930], rooftop: [470, 1040], crown_plaza_dawn: [200, 1060],
+    },
+    edges: [
+      ['capital_gate', 'crown_plaza'], ['crown_plaza', 'rourke_lodging'], ['crown_plaza', 'tourney_hall'],
+      ['rourke_lodging', 'night_market'], ['tourney_hall', 'academy'], ['night_market', 'inn_night'], ['academy', 'inn_night'],
+      ['inn_night', 'rooftop'], ['rooftop', 'crown_plaza_dawn'],
+    ],
+    done: {
+      capital_gate: 'ch3_entered', crown_plaza: 'ch3_plaza_done', rourke_lodging: 'ch3_rourke_met', tourney_hall: 'ch3_tourney_done',
+      night_market: 'ch3_market_done', academy: 'ch3_academy_done', inn_night: 'ch3_betrayal', rooftop: 'ch3_duel_done',
+      crown_plaza_dawn: 'ch3_complete',
+    },
+    start: 'capital_gate',
+    completeFlag: 'ch3_complete',
+    labels: [
+      { text: '星冠城', x: 30, y: 210, color: '#ffd27a' },
+      { text: '城中區・夜', x: 30, y: 540, color: '#b8c4ff' },
+    ],
+  },
 };
 
-/** 目前章節：第一章完成後進入第二章地圖。 */
+/** 目前章節：前一章完成後進入下一章地圖。 */
 export function currentChapter(flags: Record<string, unknown>): ChapterId {
-  return flags['ch1_complete'] ? 'ch2' : 'ch1';
+  return flags['ch2_complete'] ? 'ch3' : flags['ch1_complete'] ? 'ch2' : 'ch1';
 }

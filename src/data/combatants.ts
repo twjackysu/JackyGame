@@ -119,6 +119,63 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'ember_devour', name: '吞噬星燼', telegraph: 'purple', windUpMs: 750, mul: 0.7, aoe: true, status: 'umbra', weight: 1, phase: 2, drainEmber: 3 },
     ],
   },
+  // ───────── 第 3 章：王都星冠城 ─────────
+  sewer_rat: {
+    id: 'sewer_rat', name: '下水道蝕鼠', level: 9, hp: 130, atk: 30, def: 8, spd: 15, breakMax: 22, weak: ['fire', 'light'], xp: 40,
+    attacks: [
+      { id: 'gnaw', name: '囓咬', telegraph: 'white', windUpMs: 600, mul: 0.7, hits: [0, 280], weight: 2 },
+      { id: 'plague', name: '蝕疫', telegraph: 'red', windUpMs: 800, mul: 0.8, status: 'poison', weight: 1 },
+    ],
+  },
+  alley_thug: {
+    id: 'alley_thug', name: '夜巷打手', level: 10, hp: 190, atk: 33, def: 12, spd: 10, breakMax: 30, weak: ['phys'], xp: 46,
+    attacks: [
+      { id: 'club', name: '悶棍', telegraph: 'white', windUpMs: 750, mul: 1, weight: 2 },
+      { id: 'feint', name: '假動作', telegraph: 'white', windUpMs: 1100, mul: 1.2, weight: 1 },
+      { id: 'tackle', name: '撞倒', telegraph: 'red', windUpMs: 700, mul: 1.3, weight: 1 },
+    ],
+  },
+  academy_guard: {
+    id: 'academy_guard', name: '研究院衛兵', level: 11, hp: 240, atk: 36, def: 18, spd: 9, breakMax: 40, weak: ['water'], resist: ['light'], xp: 58,
+    attacks: [
+      { id: 'glaive', name: '星刃橫掃', telegraph: 'white', windUpMs: 700, mul: 0.6, aoe: true, weight: 2 },
+      { id: 'rune_lance', name: '符文突刺', telegraph: 'red', windUpMs: 650, mul: 1.5, weight: 1 },
+    ],
+  },
+  rune_hound: {
+    id: 'rune_hound', name: '符文獵犬', level: 11, hp: 150, atk: 34, def: 10, spd: 17, breakMax: 26, weak: ['water', 'phys'], xp: 50,
+    attacks: [
+      { id: 'rune_bite', name: '符文撕咬', telegraph: 'white', windUpMs: 550, mul: 0.6, hits: [0, 260, 520], weight: 2 },
+      { id: 'umbra_howl', name: '蝕吠', telegraph: 'purple', windUpMs: 750, mul: 0.6, aoe: true, status: 'umbra', weight: 1 },
+    ],
+  },
+  // 洛克（Lv 13）：三段戰鬥之間插入說服（劇本 ch3 rourke_duel）。每段是同一場決鬥的延續，HP 逐段下降、招式升級。
+  boss_rourke_1: {
+    id: 'boss_rourke_1', name: '洛克', level: 13, hp: 620, atk: 42, def: 18, spd: 8, breakMax: 90, weak: ['fire'], resist: ['phys'],
+    actionsPerRound: 2, xp: 160,
+    attacks: [
+      { id: 'halberd', name: '斧槍劈砍', telegraph: 'white', windUpMs: 700, mul: 1, weight: 3 },
+      { id: 'sweep', name: '橫掃千軍', telegraph: 'white', windUpMs: 800, mul: 0.6, aoe: true, weight: 2 },
+    ],
+  },
+  boss_rourke_2: {
+    id: 'boss_rourke_2', name: '洛克', level: 13, hp: 520, atk: 44, def: 18, spd: 9, breakMax: 90, weak: ['fire'], resist: ['phys'],
+    actionsPerRound: 2, xp: 160,
+    attacks: [
+      { id: 'halberd', name: '斧槍劈砍', telegraph: 'white', windUpMs: 650, mul: 1, weight: 2 },
+      { id: 'feint_thrust', name: '老兵的虛招', telegraph: 'white', windUpMs: 1150, mul: 1.3, weight: 2 },
+      { id: 'shield_rush', name: '盾衝', telegraph: 'red', windUpMs: 650, mul: 1.5, weight: 1 },
+    ],
+  },
+  boss_rourke_3: {
+    id: 'boss_rourke_3', name: '洛克', level: 13, hp: 440, atk: 46, def: 16, spd: 10, breakMax: 80, weak: ['fire'], resist: ['phys'],
+    actionsPerRound: 2, xp: 220,
+    attacks: [
+      { id: 'halberd', name: '斧槍劈砍', telegraph: 'white', windUpMs: 600, mul: 1, weight: 2 },
+      { id: 'last_stand', name: '背水一擊', telegraph: 'white', windUpMs: 700, mul: 0.5, hits: [0, 380, 760], weight: 2 },
+      { id: 'shield_rush', name: '盾衝', telegraph: 'red', windUpMs: 600, mul: 1.6, weight: 1 },
+    ],
+  },
 };
 
 export const ENCOUNTERS: Record<string, string[]> = {
@@ -138,4 +195,11 @@ export const ENCOUNTERS: Record<string, string[]> = {
   deep_2: ['rock_beetle', 'rock_beetle'],
   deep_3: ['blast_lizard', 'blast_lizard', 'lamp_wraith'],
   boss_bellworm: ['boss_bellworm'],
+  // 第 3 章
+  sewer_rats: ['sewer_rat', 'sewer_rat', 'sewer_rat'],
+  alley_thugs: ['alley_thug', 'alley_thug'],
+  academy_guard: ['academy_guard', 'rune_hound'],
+  rourke_1: ['boss_rourke_1'],
+  rourke_2: ['boss_rourke_2'],
+  rourke_3: ['boss_rourke_3'],
 };

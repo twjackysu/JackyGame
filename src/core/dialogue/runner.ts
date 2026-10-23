@@ -39,7 +39,7 @@ export interface ChoiceLine {
 
 /** 觸發外部事件（戰鬥、燼牌、商店…），由場景處理後以 resume(outcome) 回到腳本。 */
 export interface EventLine {
-  event: 'battle' | 'cards' | 'shop' | 'rename' | 'chapterCard' | 'summary';
+  event: 'battle' | 'cards' | 'shop' | 'rename' | 'chapterCard' | 'summary' | 'codexBurn';
   id: string;
   outcomes?: Record<string, string>; // outcome → 節點（如 { win: 'won', lose: 'lost' }）
   if?: Condition;

@@ -23,4 +23,13 @@ export const SPEAKER_NAMES: Record<string, string> = {
   dorn: '多恩',
   miner: '礦工',
   kid: '礦工的孩子',
+  // 第 3 章
+  valderan: '瓦爾德蘭',
+  gate_captain: '城門隊長',
+  announcer: '大賽司儀',
+  duelist_knight: '貝洛',
+  duelist_miner: '葛蘭妲',
+  dealer: '薩伊',
+  researcher: '研究員',
+  vendor: '夜市攤販',
 };

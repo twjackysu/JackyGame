@@ -5,8 +5,9 @@ import type { DialogueScript } from '../core/dialogue/runner';
 import { CH0 } from '../data/dialogue/ch0';
 import { CH1 } from '../data/dialogue/ch1';
 import { CH2 } from '../data/dialogue/ch2';
+import { CH3 } from '../data/dialogue/ch3';
 
-export const SCRIPTS: Record<string, DialogueScript> = { ch0: CH0, ch1: CH1, ch2: CH2 };
+export const SCRIPTS: Record<string, DialogueScript> = { ch0: CH0, ch1: CH1, ch2: CH2, ch3: CH3 };
 
 const storage = detectStorage();
 const store = new SaveStore(storage.kv);

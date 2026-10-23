@@ -10,7 +10,7 @@ import { generateCombatantArt } from '../art/silhouettes';
 import { TITLE_FONT, UI_FONT, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
 import { HERO_COLOR, openParty } from '../ui/partyPanel';
-import { drawMapCh2 } from '../art/mapArt';
+import { drawMapCh2, drawMapCh3 } from '../art/mapArt';
 import { session } from '../session';
 
 type NodeState = 'locked' | 'open' | 'done';
@@ -91,11 +91,12 @@ export class MapScene extends Phaser.Scene {
   private drawBackground(): void {
     const map = this.map;
     const key = `bg_map_${map.id}`;
-    if (map.id === 'ch2' && !this.textures.exists(key)) {
+    if ((map.id === 'ch2' || map.id === 'ch3') && !this.textures.exists(key)) {
       const tex = this.textures.createCanvas(key, GAME_WIDTH, GAME_HEIGHT);
       if (tex) {
         const c = tex.getContext();
-        drawMapCh2(c, GAME_WIDTH, GAME_HEIGHT);
+        if (map.id === 'ch3') drawMapCh3(c, GAME_WIDTH, GAME_HEIGHT);
+        else drawMapCh2(c, GAME_WIDTH, GAME_HEIGHT);
         tex.refresh();
       }
     }
@@ -263,7 +264,7 @@ export class MapScene extends Phaser.Scene {
     const wicks = ['wick_lake', 'wick_hunter', 'wick_shrine'].filter((f) => s.flags[f]).length;
     let goal = next ? `目標：前往「${next.title}」` : '目標：探索';
     if (map.id === 'ch1' && s.flags['ch1_met_bern'] && !s.flags['ch1_legacy']) goal += `　燈芯 ${wicks}/3`;
-    if (map.id === 'ch2' && s.flags['ch2_complete']) goal = '第二章 完成！（第三章製作中）';
+    if (map.id === 'ch3' && s.flags['ch3_complete']) goal = '第三章 完成！（第四章製作中）';
     this.add.text(GAME_WIDTH / 2, 140, goal, { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff' }).setOrigin(0.5).setDepth(91);
     const menu = this.add.text(GAME_WIDTH - 28, 70, '☰', { fontFamily: UI_FONT, fontSize: '40px', color: '#aab4dd' })
       .setOrigin(1, 0.5).setDepth(91).setInteractive({ useHandCursor: true });
