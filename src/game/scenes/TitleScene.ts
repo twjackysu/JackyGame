@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { fadeOutThen } from '../fx/feel';
+import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
 import { playMusic } from '../../audio/music';
 import { session } from '../session';
@@ -245,9 +247,16 @@ export class TitleScene extends Phaser.Scene {
       encounter: 'forest_a', chain: ['forest_b', 'shrine_boar', 'boss_wolfking'],
     }))]);
     items.push(['燼牌演示', () => this.go(() => this.scene.start('Cards', { match: 'demo' }))]);
+    items.push(['設定', () => {
+      if (this.busy) return;
+      this.busy = true;
+      void openSettings(this).then(() => {
+        this.busy = false;
+      });
+    }]);
     const menu = (this.menu = this.add.container(0, 0));
     items.forEach(([label, fn], i) => {
-      const y = 900 + i * 110;
+      const y = 1180 - (items.length - 1 - i) * 100 - (items.length > 4 ? 0 : 40);
       const c = this.add.container(cx, y);
       const g = this.add.graphics();
       g.fillStyle(0x0a0d1a, 0.85).fillRoundedRect(-200, -42, 400, 84, 20);
@@ -278,9 +287,7 @@ export class TitleScene extends Phaser.Scene {
   private go(fn: () => void): void {
     if (this.busy) return;
     this.busy = true;
-    const cam = this.cameras.main;
-    cam.fadeOut(500, 0, 0, 0);
-    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, fn);
+    fadeOutThen(this, 500, fn);
   }
 
   private drawSky(): void {

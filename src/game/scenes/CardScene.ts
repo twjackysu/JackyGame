@@ -13,7 +13,7 @@ import {
   DECK_TUTORIAL_PLAYER, type Keyword,
 } from '../../data/cards';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, wait } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, wait, fadeOutThen } from '../fx/feel';
 
 export interface CardSceneData {
   match: string;
@@ -449,8 +449,7 @@ export class CardScene extends Phaser.Scene {
     btn.setSize(400, 100).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
       SFX.confirm();
-      this.cameras.main.fadeOut(350, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      fadeOutThen(this, 350, () => {
         if (this.story) {
           this.scene.stop();
           this.scene.wake('Dialogue', { outcome: win ? 'win' : 'lose' });

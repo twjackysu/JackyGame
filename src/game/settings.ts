@@ -1,0 +1,47 @@
+// 玩家設定（每台裝置一份，存在 localStorage；讀寫失敗時用預設值）。
+import { setMuted } from '../audio/sfx';
+import { setMusicEnabled } from '../audio/music';
+
+export interface Settings {
+  /** 自動時機：攻擊固定 Good、防守固定成功（照顧輕度玩家，03 §戰鬥） */
+  autoTiming: boolean;
+  bgm: boolean;
+  sfx: boolean;
+  /** 文字速度：每字毫秒 */
+  textSpeed: 'normal' | 'fast';
+}
+
+const KEY = 'jackygame.settings';
+const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, textSpeed: 'normal' };
+let cache: Settings | null = null;
+
+export function getSettings(): Settings {
+  if (cache) return cache;
+  let s: Partial<Settings> = {};
+  try {
+    s = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>;
+  } catch {
+    s = {};
+  }
+  cache = { ...DEFAULTS, ...s };
+  return cache;
+}
+
+export function updateSettings(patch: Partial<Settings>): Settings {
+  cache = { ...getSettings(), ...patch };
+  try {
+    localStorage.setItem(KEY, JSON.stringify(cache));
+  } catch {
+    /* 無法儲存：只在本次生效 */
+  }
+  applySettings();
+  return cache;
+}
+
+export function applySettings(): void {
+  const s = getSettings();
+  setMuted(!s.sfx);
+  setMusicEnabled(s.bgm);
+}
+
+export const textCharMs = (): number => (getSettings().textSpeed === 'fast' ? 14 : 32);

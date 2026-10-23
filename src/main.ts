@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import { installAudioUnlock } from './audio/sfx';
 import { createGameConfig } from './game/config';
+import { applySettings } from './game/settings';
 
 installAudioUnlock();
+applySettings();
 
 // Block pinch-zoom / double-tap zoom gestures that slip past CSS on iOS Safari.
 for (const evt of ['gesturestart', 'gesturechange', 'dblclick'] as const) {

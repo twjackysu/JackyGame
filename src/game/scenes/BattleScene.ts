@@ -22,10 +22,10 @@ import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silhouettes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { session, withNames } from '../session';
+import { getSettings } from '../settings';
 import { grantXp } from '../../core/state/gameState';
 import {
-  UI_FONT, bigText, floatNumber, hitStop, pressBounce, setBaseSpeed, shockRing, slowMo, sparks, wait,
-} from '../fx/feel';
+  UI_FONT, bigText, floatNumber, hitStop, pressBounce, setBaseSpeed, shockRing, slowMo, sparks, wait, fadeOutThen } from '../fx/feel';
 
 export interface BattleSceneData {
   encounter?: string;
@@ -878,16 +878,23 @@ export class BattleScene extends Phaser.Scene {
     return new Promise((resolve) => {
       this.mode = 'timing';
       this.timing = { start: now() + ATTACK_LEAD_MS, x, y, scale: this.bs.windowScale, done: false, resolve };
-      this.hint.setText('光環重疊時 點擊！').setColor('#ffd27a').setY(990).setAlpha(1);
+      const auto = getSettings().autoTiming;
+      this.hint.setText(auto ? '自動時機' : '光環重疊時 點擊！').setColor('#ffd27a').setY(990).setAlpha(1);
+      if (auto) {
+        const tm = this.timing;
+        void this.untilReal(tm.start + RING_MS).then(() => {
+          if (this.timing === tm) this.finishTiming(null, 'good');
+        });
+      }
     });
   }
 
-  private finishTiming(at: number | null): void {
+  private finishTiming(at: number | null, forced?: Timing): void {
     const tm = this.timing;
     if (!tm || tm.done) return;
     tm.done = true;
     const target = tm.start + RING_MS;
-    const result: Timing = at === null ? 'miss' : judgeAttack(at - target, tm.scale);
+    const result: Timing = forced ?? (at === null ? 'miss' : judgeAttack(at - target, tm.scale));
     this.ringG.clear();
     this.hint.setAlpha(0);
     const col = result === 'perfect' ? 0xffd27a : result === 'good' ? 0x9fe0ff : 0x777777;
@@ -998,7 +1005,8 @@ export class BattleScene extends Phaser.Scene {
       // 敵人出擊（命中瞬間）
       this.enemyLunge(tel.enemy, targetHero);
       // 若已有成功輸入，立即結算；否則等待晚按的寬限
-      let r = this.evalHit(h, false);
+      // 自動時機：防守固定成功
+      let r = getSettings().autoTiming ? 'success' as DefenseResult : this.evalHit(h, false);
       if (r === null) {
         await this.untilReal(impact + (tel.telegraph === 'purple' ? 20 : WINDOWS.parryGood * scale));
         r = this.evalHit(h, true) ?? 'fail';
@@ -1471,8 +1479,7 @@ export class BattleScene extends Phaser.Scene {
     btn.on('pointerdown', () => {
       SFX.confirm();
       pressBounce(this, btn);
-      this.cameras.main.fadeOut(350, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      fadeOutThen(this, 350, () => {
         if (story) {
           this.scene.stop();
           this.scene.wake('Dialogue', { outcome: win ? 'win' : 'lose' });

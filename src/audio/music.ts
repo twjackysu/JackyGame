@@ -237,11 +237,26 @@ function scheduleStep(ac: AudioContext, tr: Track, out: GainNode, step: number, 
   }
 }
 
+let enabled = true;
+let wanted: string | null = null;
+
+/** 設定：背景音樂開關。關閉時停止，重新開啟時接回最後要求的曲目。 */
+export function setMusicEnabled(on: boolean): void {
+  if (enabled === on) return;
+  enabled = on;
+  if (!on) {
+    const w = wanted;
+    stopMusic(0.3);
+    wanted = w;
+  } else if (wanted) playMusic(wanted, 0.6);
+}
+
 /** 播放曲目（循環）。同一首重複呼叫不會重來。 */
 export function playMusic(id: keyof typeof TRACKS | string, fadeSec = 1.2): void {
+  wanted = id;
   const tr = TRACKS[id];
   const audio = getAudio();
-  if (!tr || !audio) return;
+  if (!tr || !audio || !enabled) return;
   if (current?.track.id === id) return;
   stopMusic(fadeSec * 0.6);
   const { ctx: ac, master } = audio;
@@ -266,6 +281,7 @@ export function playMusic(id: keyof typeof TRACKS | string, fadeSec = 1.2): void
 }
 
 export function stopMusic(fadeSec = 0.8): void {
+  wanted = null;
   const audio = getAudio();
   if (!current || !audio) {
     current = null;

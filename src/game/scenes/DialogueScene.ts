@@ -9,8 +9,9 @@ import { CH1_ENTRIES } from '../../data/dialogue/ch1';
 import { generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
 import { backdropFor, backdropKey } from '../art/backdrops';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
 import { RENAMEABLE, SCRIPTS, session, withNames } from '../session';
+import { textCharMs } from '../settings';
 import type { BattleSceneData } from './BattleScene';
 
 export interface DialogueSceneData {
@@ -35,7 +36,6 @@ const BOX_Y = 1030;
 const ENCOUNTER_LEVEL_FLOOR: Record<string, number> = {
   ch0_tutorial: 3, forest_a: 3, forest_b: 3, path_a: 3, path_b: 3, caravan: 3, shrine_boar: 4, boss_wolfking: 4,
 };
-const CHAR_MS = 32;
 
 export class DialogueScene extends Phaser.Scene {
   private runner!: DialogueRunner;
@@ -76,7 +76,10 @@ export class DialogueScene extends Phaser.Scene {
     this.drawBackdrop();
     this.buildBox();
     this.input.on('pointerdown', () => this.onTap());
+    // 場景重啟（start）時 Phaser 不會清掉自訂監聽器 → 先移除舊的，否則 onWake 會跑兩次（"no pending event" 當機）
+    this.events.off(Phaser.Scenes.Events.WAKE);
     this.events.on(Phaser.Scenes.Events.WAKE, (_: unknown, d?: { outcome?: string }) => this.onWake(d?.outcome ?? 'win'));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.WAKE));
     this.ambientMusic(0.6);
     this.cameras.main.fadeIn(500, 0, 0, 0);
     this.time.delayedCall(300, () => this.advance());
@@ -217,7 +220,7 @@ export class DialogueScene extends Phaser.Scene {
     this.arrow.setAlpha(0);
     this.typing?.remove();
     this.typing = this.time.addEvent({
-      delay: CHAR_MS,
+      delay: textCharMs(),
       repeat: this.fullText.length - 1,
       callback: () => {
         this.shown++;
@@ -429,8 +432,7 @@ export class DialogueScene extends Phaser.Scene {
     }
     if (kind === 'cards') {
       session.save();
-      this.cameras.main.fadeOut(300, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      fadeOutThen(this, 300, () => {
         this.scene.sleep();
         this.scene.run('Cards', { match: id, story: true });
       });
@@ -625,8 +627,7 @@ export class DialogueScene extends Phaser.Scene {
   private finish(): void {
     this.waiting = 'busy';
     session.save();
-    this.cameras.main.fadeOut(600, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+    fadeOutThen(this, 600, () => {
       const s = session.state;
       if (this.scriptId === 'ch0') s.location = { region: 'ch1', node: 'orphanage' };
       if ((this.scriptId === 'ch0' || this.scriptId === 'ch1') && !s.flags['ch1_complete']) this.scene.start('Map');

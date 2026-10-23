@@ -7,7 +7,8 @@ import { CH1_ENTRIES } from '../../data/dialogue/ch1';
 import { HEROES } from '../../data/combatants';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { generateCombatantArt } from '../art/silhouettes';
-import { TITLE_FONT, UI_FONT, pressBounce, shockRing, sparks } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
+import { openSettings } from '../ui/settingsPanel';
 import { session } from '../session';
 
 const POS: Record<string, [number, number]> = {
@@ -25,7 +26,7 @@ const EDGES: [string, string][] = [
 const DONE: Record<string, string> = {
   orphanage: 'ch1_got_lantern', tavern: 'ch1_rourke_joined', town_gate: 'ch1_left_town', forest_edge: 'ch1_caravan_done',
   mist_lake: 'ch1_io_joined', hunter_hut: 'wick_hunter', wolf_path: 'ch1_path_cleared', lighthouse: 'ch1_legacy',
-  campfire: 'ch1_campfire', wolf_den: 'ch1_complete',
+  campfire: 'ch1_campfire', wolf_den: 'ch1_complete', fallen_log: 'ch1_fallen_log',
 };
 const HERO_COLOR: Record<string, number> = { lian: 0xffa54a, rourke: 0xe0705a, io: 0x7fd8ff, serin: 0xc8d4ff, liora: 0xff7a5a };
 
@@ -84,6 +85,17 @@ export class MapScene extends Phaser.Scene {
     this.tweens.add({ targets: glow, alpha: 0.6, duration: 170, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [3] });
 
     this.drawHud(states);
+    const gear = this.add.text(GAME_WIDTH - 44, 44, '⚙', { fontFamily: UI_FONT, fontSize: '44px', color: '#c8d0f0', stroke: '#000', strokeThickness: 4 })
+      .setOrigin(0.5).setDepth(800).setPadding(12, 12, 12, 12).setInteractive({ useHandCursor: true });
+    gear.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      if (this.busy) return;
+      this.busy = true;
+      SFX.uiTap();
+      void openSettings(this).then(() => {
+        this.busy = false;
+      });
+    });
     playMusic('explore');
     this.cameras.main.fadeIn(400, 0, 0, 0);
     this.input.on('pointerdown', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
@@ -239,8 +251,7 @@ export class MapScene extends Phaser.Scene {
     const s = session.state;
     s.location = { region: 'ch1', node: loc };
     session.save();
-    this.cameras.main.fadeOut(400, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+    fadeOutThen(this, 400, () => {
       this.scene.start('Dialogue', { script: 'ch1', node, returnTo: 'Map' });
     });
   }

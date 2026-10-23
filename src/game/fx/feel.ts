@@ -149,3 +149,20 @@ export function pressBounce(scene: Phaser.Scene, obj: Phaser.GameObjects.Compone
   (obj as unknown as { setScale: (s: number) => void }).setScale(0.94);
   scene.tweens.add({ targets: obj, scale: 1, duration: 260, ease: 'Back.Out' });
 }
+
+/**
+ * 鏡頭淡出後執行 fn。保險：若 FADE_OUT_COMPLETE 因其他鏡頭效果被吃掉，
+ * 逾時後仍會執行（只執行一次），避免整個流程卡死在黑畫面。
+ */
+export function fadeOutThen(scene: Phaser.Scene, ms: number, fn: () => void): void {
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    fn();
+  };
+  const cam = scene.cameras.main;
+  cam.fadeOut(ms, 0, 0, 0);
+  cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, run);
+  scene.time.delayedCall(ms + 300, run);
+}
