@@ -1,0 +1,45 @@
+# deps / build
+node_modules/
+dist/
+dev-dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# logs / OS
+npm-debug.log*
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.env
+.env.*
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# iOS
+ios/App/Pods/
+ios/App/App/public/
+ios/App/output/
+ios/DerivedData/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+xcuserdata/
+
+# screenshots
+screenshots/
