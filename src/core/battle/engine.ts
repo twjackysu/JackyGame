@@ -470,6 +470,16 @@ export function chooseCommand(state: BattleState, cmd: Command): Result {
     const id = c.itemId;
     if (!id || !(s.items[id]! > 0)) throw new Error('item unavailable');
     s.items[id] = s.items[id]! - 1;
+    if (id === 'blast_bottle') {
+      s.enemies.forEach((e, i) => {
+        if (!alive(e)) return;
+        const weak = e.weak.includes('fire');
+        const mul = weak ? 1.5 : e.resist.includes('fire') ? 0.5 : 1;
+        applyDamage(s, ev, { side: 'enemy', index: i }, Math.round(ITEMS.blast_bottle.blastDmg * mul), { weak, source: 'item' });
+      });
+      nextActor(s, ev);
+      return { state: s, events: ev };
+    }
     const tIdx = c.target ?? actor.index;
     const t = s.heroes[tIdx];
     if (!t) throw new Error('bad item target');

@@ -160,7 +160,10 @@ export class BattleScene extends Phaser.Scene {
     if (this.data0.story && this.data0.encounter === 'boss_wolfking' && session.state.flags['wolfpack_returned']) enemies.push('mist_wolf');
     this.bs = createBattle({
       party: this.data0.party, enemies, seed: this.data0.seed,
-      items: this.data0.story ? { potion_s: session.state.inventory['potion_s'] ?? 0, lamp_oil: session.state.inventory['lamp_oil'] ?? 0 } : { potion_s: 2, lamp_oil: 1 },
+      items: this.data0.story ? {
+        potion_s: session.state.inventory['potion_s'] ?? 0, lamp_oil: session.state.inventory['lamp_oil'] ?? 0,
+        ...(session.state.inventory['blast_bottle'] ? { blast_bottle: session.state.inventory['blast_bottle'] } : {}),
+      } : { potion_s: 2, lamp_oil: 1, blast_bottle: 1 },
       flags: this.data0.story ? {
         tutorialEmber: this.data0.tutorial, guidingLight: !!session.state.flags['guidingLight'],
         ambushed: this.data0.encounter === 'caravan' && !!session.state.flags['caravan_ambushed'],
@@ -851,6 +854,11 @@ export class BattleScene extends Phaser.Scene {
         }
       }
       if (cmd.type === 'item') SFX.itemGet();
+      if (cmd.type === 'item' && cmd.itemId === 'blast_bottle') {
+        SFX.hitHeavy();
+        this.cameras.main.shake(300, 0.014);
+        this.cameras.main.flash(160, 255, 150, 80);
+      }
       await this.play(r.events);
     }
     this.step();
@@ -1462,7 +1470,7 @@ export class BattleScene extends Phaser.Scene {
           if (v) bigText(this, v.x, v.y - 150, 'LEVEL UP', '#7dffb0', 40, 900);
         }
       }
-      for (const it of ['potion_s', 'lamp_oil'] as const) {
+      for (const it of ['potion_s', 'lamp_oil', 'blast_bottle'] as const) {
         const left = this.bs.items[it];
         if (left !== undefined) session.state.inventory[it] = left;
       }

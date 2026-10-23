@@ -374,3 +374,17 @@ describe('伏擊（caravan_ambushed）', () => {
     expect([n.actor, ...n.queue].some((r) => r?.side === 'hero')).toBe(true);
   });
 });
+
+describe('爆燈瓶 blast_bottle', () => {
+  it('對全體敵人造成火傷並消耗 1 個', () => {
+    let s = createBattle({ party: [{ id: 'liora', level: 6 }], enemies: ['mist_wolf', 'mist_wolf'], seed: 5, items: { blast_bottle: 1 } }).state;
+    // 推進到我方指令
+    for (let g = 0; g < 20 && s.phase !== 'playerCommand'; g++) s = resolveDefense(s, ['success', 'success', 'success', 'success']).state;
+    const before = s.enemies.map((e) => e.hp);
+    const r = chooseCommand(s, { type: 'item', itemId: 'blast_bottle' });
+    const dmg = r.events.filter((e) => e.type === 'damage' && e.target.side === 'enemy');
+    expect(dmg.length).toBe(2);
+    expect(r.state.items.blast_bottle).toBe(0);
+    expect(r.state.enemies.every((e, i) => e.hp < before[i]!)).toBe(true);
+  });
+});
