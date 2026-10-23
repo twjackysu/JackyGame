@@ -4,8 +4,9 @@ import { newGame, type GameState } from '../core/state/gameState';
 import type { DialogueScript } from '../core/dialogue/runner';
 import { CH0 } from '../data/dialogue/ch0';
 import { CH1 } from '../data/dialogue/ch1';
+import { CH2 } from '../data/dialogue/ch2';
 
-export const SCRIPTS: Record<string, DialogueScript> = { ch0: CH0, ch1: CH1 };
+export const SCRIPTS: Record<string, DialogueScript> = { ch0: CH0, ch1: CH1, ch2: CH2 };
 
 const storage = detectStorage();
 const store = new SaveStore(storage.kv);

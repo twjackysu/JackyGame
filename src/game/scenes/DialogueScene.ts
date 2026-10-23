@@ -20,7 +20,7 @@ export interface DialogueSceneData {
 }
 
 const PORTRAIT: Record<string, string> = {
-  lian: 'hero_lian', serin: 'hero_serin', rourke: 'hero_rourke', io: 'hero_io', girl: 'hero_io', knight: 'npc_knight', guard: 'npc_knight', gwen: 'npc_gwen',
+  lian: 'portrait_lian', serin: 'portrait_serin', rourke: 'portrait_rourke', io: 'portrait_io', girl: 'portrait_io', knight: 'npc_knight', guard: 'npc_knight', gwen: 'npc_gwen',
   mara: 'npc_mara', hanna: 'npc_hanna', toby: 'npc_toby', farrow: 'npc_farrow', bern: 'npc_bern',
 };
 const NAME_COLOR: Record<string, string> = {
@@ -30,6 +30,8 @@ const STAT_NAME: Record<string, string> = { str: '力', agi: '敏', int: '智', 
 const CHAPTER_TITLE: Record<string, [string, string]> = {
   ch0: ['序章', '被留下的燈'],
   ch1: ['第一章', '霧角森林'],
+  ch2: ['第二章', '沉鐘'],
+  ch3: ['第三章', '星冠'],
 };
 
 const BOX_Y = 1030;

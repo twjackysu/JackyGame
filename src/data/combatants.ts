@@ -84,6 +84,40 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'lunge', name: '狂撲', telegraph: 'red', windUpMs: 500, mul: 1.6, weight: 1, phase: 2 },
     ],
   },
+  // ───────── 第 2 章：沉鐘礦坑 ─────────
+  rock_beetle: {
+    id: 'rock_beetle', name: '岩甲蟲', level: 6, hp: 170, atk: 24, def: 16, spd: 5, breakMax: 30, weak: ['phys', 'fire'], resist: ['water'], xp: 30,
+    attacks: [
+      { id: 'shell_ram', name: '甲殼衝撞', telegraph: 'red', windUpMs: 1000, mul: 1.3, weight: 2 },
+      { id: 'pincer', name: '岩鉗', telegraph: 'white', windUpMs: 900, mul: 0.9, weight: 1 },
+    ],
+  },
+  lamp_wraith: {
+    id: 'lamp_wraith', name: '礦燈幽魂', level: 6, hp: 95, atk: 22, def: 4, spd: 14, breakMax: 22, weak: ['light'], resist: ['phys'], xp: 30,
+    attacks: [
+      { id: 'flicker', name: '殘燈閃爍', telegraph: 'white', windUpMs: 650, mul: 0.6, hits: [0, 300], weight: 2 },
+      { id: 'umbra_wick', name: '蝕芯', telegraph: 'purple', windUpMs: 800, mul: 0.8, status: 'umbra', weight: 1 },
+    ],
+  },
+  blast_lizard: {
+    id: 'blast_lizard', name: '爆炸蜥', level: 7, hp: 120, atk: 26, def: 6, spd: 10, breakMax: 25, weak: ['water'], resist: ['fire'], xp: 34,
+    attacks: [
+      { id: 'tail_lash', name: '甩尾', telegraph: 'white', windUpMs: 700, mul: 1, weight: 2 },
+      { id: 'blast', name: '自爆衝刺', telegraph: 'red', windUpMs: 850, mul: 1.5, aoe: true, weight: 1 },
+    ],
+  },
+  boss_bellworm: {
+    id: 'boss_bellworm', name: '鐘喉蠕蟲', level: 9, hp: 960, atk: 38, def: 13, spd: 9, breakMax: 110, weak: ['light', 'water'], resist: ['fire'],
+    actionsPerRound: 2, xp: 300,
+    attacks: [
+      // 階段 1：鐘響節奏——連續 4 次白光，節拍與鐘聲同步
+      { id: 'bell_toll', name: '四連鐘響', telegraph: 'white', windUpMs: 700, mul: 0.4, hits: [0, 420, 840, 1260], weight: 3 },
+      { id: 'bell_slam', name: '鐘身撞擊', telegraph: 'white', windUpMs: 650, mul: 1, weight: 2 },
+      // 階段 2：鑽地（紅光，反向滑動）＋吞噬星燼（紫光蝕化）
+      { id: 'burrow', name: '鑽地突襲', telegraph: 'red', windUpMs: 600, mul: 1.5, weight: 2, phase: 2 },
+      { id: 'ember_devour', name: '吞噬星燼', telegraph: 'purple', windUpMs: 750, mul: 0.7, aoe: true, status: 'umbra', weight: 1, phase: 2 },
+    ],
+  },
 };
 
 export const ENCOUNTERS: Record<string, string[]> = {
@@ -95,4 +129,12 @@ export const ENCOUNTERS: Record<string, string[]> = {
   caravan: ['mist_wolf', 'mist_wolf', 'mist_wolf'],
   shrine_boar: ['umbra_boar'],
   boss_wolfking: ['boss_wolfking'],
+  // 第 2 章
+  mine_a: ['rock_beetle', 'lamp_wraith'],
+  mine_b: ['lamp_wraith', 'lamp_wraith', 'blast_lizard'],
+  bell_hall: ['rock_beetle', 'blast_lizard', 'lamp_wraith'],
+  deep_1: ['lamp_wraith', 'blast_lizard'],
+  deep_2: ['rock_beetle', 'rock_beetle'],
+  deep_3: ['blast_lizard', 'blast_lizard', 'lamp_wraith'],
+  boss_bellworm: ['boss_bellworm'],
 };

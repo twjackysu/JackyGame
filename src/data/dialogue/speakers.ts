@@ -19,4 +19,8 @@ export const SPEAKER_NAMES: Record<string, string> = {
   girl: '少女',
   bern: '伯恩',
   ancient_voice: '古老的聲音',
+  // 第 2 章
+  dorn: '多恩',
+  miner: '礦工',
+  kid: '礦工的孩子',
 };
