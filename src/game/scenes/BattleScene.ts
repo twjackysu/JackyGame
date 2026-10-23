@@ -380,6 +380,14 @@ export class BattleScene extends Phaser.Scene {
       const boss = e.id.startsWith('boss_');
       v.sprite.setScale(boss ? 0.62 : 0.5);
       if (this.isWebGL) v.sprite.preFX?.addGlow(boss ? 0x9a6bff : 0x5a7cff, 2, 0, false, 0.1, 10);
+      // 敵人發光點（核心、眼睛、提燈）：緩慢脈動，讓剪影在暗背景中更有存在感
+      if (art?.glow) {
+        const k = boss ? 0.62 / 0.5 : 1;
+        const glow = this.add.image((art.glow.x - art.w / 2) * k, (art.glow.y - art.h / 2) * k, 'glow')
+          .setScale(art.glow.scale * k).setTint(art.glow.color).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.7);
+        v.root.addAt(glow, 3);
+        this.tweens.add({ targets: glow, alpha: 0.4, scale: art.glow.scale * k * 0.85, duration: 900 + i * 120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      }
       v.sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.selectTarget(i));
       this.tweens.add({ targets: v.sprite, y: -6, duration: 1400 + i * 200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.enemies.push(v);

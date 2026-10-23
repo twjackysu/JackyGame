@@ -151,7 +151,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   },
   // 洛克（Lv 13）：三段戰鬥之間插入說服（劇本 ch3 rourke_duel）。每段是同一場決鬥的延續，HP 逐段下降、招式升級。
   boss_rourke_1: {
-    id: 'boss_rourke_1', name: '洛克', level: 13, hp: 620, atk: 42, def: 18, spd: 8, breakMax: 90, weak: ['fire'], resist: ['phys'],
+    id: 'boss_rourke_1', name: '洛克', level: 13, hp: 620, atk: 47, def: 18, spd: 8, breakMax: 90, weak: ['fire'], resist: ['phys'],
     actionsPerRound: 2, xp: 160,
     attacks: [
       { id: 'halberd', name: '斧槍劈砍', telegraph: 'white', windUpMs: 700, mul: 1, weight: 3 },
@@ -159,7 +159,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     ],
   },
   boss_rourke_2: {
-    id: 'boss_rourke_2', name: '洛克', level: 13, hp: 520, atk: 44, def: 18, spd: 9, breakMax: 90, weak: ['fire'], resist: ['phys'],
+    id: 'boss_rourke_2', name: '洛克', level: 13, hp: 520, atk: 49, def: 18, spd: 9, breakMax: 90, weak: ['fire'], resist: ['phys'],
     actionsPerRound: 2, xp: 160,
     attacks: [
       { id: 'halberd', name: '斧槍劈砍', telegraph: 'white', windUpMs: 650, mul: 1, weight: 2 },
@@ -168,7 +168,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     ],
   },
   boss_rourke_3: {
-    id: 'boss_rourke_3', name: '洛克', level: 13, hp: 440, atk: 46, def: 16, spd: 10, breakMax: 80, weak: ['fire'], resist: ['phys'],
+    id: 'boss_rourke_3', name: '洛克', level: 13, hp: 440, atk: 51, def: 16, spd: 10, breakMax: 80, weak: ['fire'], resist: ['phys'],
     actionsPerRound: 2, xp: 220,
     attacks: [
       { id: 'halberd', name: '斧槍劈砍', telegraph: 'white', windUpMs: 600, mul: 1, weight: 2 },
