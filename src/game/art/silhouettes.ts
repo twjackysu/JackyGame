@@ -140,6 +140,61 @@ export function generateCombatantArt(scene: Phaser.Scene): void {
     g.fillCircle(90 * s, 100 * s, 4 * s);
   }, { x: 90, y: 100, color: 0x7fd8ff, scale: 0.5 });
 
+  make(scene, 'hero_liora', 120, 190, (g, s) => {
+    const o = { fill: 0x161424, rim: 0xff7a5a };
+    // 斜背包背帶
+    g.lineStyle(4 * s, 0x3a2a26, 1);
+    g.lineBetween(40 * s, 70 * s, 82 * s, 130 * s);
+    // 外套
+    rimPoly(g, [[42, 66], [78, 66], [90, 100], [96, 186], [60, 180], [24, 186], [32, 100]], o, s);
+    // 背包
+    rimPoly(g, [[70, 118], [96, 116], [100, 146], [72, 148]], { fill: 0x2a1e1c, rim: 0xff9a6a, rimWidth: 2 }, s);
+    // 鮑伯短髮
+    rimPoly(g, [[60, 18], [80, 26], [86, 50], [82, 70], [38, 70], [34, 50], [40, 26]], { fill: 0x2a1a22, rim: 0xff9a7a }, s);
+    // 護目鏡帶
+    g.fillStyle(0x4a3a36, 1);
+    g.fillRect(36 * s, 42 * s, 50 * s, 6 * s);
+    g.fillStyle(0xff7a5a, 0.9);
+    g.fillRect(36 * s, 42 * s, 50 * s, 1.5 * s);
+    g.fillStyle(0x8a6a50, 1);
+    g.fillCircle(60 * s, 45 * s, 3 * s);
+    // 手持發光燒瓶（左手）
+    g.fillStyle(0x2a2238, 1);
+    g.fillRect(14 * s, 86 * s, 6 * s, 8 * s);
+    g.fillStyle(0xff8a3d, 0.4);
+    g.fillCircle(17 * s, 104 * s, 14 * s);
+    g.fillStyle(0xff8a3d, 1);
+    g.fillCircle(17 * s, 104 * s, 9 * s);
+    g.fillStyle(0xffe0a0, 1);
+    g.fillCircle(15 * s, 102 * s, 4 * s);
+  }, { x: 17, y: 104, color: 0xff8a3d, scale: 0.6 });
+
+  // 瑟琳（背影；若立繪版已先生成則沿用）
+  make(scene, 'hero_serin', 150, 230, (g, s) => {
+    const o = { fill: 0x161a2c, rim: 0xc8d4ff };
+    // 劍（右手斜握）
+    g.lineStyle(6 * s, 0x2a2e40, 1);
+    g.lineBetween(110 * s, 140 * s, 142 * s, 30 * s);
+    g.lineStyle(2 * s, 0xc8d4ff, 1);
+    g.lineBetween(108 * s, 138 * s, 140 * s, 28 * s);
+    g.lineStyle(8 * s, 0x2a2e40, 1);
+    g.lineBetween(100 * s, 132 * s, 122 * s, 142 * s);
+    // 身體與鎧甲
+    rimPoly(g, [[50, 84], [100, 84], [118, 118], [124, 226], [75, 218], [26, 226], [32, 118]], o, s);
+    // 肩甲
+    rimPoly(g, [[30, 86], [58, 80], [60, 108], [26, 112]], { ...o, fill: 0x22263a }, s);
+    rimPoly(g, [[92, 80], [120, 86], [124, 112], [90, 108]], { ...o, fill: 0x22263a }, s);
+    // 腰帶
+    g.fillStyle(0x3a3448, 1);
+    g.fillRect(36 * s, 150 * s, 78 * s, 8 * s);
+    // 頭（後腦）
+    rimPoly(g, [[75, 30], [94, 38], [98, 66], [88, 82], [62, 82], [52, 66], [56, 38]], { fill: 0x2a2440, rim: 0xe8d8ff }, s);
+    // 馬尾
+    rimPoly(g, [[70, 44], [82, 44], [86, 78], [80, 132], [72, 150], [68, 120], [66, 80]], { fill: 0x2a2440, rim: 0xe8d8ff, rimWidth: 2 }, s);
+    g.fillStyle(0xc8d4ff, 1);
+    g.fillRect(70 * s, 50 * s, 12 * s, 4 * s);
+  });
+
   // ---------------- 敵方 ----------------
   const wolfPts: P[] = [
     [6, 78], [22, 66], [40, 56], [50, 30], [58, 20], [64, 44], [80, 40], [110, 44], [140, 50], [160, 54], [170, 58],
@@ -221,12 +276,138 @@ export function generateCombatantArt(scene: Phaser.Scene): void {
     eye(g, 66, 78, 5, 0xb48cff, s);
     eye(g, 92, 74, 4, 0xb48cff, s);
   });
+
+  make(scene, 'enemy_rock_beetle', 210, 150, (g, s) => {
+    const o = { fill: 0x14110e, rim: 0xd8a868 };
+    // 腳
+    g.lineStyle(5 * s, 0x2a221a, 1);
+    for (const x of [60, 100, 140, 170]) {
+      g.lineBetween(x * s, 110 * s, (x - 12) * s, 144 * s);
+    }
+    // 身體
+    rimPoly(g, [[30, 104], [44, 70], [80, 40], [130, 34], [176, 52], [200, 88], [196, 118], [40, 122]], o, s);
+    // 石板甲片
+    const plate = { fill: 0x2a2620, rim: 0xb89a70, rimWidth: 2 };
+    rimPoly(g, [[66, 54], [104, 40], [110, 76], [70, 84]], plate, s);
+    rimPoly(g, [[112, 40], [158, 50], [150, 84], [116, 78]], plate, s);
+    rimPoly(g, [[160, 58], [190, 86], [180, 108], [154, 92]], plate, s);
+    rimPoly(g, [[72, 90], [148, 90], [140, 112], [80, 112]], plate, s);
+    // 頭與大顎
+    rimPoly(g, [[10, 96], [22, 76], [46, 70], [50, 112], [24, 116]], o, s);
+    g.fillStyle(0xe8d0a8, 1);
+    g.fillTriangle(12 * s, 100 * s, -2 * s, 92 * s, 10 * s, 108 * s);
+    g.fillTriangle(14 * s, 110 * s, 0, 120 * s, 18 * s, 116 * s);
+    eye(g, 26, 88, 3.5, 0xffb030, s);
+    eye(g, 38, 84, 2.5, 0xffb030, s);
+  });
+
+  make(scene, 'enemy_lamp_wraith', 150, 190, (g, s) => {
+    const o = { fill: 0x110e22, rim: 0xb8c8ff };
+    // 鬼影身體 + 飄尾
+    rimPoly(g, [
+      [74, 14], [104, 28], [116, 64], [112, 110], [102, 140], [110, 168], [92, 154], [84, 186], [72, 160],
+      [56, 178], [58, 140], [40, 110], [36, 64], [48, 28],
+    ], o, s);
+    // 手臂伸向燈
+    rimPoly(g, [[46, 80], [20, 100], [16, 112], [28, 108], [52, 96]], { ...o, rimWidth: 2 }, s);
+    // 礦燈
+    g.lineStyle(2 * s, 0x8a90b0, 1);
+    g.lineBetween(20 * s, 108 * s, 20 * s, 118 * s);
+    g.fillStyle(0xa78cff, 0.3);
+    g.fillCircle(20 * s, 130 * s, 18 * s);
+    g.fillStyle(0x2a2440, 1);
+    g.fillRect(12 * s, 118 * s, 16 * s, 22 * s);
+    g.fillStyle(0xbfd0ff, 1);
+    g.fillRect(15 * s, 122 * s, 10 * s, 14 * s);
+    g.fillStyle(0xffffff, 1);
+    g.fillRect(18 * s, 126 * s, 4 * s, 6 * s);
+    eye(g, 64, 56, 4, 0xc8b0ff, s);
+    eye(g, 86, 56, 4, 0xc8b0ff, s);
+    g.fillStyle(0x6a5aa8, 1);
+    g.fillEllipse(75 * s, 76 * s, 12 * s, 8 * s);
+  }, { x: 20, y: 130, color: 0x9fb0ff, scale: 0.6 });
+
+  make(scene, 'enemy_blast_lizard', 200, 140, (g, s) => {
+    const o = { fill: 0x120d0c, rim: 0xff9a50 };
+    // 尾巴 + 身體 + 頭
+    rimPoly(g, [
+      [8, 86], [20, 70], [44, 62], [70, 60], [120, 58], [150, 66], [176, 60], [196, 40], [190, 72], [170, 90],
+      [158, 96], [160, 128], [146, 128], [138, 102], [86, 104], [78, 128], [64, 128], [60, 100], [34, 98], [14, 96],
+    ], o, s);
+    // 背棘
+    rimPoly(g, [[70, 62], [80, 48], [92, 60], [104, 46], [116, 60], [128, 50], [140, 64]], { ...o, rimWidth: 2 }, s);
+    // 發光腹囊
+    for (const [x, y, r] of [[84, 96, 9], [106, 98, 11], [128, 96, 9]] as [number, number, number][]) {
+      g.fillStyle(0xff7a2a, 0.35);
+      g.fillCircle(x * s, y * s, r * 1.6 * s);
+      g.fillStyle(0xff8a3d, 1);
+      g.fillCircle(x * s, y * s, r * s);
+      g.fillStyle(0xffe0a0, 1);
+      g.fillCircle((x - 2) * s, (y - 2) * s, r * 0.4 * s);
+    }
+    g.fillStyle(0xfff0d8, 1);
+    g.fillTriangle(10 * s, 90 * s, 18 * s, 94 * s, 14 * s, 86 * s);
+    eye(g, 30, 74, 3.5, 0xffc040, s);
+  }, { x: 106, y: 98, color: 0xff7a2a, scale: 0.7 });
+
+  make(scene, 'enemy_boss_bellworm', 320, 260, (g, s) => {
+    // 地面裂口
+    g.fillStyle(0x1a1420, 1);
+    g.fillEllipse(170 * s, 246 * s, 260 * s, 26 * s);
+    rimPoly(g, [[50, 248], [80, 236], [120, 242], [160, 232], [210, 240], [260, 234], [290, 248], [250, 256], [90, 256]], {
+      fill: 0x18121c, rim: 0x8a6aa8, rimWidth: 2,
+    }, s);
+    // 蠕蟲身體（弓起）
+    const o = { fill: 0x0d0a16, rim: 0xb08cff, rimWidth: 4 };
+    rimPoly(g, [
+      [120, 246], [110, 200], [112, 160], [126, 124], [150, 100], [190, 96], [214, 120], [220, 160], [226, 246],
+    ], o, s);
+    // 體節環
+    g.lineStyle(3 * s, 0x2a1e44, 1);
+    for (const y of [140, 170, 200, 226]) g.lineBetween(116 * s, y * s, 222 * s, (y + 4) * s);
+    // 紫色裂紋
+    g.lineStyle(2.5 * s, 0xc070ff, 1);
+    g.lineBetween(140 * s, 150 * s, 160 * s, 180 * s);
+    g.lineBetween(160 * s, 180 * s, 150 * s, 210 * s);
+    g.lineBetween(196 * s, 160 * s, 186 * s, 196 * s);
+    g.lineBetween(186 * s, 196 * s, 204 * s, 222 * s);
+    // 銅鐘頭殼
+    rimPoly(g, [[110, 108], [118, 60], [146, 26], [170, 18], [196, 26], [222, 60], [230, 108], [246, 124], [94, 124]], {
+      fill: 0x3a2814, rim: 0xe8b060, rimWidth: 4,
+    }, s);
+    g.lineStyle(3 * s, 0xc08a40, 1);
+    g.lineBetween(118 * s, 76 * s, 222 * s, 76 * s);
+    g.lineBetween(104 * s, 114 * s, 236 * s, 114 * s);
+    // 鐘口（嘴）
+    g.fillStyle(0x1a0812, 1);
+    g.fillEllipse(170 * s, 128 * s, 140 * s, 30 * s);
+    g.fillStyle(0xc070ff, 0.35);
+    g.fillEllipse(170 * s, 130 * s, 90 * s, 14 * s);
+    // 牙齒
+    g.fillStyle(0xf4e8d8, 1);
+    for (let i = 0; i < 12; i++) {
+      const x = 108 + i * 11;
+      g.fillTriangle(x * s, 120 * s, (x + 8) * s, 120 * s, (x + 4) * s, 134 * s);
+    }
+    for (let i = 0; i < 10; i++) {
+      const x = 118 + i * 11;
+      g.fillTriangle(x * s, 138 * s, (x + 8) * s, 138 * s, (x + 4) * s, 128 * s);
+    }
+    // 鐘殼裂紋與眼
+    g.lineStyle(2 * s, 0xc070ff, 1);
+    g.lineBetween(150 * s, 40 * s, 158 * s, 66 * s);
+    g.lineBetween(158 * s, 66 * s, 148 * s, 90 * s);
+    g.lineBetween(200 * s, 44 * s, 190 * s, 70 * s);
+    eye(g, 140, 96, 5, 0xc48bff, s);
+    eye(g, 200, 96, 5, 0xc48bff, s);
+    eye(g, 170, 90, 3.5, 0xc48bff, s);
+  }, { x: 170, y: 130, color: 0xa060ff, scale: 1.2 });
 }
 
 /** 對話立繪用（剪影，正面半身）。 */
 export function generatePortraitArt(scene: Phaser.Scene): void {
   generateHeroPortraits(scene);
-  make(scene, 'hero_serin', 150, 230, (g, s) => {
+  make(scene, 'npc_serin_simple', 150, 230, (g, s) => {
     const o = { fill: 0x161a2c, rim: 0xc8d4ff };
     // 劍
     g.lineStyle(5 * s, 0xc8d4ff, 1);

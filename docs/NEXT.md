@@ -6,7 +6,7 @@
 
 1. **第 2 章通關驗證**（最高優先；第 3 輪機器人在新地圖程式下仍通關第 1 章，但停在 `ch1_complete` 旗標當下，尚未看到「第 1 章結尾 → 第 2 章地圖」轉場）：擴充 `scripts/playthrough.mjs`，讓它在 `ch1_complete` 後繼續玩第 2 章直到 `ch2_complete`（地圖會自動切到 ch2）。要跑 4 人隊伍（莉歐拉加入後 party 有 4 人，戰鬥只帶前 3 人）。修所有卡關點。
    - 機器人：`npx vite build --outDir /tmp/claude-0/bot/dist --emptyOutDir`、`python3 -m http.server 4180 -d /tmp/claude-0/bot/dist &`、`(WORKAROUNDS=0 node scripts/playthrough.mjs http://localhost:4180/?debug /tmp/claude-0/bot > log 2>&1 &)`，約 4 分鐘。機器人會關掉 render 加速（`RENDER=1` 可開）。
-   - 可以加一個 `?debug&save=ch1done` 類的除錯入口直接從第 2 章開始，省時間。
+   - 除錯入口已有：`?debug&chapter=2&scene=Map`（建立「第 1 章已完成」的新存檔，伊歐在隊、Lv5）。注意它會覆蓋本機存檔。
 2. **第 2 章系統缺口**（10 §新系統，挑最有感的）：
    - ~~`blast_bottle` 爆燈瓶道具~~（第 3 輪完成）。
    - 鐘喉蠕蟲階段 3「吞噬星燼」：EnemyDef 不支援 → 引擎加 `drainEmber` 攻擊效果 + 測試。

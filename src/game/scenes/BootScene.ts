@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { applyEffects } from '../../core/state/gameState';
+import { CHAPTER_MAPS } from '../../data/maps';
+import { session } from '../session';
 
 /**
  * Generates every texture procedurally (no image assets), then starts the title.
@@ -16,6 +19,16 @@ export class BootScene extends Phaser.Scene {
     this.makeShard('shard', 18, 48);
     // 除錯入口（06 §7）：?scene=Battle&enc=boss_wolfking
     const q = new URLSearchParams(window.location.search);
+    // ?chapter=2：直接以「第 1 章已完成」的新存檔開始（測試第 2 章用）
+    if (q.get('chapter') === '2') {
+      const s = session.newGame();
+      for (const f of Object.values(CHAPTER_MAPS.ch1.done)) s.flags[f] = true;
+      Object.assign(s.flags, { wick_lake: true, wick_hunter: true, wick_shrine: true, io_named: true });
+      applyEffects(s, [{ join: 'io' }]);
+      for (const m of Object.values(s.members)) if (m) m.level = Math.max(m.level, 5);
+      s.location = { region: 'ch2', node: 'greylamp_plaza' };
+      session.save();
+    }
     if (q.get('scene') === 'Battle') this.scene.start('Battle');
     else if (q.get('scene') === 'Map') this.scene.start('Map');
     else if (q.get('scene') === 'Cards') this.scene.start('Cards', { match: q.get('match') ?? 'demo' });

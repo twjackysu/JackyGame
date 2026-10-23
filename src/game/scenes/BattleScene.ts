@@ -23,6 +23,7 @@ import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silho
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { session, withNames } from '../session';
 import { getSettings } from '../settings';
+import { backdropKey, type BackdropId } from '../art/backdrops';
 import { grantXp } from '../../core/state/gameState';
 import {
   UI_FONT, bigText, floatNumber, hitStop, pressBounce, setBaseSpeed, shockRing, slowMo, sparks, wait, fadeOutThen } from '../fx/feel';
@@ -260,6 +261,20 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private drawBackground(boss: boolean): void {
+    // 第 2 章（礦坑）遭遇：沿用對話背景（礦坑／鐘廳／深層）
+    const enc = this.data0.encounter;
+    const mine: BackdropId | null = enc === 'boss_bellworm' || enc.startsWith('deep_') ? 'deep' : enc === 'bell_hall' ? 'bellhall' : enc.startsWith('mine_') ? 'mine' : null;
+    if (mine) {
+      this.add.image(0, 0, backdropKey(this, mine)).setOrigin(0, 0).setDepth(-10);
+      const shade = this.add.graphics().setDepth(-9);
+      shade.fillStyle(0x000000, boss ? 0.45 : 0.3).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      this.add.particles(0, 0, 'ember', {
+        x: { min: 0, max: GAME_WIDTH }, y: { min: 300, max: 1100 }, lifespan: { min: 2500, max: 5000 },
+        speedY: { min: -14, max: -4 }, scale: { start: 0.3, end: 0 }, alpha: { start: 0.7, end: 0 }, frequency: 260,
+        tint: boss ? 0xb48cff : 0xffb565, blendMode: Phaser.BlendModes.ADD,
+      }).setDepth(-8);
+      return;
+    }
     const key = boss ? 'bg_forest_boss' : 'bg_forest';
     if (!this.textures.exists(key)) {
       const tex = this.textures.createCanvas(key, GAME_WIDTH, GAME_HEIGHT);
