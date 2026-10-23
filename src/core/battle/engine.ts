@@ -89,7 +89,7 @@ export interface BattleState {
   lampAtk: number;
   items: Partial<Record<ItemId, number>>;
   /** ambushed：被伏擊，第 1 輪我方不行動 */
-  flags: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean };
+  flags: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; retryBoost?: number };
   usedOnce: string[];
   /** 霧：判定窗口倍率 & 剩餘回合 */
   windowScale: number;
@@ -140,7 +140,8 @@ export interface CreateBattleOptions {
   party: { id: HeroId; level: number; hp?: number }[];
   enemies: string[];
   seed: number;
-  flags?: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean };
+  /** retryBoost：劇情戰連敗次數（不屈之燈）→ 開場星燼 +N、敵方攻擊 −5%/次（上限 4 次） */
+  flags?: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; retryBoost?: number };
   items?: Partial<Record<ItemId, number>>;
 }
 
@@ -178,9 +179,11 @@ export function createBattle(opts: CreateBattleOptions): Result {
       actionsPerRound: e.actionsPerRound ?? 1,
     };
   });
+  const boost = Math.max(0, Math.min(4, Math.floor(opts.flags?.retryBoost ?? 0)));
+  if (boost > 0) for (const e of enemies) e.atk = Math.round(e.atk * (1 - 0.05 * boost));
   const lian = heroes.find((h) => h.id === 'lian');
   const state: BattleState = {
-    round: 0, heroes, enemies, ember: opts.flags?.tutorialEmber ? MAX_EMBER : START_EMBER, phase: 'playerCommand',
+    round: 0, heroes, enemies, ember: opts.flags?.tutorialEmber ? MAX_EMBER : Math.min(MAX_EMBER, START_EMBER + boost), phase: 'playerCommand',
     actor: null, queue: [], pendingCommand: null, pendingEnemy: null, rngState: opts.seed >>> 0,
     lampAtk: lian?.atk ?? 14, items: { ...(opts.items ?? {}) }, flags: { ...(opts.flags ?? {}) }, usedOnce: [],
     windowScale: 1, fogRounds: 0, telegraphLeadBonusMs: 0, leadBonusRounds: 0, rewindSnapshot: null,

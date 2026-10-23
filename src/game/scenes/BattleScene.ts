@@ -168,6 +168,7 @@ export class BattleScene extends Phaser.Scene {
       flags: this.data0.story ? {
         tutorialEmber: this.data0.tutorial, guidingLight: !!session.state.flags['guidingLight'],
         ambushed: this.data0.encounter === 'caravan' && !!session.state.flags['caravan_ambushed'],
+        retryBoost: this.retryCount(),
       } : { guidingLight: true },
     }).state;
     for (const h of this.bs.heroes) {
@@ -226,6 +227,14 @@ export class BattleScene extends Phaser.Scene {
       SFX.hitHeavy();
       bigText(this, GAME_WIDTH / 2, 600, '伏擊！先手被奪', '#ff7a6a', 52, 900);
       await wait(this, 900);
+    }
+    const boost = Math.min(4, this.bs.flags.retryBoost ?? 0);
+    if (boost > 0) {
+      SFX.save();
+      shockRing(this, GAME_WIDTH / 2, 938, 0xffd27a);
+      bigText(this, GAME_WIDTH / 2, 600, '不屈之燈', '#ffd27a', 56, 800);
+      floatNumber(this, GAME_WIDTH / 2, 670, `星燼 +${boost}・敵方攻擊 −${boost * 5}%`, { color: '#ffe2a8', size: 28 });
+      await wait(this, 1000);
     }
     this.step();
   }
@@ -1243,6 +1252,12 @@ export class BattleScene extends Phaser.Scene {
     this.syncBars();
   }
 
+  /** 這場劇情戰已經輸過幾次（不屈之燈加成用） */
+  private retryCount(): number {
+    const v = session.state.flags[`retry_${this.data0.encounter}`];
+    return typeof v === 'number' ? v : 0;
+  }
+
   private viewOf(r: ActorRef): UnitView | undefined {
     return (r.side === 'hero' ? this.heroes : this.enemies)[r.index];
   }
@@ -1537,6 +1552,11 @@ export class BattleScene extends Phaser.Scene {
       pressBounce(this, btn);
       fadeOutThen(this, 350, () => {
         if (story) {
+          // 不屈之燈：劇情戰敗北次數記在存檔，下次同一場戰鬥開場加成；勝利後清除
+          const key = `retry_${this.data0.encounter}`;
+          if (win) delete session.state.flags[key];
+          else session.state.flags[key] = this.retryCount() + 1;
+          session.save();
           this.scene.stop();
           this.scene.wake('Dialogue', { outcome: win ? 'win' : 'lose' });
         } else if (win && !next) this.scene.start('Title');

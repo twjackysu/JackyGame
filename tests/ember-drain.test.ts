@@ -43,3 +43,15 @@ describe('吞噬星燼 drainEmber', () => {
     expect(r.events.some((e) => e.type === 'emberDrained')).toBe(false);
   });
 });
+
+describe('不屈之燈 retryBoost', () => {
+  const party = [{ id: 'lian' as const, level: 8 }];
+  it('開場星燼 +N、敵方攻擊 −5%/次，上限 4 次', () => {
+    const base = createBattle({ party, enemies: ['boss_bellworm'], seed: 1 }).state;
+    const b2 = createBattle({ party, enemies: ['boss_bellworm'], seed: 1, flags: { retryBoost: 2 } }).state;
+    const b9 = createBattle({ party, enemies: ['boss_bellworm'], seed: 1, flags: { retryBoost: 9 } }).state;
+    expect(b2.ember).toBe(Math.min(10, base.ember + 2));
+    expect(b2.enemies[0]!.atk).toBe(Math.round(base.enemies[0]!.atk * 0.9));
+    expect(b9.enemies[0]!.atk).toBe(Math.round(base.enemies[0]!.atk * 0.8));
+  });
+});
