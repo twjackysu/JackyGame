@@ -5,7 +5,9 @@ import { playMusic, stopMusic } from '../../audio/music';
 import { DialogueRunner, type DialogueStep, type ShownOption } from '../../core/dialogue/runner';
 import type { HeroId } from '../../core/battle/skills';
 import { SPEAKER_NAMES } from '../../data/dialogue/speakers';
+import { CH1_ENTRIES } from '../../data/dialogue/ch1';
 import { generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
+import { backdropFor, backdropKey } from '../art/backdrops';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks } from '../fx/feel';
 import { SCRIPTS, session } from '../session';
@@ -59,6 +61,8 @@ export class DialogueScene extends Phaser.Scene {
     const script = SCRIPTS[this.scriptId];
     if (!script) throw new Error(`unknown script ${this.scriptId}`);
     const node = data.node && script.nodes[data.node] ? data.node : script.start ?? 'start';
+    const entry = this.scriptId === 'ch1' ? CH1_ENTRIES.find((e) => e.node === node) : undefined;
+    if (entry) session.state.location = { region: 'ch1', node: entry.location };
     this.runner = new DialogueRunner({ ...script, start: node }, session.state);
     this.lastNode = '';
     this.portraits = { left: null, right: null };
@@ -135,7 +139,7 @@ export class DialogueScene extends Phaser.Scene {
         tex.refresh();
       }
     }
-    this.add.image(0, 0, key).setOrigin(0, 0);
+    this.add.image(0, 0, backdropKey(this, backdropFor(this.scriptId, session.state.location.node))).setOrigin(0, 0);
     // 提燈光暈（搖曳）
     this.lamp = this.add.image(GAME_WIDTH / 2, 760, 'glow').setScale(3.4).setTint(0xffa54a).setAlpha(0.45)
       .setBlendMode(Phaser.BlendModes.ADD);
