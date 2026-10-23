@@ -814,6 +814,11 @@ export class BattleScene extends Phaser.Scene {
       taunt: '2 回合內吸引所有單體攻擊',
       counter_stance: '格擋成功必定反擊',
       veteran_instinct: '2 回合內敵人預兆提早 0.2 秒',
+      break_slash: '單體重擊，大幅削減破防條',
+      guardian_oath: '2 回合吸引攻擊並進入防禦',
+      blast_art: '全體火屬性爆破',
+      lamp_slash: '與連恩合擊：光＋物理 3 倍單體、破防 40',
+      lamp_detonator: '與連恩合擊：全體火傷，每盞燈印追加並引爆',
       potion_s: '回復 60 HP（HP 最低的隊友）',
       lamp_oil: '回復 2 SP',
     };
@@ -863,7 +868,7 @@ export class BattleScene extends Phaser.Scene {
       const c = this.bs.pendingCommand!;
       let tx = this.enemies[c.target ?? this.target]?.x ?? 360;
       let ty = this.enemies[c.target ?? this.target]?.y ?? 420;
-      if (c.skillId === 'resonance') {
+      if (c.skillId === 'resonance' || c.skillId === 'blast_art' || c.skillId === 'lamp_detonator') {
         tx = 360;
         ty = 420;
       } else if (c.skillId === 'glimmer_song') {
@@ -1367,6 +1372,30 @@ export class BattleScene extends Phaser.Scene {
         this.fog.forEach((f) => this.tweens.add({ targets: f, alpha: 0.32, duration: 1200 }));
         floatNumber(this, GAME_WIDTH / 2, 660, '判定窗口縮小', { color: '#c8b0ff', size: 28 });
         await wait(this, 1100);
+        return;
+      }
+      case 'combo': {
+        // 連攜技：暗場 → 兩人光柱 → 「連攜！」→ 衝擊波
+        const ids = ['lian', e.skill === 'lamp_slash' ? 'serin' : 'liora'];
+        const dark = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0).setDepth(740);
+        this.tweens.add({ targets: dark, fillAlpha: 0.6, duration: 220 });
+        SFX.resonance();
+        for (const id of ids) {
+          const i = this.bs.heroes.findIndex((h) => h.id === id);
+          const v = this.heroes[i];
+          if (!v) continue;
+          const col = HERO_COLOR[id] ?? 0xffd27a;
+          const beam = this.add.rectangle(v.x, v.y - 300, 90, 700, col, 0.0).setDepth(745).setBlendMode(Phaser.BlendModes.ADD);
+          this.tweens.add({ targets: beam, fillAlpha: 0.55, scaleX: { from: 0.2, to: 1 }, duration: 260, yoyo: true, hold: 300, onComplete: () => beam.destroy() });
+          sparks(this, v.x, v.y - 40, 30, 'ember', col, 500);
+        }
+        await wait(this, 300);
+        bigText(this, GAME_WIDTH / 2, 560, e.skill === 'lamp_slash' ? '連攜・燈下斬' : '連攜・燈火雷管', '#ffe2a8', 60, 700);
+        shockRing(this, GAME_WIDTH / 2, 560, 0xffd27a, 360, 600, 14);
+        this.cameras.main.shake(320, 0.012);
+        SFX.perfect();
+        await wait(this, 650);
+        this.tweens.add({ targets: dark, fillAlpha: 0, duration: 300, onComplete: () => dark.destroy() });
         return;
       }
       case 'emberDrained': {

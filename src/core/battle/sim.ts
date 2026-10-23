@@ -77,6 +77,15 @@ function policy(s: BattleState): Command {
     if (s.heroes.some((h) => h.downed || h.hp / h.maxHp < 0.45)) return { type: 'skill', skillId: 'glimmer_song' };
   }
   if (hero.id === 'rourke' && isBoss && s.round === 1 && usable.has('taunt')) return { type: 'skill', skillId: 'taunt' };
+  const living = s.enemies.filter((e) => e.hp > 0).length;
+  if (hero.id === 'liora') {
+    if (usable.has('lamp_detonator') && s.ember >= 7) return { type: 'skill', skillId: 'lamp_detonator' };
+    if (usable.has('blast_art') && living >= 2) return { type: 'skill', skillId: 'blast_art' };
+  }
+  if (hero.id === 'serin' && biggest) {
+    if (usable.has('lamp_slash') && s.ember >= 7) return { type: 'skill', skillId: 'lamp_slash', target: biggest.i };
+    if (usable.has('break_slash') && biggest.e.hp > 150) return { type: 'skill', skillId: 'break_slash', target: biggest.i };
+  }
   return { type: 'attack', target: pickTarget(s, hero.element) };
 }
 

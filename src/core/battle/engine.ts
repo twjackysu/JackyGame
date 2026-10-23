@@ -127,6 +127,7 @@ export type BattleEvent =
   | { type: 'phaseChange'; enemy: number; phase: 2 }
   | { type: 'ember'; delta: number; total: number }
   | { type: 'emberDrained'; enemy: number; amount: number; healed: number }
+  | { type: 'combo'; skill: 'lamp_slash' | 'lamp_detonator' }
   | { type: 'skip'; actor: ActorRef; reason: 'broken' | 'downed' }
   | { type: 'victory' }
   | { type: 'defeat' };
@@ -419,6 +420,7 @@ function skillUsable(s: BattleState, hero: Unit, skillId: string): boolean {
   if ((sk.costSp ?? 0) > hero.sp) return false;
   if ((sk.costEmber ?? 0) > s.ember) return false;
   if (sk.oncePerBattle && s.usedOnce.includes(sk.id)) return false;
+  if (sk.partner && !s.heroes.some((h) => h.id === sk.partner && alive(h))) return false;
   if (sk.id === 'lamp_mark' && totalLamps(s) >= MAX_LAMPS) return false;
   if (sk.id === 'resonance' && totalLamps(s) === 0) return false;
   if (sk.id === 'rewind' && !s.rewindSnapshot) return false;
@@ -524,6 +526,12 @@ function applyInstantSkill(s: BattleState, ev: BattleEvent[], hero: Unit, actor:
       hero.status.taunt = 2;
       ev.push({ type: 'statusApplied', target: actor, status: 'taunt', rounds: 2 });
       break;
+    case 'guardian_oath':
+      hero.status.taunt = 2;
+      hero.status.guarding = true;
+      ev.push({ type: 'statusApplied', target: actor, status: 'taunt', rounds: 2 });
+      ev.push({ type: 'statusApplied', target: actor, status: 'guarding' });
+      break;
     case 'counter_stance':
       hero.status.counterStance = true;
       ev.push({ type: 'statusApplied', target: actor, status: 'counterStance' });
@@ -626,6 +634,35 @@ export function resolveTiming(state: BattleState, timing: Timing): Result {
       per.push({ target: i, lamps: n, amount: r.amount });
     });
     ev.push({ type: 'resonance', perTarget: per, totalLamps: N });
+  } else if (c.skillId === 'break_slash') {
+    // 破陣斬：高倍率單體 + 大量削減破防條
+    const t = c.target ?? firstAliveEnemy(s);
+    if (t >= 0 && alive(s.enemies[t]!)) {
+      hitEnemy(t, 1.6, ['phys'], false);
+      if (alive(s.enemies[t]!)) reduceBreak(s, ev, t, timing === 'perfect' ? 30 : 20);
+    }
+  } else if (c.skillId === 'blast_art') {
+    // 爆破術：全體火屬性
+    s.enemies.forEach((e, i) => {
+      if (alive(e)) hitEnemy(i, 0.9, ['fire'], false);
+    });
+  } else if (c.skillId === 'lamp_slash' || c.skillId === 'lamp_detonator') {
+    ev.push({ type: 'combo', skill: c.skillId });
+    if (c.skillId === 'lamp_slash') {
+      // 燈下斬：連恩舉燈、瑟琳斬下——光＋物理，單體 3.0 倍、破防 40
+      const t = c.target ?? firstAliveEnemy(s);
+      if (t >= 0 && alive(s.enemies[t]!)) {
+        hitEnemy(t, 3.0, ['light', 'phys'], true);
+        if (alive(s.enemies[t]!)) reduceBreak(s, ev, t, 40);
+      }
+    } else {
+      // 燈火雷管：全體火傷 1.4 倍，每盞燈印再 +0.35 倍並引爆（清空燈印）
+      const snap = s.enemies.map((e) => (alive(e) ? e.lamps : 0));
+      s.enemies.forEach((e) => (e.lamps = 0));
+      s.enemies.forEach((e, i) => {
+        if (alive(e)) hitEnemy(i, 1.4 + 0.35 * (snap[i] ?? 0), ['fire'], true);
+      });
+    }
   } else if (c.skillId === 'glimmer_song') {
     const pct = timing === 'perfect' ? 0.3 : 0.2;
     s.heroes.forEach((h, i) => {

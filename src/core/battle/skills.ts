@@ -16,6 +16,8 @@ export interface SkillDef {
   oncePerBattle?: boolean;
   /** 需要旗標解鎖（例：引路之光 1-9） */
   unlockFlag?: 'guidingLight';
+  /** 連攜技：此夥伴也必須在場（未倒地） */
+  partner?: HeroId;
 }
 
 /** 普攻倍率與目標（洛克普攻打全體） */
@@ -39,6 +41,13 @@ export const SKILLS: Record<string, SkillDef> = {
   taunt: { id: 'taunt', hero: 'rourke', name: '挑釁', costSp: 1, timing: false, targeting: 'self' },
   counter_stance: { id: 'counter_stance', hero: 'rourke', name: '反擊架勢', costSp: 2, timing: false, targeting: 'self' },
   veteran_instinct: { id: 'veteran_instinct', hero: 'rourke', name: '老兵的直覺', costSp: 2, timing: false, targeting: 'none' },
+  // 第 2 章同伴
+  break_slash: { id: 'break_slash', hero: 'serin', name: '破陣斬', costSp: 2, timing: true, targeting: 'enemy' },
+  guardian_oath: { id: 'guardian_oath', hero: 'serin', name: '守護誓言', costSp: 2, timing: false, targeting: 'self' },
+  blast_art: { id: 'blast_art', hero: 'liora', name: '爆破術', costSp: 3, timing: true, targeting: 'allEnemies' },
+  // 連攜技（03 §連攜技）：與連恩同時在場、消耗星燼
+  lamp_slash: { id: 'lamp_slash', hero: 'serin', name: '連攜・燈下斬', costEmber: 4, timing: true, targeting: 'enemy', partner: 'lian' },
+  lamp_detonator: { id: 'lamp_detonator', hero: 'liora', name: '連攜・燈火雷管', costEmber: 4, timing: true, targeting: 'allEnemies', partner: 'lian' },
 };
 
 export function skillsFor(hero: HeroId): SkillDef[] {

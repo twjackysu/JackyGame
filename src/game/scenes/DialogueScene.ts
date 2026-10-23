@@ -504,7 +504,7 @@ export class DialogueScene extends Phaser.Scene {
       sheet.add(burn);
       const warn = this.add.text(cx, cy - H / 2 - 10, '⚠ 已偏移', { fontFamily: TITLE_FONT, fontSize: '54px', fontStyle: '900', color: '#ff5a3a', stroke: '#1a0505', strokeThickness: 8 })
         .setOrigin(0.5).setAlpha(0).setDepth(330);
-      const truth = this.add.text(cx, cy + 40, page.truth, { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffe2c0', stroke: '#000', strokeThickness: 6, align: 'center' })
+      const truth = this.add.text(cx, cy + 40, withNames(page.truth), { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffe2c0', stroke: '#000', strokeThickness: 6, align: 'center' })
         .setOrigin(0.5).setAlpha(0).setDepth(330);
       ui.add([warn, truth]);
       SFX.uiTap();
