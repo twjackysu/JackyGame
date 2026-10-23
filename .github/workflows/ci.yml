@@ -36,6 +36,10 @@ jobs:
           npx vite preview --port 4173 --strictPort &
           for i in $(seq 1 30); do curl -sf http://localhost:4173/ >/dev/null && break; sleep 1; done
           SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?skipIntro' screenshots/title.png 4000
+          SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?scene=Battle&enc=boss_wolfking' screenshots/battle.png 5000
+          SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?scene=Dialogue&script=ch1&node=tavern' screenshots/dialogue.png 5000
+          SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?scene=Map' screenshots/map.png 4000
+          SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?scene=Cards&match=rourke_official' screenshots/cards.png 4000
       - uses: actions/upload-artifact@v4
         if: always()
         with:
