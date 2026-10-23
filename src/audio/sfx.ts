@@ -29,6 +29,8 @@ export interface SfxParams {
   vibratoRate?: number;
   /** Lowpass cutoff in Hz (0 = off). */
   lowpass?: number;
+  /** Start delay in seconds (for layered/arpeggiated sounds). */
+  delay?: number;
 }
 
 let ctx: AudioContext | null = null;
@@ -104,9 +106,10 @@ export function playSfx(p: SfxParams = {}): void {
     vibrato = 0,
     vibratoRate = 0,
     lowpass = 0,
+    delay = 0,
   } = p;
 
-  const t0 = ac.currentTime;
+  const t0 = ac.currentTime + delay;
   const total = attack + sustain + release;
 
   const env = ac.createGain();
@@ -165,4 +168,56 @@ export const SFX = {
     playSfx({ wave: 'noise', freq: 900, freqEnd: 120, sustain: 0.02, release: 0.18, volume: 0.5, lowpass: 2400 });
     playSfx({ wave: 'square', freq: 180, freqEnd: 50, sustain: 0.02, release: 0.15, volume: 0.3 });
   },
+  // ---- 05 §6 具名音效 ----
+  uiTap: (): void => playSfx({ wave: 'triangle', freq: 660, freqEnd: 990, sustain: 0.01, release: 0.06, volume: 0.18 }),
+  uiCancel: (): void => playSfx({ wave: 'triangle', freq: 520, freqEnd: 260, sustain: 0.02, release: 0.12, volume: 0.2 }),
+  hitLight: (): void => {
+    playSfx({ wave: 'noise', freq: 1400, freqEnd: 300, sustain: 0.01, release: 0.1, volume: 0.35, lowpass: 3200 });
+    playSfx({ wave: 'square', freq: 260, freqEnd: 90, sustain: 0.01, release: 0.08, volume: 0.2 });
+  },
+  hitHeavy: (): void => {
+    playSfx({ wave: 'noise', freq: 700, freqEnd: 60, sustain: 0.04, release: 0.3, volume: 0.6, lowpass: 1800 });
+    playSfx({ wave: 'sine', freq: 120, freqEnd: 35, sustain: 0.05, release: 0.35, volume: 0.6 });
+  },
+  perfect: (): void => {
+    playSfx({ wave: 'sine', freq: 1568, freqEnd: 2093, sustain: 0.04, release: 0.4, volume: 0.3, vibrato: 8, vibratoRate: 9 });
+    playSfx({ wave: 'triangle', freq: 1047, sustain: 0.03, release: 0.3, volume: 0.25, delay: 0.04 });
+  },
+  parry: (): void => {
+    playSfx({ wave: 'square', freq: 2400, freqEnd: 1800, sustain: 0.01, release: 0.18, volume: 0.22, lowpass: 6000 });
+    playSfx({ wave: 'noise', freq: 3000, freqEnd: 1500, sustain: 0.01, release: 0.08, volume: 0.25 });
+  },
+  dodge: (): void => playSfx({ wave: 'noise', freq: 300, freqEnd: 1800, attack: 0.03, sustain: 0.02, release: 0.12, volume: 0.25, lowpass: 2500 }),
+  break: (): void => {
+    for (let i = 0; i < 4; i++) {
+      playSfx({ wave: 'square', freq: 2200 - i * 300, freqEnd: 600, sustain: 0.01, release: 0.12, volume: 0.15, delay: i * 0.035 });
+    }
+    playSfx({ wave: 'noise', freq: 2000, freqEnd: 200, sustain: 0.05, release: 0.4, volume: 0.4 });
+  },
+  /** 燈印：第 n 盞（0 起算）音高依序 C-E-G-B-D */
+  lampPlace: (n: number): void => {
+    const notes = [523.25, 659.25, 783.99, 987.77, 1174.66];
+    const f = notes[Math.max(0, Math.min(notes.length - 1, n))] ?? 523.25;
+    playSfx({ wave: 'sine', freq: f, sustain: 0.05, release: 0.5, volume: 0.3, vibrato: 4, vibratoRate: 6 });
+    playSfx({ wave: 'triangle', freq: f * 2, sustain: 0.02, release: 0.25, volume: 0.1, delay: 0.02 });
+  },
+  resonance: (): void => {
+    const notes = [523.25, 659.25, 783.99, 987.77, 1174.66, 1567.98];
+    notes.forEach((f, i) => playSfx({ wave: 'sine', freq: f, sustain: 0.05, release: 0.6, volume: 0.22, delay: i * 0.06 }));
+    playSfx({ wave: 'noise', freq: 200, freqEnd: 3000, attack: 0.3, sustain: 0.1, release: 0.9, volume: 0.35, lowpass: 4000, delay: 0.3 });
+    playSfx({ wave: 'sine', freq: 90, freqEnd: 30, sustain: 0.2, release: 1.0, volume: 0.7, delay: 0.4 });
+  },
+  cardPlay: (): void => playSfx({ wave: 'noise', freq: 2500, freqEnd: 800, sustain: 0.01, release: 0.06, volume: 0.25, lowpass: 5000 }),
+  cardPass: (): void => playSfx({ wave: 'sine', freq: 440, freqEnd: 220, sustain: 0.05, release: 0.3, volume: 0.2 }),
+  roundWin: (): void => {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playSfx({ wave: 'triangle', freq: f, sustain: 0.05, release: 0.3, volume: 0.25, delay: i * 0.08 }));
+  },
+  levelUp: (): void => {
+    [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playSfx({ wave: 'square', freq: f, sustain: 0.04, release: 0.2, volume: 0.15, lowpass: 3000, delay: i * 0.07 }));
+  },
+  itemGet: (): void => {
+    playSfx({ wave: 'triangle', freq: 880, sustain: 0.04, release: 0.15, volume: 0.2 });
+    playSfx({ wave: 'triangle', freq: 1318.5, sustain: 0.06, release: 0.3, volume: 0.2, delay: 0.09 });
+  },
+  save: (): void => playSfx({ wave: 'sine', freq: 1200, freqEnd: 1600, sustain: 0.02, release: 0.2, volume: 0.1 }),
 } as const;

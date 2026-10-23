@@ -12,7 +12,7 @@
    - 除錯入口：`?scene=Battle&enc=boss_wolfking`（06 §7）。
    - 驗證：`npm run build && npm run screenshot -- 'http://localhost:4173/?scene=Battle&enc=forest_a' screenshots/battle.png` 並 Read 看圖。
 2. **手勢**：純邏輯 `src/core/input/gesture.ts`（GestureTracker：tap/swipe/hold，已完成+測試）。在場景中接上 Phaser pointer 事件並每幀呼叫 `update(t)`。
-3. **SFX 擴充**：`src/audio/sfx.ts` 加入 05 §6 的具名音效（hit_light/heavy、perfect、parry、dodge、break、lamp_place 音階、resonance）。
+3. **SFX**：05 §6 具名音效已加入 `SFX`（uiTap、hitLight/Heavy、perfect、parry、dodge、break、lampPlace(n)、resonance、cardPlay/Pass、roundWin、levelUp、itemGet、save），BattleScene 直接用；之後做 BGM 音序器 `src/audio/music.ts`（05 §7）。
 4. **M2**：DialogueScene（用 `src/core/dialogue/runner.ts`）、MapScene、LocationScene、自動存檔（`src/core/save/save.ts` 的 `SaveStore` + `detectStorage()`；`visibilitychange` 時存檔）。標題畫面改成「繼續 / 新的旅程 / 設定」。
 5. **M3**：CardScene（用 `src/core/cards`：`createMatch / legalActions / applyAction / previewNight / peekAction / chooseAction / chooseTutorialAction`），版面見 07 §6。序章與第 1 章劇本轉成 `src/data/dialogue/ch0.ts, ch1.ts`（08）。
 
