@@ -63,6 +63,9 @@
 - 剪影角色 + 邊緣光（rim light），讓風格「刻意」而非「沒素材」。
 - UI 動效：所有面板用彈性補間進出場。
 
+## 8. 名稱檢查（2026-10-23）
+- 以 WebSearch 查「Echoes of Starfall」「Starfall Requiem」「星燼回響」：未找到同名遊戲（只有含 Starfall 字樣的 itch.io 小品與 1980 年代桌遊《Starfall》）。商標未做正式檢索，正式上架前需再確認（已寫入 FOR_JACKY）。
+
 ## 參考來源
 - [How Gwent distinguishes itself from other CCGs — Game Developer](https://www.gamedeveloper.com/design/how-gwent-distinguishes-itself-from-other-ccgs)
 - [The making of Gwent — PC Gamer](https://www.pcgamer.com/uk/the-making-of-gwent)
