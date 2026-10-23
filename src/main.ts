@@ -11,6 +11,6 @@ for (const evt of ['gesturestart', 'gesturechange', 'dblclick'] as const) {
 
 const game = new Phaser.Game(createGameConfig('game'));
 
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('debug')) {
   (window as unknown as { __game?: Phaser.Game }).__game = game;
 }

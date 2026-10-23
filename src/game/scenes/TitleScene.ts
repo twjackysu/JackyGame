@@ -225,9 +225,9 @@ export class TitleScene extends Phaser.Scene {
     this.time.delayedCall(350, () => {
       cam.fadeOut(500, 0, 0, 0);
       cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        // TODO: start the next scene here. For now, fade back into the title.
-        cam.fadeIn(700, 0, 0, 0);
+        // 暫時：直接進入示範連戰（M2 會改成 繼續／新的旅程 選單）
         this.busy = false;
+        this.scene.start('Battle', { encounter: 'forest_a', chain: ['forest_b', 'shrine_boar', 'boss_wolfking'] });
       });
     });
   }
