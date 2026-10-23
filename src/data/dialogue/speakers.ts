@@ -32,4 +32,7 @@ export const SPEAKER_NAMES: Record<string, string> = {
   dealer: '薩伊',
   researcher: '研究員',
   vendor: '夜市攤販',
+  // 第 4 章
+  contact: '內應研究員',
+  tia: '緹雅',
 };

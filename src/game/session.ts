@@ -6,8 +6,9 @@ import { CH0 } from '../data/dialogue/ch0';
 import { CH1 } from '../data/dialogue/ch1';
 import { CH2 } from '../data/dialogue/ch2';
 import { CH3 } from '../data/dialogue/ch3';
+import { CH4 } from '../data/dialogue/ch4';
 
-export const SCRIPTS: Record<string, DialogueScript> = { ch0: CH0, ch1: CH1, ch2: CH2, ch3: CH3 };
+export const SCRIPTS: Record<string, DialogueScript> = { ch0: CH0, ch1: CH1, ch2: CH2, ch3: CH3, ch4: CH4 };
 
 const storage = detectStorage();
 const store = new SaveStore(storage.kv);

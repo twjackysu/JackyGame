@@ -20,7 +20,7 @@ export class BootScene extends Phaser.Scene {
     // 除錯入口（06 §7）：?scene=Battle&enc=boss_wolfking
     const q = new URLSearchParams(window.location.search);
     // ?chapter=2：直接以「第 1 章已完成」的新存檔開始（測試第 2 章用）
-    if (q.get('chapter') === '2' || q.get('chapter') === '3') {
+    if (q.get('chapter') === '2' || q.get('chapter') === '3' || q.get('chapter') === '4') {
       const s = session.newGame();
       for (const f of Object.values(CHAPTER_MAPS.ch1.done)) s.flags[f] = true;
       Object.assign(s.flags, { wick_lake: true, wick_hunter: true, wick_shrine: true, io_named: true });
@@ -30,13 +30,21 @@ export class BootScene extends Phaser.Scene {
       for (const m of Object.values(s.members)) if (m) m.level = Math.max(m.level, 5);
       s.location = { region: 'ch2', node: 'greylamp_plaza' };
       // ?chapter=3：再加上「第 2 章已完成」（瑟琳、莉歐拉在隊，Lv9）
-      if (q.get('chapter') === '3') {
+      if (q.get('chapter') === '3' || q.get('chapter') === '4') {
         for (const f of Object.values(CHAPTER_MAPS.ch2.done)) s.flags[f] = true;
         Object.assign(s.flags, { serin_stayed: true, serin_told_future: true, bond_serin_1: true, bond_liora_1: true });
         applyEffects(s, [{ join: 'serin' }, { join: 'liora' }]);
         for (const m of Object.values(s.members)) if (m) m.level = Math.max(m.level, 9);
         s.gold += 120;
         s.location = { region: 'ch3', node: 'capital_gate' };
+      }
+      // ?chapter=4：再加上「第 3 章已完成」（臥底路線、洛克倒戈、伊歐被帶走）
+      if (q.get('chapter') === '4') {
+        for (const f of Object.values(CHAPTER_MAPS.ch3.done)) s.flags[f] = true;
+        Object.assign(s.flags, { double_agent: true, rourke_turned: true, io_taken: true, tourney_champion: true });
+        applyEffects(s, [{ join: 'rourke' }, { leave: 'io' }]);
+        for (const m of Object.values(s.members)) if (m) m.level = Math.max(m.level, 13);
+        s.location = { region: 'ch4', node: 'academy_entrance' };
       }
       session.save();
     }

@@ -4,8 +4,9 @@
 > 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch3.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`）；敵人/遭遇 `src/data/combatants.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；隊伍面板 `src/game/ui/partyPanel.ts`。
 > 除錯入口：`?debug&chapter=2|3&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?scene=Battle&enc=rourke_1&party=lian,serin,liora&lv=12`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
 
-1. **燼牌 AI 偏弱**（最高優先，影響「好玩」）：第 4 輪機器人用「永遠出第一張可出的牌」就連贏大賽三場（騎士/礦工/莊家）和莉歐拉以外的對手。檢查 `src/core/cards/ai.ts`（`chooseAction`、mistakeRate）與 CardScene 的 `ai` 參數；讓莊家/洛克正式局真正有威脅（目標：不用腦的出牌勝率 < 30%，`tests/cards-ch3.test.ts` 的 15% 失誤玩家 40–60%）。可在 `tests/` 加「naive 出牌 vs AI」模擬。
-2. **M7 第 4 章「星核」**（研究院地下，Lv 13–16）：見 `docs/design/10-story-ch2-final.md` §第 4 章。比照第 3 章做法：
+1. **M7 第 4 章「星核」**（見下方第 2 項細節，現在是最高優先）。
+   - 附註（第 4 輪後段查過）：機器人「永遠出第一張可出的牌」在第 3 章連贏大賽三場，但無頭模擬中同樣的天真出牌對五位對手只有 21–26% 勝率、完美 AI 玩家 41–59% → AI 不算弱，該次多半是運氣（CardScene 每局隨機種子）。若之後機器人多次連勝再查 CardScene 與模擬的差異（例如手牌排序讓「第一張」剛好是強牌）。
+2. **第 4 章細節**（研究院地下，Lv 13–16）：見 `docs/design/10-story-ch2-final.md` §第 4 章。比照第 3 章做法：
    - 先自己定好契約（地點/旗標/遭遇/燼牌 id），**同一則訊息**派兩個子代理（劇本 `ch4.ts`+測試、美術），自己做資料接線（`combatants.ts`、`maps.ts` ch4 + `currentChapter`、`session.ts` SCRIPTS、DialogueScene `ENCOUNTER_LEVEL_FLOOR`/finish/PORTRAIT、MapScene 背景、BootScene `?chapter=4`）。
    - 依 3-5 選擇分歧：`exposed_valderan`（正面突破）/ `double_agent`（內應潛入）；`rourke_turned` / `rourke_lost`；`tourney_champion`。
    - Boss 瓦爾德蘭 3 階段：階段 2「反燈印」（3 回合內用引路之光清掉，否則引爆）需要引擎新機制 + 測試；階段 3「星空舞台」大演出。

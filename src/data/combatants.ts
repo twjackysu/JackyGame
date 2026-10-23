@@ -176,6 +176,33 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'shield_rush', name: '盾衝', telegraph: 'red', windUpMs: 600, mul: 1.6, weight: 1 },
     ],
   },
+  // ───────── 第 4 章：研究院地下 ─────────
+  proto_weapon: {
+    id: 'proto_weapon', name: '蝕化兵器原型', level: 14, hp: 300, atk: 44, def: 16, spd: 11, breakMax: 45, weak: ['light'], resist: ['fire'], xp: 80,
+    attacks: [
+      { id: 'tendril', name: '蝕觸', telegraph: 'white', windUpMs: 600, mul: 0.55, hits: [0, 300, 600], weight: 2 },
+      { id: 'core_burst', name: '核心爆發', telegraph: 'purple', windUpMs: 850, mul: 0.8, aoe: true, status: 'umbra', weight: 1 },
+    ],
+  },
+  star_golem: {
+    id: 'star_golem', name: '星燼魔像', level: 14, hp: 420, atk: 46, def: 24, spd: 5, breakMax: 60, weak: ['water', 'phys'], resist: ['light'], xp: 90,
+    attacks: [
+      { id: 'slam', name: '重拳', telegraph: 'red', windUpMs: 1000, mul: 1.6, weight: 2 },
+      { id: 'quake', name: '地鳴', telegraph: 'white', windUpMs: 900, mul: 0.6, aoe: true, weight: 1 },
+    ],
+  },
+  // 大司星 瓦爾德蘭（Lv 16）：階段 1 白紅交錯的星術；階段 2 星燼吞噬 + 長蓄力（反燈印機制待做，見 NEXT）
+  boss_valderan: {
+    id: 'boss_valderan', name: '大司星 瓦爾德蘭', level: 16, hp: 1400, atk: 47, def: 20, spd: 12, breakMax: 140, weak: ['light'], resist: ['fire'],
+    actionsPerRound: 2, xp: 500,
+    attacks: [
+      { id: 'star_volley', name: '星術連發', telegraph: 'white', windUpMs: 650, mul: 0.4, hits: [0, 300, 700, 900], weight: 3 },
+      { id: 'comet', name: '墜星', telegraph: 'red', windUpMs: 700, mul: 1.5, weight: 2 },
+      { id: 'crown_ray', name: '星冠光束', telegraph: 'white', windUpMs: 1200, mul: 0.7, aoe: true, weight: 1 },
+      { id: 'core_siphon', name: '星核汲取', telegraph: 'purple', windUpMs: 800, mul: 0.6, aoe: true, status: 'umbra', weight: 2, phase: 2, drainEmber: 2 },
+      { id: 'false_lamp', name: '仿燈印・爆', telegraph: 'red', windUpMs: 550, mul: 1.8, weight: 1, phase: 2 },
+    ],
+  },
 };
 
 export const ENCOUNTERS: Record<string, string[]> = {
@@ -202,4 +229,9 @@ export const ENCOUNTERS: Record<string, string[]> = {
   rourke_1: ['boss_rourke_1'],
   rourke_2: ['boss_rourke_2'],
   rourke_3: ['boss_rourke_3'],
+  // 第 4 章
+  ch4_gate: ['academy_guard', 'academy_guard', 'rune_hound'],
+  ch4_lab_a: ['proto_weapon', 'rune_hound'],
+  ch4_lab_b: ['star_golem', 'proto_weapon'],
+  boss_valderan: ['boss_valderan'],
 };

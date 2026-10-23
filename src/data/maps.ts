@@ -2,8 +2,9 @@
 import { CH1_ENTRIES } from './dialogue/ch1';
 import { CH2_ENTRIES } from './dialogue/ch2';
 import { CH3_ENTRIES } from './dialogue/ch3';
+import { CH4_ENTRIES } from './dialogue/ch4';
 
-export type ChapterId = 'ch1' | 'ch2' | 'ch3';
+export type ChapterId = 'ch1' | 'ch2' | 'ch3' | 'ch4';
 
 export interface ChapterMap {
   id: ChapterId;
@@ -98,9 +99,32 @@ export const CHAPTER_MAPS: Record<ChapterId, ChapterMap> = {
       { text: '城中區・夜', x: 30, y: 540, color: '#b8c4ff' },
     ],
   },
+  ch4: {
+    id: 'ch4',
+    title: '第四章　研究院地下',
+    entries: CH4_ENTRIES,
+    pos: {
+      academy_entrance: [360, 320], archive: [180, 520], holding_cells: [550, 560], lab: [360, 740], hidden_camp: [170, 900],
+      star_furnace: [400, 1060],
+    },
+    edges: [
+      ['academy_entrance', 'archive'], ['academy_entrance', 'holding_cells'], ['archive', 'lab'], ['holding_cells', 'lab'],
+      ['lab', 'hidden_camp'], ['hidden_camp', 'star_furnace'],
+    ],
+    done: {
+      academy_entrance: 'ch4_entered', archive: 'ch4_archive_done', holding_cells: 'ch4_cells_done', lab: 'ch4_lab_done',
+      hidden_camp: 'ch4_campfire', star_furnace: 'ch4_complete',
+    },
+    start: 'academy_entrance',
+    completeFlag: 'ch4_complete',
+    labels: [
+      { text: '星術研究院', x: 30, y: 210, color: '#c8d4ff' },
+      { text: '地下', x: 30, y: 450, color: '#c8a0ff' },
+    ],
+  },
 };
 
 /** 目前章節：前一章完成後進入下一章地圖。 */
 export function currentChapter(flags: Record<string, unknown>): ChapterId {
-  return flags['ch2_complete'] ? 'ch3' : flags['ch1_complete'] ? 'ch2' : 'ch1';
+  return flags['ch3_complete'] ? 'ch4' : flags['ch2_complete'] ? 'ch3' : flags['ch1_complete'] ? 'ch2' : 'ch1';
 }

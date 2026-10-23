@@ -404,6 +404,7 @@ export function generateCombatantArt(scene: Phaser.Scene): void {
   }, { x: 170, y: 130, color: 0xa060ff, scale: 1.2 });
 
   generateCh3Combatants(scene);
+  generateCh4Combatants(scene);
 }
 
 /** 對話立繪用（剪影，正面半身）。 */
@@ -646,6 +647,7 @@ export function generatePortraitArt(scene: Phaser.Scene): void {
   }, { x: 75, y: 58, color: 0xffd27a, scale: 0.5 });
 
   generateCh3Portraits(scene);
+  generateCh4Portraits(scene);
 }
 
 export const heroArtKey = (id: string): string => `hero_${id}`;
@@ -1735,3 +1737,270 @@ export const CH3_PORTRAITS: Record<string, string> = {
   researcher: 'npc_researcher',
   vendor: 'npc_vendor',
 };
+
+// ======================================================================
+// 第四章「星核」：王立星學院地底的兵器與住民
+// ======================================================================
+
+/** 橢圓符文環（只畫 from→to 的弧段，方便分前後兩半繞過身體）。 */
+function runeRing(c: Ctx, x: number, y: number, rx: number, ry: number, rot: number, color: number, from: number, to: number): void {
+  c.save();
+  c.translate(x, y);
+  c.rotate(rot);
+  c.globalCompositeOperation = 'lighter';
+  c.strokeStyle = rgba(color, 0.35);
+  c.lineWidth = 6;
+  c.beginPath(); c.ellipse(0, 0, rx, ry, 0, from, to); c.stroke();
+  c.strokeStyle = rgba(color, 0.95);
+  c.lineWidth = 1.6;
+  c.beginPath(); c.ellipse(0, 0, rx, ry, 0, from, to); c.stroke();
+  c.strokeStyle = 'rgba(255,255,255,0.75)';
+  c.lineWidth = 1.2;
+  for (let i = 0; i < 18; i++) {
+    const a = from + ((to - from) * (i + 0.5)) / 18;
+    const px = Math.cos(a) * rx;
+    const py = Math.sin(a) * ry;
+    c.beginPath();
+    c.moveTo(px - 2, py - 2.5);
+    c.lineTo(px + 2, py + (i % 2 ? 2.5 : -1));
+    c.stroke();
+  }
+  c.restore();
+}
+
+function generateCh4Combatants(scene: Phaser.Scene): void {
+  // ---------------- 蝕化兵器原型：黃銅籠中的蝕影獸，紫色核心外露 ----------------
+  canvasArt(scene, 'enemy_proto_weapon', 220, 200, (c) => {
+    const V = 0xb060ff;
+    const rim = '#d8b0ff';
+    const brass = (y0: number, y1: number): CanvasGradient => vgrad(c, y0, y1, [[0, '#a8804a'], [0.5, '#5a4022'], [1, '#1e140a']]);
+    glow(c, 110, 104, 100, 0x7030c0, 0.22);
+    // 活塞機械腿
+    for (const [x0, x1, d] of [[44, 18, -1], [74, 60, -1], [146, 160, 1], [176, 202, 1]] as [number, number, number][]) {
+      strokeLine(c, [[x0, 140], [x0 + d * 14, 164], [x1, 196]], '#20160c', 9);
+      strokeLine(c, [[x0, 140], [x0 + d * 14, 164], [x1, 196]], 'rgba(255,210,140,0.45)', 2);
+      lit(c, sm([[x0 + d * 14 - 7, 158], [x0 + d * 14 + 7, 158], [x0 + d * 14 + 7, 170], [x0 + d * 14 - 7, 170]]), brass(158, 170), '#ffe0a0', 1, 1);
+      lit(c, sh([[x1 - 10, 192], [x1 + 10, 192], [x1 + 6, 198], [x1 - 6, 198]]), brass(192, 198), '#ffe0a0', 1, 1);
+    }
+    // 籠底座
+    lit(c, sh([[24, 132], [196, 132], [204, 148], [16, 148]]), brass(132, 148), '#ffe6b0', 2, 2);
+    // 蝕影獸（籠內）
+    lit(c, sm([[40, 128], [36, 92], [56, 60], [92, 42], [140, 44], [174, 66], [186, 100], [180, 130], [110, 136]]),
+      vgrad(c, 42, 136, [[0, '#2a1640'], [1, '#0a0614']]), rim, 2.5, 2);
+    // 外溢的蝕影觸鬚
+    for (const pts of [[[40, 90], [14, 70], [8, 44]], [[180, 86], [208, 70], [214, 40]], [[70, 50], [56, 22], [64, 8]], [[150, 50], [166, 20], [158, 6]]] as P[][]) {
+      strokeLine(c, pts, '#120a20', 6);
+      strokeLine(c, pts, rgba(V, 0.6), 1.4);
+    }
+    // 紫色核心
+    glow(c, 110, 94, 46, V, 0.75);
+    c.fillStyle = '#f0d8ff';
+    c.beginPath(); c.arc(110, 94, 11, 0, Math.PI * 2); c.fill();
+    c.save(); c.globalCompositeOperation = 'lighter';
+    c.strokeStyle = rgba(V, 0.9); c.lineWidth = 2;
+    c.beginPath(); c.arc(110, 94, 18, 0, Math.PI * 2); c.stroke();
+    c.restore();
+    seam(c, [[110, 94], [84, 80], [64, 96]], V, 1.4);
+    seam(c, [[110, 94], [138, 78], [160, 92]], V, 1.4);
+    seam(c, [[110, 94], [112, 124]], V, 1.4);
+    // 眼（多顆）
+    glowEye(c, 74, 70, 5, V, -0.2);
+    glowEye(c, 146, 70, 5, V, 0.2);
+    glowEye(c, 110, 58, 3.2, 0xffffff, 0);
+    // 黃銅籠條＋頂環
+    for (let k = 0; k < 7; k++) {
+      const x = 30 + k * 26.6;
+      strokeLine(c, [[x, 134], [x + (110 - x) * 0.18, 30]], '#2a1c0c', 5);
+      strokeLine(c, [[x - 1.2, 134], [x - 1.2 + (110 - x) * 0.18, 30]], 'rgba(255,214,150,0.8)', 1.4);
+    }
+    lit(c, sm([[40, 34], [110, 18], [180, 34], [176, 42], [110, 28], [44, 42]]), brass(18, 42), '#ffe6b0', 1.5, 1.5);
+    lit(c, sh([[100, 4], [120, 4], [116, 22], [104, 22]]), brass(4, 22), '#ffe6b0', 1, 1);
+    // 黃銅管線
+    strokeLine(c, [[24, 140], [10, 120], [12, 100]], '#3a2810', 4);
+    strokeLine(c, [[196, 140], [210, 118], [206, 96]], '#3a2810', 4);
+    for (const [x, y] of [[12, 100], [206, 96], [20, 12], [200, 20]] as P[]) sparkle(c, x, y, 3, V);
+  }, { x: 110, y: 94, color: 0xb060ff, scale: 0.9 });
+
+  // ---------------- 星燼魔像：石與黃銅鑄成的巨軀，接縫透出星燼 ----------------
+  canvasArt(scene, 'enemy_star_golem', 230, 260, (c) => {
+    const E = 0xffa040;
+    const rim = '#ffd09a';
+    const stone = (y0: number, y1: number): CanvasGradient => vgrad(c, y0, y1, [[0, '#4a4450'], [0.5, '#2a2630'], [1, '#0e0c12']]);
+    const brass = (y0: number, y1: number): CanvasGradient => vgrad(c, y0, y1, [[0, '#9a7444'], [1, '#2a1c0c']]);
+    glow(c, 115, 130, 120, E, 0.16);
+    // 腿
+    lit(c, sh([[64, 180], [104, 180], [100, 252], [56, 252]]), stone(180, 252), rim, 3, 2);
+    lit(c, sh([[126, 180], [166, 180], [174, 252], [130, 252]]), stone(180, 252), rim, 3, 2);
+    lit(c, sh([[50, 244], [106, 244], [108, 258], [46, 258]]), brass(244, 258), '#ffe0b0', 1.5, 1.5);
+    lit(c, sh([[124, 244], [180, 244], [184, 258], [122, 258]]), brass(244, 258), '#ffe0b0', 1.5, 1.5);
+    // 軀幹（巨大胸塊）
+    lit(c, sh([[50, 74], [180, 74], [198, 120], [176, 190], [54, 190], [32, 120]]), stone(74, 190), rim, 3.5, 3);
+    lit(c, sh([[48, 150], [182, 150], [180, 164], [50, 164]]), brass(150, 164), '#ffe0b0', 1.5, 1.5);
+    // 胸口星核
+    glow(c, 115, 116, 40, E, 0.8);
+    starPath(c, 115, 116, 14, 6);
+    c.fillStyle = '#fff0c8';
+    c.fill();
+    seam(c, [[115, 130], [104, 150], [96, 186]], E, 1.8);
+    seam(c, [[115, 102], [92, 88], [62, 84]], E, 1.8);
+    seam(c, [[128, 120], [160, 110], [184, 124]], E, 1.8);
+    seam(c, [[80, 180], [84, 210], [76, 240]], E, 1.4);
+    seam(c, [[150, 182], [146, 214], [154, 240]], E, 1.4);
+    // 巨臂
+    lit(c, sm([[14, 82], [52, 70], [62, 110], [50, 170], [24, 176], [8, 130]]), stone(70, 176), rim, 2.5, 2.5);
+    lit(c, sm([[178, 70], [216, 82], [222, 130], [206, 176], [180, 170], [168, 110]]), stone(70, 176), rim, 2.5, 2.5);
+    lit(c, sm([[4, 168], [46, 164], [52, 206], [30, 216], [2, 204]]), stone(164, 216), rim, 2, 2);
+    lit(c, sm([[184, 164], [226, 168], [228, 204], [200, 216], [178, 206]]), stone(164, 216), rim, 2, 2);
+    for (const x of [26, 204]) lit(c, sh([[x - 22, 158], [x + 22, 158], [x + 22, 170], [x - 22, 170]]), brass(158, 170), '#ffe0b0', 1, 1);
+    seam(c, [[20, 100], [34, 130], [28, 156]], E, 1.4);
+    seam(c, [[210, 100], [196, 130], [202, 156]], E, 1.4);
+    // 肩上黃銅護圈
+    lit(c, sm([[20, 64], [60, 50], [76, 76], [40, 96], [14, 88]]), brass(50, 96), '#ffe6b0', 2, 2);
+    lit(c, sm([[154, 76], [170, 50], [210, 64], [216, 88], [190, 96]]), brass(50, 96), '#ffe6b0', 2, 2);
+    // 頭（小、低、方）
+    lit(c, sh([[94, 30], [136, 30], [144, 52], [138, 78], [92, 78], [86, 52]]), stone(30, 78), rim, 2.5, 2);
+    c.fillStyle = '#06050a';
+    c.fillRect(96, 48, 38, 10);
+    glowEye(c, 106, 53, 5, E, 0);
+    glowEye(c, 124, 53, 5, E, 0);
+    // 頭頂的星燼裂口
+    seam(c, [[104, 30], [112, 18], [120, 28], [128, 14]], E, 1.4);
+    for (const [x, y, rr] of [[112, 8, 2.5], [60, 30, 2], [180, 28, 2.5], [222, 60, 2], [8, 50, 2]] as [number, number, number][]) {
+      sparkle(c, x, y, rr * 1.6, E, 0.9);
+    }
+  }, { x: 115, y: 116, color: 0xffa040, scale: 0.9 });
+
+  // ---------------- 大司星 瓦爾德蘭（頭目）：浮空的長袍大法師，符文環繞身 ----------------
+  canvasArt(scene, 'enemy_boss_valderan', 300, 320, (c) => {
+    const Vi = 0xa070ff;
+    const G = 0xffd890;
+    const rim = '#e0ccff';
+    const robe = (y0: number, y1: number): CanvasGradient => vgrad(c, y0, y1, [[0, '#3a2a66'], [0.45, '#1c1438'], [1, '#07050e']]);
+    glow(c, 150, 150, 150, Vi, 0.2);
+    glow(c, 150, 306, 70, Vi, 0.4);
+    // 符文環後半
+    runeRing(c, 150, 170, 132, 34, -0.18, G, Math.PI, Math.PI * 2);
+    runeRing(c, 150, 112, 96, 22, 0.22, Vi, Math.PI, Math.PI * 2);
+    // 披風（向兩側展開）
+    lit(c, sm([[100, 92], [40, 120], [12, 200], [26, 280], [60, 262], [80, 296], [110, 200]]), robe(92, 296), rim, 3, 2);
+    lit(c, sm([[200, 92], [260, 120], [288, 200], [274, 280], [240, 262], [220, 296], [190, 200]]), robe(92, 296), rim, -3, 2);
+    // 長袍本體（下擺收細、破碎，不著地）
+    lit(c, sm([[108, 96], [192, 96], [204, 170], [214, 250], [196, 290], [176, 272], [160, 304], [146, 276], [126, 300], [114, 268], [92, 286], [88, 240], [96, 170]]),
+      robe(96, 300), rim, 3, 2.5);
+    // 金色前襟紋
+    strokeLine(c, [[150, 116], [146, 200], [152, 280]], rgba(G, 0.8), 2);
+    for (const [x, y] of [[148, 140], [146, 176], [148, 214], [150, 250]] as P[]) {
+      starPath(c, x, y, 4, 1.6);
+      c.fillStyle = rgba(G, 0.9);
+      c.fill();
+    }
+    strokeLine(c, [[110, 104], [100, 176], [96, 250]], rgba(G, 0.45), 1.2);
+    strokeLine(c, [[190, 104], [200, 176], [206, 250]], rgba(G, 0.45), 1.2);
+    // 雙臂展開＋長袖
+    lit(c, sm([[112, 104], [70, 120], [40, 150], [30, 182], [52, 176], [80, 150], [118, 134]]), robe(104, 182), rim, 2, 2);
+    lit(c, sm([[188, 104], [230, 120], [260, 150], [270, 182], [248, 176], [220, 150], [182, 134]]), robe(104, 182), rim, -2, 2);
+    lit(c, sm([[28, 176], [40, 170], [46, 186], [34, 192]]), faceGrad(c), rim, 1, 1);
+    lit(c, sm([[272, 176], [260, 170], [254, 186], [266, 192]]), faceGrad(c), rim, -1, 1);
+    // 掌中星燼與蝕光
+    glow(c, 30, 198, 30, G, 0.8);
+    sparkle(c, 30, 198, 7, G);
+    glow(c, 270, 198, 30, Vi, 0.9);
+    sparkle(c, 270, 198, 7, Vi);
+    // 銀白長髮
+    lit(c, sm([[128, 50], [122, 100], [112, 150], [150, 140], [188, 150], [178, 100], [172, 50], [150, 30]]),
+      vgrad(c, 30, 150, [[0, '#dcdcf0'], [0.6, '#7a78a0'], [1, '#2a2848']]), '#ffffff', 1.5, 2);
+    // 高立領
+    for (const f of [1, -1]) {
+      const X = (x: number): number => (f === 1 ? x : 300 - x);
+      lit(c, sm([[X(132), 104], [X(104), 92], [X(92), 46], [X(102), 30], [X(118), 66], [X(138), 88]]),
+        vgrad(c, 30, 104, [[0, '#4e3c86'], [1, '#160f2a']]), rim, f * 2, 2);
+      strokeLine(c, [[X(102), 32], [X(94), 48], [X(104), 92], [X(132), 104]], rgba(G, 0.9), 1.5);
+    }
+    // 臉（冷峻、蒼白陰影）
+    lit(c, sm([[134, 54], [138, 38], [150, 32], [162, 38], [166, 54], [162, 74], [150, 86], [138, 74]]),
+      vgrad(c, 32, 86, [[0, '#3a3858'], [1, '#191a2e']]), rim, 1.5, 1.5);
+    c.save();
+    sm([[134, 60], [166, 60], [162, 74], [150, 86], [138, 74]])(c);
+    c.clip();
+    c.fillStyle = 'rgba(6,4,14,0.35)';
+    c.fillRect(130, 58, 40, 32);
+    c.restore();
+    glowEye(c, 143, 56, 3.4, Vi, 0.12);
+    glowEye(c, 157, 56, 3.4, Vi, -0.12);
+    strokeLine(c, [[144, 74], [156, 74]], 'rgba(0,0,0,0.5)', 1.2);
+    // 星冠頭環
+    strokeLine(c, [[132, 42], [150, 36], [168, 42]], rgba(G, 0.95), 2);
+    glow(c, 150, 28, 22, G, 0.6);
+    starPath(c, 150, 26, 9, 3.6);
+    c.fillStyle = '#fff4d0';
+    c.fill();
+    for (const [x, y] of [[136, 34], [164, 34]] as P[]) {
+      starPath(c, x, y, 4.5, 1.8);
+      c.fillStyle = rgba(G, 0.95);
+      c.fill();
+    }
+    // 胸前紫核墜飾
+    glow(c, 150, 112, 18, Vi, 0.8);
+    c.fillStyle = '#efe0ff';
+    c.beginPath(); c.moveTo(150, 104); c.lineTo(156, 112); c.lineTo(150, 122); c.lineTo(144, 112); c.closePath(); c.fill();
+    // 符文環前半
+    runeRing(c, 150, 170, 132, 34, -0.18, G, 0, Math.PI);
+    runeRing(c, 150, 112, 96, 22, 0.22, Vi, 0, Math.PI);
+    for (const [x, y, rr, col] of [[24, 60, 2.5, G], [276, 52, 2.5, Vi], [60, 300, 2, Vi], [244, 300, 2, G], [150, 4, 2, G]] as [number, number, number, number][]) {
+      sparkle(c, x, y, rr * 1.6, col, 0.9);
+    }
+  }, { x: 150, y: 112, color: 0xa070ff, scale: 1.1 });
+}
+
+function generateCh4Portraits(scene: Phaser.Scene): void {
+  // 緹雅：九歲的小女孩，一條長辮垂在肩前、素色連身裙；溫柔的暖光。
+  canvasArt(scene, 'npc_tia', NW, NH, (c) => {
+    const rim = '#ffe0c0';
+    const W0 = 0xffc890;
+    npcHalo(c, 85, 120, W0, 0.28);
+    // 身體（窄肩、小）＋連身裙
+    lit(c, sm([[34, 260], [40, 186], [56, 164], [74, 156], [85, 160], [96, 156], [114, 164], [130, 186], [136, 260]]),
+      vgrad(c, 156, 240, [[0, '#4a5a7a'], [1, '#121626']]), rim, 2, 2);
+    // 白色小圓領
+    lit(c, sm([[70, 158], [85, 168], [100, 158], [104, 168], [85, 178], [66, 168]]), vgrad(c, 158, 178, [[0, '#d8d4e0'], [1, '#8a8698']]), '#ffffff', 1, 1);
+    strokeLine(c, [[85, 178], [85, 240]], 'rgba(0,0,0,0.25)', 1.5);
+    for (const y of [190, 206, 222]) {
+      c.fillStyle = 'rgba(255,230,200,0.6)';
+      c.beginPath(); c.arc(85, y, 1.6, 0, Math.PI * 2); c.fill();
+    }
+    // 頸
+    lit(c, sh([[80, 140], [90, 140], [91, 160], [79, 160]]), faceGrad(c), rim, 1, 1);
+    // 臉（圓、小）
+    const F: P[] = [[64, 112], [67, 94], [85, 84], [103, 94], [106, 112], [102, 132], [92, 144], [85, 146], [78, 144], [68, 132]];
+    lit(c, sm(F), vgrad(c, 84, 146, [[0, '#3a3650'], [1, '#1c1a2c']]), rim, 1.5, 1.5);
+    // 頭髮＋瀏海
+    lit(c, sh([[60, 118], [58, 92], [68, 76], [85, 70], [102, 76], [112, 92], [110, 118], [106, 102], [98, 94], [92, 100], [84, 92], [76, 100], [68, 96], [64, 106]]),
+      vgrad(c, 70, 118, [[0, '#6a4a3a'], [1, '#2a1a14']]), rim, 1.5, 1.5);
+    // 長辮（從右耳後垂到胸前）
+    for (let k = 0; k < 6; k++) {
+      const y = 120 + k * 14;
+      const x = 108 + Math.sin(k * 0.6) * 3 - k * 1.5;
+      lit(c, sm([[x - 7, y], [x, y - 3], [x + 7, y], [x + 5, y + 10], [x, y + 13], [x - 5, y + 10]]),
+        vgrad(c, y - 3, y + 13, [[0, '#6a4a3a'], [1, '#2a1a14']]), rim, 1, 1);
+    }
+    lit(c, sm([[94, 206], [104, 204], [106, 214], [96, 216]]), '#b04a4a', '#ffc0b0', 0.8, 0.8);
+    strokeLine(c, [[98, 214], [96, 228]], 'rgba(106,74,58,0.9)', 2);
+    strokeLine(c, [[102, 214], [104, 228]], 'rgba(106,74,58,0.9)', 2);
+    // 小髮飾
+    sparkle(c, 66, 88, 3, 0x9fe0ff);
+    // 溫柔的眼睛（彎彎的）
+    for (const x of [77, 93]) {
+      glow(c, x, 114, 7, 0xa0d8ff, 0.4);
+      strokeLine(c, [[x - 4, 114], [x, 111.5], [x + 4, 114]], '#e0f0ff', 1.6);
+    }
+    c.fillStyle = 'rgba(255,150,150,0.25)';
+    for (const x of [72, 98]) { c.beginPath(); c.arc(x, 124, 4, 0, Math.PI * 2); c.fill(); }
+    strokeLine(c, [[82, 132], [85, 133.5], [88, 132]], 'rgba(255,200,190,0.55)', 1.2);
+    // 小手交握在胸前
+    lit(c, sm([[70, 214], [84, 208], [98, 214], [92, 226], [76, 226]]), faceGrad(c), rim, 1, 1);
+    for (const [x, y] of [[28, 70], [146, 60], [142, 150], [22, 160]] as P[]) sparkle(c, x, y, 2.4, W0, 0.8);
+  });
+}
+
+/** 第四章說話者 id → 立繪材質 key。 */
+export const CH4_PORTRAITS: Record<string, string> = { tia: 'npc_tia', contact: 'npc_researcher' };

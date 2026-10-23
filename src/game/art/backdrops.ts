@@ -3,7 +3,8 @@ import Phaser from 'phaser';
 
 export type BackdropId =
   | 'town' | 'tavern' | 'forest' | 'lake' | 'ruins' | 'mine' | 'bellhall' | 'deep'
-  | 'capital_gate' | 'capital' | 'tourney' | 'inn' | 'market' | 'academy' | 'rooftop' | 'sewer';
+  | 'capital_gate' | 'capital' | 'tourney' | 'inn' | 'market' | 'academy' | 'rooftop' | 'sewer'
+  | 'depths' | 'archive' | 'lab' | 'furnace';
 
 // 注意：不能在模組頂層引用 config 的常數（config → scenes → 這裡 會循環 import）
 const W = 720;
@@ -1348,8 +1349,379 @@ const DRAW_CH3: Record<Ch3Id, (c: C2) => void> = {
   },
 };
 
+// ======================================================================
+// 第四章「星核」：王立星學院地底
+// ======================================================================
+type Ch4Id = 'depths' | 'archive' | 'lab' | 'furnace';
+
+/** 石磚牆面（交錯磚縫＋隨機明暗）。 */
+function brickWall(c: C2, r: () => number, x0: number, y0: number, x1: number, y1: number, bw: number, bh: number, base: [number, number, number]): void {
+  for (let y = y0, row = 0; y < y1; y += bh, row++) {
+    for (let x = x0 - (row % 2 ? bw / 2 : 0); x < x1; x += bw) {
+      const k = 0.75 + r() * 0.35;
+      c.fillStyle = `rgb(${base[0] * k | 0},${base[1] * k | 0},${base[2] * k | 0})`;
+      c.fillRect(x + 1, y + 1, bw - 2, bh - 2);
+    }
+  }
+}
+
+/** 水平/垂直管線（亮邊＋接頭）。 */
+function pipe(c: C2, pts: [number, number][], w: number, col: string, hi: string): void {
+  c.save();
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+  c.strokeStyle = col;
+  c.lineWidth = w;
+  c.beginPath();
+  pts.forEach(([x, y], i) => (i === 0 ? c.moveTo(x, y) : c.lineTo(x, y)));
+  c.stroke();
+  c.strokeStyle = hi;
+  c.lineWidth = Math.max(1, w * 0.18);
+  c.beginPath();
+  pts.forEach(([x, y], i) => (i === 0 ? c.moveTo(x, y - w * 0.28) : c.lineTo(x, y - w * 0.28)));
+  c.stroke();
+  for (const [x, y] of pts) {
+    c.fillStyle = col;
+    c.fillRect(x - w * 0.7, y - w * 0.7, w * 1.4, w * 1.4);
+    c.fillStyle = hi;
+    c.fillRect(x - w * 0.7, y - w * 0.7, w * 1.4, 1.5);
+  }
+  c.restore();
+}
+
+/** 冷光符文燈（牆上的圓形刻印）。 */
+function runeLamp(c: C2, x: number, y: number, rad: number, col: string): void {
+  glow(c, x, y, rad * 5, `rgba(${col},0.28)`);
+  c.strokeStyle = `rgba(${col},0.9)`;
+  c.lineWidth = 2;
+  c.beginPath(); c.arc(x, y, rad, 0, Math.PI * 2); c.stroke();
+  c.lineWidth = 1;
+  c.beginPath(); c.arc(x, y, rad * 0.6, 0, Math.PI * 2); c.stroke();
+  for (let i = 0; i < 6; i++) {
+    const a = (i * Math.PI) / 3;
+    c.beginPath();
+    c.moveTo(x + Math.cos(a) * rad * 0.6, y + Math.sin(a) * rad * 0.6);
+    c.lineTo(x + Math.cos(a) * rad * 1.3, y + Math.sin(a) * rad * 1.3);
+    c.stroke();
+  }
+  c.fillStyle = 'rgba(240,250,255,0.95)';
+  c.beginPath(); c.arc(x, y, rad * 0.22, 0, Math.PI * 2); c.fill();
+}
+
+function chain(c: C2, x0: number, y0: number, x1: number, y1: number, col: string, hi: string): void {
+  const n = Math.max(4, Math.hypot(x1 - x0, y1 - y0) / 14);
+  const a = Math.atan2(y1 - y0, x1 - x0);
+  for (let i = 0; i < n; i++) {
+    const t = i / n;
+    const sag = Math.sin(t * Math.PI) * 30;
+    c.save();
+    c.translate(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + sag);
+    c.rotate(a + (i % 2 ? Math.PI / 2 : 0));
+    c.strokeStyle = col;
+    c.lineWidth = 4;
+    c.beginPath(); c.ellipse(0, 0, 9, 5, 0, 0, Math.PI * 2); c.stroke();
+    c.strokeStyle = hi;
+    c.lineWidth = 1;
+    c.beginPath(); c.ellipse(0, -1, 9, 5, 0, Math.PI, Math.PI * 2); c.stroke();
+    c.restore();
+  }
+}
+
+const DRAW_CH4: Record<Ch4Id, (c: C2) => void> = {
+  // 學院地底迴廊：石拱、管線、冷藍符文燈，一點消失的透視
+  depths: (c) => {
+    grad(c, [[0, '#05070e'], [0.5, '#0c1220'], [1, '#04050a']]);
+    const r = rng(401);
+    const vx = 360;
+    const vy = 560;
+    // 遠處的拱門層層退去
+    for (let k = 7; k >= 0; k--) {
+      const s = 0.18 + k * 0.12;
+      const hw = 330 * s;
+      const top = vy - 420 * s;
+      const bot = vy + 520 * s;
+      const sh = Math.round(14 + (7 - k) * 5);
+      c.fillStyle = `rgb(${sh},${sh + 4},${sh + 12})`;
+      c.beginPath();
+      c.moveTo(vx - hw - 60 * s, bot);
+      c.lineTo(vx - hw - 60 * s, top - 80 * s);
+      c.lineTo(vx + hw + 60 * s, top - 80 * s);
+      c.lineTo(vx + hw + 60 * s, bot);
+      c.lineTo(vx + hw, bot);
+      c.lineTo(vx + hw, top + hw * 0.4);
+      c.quadraticCurveTo(vx + hw, top - hw * 0.5, vx, top - hw * 0.5);
+      c.quadraticCurveTo(vx - hw, top - hw * 0.5, vx - hw, top + hw * 0.4);
+      c.lineTo(vx - hw, bot);
+      c.closePath();
+      c.fill();
+      if (k < 6) runeLamp(c, vx - hw - 26 * s, top + 120 * s, 10 * s + 2, '120,200,255');
+      if (k < 6) runeLamp(c, vx + hw + 26 * s, top + 120 * s, 10 * s + 2, '120,200,255');
+    }
+    glow(c, vx, vy, 160, 'rgba(110,170,255,0.25)');
+    // 前景兩側磚牆
+    brickWall(c, r, 0, 0, 110, H, 54, 30, [34, 38, 52]);
+    brickWall(c, r, 610, 0, W, H, 54, 30, [34, 38, 52]);
+    // 管線沿牆延伸
+    pipe(c, [[0, 260], [96, 260], [96, 1280]], 18, '#2a2a30', 'rgba(170,200,230,0.5)');
+    pipe(c, [[720, 340], [628, 340], [628, 1280]], 14, '#2c2620', 'rgba(230,190,140,0.5)');
+    pipe(c, [[0, 160], [720, 160]], 22, '#1c1e26', 'rgba(150,180,220,0.4)');
+    runeLamp(c, 60, 520, 18, '120,210,255');
+    runeLamp(c, 664, 600, 18, '120,210,255');
+    // 濕石地面＋反光
+    const fl = c.createLinearGradient(0, 900, 0, H);
+    fl.addColorStop(0, '#0e1420');
+    fl.addColorStop(1, '#05070c');
+    c.fillStyle = fl;
+    c.beginPath(); c.moveTo(110, 900); c.lineTo(610, 900); c.lineTo(W, H); c.lineTo(0, H); c.fill();
+    for (let i = 0; i < 9; i++) {
+      c.strokeStyle = 'rgba(90,120,170,0.15)';
+      c.lineWidth = 1;
+      c.beginPath(); c.moveTo(vx, vy); c.lineTo(-200 + i * 140, H); c.stroke();
+    }
+    glow(c, vx, 1040, 220, 'rgba(110,170,255,0.12)');
+    // 蒸氣
+    for (let i = 0; i < 14; i++) glow(c, 80 + r() * 560, 300 + r() * 700, 60 + r() * 60, 'rgba(160,190,230,0.05)');
+    for (let i = 0; i < 40; i++) {
+      c.fillStyle = `rgba(160,210,255,${0.15 + r() * 0.4})`;
+      c.fillRect(120 + r() * 480, 200 + r() * 800, 1.6, 1.6);
+    }
+  },
+
+  // 禁書庫：通天書架、浮空的紙頁、金色閱讀燈
+  archive: (c) => {
+    grad(c, [[0, '#0a0810'], [0.5, '#1a1220'], [1, '#07050a']]);
+    const r = rng(402);
+    glow(c, 360, 520, 360, 'rgba(255,200,130,0.16)');
+    // 書架（三層透視）
+    const shelf = (x: number, w: number, top: number, bot: number, body: string, light: number): void => {
+      c.fillStyle = body;
+      c.fillRect(x, top, w, bot - top);
+      for (let y = top + 20; y < bot - 10; y += 56) {
+        let bx = x + 6;
+        while (bx < x + w - 8) {
+          const bw = 5 + r() * 9;
+          const bh = 30 + r() * 20;
+          const hue = ([[90, 40, 40], [40, 60, 90], [80, 70, 40], [50, 40, 70]] as [number, number, number][])[Math.floor(r() * 4) % 4] ?? [90, 40, 40];
+          const k = light * (0.6 + r() * 0.5);
+          c.fillStyle = `rgb(${hue[0] * k | 0},${hue[1] * k | 0},${hue[2] * k | 0})`;
+          c.fillRect(bx, y + 50 - bh, bw, bh);
+          bx += bw + 1;
+        }
+        c.fillStyle = 'rgba(0,0,0,0.6)';
+        c.fillRect(x, y + 50, w, 6);
+        c.fillStyle = `rgba(255,200,140,${0.12 * light})`;
+        c.fillRect(x, y + 50, w, 1.5);
+      }
+    };
+    for (const [x, w] of [[240, 70], [410, 70]] as [number, number][]) shelf(x, w, 120, 900, '#140e14', 0.6);
+    for (const [x, w] of [[120, 110], [490, 110]] as [number, number][]) shelf(x, w, 40, 1000, '#120c12', 0.85);
+    for (const [x, w] of [[-20, 130], [610, 130]] as [number, number][]) shelf(x, w, 0, H, '#0c080c', 1.1);
+    // 中央通道遠端：高窗冷光
+    c.fillStyle = '#1a2440';
+    c.beginPath(); c.moveTo(330, 420); c.lineTo(330, 300); c.quadraticCurveTo(360, 250, 390, 300); c.lineTo(390, 420); c.fill();
+    glow(c, 360, 340, 120, 'rgba(140,180,255,0.3)');
+    // 長梯
+    c.strokeStyle = '#2a1c16';
+    c.lineWidth = 6;
+    c.beginPath(); c.moveTo(560, 1100); c.lineTo(610, 200); c.moveTo(600, 1110); c.lineTo(640, 210); c.stroke();
+    c.lineWidth = 3;
+    for (let k = 0; k < 18; k++) {
+      const t = k / 18;
+      c.beginPath(); c.moveTo(560 + 50 * t, 1100 - 900 * t); c.lineTo(600 + 40 * t, 1110 - 900 * t); c.stroke();
+    }
+    // 浮空紙頁（發光的符文頁）
+    for (let i = 0; i < 26; i++) {
+      const x = 120 + r() * 480;
+      const y = 200 + r() * 700;
+      const s = 10 + r() * 16;
+      c.save();
+      c.translate(x, y);
+      c.rotate((r() - 0.5) * 1.4);
+      glow(c, 0, 0, s * 2.4, 'rgba(255,220,150,0.18)');
+      c.fillStyle = `rgba(240,226,196,${0.55 + r() * 0.35})`;
+      c.beginPath();
+      c.moveTo(-s, -s * 0.7); c.quadraticCurveTo(0, -s * 0.9, s, -s * 0.7);
+      c.lineTo(s, s * 0.7); c.quadraticCurveTo(0, s * 0.5, -s, s * 0.7);
+      c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(160,110,60,0.6)';
+      c.lineWidth = 0.8;
+      for (let l = -2; l <= 2; l++) { c.beginPath(); c.moveTo(-s * 0.7, l * s * 0.22); c.lineTo(s * 0.7, l * s * 0.22); c.stroke(); }
+      c.restore();
+    }
+    // 地板＋閱讀桌
+    c.fillStyle = '#0a0608';
+    c.fillRect(0, 1060, W, 220);
+    c.fillStyle = '#1e140e';
+    c.fillRect(220, 1020, 280, 22);
+    c.fillRect(240, 1042, 14, 120);
+    c.fillRect(466, 1042, 14, 120);
+    glow(c, 300, 990, 90, 'rgba(255,190,110,0.45)');
+    c.fillStyle = '#ffe0a0';
+    c.beginPath(); c.arc(300, 1000, 6, 0, Math.PI * 2); c.fill();
+    for (let i = 0; i < 50; i++) {
+      c.fillStyle = `rgba(255,220,160,${0.1 + r() * 0.35})`;
+      c.fillRect(r() * W, r() * 1000, 1.5, 1.5);
+    }
+  },
+
+  // 地下實驗室：培養槽、鐵籠、紫色蝕光
+  lab: (c) => {
+    grad(c, [[0, '#07040e'], [0.5, '#140a22'], [1, '#050308']]);
+    const r = rng(403);
+    brickWall(c, r, 0, 0, W, 900, 80, 40, [22, 18, 32]);
+    const dim = c.createLinearGradient(0, 0, 0, 900);
+    dim.addColorStop(0, 'rgba(5,3,10,0.85)');
+    dim.addColorStop(1, 'rgba(5,3,10,0.3)');
+    c.fillStyle = dim;
+    c.fillRect(0, 0, W, 900);
+    pipe(c, [[0, 120], [720, 120]], 20, '#241c2a', 'rgba(200,160,255,0.35)');
+    pipe(c, [[0, 180], [200, 180], [200, 900]], 12, '#2c2218', 'rgba(230,180,120,0.45)');
+    pipe(c, [[720, 200], [520, 200], [520, 900]], 12, '#2c2218', 'rgba(230,180,120,0.45)');
+    // 培養槽（三座，中間最大）
+    const tank = (x: number, top: number, w: number, h: number, a: number): void => {
+      glow(c, x, top + h * 0.5, w * 1.6, `rgba(170,90,255,${0.28 * a})`);
+      const g = c.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+      g.addColorStop(0, `rgba(80,30,140,${0.6 * a})`);
+      g.addColorStop(0.5, `rgba(190,120,255,${0.55 * a})`);
+      g.addColorStop(1, `rgba(60,20,110,${0.6 * a})`);
+      c.fillStyle = g;
+      c.fillRect(x - w / 2, top, w, h);
+      // 槽內的蝕影剪影
+      c.fillStyle = 'rgba(14,6,26,0.85)';
+      c.beginPath();
+      c.ellipse(x, top + h * 0.5, w * 0.24, h * 0.3, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = 'rgba(230,180,255,0.9)';
+      c.beginPath(); c.arc(x - w * 0.07, top + h * 0.4, 2.5, 0, Math.PI * 2); c.arc(x + w * 0.07, top + h * 0.4, 2.5, 0, Math.PI * 2); c.fill();
+      for (let i = 0; i < 12; i++) {
+        c.strokeStyle = 'rgba(240,220,255,0.5)';
+        c.lineWidth = 1;
+        c.beginPath(); c.arc(x + (r() - 0.5) * w * 0.8, top + r() * h, 1.5 + r() * 3, 0, Math.PI * 2); c.stroke();
+      }
+      c.strokeStyle = 'rgba(255,255,255,0.35)';
+      c.lineWidth = 3;
+      c.beginPath(); c.moveTo(x - w * 0.32, top + 10); c.lineTo(x - w * 0.32, top + h - 10); c.stroke();
+      c.fillStyle = '#2a2018';
+      c.fillRect(x - w / 2 - 10, top - 30, w + 20, 30);
+      c.fillRect(x - w / 2 - 14, top + h, w + 28, 40);
+      c.fillStyle = 'rgba(255,200,140,0.5)';
+      c.fillRect(x - w / 2 - 10, top - 30, w + 20, 2);
+      c.fillRect(x - w / 2 - 14, top + h, w + 28, 2);
+    };
+    tank(140, 380, 110, 420, 0.7);
+    tank(580, 380, 110, 420, 0.7);
+    tank(360, 300, 170, 540, 1);
+    // 前景鐵籠
+    c.fillStyle = '#08060c';
+    c.fillRect(0, 900, W, 380);
+    for (const [cx, w] of [[110, 200], [610, 200]] as [number, number][]) {
+      c.fillStyle = 'rgba(30,14,44,0.9)';
+      c.fillRect(cx - w / 2, 960, w, 260);
+      glow(c, cx, 1100, 100, 'rgba(160,80,255,0.15)');
+      c.strokeStyle = '#3a2c24';
+      c.lineWidth = 6;
+      for (let k = 0; k <= 8; k++) { c.beginPath(); c.moveTo(cx - w / 2 + (k * w) / 8, 950); c.lineTo(cx - w / 2 + (k * w) / 8, 1230); c.stroke(); }
+      c.lineWidth = 10;
+      c.beginPath(); c.moveTo(cx - w / 2 - 6, 950); c.lineTo(cx + w / 2 + 6, 950); c.moveTo(cx - w / 2 - 6, 1230); c.lineTo(cx + w / 2 + 6, 1230); c.stroke();
+      c.fillStyle = 'rgba(210,160,255,0.9)';
+      c.beginPath(); c.arc(cx - 14, 1120, 3, 0, Math.PI * 2); c.arc(cx + 14, 1120, 3, 0, Math.PI * 2); c.fill();
+    }
+    // 地面紫光反射
+    glow(c, 360, 920, 300, 'rgba(170,90,255,0.2)');
+    for (let i = 0; i < 50; i++) {
+      c.fillStyle = `rgba(210,160,255,${0.15 + r() * 0.4})`;
+      c.fillRect(r() * W, 200 + r() * 900, 1.6, 1.6);
+    }
+  },
+
+  // 星核爐：懸於鎖鏈與纜線之間的巨大星核，熾白→金→紫
+  furnace: (c) => {
+    grad(c, [[0, '#06030c'], [0.45, '#1a0c20'], [0.7, '#24101a'], [1, '#060308']]);
+    const r = rng(404);
+    const cx = 360;
+    const cy = 540;
+    // 巨大圓形爐室：同心石環
+    for (let k = 6; k >= 0; k--) {
+      const rad = 180 + k * 70;
+      c.strokeStyle = `rgba(${40 + k * 4},${24 + k * 2},${46 + k * 3},0.95)`;
+      c.lineWidth = 40;
+      c.beginPath(); c.arc(cx, cy, rad, 0, Math.PI * 2); c.stroke();
+      c.strokeStyle = `rgba(255,170,90,${0.18 - k * 0.02})`;
+      c.lineWidth = 1.5;
+      c.beginPath(); c.arc(cx, cy, rad - 20, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
+    }
+    glow(c, cx, cy, 560, 'rgba(255,140,60,0.22)');
+    glow(c, cx, cy, 380, 'rgba(180,90,255,0.25)');
+    // 鎖鏈與纜線（從四方拉住星核）
+    for (const [x, y] of [[0, 140], [720, 120], [0, 820], [720, 860], [140, 0], [580, 0]] as [number, number][]) {
+      chain(c, x, y, cx + (x - cx) * 0.2, cy + (y - cy) * 0.2, '#2a1c18', 'rgba(255,190,120,0.6)');
+    }
+    for (let i = 0; i < 7; i++) {
+      const x0 = 40 + i * 106;
+      c.strokeStyle = '#120a12';
+      c.lineWidth = 7;
+      c.beginPath(); c.moveTo(x0, H); c.quadraticCurveTo(x0, cy + 260, cx + (x0 - cx) * 0.25, cy + 110); c.stroke();
+      c.strokeStyle = 'rgba(200,120,255,0.4)';
+      c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(x0, H); c.quadraticCurveTo(x0, cy + 260, cx + (x0 - cx) * 0.25, cy + 110); c.stroke();
+    }
+    // 星核本體（多層光暈）
+    glow(c, cx, cy, 260, 'rgba(255,200,120,0.55)');
+    glow(c, cx, cy, 170, 'rgba(255,230,180,0.8)');
+    const core = c.createRadialGradient(cx - 20, cy - 24, 10, cx, cy, 120);
+    core.addColorStop(0, '#ffffff');
+    core.addColorStop(0.35, '#ffe8b0');
+    core.addColorStop(0.7, '#ff9a50');
+    core.addColorStop(1, 'rgba(160,60,200,0.9)');
+    c.fillStyle = core;
+    c.beginPath(); c.arc(cx, cy, 120, 0, Math.PI * 2); c.fill();
+    // 星核上的裂紋（蝕化的紫）
+    c.strokeStyle = 'rgba(120,40,200,0.8)';
+    c.lineWidth = 3;
+    for (let i = 0; i < 6; i++) {
+      let a = r() * Math.PI * 2;
+      let rr = 30 + r() * 30;
+      c.beginPath();
+      c.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+      for (let s = 0; s < 4; s++) {
+        a += (r() - 0.5) * 0.5;
+        rr += 22;
+        c.lineTo(cx + Math.cos(a) * Math.min(rr, 118), cy + Math.sin(a) * Math.min(rr, 118));
+      }
+      c.stroke();
+    }
+    // 黃銅束環
+    for (const [rx, ry, rot] of [[160, 40, -0.3], [150, 34, 0.5]] as [number, number, number][]) {
+      c.save();
+      c.translate(cx, cy);
+      c.rotate(rot);
+      c.strokeStyle = '#4a3420';
+      c.lineWidth = 12;
+      c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, Math.PI); c.stroke();
+      c.strokeStyle = 'rgba(255,220,150,0.8)';
+      c.lineWidth = 2;
+      c.beginPath(); c.ellipse(0, -4, rx, ry, 0, 0, Math.PI); c.stroke();
+      c.restore();
+    }
+    // 下方祭台平台
+    c.fillStyle = '#0a0608';
+    c.beginPath(); c.moveTo(0, 1000); c.lineTo(160, 940); c.lineTo(560, 940); c.lineTo(W, 1000); c.lineTo(W, H); c.lineTo(0, H); c.fill();
+    c.fillStyle = 'rgba(255,170,90,0.35)';
+    c.fillRect(160, 940, 400, 2);
+    glow(c, cx, 960, 260, 'rgba(255,150,80,0.18)');
+    // 升騰的星燼
+    for (let i = 0; i < 90; i++) {
+      const a = r() * Math.PI * 2;
+      const d = 130 + r() * 420;
+      c.fillStyle = r() < 0.3 ? `rgba(210,150,255,${0.3 + r() * 0.5})` : `rgba(255,200,120,${0.3 + r() * 0.6})`;
+      c.fillRect(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 1.2, 2, 2);
+    }
+  },
+};
+
 const DRAW: Record<Exclude<BackdropId, 'ruins'>, (c: CanvasRenderingContext2D) => void> = {
   ...DRAW_CH3,
+  ...DRAW_CH4,
   town: (c) => {
     grad(c, [[0, '#070912'], [0.45, '#1c1830'], [0.62, '#2a1c24'], [1, '#0a0708']]);
     const r = rng(3);
@@ -1742,6 +2114,13 @@ export function backdropFor(script: string, location: string): BackdropId {
     if (location === 'rooftop') return 'rooftop';
     return 'capital';
   }
+  if (script === 'ch4') {
+    if (location === 'academy_entrance') return 'academy';
+    if (location === 'archive') return 'archive';
+    if (location === 'lab') return 'lab';
+    if (location === 'star_furnace') return 'furnace';
+    return 'depths';
+  }
   if (location === 'tavern' || location === 'general_store') return 'tavern';
   if (location === 'orphanage' || location === 'town_gate') return 'town';
   if (location === 'mist_lake') return 'lake';
@@ -1758,5 +2137,8 @@ export function battleBackdropFor(encounter: string): BackdropId | null {
   if (encounter === 'alley_thugs') return 'market';
   if (encounter === 'academy_guard') return 'academy';
   if (encounter === 'rourke_1' || encounter === 'rourke_2' || encounter === 'rourke_3') return 'rooftop';
+  if (encounter === 'ch4_gate') return 'academy';
+  if (encounter === 'ch4_lab_a' || encounter === 'ch4_lab_b') return 'lab';
+  if (encounter === 'boss_valderan') return 'furnace';
   return null;
 }
