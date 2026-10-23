@@ -4,12 +4,14 @@
 // Uses a preinstalled Chromium if CHROMIUM_PATH is set (or found under
 // PLAYWRIGHT_BROWSERS_PATH); never downloads browsers itself.
 import { existsSync, readdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
 const url = process.argv[2] ?? 'http://localhost:4173/?skipIntro';
 const out = process.argv[3] ?? 'screenshots/title.png';
 const waitMs = Number(process.argv[4] ?? 3000);
+mkdirSync(path.dirname(out), { recursive: true });
 
 function findChromium() {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
@@ -54,3 +56,9 @@ console.log(`canvas: ${renderer}`);
 console.log(`saved ${out}`);
 if (problems.length) console.log(problems.join('\n'));
 await browser.close();
+// SMOKE_STRICT=1：有 pageerror 或 console.error 就失敗（CI 煙霧測試用）
+const fatal = problems.filter((p) => p.startsWith('[pageerror]') || p.startsWith('[error]'));
+if (process.env.SMOKE_STRICT === '1' && (fatal.length || renderer === 'no canvas')) {
+  console.error(`SMOKE FAILED: ${fatal.length} error(s), canvas=${renderer}`);
+  process.exit(1);
+}
