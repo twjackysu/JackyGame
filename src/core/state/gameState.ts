@@ -164,3 +164,16 @@ export function grantXp(s: GameState, member: MemberId, xp: number): number {
   if (member === 'lian') s.statPoints += ups;
   return ups;
 }
+
+/** 戰鬥上場人數（隊伍前 N 位） */
+export const ACTIVE_PARTY = 3;
+
+/** 交換隊伍中兩位成員的位置（前 3 位上場）。主角連恩必須留在上場位；不合法時回傳 null。 */
+export function swapPartyMembers(party: readonly MemberId[], i: number, j: number): MemberId[] | null {
+  if (i === j || i < 0 || j < 0 || i >= party.length || j >= party.length) return null;
+  const next = [...party];
+  [next[i], next[j]] = [next[j]!, next[i]!];
+  const li = next.indexOf('lian');
+  if (li >= ACTIVE_PARTY) return null;
+  return next;
+}

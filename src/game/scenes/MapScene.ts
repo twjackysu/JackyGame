@@ -9,10 +9,9 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TITLE_FONT, UI_FONT, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
+import { HERO_COLOR, openParty } from '../ui/partyPanel';
 import { drawMapCh2 } from '../art/mapArt';
 import { session } from '../session';
-
-const HERO_COLOR: Record<string, number> = { lian: 0xffa54a, rourke: 0xe0705a, io: 0x7fd8ff, serin: 0xc8d4ff, liora: 0xff7a5a };
 
 type NodeState = 'locked' | 'open' | 'done';
 
@@ -273,19 +272,51 @@ export class MapScene extends Phaser.Scene {
       session.save();
       this.scene.start('Title');
     });
-    // 隊伍頭像
+    // 隊伍頭像（點擊開啟隊伍編成）
     const bar = this.add.graphics().setDepth(90);
     bar.fillStyle(0x05060c, 0.85).fillRect(0, 1140, GAME_WIDTH, 140);
+    this.drawPartyBar();
+  }
+
+  private partyBar?: Phaser.GameObjects.Container;
+
+  private drawPartyBar(): void {
+    const s = session.state;
+    this.partyBar?.destroy();
+    const c = this.add.container(0, 0).setDepth(91);
+    this.partyBar = c;
+    const g = this.add.graphics();
+    c.add(g);
+    const bench = s.party.length > 3;
+    const span = bench ? 200 : 230;
     s.party.slice(0, 3).forEach((m, i) => {
-      const x = 130 + i * 230;
+      const x = (bench ? 110 : 130) + i * span;
       const col = HERO_COLOR[m] ?? 0xffffff;
       const mem = s.members[m];
-      bar.fillStyle(0x0a0d1a, 1).fillCircle(x - 60, 1205, 34);
-      bar.lineStyle(3, col, 1).strokeCircle(x - 60, 1205, 34);
-      this.add.text(x - 60, 1205, (HEROES[m]?.name ?? m).slice(0, 1), { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '700', color: '#ffffff' })
-        .setOrigin(0.5).setDepth(91);
-      this.add.text(x - 16, 1188, `${HEROES[m]?.name ?? m}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff' }).setOrigin(0, 0.5).setDepth(91);
-      this.add.text(x - 16, 1222, `Lv ${mem?.level ?? 1}`, { fontFamily: UI_FONT, fontSize: '20px', color: '#aab4dd' }).setOrigin(0, 0.5).setDepth(91);
+      g.fillStyle(0x0a0d1a, 1).fillCircle(x - 60, 1205, 34);
+      g.lineStyle(3, col, 1).strokeCircle(x - 60, 1205, 34);
+      c.add(this.add.text(x - 60, 1205, (HEROES[m]?.name ?? m).slice(0, 1), { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '700', color: '#ffffff' }).setOrigin(0.5));
+      c.add(this.add.text(x - 16, 1188, `${HEROES[m]?.name ?? m}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff' }).setOrigin(0, 0.5));
+      c.add(this.add.text(x - 16, 1222, `Lv ${mem?.level ?? 1}`, { fontFamily: UI_FONT, fontSize: '20px', color: '#aab4dd' }).setOrigin(0, 0.5));
+    });
+    if (bench) {
+      const bx = GAME_WIDTH - 74;
+      g.fillStyle(0x1a2040, 1).fillRoundedRect(bx - 56, 1170, 112, 70, 16);
+      g.lineStyle(2, 0xffd27a, 0.8).strokeRoundedRect(bx - 56, 1170, 112, 70, 16);
+      c.add(this.add.text(bx, 1192, '隊伍', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffd27a' }).setOrigin(0.5));
+      c.add(this.add.text(bx, 1220, `待命 ${s.party.length - 3}`, { fontFamily: UI_FONT, fontSize: '18px', color: '#aab4dd' }).setOrigin(0.5));
+    }
+    const hit = this.add.zone(GAME_WIDTH / 2, 1210, GAME_WIDTH, 140).setInteractive({ useHandCursor: true });
+    c.add(hit);
+    hit.on('pointerdown', () => {
+      if (this.busy || s.party.length < 2) return;
+      this.busy = true;
+      SFX.uiTap();
+      this.closeBubble();
+      void openParty(this).then(() => {
+        this.busy = false;
+        this.drawPartyBar();
+      });
     });
   }
 }

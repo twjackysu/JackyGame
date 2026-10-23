@@ -27,6 +27,7 @@ export interface EnemyAttack {
   status?: 'poison' | 'umbra';
   weight: number; // 出招權重
   phase?: 1 | 2; // 限定階段
+  drainEmber?: number; // 吸走我方星燼：失敗吸 n、成功吸 ceil(n/2)、完美不吸；每吸 1 點回復 3% 最大 HP
 }
 
 export interface EnemyDef {
@@ -115,7 +116,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'bell_slam', name: '鐘身撞擊', telegraph: 'white', windUpMs: 650, mul: 1, weight: 2 },
       // 階段 2：鑽地（紅光，反向滑動）＋吞噬星燼（紫光蝕化）
       { id: 'burrow', name: '鑽地突襲', telegraph: 'red', windUpMs: 600, mul: 1.5, weight: 2, phase: 2 },
-      { id: 'ember_devour', name: '吞噬星燼', telegraph: 'purple', windUpMs: 750, mul: 0.7, aoe: true, status: 'umbra', weight: 1, phase: 2 },
+      { id: 'ember_devour', name: '吞噬星燼', telegraph: 'purple', windUpMs: 750, mul: 0.7, aoe: true, status: 'umbra', weight: 1, phase: 2, drainEmber: 3 },
     ],
   },
 };

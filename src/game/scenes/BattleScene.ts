@@ -1261,7 +1261,11 @@ export class BattleScene extends Phaser.Scene {
         const v = this.viewOf(e.target);
         if (!v || e.amount <= 0) return;
         v.hp = Math.min(v.maxHp, v.hp + e.amount);
-        this.drawBars(v, this.bs.heroes[e.target.index]?.sp);
+        if (e.target.side === 'hero') this.drawBars(v, this.bs.heroes[e.target.index]?.sp);
+        else {
+          const be = this.bs.enemies[e.target.index];
+          this.drawBars(v, undefined, be ? be.breakGauge / Math.max(1, be.breakMax) : undefined);
+        }
         floatNumber(this, v.x, v.y - 80, `+${e.amount}`, { color: '#7dffb0', size: 40 });
         sparks(this, v.x, v.y - 20, 14, 'spark', 0x7dffb0, 200);
         await wait(this, 120);
@@ -1349,6 +1353,28 @@ export class BattleScene extends Phaser.Scene {
         this.fog.forEach((f) => this.tweens.add({ targets: f, alpha: 0.32, duration: 1200 }));
         floatNumber(this, GAME_WIDTH / 2, 660, '判定窗口縮小', { color: '#c8b0ff', size: 28 });
         await wait(this, 1100);
+        return;
+      }
+      case 'emberDrained': {
+        // 吞噬星燼：星燼珠從星燼條飛向敵人，紫色吸收演出
+        const v = this.enemies[e.enemy];
+        if (!v) return;
+        const from = this.emberShown;
+        bigText(this, GAME_WIDTH / 2, 640, `星燼被吞噬 −${e.amount}`, '#c8a0ff', 44, 520);
+        this.cameras.main.shake(260, 0.006);
+        for (let k = 0; k < e.amount; k++) {
+          const x = 118 + Math.max(0, from - 1 - k) * 34;
+          const orb = this.add.image(x, 938, 'ember').setScale(1.4).setTint(0xc8a0ff).setBlendMode(Phaser.BlendModes.ADD).setDepth(760);
+          this.tweens.add({
+            targets: orb, x: v.x, y: v.y - 30, scale: 0.4, duration: 520, delay: k * 120, ease: 'Cubic.easeIn',
+            onComplete: () => {
+              sparks(this, v.x, v.y - 30, 18, 'ember', 0xb48cff, 300);
+              orb.destroy();
+            },
+          });
+        }
+        SFX.lampPlace(0);
+        await wait(this, 520 + e.amount * 120);
         return;
       }
       case 'ember': {

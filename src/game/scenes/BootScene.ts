@@ -25,6 +25,8 @@ export class BootScene extends Phaser.Scene {
       for (const f of Object.values(CHAPTER_MAPS.ch1.done)) s.flags[f] = true;
       Object.assign(s.flags, { wick_lake: true, wick_hunter: true, wick_shrine: true, io_named: true });
       applyEffects(s, [{ join: 'io' }]);
+      // &join=serin,liora：額外加入同伴（測試隊伍編成）
+      for (const id of (q.get('join') ?? '').split(',').filter(Boolean)) applyEffects(s, [{ join: id as 'serin' }]);
       for (const m of Object.values(s.members)) if (m) m.level = Math.max(m.level, 5);
       s.location = { region: 'ch2', node: 'greylamp_plaza' };
       session.save();

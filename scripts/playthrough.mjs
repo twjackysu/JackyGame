@@ -3,7 +3,8 @@
 // 不靠座標點擊，而是透過 window.__game（需 ?debug）直接呼叫場景方法 / 對互動物件 emit('pointerdown')。
 // Usage: node scripts/playthrough.mjs [url] [outDir] [timeoutMin]
 //   url 預設 http://localhost:4180/?debug   outDir 預設 screenshots/playthrough   timeoutMin 預設 40
-// Exit: 0 = 達成 ch1_complete；1 = 卡住 / 逾時 / 失敗。
+// 環境變數 GOAL=旗標名（預設 ch1_complete），例如 GOAL=ch2_complete 搭配 url ?debug&chapter=2&scene=Map。
+// Exit: 0 = 達成目標旗標；1 = 卡住 / 逾時 / 失敗。
 import { existsSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
@@ -11,6 +12,7 @@ import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4180/?debug';
 const outDir = process.argv[3] ?? 'screenshots/playthrough';
 const timeoutMin = Number(process.argv[4] ?? 40);
+const GOAL = process.env.GOAL ?? 'ch1_complete'; // 目標旗標（第 2 章：GOAL=ch2_complete）
 const STUCK_MS = 20_000; // 無進展多久視為卡住（截圖）
 const ABORT_STUCK_MS = 150_000; // 連續卡住多久放棄
 mkdirSync(outDir, { recursive: true });
@@ -321,6 +323,7 @@ async function snap(file) {
   }
 }
 let exitCode = 1;
+let afterGoalScene = '';
 let steps = 0;
 let shot = 0;
 const visits = {};
@@ -352,6 +355,7 @@ try {
   const deadline = t0 + timeoutMin * 60_000;
   // extraOnce：沒有「！」的支線地點各去一次（雜貨店商店、倒木寶箱）；prefer：優先選的選項（觸發改名介面）
   const cfg = { linesPerTick: 25, heal: true, skipTitles: [], extraOnce: ['雜貨店', '倒木下的寶箱'], prefer: ['自己取個名字'] };
+  let goalAt = null;
   let lastMapPick = '';
   let samePickCount = 0;
   while (Date.now() < deadline) {
@@ -378,10 +382,16 @@ try {
       lastFlags = { ...st.flags };
       lastProgress = Date.now();
     }
-    if (st.flags.ch1_complete) {
-      log('*** ch1_complete reached ***');
-      exitCode = 0;
-      break;
+    if (st.flags[GOAL]) {
+      // 達成後再等場景收尾，確認回到地圖（不是卡在對話或被踢回標題）
+      goalAt ??= Date.now();
+      const settled = !st.active.includes('Dialogue') && !st.active.includes('Battle') && !st.active.includes('Cards');
+      if (settled || Date.now() - goalAt > 40_000) {
+        log(`*** ${GOAL} reached; now in ${st.active.join('+')} ***`);
+        afterGoalScene = st.active.join('+');
+        exitCode = process.env.EXPECT_AFTER && !st.active.includes(process.env.EXPECT_AFTER) ? 1 : 0;
+        break;
+      }
     }
     let r;
     try {
@@ -427,7 +437,7 @@ try {
         lastWait = r.wait;
       }
       if (r.wait === 'no ! node') {
-        const msg = `map has no "！" node but ch1_complete unset; nodes: ${r.mapNodes.join(', ')}`;
+        const msg = `map has no "！" node but ${GOAL} unset; nodes: ${r.mapNodes.join(', ')}`;
         stuckPoints.push(msg);
         log('STUCK', msg);
         await snap(path.join(outDir, `stuck-${++shot}.png`));
@@ -453,7 +463,9 @@ try {
 }
 await snap(path.join(outDir, `final.png`));
 const summary = {
-  reachedCh1Complete: exitCode === 0,
+  goal: GOAL,
+  reached: exitCode === 0,
+  afterGoalScene,
   elapsedSec: Math.round((Date.now() - t0) / 1000),
   steps,
   linesRead: sayCount.n,

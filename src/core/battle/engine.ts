@@ -126,6 +126,7 @@ export type BattleEvent =
   | { type: 'revived'; target: ActorRef; hp: number }
   | { type: 'phaseChange'; enemy: number; phase: 2 }
   | { type: 'ember'; delta: number; total: number }
+  | { type: 'emberDrained'; enemy: number; amount: number; healed: number }
   | { type: 'skip'; actor: ActorRef; reason: 'broken' | 'downed' }
   | { type: 'victory' }
   | { type: 'defeat' };
@@ -690,6 +691,19 @@ export function resolveDefense(state: BattleState, results: DefenseResult[]): Re
       if (!alive(h)) continue;
       h.status[atk.status] = 3;
       ev.push({ type: 'statusApplied', target: { side: 'hero', index: ti }, status: atk.status, rounds: 3 });
+    }
+  }
+  if (atk.drainEmber && s.ember > 0 && alive(e)) {
+    const want = anyFail ? atk.drainEmber : anyPerfect ? 0 : Math.ceil(atk.drainEmber / 2);
+    const n = Math.min(s.ember, want);
+    if (n > 0) {
+      const healed = Math.min(e.maxHp - e.hp, Math.round(e.maxHp * 0.03 * n));
+      ev.push({ type: 'emberDrained', enemy: p.enemy, amount: n, healed });
+      gainEmber(s, ev, -n);
+      if (healed > 0) {
+        e.hp += healed;
+        ev.push({ type: 'heal', target: { side: 'enemy', index: p.enemy }, amount: healed });
+      }
     }
   }
   if (anyPerfect) gainEmber(s, ev, 1);

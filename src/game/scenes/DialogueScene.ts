@@ -638,10 +638,12 @@ export class DialogueScene extends Phaser.Scene {
     fadeOutThen(this, 600, () => {
       const s = session.state;
       if (this.scriptId === 'ch0') s.location = { region: 'ch1', node: 'orphanage' };
-      const chapterOver = this.scriptId === 'ch2' && !!s.flags['ch2_complete'];
-      if ((this.scriptId === 'ch0' || this.scriptId === 'ch1' || this.scriptId === 'ch2') && !chapterOver) this.scene.start('Map');
-      else {
-        if (chapterOver) session.setScriptPos('map', 'ch2');
+      // 章節結束（含第 2 章完結）一律回地圖：地圖目標列會顯示「第二章 完成！」，重訪地點也不會被踢回標題
+      if (this.scriptId === 'ch0' || this.scriptId === 'ch1' || this.scriptId === 'ch2') {
+        if (this.scriptId === 'ch2' && s.flags['ch2_complete']) session.setScriptPos('map', 'ch2');
+        session.save();
+        this.scene.start('Map');
+      } else {
         session.save();
         this.scene.start('Title');
       }
