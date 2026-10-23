@@ -266,7 +266,8 @@ export class TitleScene extends Phaser.Scene {
   private continueGame(): void {
     const s = session.load();
     const pos = s ? session.scriptPos() : null;
-    if (pos) this.scene.start('Dialogue', { script: pos.script, node: pos.node });
+    if (pos?.script === 'map') this.scene.start('Map');
+    else if (pos) this.scene.start('Dialogue', { script: pos.script, node: pos.node });
     else {
       session.newGame();
       this.scene.start('Dialogue', { script: 'ch0' });

@@ -69,6 +69,18 @@ function make(
 }
 
 export function generateCombatantArt(scene: Phaser.Scene): void {
+    if (!scene.textures.exists('lamp_icon')) {
+      const g = scene.make.graphics({ x: 0, y: 0 }, false);
+      g.fillStyle(0xffa54a, 0.35);
+      g.fillCircle(16, 16, 15);
+      g.fillStyle(0xffd27a, 1);
+      g.fillTriangle(16, 4, 26, 18, 6, 18);
+      g.fillCircle(16, 20, 8);
+      g.fillStyle(0xffffff, 1);
+      g.fillCircle(16, 19, 3.5);
+      g.generateTexture('lamp_icon', 32, 32);
+      g.destroy();
+    }
   // ---------------- 我方（背影） ----------------
   make(scene, 'hero_lian', 130, 200, (g, s) => {
     const o = { fill: HERO_FILL, rim: LAMP_RIM };

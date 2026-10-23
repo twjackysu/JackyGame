@@ -22,6 +22,7 @@ import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silhouettes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { session } from '../session';
+import { grantXp } from '../../core/state/gameState';
 import {
   UI_FONT, bigText, floatNumber, hitStop, pressBounce, shockRing, slowMo, sparks, wait,
 } from '../fx/feel';
@@ -146,6 +147,8 @@ export class BattleScene extends Phaser.Scene {
     this.target = 0;
     this.emberShown = 0;
     this.buttons = [];
+    this.coachStep = 0;
+    this.coach = undefined;
   }
 
   create(): void {
@@ -231,18 +234,6 @@ export class BattleScene extends Phaser.Scene {
         c.fillRect(0, 0, 64, 512);
         tex.refresh();
       }
-    }
-    if (!this.textures.exists('lamp_icon')) {
-      const g = this.make.graphics({ x: 0, y: 0 }, false);
-      g.fillStyle(0xffa54a, 0.35);
-      g.fillCircle(16, 16, 15);
-      g.fillStyle(0xffd27a, 1);
-      g.fillTriangle(16, 4, 26, 18, 6, 18);
-      g.fillCircle(16, 20, 8);
-      g.fillStyle(0xffffff, 1);
-      g.fillCircle(16, 19, 3.5);
-      g.generateTexture('lamp_icon', 32, 32);
-      g.destroy();
     }
   }
 
@@ -615,6 +606,7 @@ export class BattleScene extends Phaser.Scene {
     this.mode = 'command';
     this.paintButtons(HERO_COLOR[hero.id] ?? 0xffa54a);
     this.setButtonsActive(true);
+    if (this.data0.tutorial) this.coachTip();
     this.heroes.forEach((v, i) => {
       this.tweens.add({ targets: v.root, scale: i === idx ? 1.08 : 0.94, y: i === idx ? v.y - 14 : v.y, alpha: v.dead ? 0.45 : i === idx ? 1 : 0.8, duration: 220, ease: 'Cubic.Out' });
     });
@@ -622,6 +614,37 @@ export class BattleScene extends Phaser.Scene {
       this.target = Math.max(0, this.bs.enemies.findIndex((e) => !e.downed));
     }
     this.showReticle();
+  }
+
+  private coachStep = 0;
+  private coach?: Phaser.GameObjects.Container;
+
+  /** 教學戰提示（序章）：依序教 攻擊時機 → 燈印 → 共鳴 */
+  private coachTip(): void {
+    const lamps = this.bs.enemies.reduce((a, e) => a + (e.downed ? 0 : e.lamps), 0);
+    let msg = '';
+    if (this.coachStep === 0) msg = '按「攻擊」，在光環重疊的瞬間點擊畫面！';
+    else if (lamps < 3) msg = '「技能」→「燈印」：在敵人身上點燈。\n完美時機可以一次點 2 盞。';
+    else msg = '燈印夠多了！「技能」→「共鳴」一口氣引爆！';
+    this.coachStep++;
+    this.coach?.destroy();
+    const c = this.add.container(GAME_WIDTH / 2, 196).setDepth(860);
+    const g = this.add.graphics();
+    g.fillStyle(0x0a0d1a, 0.92).fillRoundedRect(-320, -48, 640, 96, 18);
+    g.lineStyle(2, 0x7fe8ff, 1).strokeRoundedRect(-320, -48, 640, 96, 18);
+    const t = this.add.text(0, 0, msg, {
+      fontFamily: UI_FONT, fontSize: '25px', color: '#dff6ff', align: 'center', lineSpacing: 6,
+    }).setOrigin(0.5);
+    c.add([g, t]).setAlpha(0);
+    this.tweens.add({ targets: c, alpha: 1, y: 204, duration: 250 });
+    this.coach = c;
+  }
+
+  private hideCoach(): void {
+    const c = this.coach;
+    if (!c) return;
+    this.coach = undefined;
+    this.tweens.add({ targets: c, alpha: 0, duration: 150, onComplete: () => c.destroy() });
   }
 
   private showReticle(): void {
@@ -750,9 +773,17 @@ export class BattleScene extends Phaser.Scene {
   private async issue(cmd: Command): Promise<void> {
     if (this.mode !== 'command' && this.mode !== 'panel') return;
     this.mode = 'busy';
+    this.hideCoach();
     this.setButtonsActive(false);
     this.tweens.add({ targets: this.reticle, alpha: 0, duration: 150 });
-    const r = chooseCommand(this.bs, cmd);
+    let r: ReturnType<typeof chooseCommand>;
+    try {
+      r = chooseCommand(this.bs, cmd);
+    } catch (err) {
+      console.warn(err);
+      this.enterCommand();
+      return;
+    }
     this.bs = r.state;
     const heroIdx = r.events.find((e) => e.type === 'command')?.actor.index ?? 0;
     const sk = cmd.skillId ? SKILLS[cmd.skillId] : undefined;
@@ -897,7 +928,7 @@ export class BattleScene extends Phaser.Scene {
     const ev = this.enemies[tel.enemy];
     const color = TELE_COLOR[tel.telegraph];
     const scale = tel.windowScale;
-    const lead = tel.windUpMs + tel.leadBonusMs + 350; // 350ms 讓玩家看清楚預兆
+    const lead = tel.windUpMs + tel.leadBonusMs + 350 + (this.data0.tutorial ? 500 : 0); // 讓玩家看清楚預兆
     const t0 = now();
     const impacts = tel.hits.map((h) => t0 + lead + h);
     const targetHero = tel.targets.length > 1 ? -1 : tel.targets[0] ?? 0;
@@ -1337,6 +1368,13 @@ export class BattleScene extends Phaser.Scene {
     const next = win ? this.data0.chain[0] : this.data0.encounter;
     const story = this.data0.story;
     if (story && win) {
+      for (const m of session.state.party) {
+        const ups = grantXp(session.state, m, xp);
+        if (ups > 0) {
+          const v = this.heroes[this.bs.heroes.findIndex((h) => h.id === m)];
+          if (v) bigText(this, v.x, v.y - 150, 'LEVEL UP', '#7dffb0', 40, 900);
+        }
+      }
       const used = (session.state.inventory['potion_s'] ?? 0) - (this.bs.items.potion_s ?? 0);
       if (used > 0) session.state.inventory['potion_s'] = Math.max(0, (session.state.inventory['potion_s'] ?? 0) - used);
     }

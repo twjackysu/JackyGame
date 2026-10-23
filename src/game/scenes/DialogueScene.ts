@@ -29,6 +29,9 @@ const CHAPTER_TITLE: Record<string, [string, string]> = {
 };
 
 const BOX_Y = 1030;
+const ENCOUNTER_LEVEL_FLOOR: Record<string, number> = {
+  ch0_tutorial: 3, forest_a: 3, forest_b: 3, path_a: 3, path_b: 3, caravan: 3, shrine_boar: 4, boss_wolfking: 4,
+};
 const CHAR_MS = 32;
 
 export class DialogueScene extends Phaser.Scene {
@@ -390,6 +393,15 @@ export class DialogueScene extends Phaser.Scene {
   private runEvent(kind: string, id: string): void {
     if (kind === 'battle') {
       const s = session.state;
+      // 等級下限（D-016）：劇情戰依遭遇保底，避免第 1 章戰鬥次數少導致等級不足
+      const floor = ENCOUNTER_LEVEL_FLOOR[id] ?? 1;
+      for (const m of s.party) {
+        const mem = s.members[m];
+        if (mem && mem.level < floor) {
+          mem.level = floor;
+          mem.xp = 0;
+        }
+      }
       const party = s.party.slice(0, 3).map((m) => ({ id: m as HeroId, level: s.members[m]?.level ?? 1 }));
       session.save();
       this.cameras.main.flash(250, 255, 255, 255);
@@ -445,6 +457,15 @@ export class DialogueScene extends Phaser.Scene {
     this.waiting = 'busy';
     session.save();
     this.cameras.main.fadeOut(600, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Title'));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      const s = session.state;
+      if (this.scriptId === 'ch0') s.location = { region: 'ch1', node: 'orphanage' };
+      if ((this.scriptId === 'ch0' || this.scriptId === 'ch1') && !s.flags['ch1_complete']) this.scene.start('Map');
+      else {
+        if (s.flags['ch1_complete']) session.setScriptPos('map', 'ch1');
+        session.save();
+        this.scene.start('Title');
+      }
+    });
   }
 }
