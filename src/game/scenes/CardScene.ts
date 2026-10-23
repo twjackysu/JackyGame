@@ -9,7 +9,7 @@ import {
 import { chooseAction, chooseTutorialAction } from '../../core/cards/ai';
 import { mulberry32 } from '../../core/rng';
 import {
-  DECK_BERN, DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL, DECK_ROURKE_OFFICIAL_NO_LEGEND, DECK_ROURKE_TUTORIAL,
+  DECK_BERN, DECK_LIORA, DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL, DECK_ROURKE_OFFICIAL_NO_LEGEND, DECK_ROURKE_TUTORIAL,
   DECK_TUTORIAL_PLAYER, type Keyword,
 } from '../../data/cards';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -42,6 +42,10 @@ const OPPONENTS: Record<string, Opponent> = {
     config: { decks: [DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL_NO_LEGEND] },
   },
   bern: { name: '伯恩', ai: 0.2, intro: '獵人伯恩：月相會改變戰局。', config: { decks: [DECK_PLAYER_STARTER, DECK_BERN] } },
+  liora_intro: {
+    name: '莉歐拉', ai: 0.2, intro: '爆破師莉歐拉：月相會改變戰局——滿月點亮中央、弦月照奇數燈座、血月讓對峙更兇。',
+    config: { decks: [DECK_PLAYER_STARTER, DECK_LIORA] },
+  },
   demo: { name: '洛克', ai: 0.15, intro: '燼牌：三夜兩勝。', config: { decks: [DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL_NO_LEGEND] } },
 };
 

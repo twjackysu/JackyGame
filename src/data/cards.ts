@@ -176,3 +176,18 @@ export function validateDeck(deck: readonly string[]): string[] {
   if (legends > DECK_LEGEND_MAX) errors.push(`too many legends: ${legends}`);
   return errors;
 }
+
+/** 莉歐拉（18）：爆破師——灼照／引火／餘燼為主，加轉月讓月相教學浮現。 */
+export const DECK_LIORA: readonly string[] = [
+  ...rep('c_fire_eater', 2),
+  ...rep('n_mage', 2),
+  ...rep('c_juggler', 2),
+  ...rep('t_child', 2),
+  ...rep('t_matron', 2),
+  ...rep('c_smuggler', 2),
+  'c_bouncer',
+  'n_wanderer',
+  't_blacksmith',
+  'n_oil',
+  ...rep('n_moonturn', 2),
+];

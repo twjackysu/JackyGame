@@ -5,7 +5,7 @@ import { playMusic, stopMusic } from '../../audio/music';
 import { DialogueRunner, type DialogueStep, type ShownOption } from '../../core/dialogue/runner';
 import type { HeroId } from '../../core/battle/skills';
 import { SPEAKER_NAMES } from '../../data/dialogue/speakers';
-import { CH1_ENTRIES } from '../../data/dialogue/ch1';
+import { CHAPTER_MAPS, type ChapterId } from '../../data/maps';
 import { generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
 import { backdropFor, backdropKey } from '../art/backdrops';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -22,9 +22,11 @@ export interface DialogueSceneData {
 const PORTRAIT: Record<string, string> = {
   lian: 'portrait_lian', serin: 'portrait_serin', rourke: 'portrait_rourke', io: 'portrait_io', girl: 'portrait_io', knight: 'npc_knight', guard: 'npc_knight', gwen: 'npc_gwen',
   mara: 'npc_mara', hanna: 'npc_hanna', toby: 'npc_toby', farrow: 'npc_farrow', bern: 'npc_bern',
+  liora: 'portrait_liora', dorn: 'npc_dorn', miner: 'npc_miner',
 };
 const NAME_COLOR: Record<string, string> = {
   lian: '#ffb565', serin: '#c8d4ff', rourke: '#e0705a', io: '#7fd8ff', liora: '#ff7a5a', gwen: '#ffd27a', knight: '#9fb0d8',
+  dorn: '#d8a878', miner: '#b8a088',
 };
 const STAT_NAME: Record<string, string> = { str: '力', agi: '敏', int: '智', cha: '魅' };
 const CHAPTER_TITLE: Record<string, [string, string]> = {
@@ -37,6 +39,7 @@ const CHAPTER_TITLE: Record<string, [string, string]> = {
 const BOX_Y = 1030;
 const ENCOUNTER_LEVEL_FLOOR: Record<string, number> = {
   ch0_tutorial: 3, forest_a: 3, forest_b: 3, path_a: 3, path_b: 3, caravan: 3, shrine_boar: 4, boss_wolfking: 4,
+  mine_a: 5, mine_b: 6, bell_hall: 7, deep_1: 7, deep_2: 8, deep_3: 8, boss_bellworm: 8,
 };
 
 export class DialogueScene extends Phaser.Scene {
@@ -64,8 +67,9 @@ export class DialogueScene extends Phaser.Scene {
     const script = SCRIPTS[this.scriptId];
     if (!script) throw new Error(`unknown script ${this.scriptId}`);
     const node = data.node && script.nodes[data.node] ? data.node : script.start ?? 'start';
-    const entry = this.scriptId === 'ch1' ? CH1_ENTRIES.find((e) => e.node === node) : undefined;
-    if (entry) session.state.location = { region: 'ch1', node: entry.location };
+    const map = CHAPTER_MAPS[this.scriptId as ChapterId] as (typeof CHAPTER_MAPS)[ChapterId] | undefined;
+    const entry = map?.entries.find((e) => e.node === node);
+    if (map && entry) session.state.location = { region: map.id, node: entry.location };
     this.runner = new DialogueRunner({ ...script, start: node }, session.state);
     this.lastNode = '';
     this.portraits = { left: null, right: null };
@@ -178,7 +182,9 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   private setPortrait(speaker: string): void {
-    const key = PORTRAIT[speaker];
+    const mapped = PORTRAIT[speaker];
+    // 美術尚未提供的立繪（例如新角色）→ 當作無立繪處理
+    const key = mapped && this.textures.exists(mapped) ? mapped : undefined;
     const side: 'left' | 'right' = speaker === 'lian' ? 'left' : 'right';
     const cur = this.portraits[side];
     if (!key) {
@@ -569,7 +575,7 @@ export class DialogueScene extends Phaser.Scene {
       const lines = [
         `劇情偏移值　${s.divergence}`,
         `連恩　Lv ${s.members.lian?.level ?? 1}　金幣 ${s.gold}`,
-        ...(['io', 'rourke', 'serin'] as const).filter((c) => s.affinity[c] > 0 || s.party.includes(c)).map((c) => `${SPEAKER_NAMES[c]} 羈絆　${'♥'.repeat(Math.min(5, Math.ceil(s.affinity[c] / 10)))}${s.affinity[c]}`),
+        ...(['io', 'rourke', 'serin', 'liora'] as const).filter((c) => s.affinity[c] > 0 || s.party.includes(c)).map((c) => `${SPEAKER_NAMES[c]} 羈絆　${'♥'.repeat(Math.min(5, Math.ceil(s.affinity[c] / 10)))}${s.affinity[c]}`),
         `灰燈鎮聲望 ${s.reputation.town}　騎士團 ${s.reputation.order}`,
         `攻略筆記 ${s.codex.length} 條`,
       ];
@@ -632,9 +638,10 @@ export class DialogueScene extends Phaser.Scene {
     fadeOutThen(this, 600, () => {
       const s = session.state;
       if (this.scriptId === 'ch0') s.location = { region: 'ch1', node: 'orphanage' };
-      if ((this.scriptId === 'ch0' || this.scriptId === 'ch1') && !s.flags['ch1_complete']) this.scene.start('Map');
+      const chapterOver = this.scriptId === 'ch2' && !!s.flags['ch2_complete'];
+      if ((this.scriptId === 'ch0' || this.scriptId === 'ch1' || this.scriptId === 'ch2') && !chapterOver) this.scene.start('Map');
       else {
-        if (s.flags['ch1_complete']) session.setScriptPos('map', 'ch1');
+        if (chapterOver) session.setScriptPos('map', 'ch2');
         session.save();
         this.scene.start('Title');
       }

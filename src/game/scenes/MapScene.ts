@@ -1,33 +1,17 @@
-// 節點地圖（07 §2）：第 1 章「灰燈鎮周邊」。點地點 → 確認 → 提燈標記沿路徑移動 → 進入該地點的劇本入口。
+// 節點地圖（07 §2）：依目前章節（src/data/maps.ts）顯示。點地點 → 確認 → 提燈標記沿路徑移動 → 進入該地點的劇本入口。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { playMusic } from '../../audio/music';
 import { check } from '../../core/state/gameState';
-import { CH1_ENTRIES } from '../../data/dialogue/ch1';
+import { CHAPTER_MAPS, currentChapter, type ChapterMap } from '../../data/maps';
 import { HEROES } from '../../data/combatants';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TITLE_FONT, UI_FONT, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
+import { drawMapCh2 } from '../art/mapArt';
 import { session } from '../session';
 
-const POS: Record<string, [number, number]> = {
-  orphanage: [150, 330], tavern: [360, 290], general_store: [575, 330], town_gate: [360, 455],
-  forest_edge: [360, 600], mist_lake: [145, 715], hunter_hut: [575, 715], wolf_path: [360, 820],
-  lighthouse: [140, 945], campfire: [580, 935], fallen_log: [620, 1050], wolf_den: [360, 1060],
-};
-const EDGES: [string, string][] = [
-  ['orphanage', 'tavern'], ['tavern', 'general_store'], ['tavern', 'town_gate'], ['town_gate', 'forest_edge'],
-  ['forest_edge', 'mist_lake'], ['forest_edge', 'hunter_hut'], ['mist_lake', 'wolf_path'], ['hunter_hut', 'wolf_path'],
-  ['wolf_path', 'lighthouse'], ['wolf_path', 'campfire'], ['campfire', 'fallen_log'], ['lighthouse', 'wolf_den'],
-  ['campfire', 'wolf_den'],
-];
-/** 地點完成旗標（決定「！」提示與目標文字） */
-const DONE: Record<string, string> = {
-  orphanage: 'ch1_got_lantern', tavern: 'ch1_rourke_joined', town_gate: 'ch1_left_town', forest_edge: 'ch1_caravan_done',
-  mist_lake: 'ch1_io_joined', hunter_hut: 'wick_hunter', wolf_path: 'ch1_path_cleared', lighthouse: 'ch1_legacy',
-  campfire: 'ch1_campfire', wolf_den: 'ch1_complete', fallen_log: 'ch1_fallen_log',
-};
 const HERO_COLOR: Record<string, number> = { lian: 0xffa54a, rourke: 0xe0705a, io: 0x7fd8ff, serin: 0xc8d4ff, liora: 0xff7a5a };
 
 type NodeState = 'locked' | 'open' | 'done';
@@ -36,6 +20,7 @@ export class MapScene extends Phaser.Scene {
   private token!: Phaser.GameObjects.Container;
   private busy = false;
   private bubble?: Phaser.GameObjects.Container;
+  private map!: ChapterMap;
 
   constructor() {
     super('Map');
@@ -44,22 +29,23 @@ export class MapScene extends Phaser.Scene {
   create(): void {
     this.busy = false;
     this.bubble = undefined;
-    session.setScriptPos('map', 'ch1');
+    const st = session.state;
+    const map = (this.map = CHAPTER_MAPS[currentChapter(st.flags)]);
+    session.setScriptPos('map', map.id);
     session.save();
     generateCombatantArt(this);
     this.drawBackground();
-    const st = session.state;
     const states: Record<string, NodeState> = {};
-    for (const e of CH1_ENTRIES) {
+    for (const e of map.entries) {
       const open = !e.requires || check(st, e.requires);
-      const doneFlag = DONE[e.location];
+      const doneFlag = map.done[e.location];
       states[e.location] = !open ? 'locked' : doneFlag && st.flags[doneFlag] ? 'done' : 'open';
     }
     // 路徑
     const g = this.add.graphics();
-    for (const [a, b] of EDGES) {
-      const pa = POS[a];
-      const pb = POS[b];
+    for (const [a, b] of map.edges) {
+      const pa = map.pos[a];
+      const pb = map.pos[b];
       if (!pa || !pb) continue;
       const lit = states[a] !== 'locked' && states[b] !== 'locked';
       const n = Math.ceil(Phaser.Math.Distance.Between(pa[0], pa[1], pb[0], pb[1]) / 18);
@@ -70,13 +56,13 @@ export class MapScene extends Phaser.Scene {
       }
     }
     // 節點
-    for (const e of CH1_ENTRIES) {
-      const p = POS[e.location];
+    for (const e of map.entries) {
+      const p = map.pos[e.location];
       if (!p) continue;
       this.makeNode(e.node, e.location, e.title, p[0], p[1], states[e.location] ?? 'locked');
     }
     // 提燈標記（玩家位置）
-    const at = POS[st.location.region === 'ch1' ? st.location.node : 'orphanage'] ?? POS.orphanage!;
+    const at = (st.location.region === map.id ? map.pos[st.location.node] : undefined) ?? map.pos[map.start]!;
     this.token = this.add.container(at[0], at[1] - 108).setDepth(50);
     const glow = this.add.image(0, 0, 'glow').setScale(0.7).setTint(0xffa54a).setBlendMode(Phaser.BlendModes.ADD);
     const lamp = this.add.image(0, 0, 'lamp_icon').setScale(1.3);
@@ -104,8 +90,17 @@ export class MapScene extends Phaser.Scene {
   }
 
   private drawBackground(): void {
-    const key = 'bg_map_ch1';
-    if (!this.textures.exists(key)) {
+    const map = this.map;
+    const key = `bg_map_${map.id}`;
+    if (map.id === 'ch2' && !this.textures.exists(key)) {
+      const tex = this.textures.createCanvas(key, GAME_WIDTH, GAME_HEIGHT);
+      if (tex) {
+        const c = tex.getContext();
+        drawMapCh2(c, GAME_WIDTH, GAME_HEIGHT);
+        tex.refresh();
+      }
+    }
+    if (map.id === 'ch1' && !this.textures.exists(key)) {
       const tex = this.textures.createCanvas(key, GAME_WIDTH, GAME_HEIGHT);
       if (tex) {
         const c = tex.getContext();
@@ -160,8 +155,9 @@ export class MapScene extends Phaser.Scene {
       }
     }
     this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-10);
-    this.add.text(30, 210, '灰燈鎮', { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffcf96' }).setAlpha(0.6);
-    this.add.text(30, 540, '霧角森林', { fontFamily: TITLE_FONT, fontSize: '30px', color: '#9fd8d0' }).setAlpha(0.6);
+    for (const l of map.labels) {
+      this.add.text(l.x, l.y, l.text, { fontFamily: TITLE_FONT, fontSize: '30px', color: l.color }).setAlpha(0.6);
+    }
     this.add.particles(0, 0, 'ember', {
       x: { min: 0, max: GAME_WIDTH }, y: { min: 550, max: 1150 }, lifespan: { min: 3000, max: 6000 },
       speedY: { min: -12, max: -3 }, scale: { start: 0.3, end: 0 }, alpha: { start: 0.8, end: 0 }, frequency: 300,
@@ -186,7 +182,7 @@ export class MapScene extends Phaser.Scene {
       stroke: '#000', strokeThickness: 5,
     }).setOrigin(0.5);
     c.add([g, label]);
-    if (state === 'open' && DONE[loc]) {
+    if (state === 'open' && this.map.done[loc]) {
       const bang = this.add.text(0, -62, '！', {
         fontFamily: UI_FONT, fontSize: '38px', fontStyle: '900', color: '#ffd27a', stroke: '#000', strokeThickness: 6,
       }).setOrigin(0.5);
@@ -215,7 +211,7 @@ export class MapScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(0x070912, 0.96).fillRoundedRect(-170, -55, 340, 110, 20);
     g.lineStyle(2, 0xffd27a, 1).strokeRoundedRect(-170, -55, 340, 110, 20);
-    const danger = ['forest_edge', 'wolf_path', 'wolf_den'].includes(loc);
+    const danger = ['forest_edge', 'wolf_path', 'wolf_den', 'upper_tunnel', 'mid_tunnel', 'bell_hall', 'deep_level', 'bell_throat'].includes(loc);
     const t = this.add.text(0, -22, `前往 ${title}？`, { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff' }).setOrigin(0.5);
     const sub = this.add.text(0, 6, danger ? '（可能遭遇魔物）' : '', { fontFamily: UI_FONT, fontSize: '18px', color: '#ff9a8a' }).setOrigin(0.5);
     const go = this.add.text(0, 34, '▶ 前往', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#ffd27a' }).setOrigin(0.5);
@@ -249,24 +245,26 @@ export class MapScene extends Phaser.Scene {
     sparks(this, x, y, 24, 'ember', undefined, 260);
     shockRing(this, x, y, 0xffd27a, 120, 400, 6);
     const s = session.state;
-    s.location = { region: 'ch1', node: loc };
+    const id = this.map.id;
+    s.location = { region: id, node: loc };
     session.save();
     fadeOutThen(this, 400, () => {
-      this.scene.start('Dialogue', { script: 'ch1', node, returnTo: 'Map' });
+      this.scene.start('Dialogue', { script: id, node, returnTo: 'Map' });
     });
   }
 
   private drawHud(states: Record<string, NodeState>): void {
+    const s = session.state;
     const top = this.add.graphics().setDepth(90);
     top.fillStyle(0x05060c, 0.85).fillRect(0, 0, GAME_WIDTH, 190);
     top.lineStyle(2, 0xffd27a, 0.4).lineBetween(0, 190, GAME_WIDTH, 190);
-    this.add.text(GAME_WIDTH / 2, 70, '第一章　灰燈鎮周邊', { fontFamily: TITLE_FONT, fontSize: '36px', color: '#ffd27a' }).setOrigin(0.5).setDepth(91);
-    const next = CH1_ENTRIES.find((e) => states[e.location] === 'open' && DONE[e.location]);
-    const s = session.state;
+    const map = this.map;
+    this.add.text(GAME_WIDTH / 2, 70, map.title, { fontFamily: TITLE_FONT, fontSize: '36px', color: '#ffd27a' }).setOrigin(0.5).setDepth(91);
+    const next = map.entries.find((e) => states[e.location] === 'open' && map.done[e.location] && !s.flags[map.done[e.location]!]);
     const wicks = ['wick_lake', 'wick_hunter', 'wick_shrine'].filter((f) => s.flags[f]).length;
     let goal = next ? `目標：前往「${next.title}」` : '目標：探索';
-    if (s.flags['ch1_met_bern'] && !s.flags['ch1_legacy']) goal += `　燈芯 ${wicks}/3`;
-    if (s.flags['ch1_complete']) goal = '第一章 完成！（第二章製作中）';
+    if (map.id === 'ch1' && s.flags['ch1_met_bern'] && !s.flags['ch1_legacy']) goal += `　燈芯 ${wicks}/3`;
+    if (map.id === 'ch2' && s.flags['ch2_complete']) goal = '第二章 完成！（第三章製作中）';
     this.add.text(GAME_WIDTH / 2, 140, goal, { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff' }).setOrigin(0.5).setDepth(91);
     const menu = this.add.text(GAME_WIDTH - 28, 70, '☰', { fontFamily: UI_FONT, fontSize: '40px', color: '#aab4dd' })
       .setOrigin(1, 0.5).setDepth(91).setInteractive({ useHandCursor: true });
