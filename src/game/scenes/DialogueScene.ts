@@ -19,7 +19,7 @@ export interface DialogueSceneData {
 }
 
 const PORTRAIT: Record<string, string> = {
-  lian: 'hero_lian', serin: 'hero_serin', rourke: 'hero_rourke', io: 'hero_io', knight: 'npc_knight', gwen: 'npc_gwen',
+  lian: 'hero_lian', serin: 'hero_serin', rourke: 'hero_rourke', io: 'hero_io', girl: 'hero_io', knight: 'npc_knight', guard: 'npc_knight', gwen: 'npc_gwen',
 };
 const NAME_COLOR: Record<string, string> = {
   lian: '#ffb565', serin: '#c8d4ff', rourke: '#e0705a', io: '#7fd8ff', liora: '#ff7a5a', gwen: '#ffd27a', knight: '#9fb0d8',

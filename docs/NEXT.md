@@ -6,13 +6,14 @@
 > 除錯入口：`?scene=Battle&enc=boss_wolfking`、`?scene=Dialogue&script=ch1&node=tavern`、`?scene=Map`、`?scene=Cards&match=rourke_official`，加 `&debug` 會把 `window.__game` 掛出來。
 
 1. **完整走一遍第 1 章並修卡關點**（最高優先）：寫一支 Playwright bot（參考第 2 輪做法：`page.evaluate` 直接呼叫場景方法 `issue/finishTiming/onHand/act`，在背景跑並寫 log，headless ~1fps 很慢）從「新的旅程」玩到 `ch1_complete`，記錄任何錯誤／卡住的節點。注意：
-   - 第 1 章劇本裡的 `rename`、`shop`、`summary` 事件目前直接 `resume('win')` 跳過 → 至少做「商店」簡單版（買小回復藥/燈油，用 `gold`），`summary` 做章節結算畫面（偏移值、羈絆、聲望變化）。
-   - ch1 劇本用到的旗標 `caravan_ambushed`（伏擊：失去第一回合）、`wolfpack_returned`（狼王戰多一隻霧狼）BattleScene 還沒讀。
+   - 商店（簡易）與章節結算已完成；`rename`（替伊歐取名）仍直接跳過 → 做文字輸入或 3 個候選名。
+   - `wolfpack_returned` 已接（狼王戰多一隻霧狼）；`caravan_ambushed`（伏擊：失去第一回合）BattleScene 還沒讀。
+   - 對話中的鎮民 NPC（瑪菈、漢娜、托比、法洛、伯恩）沒有立繪 → 做 2–3 種通用剪影。
    - Io 加入後戰鬥立繪/技能都已有；洛克是 guest，最後 `{leave:'rourke'}`。
-2. **戰鬥手感**（需要更真實的節奏判斷）：⏩×2 速度按鈕、設定「自動時機」（固定 Good）、敵人預兆期間在畫面下方顯示手勢圖示（👆/👉/✋ 圖形，不只文字）、狼王戰 Boss BGM。檢查 `fxDamage` 的白閃在多段攻擊時會不會殘留 tint。
+2. **戰鬥手感**：設定「自動時機」（固定 Good，需要設定選單）、狼王戰 Boss BGM（`src/audio/music.ts` 加曲目）。（×2 速度與手勢圖示已完成）檢查 `fxDamage` 的白閃在多段攻擊時會不會殘留 tint。
 3. **燼牌打磨**：拖曳出牌、放牌前比分預覽（`peekAction` + `previewNight`）、教學局逐步提示（對峙、熄燈）、熄燈獎勵提示、餘燼牌標記更明顯；AI 作弊強度（NEXT 舊項：洛克作弊勝率 44% vs 設計 17%）。
 4. **LocationScene（P1）**：熱點畫面（07 §3）。目前地點直接進對話，若時間夠再做酒館/孤兒院兩個代表性地點。
-5. **美術**：角色剪影再精緻一些（瑟琳/伊歐/連恩正面立繪用於對話）、各地點對話背景（目前全部用遺跡迴廊）→ 依 `state.location.node` 換背景（鎮上/酒館/森林/湖）。
+5. **美術**：角色剪影再精緻一些（瑟琳/伊歐/連恩正面立繪用於對話）。地點背景已完成（`src/game/art/backdrops.ts`；注意不能在模組頂層引用 config 常數，會循環 import）。
 6. **M5 第 2 章**（10/30 起）：見 PLAN。
 
 ## 已知技術待辦 / 調整
