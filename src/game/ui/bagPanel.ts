@@ -1,6 +1,7 @@
 // 背包選單（探索中 ☰）：裝備（選角色 → 選欄位 → 換裝）、道具一覽。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
+import { SKILLS } from '../../core/battle/skills';
 import { canEquip, gearDelta, owns, unequip, equip } from '../../core/state/equip';
 import type { MemberId } from '../../core/state/gameState';
 import { ITEM_DEFS, PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
@@ -39,6 +40,8 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
     let who: MemberId = s.party[0] ?? 'lian';
     let slot: Slot | null = null;
     let page = 0;
+    /** 技能樹：第一次點選取（看說明），再點一次才學 */
+    let selNode: string | null = null;
     let body: Phaser.GameObjects.GameObject[] = [];
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
       ui.add(o);
@@ -81,6 +84,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         onTap(chip, () => {
           if (who === m) return;
           who = m;
+          selNode = null;
           slot = null;
           SFX.uiTap();
           render();
@@ -157,8 +161,22 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         }
         if (n.cost > 1) box.add(scene.add.text(66, -38, `${n.cost}點`, { fontFamily: UI_FONT, fontSize: '12px', color: '#8a94b8' }).setOrigin(1, 0.5));
         if (st === 'locked') box.add(scene.add.text(-64, -36, '🔒', { fontFamily: UI_FONT, fontSize: '14px' }).setOrigin(0.5));
+        if (selNode === n.id) {
+          const sel = add(scene.add.graphics());
+          sel.lineStyle(3, 0xffffff, 0.95).strokeRoundedRect(x - 78, y - 50, 156, 100, 16);
+        }
         box.setSize(148, 92).setInteractive({ useHandCursor: true });
         onTap(box, () => {
+          if (selNode !== n.id) {
+            selNode = n.id;
+            SFX.uiTap();
+            render();
+            const next = Math.min(n.maxRank, rank + 1);
+            const eff = n.skill ? `主動技能：${SKILLS[n.skill]?.name ?? n.name}` : effectText(n.effect, next);
+            const why = st === 'locked' ? `\n${missingText(s, who, n)}` : st === 'points' ? `\n技能點不夠（要 ${n.cost} 點）` : st === 'maxed' ? '\n已經滿級' : `\n再點一次學習（${n.cost} 點）`;
+            hint(`${n.name}${n.maxRank > 1 ? ` Lv${next}/${n.maxRank}` : ''}：${eff}${why}`, st === 'ok' ? '#c8f0ff' : '#ffb0a0', 3200);
+            return;
+          }
           if (learn(s, who, n.id)) {
             SFX.levelUp();
             sparks(scene, x, y, n.skill ? 40 : 18, 'spark', n.skill ? 0xc890ff : 0xffd27a);
@@ -175,16 +193,16 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
           else if (st === 'points') hint(`技能點不夠（要 ${n.cost} 點）——升級或首殺 Boss 都會給`);
         });
       }
-      if (have.length === 0) add(scene.add.text(GAME_WIDTH / 2, 1124, '點節點學習。越深的節點越強，最底下是主動技能。', { fontFamily: UI_FONT, fontSize: '19px', color: '#6a7398' }).setOrigin(0.5));
+      if (have.length === 0) add(scene.add.text(GAME_WIDTH / 2, 1124, '點節點看說明，再點一次學習。越深越強，最底下是主動技能。', { fontFamily: UI_FONT, fontSize: '19px', color: '#6a7398' }).setOrigin(0.5));
     };
 
     let hintT: Phaser.GameObjects.Text | undefined;
-    const hint = (msg: string, color = '#ff9a9a'): void => {
+    const hint = (msg: string, color = '#ff9a9a', hold = 1600): void => {
       if (!msg) return;
       hintT?.destroy();
       const h = scene.add.text(GAME_WIDTH / 2, 1124, msg, { fontFamily: UI_FONT, fontSize: '21px', color, stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: GAME_WIDTH - 90, useAdvancedWrap: true } }).setOrigin(0.5).setDepth(depth + 1);
       hintT = h;
-      scene.tweens.add({ targets: h, alpha: 0, delay: 1600, duration: 400, onComplete: () => h.destroy() });
+      scene.tweens.add({ targets: h, alpha: 0, delay: hold, duration: 400, onComplete: () => h.destroy() });
     };
 
     const renderGear = (): void => {
