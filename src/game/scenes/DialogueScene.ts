@@ -310,6 +310,7 @@ export class DialogueScene extends Phaser.Scene {
     const ui = this.add.container(0, 0).setDepth(200);
     const h = 100;
     const top = BOX_Y - 30 - options.length * (h + 14);
+    const tipParts: Phaser.GameObjects.GameObject[] = [];
     // 第一次看到檢定選項：說明 [屬性 難度] 與 [筆記]（只出現一次）
     if (options.some((o) => o.check) && !session.state.flags['tip_check']) {
       session.state.flags['tip_check'] = true;
@@ -319,7 +320,7 @@ export class DialogueScene extends Phaser.Scene {
       const tt = this.add.text(GAME_WIDTH / 2, top - 90, '［屬性 難度］％＝擲星骰檢定，失敗會走另一條路\n［筆記］＝前世攻略知識，必定成功——但世界會偏離劇本', {
         fontFamily: UI_FONT, fontSize: '21px', color: '#dff6ff', align: 'center', lineSpacing: 6,
       }).setOrigin(0.5);
-      ui.add([tg, tt]);
+      tipParts.push(tg, tt);
     }
     options.forEach((o, i) => {
       const y = top + i * (h + 14) + h / 2;
@@ -363,6 +364,8 @@ export class DialogueScene extends Phaser.Scene {
       });
       ui.add(c);
     });
+    // 提示放在選項之後，ui.list 的前 N 個仍對應選項索引（機器人與輸入都依賴此順序）
+    if (tipParts.length) ui.add(tipParts);
   }
 
   private async pick(o: ShownOption, ui: Phaser.GameObjects.Container): Promise<void> {

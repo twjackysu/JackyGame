@@ -12,7 +12,7 @@ mkdirSync(out, { recursive: true });
 
 const getScene = (k) => `window.__game.scene.getScene('${k}')`;
 const SHOTS = [
-  { name: 'title', url: '?debug', ready: `${getScene('Title')}?.sys.isActive()`, settle: 25000, at: [0, 8000] },
+  { name: 'title', url: '?debug&skipIntro', ready: `${getScene('Title')}?.sys.isActive()`, settle: 25000, at: [0, 8000] },
   {
     name: 'map', url: '?debug&chapter=3&scene=Map', ready: `${getScene('Map')}?.sys.isActive()`, settle: 20000, at: [0],
   },
