@@ -30,10 +30,10 @@ function weightedPick<T>(items: readonly T[], weight: (t: T) => number, rng: Ran
  * 抽 `count` 條詞綴（預設＝該稀有度的條數）：不重複、不違反互斥群組；`keep` 是要保留的既有詞綴（重鑄鎖定用）。
  * 池子不夠時能抽幾條算幾條（schema 測試保證正常資料一定抽得滿）。
  */
-export function rollAffixes(slot: GearSlot, tier: Tier, rng: RandomProvider, count = AFFIX_COUNT[tier], keep: readonly RolledAffix[] = []): RolledAffix[] {
+export function rollAffixes(slot: GearSlot, tier: Tier, rng: RandomProvider, count = AFFIX_COUNT[tier], keep: readonly RolledAffix[] = [], only?: (a: AffixDef) => boolean): RolledAffix[] {
   const out: RolledAffix[] = [...keep];
   const usedGroups = new Set(keep.map((k) => AFFIX_BY_ID[k.id]?.group).filter(Boolean));
-  let pool = affixPool(slot, tier).filter((a) => !usedGroups.has(a.group));
+  let pool = affixPool(slot, tier).filter((a) => !usedGroups.has(a.group) && (!only || only(a)));
   while (out.length < count && pool.length) {
     const a = weightedPick(pool, (x) => x.weight, rng)!;
     const [lo, hi] = a.range[tier]!;
@@ -105,4 +105,13 @@ export function rollStoryMaterials(defeated: readonly string[], rng: RandomProvi
     }
   }
   return out;
+}
+
+/**
+ * 主線取得的稀有／神級裝備詞綴（第 12 輪，NEXT 第 6 項）：D-060 新戰鬥系統定案前，
+ * 只抽 `stat` 類（數值與開場 SP）——`effect` 類綁著舊戰鬥規則，先不發；名稱含舊名詞的（開場星燼）也排除。
+ */
+export const storyAffixOk = (a: AffixDef): boolean => a.kind === 'stat' && a.id !== 'start_ember';
+export function rollStoryAffixes(slot: GearSlot, tier: Tier, rng: RandomProvider): RolledAffix[] {
+  return rollAffixes(slot, tier, rng, AFFIX_COUNT[tier], [], storyAffixOk);
 }

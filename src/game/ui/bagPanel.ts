@@ -16,7 +16,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks } from '../fx/feel';
 import { gameApi, opId, session, withNames } from '../session';
 import { HERO_COLOR } from './partyPanel';
-import { bonusText, deltaScore, deltaText, heroName, instBonus, instName, itemIcon, itemSubline, memberStats, itemNameColor } from './gearUi';
+import { affixLine, bonusText, deltaScore, deltaText, heroName, instBonus, instName, itemIcon, itemSubline, memberStats, itemNameColor } from './gearUi';
 
 type Tab = 'gear' | 'skills' | 'items' | 'codex';
 
@@ -251,7 +251,12 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
             const nt = nm.list[nm.list.length - 1] as Phaser.GameObjects.Text;
             row.add(scene.add.text(-140 + nt.width + 6, -11, `+${inst.enhancement}`, { fontFamily: UI_FONT, fontSize: '21px', fontStyle: '900', color: inst.enhancement >= 6 ? '#ffb347' : '#ffe6a0', stroke: '#3a2a08', strokeThickness: 3 }).setOrigin(0, 0.5));
           }
-          row.add(scene.add.text(-140, 13, bonusText(instBonus(inst)) + (itemDef(id).perk ? `　✦${PERK_INFO[itemDef(id).perk!].name}` : ''), { fontFamily: UI_FONT, fontSize: '15px', color: '#7dffb0' }).setOrigin(0, 0.5));
+          const sub = row.add(scene.add.text(-140, 13, bonusText(instBonus(inst)) + (itemDef(id).perk ? `　✦${PERK_INFO[itemDef(id).perk!].name}` : ''), { fontFamily: UI_FONT, fontSize: '15px', color: '#7dffb0' }).setOrigin(0, 0.5));
+          const af = affixLine(inst);
+          if (af) {
+            const st = sub.list[sub.list.length - 1] as Phaser.GameObjects.Text;
+            row.add(scene.add.text(-140 + st.width + 12, 13, af, { fontFamily: UI_FONT, fontSize: '15px', color: '#7cc0ff' }).setOrigin(0, 0.5));
+          }
         } else row.add(scene.add.text(-170, 0, '（空）', { fontFamily: UI_FONT, fontSize: '19px', color: '#4a5378' }).setOrigin(0, 0.5));
         const n = candidates(sl).reduce((a, c) => a + c.count, 0);
         row.add(scene.add.text(296, 0, n ? `可換 ${n} ▸` : inst ? '強化 ▸' : '▸', { fontFamily: UI_FONT, fontSize: '18px', color: n || inst ? '#ffd27a' : '#4a5378' }).setOrigin(1, 0.5));
@@ -295,7 +300,8 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
           const good = deltaScore(dt) > 0;
           row.add(itemIcon(scene, c.templateId, -250, 0, 54));
           row.add(scene.add.text(-212, -13, `${instName(c.inst)}${c.count > 1 ? ` ×${c.count}` : ''}${c.inst.locked ? ' 🔒' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: itemNameColor(c.templateId) }).setOrigin(0, 0.5));
-          row.add(scene.add.text(-212, 16, bonusText(instBonus(c.inst)), { fontFamily: UI_FONT, fontSize: '16px', color: '#9aa4cc' }).setOrigin(0, 0.5));
+          const af = affixLine(c.inst);
+          row.add(scene.add.text(-212, 16, bonusText(instBonus(c.inst)) + (af ? `　${af}` : ''), { fontFamily: UI_FONT, fontSize: '16px', color: af ? '#9fc8ee' : '#9aa4cc' }).setOrigin(0, 0.5));
           row.add(scene.add.text(276, 0, deltaText(dt) || '一樣', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: good ? '#7dffb0' : '#ff9a9a' }).setOrigin(1, 0.5));
         } else row.add(scene.add.text(0, 0, `卸下${EQUIP_SLOT_NAME[sl]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5));
         row.setSize(580, 72).setInteractive({ useHandCursor: true });
@@ -401,7 +407,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         .filter((g) => !worn.has(g.instanceId) && itemDef(g.templateId).slot === slotType(sl) && canEquip(who, itemDef(g.templateId)))
         .sort((a, b) => b.enhancement - a.enhancement || (a.instanceId < b.instanceId ? -1 : 1));
       for (const g of list) {
-        const key = `${g.templateId}+${g.enhancement}`;
+        const key = g.affixes.length ? g.instanceId : `${g.templateId}+${g.enhancement}`;
         const c = groups.get(key);
         if (c) c.count++;
         else groups.set(key, { ref: g.instanceId, templateId: g.templateId, inst: g, count: 1 });

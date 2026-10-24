@@ -5,12 +5,16 @@ import { describe, expect, it } from 'vitest';
 import { LocalGameApi } from '../src/server/localGameApi';
 import { KvEventJournal, fixedClock } from '../src/core/save/localPorts';
 import { MemoryKV } from '../src/core/save/save';
-import { newGame, type GameState } from '../src/core/state/gameState';
+import { newGame, type GameState, type MemberId } from '../src/core/state/gameState';
 import { bagCount } from '../src/core/state/gear';
-import { wornTemplate } from '../src/core/state/equip';
+import { gearBonus, gearDelta, wornTemplate } from '../src/core/state/equip';
+import { slotTypeOf, tierOf } from '../src/server/crafting';
+import { affixesLegal } from '../src/server/loot';
+import { AFFIX_BY_ID } from '../src/data/affixes';
+import { ITEM_DEFS } from '../src/data/equipment';
 import { chestFlag } from '../src/core/explore/area';
 import { AREAS } from '../src/data/areas';
-import { RULES_VERSION } from '../src/data/rules';
+import { AFFIX_COUNT, RULES_VERSION } from '../src/data/rules';
 import { firstKillFlag } from '../src/data/drops';
 
 function setup(seed = 1) {
@@ -103,6 +107,33 @@ describe('LocalGameApi', () => {
     // 期望值 0.6 × 1.5 ＝ 0.9／隻
     expect(dust).toBeGreaterThan(140);
     expect(dust).toBeLessThan(220);
+  });
+
+  it('掉落的稀有裝備帶 stat 類詞綴（合法、不含效果類），並算進裝備加成與比較', () => {
+    const { s, api } = setup(11);
+    const before = new Set(Object.keys(s.gear));
+    api.claimBattleRewards('a1', { defeated: ['boss_wolfking'], consumablesLeft: {} });
+    const fresh = Object.values(s.gear).filter((g) => !before.has(g.instanceId));
+    expect(fresh.length).toBeGreaterThan(0);
+    for (const g of fresh) {
+      const tier = tierOf(g);
+      expect(g.tier).toBe(tier);
+      expect(g.affixes.length).toBe(AFFIX_COUNT[tier]);
+      expect(g.affixes.every((a) => AFFIX_BY_ID[a.id]?.kind === 'stat' && a.id !== 'start_ember')).toBe(true);
+      expect(affixesLegal(slotTypeOf(g)!, tier, g.affixes)).toBe(true);
+    }
+    // 加成：穿上之後 gearBonus 包含詞綴
+    const g = fresh[0]!;
+    g.affixes = [{ id: 'atk_flat', value: 5 }];
+    const who = (ITEM_DEFS[g.templateId]!.for?.[0] ?? 'lian') as MemberId;
+    if (!s.members[who]) s.members[who] = { level: 5, xp: 0, equipment: {} } as never;
+    const d = gearDelta(s, who, g.instanceId);
+    const plain = gearDelta(s, who, g.templateId);
+    expect(d.atk - plain.atk).toBe(5);
+    expect(api.equip('a2', { member: who, ref: g.instanceId }).ok).toBe(true);
+    const withAff = gearBonus(s, who).atk;
+    g.affixes = [];
+    expect(withAff - gearBonus(s, who).atk).toBe(5);
   });
 
   it('技能樹重置收費', () => {

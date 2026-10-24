@@ -5,6 +5,7 @@ import { totalBonus } from '../../core/state/equip';
 import type { GameState, MemberId } from '../../core/state/gameState';
 import { HEROES } from '../../data/combatants';
 import { enhanceMultiplier } from '../../data/enhancement';
+import { AFFIX_BY_ID } from '../../data/affixes';
 import type { EquipmentInstance } from '../../core/state/gear';
 import { PERK_INFO, RARITY_COLOR, RARITY_CSS, itemDef, rarityOf, type ItemDef } from '../../data/equipment';
 import { UI_FONT } from '../fx/feel';
@@ -96,4 +97,9 @@ export function instBonus(inst: EquipmentInstance): BaseStats {
 /** 「舊提燈 +3」 */
 export function instName(inst: EquipmentInstance): string {
   return `${itemDef(inst.templateId).name}${inst.enhancement > 0 ? ` +${inst.enhancement}` : ''}`;
+}
+
+/** 詞綴文字：「ATK +5　HP +6%」（沒有回傳空字串） */
+export function affixLine(inst: EquipmentInstance | undefined): string {
+  return (inst?.affixes ?? []).map((a) => AFFIX_BY_ID[a.id]?.text.replace('{v}', String(a.value)) ?? '').filter(Boolean).join('　');
 }

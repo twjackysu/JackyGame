@@ -3,8 +3,8 @@
 import type { Clock, EventJournal } from './ports';
 import type { ApiResult, BattleRewards, ConsumableId, EnhanceResult, GameApi } from './gameApi';
 import { nextStep, rollEnhance } from './enhancement';
-import { rollStoryMaterials } from './loot';
-import { canSalvage, rerollCheck, rollReroll, salvageYield, settleReroll } from './crafting';
+import { rollStoryAffixes, rollStoryMaterials } from './loot';
+import { canSalvage, rerollCheck, rollReroll, salvageYield, settleReroll, slotTypeOf, tierOf } from './crafting';
 import { wornIds } from '../core/state/gear';
 import { randomFromRng } from './ports';
 import type { GameState, MemberId } from '../core/state/gameState';
@@ -122,6 +122,19 @@ export class LocalGameApi implements GameApi {
     });
   }
 
+  /** 新拿到的裝備實例：定下稀有度並擲詞綴（只有掉落／寶箱這種「刷到的」才有詞綴；商店貨是固定的普通品） */
+  private rollNewGear(s: GameState, before: ReadonlySet<string>): void {
+    const rng = randomFromRng(streamRng(s.rng, 'loot'));
+    for (const id of Object.keys(s.gear).sort()) {
+      if (before.has(id)) continue;
+      const inst = s.gear[id]!;
+      const tier = tierOf(inst);
+      const slot = slotTypeOf(inst);
+      inst.tier = tier;
+      if (slot && inst.affixes.length === 0) inst.affixes = rollStoryAffixes(slot, tier, rng);
+    }
+  }
+
   /** 扣金幣與材料（全部夠才扣） */
   private pay(s: GameState, gold: number, mats: Record<string, number | undefined>): boolean {
     if (s.gold < gold) return false;
@@ -172,7 +185,9 @@ export class LocalGameApi implements GameApi {
       if (!e || e.kind !== 'chest') return { ok: false, error: 'not_found' };
       const flag = chestFlag(req.areaId, e.id);
       if (s.flags[flag]) return { ok: false, error: 'already_claimed' };
+      const before = new Set(Object.keys(s.gear));
       applyEffects(s, [...(e.loot ?? []), { flag }]);
+      this.rollNewGear(s, before);
       return { ok: true, data: { text: e.lootText ?? '找到了東西。' } };
     });
   }
@@ -200,7 +215,9 @@ export class LocalGameApi implements GameApi {
       const f = s.flags;
       const drops = rollDrops(req.defeated, drawSeed(s.rng, 'loot'), (id) => !!f[firstKillFlag(id)]);
       const newBossPoint = req.defeated.some((id) => (BOSS_POINT_KILLS as readonly string[]).includes(id) && !f[firstKillFlag(id)]);
+      const before = new Set(Object.keys(s.gear));
       grantDrops(s, drops, req.defeated);
+      this.rollNewGear(s, before);
       // 材料：擲骰在稀有掉落之後，不影響既有掉落序列
       const materials = rollStoryMaterials(req.defeated, randomFromRng(streamRng(s.rng, 'loot')));
       for (const [m, n] of Object.entries(materials)) s.inventory[m] = (s.inventory[m] ?? 0) + n;

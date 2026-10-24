@@ -6,20 +6,52 @@ import type { HeroId } from '../battle/skills';
 import { ITEM_DEFS, SHOPS, itemDef, type ItemDef } from '../../data/equipment';
 import { EQUIP_SLOTS, slotType, type EquipSlot } from '../../data/rules';
 import { enhanceMultiplier } from '../../data/enhancement';
+import { AFFIX_BY_ID } from '../../data/affixes';
 import type { GameState, MemberId } from './gameState';
 import type { Perk } from '../battle/engine';
-import { addItem, bagCount, bagIds, freeInstances, hasTemplate, isGearTemplate, templateOf, type GearOrigin } from './gear';
+import { addItem, bagCount, bagIds, freeInstances, hasTemplate, isGearTemplate, templateOf, type EquipmentInstance, type GearOrigin } from './gear';
 
 export const SELL_RATE = 0.5;
 
-/** 某位成員所有已裝備物品的數值加總 */
+/**
+ * 一件實例的詞綴加成（只算 `kind: 'stat'`；效果類等新戰鬥系統）。% 以角色等級的基礎數值計算；
+ * `sp` 是開場 SP。
+ */
+export function affixBonus(inst: EquipmentInstance | undefined, base: BaseStats): Required<BaseStats> & { sp: number } {
+  const out = { hp: 0, atk: 0, def: 0, spd: 0, sp: 0 };
+  for (const a of inst?.affixes ?? []) {
+    if (AFFIX_BY_ID[a.id]?.kind !== 'stat') continue;
+    switch (a.id) {
+      case 'atk_flat': out.atk += a.value; break;
+      case 'hp_flat': out.hp += a.value; break;
+      case 'def_flat': out.def += a.value; break;
+      case 'spd_flat': out.spd += a.value; break;
+      case 'atk_pct': out.atk += Math.round((base.atk * a.value) / 100); break;
+      case 'hp_pct': out.hp += Math.round((base.hp * a.value) / 100); break;
+      case 'def_pct': out.def += Math.round((base.def * a.value) / 100); break;
+      case 'start_sp': out.sp += a.value; break;
+      default: break;
+    }
+  }
+  return out;
+}
+
+const levelBase = (s: GameState, m: MemberId): BaseStats => statsAtLevel(HEROES[m].base, s.members[m]?.level ?? 1);
+
+/** 某位成員所有已裝備物品的數值加總（基礎值 × 強化＋詞綴） */
 export function gearBonus(s: GameState, member: MemberId): Required<BaseStats> {
   const out = { hp: 0, atk: 0, def: 0, spd: 0 };
   const eq = s.members[member]?.equipment ?? {};
+  const base = levelBase(s, member);
   for (const slot of EQUIP_SLOTS) {
     const inst = eq[slot] ? s.gear[eq[slot]!] : undefined;
     const b = inst ? ITEM_DEFS[inst.templateId]?.bonus : undefined;
     if (!b || !inst) continue;
+    const ab = affixBonus(inst, base);
+    out.hp += ab.hp;
+    out.atk += ab.atk;
+    out.def += ab.def;
+    out.spd += ab.spd;
     // 強化只放大基礎數值（不複利；SPD 不受強化影響）
     const k = enhanceMultiplier(inst.enhancement);
     out.hp += Math.round((b.hp ?? 0) * k);
@@ -143,7 +175,9 @@ export function totalBonus(s: GameState, m: MemberId): Required<BaseStats> {
 export function battleParty(s: GameState): { id: HeroId; level: number; bonus: Required<BaseStats>; startSp: number; startEmber: number; perks: Perk[]; skills: string[] }[] {
   return s.party.slice(0, 3).map((m) => {
     const t = treeEffect(s, m);
-    return { id: m as HeroId, level: s.members[m]?.level ?? 1, bonus: totalBonus(s, m), startSp: t.startSp, startEmber: t.startEmber, perks: gearPerks(s, m), skills: treeSkills(s, m) };
+    const base = levelBase(s, m);
+    const affSp = Object.values(s.members[m]?.equipment ?? {}).reduce((n, iid) => n + affixBonus(iid ? s.gear[iid] : undefined, base).sp, 0);
+    return { id: m as HeroId, level: s.members[m]?.level ?? 1, bonus: totalBonus(s, m), startSp: t.startSp + affSp, startEmber: t.startEmber, perks: gearPerks(s, m), skills: treeSkills(s, m) };
   });
 }
 
@@ -183,11 +217,14 @@ export function gearDelta(s: GameState, member: MemberId, ref: string, slot?: Eq
   const pb = curInst ? ITEM_DEFS[curInst.templateId]?.bonus ?? {} : {};
   const prev = { hp: Math.round((pb.hp ?? 0) * k), atk: Math.round((pb.atk ?? 0) * k), def: Math.round((pb.def ?? 0) * k), spd: pb.spd ?? 0 };
   const nb = def.bonus ?? {};
+  const base = levelBase(s, member);
+  const na = affixBonus(cand, base);
+  const pa = affixBonus(curInst, base);
   return {
-    hp: Math.round((nb.hp ?? 0) * nk) - (prev.hp ?? 0),
-    atk: Math.round((nb.atk ?? 0) * nk) - (prev.atk ?? 0),
-    def: Math.round((nb.def ?? 0) * nk) - (prev.def ?? 0),
-    spd: (nb.spd ?? 0) - (prev.spd ?? 0),
+    hp: Math.round((nb.hp ?? 0) * nk) + na.hp - (prev.hp ?? 0) - pa.hp,
+    atk: Math.round((nb.atk ?? 0) * nk) + na.atk - (prev.atk ?? 0) - pa.atk,
+    def: Math.round((nb.def ?? 0) * nk) + na.def - (prev.def ?? 0) - pa.def,
+    spd: (nb.spd ?? 0) + na.spd - (prev.spd ?? 0) - pa.spd,
   };
 }
 
