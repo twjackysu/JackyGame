@@ -22,6 +22,8 @@ export interface SimSkill {
 
 export interface SimResult {
   won: boolean;
+  /** 戰後各角色 HP%（倒地 0） */
+  hpPct?: number[];
   rounds: number;
   hpLostPct: number;
 }
@@ -96,7 +98,7 @@ function policy(s: BattleState): Command {
 }
 
 export function simulateBattle(
-  party: { id: HeroId; level: number }[],
+  party: { id: HeroId; level: number; hp?: number }[],
   encounterId: string,
   skill: SimSkill,
   seed: number,
@@ -115,5 +117,8 @@ export function simulateBattle(
   }
   const maxHp = s.heroes.reduce((a, h) => a + h.maxHp, 0);
   const hp = s.heroes.reduce((a, h) => a + (h.downed ? 0 : h.hp), 0);
-  return { won: s.phase === 'victory', rounds: s.round, hpLostPct: (maxHp - hp) / maxHp };
+  return {
+    won: s.phase === 'victory', rounds: s.round, hpLostPct: (maxHp - hp) / maxHp,
+    hpPct: s.heroes.map((h) => (h.downed ? 0 : h.hp / h.maxHp)),
+  };
 }

@@ -15,7 +15,7 @@ import {
   type BattleState,
   type Command,
 } from '../../core/battle/engine';
-import { MAX_EMBER, WINDOWS, judgeAttack, judgeDefense, type DefenseResult, type Telegraph, type Timing } from '../../core/battle/formulas';
+import { HP_CARRY_FROM, MAX_EMBER, WINDOWS, carriedHp, judgeAttack, judgeDefense, type DefenseResult, type Telegraph, type Timing } from '../../core/battle/formulas';
 import { SKILLS, type HeroId } from '../../core/battle/skills';
 import { GestureTracker, type Gesture } from '../../core/input/gesture';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
@@ -179,6 +179,12 @@ export class BattleScene extends Phaser.Scene {
       if (this.data0.story && h.id === 'serin' && session.state.flags['serin_scar']) {
         h.maxHp = Math.round(h.maxHp * 0.9);
         h.hp = Math.min(h.hp, h.maxHp);
+      }
+      // 洛克三段決鬥：帶著上一段的傷上場（D-028）
+      const from = this.data0.story ? HP_CARRY_FROM[this.data0.encounter] : undefined;
+      if (from) {
+        const pct = session.state.flags[`hp_${from}_${h.id}`];
+        h.hp = Math.min(h.hp, carriedHp(h.maxHp, typeof pct === 'number' ? pct : undefined));
       }
     }
     const boss = enemies.some((id) => id.startsWith('boss_'));
@@ -1687,6 +1693,10 @@ export class BattleScene extends Phaser.Scene {
           const v = this.heroes[this.bs.heroes.findIndex((h) => h.id === m)];
           if (v) bigText(this, v.x, v.y - 150, 'LEVEL UP', '#7dffb0', 40, 900);
         }
+      }
+      // 記下各角色剩餘 HP%（下一段連戰用）
+      if (Object.values(HP_CARRY_FROM).includes(this.data0.encounter)) {
+        for (const h of this.bs.heroes) session.state.flags[`hp_${this.data0.encounter}_${h.id}`] = h.downed ? 0 : Math.round((h.hp / h.maxHp) * 100) / 100;
       }
       for (const it of ['potion_s', 'lamp_oil', 'blast_bottle'] as const) {
         const left = this.bs.items[it];

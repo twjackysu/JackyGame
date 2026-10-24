@@ -166,21 +166,25 @@ export const ENEMIES: Record<string, EnemyDef> = {
     ],
   },
   boss_rourke_2: {
-    id: 'boss_rourke_2', name: '洛克', level: 13, hp: 520, atk: 49, def: 18, spd: 9, breakMax: 90, weak: ['fire'], resist: ['phys'],
+    id: 'boss_rourke_2', name: '洛克', level: 13, hp: 520, atk: 54, def: 18, spd: 9, breakMax: 90, weak: ['fire'], resist: ['phys'],
     actionsPerRound: 2, xp: 160,
     attacks: [
       { id: 'halberd', name: '斧槍劈砍', telegraph: 'white', windUpMs: 650, mul: 1, weight: 2 },
       { id: 'feint_thrust', name: '老兵的虛招', telegraph: 'white', windUpMs: 1150, mul: 1.3, weight: 2 },
       { id: 'shield_rush', name: '盾衝', telegraph: 'red', windUpMs: 650, mul: 1.5, weight: 1 },
+      // 紅光連段：連續兩次閃避（D-028）
+      { id: 'twin_charge', name: '雙重突進', telegraph: 'red', windUpMs: 700, mul: 0.9, hits: [0, 420], weight: 2 },
     ],
   },
   boss_rourke_3: {
-    id: 'boss_rourke_3', name: '洛克', level: 13, hp: 440, atk: 51, def: 16, spd: 10, breakMax: 80, weak: ['fire'], resist: ['phys'],
+    id: 'boss_rourke_3', name: '洛克', level: 13, hp: 440, atk: 58, def: 16, spd: 10, breakMax: 80, weak: ['fire'], resist: ['phys'],
     actionsPerRound: 2, xp: 220,
     attacks: [
       { id: 'halberd', name: '斧槍劈砍', telegraph: 'white', windUpMs: 600, mul: 1, weight: 2 },
       { id: 'last_stand', name: '背水一擊', telegraph: 'white', windUpMs: 700, mul: 0.5, hits: [0, 380, 760], weight: 2 },
       { id: 'shield_rush', name: '盾衝', telegraph: 'red', windUpMs: 600, mul: 1.6, weight: 1 },
+      // 三連紅光：連續閃避三次（D-028）
+      { id: 'veteran_combo', name: '老兵連舞', telegraph: 'red', windUpMs: 650, mul: 0.8, hits: [0, 380, 760], weight: 2 },
     ],
   },
   // ───────── 第 4 章：研究院地下 ─────────

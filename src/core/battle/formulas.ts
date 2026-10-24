@@ -110,3 +110,10 @@ export const MAX_EMBER = 10;
 export const START_EMBER = 2;
 export const MAX_SP = 6;
 export const START_SP = 3;
+
+/** 連戰帶傷（洛克三段決鬥 D-028）：下一段從上一段結束時的 HP% 再回 20% 開始，最低 35% */
+export const HP_CARRY_FROM: Record<string, string> = { rourke_2: 'rourke_1', rourke_3: 'rourke_2' };
+export function carriedHp(maxHp: number, pct: number | undefined): number {
+  if (pct === undefined || !Number.isFinite(pct)) return maxHp;
+  return Math.round(maxHp * Math.min(1, Math.max(0.35, pct + 0.2)));
+}

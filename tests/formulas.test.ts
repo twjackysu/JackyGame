@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HP_CARRY_FROM,
+  carriedHp,
   damage,
   defenseMul,
   judgeAttack,
@@ -56,5 +58,15 @@ describe('battle formulas', () => {
 
   it('every encounter references known enemies', () => {
     for (const ids of Object.values(ENCOUNTERS)) for (const id of ids) expect(ENEMIES[id]).toBeDefined();
+  });
+});
+
+describe('carriedHp 連戰帶傷', () => {
+  it('上一段 HP% + 20%，介於 35%–100%', () => {
+    expect(carriedHp(200, undefined)).toBe(200);
+    expect(carriedHp(200, 0.5)).toBe(140);
+    expect(carriedHp(200, 0)).toBe(70);
+    expect(carriedHp(200, 0.95)).toBe(200);
+    expect(HP_CARRY_FROM.rourke_3).toBe('rourke_2');
   });
 });
