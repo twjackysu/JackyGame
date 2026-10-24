@@ -3,6 +3,7 @@
 import Phaser from 'phaser';
 import { AH, AW, drawIo, drawLian } from './animePortraits';
 import { drawLiora, drawRourke, drawSerin } from './animeCompanions';
+import { backIo, backLian, backLiora, backRourke, backSerin } from './animeSprites';
 
 type P = [number, number];
 
@@ -41,7 +42,6 @@ function eye(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, co
   g.fillCircle(x * s, y * s, r * 0.45 * s);
 }
 
-const HERO_FILL = 0x121628;
 const LAMP_RIM = 0xffb565;
 const ENEMY_FILL = 0x0d0a18;
 
@@ -56,6 +56,22 @@ export interface ArtInfo {
 }
 
 export const ART: Record<string, ArtInfo> = {};
+
+/** 以 Canvas 2D 畫的我方背影（2 倍解析度，邏輯尺寸 w×h，規格與 make() 相同）。 */
+function heroCanvas(
+  scene: Phaser.Scene, key: string, w: number, h: number, draw: (c: CanvasRenderingContext2D) => void, glow?: ArtInfo['glow'],
+): void {
+  ART[key] = { key, w, h, footY: h / 2 - 6, glow };
+  if (scene.textures.exists(key)) return;
+  const tex = scene.textures.createCanvas(key, w * 2, h * 2);
+  if (!tex) return;
+  const c = tex.getContext();
+  c.save();
+  c.scale(2, 2);
+  draw(c);
+  c.restore();
+  tex.refresh();
+}
 
 function make(
   scene: Phaser.Scene, key: string, w: number, h: number, draw: (g: Phaser.GameObjects.Graphics, s: number) => void,
@@ -83,119 +99,12 @@ export function generateCombatantArt(scene: Phaser.Scene): void {
       g.generateTexture('lamp_icon', 32, 32);
       g.destroy();
     }
-  // ---------------- 我方（背影） ----------------
-  make(scene, 'hero_lian', 130, 200, (g, s) => {
-    const o = { fill: HERO_FILL, rim: LAMP_RIM };
-    // 提燈的桿子（右手往前舉）
-    g.lineStyle(5 * s, 0x2a2238, 1);
-    g.lineBetween(78 * s, 108 * s, 112 * s, 52 * s);
-    g.lineStyle(2 * s, LAMP_RIM, 0.9);
-    g.lineBetween(76 * s, 106 * s, 110 * s, 50 * s);
-    // 斗篷
-    rimPoly(g, [[52, 62], [78, 62], [92, 96], [102, 196], [64, 188], [26, 196], [36, 98]], o, s);
-    // 圍巾飄帶
-    rimPoly(g, [[44, 70], [20, 92], [14, 120], [30, 100], [48, 84]], { ...o, rim: 0xff8a3d }, s);
-    // 兜帽
-    rimPoly(g, [[65, 18], [86, 30], [90, 58], [78, 72], [52, 72], [40, 58], [44, 30]], o, s);
-    // 提燈本體
-    g.fillStyle(0x2a2238, 1);
-    g.fillRect(104 * s, 50 * s, 16 * s, 22 * s);
-    g.fillStyle(0xffd27a, 1);
-    g.fillRect(107 * s, 54 * s, 10 * s, 14 * s);
-    g.fillStyle(0xffffff, 1);
-    g.fillRect(110 * s, 58 * s, 4 * s, 6 * s);
-  }, { x: 112, y: 61, color: 0xffa54a, scale: 0.9 });
-
-  make(scene, 'hero_rourke', 160, 220, (g, s) => {
-    const o = { fill: 0x14141f, rim: 0xd9c8a8 };
-    // 斧槍
-    g.lineStyle(6 * s, 0x2b2420, 1);
-    g.lineBetween(26 * s, 214 * s, 26 * s, 10 * s);
-    g.lineStyle(2 * s, 0xd9c8a8, 0.8);
-    g.lineBetween(23 * s, 214 * s, 23 * s, 10 * s);
-    rimPoly(g, [[26, 24], [2, 14], [-0, 44], [26, 50]], { fill: 0x2e3140, rim: 0xeaf2ff, rimWidth: 2 }, s);
-    rimPoly(g, [[26, 4], [32, 18], [20, 18]], { fill: 0x2e3140, rim: 0xeaf2ff, rimWidth: 2 }, s);
-    // 身體（寬肩）
-    rimPoly(g, [[50, 72], [128, 72], [146, 104], [136, 214], [86, 206], [40, 214], [32, 104]], o, s);
-    // 肩甲
-    rimPoly(g, [[34, 74], [62, 66], [66, 92], [30, 100]], { ...o, fill: 0x22242f }, s);
-    rimPoly(g, [[116, 66], [146, 74], [150, 100], [112, 92]], { ...o, fill: 0x22242f }, s);
-    // 頭盔
-    rimPoly(g, [[88, 26], [108, 34], [112, 66], [66, 66], [70, 34]], { ...o, fill: 0x1c1e29 }, s);
-    // 披風下擺
-    rimPoly(g, [[56, 150], [122, 150], [130, 214], [48, 214]], { fill: 0x2a1418, rim: 0xb84a3a, rimWidth: 2 }, s);
-  });
-
-  make(scene, 'hero_io', 110, 180, (g, s) => {
-    const o = { fill: 0x141a30, rim: 0xa9e6ff };
-    // 長袍
-    rimPoly(g, [[44, 70], [66, 70], [78, 110], [88, 176], [55, 170], [22, 176], [32, 110]], o, s);
-    // 白髮（亮色）
-    rimPoly(g, [[55, 22], [76, 32], [82, 64], [76, 92], [64, 78], [46, 78], [34, 92], [28, 64], [34, 32]], {
-      fill: 0xdfe8f5, rim: 0xffffff, offset: 1.5,
-    }, s);
-    // 髮絲陰影
-    g.fillStyle(0xaab6cc, 1);
-    g.fillPoints(poly([[55, 30], [62, 74], [50, 74]], s), true);
-    // 手上的光點
-    g.fillStyle(0xbff2ff, 1);
-    g.fillCircle(90 * s, 100 * s, 4 * s);
-  }, { x: 90, y: 100, color: 0x7fd8ff, scale: 0.5 });
-
-  make(scene, 'hero_liora', 120, 190, (g, s) => {
-    const o = { fill: 0x161424, rim: 0xff7a5a };
-    // 斜背包背帶
-    g.lineStyle(4 * s, 0x3a2a26, 1);
-    g.lineBetween(40 * s, 70 * s, 82 * s, 130 * s);
-    // 外套
-    rimPoly(g, [[42, 66], [78, 66], [90, 100], [96, 186], [60, 180], [24, 186], [32, 100]], o, s);
-    // 背包
-    rimPoly(g, [[70, 118], [96, 116], [100, 146], [72, 148]], { fill: 0x2a1e1c, rim: 0xff9a6a, rimWidth: 2 }, s);
-    // 鮑伯短髮
-    rimPoly(g, [[60, 18], [80, 26], [86, 50], [82, 70], [38, 70], [34, 50], [40, 26]], { fill: 0x2a1a22, rim: 0xff9a7a }, s);
-    // 護目鏡帶
-    g.fillStyle(0x4a3a36, 1);
-    g.fillRect(36 * s, 42 * s, 50 * s, 6 * s);
-    g.fillStyle(0xff7a5a, 0.9);
-    g.fillRect(36 * s, 42 * s, 50 * s, 1.5 * s);
-    g.fillStyle(0x8a6a50, 1);
-    g.fillCircle(60 * s, 45 * s, 3 * s);
-    // 手持發光燒瓶（左手）
-    g.fillStyle(0x2a2238, 1);
-    g.fillRect(14 * s, 86 * s, 6 * s, 8 * s);
-    g.fillStyle(0xff8a3d, 0.4);
-    g.fillCircle(17 * s, 104 * s, 14 * s);
-    g.fillStyle(0xff8a3d, 1);
-    g.fillCircle(17 * s, 104 * s, 9 * s);
-    g.fillStyle(0xffe0a0, 1);
-    g.fillCircle(15 * s, 102 * s, 4 * s);
-  }, { x: 17, y: 104, color: 0xff8a3d, scale: 0.6 });
-
-  // 瑟琳（背影；若立繪版已先生成則沿用）
-  make(scene, 'hero_serin', 150, 230, (g, s) => {
-    const o = { fill: 0x161a2c, rim: 0xc8d4ff };
-    // 劍（右手斜握）
-    g.lineStyle(6 * s, 0x2a2e40, 1);
-    g.lineBetween(110 * s, 140 * s, 142 * s, 30 * s);
-    g.lineStyle(2 * s, 0xc8d4ff, 1);
-    g.lineBetween(108 * s, 138 * s, 140 * s, 28 * s);
-    g.lineStyle(8 * s, 0x2a2e40, 1);
-    g.lineBetween(100 * s, 132 * s, 122 * s, 142 * s);
-    // 身體與鎧甲
-    rimPoly(g, [[50, 84], [100, 84], [118, 118], [124, 226], [75, 218], [26, 226], [32, 118]], o, s);
-    // 肩甲
-    rimPoly(g, [[30, 86], [58, 80], [60, 108], [26, 112]], { ...o, fill: 0x22263a }, s);
-    rimPoly(g, [[92, 80], [120, 86], [124, 112], [90, 108]], { ...o, fill: 0x22263a }, s);
-    // 腰帶
-    g.fillStyle(0x3a3448, 1);
-    g.fillRect(36 * s, 150 * s, 78 * s, 8 * s);
-    // 頭（後腦）
-    rimPoly(g, [[75, 30], [94, 38], [98, 66], [88, 82], [62, 82], [52, 66], [56, 38]], { fill: 0x2a2440, rim: 0xe8d8ff }, s);
-    // 馬尾
-    rimPoly(g, [[70, 44], [82, 44], [86, 78], [80, 132], [72, 150], [68, 120], [66, 80]], { fill: 0x2a2440, rim: 0xe8d8ff, rimWidth: 2 }, s);
-    g.fillStyle(0xc8d4ff, 1);
-    g.fillRect(70 * s, 50 * s, 12 * s, 4 * s);
-  });
+  // ---------------- 我方（背影，動漫風：animeSprites.ts） ----------------
+  heroCanvas(scene, 'hero_lian', 130, 200, backLian, { x: 112, y: 61, color: 0xffa54a, scale: 0.9 });
+  heroCanvas(scene, 'hero_rourke', 160, 220, backRourke);
+  heroCanvas(scene, 'hero_io', 110, 180, backIo, { x: 90, y: 100, color: 0x7fd8ff, scale: 0.5 });
+  heroCanvas(scene, 'hero_liora', 120, 190, backLiora, { x: 17, y: 104, color: 0xff8a3d, scale: 0.6 });
+  heroCanvas(scene, 'hero_serin', 150, 230, backSerin);
 
   // ---------------- 敵方 ----------------
   const wolfPts: P[] = [
