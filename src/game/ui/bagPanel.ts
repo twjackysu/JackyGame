@@ -6,10 +6,10 @@ import { canEquip, gearDelta, owns } from '../../core/state/equip';
 import { bagCount, bagIds, wornIds, type EquipmentInstance } from '../../core/state/gear';
 import { BLESSING_MAX, MAX_ENHANCE, failText } from '../../data/enhancement';
 import { preview } from '../../server/enhancement';
-import { canSalvage, salvageYield } from '../../server/crafting';
+import { canSalvage, salvageYield, tierOf } from '../../server/crafting';
 import type { MemberId } from '../../core/state/gameState';
 import { EQUIP_SLOT_NAME, ITEM_DEFS, PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, SLOT_NAME, itemDef } from '../../data/equipment';
-import { EQUIP_SLOTS, slotType, type EquipSlot } from '../../data/rules';
+import { EQUIP_SLOTS, TIER_CSS, TIER_NAME, slotType, type EquipSlot } from '../../data/rules';
 import { TREE_BY_ID, branchName, effectText, type TreeNode } from '../../data/skillTree';
 import { bossPoints, branchPoints, learn, learnState, learned, missingText, nodeDesc, pointsLeft, rankOf, resetCost, treeFor } from '../../core/state/skillTree';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -49,6 +49,8 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
     let selNode: string | null = null;
     /** 道具頁：選取的裝備模板；armed：二次確認中的分解（'quick' 或 'one:<模板>'） */
     let selItem: string | null = null;
+    /** 裝備頁：選取的候選（instanceId 或 'unequip'） */
+    let selCand: string | null = null;
     let armed: string | null = null;
     let body: Phaser.GameObjects.GameObject[] = [];
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
@@ -208,7 +210,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
     const hint = (msg: string, color = '#ff9a9a', hold = 1600): void => {
       if (!msg) return;
       hintT?.destroy();
-      const h = scene.add.text(GAME_WIDTH / 2, 1124, msg, { fontFamily: UI_FONT, fontSize: '21px', color, stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: GAME_WIDTH - 90, useAdvancedWrap: true } }).setOrigin(0.5).setDepth(depth + 1);
+      const h = scene.add.text(GAME_WIDTH / 2, 1146, msg, { fontFamily: UI_FONT, fontSize: '21px', color, stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: GAME_WIDTH - 90, useAdvancedWrap: true } }).setOrigin(0.5, 1).setDepth(depth + 1);
       hintT = h;
       scene.tweens.add({ targets: h, alpha: 0, delay: hold, duration: 400, onComplete: () => h.destroy() });
     };
@@ -241,7 +243,8 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         const row = add(scene.add.container(GAME_WIDTH / 2, y));
         const bg = scene.add.graphics();
         bg.fillStyle(on ? 0x2a2f52 : 0x151a30, 1).fillRoundedRect(-310, -28, 620, 56, 12);
-        bg.lineStyle(on ? 3 : 1.5, on ? 0xffd27a : 0x4a5380, 1).strokeRoundedRect(-310, -28, 620, 56, 12);
+        const wt = inst ? tierOf(inst) : 'common';
+        bg.lineStyle(on ? 3 : wt === 'common' ? 1.5 : 2.5, on ? 0xffd27a : wt === 'common' ? 0x4a5380 : Phaser.Display.Color.HexStringToColor(TIER_CSS[wt]).color, 1).strokeRoundedRect(-310, -28, 620, 56, 12);
         row.add(bg);
         row.add(scene.add.text(-292, 0, EQUIP_SLOT_NAME[sl], { fontFamily: UI_FONT, fontSize: '18px', color: '#8a94b8' }).setOrigin(0, 0.5));
         if (inst && id) {
@@ -264,6 +267,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         onTap(row, () => {
           slot = on ? null : sl;
           page = 0;
+          selCand = null;
           SFX.uiTap();
           render();
         });
@@ -290,10 +294,13 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
       page = Math.min(page, pages - 1);
       opts.slice(page * per, page * per + per).forEach((c, i) => {
         const y = ly + i * 84 + 40;
+        const picked = c ? selCand === c.ref : selCand === 'unequip';
         const row = add(scene.add.container(GAME_WIDTH / 2, y));
         const bg = scene.add.graphics();
-        bg.fillStyle(0x10142a, 1).fillRoundedRect(-290, -36, 580, 72, 12);
-        bg.lineStyle(1.5, 0x3a4270, 1).strokeRoundedRect(-290, -36, 580, 72, 12);
+        const tier = c ? tierOf(c.inst) : 'common';
+        const edge = tier === 'common' ? 0x3a4270 : Phaser.Display.Color.HexStringToColor(TIER_CSS[tier]).color;
+        bg.fillStyle(picked ? 0x1e2648 : 0x10142a, 1).fillRoundedRect(-290, -36, 580, 72, 12);
+        bg.lineStyle(picked ? 3 : tier === 'common' ? 1.5 : 2.5, picked ? 0xffffff : edge, picked ? 0.95 : 1).strokeRoundedRect(-290, -36, 580, 72, 12);
         row.add(bg);
         if (c) {
           const dt = gearDelta(s, who, c.ref, sl);
@@ -302,16 +309,33 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
           row.add(scene.add.text(-212, -13, `${instName(c.inst)}${c.count > 1 ? ` ×${c.count}` : ''}${c.inst.locked ? ' 🔒' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: itemNameColor(c.templateId) }).setOrigin(0, 0.5));
           const af = affixLine(c.inst);
           row.add(scene.add.text(-212, 16, bonusText(instBonus(c.inst)) + (af ? `　${af}` : ''), { fontFamily: UI_FONT, fontSize: '16px', color: af ? '#9fc8ee' : '#9aa4cc' }).setOrigin(0, 0.5));
-          row.add(scene.add.text(276, 0, deltaText(dt) || '一樣', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: good ? '#7dffb0' : '#ff9a9a' }).setOrigin(1, 0.5));
-        } else row.add(scene.add.text(0, 0, `卸下${EQUIP_SLOT_NAME[sl]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5));
+          if (tier !== 'common') row.add(scene.add.text(282, -26, TIER_NAME[tier], { fontFamily: UI_FONT, fontSize: '13px', fontStyle: '700', color: TIER_CSS[tier] }).setOrigin(1, 0.5));
+          if (picked) row.add(scene.add.text(276, 10, '換上 ▸', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#1a1408', backgroundColor: '#ffd27a' }).setOrigin(1, 0.5).setPadding(10, 4, 10, 4));
+          else row.add(scene.add.text(276, 4, deltaText(dt) || '一樣', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: good ? '#7dffb0' : '#ff9a9a' }).setOrigin(1, 0.5));
+        } else row.add(scene.add.text(0, 0, picked ? `再點一次：卸下${EQUIP_SLOT_NAME[sl]}` : `卸下${EQUIP_SLOT_NAME[sl]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5));
         row.setSize(580, 72).setInteractive({ useHandCursor: true });
         onTap(row, () => {
+          // 三層 UI：第一次點＝看詳情（比較只列有差的數值），再點一次才換上
+          if (!picked) {
+            selCand = c ? c.ref : 'unequip';
+            SFX.uiTap();
+            render();
+            if (c) {
+              const dt = gearDelta(s, who, c.ref, sl);
+              const af = affixLine(c.inst);
+              const tierTxt = tier !== 'common' ? `【${TIER_NAME[tier]}】` : '';
+              const perk = itemDef(c.templateId).perk;
+              hint(`${tierTxt}${instName(c.inst)}　${bonusText(instBonus(c.inst))}${af ? `\n詞綴：${af}` : ''}${perk ? `\n✦${PERK_INFO[perk].name}：${PERK_INFO[perk].desc}` : ''}\n換上後：${deltaText(dt) || '數值一樣'}`, '#e8eeff', 3600);
+            }
+            return;
+          }
           if (c) gameApi.equip(opId('equip'), { member: who, ref: c.ref, slot: sl });
           else gameApi.unequip(opId('unequip'), { member: who, slot: sl });
           SFX.confirm();
           pressBounce(scene, row);
           sparks(scene, GAME_WIDTH / 2, ROW0 + EQUIP_SLOTS.indexOf(sl) * RH, 12, 'spark', 0x7dffb0);
           slot = null;
+          selCand = null;
           session.save();
           render();
         });
