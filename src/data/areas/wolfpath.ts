@@ -87,5 +87,7 @@ export const WOLFPATH: AreaDef = {
     { id: 'shroom_a', kind: 'enemy', x: 16, y: 13, battle: 'path_b', gold: 10, wander: 2 },
     { id: 'wolf_b', kind: 'enemy', x: 5, y: 24, battle: 'path_a', gold: 12, wander: 3 },
     { id: 'den_chest', kind: 'chest', x: 19, y: 27, loot: [{ gold: 50 }, { item: 'potion_s', count: 1 }, { item: 'armor_leather' }], lootText: '狼群叼來的行李。\n獲得 50 金幣、小回復藥 ×1、硬皮甲。' },
+    { id: 'hidden_chest', kind: 'chest', hidden: true, x: 2, y: 4, loot: [{ item: 'shroom_cloak' }], lootText: '古燈塔的石縫裡塞著一個包袱。\n獲得 稀有・菇傘斗篷！' },
   ],
+  props: [{ kind: 'bones', x: 3, y: 21 }, { kind: 'pillar', x: 19, y: 11 }, { kind: 'flowers', x: 7, y: 30 }, { kind: 'bones', x: 2, y: 26 }, { kind: 'bones', x: 3, y: 4 }, { kind: 'pillar', x: 15, y: 29 }],
 };

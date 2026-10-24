@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { chapterTrack, playMusic } from '../../audio/music';
 import {
-  interact, markerOf, outleveled, nextObjective, present, chestFlag, lampFlag, type AreaDef, type AreaEntity, type Marker,
+  interact, markerOf, outleveled, nextObjective, present, chestFlag, lampFlag, solidRects, type AreaDef, type AreaEntity, type Marker,
 } from '../../core/explore/area';
 import {
   findPath, nearestWalkable, parseGrid, pathToAdjacent, slideMove, walkable, type Grid, type Pt,
@@ -92,7 +92,7 @@ export class ExploreScene extends Phaser.Scene {
     this.chasing = new Set();
     this.lampGlow = new Map();
     this.lampPost = new Map();
-    this.grid = parseGrid(this.area.rows, this.area.buildings);
+    this.grid = parseGrid(this.area.rows, solidRects(this.area));
     this.followers = [];
     this.trail = [];
     this.escorts = new Map();
@@ -101,6 +101,7 @@ export class ExploreScene extends Phaser.Scene {
     this.path = [];
     this.pending = undefined;
     this.actors = [];
+    this.hiddenLeft = new Set();
     this.stick = null;
     this.down = null;
     this.busy = false;
@@ -128,7 +129,31 @@ export class ExploreScene extends Phaser.Scene {
     return this.actors.some((a) => !!a.e.rest && Math.hypot(a.tx - px, a.ty - py) <= 4);
   }
 
-    private defeated(): Set<string> {
+    /** 還沒現形的隱藏寶箱 id */
+  private hiddenLeft = new Set<string>();
+  private isHidden(a: Actor): boolean {
+    return this.hiddenLeft.has(a.e.id);
+  }
+
+  /** 走近隱藏寶箱（2 格內）→ 現形 */
+  private revealHidden(): void {
+    if (this.hiddenLeft.size === 0) return;
+    const px = this.player.x / TILE - 0.5;
+    const py = this.player.y / TILE - 0.5;
+    for (const a of this.actors) {
+      if (!this.isHidden(a) || Math.hypot(a.tx - px, a.ty - py) > 2.2) continue;
+      this.hiddenLeft.delete(a.e.id);
+      if (a.obj) {
+        this.tweens.add({ targets: a.obj, alpha: 1, duration: 500 });
+        sparks(this, a.obj.x, a.obj.y - 10, 30, 'spark', 0x9fe0ff, 400);
+        shockRing(this, a.obj.x, a.obj.y - 6, 0x9fe0ff, 70, 500, 4);
+      }
+      SFX.itemGet();
+      this.hud()?.toast('✦ 發現了隱藏的寶箱！', 2000);
+    }
+  }
+
+  private defeated(): Set<string> {
     let d = DEFEATED.get(this.area.id);
     if (!d) DEFEATED.set(this.area.id, (d = new Set()));
     return d;
@@ -435,6 +460,11 @@ export class ExploreScene extends Phaser.Scene {
         const gl = this.add.image(0, -6, 'ex_glow').setScale(0.45).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD);
         c.addAt(gl, 0);
         this.tweens.add({ targets: gl, alpha: 0.2, duration: 900, yoyo: true, repeat: -1 });
+        // 隱藏寶箱：走近才現形
+        if (e.hidden) {
+          c.setAlpha(0);
+          this.hiddenLeft.add(e.id);
+        }
       }
     } else if (e.kind === 'sign') {
       if (this.textures.exists('prop_signpost')) {
@@ -529,6 +559,7 @@ export class ExploreScene extends Phaser.Scene {
     const s = session.state;
     // NPC 圖比格子高：點在頭部也算
     const hit = this.actors.find((a) => {
+      if (this.isHidden(a)) return false;
       if (!present(s, a.e) && a.e.kind !== 'door' && a.e.kind !== 'gate') return false;
       if (a.tx === tx && a.ty === ty) return true;
       return a.e.kind === 'npc' && wx !== undefined && wy !== undefined && a.obj
@@ -585,7 +616,7 @@ export class ExploreScene extends Phaser.Scene {
     const p = this.playerTile();
     const s = session.state;
     return this.actors.find((a) => {
-      if (a.e.kind === 'gate') return false;
+      if (a.e.kind === 'gate' || this.isHidden(a)) return false;
       if (!present(s, a.e) && a.e.kind !== 'door') return false;
       if (Math.abs(a.tx - p.x) + Math.abs(a.ty - p.y) !== 1) return false;
       const m = markerOf(s, this.area.id, a.e);
@@ -822,7 +853,10 @@ export class ExploreScene extends Phaser.Scene {
         moved = true;
       }
     }
-    if (moved) this.movedAt = this.time.now;
+    if (moved) {
+      this.movedAt = this.time.now;
+      this.revealHidden();
+    }
     // 走路彈跳
     if (moved) {
       const last0 = this.trail[this.trail.length - 1]!;
@@ -1086,7 +1120,7 @@ export class ExploreScene extends Phaser.Scene {
     const s = session.state;
     const b = new Set<string>();
     for (const a of this.actors) {
-      if (a.e.kind === 'gate' || a.e.kind === 'door') continue;
+      if (a.e.kind === 'gate' || a.e.kind === 'door' || this.isHidden(a)) continue;
       if (!present(s, a.e) || !this.alive(a)) continue;
       b.add(`${a.tx},${a.ty}`);
     }

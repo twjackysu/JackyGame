@@ -1,5 +1,5 @@
 // 自由探索地圖的程式美術：把整張區域畫進一張 canvas（地塊＋建築＋樹），以及 NPC／寶箱／告示的小圖。
-import type { AreaDef, Building } from '../../core/explore/area';
+import type { AreaDef, Building, PropKind } from '../../core/explore/area';
 import { tileAt, type Grid } from '../../core/explore/grid';
 
 export const TILE = 48;
@@ -399,10 +399,224 @@ export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid,
       c.fill();
     } else building(c, b);
   }
+  // 裝飾物件（由上到下）
+  for (const p of [...(a.props ?? [])].sort((p1, p2) => p1.y - p2.y)) drawProp(c, p.kind, p.x * TILE, p.y * TILE, r);
   for (const e of a.entities) {
     if (e.kind !== 'door') continue;
     const b = a.buildings.find((bb) => e.x >= bb.x && e.x < bb.x + bb.w && e.y >= bb.y && e.y < bb.y + bb.h);
     if (b && (!b.prop || !hasArt(b.prop))) door(c, e.x, e.y);
+  }
+}
+
+function shadow(c: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry = 6): void {
+  c.fillStyle = 'rgba(0,0,0,0.35)';
+  c.beginPath();
+  c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  c.fill();
+}
+
+/** 裝飾物件（一格 48×48，可往上超出約 16px） */
+export function drawProp(c: CanvasRenderingContext2D, kind: PropKind, px: number, py: number, r: () => number): void {
+  const cx = px + TILE / 2;
+  const by = py + TILE - 6; // 地面線
+  switch (kind) {
+    case 'crate': {
+      shadow(c, cx, by, 19);
+      c.fillStyle = '#7a5530';
+      c.fillRect(cx - 17, by - 30, 34, 30);
+      c.fillStyle = '#946a3c';
+      c.fillRect(cx - 17, by - 30, 34, 6);
+      c.strokeStyle = '#4a3018';
+      c.lineWidth = 2;
+      c.strokeRect(cx - 17, by - 30, 34, 30);
+      c.beginPath();
+      c.moveTo(cx - 17, by - 24); c.lineTo(cx + 17, by);
+      c.moveTo(cx + 17, by - 24); c.lineTo(cx - 17, by);
+      c.stroke();
+      break;
+    }
+    case 'barrel': {
+      shadow(c, cx, by, 15);
+      const g = c.createLinearGradient(cx - 14, 0, cx + 14, 0);
+      g.addColorStop(0, '#5a3a20'); g.addColorStop(0.45, '#9a6a3a'); g.addColorStop(1, '#4a2e18');
+      c.fillStyle = g;
+      c.beginPath();
+      c.ellipse(cx, by - 16, 14, 18, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#3a2614';
+      c.beginPath();
+      c.ellipse(cx, by - 32, 11, 4, 0, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = '#2a2a30';
+      c.lineWidth = 2.5;
+      for (const dy of [-26, -8]) { c.beginPath(); c.ellipse(cx, by + dy, 13.5, 3, 0, 0, Math.PI); c.stroke(); }
+      break;
+    }
+    case 'cart': {
+      shadow(c, cx, by, 21);
+      c.fillStyle = '#4a4a56';
+      c.beginPath();
+      c.moveTo(cx - 20, by - 28); c.lineTo(cx + 20, by - 28); c.lineTo(cx + 15, by - 8); c.lineTo(cx - 15, by - 8);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#6a6a78';
+      c.fillRect(cx - 20, by - 30, 40, 4);
+      // 礦石
+      for (let k = 0; k < 4; k++) {
+        c.fillStyle = k % 2 ? '#8a7a6a' : '#6ad8ff';
+        c.beginPath();
+        c.arc(cx - 10 + k * 7, by - 31 - (k % 2) * 3, 5, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.fillStyle = '#222228';
+      for (const dx of [-11, 11]) { c.beginPath(); c.arc(cx + dx, by - 5, 5, 0, Math.PI * 2); c.fill(); }
+      break;
+    }
+    case 'shelf': {
+      shadow(c, cx, by, 22, 5);
+      c.fillStyle = '#4a2e1a';
+      c.fillRect(cx - 21, by - 46, 42, 46);
+      c.fillStyle = '#2a1a10';
+      c.fillRect(cx - 18, by - 43, 36, 40);
+      const cols = ['#a04040', '#4060a0', '#c09040', '#408060', '#8050a0', '#b0b0b0'];
+      for (let row = 0; row < 3; row++) {
+        let x = cx - 17;
+        const y = by - 42 + row * 14;
+        while (x < cx + 15) {
+          const w = 3 + Math.floor(r() * 4);
+          c.fillStyle = cols[Math.floor(r() * cols.length)]!;
+          c.fillRect(x, y + 2 + Math.floor(r() * 3), w, 11 - Math.floor(r() * 3));
+          x += w + 1;
+        }
+        c.fillStyle = '#5a3a22';
+        c.fillRect(cx - 18, y + 12, 36, 2);
+      }
+      break;
+    }
+    case 'bench': {
+      shadow(c, cx, by, 20, 4);
+      c.fillStyle = '#6a4a2a';
+      c.fillRect(cx - 20, by - 16, 40, 6);
+      c.fillStyle = '#5a3a20';
+      c.fillRect(cx - 20, by - 26, 40, 5);
+      c.fillStyle = '#2a2a30';
+      c.fillRect(cx - 17, by - 12, 3, 12);
+      c.fillRect(cx + 14, by - 12, 3, 12);
+      break;
+    }
+    case 'bones': {
+      c.fillStyle = '#d8d0c0';
+      c.save();
+      c.translate(cx, by - 8);
+      for (const a of [0.4, -0.6, 1.3]) {
+        c.rotate(a);
+        c.fillRect(-12, -2, 24, 4);
+        c.beginPath(); c.arc(-12, 0, 3.5, 0, Math.PI * 2); c.arc(12, 0, 3.5, 0, Math.PI * 2); c.fill();
+      }
+      c.restore();
+      c.fillStyle = '#e8e0d0';
+      c.beginPath(); c.arc(cx + 8, by - 16, 7, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#222';
+      c.fillRect(cx + 5, by - 18, 2.5, 3); c.fillRect(cx + 9, by - 18, 2.5, 3);
+      break;
+    }
+    case 'stalagmite': {
+      shadow(c, cx, by, 16);
+      const g = c.createLinearGradient(cx - 14, 0, cx + 14, 0);
+      g.addColorStop(0, '#2e2a34'); g.addColorStop(0.5, '#5a5462'); g.addColorStop(1, '#24202a');
+      c.fillStyle = g;
+      c.beginPath();
+      c.moveTo(cx - 15, by); c.lineTo(cx - 4, by - 44); c.lineTo(cx + 2, by - 30); c.lineTo(cx + 7, by - 38); c.lineTo(cx + 15, by);
+      c.closePath();
+      c.fill();
+      break;
+    }
+    case 'starshard': {
+      const col = ['#ff9ad0', '#ffd0f0', '#c890ff'];
+      c.fillStyle = 'rgba(255,150,220,0.18)';
+      c.beginPath(); c.arc(cx, by - 18, 22, 0, Math.PI * 2); c.fill();
+      for (let k = 0; k < 4; k++) {
+        const x = cx - 12 + k * 8;
+        const h = 18 + r() * 22;
+        c.fillStyle = col[k % 3]!;
+        c.beginPath();
+        c.moveTo(x - 4, by); c.lineTo(x + (r() - 0.5) * 6, by - h); c.lineTo(x + 4, by);
+        c.closePath();
+        c.fill();
+      }
+      c.fillStyle = '#ffffff';
+      c.fillRect(cx - 1, by - 30, 2, 2);
+      break;
+    }
+    case 'stall': {
+      shadow(c, cx, by, 22, 5);
+      c.fillStyle = '#5a3a22';
+      c.fillRect(cx - 20, by - 18, 40, 18);
+      c.fillStyle = '#3a2614';
+      c.fillRect(cx - 19, by - 44, 3, 28); c.fillRect(cx + 16, by - 44, 3, 28);
+      // 條紋布篷
+      for (let k = 0; k < 5; k++) {
+        c.fillStyle = k % 2 ? '#f0e0c0' : '#c04a3a';
+        c.beginPath();
+        c.moveTo(cx - 23 + k * 9.2, by - 44); c.lineTo(cx - 23 + (k + 1) * 9.2, by - 44); c.lineTo(cx - 23 + (k + 1) * 9.2, by - 36);
+        c.quadraticCurveTo(cx - 23 + (k + 0.5) * 9.2, by - 32, cx - 23 + k * 9.2, by - 36);
+        c.closePath();
+        c.fill();
+      }
+      // 貨物
+      for (let k = 0; k < 4; k++) {
+        c.fillStyle = ['#ffb040', '#ff6a5a', '#9ad070', '#ffe08a'][k]!;
+        c.beginPath(); c.arc(cx - 13 + k * 9, by - 20, 4, 0, Math.PI * 2); c.fill();
+      }
+      break;
+    }
+    case 'pillar': {
+      shadow(c, cx, by, 16);
+      c.fillStyle = '#8a8494';
+      c.fillRect(cx - 10, by - 34, 20, 34);
+      c.fillStyle = '#a8a2b4';
+      c.fillRect(cx - 14, by - 6, 28, 6);
+      c.fillStyle = '#9a94a6';
+      // 斷口
+      c.beginPath();
+      c.moveTo(cx - 12, by - 34); c.lineTo(cx - 4, by - 42); c.lineTo(cx + 3, by - 36); c.lineTo(cx + 12, by - 40); c.lineTo(cx + 12, by - 32); c.lineTo(cx - 12, by - 32);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = 'rgba(0,0,0,0.25)';
+      c.lineWidth = 1;
+      for (const dx of [-5, 0, 5]) { c.beginPath(); c.moveTo(cx + dx, by - 32); c.lineTo(cx + dx, by - 6); c.stroke(); }
+      break;
+    }
+    case 'flask': {
+      // 實驗台
+      shadow(c, cx, by, 22, 5);
+      c.fillStyle = '#3a3448';
+      c.fillRect(cx - 21, by - 22, 42, 22);
+      c.fillStyle = '#5a5470';
+      c.fillRect(cx - 22, by - 24, 44, 4);
+      const cols = ['#7dffb0', '#b080ff', '#6ad8ff'];
+      for (let k = 0; k < 3; k++) {
+        const x = cx - 13 + k * 13;
+        c.fillStyle = 'rgba(220,230,255,0.5)';
+        c.fillRect(x - 1.5, by - 38, 3, 8);
+        c.fillStyle = cols[k]!;
+        c.beginPath(); c.arc(x, by - 29, 5, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.7)';
+        c.fillRect(x - 2, by - 31, 1.5, 1.5);
+      }
+      break;
+    }
+    case 'flowers': {
+      for (let k = 0; k < 7; k++) {
+        const x = cx - 16 + r() * 32;
+        const y = by - 4 - r() * 18;
+        c.fillStyle = '#2f5a34';
+        c.fillRect(x - 0.5, y, 1.5, 6);
+        c.fillStyle = ['#ffd27a', '#ff9ab0', '#b0c8ff', '#ffffff'][k % 4]!;
+        c.beginPath(); c.arc(x, y, 3, 0, Math.PI * 2); c.fill();
+      }
+      break;
+    }
   }
 }
 

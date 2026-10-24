@@ -70,5 +70,7 @@ export const RIFT: AreaDef = {
     { id: 'spawn_b', kind: 'enemy', x: 5, y: 13, battle: 'ch5_rift', gold: 50, wander: 1 },
     { id: 'spawn_c', kind: 'enemy', x: 10, y: 24, battle: 'ch5_rift', gold: 50, wander: 2 },
     { id: 'ledge_chest', kind: 'chest', x: 15, y: 4, loot: [{ item: 'potion_m', count: 3 }, { item: 'gift_flower' }], lootText: '崖邊開著一朵不該在這裡的花。\n獲得 回復藥 ×3、野花束。' },
+    { id: 'hidden_chest', kind: 'chest', hidden: true, x: 4, y: 3, loot: [{ item: 'star_ring' }], lootText: '星屑堆裡閃著一點光。\n獲得 稀有・墜星戒！' },
   ],
+  props: [{ kind: 'starshard', x: 15, y: 26 }, { kind: 'stalagmite', x: 7, y: 3 }, { kind: 'starshard', x: 15, y: 17 }, { kind: 'bones', x: 6, y: 10 }, { kind: 'pillar', x: 4, y: 4 }, { kind: 'starshard', x: 15, y: 30 }, { kind: 'stalagmite', x: 10, y: 10 }, { kind: 'starshard', x: 7, y: 23 }, { kind: 'bones', x: 13, y: 20 }, { kind: 'pillar', x: 4, y: 28 }],
 };

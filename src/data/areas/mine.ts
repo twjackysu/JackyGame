@@ -102,5 +102,7 @@ export const MINE: AreaDef = {
     { id: 'pocket_chest', kind: 'chest', x: 16, y: 13, loot: [{ gold: 40 }, { item: 'lantern_brass' }], lootText: '軌道盡頭的工具箱。\n獲得 40 金幣、黃銅掌燈。' },
     { id: 'hall_chest', kind: 'chest', x: 3, y: 21, loot: [{ item: 'staff_crystal' }], lootText: '鐘廳角落，晶石纏著一根木杖。\n獲得 霧晶杖。' },
     { id: 'camp_chest', kind: 'chest', x: 19, y: 30, loot: [{ gold: 60 }, { item: 'potion_m', count: 2 }], lootText: '礦工藏的補給。\n獲得 60 金幣、回復藥 ×2。' },
+    { id: 'hidden_chest', kind: 'chest', hidden: true, x: 4, y: 3, loot: [{ item: 'beetle_guard' }], lootText: '坑道盡頭，礦晶裡封著一副護甲。\n獲得 稀有・晶殼護甲！' },
   ],
+  props: [{ kind: 'cart', x: 6, y: 34 }, { kind: 'crate', x: 13, y: 14 }, { kind: 'stalagmite', x: 3, y: 6 }, { kind: 'bones', x: 15, y: 17 }, { kind: 'barrel', x: 11, y: 12 }, { kind: 'stalagmite', x: 4, y: 36 }, { kind: 'cart', x: 6, y: 23 }, { kind: 'crate', x: 19, y: 27 }, { kind: 'stalagmite', x: 7, y: 3 }, { kind: 'bones', x: 14, y: 22 }, { kind: 'barrel', x: 7, y: 19 }, { kind: 'stalagmite', x: 5, y: 8 }],
 };

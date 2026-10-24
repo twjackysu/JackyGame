@@ -94,5 +94,7 @@ export const DEPTHS: AreaDef = {
     { id: 'archive_chest', kind: 'chest', x: 2, y: 16, loot: [{ gold: 100 }, { item: 'sword_dawn' }], lootText: '檔案櫃底層藏著一把劍。\n獲得 100 金幣、破曉之劍。' },
     { id: 'cells_chest', kind: 'chest', x: 19, y: 12, loot: [{ item: 'gift_book' }, { item: 'potion_m', count: 2 }], lootText: '看守的置物箱。\n獲得 舊書、回復藥 ×2。' },
     { id: 'furnace_chest', kind: 'chest', x: 19, y: 29, loot: [{ item: 'lantern_star' }], lootText: '星核的餘燼凝成了一盞燈。\n獲得 星燼提燈。' },
+    { id: 'hidden_chest', kind: 'chest', hidden: true, x: 18, y: 18, loot: [{ item: 'proto_staff' }], lootText: '廢棄實驗台下的保險箱。\n獲得 稀有・原型晶核杖！' },
   ],
+  props: [{ kind: 'shelf', x: 12, y: 17 }, { kind: 'flask', x: 9, y: 17 }, { kind: 'crate', x: 14, y: 15 }, { kind: 'shelf', x: 10, y: 15 }, { kind: 'flask', x: 15, y: 19 }, { kind: 'pillar', x: 9, y: 27 }, { kind: 'shelf', x: 18, y: 19 }, { kind: 'flask', x: 6, y: 10 }, { kind: 'crate', x: 10, y: 12 }, { kind: 'shelf', x: 12, y: 10 }, { kind: 'flask', x: 11, y: 24 }, { kind: 'pillar', x: 16, y: 6 }],
 };

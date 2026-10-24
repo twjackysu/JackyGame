@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   findPath, nearestWalkable, parseGrid, pathToAdjacent, reachable, slideMove, walkable,
 } from '../src/core/explore/grid';
-import { chestFlag, interact, markerOf, nextObjective, present } from '../src/core/explore/area';
+import { chestFlag, interact, markerOf, nextObjective, present, solidRects } from '../src/core/explore/area';
 import { AREAS } from '../src/data/areas';
 import { newGame, applyEffects, check } from '../src/core/state/gameState';
 import { SCRIPTS } from '../src/game/session';
@@ -64,7 +64,7 @@ describe('explore grid', () => {
 describe('area data', () => {
   for (const a of Object.values(AREAS)) {
     describe(a.id, () => {
-      const g = parseGrid(a.rows, a.buildings);
+      const g = parseGrid(a.rows, solidRects(a));
       const blockers = new Set(a.entities.filter((e) => e.kind !== 'gate').map((e) => `${e.x},${e.y}`));
       it('spawns are walkable', () => {
         for (const sp of Object.values(a.spawns)) expect(walkable(g, sp.x, sp.y, blockers)).toBe(true);

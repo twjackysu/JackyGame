@@ -156,5 +156,7 @@ export const GREYLAMP: AreaDef = {
     // ── 寶箱 ──
     { id: 'pond_chest', kind: 'chest', x: 19, y: 8, loot: [{ gold: 30 }, { item: 'armor_cloth' }], lootText: '湖畔的樹根下藏著一個包袱。\n獲得 30 金幣、旅人布衣。' },
     { id: 'garden_chest', kind: 'chest', x: 20, y: 25, loot: [{ item: 'potion_s', count: 1 }], lootText: '花叢裡有個舊木箱。\n獲得 小回復藥 ×1。' },
+    { id: 'hidden_chest', kind: 'chest', hidden: true, x: 2, y: 28, loot: [{ gold: 50 }, { item: 'gift_ribbon' }], lootText: '酒桶後面藏著一個小木箱。\n獲得 50 金幣、緞帶。' },
   ],
+  props: [{ kind: 'barrel', x: 2, y: 1 }, { kind: 'crate', x: 17, y: 30 }, { kind: 'bench', x: 19, y: 1 }, { kind: 'flowers', x: 1, y: 28 }, { kind: 'barrel', x: 20, y: 19 }, { kind: 'flowers', x: 20, y: 4 }, { kind: 'barrel', x: 5, y: 28 }, { kind: 'crate', x: 1, y: 19 }],
 };

@@ -89,5 +89,7 @@ export const MISTWOOD: AreaDef = {
     { id: 'wolf_c', kind: 'enemy', x: 16, y: 24, battle: 'forest_a', gold: 8, wander: 3 },
     { id: 'lake_chest', kind: 'chest', x: 2, y: 16, loot: [{ item: 'potion_s', count: 2 }], lootText: '湖邊的蘆葦叢裡卡著一個背包。\n獲得 小回復藥 ×2。' },
     { id: 'hill_chest', kind: 'chest', x: 19, y: 4, loot: [{ gold: 40 }, { item: 'charm_ember' }], lootText: '樹洞裡藏著獵人的私房錢？\n獲得 40 金幣、餘燼護符。' },
+    { id: 'hidden_chest', kind: 'chest', hidden: true, x: 5, y: 3, loot: [{ item: 'wolf_fang_charm' }], lootText: '樹根間半埋著一個舊箱子。\n獲得 稀有・霧狼牙墜！' },
   ],
+  props: [{ kind: 'flowers', x: 17, y: 20 }, { kind: 'bones', x: 19, y: 19 }, { kind: 'flowers', x: 2, y: 23 }, { kind: 'crate', x: 3, y: 9 }, { kind: 'flowers', x: 13, y: 11 }, { kind: 'bones', x: 6, y: 3 }],
 };

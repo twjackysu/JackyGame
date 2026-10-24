@@ -124,5 +124,7 @@ export const CAPITAL: AreaDef = {
     { id: 'south_exit', kind: 'gate', x: 11, y: 35, name: '往世界地圖', to: 'map' },
     { id: 'tower_chest', kind: 'chest', x: 1, y: 2, loot: [{ gold: 80 }, { item: 'armor_mist' }], lootText: '鐘塔牆角的舊箱子。\n獲得 80 金幣、霧織長袍。' },
     { id: 'fountain_chest', kind: 'chest', x: 21, y: 29, loot: [{ item: 'gift_ribbon' }, { item: 'potion_m', count: 2 }], lootText: '花圃後面藏著一個小包裹。\n獲得 緞帶、回復藥 ×2。' },
+    { id: 'hidden_chest', kind: 'chest', hidden: true, x: 21, y: 1, loot: [{ item: 'rune_collar' }], lootText: '城牆角落有塊鬆動的石磚。\n獲得 稀有・符文頸環！' },
   ],
+  props: [{ kind: 'stall', x: 22, y: 32 }, { kind: 'bench', x: 8, y: 1 }, { kind: 'flowers', x: 22, y: 9 }, { kind: 'barrel', x: 1, y: 9 }, { kind: 'stall', x: 22, y: 21 }, { kind: 'crate', x: 1, y: 33 }, { kind: 'stall', x: 7, y: 14 }, { kind: 'bench', x: 13, y: 4 }, { kind: 'flowers', x: 7, y: 18 }, { kind: 'barrel', x: 6, y: 21 }, { kind: 'stall', x: 22, y: 2 }, { kind: 'crate', x: 1, y: 29 }],
 };

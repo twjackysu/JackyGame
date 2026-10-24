@@ -14,6 +14,12 @@ export interface Building extends Rect {
   prop?: string;
 }
 
+/** 裝飾物件（程式畫、佔一格、不可通行；11-open-world §2.1 地圖品質） */
+export type PropKind = 'crate' | 'barrel' | 'cart' | 'shelf' | 'bench' | 'bones' | 'stalagmite' | 'starshard' | 'stall' | 'pillar' | 'flask' | 'flowers';
+export interface Prop extends Pt {
+  kind: PropKind;
+}
+
 export type EntityKind = 'npc' | 'door' | 'sign' | 'chest' | 'gate' | 'enemy' | 'lamp';
 
 export interface AreaEntity {
@@ -61,6 +67,8 @@ export interface AreaEntity {
   rest?: boolean;
   /** 特效：'fire' = 營火（柴堆＋火焰粒子） */
   fx?: 'fire';
+  /** 隱藏寶箱：走近（2 格內）才會現形 */
+  hidden?: boolean;
 }
 
 export interface AreaDef {
@@ -76,6 +84,13 @@ export interface AreaDef {
   night?: boolean;
   /** 從這個區域回世界地圖時，提燈標記站在哪個節點 */
   mapNode?: string;
+  /** 裝飾物件（不可通行） */
+  props?: readonly Prop[];
+}
+
+/** 不可通行的矩形：建築＋裝飾物件 */
+export function solidRects(a: AreaDef): Rect[] {
+  return [...a.buildings, ...(a.props ?? []).map((p) => ({ x: p.x, y: p.y, w: 1, h: 1 }))];
 }
 
 export type Marker = 'main' | 'side' | 'shop' | 'chat' | 'none';
