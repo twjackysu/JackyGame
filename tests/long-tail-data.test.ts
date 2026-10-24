@@ -19,10 +19,10 @@ describe('規則版本', () => {
 });
 
 describe('材料', () => {
-  it('種類 ≤ 7、id 唯一、不和物品模板撞名', () => {
+  it('種類 ≤ 7、id 唯一、登記成 kind=mat 的物品（不能買賣）', () => {
     expect(MATERIALS.length).toBeLessThanOrEqual(MAX_MATERIAL_KINDS);
     expect(new Set(MATERIAL_IDS).size).toBe(MATERIAL_IDS.length);
-    for (const id of MATERIAL_IDS) expect(ITEM_DEFS[id]).toBeUndefined();
+    for (const id of MATERIAL_IDS) expect(ITEM_DEFS[id]).toMatchObject({ kind: 'mat', price: 0 });
   });
 });
 

@@ -7,8 +7,8 @@ import { HEROES } from '../../data/combatants';
 import { PERK_INFO, RARITY_COLOR, RARITY_CSS, itemDef, rarityOf, type ItemDef } from '../../data/equipment';
 import { UI_FONT } from '../fx/feel';
 
-const GLYPH: Record<string, string> = { weapon: '⚔', armor: '⛨', charm: '◈', use: '✚', key: '✦' };
-const GLYPH_COL: Record<string, number> = { weapon: 0xffb070, armor: 0x9fc8ff, charm: 0xd8a0ff, use: 0x8fffb0, key: 0xffe08a };
+const GLYPH: Record<string, string> = { weapon: '⚔', armor: '⛨', head: '♛', charm: '◈', core: '✺', use: '✚', key: '✦', mat: '◆', gift: '❀' };
+const GLYPH_COL: Record<string, number> = { weapon: 0xffb070, armor: 0x9fc8ff, head: 0xffd27a, charm: 0xd8a0ff, core: 0xff8a5a, use: 0x8fffb0, key: 0xffe08a, mat: 0x9ad8ff, gift: 0xff9ac8 };
 
 /** 道具圖示：有 AI 圖就用圖（可加 tint 區分階級），沒有就畫圓底＋符號 */
 export function itemIcon(scene: Phaser.Scene, id: string, x: number, y: number, size: number): Phaser.GameObjects.GameObject[] {

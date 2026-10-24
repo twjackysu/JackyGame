@@ -1,5 +1,6 @@
 // 道具與裝備資料表（11-open-world §2.4）。圖示：public/art/item_*.webp（沒有圖就用程式圖示）。
 import type { BaseStats } from '../core/battle/formulas';
+import { MATERIALS } from './materials';
 import { GEAR_SLOTS, type EquipSlot, type GearSlot } from './rules';
 import type { MemberId } from '../core/state/gameState';
 import type { Perk } from '../core/battle/engine';
@@ -28,8 +29,8 @@ export const EQUIP_SLOT_NAME: Record<EquipSlot, string> = { weapon: '武器', ar
 export interface ItemDef {
   id: string;
   name: string;
-  /** 'use' = 戰鬥道具、'gear' = 裝備、'key' = 重要物品（不能賣） */
-  kind: 'use' | 'gear' | 'key' | 'gift';
+  /** 'use' = 戰鬥道具、'gear' = 裝備、'key' = 重要物品（不能賣）、'mat' = 強化／重鑄材料（不能買賣） */
+  kind: 'use' | 'gear' | 'key' | 'gift' | 'mat';
   /** 參考價（商店買價）；賣價 = 50%。0 = 非賣品 */
   price: number;
   desc: string;
@@ -124,6 +125,8 @@ const LIST: ItemDef[] = [
   // ── 重要物品 ──
   { id: 'lamp_wick', name: '燈芯', kind: 'key', price: 0, desc: '古燈塔需要的燈芯。', icon: 'item_key' },
   { id: 'ember_card_pack', name: '燼牌補充包', kind: 'key', price: 0, desc: '酒館老闆給的燼牌。', icon: 'item_card_pack' },
+  // 強化／重鑄材料（src/data/materials.ts；D-053 材料 ≤ 7 種）。price 0 ＝商店不買不收
+  ...MATERIALS.map((m): ItemDef => ({ id: m.id, name: m.name, kind: 'mat', price: 0, desc: m.desc })),
 ];
 
 export const ITEM_DEFS: Record<string, ItemDef> = Object.fromEntries(LIST.map((d) => [d.id, d]));
