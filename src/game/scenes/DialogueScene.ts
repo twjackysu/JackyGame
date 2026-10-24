@@ -6,7 +6,7 @@ import { DialogueRunner, type DialogueStep, type ShownOption } from '../../core/
 import type { HeroId } from '../../core/battle/skills';
 import { SPEAKER_NAMES } from '../../data/dialogue/speakers';
 import { CHAPTER_MAPS, type ChapterId } from '../../data/maps';
-import { CH3_PORTRAITS, CH4_PORTRAITS, generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
+import { CH3_PORTRAITS, CH4_PORTRAITS, HD_PORTRAITS, generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
 import { backdropFor, backdropKey } from '../art/backdrops';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
@@ -211,7 +211,7 @@ export class DialogueScene extends Phaser.Scene {
     if (cur) this.tweens.add({ targets: cur, alpha: 0, x: cur.x + (side === 'left' ? -60 : 60), duration: 200, onComplete: () => cur.destroy() });
     const x = side === 'left' ? 200 : GAME_WIDTH - 200;
     // 手繪立繪比程式立繪大很多：統一縮到約 560px 高（程式立繪 300px × 0.95）
-    const hand = HAND_ART.includes(key);
+    const hand = HAND_ART.includes(key) || HD_PORTRAITS.has(key);
     const img = this.add.image(x + (side === 'left' ? -80 : 80), hand ? 1010 : 820, key).setOrigin(0.5, 1).setAlpha(0).setDepth(hand ? 40 : 50);
     img.setScale(hand ? 600 / img.height : 0.95);
     if (side === 'right' && speaker !== 'gwen' && speaker !== 'knight') img.setFlipX(false);
