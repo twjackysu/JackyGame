@@ -18,6 +18,7 @@ export const SPEAKER_NAMES: Record<string, string> = {
   farrow: '法洛',
   girl: '少女',
   bern: '伯恩',
+  lamplighter: '老燈伕',
   ancient_voice: '古老的聲音',
   // 第 2 章
   dorn: '多恩',

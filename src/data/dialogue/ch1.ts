@@ -166,6 +166,44 @@ export const CH1: DialogueScript = {
       { goto: 'end' },
     ],
 
+    // ───────── 灰燈鎮支線「廣場的四盞燈」（自由探索：老燈伕） ─────────
+    lamplighter: [
+      { goto: 'lamplighter_reward', if: { all: [{ flag: 'q_lamps_lit' }, { flag: 'q_lamps_rewarded', not: true }] } },
+      { goto: 'lamplighter_thanks', if: { flag: 'q_lamps_rewarded' } },
+      { goto: 'lamplighter_wait', if: { flag: 'q_lamps' } },
+      { say: 'lamplighter', text: '掌燈人？……真難得，這行還有年輕人。' },
+      { say: 'lamplighter', text: '廣場那四盞燈，鎮長說沒錢添油，\n就這樣熄了半年。我這把老骨頭，梯子爬不上去囉。' },
+      { say: 'lian_inner', text: '（原作裡，這是灰燈鎮最早的支線。\n報酬不多——但點燈，本來就是我的工作。）' },
+      {
+        choice: [
+          { text: '「交給我。」', next: 'lamplighter_accept' },
+          { text: '「下次吧。」', next: 'end' },
+        ],
+      },
+    ],
+    lamplighter_accept: [
+      { say: 'lamplighter', text: '好、好！燈油我這有。\n廣場四個角各一盞，點亮了再來找我。', effects: [{ flag: 'q_lamps' }] },
+      { goto: 'end' },
+    ],
+    lamplighter_wait: [
+      { say: 'lamplighter', text: '四個角各一盞。點亮的燈，從遠處就看得到。' },
+      { goto: 'end' },
+    ],
+    lamplighter_reward: [
+      { say: 'narration', text: '〔廣場四盞燈都亮了。石板路上，久違地映出人影。〕' },
+      { say: 'lamplighter', text: '……是我年輕時親手掛上去的燈。\n謝謝你，掌燈人。這點心意，你拿著。' },
+      {
+        say: 'lian_inner',
+        text: '（金幣 40、小回復藥 ×2。\n還有——鎮上的人，開始叫我「掌燈人」了。）',
+        effects: [{ flag: 'q_lamps_rewarded' }, { gold: 40 }, { item: 'potion_s', count: 2 }],
+      },
+      { goto: 'end' },
+    ],
+    lamplighter_thanks: [
+      { say: 'lamplighter', text: '燈亮著，晚上出門的人也多了。好啊。' },
+      { goto: 'end' },
+    ],
+
     // ───────── 1-3 雜貨店 ─────────
     store: [
       { say: 'toby', text: '要點什麼？最近藥草難進，\n森林那邊……唉。' },

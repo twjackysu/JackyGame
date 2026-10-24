@@ -14,7 +14,7 @@ export interface Building extends Rect {
   prop?: string;
 }
 
-export type EntityKind = 'npc' | 'door' | 'sign' | 'chest' | 'gate' | 'enemy';
+export type EntityKind = 'npc' | 'door' | 'sign' | 'chest' | 'gate' | 'enemy' | 'lamp';
 
 export interface AreaEntity {
   id: string;
@@ -82,6 +82,15 @@ export function chestFlag(area: string, id: string): string {
   return `chest_${area}_${id}`;
 }
 
+/** 支線「點燈」：路燈點亮的旗標；quest = 開始點燈的旗標（AreaEntity.requires 的第一個 flag） */
+export function lampFlag(area: string, id: string): string {
+  return `lamp_${area}_${id}`;
+}
+
+function lampQuest(e: AreaEntity): string | undefined {
+  return e.requires && 'flag' in e.requires ? e.requires.flag : undefined;
+}
+
 /** 實體目前是否存在於地圖上 */
 export function present(s: GameState, e: AreaEntity): boolean {
   return !e.when || check(s, e.when);
@@ -95,6 +104,10 @@ export function talkOpen(s: GameState, e: AreaEntity): boolean {
 /** 頭上標記：主線「！」＞支線「？」＞商店「$」＞閒聊「…」 */
 export function markerOf(s: GameState, area: string, e: AreaEntity): Marker {
   if (e.kind === 'chest' || e.kind === 'enemy') return 'none';
+  if (e.kind === 'lamp') {
+    const q = lampQuest(e);
+    return q && s.flags[q] && !s.flags[lampFlag(area, e.id)] ? 'side' : 'none';
+  }
   const open = talkOpen(s, e);
   if (open && e.done && !s.flags[e.done]) return e.waiting && check(s, e.waiting) ? 'chat' : e.side ? 'side' : 'main';
   if (open && e.shop) return 'shop';
@@ -113,6 +126,7 @@ export type Interaction =
   | { kind: 'script'; script: string; node: string; after?: 'map' }
   | { kind: 'say'; text: string }
   | { kind: 'loot'; effects: Effect[]; text: string; flag: string }
+  | { kind: 'lamp'; flag: string }
   | { kind: 'empty' };
 
 /** 決定互動要做什麼（不改狀態；寶箱的旗標由場景套用 effects 時寫入）。pick = 選閒聊台詞用的 0..1 亂數 */
@@ -121,6 +135,13 @@ export function interact(s: GameState, area: string, e: AreaEntity, pick = 0): I
     const flag = chestFlag(area, e.id);
     if (s.flags[flag]) return { kind: 'empty' };
     return { kind: 'loot', effects: [...(e.loot ?? []), { flag }], text: e.lootText ?? '找到了東西。', flag };
+  }
+  if (e.kind === 'lamp') {
+    const flag = lampFlag(area, e.id);
+    if (s.flags[flag]) return { kind: 'say', text: '（燈火穩穩地燒著。）' };
+    const q = lampQuest(e);
+    if (q && s.flags[q]) return { kind: 'lamp', flag };
+    return { kind: 'say', text: e.lines?.[0] ?? '（路燈熄了。）' };
   }
   if (talkOpen(s, e)) return { kind: 'script', script: e.talk!.script, node: e.talk!.node, after: e.after };
   const lines = e.lines ?? [];

@@ -95,6 +95,8 @@ export const GREYLAMP: AreaDef = {
     },
     {
       id: 'lamplighter', kind: 'npc', x: 8, y: 13, name: '老燈伕', look: { body: '#6a5a40', hair: '#d8d8d8', art: 'walk_npc_lamplighter' }, wander: 1,
+      // 支線「廣場的四盞燈」：拿到舊提燈後開放
+      talk: { script: 'ch1', node: 'lamplighter' }, requires: LANTERN, side: true, done: 'q_lamps_rewarded',
       lines: [
         '「燈芯要剪平，火才會穩。這是我師父說的。」',
         '「廣場那四盞，是我年輕時親手掛上去的。」',
@@ -121,6 +123,11 @@ export const GREYLAMP: AreaDef = {
       id: 'notice', kind: 'sign', x: 9, y: 16, name: '告示板',
       lines: ['【告示】森林狼群出沒，非必要請勿出鎮。\n　　　　——灰燈鎮自衛團', '【徵人】酒館「醉燈」誠徵燼牌對手。\n　　　　贏了老兵洛克者，酒錢全免。'],
     },
+    // ── 支線：廣場四盞熄滅的路燈（requires 的旗標＝接下支線後才能點） ──
+    ...([[7, 12], [14, 12], [7, 17], [14, 17]] as const).map(([x, y], i) => ({
+      id: `plaza_lamp_${i + 1}`, kind: 'lamp' as const, x, y, name: '熄滅的路燈', requires: { flag: 'q_lamps' },
+      lines: ['（路燈熄了，燈罩裡積滿灰。\n廣場上那位老燈伕，好像一直望著這裡。）'],
+    })),
     // ── 寶箱 ──
     { id: 'pond_chest', kind: 'chest', x: 19, y: 8, loot: [{ gold: 30 }], lootText: '湖畔的樹根下藏著一個小錢袋。\n獲得 30 金幣。' },
     { id: 'garden_chest', kind: 'chest', x: 20, y: 25, loot: [{ item: 'potion_s', count: 1 }], lootText: '花叢裡有個舊木箱。\n獲得 小回復藥 ×1。' },

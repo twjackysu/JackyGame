@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { chapterTrack, playMusic } from '../../audio/music';
 import {
-  interact, markerOf, nextObjective, present, chestFlag, type AreaDef, type AreaEntity, type Marker,
+  interact, markerOf, nextObjective, present, chestFlag, lampFlag, type AreaDef, type AreaEntity, type Marker,
 } from '../../core/explore/area';
 import {
   findPath, nearestWalkable, parseGrid, pathToAdjacent, slideMove, walkable, type Grid, type Pt,
@@ -80,6 +80,8 @@ export class ExploreScene extends Phaser.Scene {
     this.area = AREAS[id] ?? AREAS['greylamp']!;
     if (data.area) DEFEATED.set(this.area.id, new Set());
     this.chasing = new Set();
+    this.lampGlow = new Map();
+    this.lampPost = new Map();
     this.grid = parseGrid(this.area.rows, this.area.buildings);
     this.followers = [];
     this.trail = [];
@@ -102,6 +104,8 @@ export class ExploreScene extends Phaser.Scene {
 
   private spawnAt: Pt = { x: 0, y: 0 };
   private chasing = new Set<string>();
+  private lampGlow = new Map<string, Phaser.GameObjects.Image>();
+  private lampPost = new Map<string, Phaser.GameObjects.Image>();
 
   private defeated(): Set<string> {
     let d = DEFEATED.get(this.area.id);
@@ -258,7 +262,13 @@ export class ExploreScene extends Phaser.Scene {
           if (r() < 0.5) img.setFlipX(true);
           if (this.area.night) img.setTint(0x9aa0c8);
         } else if (t === 'L' && has('prop_lamppost')) {
-          fit(this.add.image(cx, foot, 'prop_lamppost').setOrigin(0.5, 1).setDepth(foot), undefined, 112);
+          const post = fit(this.add.image(cx, foot, 'prop_lamppost').setOrigin(0.5, 1).setDepth(foot), undefined, 112);
+          // 支線用的熄滅路燈：整支壓暗，點亮後恢復
+          const lamp = this.area.entities.find((e) => e.kind === 'lamp' && e.x === x && e.y === y);
+          if (lamp) {
+            this.lampPost.set(lamp.id, post);
+            if (!session.state.flags[lampFlag(this.area.id, lamp.id)]) post.setTint(0x3a3a48);
+          }
         } else if (t === 'o' && has('prop_well') && g.tiles[y]![x - 1] !== 'o') {
           const two = g.tiles[y]![x + 1] === 'o';
           fit(this.add.image(two ? cx + TILE / 2 : cx, foot + 4, 'prop_well').setOrigin(0.5, 1).setDepth(foot), (two ? 2 : 1) * TILE * 0.95);
@@ -279,8 +289,16 @@ export class ExploreScene extends Phaser.Scene {
       for (let x = 0; x < g.w; x++) {
         if (g.tiles[y]![x] !== 'L') continue;
         const art = this.textures.exists('prop_lamppost');
+        const lamp = this.area.entities.find((e) => e.kind === 'lamp' && e.x === x && e.y === y);
         const img = this.add.image(x * TILE + (art ? 4 : 24), y * TILE + (art ? -32 : 12), 'ex_glow').setScale(1.3).setAlpha(0.42)
           .setBlendMode(Phaser.BlendModes.ADD).setDepth(y * TILE + 60);
+        if (lamp) {
+          this.lampGlow.set(lamp.id, img);
+          if (!session.state.flags[lampFlag(this.area.id, lamp.id)]) {
+            img.setAlpha(0.04);
+            continue;
+          }
+        }
         flicker(img);
       }
     }
@@ -403,7 +421,7 @@ export class ExploreScene extends Phaser.Scene {
       if (!present(s, a.e)) continue;
       const m = MARK[markerOf(s, this.area.id, a.e)];
       if (!m || !a.obj) continue;
-      const top = a.e.kind === 'npc' ? -78 : a.e.kind === 'door' ? -44 : a.e.kind === 'gate' ? -60 : -40;
+      const top = a.e.kind === 'npc' ? -78 : a.e.kind === 'door' ? -44 : a.e.kind === 'gate' ? -60 : a.e.kind === 'lamp' ? -118 : -40;
       const t = this.add.text(0, top, m.t, {
         fontFamily: UI_FONT, fontSize: m.t === '…' ? '28px' : '34px', fontStyle: '900', color: m.col, stroke: '#000', strokeThickness: 6,
       }).setOrigin(0.5);
@@ -551,9 +569,38 @@ export class ExploreScene extends Phaser.Scene {
       this.hud()?.toast(r.text);
       this.refreshMarkers();
       this.savePos(true);
+    } else if (r.kind === 'lamp') {
+      this.lightLamp(a, r.flag);
     } else {
       if (a.e.kind === 'chest') this.hud()?.toast('空的。');
     }
+  }
+
+  /** 支線「點燈」：點亮一盞路燈；全部點亮 → q_<...>_lit 旗標，回去找委託人 */
+  private lightLamp(a: Actor, flag: string): void {
+    const s = session.state;
+    s.flags[flag] = true;
+    SFX.lampPlace(Object.keys(s.flags).filter((k) => k.startsWith(`lamp_${this.area.id}_`)).length);
+    const img = this.lampGlow.get(a.e.id);
+    this.lampPost.get(a.e.id)?.clearTint();
+    const x = a.tx * TILE + TILE / 2;
+    const y = a.ty * TILE - 20;
+    if (img) {
+      img.setAlpha(0.9).setScale(2.4);
+      this.tweens.add({ targets: img, alpha: 0.42, scale: 1.3, duration: 700, ease: 'Cubic.Out' });
+    }
+    sparks(this, x, y, 26, 'ember', 0xffd27a, 300);
+    shockRing(this, x, y, 0xffd27a, 110, 420, 5);
+    const lamps = this.area.entities.filter((e) => e.kind === 'lamp' && e.requires && 'flag' in e.requires && 'flag' in a.e.requires! && e.requires.flag === a.e.requires.flag);
+    const lit = lamps.filter((e) => s.flags[lampFlag(this.area.id, e.id)]).length;
+    if (lit >= lamps.length) {
+      s.flags[`${(a.e.requires as { flag: string }).flag}_lit`] = true;
+      this.cameras.main.flash(300, 255, 200, 120);
+      this.hud()?.toast(`點亮了最後一盞！（${lit}/${lamps.length}）\n廣場亮起來了——回去找老燈伕吧。`, 3200);
+    } else this.hud()?.toast(`點亮了路燈（${lit}/${lamps.length}）`, 1600);
+    this.refreshMarkers();
+    this.hud()?.refreshGoal();
+    this.savePos(true);
   }
 
   private runScript(script: string, node: string, after?: 'map'): void {

@@ -185,3 +185,44 @@ describe('wolfpath', () => {
     for (const e of CHAPTER_MAPS.ch1.entries) expect(ids.has(e.node), e.node).toBe(true);
   });
 });
+
+describe('greylamp side quest: four plaza lamps', () => {
+  const a = AREAS['greylamp']!;
+  const lamps = a.entities.filter((e) => e.kind === 'lamp');
+  it('lamps sit on lamp-post tiles and need the quest first', () => {
+    expect(lamps.length).toBe(4);
+    for (const l of lamps) expect(a.rows[l.y]![l.x]).toBe('L');
+    const s = newGame();
+    applyEffects(s, [{ flag: 'ch1_got_lantern' }]);
+    expect(interact(s, a.id, lamps[0]!).kind).toBe('say');
+    expect(markerOf(s, a.id, lamps[0]!)).toBe('none');
+    expect(markerOf(s, a.id, a.entities.find((e) => e.id === 'lamplighter')!)).toBe('side');
+    applyEffects(s, [{ flag: 'q_lamps' }]);
+    expect(markerOf(s, a.id, lamps[0]!)).toBe('side');
+    const r = interact(s, a.id, lamps[0]!);
+    expect(r).toEqual({ kind: 'lamp', flag: 'lamp_greylamp_plaza_lamp_1' });
+    applyEffects(s, [{ flag: 'lamp_greylamp_plaza_lamp_1' }]);
+    expect(markerOf(s, a.id, lamps[0]!)).toBe('none');
+    expect(interact(s, a.id, lamps[0]!).kind).toBe('say');
+  });
+  it('lamplighter script: start → wait → reward', async () => {
+    const { DialogueRunner } = await import('../src/core/dialogue/runner');
+    const s = newGame();
+    applyEffects(s, [{ flag: 'ch1_got_lantern' }]);
+    const run = (node: string, pick = 0) => {
+      const r = new DialogueRunner({ ...SCRIPTS['ch1']!, start: node }, s);
+      for (let i = 0; i < 40; i++) {
+        const st = r.next();
+        if (st.kind === 'end') return;
+        if (st.kind === 'choice') r.choose(pick);
+      }
+    };
+    run('lamplighter');
+    expect(s.flags['q_lamps']).toBe(true);
+    applyEffects(s, [{ flag: 'q_lamps_lit' }]);
+    const g = s.gold;
+    run('lamplighter');
+    expect(s.flags['q_lamps_rewarded']).toBe(true);
+    expect(s.gold).toBe(g + 40);
+  });
+});

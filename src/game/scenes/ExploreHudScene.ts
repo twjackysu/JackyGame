@@ -105,7 +105,16 @@ export class ExploreHudScene extends Phaser.Scene {
 
   refreshGoal(): void {
     const o = this.world()?.objective?.();
-    this.goal?.setText(o ? `目標：前往「${o.name ?? o.id}」` : '自由探索中');
+    let text = o ? `目標：前往「${o.name ?? o.id}」` : '自由探索中';
+    // 進行中的支線（點燈）：顯示進度
+    const f = session.state.flags;
+    const area = AREAS[this.areaId];
+    const lamps = area?.entities.filter((e) => e.kind === 'lamp') ?? [];
+    if (lamps.length > 0 && f['q_lamps'] && !f['q_lamps_rewarded']) {
+      const lit = lamps.filter((e) => f[`lamp_${this.areaId}_${e.id}`]).length;
+      text += lit >= lamps.length ? '　◇ 回報老燈伕' : `　◇ 點燈 ${lit}/${lamps.length}`;
+    }
+    this.goal?.setText(text);
   }
 
   showStick(x: number, y: number, vx: number, vy: number): void {
