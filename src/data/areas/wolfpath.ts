@@ -86,6 +86,6 @@ export const WOLFPATH: AreaDef = {
     { id: 'wolf_a', kind: 'enemy', x: 6, y: 7, battle: 'path_a', gold: 12, wander: 3 },
     { id: 'shroom_a', kind: 'enemy', x: 16, y: 13, battle: 'path_b', gold: 10, wander: 2 },
     { id: 'wolf_b', kind: 'enemy', x: 5, y: 24, battle: 'path_a', gold: 12, wander: 3 },
-    { id: 'den_chest', kind: 'chest', x: 19, y: 27, loot: [{ gold: 50 }, { item: 'potion_s', count: 1 }], lootText: '狼群叼來的行李。\n獲得 50 金幣、小回復藥 ×1。' },
+    { id: 'den_chest', kind: 'chest', x: 19, y: 27, loot: [{ gold: 50 }, { item: 'potion_s', count: 1 }, { item: 'armor_leather' }], lootText: '狼群叼來的行李。\n獲得 50 金幣、小回復藥 ×1、硬皮甲。' },
   ],
 };

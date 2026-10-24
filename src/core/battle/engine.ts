@@ -12,6 +12,7 @@ import {
   defenseMul,
   resonanceMul,
   statsAtLevel,
+  type BaseStats,
   type DefenseResult,
   type Element,
   type Telegraph,
@@ -148,7 +149,8 @@ export interface Result {
 }
 
 export interface CreateBattleOptions {
-  party: { id: HeroId; level: number; hp?: number }[];
+  /** bonus：裝備加成（src/core/state/equip.ts gearBonus） */
+  party: { id: HeroId; level: number; hp?: number; bonus?: Partial<BaseStats> }[];
   enemies: string[];
   seed: number;
   /** retryBoost：劇情戰連敗次數（不屈之燈）→ 開場星燼 +N、敵方攻擊 −5%/次（上限 4 次） */
@@ -178,7 +180,12 @@ const variance = (s: BattleState) => 0.95 + rand(s) * 0.1;
 export function createBattle(opts: CreateBattleOptions): Result {
   const heroes: Unit[] = opts.party.map((p) => {
     const def = HEROES[p.id];
-    const st = statsAtLevel(def.base, p.level);
+    const st0 = statsAtLevel(def.base, p.level);
+    const b = p.bonus ?? {};
+    const st = {
+      hp: Math.max(1, st0.hp + (b.hp ?? 0)), atk: Math.max(1, st0.atk + (b.atk ?? 0)),
+      def: Math.max(0, st0.def + (b.def ?? 0)), spd: Math.max(1, st0.spd + (b.spd ?? 0)),
+    };
     return {
       side: 'hero', id: p.id, name: def.name, level: p.level, hp: p.hp ?? st.hp, maxHp: st.hp, atk: st.atk, def: st.def,
       spd: st.spd, sp: START_SP, element: def.attackElement, weak: [], resist: [], status: freshStatus(), lamps: 0,
@@ -565,8 +572,9 @@ export function chooseCommand(state: BattleState, cmd: Command): Result {
     const tIdx = c.target ?? actor.index;
     const t = s.heroes[tIdx];
     if (!t) throw new Error('bad item target');
-    if (id === 'potion_s' && alive(t)) {
-      const amt = Math.min(ITEMS.potion_s.healHp, t.maxHp - t.hp);
+    const it = ITEMS[id];
+    if ('healHp' in it && alive(t)) {
+      const amt = Math.min(it.healHp, t.maxHp - t.hp);
       t.hp += amt;
       ev.push({ type: 'heal', target: { side: 'hero', index: tIdx }, amount: amt });
     } else if (id === 'lamp_oil') {

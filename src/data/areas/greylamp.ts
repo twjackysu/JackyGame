@@ -129,7 +129,7 @@ export const GREYLAMP: AreaDef = {
       lines: ['（路燈熄了，燈罩裡積滿灰。\n廣場上那位老燈伕，好像一直望著這裡。）'],
     })),
     // ── 寶箱 ──
-    { id: 'pond_chest', kind: 'chest', x: 19, y: 8, loot: [{ gold: 30 }], lootText: '湖畔的樹根下藏著一個小錢袋。\n獲得 30 金幣。' },
+    { id: 'pond_chest', kind: 'chest', x: 19, y: 8, loot: [{ gold: 30 }, { item: 'armor_cloth' }], lootText: '湖畔的樹根下藏著一個包袱。\n獲得 30 金幣、旅人布衣。' },
     { id: 'garden_chest', kind: 'chest', x: 20, y: 25, loot: [{ item: 'potion_s', count: 1 }], lootText: '花叢裡有個舊木箱。\n獲得 小回復藥 ×1。' },
   ],
 };

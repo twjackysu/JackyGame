@@ -219,10 +219,12 @@ function installBot() {
           }
           if (tx.includes('離開')) {
             const rows = overlay.list.filter((o) => o.type === 'Container' && o.input);
-            if (!overlay.__bought && rows[0]) {
-              overlay.__bought = true;
+            // 商店（shopPanel）：第一下選取、第二下購買（列會重建，每次重新找）
+            overlay.__bought = (overlay.__bought ?? 0);
+            if (overlay.__bought < 2 && rows[0]) {
+              overlay.__bought++;
               fire(rows[0]);
-              return { scene: 'Dialogue', acts: [`shop buy → ${texts(rows[0]).join(' ')}`] };
+              return { scene: 'Dialogue', acts: [`shop ${overlay.__bought === 1 ? 'select' : 'buy'} → ${texts(rows[0]).join(' ')}`] };
             }
             const leave = overlay.list.find((o) => o.type === 'Text' && o.text === '離開');
             if (leave && !leave.__bot) {

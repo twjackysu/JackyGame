@@ -56,6 +56,7 @@ export function skillsFor(hero: HeroId): SkillDef[] {
 
 export const ITEMS = {
   potion_s: { id: 'potion_s', name: '小回復藥', healHp: 60 },
+  potion_m: { id: 'potion_m', name: '回復藥', healHp: 160 },
   lamp_oil: { id: 'lamp_oil', name: '燈油', restoreSp: 2 },
   /** 莉歐拉的發明：對全體敵人造成火屬性固定傷害（弱點 ×1.5、抗性 ×0.5） */
   blast_bottle: { id: 'blast_bottle', name: '爆燈瓶', blastDmg: 45 },

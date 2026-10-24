@@ -5,6 +5,7 @@ import { AREAS } from '../../data/areas';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce } from '../fx/feel';
 import { openBonds } from '../ui/bondPanel';
+import { openBag } from '../ui/bagPanel';
 import { openSettings } from '../ui/settingsPanel';
 import { session } from '../session';
 import type { ExploreScene } from './ExploreScene';
@@ -59,6 +60,7 @@ export class ExploreHudScene extends Phaser.Scene {
     this.refreshGoal();
     this.button(44, 56, '⚙', '#c8d0f0', () => openSettings(this));
     this.button(GAME_WIDTH - 40, 56, '♥', '#ff9ab8', () => openBonds(this));
+    this.button(GAME_WIDTH - 168, 56, '🎒', '#ffd27a', () => openBag(this));
     this.button(GAME_WIDTH - 104, 56, '🗺', '#aab4dd', async () => {
       this.world().leaveToMap();
     }, true);

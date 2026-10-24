@@ -159,7 +159,7 @@ export function check(s: GameState, c: Condition): boolean {
   if ('affinityAtLeast' in c) return s.affinity[c.affinityAtLeast[0]] >= c.affinityAtLeast[1];
   if ('repAtLeast' in c) return s.reputation[c.repAtLeast[0]] >= c.repAtLeast[1];
   if ('divergenceAtLeast' in c) return s.divergence >= c.divergenceAtLeast;
-  if ('hasItem' in c) return (s.inventory[c.hasItem] ?? 0) > 0;
+  if ('hasItem' in c) return (s.inventory[c.hasItem] ?? 0) > 0 || Object.values(s.members).some((m) => !!m && Object.values(m.equipment).includes(c.hasItem));
   if ('hasCodex' in c) return s.codex.includes(c.hasCodex);
   if ('inParty' in c) return s.party.includes(c.inParty);
   if ('all' in c) return c.all.every((x) => check(s, x));

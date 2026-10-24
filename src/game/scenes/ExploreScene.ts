@@ -13,12 +13,13 @@ import { applyEffects } from '../../core/state/gameState';
 import { AREAS } from '../../data/areas';
 import { ENCOUNTERS } from '../../data/combatants';
 import type { BattleSceneData } from './BattleScene';
-import type { HeroId } from '../../core/battle/skills';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TILE, drawAreaGround, drawChest, drawChibi, drawSignBoard } from '../art/exploreArt';
 import { UI_FONT, fadeOutThen, shockRing, sparks } from '../fx/feel';
 import { highFx } from '../settings';
 import { session, withNames } from '../session';
+import { battleParty } from '../../core/state/equip';
+import { ITEM_DEFS } from '../../data/equipment';
 import type { ExploreHudScene } from './ExploreHudScene';
 
 export interface ExploreData {
@@ -566,7 +567,10 @@ export class ExploreScene extends Phaser.Scene {
         sparks(this, a.obj.x, a.obj.y - 10, 22, 'ember', 0xffd27a, 260);
         shockRing(this, a.obj.x, a.obj.y, 0xffd27a, 80, 360, 4);
       }
-      this.hud()?.toast(r.text);
+      const gotGear = r.effects.some((e) => 'item' in e && ITEM_DEFS[e.item]?.kind === 'gear');
+      const tip = gotGear && !s.flags['tip_gear'];
+      if (tip) s.flags['tip_gear'] = true;
+      this.hud()?.toast(tip ? `${r.text}\n\n（右上 🎒 行囊 → 裝備，就能換上。）` : r.text, tip ? 4200 : 2600);
       this.refreshMarkers();
       this.savePos(true);
     } else if (r.kind === 'lamp') {
@@ -891,7 +895,7 @@ export class ExploreScene extends Phaser.Scene {
       if (!(walking && toward)) ambush = 'enemy';
     }
     const s = session.state;
-    const party = s.party.slice(0, 3).map((m) => ({ id: m as HeroId, level: s.members[m]?.level ?? 1 }));
+    const party = battleParty(s);
     SFX.hitHeavy();
     this.cameras.main.flash(220, 255, 255, 255);
     this.cameras.main.shake(200, 0.01);

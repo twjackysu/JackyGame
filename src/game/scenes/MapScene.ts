@@ -9,6 +9,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TITLE_FONT, UI_FONT, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
+import { openBag } from '../ui/bagPanel';
 import { openBonds } from '../ui/bondPanel';
 import { HERO_COLOR, openParty } from '../ui/partyPanel';
 import { drawMapCh2, drawMapCh3, drawMapCh4, drawMapCh5 } from '../art/mapArt';
@@ -356,6 +357,17 @@ export class MapScene extends Phaser.Scene {
       this.busy = true;
       SFX.uiTap();
       void openBonds(this).then(() => {
+        this.busy = false;
+      });
+    });
+    // 行囊（裝備／道具）
+    const bag = this.add.text(GAME_WIDTH - 160, 70, '🎒', { fontFamily: UI_FONT, fontSize: '38px', color: '#ffd27a' })
+      .setOrigin(1, 0.5).setDepth(91).setPadding(6, 6, 6, 6).setInteractive({ useHandCursor: true });
+    bag.on('pointerdown', () => {
+      if (this.busy) return;
+      this.busy = true;
+      SFX.uiTap();
+      void openBag(this, 300).then(() => {
         this.busy = false;
       });
     });

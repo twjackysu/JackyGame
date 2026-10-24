@@ -15,7 +15,7 @@ import {
   type BattleState,
   type Command,
 } from '../../core/battle/engine';
-import { HP_CARRY_FROM, MAX_EMBER, WINDOWS, carriedHp, judgeAttack, judgeDefense, type DefenseResult, type Telegraph, type Timing } from '../../core/battle/formulas';
+import { HP_CARRY_FROM, MAX_EMBER, WINDOWS, carriedHp, judgeAttack, judgeDefense, type BaseStats, type DefenseResult, type Telegraph, type Timing } from '../../core/battle/formulas';
 import { SKILLS, type HeroId } from '../../core/battle/skills';
 import { GestureTracker, type Gesture } from '../../core/input/gesture';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
@@ -30,7 +30,7 @@ import {
 
 export interface BattleSceneData {
   encounter?: string;
-  party?: { id: HeroId; level: number }[];
+  party?: { id: HeroId; level: number; bonus?: Partial<BaseStats> }[];
   /** 示範連戰：勝利後接下一場 */
   chain?: string[];
   seed?: number;
@@ -179,6 +179,7 @@ export class BattleScene extends Phaser.Scene {
       party: this.data0.party, enemies, seed: this.data0.seed,
       items: this.data0.story ? {
         potion_s: session.state.inventory['potion_s'] ?? 0, lamp_oil: session.state.inventory['lamp_oil'] ?? 0,
+        ...(session.state.inventory['potion_m'] ? { potion_m: session.state.inventory['potion_m'] } : {}),
         ...(session.state.inventory['blast_bottle'] ? { blast_bottle: session.state.inventory['blast_bottle'] } : {}),
       } : { potion_s: 2, lamp_oil: 1, blast_bottle: 1 },
       flags: this.data0.story ? {
@@ -979,6 +980,7 @@ export class BattleScene extends Phaser.Scene {
       lamp_slash: '與連恩合擊：光＋物理 3 倍單體、破防 40',
       lamp_detonator: '與連恩合擊：全體火傷，每盞燈印追加並引爆',
       potion_s: '回復 60 HP（HP 最低的隊友）',
+      potion_m: '回復 160 HP（HP 最低的隊友）',
       lamp_oil: '回復 2 SP',
     };
     return d[c.skillId ?? c.itemId ?? ''] ?? '';
@@ -1881,9 +1883,10 @@ export class BattleScene extends Phaser.Scene {
       if (Object.values(HP_CARRY_FROM).includes(this.data0.encounter)) {
         for (const h of this.bs.heroes) session.state.flags[`hp_${this.data0.encounter}_${h.id}`] = h.downed ? 0 : Math.round((h.hp / h.maxHp) * 100) / 100;
       }
-      for (const it of ['potion_s', 'lamp_oil', 'blast_bottle'] as const) {
+      for (const it of ['potion_s', 'potion_m', 'lamp_oil', 'blast_bottle'] as const) {
         const left = this.bs.items[it];
-        if (left !== undefined) session.state.inventory[it] = left;
+        if (left === 0) delete session.state.inventory[it];
+        else if (left !== undefined) session.state.inventory[it] = left;
       }
     }
     const label = story ? (win ? '繼續 ▶' : '重新振作') : win ? (next ? '繼續前進 ▶' : '回到標題') : '再試一次';
