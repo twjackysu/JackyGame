@@ -14,6 +14,7 @@ import {
 } from '../../data/cards';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { session } from '../session';
+import { drawEmblem } from '../art/cardEmblems';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, wait, fadeOutThen } from '../fx/feel';
 
 export interface CardSceneData {
@@ -191,8 +192,7 @@ export class CardScene extends Phaser.Scene {
     g.fillStyle(col, 0.18).fillRoundedRect(-w / 2 + 6, -h / 2 + 6, w - 12, h * 0.52, 8);
     g.lineStyle(d.legend ? 4 : 3, opts.glow ? 0xffffff : col, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
     // 插圖：燈火剪影
-    g.fillStyle(col, 0.55).fillCircle(0, -h * 0.2, w * 0.18);
-    g.fillStyle(0x120e16, 1).fillTriangle(-w * 0.22, -h * 0.02, w * 0.22, -h * 0.02, 0, -h * 0.34);
+    drawEmblem(g, d.id, 0, -h * 0.2, w * 0.22, col);
     box.add(g);
     const p = power ?? c.base;
     const pc = p > c.base ? '#7dffb0' : p < c.base ? '#ff8a8a' : '#ffffff';
