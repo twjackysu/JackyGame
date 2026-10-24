@@ -1,5 +1,5 @@
 // 霧角森林・入口（第 1 章，可走區域）：商隊支線、霧之湖（伊歐）、獵人小屋（伯恩），明雷霧狼。
-// 北出口 → 灰燈鎮；南出口 → 世界地圖（狼徑以後仍在節點地圖）。
+// 北出口 → 灰燈鎮；南出口 → 狼徑・古燈塔（wolfpath.ts）。
 import type { AreaDef } from '../../core/explore/area';
 
 const ROWS = [
@@ -72,7 +72,7 @@ export const MISTWOOD: AreaDef = {
       lines: ['（門鎖著。窗台上掛著乾燥的狼皮。）'],
     },
     { id: 'north_exit', kind: 'gate', x: 10, y: 0, name: '往灰燈鎮', to: { area: 'greylamp', spawn: 'gate' } },
-    { id: 'south_exit', kind: 'gate', x: 10, y: 31, name: '往狼徑', to: 'map' },
+    { id: 'south_exit', kind: 'gate', x: 10, y: 31, name: '往狼徑', to: { area: 'wolfpath', spawn: 'north' } },
     { id: 'signpost', kind: 'sign', x: 12, y: 3, name: '路標', lines: ['↑ 灰燈鎮\n↓ 狼徑・古燈塔遺跡\n→ 獵人小屋'] },
     { id: 'wolf_a', kind: 'enemy', x: 6, y: 7, battle: 'forest_a', gold: 8, wander: 3 },
     { id: 'wolf_b', kind: 'enemy', x: 5, y: 22, battle: 'forest_b', gold: 12, wander: 3 },

@@ -55,6 +55,10 @@ export interface AreaEntity {
   battle?: string;
   /** 打倒明雷敵人的金幣 */
   gold?: number;
+  /** 野外劇情點光點的顏色 */
+  glow?: number;
+  /** 特效：'fire' = 營火（柴堆＋火焰粒子） */
+  fx?: 'fire';
 }
 
 export interface AreaDef {

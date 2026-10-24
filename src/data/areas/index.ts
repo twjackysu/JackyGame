@@ -2,5 +2,6 @@
 import type { AreaDef } from '../../core/explore/area';
 import { GREYLAMP } from './greylamp';
 import { MISTWOOD } from './mistwood';
+import { WOLFPATH } from './wolfpath';
 
-export const AREAS: Record<string, AreaDef> = { greylamp: GREYLAMP, mistwood: MISTWOOD };
+export const AREAS: Record<string, AreaDef> = { greylamp: GREYLAMP, mistwood: MISTWOOD, wolfpath: WOLFPATH };

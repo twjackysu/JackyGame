@@ -340,10 +340,28 @@ export class ExploreScene extends Phaser.Scene {
       }
     } else if (e.kind === 'door' && !this.area.buildings.some((b) => e.x >= b.x && e.x < b.x + b.w && e.y >= b.y && e.y < b.y + b.h)) {
       // 野外的劇情地點（湖畔等）：發光的光點
-      const gl = this.add.image(0, 0, 'ex_glow').setScale(0.7).setAlpha(0.55).setTint(0x9fe8ff).setBlendMode(Phaser.BlendModes.ADD);
+      const gl = this.add.image(0, 0, 'ex_glow').setScale(0.7).setAlpha(0.55).setTint(e.glow ?? 0x9fe8ff).setBlendMode(Phaser.BlendModes.ADD);
       const core = this.add.image(0, 0, 'ex_glow').setScale(0.18).setTint(0xdff8ff).setBlendMode(Phaser.BlendModes.ADD);
       c.add([gl, core]);
       this.tweens.add({ targets: gl, scale: 0.9, alpha: 0.3, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      if (e.fx === 'fire') {
+        const logs = this.add.graphics();
+        logs.fillStyle(0x000000, 0.35).fillEllipse(0, 14, 50, 14);
+        logs.fillStyle(0x5a3a1e, 1).fillRoundedRect(-22, 4, 44, 9, 4).fillRoundedRect(-16, -2, 34, 8, 4);
+        logs.fillStyle(0x3a2412, 1).fillCircle(-22, 8, 4).fillCircle(18, 2, 4);
+        const flame = this.add.particles(0, 0, 'ex_glow', {
+          x: { min: -8, max: 8 }, lifespan: { min: 500, max: 900 }, speedY: { min: -70, max: -35 }, speedX: { min: -8, max: 8 },
+          scale: { start: 0.16, end: 0.02 }, alpha: { start: 0.95, end: 0 }, tint: [0xffd27a, 0xff8a3a, 0xff5a2a],
+          frequency: highFx() ? 45 : 110, blendMode: Phaser.BlendModes.ADD,
+        });
+        const sparksUp = this.add.particles(0, -10, 'ember', {
+          x: { min: -6, max: 6 }, lifespan: 1600, speedY: { min: -60, max: -25 }, speedX: { min: -14, max: 14 },
+          scale: { start: 0.35, end: 0 }, alpha: { start: 1, end: 0 }, frequency: highFx() ? 260 : 700, tint: 0xffb060,
+          blendMode: Phaser.BlendModes.ADD,
+        });
+        gl.setScale(1.3);
+        c.add([logs, flame, sparksUp]);
+      }
     } else if (e.kind === 'enemy') {
       const eid = ENCOUNTERS[e.battle ?? '']?.[0] ?? 'mist_wolf';
       const key = this.textures.exists(`enemy_${eid}`) ? `enemy_${eid}` : 'enemy_mist_wolf';

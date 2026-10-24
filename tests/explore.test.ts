@@ -158,6 +158,30 @@ describe('mistwood', () => {
   it('exits link back', () => {
     expect(byId('north_exit').to).toEqual({ area: 'greylamp', spawn: 'gate' });
     expect(AREAS['greylamp']!.spawns['gate']).toBeTruthy();
-    expect(byId('south_exit').to).toBe('map');
+    expect(byId('south_exit').to).toEqual({ area: 'wolfpath', spawn: 'north' });
+    expect(AREAS['wolfpath']!.entities.find((e) => e.id === 'north_exit')!.to).toEqual({ area: 'mistwood', spawn: 'south' });
+  });
+});
+
+describe('wolfpath', () => {
+  const a = AREAS['wolfpath']!;
+  it('second half of chapter 1 in order', () => {
+    const s = newGame();
+    applyEffects(s, [{ flag: 'ch1_met_bern' }]);
+    expect(nextObjective(s, a)?.id).toBe('wolf_path');
+    applyEffects(s, [{ flag: 'ch1_path_cleared' }, { flag: 'wick_shrine' }, { flag: 'wick_lake' }]);
+    expect(nextObjective(s, a)).toBeUndefined(); // 還差獵人的燈芯
+    applyEffects(s, [{ flag: 'wick_hunter' }]);
+    expect(nextObjective(s, a)?.id).toBe('lighthouse');
+    applyEffects(s, [{ flag: 'ch1_legacy' }]);
+    expect(nextObjective(s, a)?.id).toBe('campfire');
+    expect(markerOf(s, a.id, a.entities.find((e) => e.id === 'fallen_log')!)).toBe('side');
+    applyEffects(s, [{ flag: 'ch1_campfire' }]);
+    expect(nextObjective(s, a)?.id).toBe('wolf_den');
+  });
+  it('every world-map location of chapter 1 is in some area', async () => {
+    const { CHAPTER_MAPS } = await import('../src/data/maps');
+    const ids = new Set(Object.values(AREAS).flatMap((x) => x.entities.map((e) => e.talk?.node)));
+    for (const e of CHAPTER_MAPS.ch1.entries) expect(ids.has(e.node), e.node).toBe(true);
   });
 });
