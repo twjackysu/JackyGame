@@ -28,7 +28,7 @@
 現在是 `LocalGameApi`（`localGameApi.ts`，同一個程式裡直接呼叫，埠由 session 注入：`SaveStore`、`KvEventJournal`、`systemClock`），
 將來是 `RemoteGameApi`（fetch）。新增會改變資產的功能＝在 `GameApi` 加方法＋在 `LocalGameApi` 實作＋測試。
 
-## 已有的東西（階段 1，D-057）
+## 已有的東西（階段 1，D-059）
 - `ports.ts`：`RandomProvider`、`Clock`、`EventJournal`、`Repository`
 - `gameApi.ts`／`localGameApi.ts`：買賣、換裝、重置技能樹、寶箱、小怪金幣、戰鬥獎勵；回傳 `{ ok, error, duplicate, operationId, rulesVersion, data }`
 - 亂數：存檔內的 `GameState.rng`（`src/core/rngStreams.ts`，stream：battle／loot／enhance／abyss／story／ui／ids）

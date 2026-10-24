@@ -13,7 +13,7 @@
 ## 階段 0：已完成
 - 邊界與埠：`src/server/README.md`、`src/server/ports.ts`（`RandomProvider`、`Clock`、`EventJournal`、`Repository`）、`tests/server-boundary.test.ts`。
 
-## 階段 1：地基（玩家看不出差別，但所有後續都靠它）— ✅ 第 11 輪完成（D-057）
+## 階段 1：地基（玩家看不出差別，但所有後續都靠它）— ✅ 第 11 輪完成（D-059）
 | # | 工作 | 驗收 |
 |---|---|---|
 | 1.1 | **亂數注入**：把 `Math.random` 全部換成注入的 `RandomProvider`（`core/dialogue/runner.ts` 預設參數、`BattleScene`、`CardScene`、`ExploreScene`；音訊的隨機可例外），依用途拆 stream：`battle`／`loot`／`enhance`／`abyss`／`ui`。種子由 session 持有並存進存檔 | 同一種子同一操作序列，結果完全相同（有測試）；`grep Math.random src/core src/server` 為空 |
@@ -22,7 +22,7 @@
 | 1.4 | **本機實作的埠**：`LocalRepository`（原子寫入：先寫暫存鍵再切換）、`SystemClock`、`LocalEventJournal`（含 `operationId` 去重，保留最近 N 筆） | 中途中斷不會留下半份存檔（測試模擬寫入失敗） |
 | 1.5 | **`GameApi` 介面** 與 `LocalGameApi`：前端要改變資產一律走它（買賣、強化、重鑄、領獎） | 場景裡不再直接改 `inventory`／裝備 |
 
-## 階段 2：裝備與強化最小可玩版
+## 階段 2：裝備與強化最小可玩版 — 進行中（第 11 輪：2.1 ✅、2.2 資料＋欄位 UI ✅（三層詳情／比較 UI 未做）、2.3 ✅、2.4 ✅（D-058）、2.5／2.6 邏輯＋API ✅（UI 未做）、2.7 未做）
 > 內容與規格：2.1–2.3、2.7 見 `15-skills-and-gear.md`（D-056、D-057 已拍板方向）：8 個星燼核心、20 傳說、6 神級、6 套裝、詞綴池、技能樹 v3（取代 v2，分階段切換）、傷害加成單一池 +150%。第一批只做 5 件裝備與 20 個技能樹節點驗證框架，其餘依名單池逐批加入。
 | # | 工作 | 驗收 |
 |---|---|---|

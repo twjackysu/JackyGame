@@ -2,7 +2,19 @@
 
 > 📖 **故事修訂（D-055，優先度次於上一條的階段 1）**：Jacky 已採用「星燼＝記憶殘響」與「戀愛選擇／世界結局分開判定」。工作範圍與驗收見 `docs/design/16-story-upgrade.md` §11（只動文字與結局判定，不改系統）。design/16 其他項目、design/15 技能樹與裝備的方向已拍板（D-056、D-057），但**要等 14 的階段 1 與 2.1 完成後才做**，不要提前動。
 
-> 🧭 **最高優先（Jacky 10/24 晚，D-053／D-054）**：長尾刷寶＋後端可移植層。**先讀 `docs/design/14-implementation-order.md`，從「階段 1 地基」依序做**（亂數注入 → 裝備實例化＋存檔 migration → 資料表與 `RULES_VERSION` → 本機埠 → `GameApi`），階段 1 驗收前不要開始階段 2 以後。之後影響玩家資產的邏輯一律寫在 `src/server/`（規則見其 README，`tests/server-boundary.test.ts` 強制）。設計依據：`docs/design/13-chatgpt-ideas.md`。與探索里程碑（11-open-world）交錯時，以本條為先；每輪結束遊戲仍要能玩、測試全綠。
+> 🧭 **最高優先（D-053／D-054，design/14）**：階段 1 地基 ✅（第 11 輪，D-059）；階段 2 大半 ✅（2.1 效果框架、2.2 6 格資料＋欄位 UI、2.3 詞綴與保底、2.4 強化（D-058 校準）、2.5／2.6 重鑄與分解的邏輯＋API）。**影響玩家資產的程式一律寫在 `src/server/` 並經 `gameApi`**（`src/game/session.ts` 的 `gameApi`、`opId(kind)`；`tests/game-api.test.ts` 會擋場景直接改 `inventory/gear/gold/equipment`）。design/15 的方向已由 D-056、D-057 拍板（數值待模擬校準）；design/16 只有 D-055 兩件拍板（見上一條故事修訂）。
+>
+> **下一輪依序做（讓玩家摸得到長尾）：**
+> 1. **確認 6 格版本機器人**：第 11 輪結束時背景跑的結果沒保留 → 先 build＋從新遊戲跑到 `ch5_complete` 一次（見「工具」）。
+> 2. **材料道具化**：`mat_dust/mat_crystal/mat_legend/mat_divine` 目前不在 `ITEM_DEFS`，**一旦進背包，行囊「道具」頁的 `itemDef()` 會出錯** → 在 `equipment.ts` 加 `kind: 'mat'`（或擴充 `ItemDef.kind`）並讓 bagPanel／shopPanel 的 kind 排序表與標籤支援，商店不收購。
+> 3. **強化／分解 UI（2.4／2.6 的 UI）**：行囊裝備頁點已裝備欄位 → 詳情區加「強化 +N→+N+1（成功率 X%｜失敗後果 `failText`｜星之祝福 n/100｜費用）」按鈕，呼叫 `gameApi.enhance`；成功／失敗演出（成功：金光＋音階上升；失敗：灰煙＋祝福條增加）。道具頁或新分頁加「分解」（單件＋一鍵分解普通～稀有）、上鎖 🔒。名稱顯示 `+N`。
+> 4. **材料來源**：主線戰鬥勝利少量掉粉塵（經 `claimBattleRewards`，資料放 `lootTables.ts`，RULES_VERSION +1），Boss 掉結晶；讓一週目就能體驗 +1～+5。注意 D-050 平衡：+5 只加基礎值 15%。
+> 5. **三層裝備 UI（2.2 剩下的）**：候選清單點一下看詳情（詞綴、強化、祝福）、比較模式只顯示差異；稀有度 6 階外框顏色（`TIER_CSS`）。
+> 6. **帶詞綴的裝備**：掉落時依 `tierOf` 用 `rollAffixes` 生成詞綴（`stat` 類先接進 `gearBonus`；`effect` 類轉成 `EffectInstance` 交給戰鬥：`battleParty` → `createBattle({ effects })`）。
+> 7. **詞綴對齊 D-057**：D-057 規定「詞綴用百分比、基礎裝備維持固定值」，第 11 輪的 `src/data/affixes.ts` 還有 `atk_flat`／`hp_flat`／`def_flat`／`spd_flat` 固定值詞綴 → 改成百分比版本並對照 design/15 §2.6／§5 的詞綴池結構與全角色軟上限（RULES_VERSION +1、`tests/long-tail-data.test.ts`／`loot.test.ts` 跟著改）。
+> 8. **故事修訂（D-055）**：階段 1 已完成，上面那條 📖 的範圍（design/16 §11：只動文字與 `ENDING_LIGHT` 判定）可以和 2～6 穿插做。
+> 9. 之後：2.7 三流派（D-057 已拍板 8 個星燼核心，先做 C01 永燃之心等 3 個驗證；第一批 5 件傳說）、階段 3 星燼深淵。
+
 
 > **10/24 13:20 插單**：Jacky 又上傳 6 張 Q 版戰鬥圖，已匯入成 `hero_<id>`（我方背影）與 `enemy_boss_valderan`（Boss）；`scripts/import-art.mjs` 支援 `<id>_battle.png` 與 `npc_<名稱>.png`。
 > **第 7 輪（10/24 12:12）**：Jacky 上傳了 6 張 AI 立繪（連恩、伊歐、瑟琳、莉歐拉、洛克、瓦爾德蘭，`public/art/`）；其他有台詞的配角改為動漫風程式立繪（D-037；`src/game/art/animeKit.ts`、`animePortraits.ts`、`animeCompanions.ts`、`animeSprites.ts`）。預覽工具見下方「工具」。

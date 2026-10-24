@@ -1,5 +1,23 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-10-24 20:12–21:40（台北）第 11 輪 — 長尾刷寶地基：design/14 階段 1 全部完成＋階段 2 大半
+**做了什麼**
+- **1.1 亂數注入**：`src/core/rngStreams.ts`（種子＋計數器，stream：battle／loot／enhance／abyss／story／ui／ids），存進 `GameState.rng`；戰鬥、掉落、燼牌、對話檢定由 `session.rng()/seed()` 注入；探索外觀用 `ui` 種子；`src/core`、`src/server` 已無 `Math.random`（測試強制）。
+- **1.2 裝備實例化**：`src/core/state/gear.ts`（`EquipmentInstance`：ULID、templateId、enhancement、affixes、blessings、tier、locked…），`GameState.gear`；`inventory` 只剩消耗品／禮物／重要物品；存檔 v2 migration，第一次讀到舊檔另存 `.pre-v2` 原文。
+- **1.3 資料表**：`src/data/{rules,affixes,enhancement,lootTables,materials}.ts`、`RULES_VERSION`（現為 2）。
+- **1.4 本機埠**：`SaveStore` 改成先寫 `.tmp` 再切換的原子寫入（鍵名不變）、`KvEventJournal`（operationId 去重、保留 300 筆）、`systemClock`／`fixedClock`（`src/core/save/localPorts.ts`）。
+- **1.5 GameApi**：`src/server/{gameApi,localGameApi}.ts`；商店、行囊、技能樹重置、寶箱、小怪金幣、戰鬥獎勵全部改走 `gameApi`（`src/game/session.ts` 匯出 `gameApi`、`opId()`）；測試掃描 `src/game/**` 禁止直接改資產。
+- **2.1 效果觸發框架**：`src/core/battle/effects.ts`（12 事件、白名單條件、action／round／battle 上限、冷卻、優先、`who`、衍生事件預設不觸發、永不自我觸發、深度／次數安全閥）；接進引擎（`createBattle({ effects })` 後處理事件）與 `simulateBattle(..., { effects })`。
+- **2.2 6 格裝備**：武器、防具、頭飾、飾品 1／2、星燼核心；存檔 v3（charm→charm1）＋讀檔保險（部位不符卸回背包）；行囊裝備頁 6 列精簡排版。
+- **2.3 詞綴與保底**：`src/server/loot.ts`。**2.4 強化**：`src/server/enhancement.ts`＋`gameApi.enhance`，裝備數值吃強化倍率；**10 萬次模擬發現原表 P99 200 次、平均降級 26 次 → D-058 改 +9／+10 失敗不降級（P50 14／P99 34）**。**2.5／2.6**：`src/server/crafting.ts` 重鑄（鎖 0–2、接受或保留）、分解、上鎖（＋API）。
+- 文件：D-059（階段 1 取捨；與 Jacky 本機 Agent 同時新增的 D-057 撞號，改為 D-059）、D-058（強化校準）、`src/server/README.md`、README 第 11 輪開發日誌與統計。
+
+**驗證**：每次提交前 typecheck、`npm test`（431 → **469 項**；新增 rng-streams、gear-instances、long-tail-data、local-ports、game-api、effects、effects-engine、enhancement、loot、crafting）、build；CI／Pages／APK 綠燈。Playwright：v1 存檔在瀏覽器讀成 v3 並在行囊正確顯示（含 6 格與候選清單）、寶箱經 API 拿到實例＋事件紀錄、**商店 UI 實際點擊買／賣／替連恩換上都經 API 並寫入紀錄**。**機器人**：1.1＋1.2 版從新遊戲全程到結局 **1112 秒**；階段 1 全部完成版 **1046 秒**（有掉落、無頁面錯誤）；6 格版本輪結束前已背景開跑（結果見下一輪開頭 `/tmp` 不保留，需重跑確認）。
+
+**「好玩嗎？」檢查**：這輪玩家看得到的只有 6 格裝備欄（頭飾／核心還是空的）；其他都是長尾的地基。但數字已經能說話：強化模擬把「最痛的 1% 玩家要點 200 次」抓出來並修掉，詞綴 10 萬件 100% 合法、神級保底最長 40 場。下一步要讓玩家**摸得到**：強化／分解 UI、材料掉落、帶詞綴的裝備掉落。
+
+**問題**：Jacky 的本機 Agent 同時在推 design/15、16 與 D-055、D-056（本輪改用 D-057、D-058 編號，未衝突）。`moon_fang` 其實是神級（測試資料一度用錯）。
+
 ## 2026-10-24 18:12–19:40（台北）第 10 輪 — Jacky 新指示：稀有／神級掉落、技能樹 v2；Boss 重新平衡；地圖裝飾＋隱藏寶箱；約會事件
 **做了什麼**
 - **稀有／神級掉落（D-049、D-049b）**：`ItemDef.rarity/perk/source`；16 件稀有（每章 3 件＋霧之墜飾）、5 件神級，商店不上架（`buy()` 也拒絕）。掉落表 `src/data/drops.ts`（以敵人 id 為鍵，小怪稀有 3–5%、神級 0.6–1%；Boss 首殺必掉 1 件稀有）。神級特效接進引擎 `Perk`：疾影（每回合最先）、不滅（致命傷留 1 HP）、湧泉（SP +2/回合）、明眸（判定窗口 ×1.15）、先燃（開場每敵 1 燈）。勝利畫面卡片翻開＋藍／金光柱（神級加震動、閃光、專屬字卡），神級特效發動時金色字卡。名稱上色、圖示光暈；行囊新「收藏」頁（未取得顯示剪影＋「掉落自：…」）；第一次掉裝備提示去行囊換；二週目保留稀有／神級。
