@@ -391,6 +391,8 @@ export const CH1: DialogueScript = {
     ],
     hunter_cards_lose: [
       { say: 'bern', text: '牌都打不好，還想打狼王？' },
+      { say: 'bern', text: '……去狼徑把狼群清掉。做得到，燈芯就是你的。', effects: [{ flag: 'bern_lost_cards' }] },
+      { say: 'narration', text: '〔也可以之後再回來找伯恩打一局。〕' },
       { goto: 'end' },
     ],
     hunter_wait: [
@@ -399,7 +401,12 @@ export const CH1: DialogueScript = {
     ],
     hunter_waiting: [
       { say: 'bern', text: '狼徑的狼還在。清完再來。' },
-      { goto: 'end' },
+      {
+        choice: [
+          { text: '「我這就去狼徑。」', next: 'end' },
+          { text: '「還是用燼牌決定吧。」', next: 'hunter_cards' },
+        ],
+      },
     ],
     hunter_return: [
       { say: 'bern', text: '狼徑安靜了……你真的做到了。' },

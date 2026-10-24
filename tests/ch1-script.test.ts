@@ -4,6 +4,7 @@ import { check, newGame, type GameState } from '../src/core/state/gameState';
 import { CH1, CH1_ENTRIES } from '../src/data/dialogue/ch1';
 import { SPEAKER_NAMES } from '../src/data/dialogue/speakers';
 import { ENCOUNTERS } from '../src/data/combatants';
+import { CHAPTER_MAPS } from '../src/data/maps';
 
 function targets(script: DialogueScript): string[] {
   const out: string[] = [];
@@ -122,7 +123,11 @@ describe('ch1 script', () => {
     visit('hunter_hut', 'loseFirst');
     expect(s.flags.wick_hunter).toBeUndefined();
     expect(s.flags.bern_wait).toBeUndefined();
+    // 地圖：獵人小屋改為「等待中」，不再閃「！」誤導玩家
+    const waitHut = CHAPTER_MAPS.ch1.waiting!.hunter_hut!;
+    expect(check(s, waitHut)).toBe(true);
     visit('wolf_path');
+    expect(check(s, waitHut)).toBe(false);
     visit('hunter_hut', 'loseFirst'); // 仍會輸牌的玩家也拿得到
     expect(s.flags.wick_hunter).toBe(true);
   });

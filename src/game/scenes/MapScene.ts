@@ -13,7 +13,7 @@ import { HERO_COLOR, openParty } from '../ui/partyPanel';
 import { drawMapCh2, drawMapCh3, drawMapCh4, drawMapCh5 } from '../art/mapArt';
 import { session } from '../session';
 
-type NodeState = 'locked' | 'open' | 'done';
+type NodeState = 'locked' | 'open' | 'done' | 'waiting';
 const ENDING_NAME: Record<string, string> = { light: '燈火長明', crown: '新的大司星', dream: '餘燼之夢' };
 
 export class MapScene extends Phaser.Scene {
@@ -39,7 +39,14 @@ export class MapScene extends Phaser.Scene {
     for (const e of map.entries) {
       const open = !e.requires || check(st, e.requires);
       const doneFlag = map.done[e.location];
-      states[e.location] = !open ? 'locked' : doneFlag && st.flags[doneFlag] ? 'done' : 'open';
+      const waiting = map.waiting?.[e.location];
+      states[e.location] = !open
+        ? 'locked'
+        : doneFlag && st.flags[doneFlag]
+          ? 'done'
+          : waiting && check(st, waiting)
+            ? 'waiting'
+            : 'open';
     }
     // 路徑
     const g = this.add.graphics();
@@ -170,7 +177,7 @@ export class MapScene extends Phaser.Scene {
 
   private makeNode(node: string, loc: string, title: string, x: number, y: number, state: NodeState): void {
     const c = this.add.container(x, y).setDepth(20);
-    const col = state === 'locked' ? 0x3a4060 : state === 'done' ? 0x9fb0d8 : 0xffd27a;
+    const col = state === 'locked' ? 0x3a4060 : state === 'done' ? 0x9fb0d8 : state === 'waiting' ? 0xb89a6a : 0xffd27a;
     if (state === 'open') {
       const halo = this.add.image(0, 0, 'glow').setScale(0.9).setTint(0xffa54a).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.7);
       this.tweens.add({ targets: halo, scale: 1.1, alpha: 0.4, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -191,6 +198,12 @@ export class MapScene extends Phaser.Scene {
       }).setOrigin(0.5);
       this.tweens.add({ targets: bang, y: -74, duration: 420, yoyo: true, repeat: -1, ease: 'Quad.Out' });
       c.add(bang);
+    } else if (state === 'waiting') {
+      // 等待中：先去別處完成條件（不閃「！」以免誤導）
+      const dots = this.add.text(0, -60, '⋯', {
+        fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#b8a888', stroke: '#000', strokeThickness: 5,
+      }).setOrigin(0.5).setAlpha(0.85);
+      c.add(dots);
     }
     c.setSize(110, 110).setInteractive({ useHandCursor: state !== 'locked' });
     c.on('pointerdown', () => {

@@ -1,4 +1,5 @@
 // 節點地圖資料（07 §2）：每章的地點座標、路徑、完成旗標與標籤。MapScene 依目前章節選用。
+import type { Condition } from '../core/state/gameState';
 import { CH1_ENTRIES } from './dialogue/ch1';
 import { CH2_ENTRIES } from './dialogue/ch2';
 import { CH3_ENTRIES } from './dialogue/ch3';
@@ -18,6 +19,8 @@ export interface ChapterMap {
   /** 預設的玩家位置（地點 id） */
   start: string;
   completeFlag: string;
+  /** 地點「等待中」條件：成立時不顯示「！」、目標列也跳過（例：伯恩要你先清狼徑） */
+  waiting?: Record<string, Condition>;
   labels: { text: string; x: number; y: number; color: string }[];
 }
 
@@ -44,6 +47,11 @@ export const CHAPTER_MAPS: Record<ChapterId, ChapterMap> = {
     },
     start: 'orphanage',
     completeFlag: 'ch1_complete',
+    waiting: {
+      hunter_hut: {
+        all: [{ any: [{ flag: 'bern_wait' }, { flag: 'bern_lost_cards' }] }, { flag: 'ch1_path_cleared', not: true }],
+      },
+    },
     labels: [
       { text: '灰燈鎮', x: 30, y: 210, color: '#ffcf96' },
       { text: '霧角森林', x: 30, y: 540, color: '#9fd8d0' },
