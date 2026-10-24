@@ -12,7 +12,7 @@
 - **2.3 詞綴與保底**：`src/server/loot.ts`。**2.4 強化**：`src/server/enhancement.ts`＋`gameApi.enhance`，裝備數值吃強化倍率；**10 萬次模擬發現原表 P99 200 次、平均降級 26 次 → D-058 改 +9／+10 失敗不降級（P50 14／P99 34）**。**2.5／2.6**：`src/server/crafting.ts` 重鑄（鎖 0–2、接受或保留）、分解、上鎖（＋API）。
 - 文件：D-059（階段 1 取捨；與 Jacky 本機 Agent 同時新增的 D-057 撞號，改為 D-059）、D-058（強化校準）、`src/server/README.md`、README 第 11 輪開發日誌與統計。
 
-**驗證**：每次提交前 typecheck、`npm test`（431 → **469 項**；新增 rng-streams、gear-instances、long-tail-data、local-ports、game-api、effects、effects-engine、enhancement、loot、crafting）、build；CI／Pages／APK 綠燈。Playwright：v1 存檔在瀏覽器讀成 v3 並在行囊正確顯示（含 6 格與候選清單）、寶箱經 API 拿到實例＋事件紀錄、**商店 UI 實際點擊買／賣／替連恩換上都經 API 並寫入紀錄**。**機器人**：1.1＋1.2 版從新遊戲全程到結局 **1112 秒**；階段 1 全部完成版 **1046 秒**（有掉落、無頁面錯誤）；6 格版本輪結束前已背景開跑（結果見下一輪開頭 `/tmp` 不保留，需重跑確認）。
+**驗證**：每次提交前 typecheck、`npm test`（431 → **469 項**；新增 rng-streams、gear-instances、long-tail-data、local-ports、game-api、effects、effects-engine、enhancement、loot、crafting）、build；CI／Pages／APK 綠燈。Playwright：v1 存檔在瀏覽器讀成 v3 並在行囊正確顯示（含 6 格與候選清單）、寶箱經 API 拿到實例＋事件紀錄、**商店 UI 實際點擊買／賣／替連恩換上都經 API 並寫入紀錄**。**機器人**：1.1＋1.2 版從新遊戲全程到結局 **1112 秒**；階段 1 全部完成版 **1046 秒**（有掉落、無頁面錯誤）；**6 格版本 1024 秒**（唯一「卡住」是片尾字幕，正常）。材料道具化（`kind: 'mat'`）在最後一次機器人之後，只有單元測試＋行囊截圖驗證。
 
 **「好玩嗎？」檢查**：這輪玩家看得到的只有 6 格裝備欄（頭飾／核心還是空的）；其他都是長尾的地基。但數字已經能說話：強化模擬把「最痛的 1% 玩家要點 200 次」抓出來並修掉，詞綴 10 萬件 100% 合法、神級保底最長 40 場。下一步要讓玩家**摸得到**：強化／分解 UI、材料掉落、帶詞綴的裝備掉落。
 
