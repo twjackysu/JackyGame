@@ -2,7 +2,7 @@
 // 做法：先用邊緣光色描邊整個輪廓，再把深色本體往右下偏移填上，只留下左上側的亮邊 → 便宜的 rim light。
 import Phaser from 'phaser';
 import { AH, AW, drawIo, drawLian } from './animePortraits';
-import { drawLiora, drawRourke, drawSerin } from './animeCompanions';
+import { drawLiora, drawRourke, drawSerin, drawValderan } from './animeCompanions';
 import { backIo, backLian, backLiora, backRourke, backSerin } from './animeSprites';
 
 type P = [number, number];
@@ -682,7 +682,7 @@ function strokeLine(c: Ctx, pts: P[], color: string, w: number): void {
 }
 
 /** 高解析動漫立繪（顯示尺寸與手繪立繪相同：約 600px 高）。 */
-export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke']);
+export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan']);
 
 function hdPortrait(scene: Phaser.Scene, key: string, draw: (c: Ctx) => void): void {
   ART[key] = { key, w: AW, h: AH, footY: AH / 2 };
@@ -1008,71 +1008,8 @@ const FACE: P[] = [[64, 64], [68, 46], [85, 38], [102, 46], [106, 64], [102, 86]
 const faceGrad = (c: Ctx): CanvasGradient => vgrad(c, 38, 104, [[0, '#30324e'], [1, '#171a2c']]);
 
 function generateCh3Portraits(scene: Phaser.Scene): void {
-  // 大司星 瓦爾德蘭：高瘦、垂墜長袍、高立領、星冠頭環；神情平靜，柔和紫金光。
-  canvasArt(scene, 'npc_valderan', NW, NH, (c) => {
-    const rim = '#dcc8ff';
-    const G = 0xffd890;
-    npcHalo(c, 85, 80, 0xa890ff, 0.28);
-    // 長髮（銀白，垂到身後）
-    lit(c, sm([[60, 60], [56, 110], [44, 170], [40, 240], [130, 240], [126, 170], [114, 110], [110, 60], [85, 34]]),
-      vgrad(c, 34, 240, [[0, '#d8d8ec'], [0.5, '#8a88b0'], [1, '#2a2848']]), '#ffffff', 1.5, 2);
-    // 高立領（左右扇形）
-    for (const f of [1, -1]) {
-      const X = (x: number): number => (f === 1 ? x : NW - x);
-      lit(c, sm([[X(62), 116], [X(40), 104], [X(30), 64], [X(40), 50], [X(54), 84], [X(70), 100]]),
-        vgrad(c, 50, 116, [[0, '#4a3a7a'], [1, '#160f2a']]), rim, f * 2, 2);
-      strokeLine(c, [[X(40), 52], [X(32), 66], [X(42), 104], [X(62), 116]], rgba(G, 0.85), 1.4);
-    }
-    // 長袍
-    lit(c, sm([[16, 260], [22, 160], [40, 126], [70, 112], [85, 116], [100, 112], [130, 126], [148, 160], [154, 260]]),
-      vgrad(c, 112, 240, [[0, '#3a2c64'], [1, '#0c0818']]), rim, 2, 2.5);
-    // 金邊聖帶
-    for (const x of [70, 100]) {
-      lit(c, sh([[x - 7, 116], [x + 7, 116], [x + 9, 250], [x - 9, 250]]), vgrad(c, 116, 240, [[0, '#5a4424'], [1, '#1e140c']]), '#ffe0a0', 1, 1.5);
-      for (let y = 140; y < 240; y += 26) sparkle(c, x, y, 2.6, G, 0.8);
-    }
-    // 頸
-    lit(c, sh([[78, 96], [92, 96], [94, 118], [76, 118]]), vgrad(c, 96, 118, [[0, '#262840'], [1, '#141626']]), rim, 1.5, 1);
-    // 臉（修長）
-    lit(c, sm([[66, 62], [70, 42], [85, 34], [100, 42], [104, 62], [100, 86], [92, 100], [85, 104], [78, 100], [70, 86]]),
-      faceGrad(c), rim, 1.5, 2);
-    // 前髮（中分）
-    lit(c, sm([[60, 76], [62, 46], [85, 30], [108, 46], [110, 76], [104, 58], [94, 48], [85, 54], [76, 48], [66, 58]]),
-      vgrad(c, 30, 76, [[0, '#f4f2ff'], [1, '#9a98c0']]), '#ffffff', 1, 1.5);
-    // 星冠頭環
-    strokeLine(c, [[64, 50], [85, 44], [106, 50]], rgba(G, 0.95), 1.8);
-    for (const [x, y, h] of [[70, 47, 7], [77, 45, 9], [85, 44, 13], [93, 45, 9], [100, 47, 7]] as [number, number, number][]) {
-      c.fillStyle = '#ffe6a8';
-      c.beginPath(); c.moveTo(x - 2, y); c.lineTo(x, y - h); c.lineTo(x + 2, y); c.fill();
-      glow(c, x, y - h, 6, G, 0.7);
-    }
-    glow(c, 85, 46, 10, 0xb890ff, 0.8);
-    c.fillStyle = '#e8d8ff';
-    c.beginPath(); c.arc(85, 46, 2.2, 0, Math.PI * 2); c.fill();
-    // 半闔的雙眼＋淺笑
-    strokeLine(c, [[72, 66], [81, 65]], 'rgba(10,8,20,0.9)', 1.6);
-    strokeLine(c, [[89, 65], [98, 66]], 'rgba(10,8,20,0.9)', 1.6);
-    glowEye(c, 77, 70, 3.4, 0xc8a8ff, 0.05);
-    glowEye(c, 93, 70, 3.4, 0xc8a8ff, -0.05);
-    strokeLine(c, [[71, 68], [83, 68]], 'rgba(28,24,48,0.95)', 1.6);
-    strokeLine(c, [[87, 68], [99, 68]], 'rgba(28,24,48,0.95)', 1.6);
-    c.save();
-    c.strokeStyle = 'rgba(10,6,16,0.7)';
-    c.lineWidth = 1.3;
-    c.beginPath(); c.moveTo(80, 88); c.quadraticCurveTo(85, 91, 91, 87); c.stroke();
-    c.restore();
-    // 抬起的手托著一顆小星
-    lit(c, sm([[124, 240], [122, 190], [130, 170], [146, 168], [150, 186], [144, 240]]), vgrad(c, 168, 240, [[0, '#3a2c64'], [1, '#0c0818']]), rim, 2, 2);
-    lit(c, sm([[128, 172], [134, 158], [146, 156], [150, 168], [142, 176]]), faceGrad(c), rim, 1, 1);
-    glow(c, 142, 140, 27, G, 0.6);
-    glow(c, 142, 140, 18, 0xffffff, 0.6);
-    starPath(c, 142, 140, 7, 2.8);
-    c.fillStyle = '#fffaf0';
-    c.fill();
-    for (const [x, y, r] of [[22, 40, 3], [150, 60, 2.5], [30, 150, 2], [160, 110, 2], [120, 20, 2.5]] as [number, number, number][]) {
-      sparkle(c, x, y, r, 0xb8a0ff);
-    }
-  });
+  // 大司星 瓦爾德蘭：動漫風高解析立繪（animeCompanions.ts）
+  hdPortrait(scene, 'npc_valderan', drawValderan);
 
   // 比武大會司儀：高禮帽、燕尾服、蝶形領結、八字鬍與招牌笑容（頂光）。
   canvasArt(scene, 'npc_announcer', NW, NH, (c) => {
