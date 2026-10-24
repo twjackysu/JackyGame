@@ -775,6 +775,17 @@ export class BattleScene extends Phaser.Scene {
     this.paintButtons(HERO_COLOR[hero.id] ?? 0xffa54a);
     this.setButtonsActive(true);
     if (this.data0.tutorial) this.coachTip();
+    // 全員共鳴後輪到連恩：技能鈕脈動＋提示，引導玩家按下十燈共鳴
+    const skillBtn = this.buttons[1];
+    if (skillBtn) {
+      this.tweens.killTweensOf(skillBtn);
+      skillBtn.setScale(1);
+      const lamps = this.bs.enemies.reduce((a, e) => a + (e.downed ? 0 : e.lamps), 0);
+      if (hero.id === 'lian' && this.bs.flags.finaleDone && lamps >= 6 && this.bs.ember >= 3) {
+        this.tweens.add({ targets: skillBtn, scale: 1.12, duration: 380, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+        floatNumber(this, GAME_WIDTH / 2, 960, '技能 →「共鳴」引爆十盞燈！', { color: '#ffe2a8', size: 30 });
+      }
+    }
     this.heroes.forEach((v, i) => {
       this.tweens.add({ targets: v.root, scale: i === idx ? 1.08 : 0.94, y: i === idx ? v.y - 14 : v.y, alpha: v.dead ? 0.45 : i === idx ? 1 : 0.8, duration: 220, ease: 'Cubic.Out' });
     });
