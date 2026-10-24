@@ -1,9 +1,9 @@
 // 背包選單（探索中 ☰）：裝備（選角色 → 選欄位 → 換裝）、道具一覽。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { canEquip, gearDelta, unequip, equip } from '../../core/state/equip';
+import { canEquip, gearDelta, owns, unequip, equip } from '../../core/state/equip';
 import type { MemberId } from '../../core/state/gameState';
-import { PERK_INFO, SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
+import { ITEM_DEFS, PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
 import { branchName } from '../../data/skillTree';
 import { learn, learnState, learned, pointsLeft, resetTree, treeFor } from '../../core/state/skillTree';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -12,7 +12,7 @@ import { session, withNames } from '../session';
 import { HERO_COLOR } from './partyPanel';
 import { bonusText, deltaScore, deltaText, heroName, itemIcon, itemSubline, memberStats, itemNameColor } from './gearUi';
 
-type Tab = 'gear' | 'skills' | 'items';
+type Tab = 'gear' | 'skills' | 'items' | 'codex';
 
 export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): Promise<void> {
   return new Promise((resolve) => {
@@ -24,14 +24,15 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
     g.lineStyle(2, 0xffd27a, 0.8).strokeRoundedRect(24, 70, GAME_WIDTH - 48, 1150, 24);
     const title = scene.add.text(GAME_WIDTH / 2, 120, '行囊', { fontFamily: TITLE_FONT, fontSize: '40px', color: '#ffd27a' }).setOrigin(0.5);
     const gold = scene.add.text(GAME_WIDTH - 60, 120, '', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe6a0' }).setOrigin(1, 0.5);
-    const TAB_X: Record<Tab, number> = { gear: 180, skills: 360, items: 540 };
+    const TAB_X: Record<Tab, number> = { gear: 140, skills: 287, items: 433, codex: 580 };
     const tabs: Record<Tab, Phaser.GameObjects.Text> = {
       skills: scene.add.text(TAB_X.skills, 186, '技能', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
       gear: scene.add.text(TAB_X.gear, 186, '裝備', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
       items: scene.add.text(TAB_X.items, 186, '道具', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
+      codex: scene.add.text(TAB_X.codex, 186, '收藏', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
     };
     const tabG = scene.add.graphics();
-    ui.add([dim, g, title, gold, tabG, tabs.gear, tabs.skills, tabs.items]);
+    ui.add([dim, g, title, gold, tabG, tabs.gear, tabs.skills, tabs.items, tabs.codex]);
 
     let tab: Tab = start;
     let who: MemberId = s.party[0] ?? 'lian';
@@ -58,6 +59,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
       (Object.keys(tabs) as Tab[]).forEach((k) => tabs[k].setColor(tab === k ? '#ffd27a' : '#6a7398'));
       if (tab === 'gear') renderGear();
       else if (tab === 'skills') renderSkills();
+      else if (tab === 'codex') renderCodex();
       else renderItems();
     };
 
@@ -245,6 +247,36 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
           render();
         });
       });
+    };
+
+    // 收藏（§2.4b）：稀有／神級寶物一覽，未取得顯示剪影與掉落來源
+    const renderCodex = (): void => {
+      const all = Object.values(ITEM_DEFS).filter((d) => (d.rarity ?? 'common') !== 'common')
+        .sort((a, b) => (a.rarity === b.rarity ? 0 : a.rarity === 'legendary' ? 1 : -1));
+      const got = (id: string) => !!s.flags[`seen_${id}`] || owns(s, id);
+      const n = all.filter((d) => got(d.id)).length;
+      add(scene.add.text(GAME_WIDTH / 2, 250, `寶物收藏　${n} / ${all.length}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffe6a0' }).setOrigin(0.5));
+      const per = 9;
+      const pages = Math.ceil(all.length / per);
+      page = Math.min(page, pages - 1);
+      all.slice(page * per, page * per + per).forEach((d, i) => {
+        const y = 320 + i * 88;
+        const have = got(d.id);
+        const rar = d.rarity ?? 'common';
+        const bg = add(scene.add.graphics());
+        bg.fillStyle(0x151a30, 1).fillRoundedRect(50, y - 38, GAME_WIDTH - 100, 76, 14);
+        bg.lineStyle(1.5, RARITY_COLOR[rar], have ? 0.8 : 0.25).strokeRoundedRect(50, y - 38, GAME_WIDTH - 100, 76, 14);
+        if (have) for (const o of itemIcon(scene, d.id, 96, y, 56)) add(o);
+        else {
+          add(scene.add.circle(96, y, 26, 0x0a0d1a, 1).setStrokeStyle(2, RARITY_COLOR[rar], 0.3));
+          add(scene.add.text(96, y, '?', { fontFamily: TITLE_FONT, fontSize: '30px', color: '#3a4366' }).setOrigin(0.5));
+        }
+        add(scene.add.text(140, y - 15, have ? d.name : '？？？', { fontFamily: UI_FONT, fontSize: '23px', fontStyle: '700', color: have ? itemNameColor(d.id) : '#4a5378' }).setOrigin(0, 0.5));
+        const sub = have ? itemSubline(d) : `掉落自：${d.source ?? '？？？'}`;
+        add(scene.add.text(140, y + 16, sub, { fontFamily: UI_FONT, fontSize: '17px', color: have ? '#9aa4cc' : '#5a6380' }).setOrigin(0, 0.5));
+        add(scene.add.text(GAME_WIDTH - 70, y - 15, RARITY_NAME[rar], { fontFamily: UI_FONT, fontSize: '18px', color: RARITY_CSS[rar] }).setOrigin(1, 0.5).setAlpha(have ? 1 : 0.5));
+      });
+      if (pages > 1) pager(320 + per * 88, pages);
     };
 
     const renderItems = (): void => {
