@@ -1,5 +1,7 @@
 # 下一步（依優先順序，最上面先做）
 
+> 🧭 **最高優先（Jacky 10/24 晚，D-053／D-054）**：長尾刷寶＋後端可移植層。**先讀 `docs/design/14-implementation-order.md`，從「階段 1 地基」依序做**（亂數注入 → 裝備實例化＋存檔 migration → 資料表與 `RULES_VERSION` → 本機埠 → `GameApi`），階段 1 驗收前不要開始階段 2 以後。之後影響玩家資產的邏輯一律寫在 `src/server/`（規則見其 README，`tests/server-boundary.test.ts` 強制）。設計依據：`docs/design/13-chatgpt-ideas.md`。與探索里程碑（11-open-world）交錯時，以本條為先；每輪結束遊戲仍要能玩、測試全綠。
+
 > **10/24 13:20 插單**：Jacky 又上傳 6 張 Q 版戰鬥圖，已匯入成 `hero_<id>`（我方背影）與 `enemy_boss_valderan`（Boss）；`scripts/import-art.mjs` 支援 `<id>_battle.png` 與 `npc_<名稱>.png`。
 > **第 7 輪（10/24 12:12）**：Jacky 上傳了 6 張 AI 立繪（連恩、伊歐、瑟琳、莉歐拉、洛克、瓦爾德蘭，`public/art/`）；其他有台詞的配角改為動漫風程式立繪（D-037；`src/game/art/animeKit.ts`、`animePortraits.ts`、`animeCompanions.ts`、`animeSprites.ts`）。預覽工具見下方「工具」。
 > **設計已定稿（D-013）**。序章～終章全部可以玩到結局（三結局＋片尾統計），Boss 都有特殊機制（第 5 輪）；第 6 輪補了 README 截圖、新手引導、省電畫質、二週目。進度大幅超前 PLAN：接下來是**打磨、平衡檢查、成果發表素材**。LocationScene 暫不做（D-033）。
