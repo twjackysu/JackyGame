@@ -10,9 +10,10 @@ import { chooseAction, chooseTutorialAction } from '../../core/cards/ai';
 import { mulberry32 } from '../../core/rng';
 import {
   DECK_BERN, DECK_LIORA, DECK_PLAYER_CH3, DECK_TOURNEY_DEALER, DECK_TOURNEY_KNIGHT, DECK_TOURNEY_MINER, DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL, DECK_ROURKE_OFFICIAL_NO_LEGEND, DECK_ROURKE_TUTORIAL,
-  DECK_TUTORIAL_PLAYER, type Keyword,
+  DECK_TUTORIAL_PLAYER, getCard, withCollection, type Keyword,
 } from '../../data/cards';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { session } from '../session';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, wait, fadeOutThen } from '../fx/feel';
 
 export interface CardSceneData {
@@ -96,6 +97,7 @@ export class CardScene extends Phaser.Scene {
   private busy = false;
   private rng = mulberry32(1);
   private info?: Phaser.GameObjects.Container;
+  private addedCards: string[] = [];
 
   constructor() {
     super('Cards');
@@ -113,7 +115,15 @@ export class CardScene extends Phaser.Scene {
     this.info = undefined;
     const seed = (Math.random() * 1e9) | 0;
     this.rng = mulberry32(seed ^ 0x5eed);
-    this.st = createMatch(this.opp.config, seed).state;
+    // 收藏的燼牌加入玩家牌組（教學局除外）
+    const config: MatchConfig = { ...this.opp.config, decks: [this.opp.config.decks[0], this.opp.config.decks[1]] };
+    this.addedCards = [];
+    if (this.opp.ai !== 'tutorial') {
+      const r = withCollection(config.decks[0], session.state.cards ?? {});
+      config.decks[0] = r.deck;
+      this.addedCards = r.added;
+    }
+    this.st = createMatch(config, seed).state;
   }
 
   create(): void {
@@ -124,7 +134,8 @@ export class CardScene extends Phaser.Scene {
     this.time.delayedCall(500, () => playMusic('cards'));
     this.cameras.main.fadeIn(400, 0, 0, 0);
     this.render();
-    this.banner(this.opp.intro, 2200);
+    const extra = this.addedCards.length ? `\n收藏加入牌組：${this.addedCards.map((id) => getCard(id).name).join('、')}` : '';
+    this.banner(this.opp.intro + extra, extra ? 2800 : 2200);
     this.time.delayedCall(600, () => this.loop());
   }
 

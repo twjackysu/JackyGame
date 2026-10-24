@@ -9,10 +9,12 @@ export interface Settings {
   sfx: boolean;
   /** 文字速度：每字毫秒 */
   textSpeed: 'normal' | 'fast';
+  /** 已顯示過「防守太難？可開自動時機」提示 */
+  autoTipShown: boolean;
 }
 
 const KEY = 'jackygame.settings';
-const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, textSpeed: 'normal' };
+const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, textSpeed: 'normal', autoTipShown: false };
 let cache: Settings | null = null;
 
 export function getSettings(): Settings {

@@ -163,7 +163,7 @@ export const DECK_BERN: readonly string[] = [
 
 export const DECK_MIN = 15;
 export const DECK_MAX = 25;
-export const DECK_LEGEND_MAX = 2;
+export const DECK_LEGEND_MAX = 4;
 
 /** Validates a constructed deck (15–25 cards, ≤2 legends, known ids). Returns error strings (empty = valid). */
 export function validateDeck(deck: readonly string[]): string[] {
@@ -233,3 +233,25 @@ export const DECK_TOURNEY_DEALER: readonly string[] = [
   'c_cardsharp',
   'c_fire_eater',
 ];
+
+/**
+ * 燼牌收藏加入玩家牌組（D-031）：收藏的每張牌（如「餘燼騎士」「星冠」）各加入一份，
+ * 牌組已有同 id 的不重複加入；超過 DECK_MAX 或傳說上限的就不加。回傳新牌組與實際加入的牌。
+ */
+export function withCollection(base: readonly string[], collection: Readonly<Record<string, number>>): { deck: string[]; added: string[] } {
+  const deck = [...base];
+  const added: string[] = [];
+  let legends = deck.filter((id) => CARDS[id]?.legend).length;
+  for (const [id, n] of Object.entries(collection)) {
+    const c = CARDS[id];
+    if (!c || n <= 0 || deck.includes(id)) continue;
+    if (deck.length >= DECK_MAX) break;
+    if (c.legend) {
+      if (legends >= DECK_LEGEND_MAX) continue;
+      legends++;
+    }
+    deck.push(id);
+    added.push(id);
+  }
+  return { deck, added };
+}

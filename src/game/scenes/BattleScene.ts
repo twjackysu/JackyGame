@@ -22,7 +22,7 @@ import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silhouettes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { session, withNames } from '../session';
-import { getSettings } from '../settings';
+import { getSettings, updateSettings } from '../settings';
 import { backdropKey, battleBackdropFor } from '../art/backdrops';
 import { grantXp } from '../../core/state/gameState';
 import {
@@ -77,6 +77,9 @@ const RING_R0 = 175;
 const RING_R1 = 58;
 
 const now = (): number => performance.now();
+/** 本次遊玩累計防守失敗次數（達門檻時提示可開「自動時機」，只提示一次） */
+let defenseFails = 0;
+export const AUTO_TIP_FAILS = 3;
 function eventTime(p: Phaser.Input.Pointer): number {
   const ts = (p.event as Event | undefined)?.timeStamp;
   const n = now();
@@ -820,6 +823,42 @@ export class BattleScene extends Phaser.Scene {
     this.coach = c;
   }
 
+  /** 防守連續失誤後的一次性提示：可以直接在這裡開「自動時機」（之後也能在 ⚙ 設定關掉） */
+  private autoTimingTip(): void {
+    updateSettings({ autoTipShown: true });
+    const c = this.add.container(GAME_WIDTH / 2, 150).setDepth(870).setAlpha(0);
+    const g = this.add.graphics();
+    g.fillStyle(0x0a0d1a, 0.94).fillRoundedRect(-330, -70, 660, 140, 20);
+    g.lineStyle(2, 0xffd27a, 1).strokeRoundedRect(-330, -70, 660, 140, 20);
+    const t = this.add.text(0, -32, '防守時機太難？可以開啟「自動時機」\n（防守必定成功，之後可在 ⚙ 設定關閉）', {
+      fontFamily: UI_FONT, fontSize: '23px', color: '#ffe9c4', align: 'center', lineSpacing: 4,
+    }).setOrigin(0.5);
+    const btn = this.add.text(-110, 40, '開啟', {
+      fontFamily: UI_FONT, fontSize: '26px', color: '#1a1206', backgroundColor: '#ffd27a', padding: { x: 26, y: 6 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const no = this.add.text(110, 40, '不用了', {
+      fontFamily: UI_FONT, fontSize: '26px', color: '#c9c3b8', backgroundColor: '#2a2d3a', padding: { x: 20, y: 6 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    c.add([g, t, btn, no]);
+    const close = (): void => {
+      if (!c.active) return;
+      this.tweens.add({ targets: c, alpha: 0, duration: 200, onComplete: () => c.destroy() });
+    };
+    btn.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      updateSettings({ autoTiming: true });
+      SFX.confirm();
+      floatNumber(this, GAME_WIDTH / 2, 240, '自動時機：開', { color: '#ffd27a', size: 30 });
+      close();
+    });
+    no.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      close();
+    });
+    this.tweens.add({ targets: c, alpha: 1, y: 160, duration: 250 });
+    this.time.delayedCall(9000, close);
+  }
+
   private hideCoach(): void {
     const c = this.coach;
     if (!c) return;
@@ -1176,6 +1215,8 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: ev.root, x: ev.x, y: ev.y, scale: 1, duration: 350, ease: 'Cubic.Out' });
     }
     this.lastTelegraph = undefined;
+    defenseFails += results.filter((x) => x === 'fail').length;
+    if (defenseFails >= AUTO_TIP_FAILS && !getSettings().autoTiming && !getSettings().autoTipShown && !this.data0.tutorial) this.autoTimingTip();
     const r = resolveDefense(this.bs, results);
     this.bs = r.state;
     await this.play(r.events);
