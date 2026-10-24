@@ -10,7 +10,7 @@ export interface ItemDef {
   id: string;
   name: string;
   /** 'use' = 戰鬥道具、'gear' = 裝備、'key' = 重要物品（不能賣） */
-  kind: 'use' | 'gear' | 'key';
+  kind: 'use' | 'gear' | 'key' | 'gift';
   /** 參考價（商店買價）；賣價 = 50%。0 = 非賣品 */
   price: number;
   desc: string;
@@ -60,6 +60,13 @@ const LIST: ItemDef[] = [
   { id: 'amulet_guard', name: '守護項鍊', kind: 'gear', slot: 'charm', price: 170, bonus: { def: 3, hp: 25 }, desc: '母親留給孩子的那種項鍊。', icon: 'item_amulet_1' },
   { id: 'mist_pendant', name: '霧之墜飾', kind: 'gear', slot: 'charm', price: 0, bonus: { def: 2, spd: 1, hp: 15 }, desc: '倒木下撿到的墜飾，霧氣在裡面流動。', icon: 'item_amulet_1', tint: 0xa8e8ff },
 
+  // ── 禮物（營火送給同伴，喜好見 src/data/dialogue/camp.ts） ──
+  { id: 'gift_flower', name: '野花束', kind: 'gift', price: 20, desc: '路邊採的小花，紮成一束。', icon: 'item_gift_flower' },
+  { id: 'gift_book', name: '舊書', kind: 'gift', price: 45, desc: '書頁泛黃的騎士故事集。', icon: 'item_gift_book' },
+  { id: 'gift_gear', name: '精巧齒輪', kind: 'gift', price: 50, desc: '咬合得剛剛好的黃銅齒輪。', icon: 'item_gift_gear' },
+  { id: 'gift_ribbon', name: '緞帶', kind: 'gift', price: 30, desc: '星空色的緞帶。', icon: 'item_gift_ribbon' },
+  { id: 'gift_wine', name: '陳年葡萄汁', kind: 'gift', price: 40, desc: '老兵最愛的那種，瓶子很有年代感。', icon: 'item_gift_wine' },
+
   // ── 重要物品 ──
   { id: 'lamp_wick', name: '燈芯', kind: 'key', price: 0, desc: '古燈塔需要的燈芯。', icon: 'item_key' },
   { id: 'ember_card_pack', name: '燼牌補充包', kind: 'key', price: 0, desc: '酒館老闆給的燼牌。', icon: 'item_card_pack' },
@@ -82,16 +89,16 @@ export const SHOPS: Record<string, ShopDef> = {
   ch1_general: {
     name: '托比的雜貨店',
     greet: '要點什麼？看上眼的就拿去。',
-    stock: ['potion_s', 'lamp_oil', 'blast_bottle', 'lantern_tin', 'sword_iron', 'halberd_oak', 'staff_willow', 'armor_cloth', 'armor_leather', 'charm_ember', 'ring_swift'],
+    stock: ['potion_s', 'lamp_oil', 'blast_bottle', 'lantern_tin', 'sword_iron', 'halberd_oak', 'staff_willow', 'armor_cloth', 'armor_leather', 'charm_ember', 'ring_swift', 'gift_flower', 'gift_ribbon', 'gift_wine'],
   },
   ch2_camp: {
     name: '礦工營地的補給站',
     greet: '礦坑裡用得到的，這裡都有。',
-    stock: ['potion_s', 'potion_m', 'lamp_oil', 'blast_bottle', 'lantern_brass', 'sword_knight', 'halberd_steel', 'staff_crystal', 'armor_leather', 'amulet_guard', 'ring_swift'],
+    stock: ['potion_s', 'potion_m', 'lamp_oil', 'blast_bottle', 'lantern_brass', 'sword_knight', 'halberd_steel', 'staff_crystal', 'armor_leather', 'amulet_guard', 'ring_swift', 'gift_gear', 'gift_book', 'gift_wine'],
   },
   capital: {
     name: '王都商店街',
     greet: '王都的貨，品質保證。',
-    stock: ['potion_s', 'potion_m', 'lamp_oil', 'blast_bottle', 'lantern_brass', 'lantern_star', 'sword_knight', 'sword_dawn', 'halberd_steel', 'staff_crystal', 'armor_mist', 'armor_plate', 'amulet_guard', 'ring_swift'],
+    stock: ['potion_s', 'potion_m', 'lamp_oil', 'blast_bottle', 'lantern_brass', 'lantern_star', 'sword_knight', 'sword_dawn', 'halberd_steel', 'staff_crystal', 'armor_mist', 'armor_plate', 'amulet_guard', 'ring_swift', 'gift_flower', 'gift_book', 'gift_gear', 'gift_ribbon'],
   },
 };

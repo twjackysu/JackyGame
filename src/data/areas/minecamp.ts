@@ -61,6 +61,7 @@ export const MINECAMP: AreaDef = {
       id: 'miner_b', kind: 'npc', x: 15, y: 13, name: '礦工的孩子', look: { body: '#c87a5a', hair: '#5a3a2a', art: 'walk_npc_kid' }, wander: 2,
       lines: ['「爸爸說，掌燈人會帶光下去。」', '「坑口那些藍色的石頭，晚上會發光喔！」'],
     },
+    { id: 'camp_fire', kind: 'door', x: 14, y: 4, name: '營地的火堆', glow: 0xffa040, fx: 'fire', rest: true },
     { id: 'north_exit', kind: 'gate', x: 10, y: 0, name: '往世界地圖', to: 'map' },
     {
       id: 'mine_gate', kind: 'gate', x: 10, y: 21, name: '沉鐘礦坑', to: { area: 'mine', spawn: 'north' }, requires: { flag: 'ch2_camp_done' },

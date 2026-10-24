@@ -70,7 +70,7 @@ export const WOLFPATH: AreaDef = {
       requires: ALL_WICKS, done: 'ch1_legacy', lines: ['（塔門上有三個燈芯形狀的凹槽。\n　湖、獵人、祠堂……三枚燈芯要湊齊。）'],
     },
     {
-      id: 'campfire', kind: 'door', x: 18, y: 19, name: '林間營火', glow: 0xffa040, fx: 'fire', talk: { script: 'ch1', node: 'campfire' },
+      id: 'campfire', kind: 'door', x: 18, y: 19, name: '林間營火', glow: 0xffa040, fx: 'fire', rest: true, talk: { script: 'ch1', node: 'campfire' },
       requires: { flag: 'ch1_legacy' }, done: 'ch1_campfire', lines: ['（熄掉的營火堆。等古燈塔的事告一段落再來休息吧。）'],
     },
     {

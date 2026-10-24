@@ -8,8 +8,9 @@ import { CH2 } from '../data/dialogue/ch2';
 import { CH3 } from '../data/dialogue/ch3';
 import { CH4 } from '../data/dialogue/ch4';
 import { CH5 } from '../data/dialogue/ch5';
+import { CAMP } from '../data/dialogue/camp';
 
-export const SCRIPTS: Record<string, DialogueScript> = { ch0: CH0, ch1: CH1, ch2: CH2, ch3: CH3, ch4: CH4, ch5: CH5 };
+export const SCRIPTS: Record<string, DialogueScript> = { ch0: CH0, ch1: CH1, ch2: CH2, ch3: CH3, ch4: CH4, ch5: CH5, camp: CAMP };
 
 const storage = detectStorage();
 const store = new SaveStore(storage.kv);

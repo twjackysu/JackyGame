@@ -151,6 +151,8 @@ export const GREYLAMP: AreaDef = {
       talk: { script: 'ch1', node: 'drifter' }, requires: LANTERN, side: true, done: 'drifter_beaten',
       lines: ['「燼牌？等你拿到提燈再說吧，小鬼。」'],
     },
+    // ── 孤兒院院子的營火：隨時找同伴聊天、送禮（E5） ──
+    { id: 'yard_fire', kind: 'door', x: 11, y: 4, name: '院子的營火', glow: 0xffa040, fx: 'fire', rest: true },
     // ── 寶箱 ──
     { id: 'pond_chest', kind: 'chest', x: 19, y: 8, loot: [{ gold: 30 }, { item: 'armor_cloth' }], lootText: '湖畔的樹根下藏著一個包袱。\n獲得 30 金幣、旅人布衣。' },
     { id: 'garden_chest', kind: 'chest', x: 20, y: 25, loot: [{ item: 'potion_s', count: 1 }], lootText: '花叢裡有個舊木箱。\n獲得 小回復藥 ×1。' },

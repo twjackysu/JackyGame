@@ -57,6 +57,8 @@ export interface AreaEntity {
   gold?: number;
   /** 野外劇情點光點的顏色 */
   glow?: number;
+  /** 營火：主線完成後（或沒有主線）互動 → 營火選單（聊天、送禮；src/data/dialogue/camp.ts） */
+  rest?: boolean;
   /** 特效：'fire' = 營火（柴堆＋火焰粒子） */
   fx?: 'fire';
 }
@@ -111,6 +113,7 @@ export function markerOf(s: GameState, area: string, e: AreaEntity): Marker {
   const open = talkOpen(s, e);
   if (open && e.done && !s.flags[e.done]) return e.waiting && check(s, e.waiting) ? 'chat' : e.side ? 'side' : 'main';
   if (open && e.shop) return 'shop';
+  if (e.rest) return 'chat';
   if (open || (e.lines && e.lines.length > 0)) return e.kind === 'npc' ? 'chat' : 'none';
   void area;
   return 'none';
@@ -143,6 +146,7 @@ export function interact(s: GameState, area: string, e: AreaEntity, pick = 0): I
     if (q && s.flags[q]) return { kind: 'lamp', flag };
     return { kind: 'say', text: e.lines?.[0] ?? '（路燈熄了。）' };
   }
+  if (e.rest && (!e.talk || (e.done && s.flags[e.done]))) return { kind: 'script', script: 'camp', node: 'menu' };
   if (talkOpen(s, e)) return { kind: 'script', script: e.talk!.script, node: e.talk!.node, after: e.after };
   const lines = e.lines ?? [];
   if (lines.length === 0) return { kind: 'empty' };

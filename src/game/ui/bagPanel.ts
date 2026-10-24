@@ -248,7 +248,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
     };
 
     const renderItems = (): void => {
-      const order = { use: 0, gear: 1, key: 2 } as const;
+      const order = { use: 0, gear: 1, gift: 2, key: 3 } as const;
       const ids = Object.keys(s.inventory).filter((id) => (s.inventory[id] ?? 0) > 0)
         .sort((a, b) => order[itemDef(a).kind] - order[itemDef(b).kind]);
       if (ids.length === 0) {
@@ -266,7 +266,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
         for (const o of itemIcon(scene, id, 96, y, 60)) add(o);
         add(scene.add.text(140, y - 16, `${d.name}　×${s.inventory[id]}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: d.kind === 'key' ? '#ffe08a' : '#ffffff' }).setOrigin(0, 0.5));
         add(scene.add.text(140, y + 17, d.kind === 'gear' ? itemSubline(d) : d.desc, { fontFamily: UI_FONT, fontSize: '18px', color: '#9aa4cc' }).setOrigin(0, 0.5));
-        const tag = d.kind === 'use' ? '戰鬥用' : d.kind === 'gear' ? SLOT_NAME[d.slot!] : '重要';
+        const tag = d.kind === 'use' ? '戰鬥用' : d.kind === 'gear' ? SLOT_NAME[d.slot!] : d.kind === 'gift' ? '禮物' : '重要';
         add(scene.add.text(GAME_WIDTH - 70, y, tag, { fontFamily: UI_FONT, fontSize: '18px', color: '#7a84a8' }).setOrigin(1, 0.5));
       });
       if (pages > 1) pager(270 + per * 92, pages);

@@ -78,7 +78,7 @@ export const MINE: AreaDef = {
       requires: { flag: 'ch2_mid_cleared' }, done: 'ch2_bell_done', lines: ['（巨大的空洞中央，有什麼東西在微微震動。）'],
     },
     {
-      id: 'mine_campfire', kind: 'door', x: 16, y: 28, name: '坑道營火', glow: 0xffa040, fx: 'fire', talk: { script: 'ch2', node: 'campfire' },
+      id: 'mine_campfire', kind: 'door', x: 16, y: 28, name: '坑道營火', glow: 0xffa040, fx: 'fire', rest: true, talk: { script: 'ch2', node: 'campfire' },
       requires: { flag: 'ch2_bell_done' }, done: 'ch2_campfire', lines: ['（礦工留下的柴堆。等鐘廳的事處理完再休息吧。）'],
     },
     {
