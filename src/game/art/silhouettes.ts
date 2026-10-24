@@ -2,7 +2,7 @@
 // 做法：先用邊緣光色描邊整個輪廓，再把深色本體往右下偏移填上，只留下左上側的亮邊 → 便宜的 rim light。
 import Phaser from 'phaser';
 import { AH, AW, drawIo, drawLian } from './animePortraits';
-import { drawBern, drawDorn, drawFarrow, drawGwen, drawHanna, drawLiora, drawMara, drawMiner, drawToby, drawRourke, drawSerin, drawTia, drawValderan } from './animeCompanions';
+import { drawAnnouncer, drawBern, drawDealer, drawDorn, drawGateCaptain, drawResearcher, drawVendor, drawFarrow, drawGwen, drawHanna, drawLiora, drawMara, drawMiner, drawToby, drawRourke, drawSerin, drawTia, drawValderan } from './animeCompanions';
 import { backIo, backLian, backLiora, backRourke, backSerin } from './animeSprites';
 
 type P = [number, number];
@@ -484,13 +484,24 @@ function strokeLine(c: Ctx, pts: P[], color: string, w: number): void {
 }
 
 /** 高解析動漫立繪（顯示尺寸與手繪立繪相同：約 600px 高）。 */
-export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern', 'npc_tia', 'npc_dorn', 'npc_farrow', 'npc_mara', 'npc_hanna', 'npc_toby', 'npc_miner']);
+export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern', 'npc_tia', 'npc_dorn', 'npc_farrow', 'npc_mara', 'npc_hanna', 'npc_toby', 'npc_miner',
+  'npc_announcer', 'npc_dealer', 'npc_researcher', 'npc_vendor', 'npc_gate_captain']);
 
-function hdPortrait(scene: Phaser.Scene, key: string, draw: (c: Ctx) => void): void {
+const LAZY_PORTRAITS: Record<string, (c: Ctx) => void> = {};
+
+/** 登記高解析立繪；實際繪製延後到第一次用到（ensurePortrait），避免場景建立時一次畫二十張卡頓。 */
+function hdPortrait(_scene: Phaser.Scene, key: string, draw: (c: Ctx) => void): void {
   ART[key] = { key, w: AW, h: AH, footY: AH / 2 };
-  if (scene.textures.exists(key)) return;
+  LAZY_PORTRAITS[key] = draw;
+}
+
+/** 確保立繪材質存在（手繪圖已由 Boot 載入時直接沿用）。回傳材質是否可用。 */
+export function ensurePortrait(scene: Phaser.Scene, key: string): boolean {
+  if (scene.textures.exists(key)) return true;
+  const draw = LAZY_PORTRAITS[key];
+  if (!draw) return false;
   const tex = scene.textures.createCanvas(key, AW, AH);
-  if (!tex) return;
+  if (!tex) return false;
   const c = tex.getContext();
   c.clearRect(0, 0, AW, AH);
   draw(c);
@@ -504,6 +515,7 @@ function hdPortrait(scene: Phaser.Scene, key: string, draw: (c: Ctx) => void): v
   c.fillRect(0, AH - 170, AW, 170);
   c.restore();
   tex.refresh();
+  return true;
 }
 
 function generateHeroPortraits(scene: Phaser.Scene): void {
@@ -800,279 +812,16 @@ function generateCh3Combatants(scene: Phaser.Scene): void {
   }
 }
 
-// ---------------- 對話立繪（正面半身，170×240，與 npc_knight 同尺寸） ----------------
-const NW = 170;
-const NH = 240;
-
-function npcHalo(c: Ctx, x: number, y: number, color: number, a = 0.22): void {
-  const rr = Math.min(96, x, NW - x, y, NH - y);
-  const g = c.createRadialGradient(x, y, 4, x, y, rr);
-  g.addColorStop(0, rgba(color, a));
-  g.addColorStop(0.6, rgba(color, a * 0.3));
-  g.addColorStop(1, rgba(color, 0));
-  c.fillStyle = g;
-  c.fillRect(0, 0, NW, NH);
-}
-
-const FACE: P[] = [[64, 64], [68, 46], [85, 38], [102, 46], [106, 64], [102, 86], [92, 100], [85, 103], [78, 100], [68, 86]];
 const faceGrad = (c: Ctx): CanvasGradient => vgrad(c, 38, 104, [[0, '#30324e'], [1, '#171a2c']]);
 
 function generateCh3Portraits(scene: Phaser.Scene): void {
   // 大司星 瓦爾德蘭：動漫風高解析立繪（animeCompanions.ts）
   hdPortrait(scene, 'npc_valderan', drawValderan);
-
-  // 比武大會司儀：高禮帽、燕尾服、蝶形領結、八字鬍與招牌笑容（頂光）。
-  canvasArt(scene, 'npc_announcer', NW, NH, (c) => {
-    const rim = '#ffe0a0';
-    npcHalo(c, 85, 70, 0xffd27a, 0.26);
-    lit(c, sm([[12, 260], [18, 150], [40, 122], [70, 112], [85, 118], [100, 112], [130, 122], [152, 150], [158, 260]]),
-      vgrad(c, 112, 240, [[0, '#3a1e2a'], [1, '#0e070c']]), rim, 0, 3);
-    // 白襯衫 V 區＋翻領
-    lit(c, sh([[70, 114], [100, 114], [92, 200], [78, 200]]), vgrad(c, 114, 200, [[0, '#d8d0c8'], [1, '#6a6460']]), '#ffffff', 0, 1.5);
-    lit(c, sh([[60, 118], [74, 114], [84, 196], [66, 160]]), '#5a2232', rim, 0, 1.5);
-    lit(c, sh([[110, 118], [96, 114], [86, 196], [104, 160]]), '#5a2232', rim, 0, 1.5);
-    for (const y of [150, 168, 186]) { c.fillStyle = '#e8c070'; c.beginPath(); c.arc(85, y, 1.8, 0, Math.PI * 2); c.fill(); }
-    // 胸花
-    glow(c, 64, 140, 12, 0xff6a6a, 0.6);
-    c.fillStyle = '#ff7a7a'; c.beginPath(); c.arc(64, 140, 4, 0, Math.PI * 2); c.fill();
-    // 領結
-    lit(c, sh([[70, 108], [84, 114], [70, 120]]), '#a02a3a', rim, 0, 1);
-    lit(c, sh([[100, 108], [86, 114], [100, 120]]), '#a02a3a', rim, 0, 1);
-    c.fillStyle = '#ffd27a'; c.fillRect(82, 111, 6, 6);
-    lit(c, sh([[78, 96], [92, 96], [94, 110], [76, 110]]), faceGrad(c), rim, 0, 1);
-    lit(c, sm(FACE), faceGrad(c), rim, 0, 2.5);
-    // 眼＋眉（揚起）
-    strokeLine(c, [[70, 60], [80, 56]], '#0a080c', 2.2);
-    strokeLine(c, [[90, 56], [100, 60]], '#0a080c', 2.2);
-    glowEye(c, 76, 66, 3.6, 0xffd27a, 0);
-    glowEye(c, 94, 66, 3.6, 0xffd27a, 0);
-    // 八字鬍＋大笑
-    lit(c, sm([[66, 80], [76, 76], [85, 79], [94, 76], [104, 80], [108, 72], [110, 82], [96, 86], [85, 84], [74, 86], [60, 82], [62, 72]]),
-      '#3a2a2a', '#ffe0a0', 0, 1);
-    c.fillStyle = 'rgba(10,4,8,0.9)';
-    c.beginPath(); c.moveTo(76, 88); c.quadraticCurveTo(85, 98, 94, 88); c.closePath(); c.fill();
-    c.fillStyle = '#f0e8e0'; c.fillRect(79, 88, 12, 2);
-    // 高禮帽
-    lit(c, sh([[58, 46], [112, 46], [116, 52], [54, 52]]), '#1a0e14', rim, 0, 1.5);
-    lit(c, sh([[66, 46], [68, 4], [102, 4], [104, 46]]), vgrad(c, 4, 46, [[0, '#3a2430'], [1, '#120a10']]), rim, 0, 2);
-    lit(c, sh([[67, 34], [103, 34], [103, 42], [67, 42]]), '#a0783a', '#ffe8b0', 0, 1);
-    sparkle(c, 94, 38, 3, 0xffd27a);
-    // 舉起的手（白手套）
-    lit(c, sm([[130, 240], [128, 170], [136, 142], [152, 138], [156, 160], [150, 240]]), vgrad(c, 138, 240, [[0, '#3a1e2a'], [1, '#0e070c']]), rim, 0, 2);
-    lit(c, sm([[134, 142], [134, 124], [140, 112], [148, 116], [156, 124], [156, 142]]), '#d8d0c8', '#ffffff', 0, 1.5);
-    for (const [x, y] of [[20, 30], [150, 30], [30, 100], [158, 80]] as P[]) sparkle(c, x, y, 3, 0xffd27a);
-  });
-
-  // 牌會荷官：油亮後梳髮、綠色遮光帽簷、背心袖箍；手持扇形牌，似笑非笑。
-  canvasArt(scene, 'npc_dealer', NW, NH, (c) => {
-    const rim = '#96ecd4';
-    const T = 0x6fe0c0;
-    npcHalo(c, 85, 90, T, 0.22);
-    lit(c, sm([[14, 260], [20, 150], [42, 124], [70, 114], [85, 118], [100, 114], [128, 124], [150, 150], [156, 260]]),
-      vgrad(c, 114, 240, [[0, '#d8d0c4'], [1, '#4a4644']]), '#ffffff', 2.5, 2);
-    // 背心
-    lit(c, sm([[40, 260], [38, 150], [62, 120], [85, 170], [108, 120], [132, 150], [130, 260]]),
-      vgrad(c, 120, 240, [[0, '#183a34'], [1, '#06100e']]), rim, 2.5, 2);
-    for (const y of [182, 200, 218]) { c.fillStyle = '#e8c070'; c.beginPath(); c.arc(85, y, 1.8, 0, Math.PI * 2); c.fill(); }
-    // 細領帶
-    lit(c, sh([[82, 116], [88, 116], [90, 168], [85, 176], [80, 168]]), '#1a1a20', rim, 1, 1);
-    // 袖箍
-    lit(c, sh([[20, 176], [38, 172], [38, 180], [20, 184]]), '#2a1a12', '#ffd09a', 1, 1);
-    lit(c, sh([[78, 96], [92, 96], [94, 116], [76, 116]]), faceGrad(c), rim, 1.5, 1);
-    lit(c, sm(FACE), faceGrad(c), rim, 2, 2);
-    // 後梳油頭＋一撮垂髮
-    lit(c, sm([[62, 60], [62, 40], [76, 30], [96, 30], [108, 42], [108, 60], [100, 46], [86, 42], [72, 46]]),
-      vgrad(c, 30, 60, [[0, '#1e2a2a'], [1, '#0a0e10']]), rim, 2, 1.5);
-    strokeLine(c, [[70, 40], [96, 34]], 'rgba(150,236,212,0.5)', 1.2);
-    strokeLine(c, [[96, 44], [102, 56], [98, 64]], '#141c1e', 2);
-    // 遮光帽簷（半透明綠）
-    c.save();
-    c.fillStyle = 'rgba(80,200,150,0.45)';
-    c.beginPath(); c.moveTo(58, 52); c.quadraticCurveTo(85, 40, 112, 52); c.lineTo(118, 62); c.quadraticCurveTo(85, 54, 52, 62); c.closePath(); c.fill();
-    c.restore();
-    strokeLine(c, [[52, 62], [85, 55], [118, 62]], rgba(T, 0.9), 1.4);
-    strokeLine(c, [[60, 50], [85, 44], [110, 50]], 'rgba(10,20,20,0.9)', 2.5);
-    // 一眼瞇起、一眼斜睨
-    strokeLine(c, [[71, 69], [81, 70]], '#081010', 1.8);
-    glowEye(c, 76, 71, 3.4, T, 0.1);
-    strokeLine(c, [[71, 70], [81, 71]], 'rgba(24,30,40,0.95)', 1.8);
-    strokeLine(c, [[89, 64], [99, 66]], '#081010', 2);
-    glowEye(c, 94, 70, 3.6, T, -0.1);
-    // 歪嘴笑
-    c.save();
-    c.strokeStyle = 'rgba(8,10,12,0.8)';
-    c.lineWidth = 1.5;
-    c.beginPath(); c.moveTo(77, 88); c.quadraticCurveTo(88, 92, 97, 84); c.stroke();
-    c.restore();
-    // 扇形牌（右手，抬到下巴旁）
-    lit(c, sm([[118, 240], [118, 190], [128, 170], [146, 168], [152, 186], [144, 240]]), vgrad(c, 168, 240, [[0, '#d8d0c4'], [1, '#4a4644']]), '#ffffff', 2, 2);
-    glow(c, 136, 140, 32, T, 0.35);
-    for (let k = 0; k < 5; k++) {
-      c.save();
-      c.translate(138, 168);
-      c.rotate(-0.7 + k * 0.32);
-      c.fillStyle = '#f4ece0';
-      c.fillRect(-9, -46, 18, 28);
-      c.strokeStyle = rgba(T, 0.9);
-      c.lineWidth = 1;
-      c.strokeRect(-9, -46, 18, 28);
-      c.fillStyle = k % 2 ? '#c02a3a' : '#1a1a24';
-      c.beginPath(); c.moveTo(0, -38); c.lineTo(4, -32); c.lineTo(0, -26); c.lineTo(-4, -32); c.fill();
-      c.restore();
-    }
-    lit(c, sm([[126, 172], [132, 160], [146, 158], [150, 170], [140, 178]]), faceGrad(c), rim, 1, 1);
-    sparkle(c, 120, 112, 3.2, T);
-  });
-
-  // 研究院研究員：圓眼鏡反光、亂髮夾著筆、高領學袍、懷抱筆記；冷藍光。
-  canvasArt(scene, 'npc_researcher', NW, NH, (c) => {
-    const rim = '#b4dcff';
-    const B = 0x7fc8ff;
-    npcHalo(c, 85, 80, B, 0.24);
-    lit(c, sm([[16, 260], [22, 156], [42, 126], [70, 114], [85, 118], [100, 114], [128, 126], [148, 156], [154, 260]]),
-      vgrad(c, 114, 240, [[0, '#24344e'], [1, '#080c16']]), rim, 2, 2.5);
-    // 高領＋研究院星章
-    lit(c, sm([[66, 104], [85, 110], [104, 104], [110, 124], [85, 130], [60, 124]]), vgrad(c, 104, 130, [[0, '#3a4c6a'], [1, '#141c2c']]), rim, 1.5, 1.5);
-    glow(c, 60, 150, 14, B, 0.6);
-    starPath(c, 60, 150, 5, 2);
-    c.fillStyle = '#d8f0ff';
-    c.fill();
-    strokeLine(c, [[85, 130], [85, 240]], 'rgba(0,0,0,0.35)', 2);
-    lit(c, sh([[78, 92], [92, 92], [94, 110], [76, 110]]), faceGrad(c), rim, 1.5, 1);
-    lit(c, sm(FACE), faceGrad(c), rim, 1.5, 2);
-    // 亂髮包頭＋插著的筆
-    strokeLine(c, [[96, 22], [120, 4]], '#c8a060', 2.5);
-    lit(c, sm([[86, 6], [100, 8], [104, 22], [92, 28], [80, 22], [78, 12]]), vgrad(c, 6, 28, [[0, '#4a3a4a'], [1, '#1a141c']]), rim, 1.5, 1.5);
-    lit(c, sh([[60, 70], [58, 44], [70, 30], [86, 26], [102, 30], [112, 44], [112, 72], [106, 56], [98, 50], [92, 56], [84, 48], [76, 56], [68, 52], [64, 62]]),
-      vgrad(c, 26, 72, [[0, '#4a3a4a'], [1, '#1a141c']]), rim, 1.5, 1.5);
-    for (const [x, y] of [[60, 70], [112, 72], [64, 78]] as P[]) strokeLine(c, [[x, y - 10], [x + (x < 85 ? -4 : 4), y]], '#2a1e2a', 1.5);
-    // 圓眼鏡（反光）
-    for (const x of [76, 95]) {
-      c.save();
-      const lg = c.createLinearGradient(x - 8, 60, x + 8, 76);
-      lg.addColorStop(0, 'rgba(220,240,255,0.85)');
-      lg.addColorStop(0.5, 'rgba(120,190,255,0.45)');
-      lg.addColorStop(1, 'rgba(60,110,200,0.25)');
-      c.fillStyle = lg;
-      c.beginPath(); c.arc(x, 68, 8, 0, Math.PI * 2); c.fill();
-      c.strokeStyle = '#c8a060';
-      c.lineWidth = 1.4;
-      c.stroke();
-      c.restore();
-      glow(c, x - 2, 65, 10, B, 0.6);
-    }
-    strokeLine(c, [[84, 68], [87, 68]], '#c8a060', 1.4);
-    strokeLine(c, [[80, 90], [90, 90]], 'rgba(0,0,0,0.45)', 1.3);
-    // 抱在胸前的筆記與符文紙
-    lit(c, sh([[50, 176], [120, 164], [126, 220], [56, 232]]), vgrad(c, 164, 232, [[0, '#5a4430'], [1, '#2a1e14']]), '#ffe0b0', 1.5, 1.5);
-    lit(c, sh([[58, 180], [114, 170], [118, 214], [62, 224]]), '#e8e0d0', '#ffffff', 1, 1);
-    seam(c, [[70, 192], [86, 186], [100, 196], [92, 208]], B, 1.2);
-    lit(c, sm([[40, 240], [36, 200], [50, 188], [64, 196], [60, 240]]), vgrad(c, 188, 240, [[0, '#24344e'], [1, '#080c16']]), rim, 1.5, 1.5);
-    lit(c, sm([[110, 240], [112, 196], [126, 186], [138, 198], [132, 240]]), vgrad(c, 186, 240, [[0, '#24344e'], [1, '#080c16']]), rim, 1.5, 1.5);
-    for (const [x, y] of [[24, 60], [146, 40], [150, 120]] as P[]) sparkle(c, x, y, 2.6, B);
-  });
-
-  // 夜市攤販：頭巾、圓臉、圍裙，手提竹竿紙燈籠（暖橙光）。
-  canvasArt(scene, 'npc_vendor', NW, NH, (c) => {
-    const rim = '#ffb080';
-    const O = 0xff8a4a;
-    npcHalo(c, 64, 120, O, 0.3);
-    lit(c, sm([[12, 260], [18, 158], [40, 126], [70, 116], [85, 120], [100, 116], [130, 126], [152, 158], [158, 260]]),
-      vgrad(c, 116, 240, [[0, '#3a2a2a'], [1, '#0e0808']]), rim, -2.5, 1);
-    // 圍裙
-    lit(c, sm([[54, 132], [116, 132], [122, 260], [48, 260]]), vgrad(c, 132, 240, [[0, '#6a4a34'], [1, '#2a1a12']]), '#ffd0a0', -1.5, 1);
-    strokeLine(c, [[54, 132], [70, 116]], '#4a3424', 2);
-    strokeLine(c, [[116, 132], [100, 116]], '#4a3424', 2);
-    lit(c, sh([[64, 180], [106, 180], [104, 204], [66, 204]]), '#4a3424', '#ffd0a0', -1, 1);
-    lit(c, sh([[78, 100], [92, 100], [94, 120], [76, 120]]), faceGrad(c), rim, -1.5, 1);
-    lit(c, sm([[62, 70], [66, 52], [85, 44], [104, 52], [108, 70], [104, 92], [92, 104], [85, 106], [78, 104], [66, 92]]), faceGrad(c), rim, -2, 1.5);
-    // 頭巾（結在右側）
-    lit(c, sm([[58, 70], [58, 46], [74, 32], [96, 32], [112, 46], [112, 70], [104, 58], [85, 54], [66, 58]]),
-      vgrad(c, 32, 70, [[0, '#a03a2a'], [1, '#4a1614']]), rim, -2, 1);
-    lit(c, sm([[108, 54], [126, 50], [130, 64], [118, 62], [124, 78], [110, 66]]), '#7a2a1e', rim, -1.5, 1);
-    for (const [x, y] of [[72, 44], [86, 40], [100, 44], [80, 52], [94, 50]] as P[]) {
-      c.fillStyle = 'rgba(255,220,160,0.6)'; c.beginPath(); c.arc(x, y, 1.5, 0, Math.PI * 2); c.fill();
-    }
-    // 笑瞇瞇的眼＋酒窩笑
-    c.save();
-    c.strokeStyle = 'rgba(10,6,8,0.9)';
-    c.lineWidth = 1.8;
-    c.lineCap = 'round';
-    for (const x of [76, 94]) { c.beginPath(); c.arc(x, 74, 4, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); }
-    c.beginPath(); c.moveTo(77, 90); c.quadraticCurveTo(85, 96, 93, 90); c.stroke();
-    c.restore();
-    glow(c, 76, 72, 6, O, 0.5);
-    glow(c, 94, 72, 6, O, 0.5);
-    c.fillStyle = 'rgba(255,140,120,0.3)';
-    c.beginPath(); c.arc(68, 84, 4, 0, Math.PI * 2); c.arc(102, 84, 4, 0, Math.PI * 2); c.fill();
-    // 提燈籠的手（左）＋竹竿＋紙燈籠
-    lit(c, sm([[18, 240], [16, 190], [24, 168], [40, 166], [46, 186], [40, 240]]), vgrad(c, 166, 240, [[0, '#3a2a2a'], [1, '#0e0808']]), rim, -1.5, 1);
-    lit(c, sm([[22, 170], [26, 158], [38, 156], [42, 168], [34, 176]]), faceGrad(c), rim, -1, 1);
-    strokeLine(c, [[30, 166], [26, 96]], '#3a2a18', 3);
-    strokeLine(c, [[26, 96], [22, 104]], '#3a2a18', 1.5);
-    glow(c, 28, 126, 27, O, 0.75);
-    const lg = c.createRadialGradient(19, 120, 1, 22, 126, 18);
-    lg.addColorStop(0, '#fff6d8'); lg.addColorStop(0.45, '#ffa060'); lg.addColorStop(1, '#c03a20');
-    c.fillStyle = lg;
-    c.beginPath(); c.ellipse(22, 127, 13, 17, 0, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = 'rgba(90,30,10,0.5)';
-    c.lineWidth = 0.8;
-    for (const k of [-0.6, 0, 0.6]) { c.beginPath(); c.ellipse(22, 127, 13 * Math.cos(k), 17, 0, 0, Math.PI * 2); c.stroke(); }
-    c.fillStyle = '#2a140c';
-    c.fillRect(15, 108, 14, 4);
-    c.fillRect(16, 142, 12, 3);
-    strokeLine(c, [[22, 145], [22, 154]], '#c03a20', 1.5);
-    for (const [x, y] of [[50, 90], [12, 70], [60, 140]] as P[]) sparkle(c, x, y, 2.4, O, 0.8);
-  }, { x: 22, y: 127, color: 0xff8a4a, scale: 0.5 });
-
-  // 城門衛隊長：全身板甲、開面盔＋羽飾、護頸、星冠紋章，鬍鬚嚴肅。
-  canvasArt(scene, 'npc_gate_captain', NW, NH, (c) => {
-    const rim = '#e4ecff';
-    const G = 0xffd27a;
-    const steel = (y0: number, y1: number): CanvasGradient => vgrad(c, y0, y1, [[0, '#6a7088'], [0.5, '#30344a'], [1, '#10121e']]);
-    npcHalo(c, 85, 90, 0xc8d4ff, 0.2);
-    // 披風（深紅）
-    lit(c, sm([[4, 260], [10, 150], [30, 120], [140, 120], [160, 150], [166, 260]]), vgrad(c, 120, 240, [[0, '#6a1a22'], [1, '#1a060a']]), '#ff9a8a', 2, 2);
-    // 胸甲
-    lit(c, sm([[28, 260], [30, 150], [50, 124], [85, 116], [120, 124], [140, 150], [142, 260]]), steel(116, 240), rim, 2, 2.5);
-    strokeLine(c, [[85, 130], [85, 240]], 'rgba(255,255,255,0.25)', 1.5);
-    lit(c, sh([[34, 214], [136, 214], [136, 224], [34, 224]]), '#3a2a18', '#ffe0a0', 1, 1);
-    // 紋章：星冠
-    glow(c, 85, 170, 30, G, 0.55);
-    c.fillStyle = '#ffe0a0';
-    c.beginPath();
-    c.moveTo(70, 180); c.lineTo(70, 166); c.lineTo(76, 172); c.lineTo(80, 160); c.lineTo(85, 168);
-    c.lineTo(90, 160); c.lineTo(94, 172); c.lineTo(100, 166); c.lineTo(100, 180);
-    c.closePath();
-    c.fill();
-    sparkle(c, 85, 152, 4, G);
-    // 肩甲（三層）
-    for (const f of [1, -1]) {
-      const X = (x: number): number => (f === 1 ? x : NW - x);
-      for (let k = 0; k < 3; k++) {
-        const y = 124 + k * 16;
-        lit(c, sm([[X(10 + k * 2), y + 20], [X(16 + k * 2), y], [X(56 - k * 2), y - 6], [X(64 - k * 2), y + 14], [X(36), y + 28]]), steel(y - 6, y + 28), '#ffffff', f * 2, 2);
-        strokeLine(c, [[X(18 + k * 2), y + 2], [X(54 - k * 2), y - 4]], rgba(G, 0.7), 1.2);
-      }
-    }
-    // 護頸
-    lit(c, sm([[62, 106], [85, 100], [108, 106], [112, 126], [85, 132], [58, 126]]), steel(100, 132), '#ffffff', 1.5, 2);
-    // 臉＋鬍
-    lit(c, sm(FACE), faceGrad(c), rim, 1.5, 2);
-    lit(c, sm([[66, 82], [76, 86], [85, 84], [94, 86], [104, 82], [104, 94], [94, 104], [85, 108], [76, 104], [66, 94]]),
-      vgrad(c, 82, 108, [[0, '#6a6470'], [1, '#2a262e']]), '#ffffff', 1, 1);
-    strokeLine(c, [[78, 92], [92, 92]], 'rgba(0,0,0,0.6)', 1.5);
-    strokeLine(c, [[70, 62], [81, 64]], '#0a080c', 2.6);
-    strokeLine(c, [[89, 64], [100, 62]], '#0a080c', 2.6);
-    glowEye(c, 76, 70, 3.2, 0xc8d4ff, 0.08);
-    glowEye(c, 94, 70, 3.2, 0xc8d4ff, -0.08);
-    // 開面盔（含護鼻）＋羽飾
-    lit(c, sm([[60, 30], [70, 6], [118, 0], [130, 12], [112, 28], [94, 26]]), vgrad(c, 0, 30, [[0, '#c03a3a'], [1, '#4a1014']]), '#ffc0b0', 1.5, 1.5);
-    lit(c, sm([[60, 76], [58, 46], [70, 28], [85, 22], [100, 28], [112, 46], [110, 76], [104, 56], [94, 48], [76, 48], [66, 56]]), steel(22, 76), '#ffffff', 1.5, 2);
-    lit(c, sh([[82, 46], [88, 46], [88, 74], [85, 78], [82, 74]]), steel(46, 78), '#ffffff', 1, 1);
-    strokeLine(c, [[62, 50], [85, 44], [108, 50]], rgba(G, 0.85), 1.4);
-    sparkle(c, 85, 30, 3, G);
-  });
+  hdPortrait(scene, 'npc_announcer', drawAnnouncer);
+  hdPortrait(scene, 'npc_dealer', drawDealer);
+  hdPortrait(scene, 'npc_researcher', drawResearcher);
+  hdPortrait(scene, 'npc_vendor', drawVendor);
+  hdPortrait(scene, 'npc_gate_captain', drawGateCaptain);
 }
 
 /** 第三章說話者 id → 立繪材質 key。 */

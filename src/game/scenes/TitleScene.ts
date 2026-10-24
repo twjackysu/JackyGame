@@ -8,7 +8,7 @@ import { endingsSeen, newGamePlus } from '../../core/state/gameState';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { generatePortraitArt } from '../art/silhouettes';
+import { ensurePortrait, generatePortraitArt } from '../art/silhouettes';
 
 const TITLE_FONT =
   '"Noto Serif TC", "Noto Serif CJK TC", "Source Han Serif TC", "PingFang TC", "Songti TC", "Microsoft JhengHei", serif';
@@ -93,11 +93,12 @@ export class TitleScene extends Phaser.Scene {
     generatePortraitArt(this);
     this.heroes = [];
     for (const [key, x, y, sc, from, delay] of [
-      ['portrait_io', 520, GAME_HEIGHT - 10, 0.6, 80, 900],
-      ['portrait_lian', 200, GAME_HEIGHT + 30, 0.68, -80, 1100],
+      ['portrait_io', 520, GAME_HEIGHT - 10, 620, 80, 900],
+      ['portrait_lian', 200, GAME_HEIGHT + 30, 700, -80, 1100],
     ] as [string, number, number, number, number, number][]) {
-      if (!this.textures.exists(key)) continue;
-      const img = this.add.image(x, y, key).setOrigin(0.5, 1).setScale(sc);
+      if (!ensurePortrait(this, key)) continue;
+      const img = this.add.image(x, y, key).setOrigin(0.5, 1);
+      img.setScale(sc / img.height); // sc＝目標高度（手繪圖與程式立繪尺寸不同）
       this.heroes.push(img);
       if (!skipIntro) {
         img.setAlpha(0).setX(x + from);

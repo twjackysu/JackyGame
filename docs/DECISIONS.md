@@ -7,6 +7,7 @@
 - 做法：`src/game/art/animeKit.ts`（Catmull-Rom 平滑 Path2D、髮束 lock、賽璐珞陰影、evenodd 月牙邊緣光、動漫眼睛：虹膜漸層＋放射紋＋雙高光＋睫毛線）；`animePortraits.ts`（連恩、伊歐）、`animeCompanions.ts`（瑟琳、莉歐拉、洛克），600×900，執行時畫進 canvas 材質（約數十 ms），底部漸隱。不用 `ctx.filter`（iOS Safari 支援不穩）。
 - 顯示比照手繪立繪（`HD_PORTRAITS`：對話 600px 高、羈絆面板裁頭部）；標題畫面加連恩＋伊歐主視覺。手繪圖若上傳，Boot 先載入同名材質，程式版自動跳過（D-036 管線不變）。
 - 替代：維持剪影等手繪（風險：11/5 仍是醜立繪）；外部 CC0 立繪（授權與風格一致性難保證）。
+- 後續：同一時段 Jacky 上傳了 6 張 AI 立繪（另一個 session 匯入），這 6 位改用手繪；程式立繪保留給其他 14 位配角與手繪缺檔時的備援。立繪改為第一次用到才繪製（`ensurePortrait`）。
 
 ## D-036 2026-10-24 角色立繪改用 Jacky 以 AI 繪圖產生，程式立繪當備援
 - Jacky 試玩回饋：程式剪影立繪不夠帥／美。雲端環境無法使用 Gemini／ChatGPT（沒有帳號、網頁被擋），所以由 Jacky 照 `docs/ART_PROMPTS.md` 產生、上傳 `art-inbox/`。

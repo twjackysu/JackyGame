@@ -6,7 +6,7 @@ import { DialogueRunner, type DialogueStep, type ShownOption } from '../../core/
 import type { HeroId } from '../../core/battle/skills';
 import { SPEAKER_NAMES } from '../../data/dialogue/speakers';
 import { CHAPTER_MAPS, type ChapterId } from '../../data/maps';
-import { CH3_PORTRAITS, CH4_PORTRAITS, HD_PORTRAITS, generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
+import { CH3_PORTRAITS, CH4_PORTRAITS, HD_PORTRAITS, ensurePortrait, generateCombatantArt, generatePortraitArt } from '../art/silhouettes';
 import { backdropFor, backdropKey } from '../art/backdrops';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
@@ -194,7 +194,7 @@ export class DialogueScene extends Phaser.Scene {
   private setPortrait(speaker: string): void {
     const mapped = PORTRAIT[speaker];
     // 美術尚未提供的立繪（例如新角色）→ 當作無立繪處理
-    const key = mapped && this.textures.exists(mapped) ? mapped : undefined;
+    const key = mapped && (ensurePortrait(this, mapped) || this.textures.exists(mapped)) ? mapped : undefined;
     const side: 'left' | 'right' = speaker === 'lian' ? 'left' : 'right';
     const cur = this.portraits[side];
     if (!key) {
@@ -212,8 +212,8 @@ export class DialogueScene extends Phaser.Scene {
     const x = side === 'left' ? 200 : GAME_WIDTH - 200;
     // 手繪立繪比程式立繪大很多：統一縮到約 560px 高（程式立繪 300px × 0.95）
     const hand = HAND_ART.includes(key) || HD_PORTRAITS.has(key);
-    const img = this.add.image(x + (side === 'left' ? -80 : 80), hand ? 1010 : 820, key).setOrigin(0.5, 1).setAlpha(0).setDepth(hand ? 40 : 50);
-    img.setScale(hand ? 600 / img.height : 0.95);
+    const img = this.add.image(x + (side === 'left' ? -80 : 80), hand ? 1090 : 820, key).setOrigin(0.5, 1).setAlpha(0).setDepth(hand ? 40 : 50);
+    img.setScale(hand ? 660 / img.height : 0.95); // 底部藏在對話框後面（手繪圖下緣是硬邊）
     if (side === 'right' && speaker !== 'gwen' && speaker !== 'knight') img.setFlipX(false);
     if (this.renderer.type === Phaser.WEBGL && highFx() && !hand) img.preFX?.addGlow(0xffb565, 1.5, 0, false, 0.1, 8);
     this.tweens.add({ targets: img, x, alpha: 1, duration: 260, ease: 'Cubic.Out' });

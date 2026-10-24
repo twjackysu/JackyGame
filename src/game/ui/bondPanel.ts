@@ -6,7 +6,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce, sparks } from '../fx/feel';
 import { session, withNames } from '../session';
 import { HERO_COLOR } from './partyPanel';
-import { HD_PORTRAITS, generatePortraitArt } from '../art/silhouettes';
+import { HD_PORTRAITS, ensurePortrait, generatePortraitArt } from '../art/silhouettes';
 import { HAND_ART } from '../../data/handArt';
 
 export function openBonds(scene: Phaser.Scene, depth = 900): Promise<void> {
@@ -36,7 +36,7 @@ export function openBonds(scene: Phaser.Scene, depth = 900): Promise<void> {
       card.add(bg);
       // 立繪（裁切在左側框內）
       const key = `portrait_${b.id}`;
-      if (scene.textures.exists(key)) {
+      if (ensurePortrait(scene, key)) {
         // 手繪立繪：放大、從頭頂往下裁出臉與上半身
         const big = HAND_ART.includes(key) || HD_PORTRAITS.has(key);
         const p = big
