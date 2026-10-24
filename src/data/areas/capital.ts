@@ -117,6 +117,10 @@ export const CAPITAL: AreaDef = {
       id: 'citizen_b', kind: 'npc', x: 9, y: 9, name: '巡夜騎士', look: { body: '#c8d4ff', hair: '#5a5a6a', art: 'walk_npc_guard' }, wander: 2,
       lines: ['「夜市最近不太平，小心錢包。」', '「瓦爾德蘭大人……是王都的驕傲。」'],
     },
+    {
+      id: 'merchant', kind: 'npc', x: 14, y: 29, name: '商店街老闆', look: { body: '#7a5a8a', hair: '#3a2a3a', art: 'walk_npc_merchant' },
+      talk: { script: 'ch3', node: 'capital_shop' }, shop: true,
+    },
     { id: 'south_exit', kind: 'gate', x: 11, y: 35, name: '往世界地圖', to: 'map' },
     { id: 'tower_chest', kind: 'chest', x: 1, y: 2, loot: [{ gold: 80 }, { item: 'armor_mist' }], lootText: '鐘塔牆角的舊箱子。\n獲得 80 金幣、霧織長袍。' },
     { id: 'fountain_chest', kind: 'chest', x: 21, y: 29, loot: [{ item: 'gift_ribbon' }, { item: 'potion_m', count: 2 }], lootText: '花圃後面藏著一個小包裹。\n獲得 緞帶、回復藥 ×2。' },

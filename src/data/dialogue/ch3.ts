@@ -896,6 +896,13 @@ export const CH3: DialogueScript = {
       { goto: 'end' },
     ],
 
+    // ───────── 王都商店街（探索中隨時可以買賣） ─────────
+    capital_shop: [
+      { say: 'vendor', text: '王都的貨，品質保證！慢慢挑。' },
+      { event: 'shop', id: 'capital' },
+      { goto: 'end' },
+    ],
+
     end: [],
   },
 };

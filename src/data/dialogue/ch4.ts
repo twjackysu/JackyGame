@@ -415,6 +415,13 @@ export const CH4: DialogueScript = {
       { goto: 'end' },
     ],
 
+    // ───────── 內應的補給（探索中隨時可以買賣） ─────────
+    depths_shop: [
+      { say: 'contact', text: '我從倉庫摸出來一些東西。\n要的話，照王都的價錢給我就好。' },
+      { event: 'shop', id: 'capital' },
+      { goto: 'end' },
+    ],
+
     end: [],
   },
 };

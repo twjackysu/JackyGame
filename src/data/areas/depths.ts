@@ -82,6 +82,10 @@ export const DEPTHS: AreaDef = {
       id: 'star_furnace', kind: 'door', x: 16, y: 32, name: '星核爐', glow: 0xff5a5a, talk: { script: 'ch4', node: 'furnace' },
       requires: { flag: 'ch4_campfire' }, done: 'ch4_complete', lines: ['（爐心傳來低沉的脈動……先休息一下再進去。）'],
     },
+    {
+      id: 'contact_shop', kind: 'npc', x: 6, y: 6, name: '內應研究員', look: { body: '#6a6a9a', hair: '#2a2a3a', art: 'walk_npc_villager' },
+      talk: { script: 'ch4', node: 'depths_shop' }, shop: true,
+    },
     { id: 'north_exit', kind: 'gate', x: 10, y: 0, name: '往世界地圖', to: 'map' },
     { id: 'guard_a', kind: 'enemy', x: 15, y: 10, battle: 'ch4_gate', gold: 30, wander: 2 },
     { id: 'proto_a', kind: 'enemy', x: 5, y: 19, battle: 'ch4_lab_a', gold: 35, wander: 2 },
