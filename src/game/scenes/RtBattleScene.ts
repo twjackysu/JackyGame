@@ -9,6 +9,7 @@ import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/
 import { CAMPFIRE_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
+import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
@@ -20,6 +21,8 @@ const VIEW_UNITS_W = 1050;
 /** 世界可視區：標題列下方到畫面底（操作鍵疊在上面） */
 const VIEW_TOP = 110;
 const VIEW_BOTTOM = 1280;
+/** 地面材質分塊大小（px） */
+const GROUND_CHUNK = 1024;
 /** 主角在可視區的垂直位置（偏上，留空間給下方操作鍵） */
 const FOCUS_Y = 0.42;
 /** 立繪對應（D-067；沒有圖就退回程式圓形） */
@@ -55,8 +58,8 @@ export class RtBattleScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text;
   /** 單位圖層（HP 條等疊在 sprite 上方） */
   private top!: Phaser.GameObjects.Graphics;
-  /** 靜態地面（只畫一次，每幀只移動位置） */
-  private ground!: Phaser.GameObjects.Image;
+  /** 靜態地面（只畫一次，每幀只移動位置）；大地圖切成多塊材質（手機 GPU 單張上限常是 4096px） */
+  private ground!: Phaser.GameObjects.Container;
   private calmText!: Phaser.GameObjects.Text;
   /** 上一 tick 的座標（60 FPS 插值用） */
   private prev = new Map<number, { x: number; y: number }>();
@@ -78,6 +81,9 @@ export class RtBattleScene extends Phaser.Scene {
   private menu: Phaser.GameObjects.Container | null = null;
   private botName: string | null = null;
   private lastWarnTick = -1;
+  /** 玩家有沒有主動點過怪／按過技能（刷怪關 30 秒沒動作就提示） */
+  private engaged = false;
+  private idleHinted = false;
 
   constructor() {
     super('RtBattle');
@@ -86,6 +92,8 @@ export class RtBattleScene extends Phaser.Scene {
   init(data: { stage?: string; seed?: number; bot?: string }): void {
     const q = new URLSearchParams(window.location.search);
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
+    // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
+    if (this.stageId === 'test_world' && q.has('debug') && !STAGES.test_world) STAGES.test_world = makeTestWorldStage();
     if (!STAGES[this.stageId]) this.stageId = 'forest_entry';
     this.seed = data.seed ?? Number(q.get('seed') ?? 1);
     const b = (data.bot !== undefined ? data.bot : q.get('bot')) as keyof typeof BOT_PROFILES | null;
@@ -107,6 +115,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.flashUntil.clear();
     this.fxDone.clear();
     this.hitStop = 0;
+    this.engaged = false;
+    this.idleHinted = false;
     const p0 = playerOf(this.s);
     this.camX = p0.x;
     this.camY = p0.y;
@@ -174,6 +184,7 @@ export class RtBattleScene extends Phaser.Scene {
     for (let i = 0; i < 7; i++) {
       const b = this.btnPos(i);
       if (Math.hypot(p.x - b.x, p.y - b.y) <= this.btnR(i) + 2) {
+        if (i < 4 || i === 5) this.engaged = true;
         if (i < 4) this.pending.push({ type: 'skill', id: SKILL_KEYS[i]! });
         else if (i === 4) this.pending.push({ type: 'dodge', dx: this.stick?.dx ?? 0, dy: this.stick?.dy ?? 0 });
         else if (i === 5) this.pending.push({ type: 'skill', id: 'blade_storm' });
@@ -201,6 +212,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (hit) {
       this.pending.push({ type: 'target', id: hit.id });
       this.restOnArrive = false;
+      this.engaged = true;
       return;
     }
     // 點地＝走過去（A* 繞石頭；D-071）；搖桿一動或點敵人就取消
@@ -297,7 +309,28 @@ export class RtBattleScene extends Phaser.Scene {
     this.playEvents();
     this.updateCamera(Math.min(1, dt / 120));
     this.draw();
+    this.idleHint();
     if (this.s.outcome !== 'running') this.finish();
+  }
+
+  /** 地圖怪關卡：開場 30 秒都沒點怪也沒按技能 → 提示「點狼開打」並在最近的怪身上打光圈 */
+  private idleHint(): void {
+    if (this.idleHinted || this.bot || this.engaged) return;
+    const st = STAGES[this.stageId];
+    if (!st?.mapAi || this.s.tick < 30 * TICKS_PER_SEC) return;
+    this.idleHinted = true;
+    if (summarize(this.s).kills > 0) return;
+    const p = playerOf(this.s);
+    const near = enemiesOf(this.s).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+    bigText(this, GAME_WIDTH / 2, 680, '點一下怪物，就會走過去開打！', '#9fd8ff', 34, 2400);
+    if (!near) return;
+    SFX.uiTap();
+    for (let i = 0; i < 3; i++) {
+      this.time.delayedCall(i * 450, () => {
+        if (near.dead) return;
+        shockRing(this, this.sx(near.x), this.sy(near.y), 0x9fd8ff, 110, 500, 5);
+      });
+    }
   }
 
   private previewPath(s: BattleState, p: Unit): [number, number][] {
@@ -540,8 +573,9 @@ export class RtBattleScene extends Phaser.Scene {
         bigText(this, this.sx(p.x), this.sy(p.y) - 90, '休息・HP 全滿', '#ffd27a', 32, 600);
       } else if (e.type === 'revive') {
         const p = playerOf(this.s);
-        this.cameras.main.flash(260, 255, 210, 140);
-        bigText(this, GAME_WIDTH / 2, 520, '在營火旁醒來', '#ffd27a', 40, 900);
+        // 倒下→黑幕 1 秒淡入（像真的昏過去再醒來），再出字
+        this.cameras.main.fadeIn(1000, 0, 0, 0);
+        this.time.delayedCall(450, () => bigText(this, GAME_WIDTH / 2, 520, '在營火旁醒來', '#ffd27a', 40, 1100));
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 160, 600, 6);
       }
     }
@@ -585,54 +619,76 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 地面：深綠＋格線＋零星草叢＋牆（世界座標 × k，原點在場地左上） */
-  private makeGround(): Phaser.GameObjects.Image {
+  private makeGround(): Phaser.GameObjects.Container {
     const a = this.s.arena;
     const k = this.k;
     const W = a.w * k;
     const H = a.h * k;
     const key = `rt_ground_${this.stageId}_${a.w}x${a.h}`;
     const PAD = 8;
-    if (this.textures.exists(key)) return this.add.image(0, 0, key).setOrigin(0).setDisplayOrigin(PAD, PAD);
-    const g = this.make.graphics({ x: PAD, y: PAD }, false);
-    g.fillStyle(0x16261c, 1).fillRect(0, 0, W, H);
-    // 固定種子的地面斑點（不影響戰鬥 PRNG）
-    let seed = 1234567;
-    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-    for (let i = 0; i < (a.w * a.h) / 9000; i++) {
-      const x = rnd() * W;
-      const y = rnd() * H;
-      g.fillStyle(rnd() < 0.5 ? 0x1a2c1f : 0x14231a, 0.8).fillEllipse(x, y, 30 + rnd() * 60, 14 + rnd() * 24);
-      if (rnd() < 0.3) {
-        g.lineStyle(2, 0x2f5a36, 0.8);
-        for (let j = -2; j <= 2; j++) g.lineBetween(x + j * 4, y, x + j * 6, y - 10 - rnd() * 8);
+    const TW = Math.ceil(W) + PAD * 2;
+    const TH = Math.ceil(H) + PAD * 2;
+    const box = this.add.container(0, 0);
+    // 分塊：每塊最多 GROUND_CHUNK px；小關卡只有一塊（跟以前一樣）
+    const nx = Math.ceil(TW / GROUND_CHUNK);
+    const ny = Math.ceil(TH / GROUND_CHUNK);
+    const chunkKey = (i: number, j: number): string => (nx * ny === 1 ? key : `${key}_${i}_${j}`);
+    const place = (): Phaser.GameObjects.Container => {
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        box.add(this.add.image(i * GROUND_CHUNK - PAD, j * GROUND_CHUNK - PAD, chunkKey(i, j)).setOrigin(0));
       }
-    }
-    g.lineStyle(1, 0x203a28, 1);
-    for (let x = 0; x <= a.w; x += 100) g.lineBetween(x * k, 0, x * k, H);
-    for (let y = 0; y <= a.h; y += 100) g.lineBetween(0, y * k, W, y * k);
-    // 障礙物（D-070／D-071）：每格一顆圓石，影子＋底色＋亮面＋裂紋（固定種子）
-    if (a.solid) {
-      const c = a.solid.cell * k;
-      a.solid.rows.forEach((row, cy) => {
-        for (let cx = 0; cx < row.length; cx++) {
-          if (row[cx] !== '#') continue;
-          const x = cx * c;
-          const y = cy * c;
-          const j = rnd() * 0.12;
-          g.fillStyle(0x050a07, 0.55).fillEllipse(x + c * 0.55, y + c * 0.78, c * 1.05, c * 0.42);
-          g.fillStyle(0x4a4f52, 1).fillRoundedRect(x + c * (0.04 + j), y + c * 0.06, c * (0.92 - j), c * 0.86, c * 0.28);
-          g.fillStyle(0x6c7378, 1).fillRoundedRect(x + c * (0.12 + j), y + c * 0.1, c * (0.7 - j), c * 0.46, c * 0.22);
-          g.fillStyle(0x8d959a, 0.8).fillEllipse(x + c * 0.36, y + c * 0.24, c * 0.3, c * 0.12);
-          g.lineStyle(2, 0x2c3033, 0.9).lineBetween(x + c * (0.3 + j), y + c * 0.5, x + c * 0.5, y + c * 0.68);
-          if (rnd() < 0.5) g.fillStyle(0x3f6b3a, 0.85).fillEllipse(x + c * (0.2 + rnd() * 0.5), y + c * 0.84, c * 0.28, c * 0.1);
+      return box;
+    };
+    if (this.textures.exists(chunkKey(0, 0))) return place();
+    // 每塊各自重畫一次（Graphics.generateTexture 不吃物件位置，要用 translateCanvas 平移；同一個固定種子，所以每塊畫出同一張地圖）
+    const paint = (g: Phaser.GameObjects.Graphics): void => {
+      g.fillStyle(0x16261c, 1).fillRect(0, 0, W, H);
+      // 固定種子的地面斑點（不影響戰鬥 PRNG）
+      let seed = 1234567;
+      const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+      for (let i = 0; i < (a.w * a.h) / 9000; i++) {
+        const x = rnd() * W;
+        const y = rnd() * H;
+        g.fillStyle(rnd() < 0.5 ? 0x1a2c1f : 0x14231a, 0.8).fillEllipse(x, y, 30 + rnd() * 60, 14 + rnd() * 24);
+        if (rnd() < 0.3) {
+          g.lineStyle(2, 0x2f5a36, 0.8);
+          for (let j = -2; j <= 2; j++) g.lineBetween(x + j * 4, y, x + j * 6, y - 10 - rnd() * 8);
         }
-      });
+      }
+      g.lineStyle(1, 0x203a28, 1);
+      for (let x = 0; x <= a.w; x += 100) g.lineBetween(x * k, 0, x * k, H);
+      for (let y = 0; y <= a.h; y += 100) g.lineBetween(0, y * k, W, y * k);
+      // 障礙物（D-070／D-071）：每格一顆圓石，影子＋底色＋亮面＋裂紋（固定種子）
+      if (a.solid) {
+        const c = a.solid.cell * k;
+        a.solid.rows.forEach((row, cy) => {
+          for (let cx = 0; cx < row.length; cx++) {
+            if (row[cx] !== '#') continue;
+            const x = cx * c;
+            const y = cy * c;
+            const j = rnd() * 0.12;
+            g.fillStyle(0x050a07, 0.55).fillEllipse(x + c * 0.55, y + c * 0.78, c * 1.05, c * 0.42);
+            g.fillStyle(0x4a4f52, 1).fillRoundedRect(x + c * (0.04 + j), y + c * 0.06, c * (0.92 - j), c * 0.86, c * 0.28);
+            g.fillStyle(0x6c7378, 1).fillRoundedRect(x + c * (0.12 + j), y + c * 0.1, c * (0.7 - j), c * 0.46, c * 0.22);
+            g.fillStyle(0x8d959a, 0.8).fillEllipse(x + c * 0.36, y + c * 0.24, c * 0.3, c * 0.12);
+            g.lineStyle(2, 0x2c3033, 0.9).lineBetween(x + c * (0.3 + j), y + c * 0.5, x + c * 0.5, y + c * 0.68);
+            if (rnd() < 0.5) g.fillStyle(0x3f6b3a, 0.85).fillEllipse(x + c * (0.2 + rnd() * 0.5), y + c * 0.84, c * 0.28, c * 0.1);
+          }
+        });
+      }
+      g.lineStyle(10, 0x0a120d, 1).strokeRect(-5, -5, W + 10, H + 10);
+      g.lineStyle(3, 0x5a8a60, 1).strokeRect(0, 0, W, H);
+    };
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const rx = i * GROUND_CHUNK;
+      const ry = j * GROUND_CHUNK;
+      const g = this.make.graphics({ x: 0, y: 0 }, false);
+      g.translateCanvas(PAD - rx, PAD - ry);
+      paint(g);
+      g.generateTexture(chunkKey(i, j), Math.min(GROUND_CHUNK, TW - rx), Math.min(GROUND_CHUNK, TH - ry));
+      g.destroy();
     }
-    g.lineStyle(10, 0x0a120d, 1).strokeRect(-5, -5, W + 10, H + 10);
-    g.lineStyle(3, 0x5a8a60, 1).strokeRect(0, 0, W, H);
-    g.generateTexture(key, Math.ceil(W) + PAD * 2, Math.ceil(H) + PAD * 2);
-    g.destroy();
-    return this.add.image(0, 0, key).setOrigin(0).setDisplayOrigin(PAD, PAD);
+    return place();
   }
 
   /** 刀光：以 (wx, wy) 為圓心、朝 ang 掃過 deg 度的弧（世界單位半徑 wr），疊三層、ADD 混色 */
@@ -744,6 +800,12 @@ export class RtBattleScene extends Phaser.Scene {
     const s = this.s;
     const now = this.time.now;
     this.ground.setPosition(this.ox, this.oy);
+    // 畫面外的地面塊不送進渲染
+    for (const im of this.ground.list as Phaser.GameObjects.Image[]) {
+      const x = this.ox + im.x;
+      const y = this.oy + im.y;
+      im.setVisible(x < GAME_WIDTH && x + im.width > 0 && y < VIEW_BOTTOM && y + im.height > 0);
+    }
     // 地面掉落：金幣（金色閃光）、粉塵（藍點）、結晶（紫菱形）、藥水（紅瓶）；上下浮動
     for (const it of s.ground ?? []) {
       const ix = this.sx(it.x);
