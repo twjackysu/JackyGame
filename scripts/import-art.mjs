@@ -44,6 +44,32 @@ const kindOf = (stem) => {
 };
 const BATTLE_H = { lian: 440, io: 420, serin: 460, liora: 420, rourke: 460, valdran: 680, valderan: 680 };
 
+/**
+ * 綠幕去背（ART_REQUESTS 規格要求 #00FF00 背景）：依「綠色比紅藍多多少」算柔和 alpha，並去除邊緣綠色溢色。
+ * 背景不是鮮綠時回 null（交給其他方法）。
+ */
+export async function chromaKeyGreen(input) {
+  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width: w, height: h } = info;
+  const edge = [];
+  for (let x = 0; x < w; x += Math.max(1, (w / 50) | 0)) edge.push((0 * w + x) * 4, ((h - 1) * w + x) * 4);
+  for (let y = 0; y < h; y += Math.max(1, (h / 50) | 0)) edge.push((y * w) * 4, (y * w + w - 1) * 4);
+  const greenish = edge.filter((i) => data[i + 1] > 150 && data[i + 1] - Math.max(data[i], data[i + 2]) > 80).length;
+  if (greenish < edge.length * 0.6) return null;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const excess = g - Math.max(r, b); // 綠色超出量
+    let a = 255;
+    if (excess > 90) a = 0;
+    else if (excess > 30) a = Math.round(255 * (1 - (excess - 30) / 60));
+    if (a < 255 && a > 0 || excess > 10) data[i + 1] = Math.min(g, Math.max(r, b) + 8); // 去溢色
+    data[i + 3] = Math.min(data[i + 3], a);
+  }
+  return { data, info, removed: 0 };
+}
+
 export async function removeFlatBackground(input, tol = TOL) {
   const img = sharp(input).ensureAlpha();
   const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
@@ -184,7 +210,11 @@ async function sliceSheets() {
       if (!name) return null;
       const left = (i % sheet.cols) * cw;
       const top = Math.floor(i / sheet.cols) * ch;
-      return sharp(src).extract({ left, top, width: cw, height: ch }).png().toFile(path.join(inbox, `${name}.png`));
+      // 內縮一點，切掉格線（Gemini 常畫出黑色分隔線）
+      const ix = Math.round(cw * 0.025);
+      const iy = Math.round(ch * 0.025);
+      return sharp(src).extract({ left: left + ix, top: top + iy, width: cw - ix * 2, height: ch - iy * 2 }).png()
+        .toFile(path.join(inbox, `${name}.png`));
     }));
     console.log(`sheet ${f} → ${sheet.names.filter(Boolean).length} 格`);
     unlinkSync(src);
@@ -226,6 +256,10 @@ export async function main() {
     if (await hasAlphaCorners(original)) {
       const r0 = await rawOf(original);
       if (midRatio(r0) < 0.07) result = r0;
+    }
+    if (!result) {
+      const ck = await chromaKeyGreen(original);
+      if (ck && opaqueRatio(ck) >= 0.05) result = ck;
     }
     if (!result && process.env.ART_NO_REMBG !== '1') {
       const tmp = path.join(os.tmpdir(), `rembg-${id}.png`);

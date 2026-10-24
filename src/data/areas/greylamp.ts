@@ -58,6 +58,11 @@ export const GREYLAMP: AreaDef = {
     default: { x: 5, y: 7 },
     plaza: { x: 10, y: 18 },
     gate: { x: 10, y: 27 },
+    // 世界地圖的鎮內節點 → 站在該建築門口
+    orphanage: { x: 5, y: 7 },
+    tavern: { x: 18, y: 17 },
+    general_store: { x: 3, y: 17 },
+    town_gate: { x: 10, y: 27 },
   },
   entities: [
     // ── 主線入口（門）──

@@ -38,14 +38,27 @@ export class TitleScene extends Phaser.Scene {
     // `?skipIntro` jumps straight to the settled state (screenshots / slow software GL).
     const skipIntro = new URLSearchParams(window.location.search).has('skipIntro');
 
-    this.drawSky();
-    this.drawStars(rng);
+    // Jacky 的 AI 主視覺（R-004）：有就整張鋪滿，標題移到星空區、不疊程式立繪
+    const keyart = this.textures.exists('bg_title_keyart');
+    const ty = keyart ? 200 : 470;
+    if (keyart) {
+      const bg = this.add.image(cx, GAME_HEIGHT / 2, 'bg_title_keyart');
+      bg.setScale(Math.max(GAME_WIDTH / bg.width, GAME_HEIGHT / bg.height) * 1.04);
+      this.tweens.add({ targets: bg, scale: bg.scale * 1.05, y: GAME_HEIGHT / 2 - 14, duration: 16000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      // 上方壓暗讓標題清楚、下方壓暗讓按鈕清楚
+      const shade = this.add.graphics();
+      shade.fillGradientStyle(0x03040b, 0x03040b, 0x03040b, 0x03040b, 0.7, 0.7, 0, 0).fillRect(0, 0, GAME_WIDTH, 420);
+      shade.fillGradientStyle(0x03040b, 0x03040b, 0x03040b, 0x03040b, 0, 0, 0.75, 0.75).fillRect(0, GAME_HEIGHT - 520, GAME_WIDTH, 520);
+    } else {
+      this.drawSky();
+      this.drawStars(rng);
+    }
 
     // Big soft nebula glow behind the title.
     const nebula = this.add
-      .image(cx, 470, 'glow')
+      .image(cx, ty, 'glow')
       .setScale(3.2)
-      .setAlpha(0.55)
+      .setAlpha(keyart ? 0.25 : 0.55)
       .setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({
       targets: nebula,
@@ -57,7 +70,7 @@ export class TitleScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    this.sigil = this.buildSigil(cx, 470);
+    this.sigil = this.buildSigil(cx, ty);
 
     // Embers rising from the bottom of the screen.
     this.add.particles(0, GAME_HEIGHT + 20, 'ember', {
@@ -92,10 +105,10 @@ export class TitleScene extends Phaser.Scene {
     // 主視覺：連恩與伊歐（動漫風立繪，從兩側滑入）
     generatePortraitArt(this);
     this.heroes = [];
-    for (const [key, x, y, sc, from, delay] of [
+    for (const [key, x, y, sc, from, delay] of (keyart ? [] : [
       ['portrait_io', 520, GAME_HEIGHT - 10, 620, 80, 900],
       ['portrait_lian', 200, GAME_HEIGHT + 30, 700, -80, 1100],
-    ] as [string, number, number, number, number, number][]) {
+    ]) as [string, number, number, number, number, number][]) {
       if (!ensurePortrait(this, key)) continue;
       const img = this.add.image(x, y, key).setOrigin(0.5, 1);
       img.setScale(sc / img.height); // sc＝目標高度（手繪圖與程式立繪尺寸不同）
@@ -109,7 +122,7 @@ export class TitleScene extends Phaser.Scene {
 
     // Title.
     const title = this.add
-      .text(cx, 470, t('game.title'), {
+      .text(cx, ty, t('game.title'), {
         fontFamily: TITLE_FONT,
         fontSize: '120px',
         fontStyle: 'bold',
@@ -122,7 +135,7 @@ export class TitleScene extends Phaser.Scene {
       .setShadow(0, 0, '#ffb35a', 18, true, true);
 
     const subtitle = this.add
-      .text(cx, 580, t('game.subtitle').toUpperCase(), {
+      .text(cx, ty + 110, t('game.subtitle').toUpperCase(), {
         fontFamily: TITLE_FONT,
         fontSize: '34px',
         color: '#ffd9a0',
@@ -133,7 +146,7 @@ export class TitleScene extends Phaser.Scene {
       .setAlpha(0.9);
 
     // Decorative divider.
-    const divider = this.add.graphics();
+    const divider = this.add.graphics().setY(ty - 470);
     divider.lineStyle(2, COLORS.gold, 0.7);
     divider.lineBetween(cx - 230, 625, cx - 30, 625);
     divider.lineBetween(cx + 30, 625, cx + 230, 625);

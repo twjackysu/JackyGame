@@ -809,7 +809,16 @@ export class DialogueScene extends Phaser.Scene {
     session.save();
     fadeOutThen(this, 600, () => {
       const s = session.state;
-      if (this.scriptId === 'ch0') s.location = { region: 'ch1', node: 'orphanage' };
+      if (this.scriptId === 'ch0') {
+        // 序章結束 → 直接站在可自由走動的灰燈鎮（D-040）
+        s.location = { region: 'ch1', node: 'orphanage' };
+        delete s.flags['__return'];
+        s.flags['__ex_area'] = 'greylamp';
+        session.setScriptPos('explore', 'greylamp');
+        session.save();
+        this.scene.start('Explore', { area: 'greylamp', spawn: 'default' });
+        return;
+      }
       // 章節結束（含第 2 章完結）一律回地圖：地圖目標列會顯示「第二章 完成！」，重訪地點也不會被踢回標題
       if (this.scriptId !== 'demo') {
         if (this.scriptId === 'ch5' && s.flags['ch5_complete']) session.setScriptPos('map', 'ch5');
