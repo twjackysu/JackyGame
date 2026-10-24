@@ -24,7 +24,12 @@ export function testWorldRows(): string[] {
 export function makeTestWorldStage(): StageDefinition {
   return {
     id: 'test_world', name: '測試森林', timeLimitTicks: sec(600), player: { x: u(24), y: u(91) }, mapAi: true, enemies: [],
-    reviveAtCampfire: true,
+    reviveAtCampfire: true, viewUnits: 1300,
+    zones: [
+      { name: '南營地', x0: 0, y0: u(71), x1: u(W), y1: u(H) },
+      { name: '林牆之間', x0: 0, y0: u(31), x1: u(W), y1: u(71) },
+      { name: '北林', x0: 0, y0: 0, x1: u(W), y1: u(31) },
+    ],
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: testWorldRows() } },
     campfires: [{ id: 'south', x: u(24), y: u(90) }, { id: 'mid', x: u(24), y: u(50) }],
     spawnGroups: [

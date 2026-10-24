@@ -83,6 +83,10 @@ export class RtBattleScene extends Phaser.Scene {
   private lastWarnTick = -1;
   /** 玩家有沒有主動點過怪／按過技能（刷怪關 30 秒沒動作就提示） */
   private engaged = false;
+  /** 營火光暈（預先烘好的放射漸層，ADD 混色；每幀只改位置與縮放） */
+  private glows: Phaser.GameObjects.Image[] = [];
+  /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
+  private zoneName: string | null = null;
   /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
   private mini: { x: number; y: number; w: number; h: number; s: number } | null = null;
   private idleHinted = false;
@@ -111,7 +115,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.pending = [];
     this.stick = null;
     // 鏡頭：畫面寬約 10.5 格（角色夠大、手機看得清楚），跟隨主角（D-067）
-    this.k = GAME_WIDTH / VIEW_UNITS_W;
+    this.k = GAME_WIDTH / (STAGES[this.stageId]?.viewUnits ?? VIEW_UNITS_W);
     this.prev.clear();
     this.sprites.clear();
     this.flashUntil.clear();
@@ -119,12 +123,14 @@ export class RtBattleScene extends Phaser.Scene {
     this.hitStop = 0;
     this.engaged = false;
     this.idleHinted = false;
+    this.zoneName = null;
     const p0 = playerOf(this.s);
     this.camX = p0.x;
     this.camY = p0.y;
     this.updateCamera(1);
     this.cameras.main.setBackgroundColor('#0b1410');
     this.ground = this.makeGround();
+    this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, this.glowTexture()).setBlendMode(Phaser.BlendModes.ADD));
     this.g = this.add.graphics();
     this.top = this.add.graphics().setDepth(45);
     this.ui = this.add.graphics().setDepth(50);
@@ -323,7 +329,36 @@ export class RtBattleScene extends Phaser.Scene {
     this.updateCamera(Math.min(1, dt / 120));
     this.draw();
     this.idleHint();
+    this.zoneBanner();
     if (this.s.outcome !== 'running') this.finish();
+  }
+
+  private glowTexture(): string {
+    const key = 'rt_fire_glow';
+    if (this.textures.exists(key)) return key;
+    const tex = this.textures.createCanvas(key, 256, 256);
+    if (!tex) return key;
+    const ctx = tex.getContext();
+    const gr = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gr.addColorStop(0, 'rgba(255,190,90,0.8)');
+    gr.addColorStop(0.35, 'rgba(255,140,50,0.32)');
+    gr.addColorStop(1, 'rgba(255,100,30,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, 256, 256);
+    tex.refresh();
+    return key;
+  }
+
+  /** 走進新地區 → 上方淡入淡出地區名稱（開場那一區也會顯示一次） */
+  private zoneBanner(): void {
+    const zs = STAGES[this.stageId]?.zones;
+    if (!zs?.length) return;
+    const p = playerOf(this.s);
+    const z = zs.find((q) => p.x >= q.x0 && p.x < q.x1 && p.y >= q.y0 && p.y < q.y1);
+    if (!z || z.name === this.zoneName) return;
+    this.zoneName = z.name;
+    const t = this.add.text(GAME_WIDTH / 2, 190, `— ${z.name} —`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#f4e6c0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, y: 180, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
   }
 
   /** 地圖怪關卡：開場 30 秒都沒點怪也沒按技能 → 提示「點狼開打」並在最近的怪身上打光圈 */
@@ -840,12 +875,14 @@ export class RtBattleScene extends Phaser.Scene {
       if ((now / 400 + it.id) % 3 < 0.3) g.fillStyle(0xffffff, 0.8).fillCircle(ix + 6, iy - 8, 2.5);
     }
     // 營火：安全範圍淡圈＋木柴＋跳動的火焰與光暈
+    let fi = 0;
     for (const c of STAGES[this.stageId]?.campfires ?? []) {
       const cx = this.sx(c.x);
       const cy = this.sy(c.y);
       const k = this.k * 1.5;
       g.lineStyle(2, 0xffb060, 0.18).strokeCircle(cx, cy, CAMPFIRE_RULES.safeUnits * UNIT * this.k);
-      g.fillStyle(0xffa040, 0.08 + 0.03 * Math.sin(now / 170)).fillCircle(cx, cy, 120 * k * (1 + 0.05 * Math.sin(now / 130)));
+      const gl = this.glows[fi++];
+      if (gl) gl.setPosition(cx, cy - 10 * k).setScale((300 * k * (1 + 0.06 * Math.sin(now / 130))) / 128).setAlpha(0.85 + 0.15 * Math.sin(now / 170));
       g.fillStyle(0x3a2412, 1).fillRoundedRect(cx - 40 * k, cy + 4 * k, 80 * k, 14 * k, 6 * k);
       g.fillStyle(0x4a2e16, 1).fillRoundedRect(cx - 34 * k, cy - 4 * k, 68 * k, 13 * k, 6 * k);
       for (let i = 0; i < 3; i++) {
@@ -979,7 +1016,7 @@ export class RtBattleScene extends Phaser.Scene {
   private makeMinimap(): void {
     this.mini = null;
     const a = this.s.arena;
-    const viewW = VIEW_UNITS_W;
+    const viewW = GAME_WIDTH / this.k;
     const viewH = (VIEW_BOTTOM - VIEW_TOP) / this.k;
     if (a.w * a.h < viewW * viewH * 2.5) return;
     const s = Math.min(130 / a.w, 190 / a.h);
