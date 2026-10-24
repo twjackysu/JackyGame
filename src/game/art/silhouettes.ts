@@ -2,7 +2,7 @@
 // 做法：先用邊緣光色描邊整個輪廓，再把深色本體往右下偏移填上，只留下左上側的亮邊 → 便宜的 rim light。
 import Phaser from 'phaser';
 import { AH, AW, drawIo, drawLian } from './animePortraits';
-import { drawLiora, drawRourke, drawSerin, drawValderan } from './animeCompanions';
+import { drawBern, drawGwen, drawLiora, drawRourke, drawSerin, drawValderan } from './animeCompanions';
 import { backIo, backLian, backLiora, backRourke, backSerin } from './animeSprites';
 
 type P = [number, number];
@@ -355,7 +355,6 @@ export function generatePortraitArt(scene: Phaser.Scene): void {
       g.fillTriangle(85 * s, 140 * s, 95 * s, 160 * s, 75 * s, 160 * s);
     });
   knight('npc_knight', 0x3a4a7a, 0x9fb0d8);
-  knight('npc_gwen', 0x8a2a2a, 0xffd27a);
 
   // ---------------- 城鎮居民（通用立繪） ----------------
   // 瑪拉：中年旅店老闆娘。頭頂髮髻 + 圍裙（胸兜 + 下擺），暖色燈光邊緣。
@@ -460,37 +459,6 @@ export function generatePortraitArt(scene: Phaser.Scene): void {
     rimPoly(g, [[6, 62], [40, 52], [130, 52], [164, 62], [150, 72], [20, 72]], hat, s);
     g.fillStyle(rim, 0.8);
     g.fillRect(60 * s, 46 * s, 52 * s, 4 * s);
-  });
-
-  // 伯恩：魁梧的老鐵匠／長老。極寬肩、濃密灰白大鬍子、皮革工作圍裙、肩後扛著鍛鎚，爐火色邊緣。
-  make(scene, 'npc_bern', 170, 240, (g, s) => {
-    const rim = 0xff9a5a;
-    const o = { fill: 0x15111a, rim };
-    // 鍛鎚（從右肩後方露出）
-    g.lineStyle(6 * s, 0x2a2026, 1);
-    g.lineBetween(140 * s, 140 * s, 156 * s, 30 * s);
-    g.lineStyle(2 * s, rim, 0.8);
-    g.lineBetween(137 * s, 140 * s, 153 * s, 30 * s);
-    rimPoly(g, [[138, 14], [168, 20], [164, 44], [134, 38]], { fill: 0x2e2a34, rim: 0xffd2a8, rimWidth: 2 }, s);
-    // 身體（非常寬的肩膀）
-    rimPoly(g, [[34, 100], [136, 100], [164, 124], [170, 240], [0, 240], [6, 124]], o, s);
-    // 肩部肌肉隆起
-    rimPoly(g, [[6, 124], [26, 102], [56, 100], [52, 140], [10, 150]], { ...o, fill: 0x1d1720 }, s);
-    rimPoly(g, [[114, 100], [144, 102], [164, 124], [160, 150], [118, 140]], { ...o, fill: 0x1d1720 }, s);
-    // 皮革工作圍裙
-    rimPoly(g, [[50, 146], [120, 146], [128, 240], [42, 240]], { fill: 0x2a1c18, rim, rimWidth: 2 }, s);
-    // 頭（短髮／微禿的方頭）
-    rimPoly(g, [[60, 30], [110, 30], [118, 70], [110, 92], [60, 92], [52, 70]], { fill: 0x201a24, rim: 0xffffff, rimWidth: 2 }, s);
-    // 濃眉
-    g.fillStyle(0x8a8088, 1);
-    g.fillRect(64 * s, 58 * s, 16 * s, 5 * s);
-    g.fillRect(90 * s, 58 * s, 16 * s, 5 * s);
-    // 灰白大鬍子
-    rimPoly(g, [[54, 74], [116, 74], [122, 104], [106, 140], [85, 154], [64, 140], [48, 104]], {
-      fill: 0x6e6670, rim: 0xffffff, rimWidth: 1.5, offset: 1.5,
-    }, s);
-    g.fillStyle(0x4e4852, 1);
-    g.fillPoints(poly([[85, 96], [92, 146], [78, 146]], s), true);
   });
 
   // 多恩：礦工公會工頭。安全帽＋頭燈、肩扛十字鎬、濃密八字鬍，礦燈琥珀色邊緣。
@@ -682,7 +650,7 @@ function strokeLine(c: Ctx, pts: P[], color: string, w: number): void {
 }
 
 /** 高解析動漫立繪（顯示尺寸與手繪立繪相同：約 600px 高）。 */
-export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan']);
+export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern']);
 
 function hdPortrait(scene: Phaser.Scene, key: string, draw: (c: Ctx) => void): void {
   ART[key] = { key, w: AW, h: AH, footY: AH / 2 };
@@ -711,6 +679,8 @@ function generateHeroPortraits(scene: Phaser.Scene): void {
   hdPortrait(scene, 'portrait_serin', drawSerin);
   hdPortrait(scene, 'portrait_liora', drawLiora);
   hdPortrait(scene, 'portrait_rourke', drawRourke);
+  hdPortrait(scene, 'npc_gwen', drawGwen);
+  hdPortrait(scene, 'npc_bern', drawBern);
 
 }
 

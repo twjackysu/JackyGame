@@ -535,3 +535,118 @@ export function drawValderan(c: C): void {
     c.restore();
   });
 }
+
+// ---------------------------------------------------------------- 配角共用：短髮男性的頭髮
+function shortHair(c: C, fillStyle: string | CanvasGradient, ink: string, rimRGB: string, slick: boolean): void {
+  const top = slick
+    ? curve([[cx - 112, 280], [cx - 126, 200], [cx - 110, 120], [cx - 50, 76], [cx + 30, 68], [cx + 100, 96], [cx + 132, 170], [cx + 120, 280], [cx + 106, 220], [cx + 70, 180], [cx, 168], [cx - 70, 184], [cx - 104, 224]])
+    : curve([[cx - 116, 290], [cx - 132, 200], [cx - 110, 118], [cx - 46, 80], [cx + 34, 74], [cx + 104, 102], [cx + 134, 190], [cx + 120, 290],
+      [cx + 104, 240], [cx + 76, 214, 1], [cx + 50, 236], [cx + 24, 206, 1], [cx - 4, 232], [cx - 30, 204, 1], [cx - 58, 236], [cx - 84, 212, 1], [cx - 104, 246]]);
+  part(c, top, {
+    fill: fillStyle, rim: [-4, 3, `rgba(${rimRGB},0.9)`], ink, inkW: 2.8,
+    extra: () => {
+      for (const pts of slick
+        ? [[[cx - 90, 180], [cx - 40, 120], [cx + 40, 96]], [[cx - 40, 172], [cx + 20, 120], [cx + 100, 120]], [[cx + 20, 168], [cx + 80, 140], [cx + 120, 180]]]
+        : [[[cx - 60, 90], [cx - 90, 150], [cx - 110, 210]], [[cx + 20, 80], [cx + 40, 140], [cx + 60, 200]], [[cx + 90, 100], [cx + 116, 160], [cx + 124, 230]]]) {
+        line(c, curve(pts as P[], false), 'rgba(0,0,0,0.4)', 2);
+      }
+    },
+  });
+  gloss(c, [[cx - 104, 150, cx - 60, 116], [cx - 40, 106, cx + 6, 96], [cx + 26, 96, cx + 70, 104]], `rgba(${rimRGB},0.45)`);
+}
+
+// ---------------------------------------------------------------- 隊長葛文（序章開除連恩的騎士隊長；紅金鎧甲、嚴厲）
+export function drawGwen(c: C): void {
+  aura(c, 300, 380, 'rgba(255,190,120,0.2)', 'rgba(255,140,90,0.05)');
+  // 紅披風
+  const cape = curve([[-10, AH + 20], [0, 640], [40, 540], [130, 490], [cx, 476], [470, 490], [560, 540], [600, 640], [610, AH + 20]]);
+  part(c, cape, { fill: vgrad(c, 480, AH, [[0, '#a8322e'], [1, '#3a0e10']]), rim: [3, 4, 'rgba(255,210,150,0.9)'], ink: '#1a0606', inkW: 3 });
+  // 胸甲
+  const plate = curve([[cx - 150, 560], [cx, 520], [cx + 150, 560], [cx + 160, 720], [cx + 110, 880], [cx - 110, 880], [cx - 160, 720]]);
+  part(c, plate, {
+    fill: lgrad(c, cx - 160, 520, cx + 160, 880, [[0, '#f0e6d8'], [0.4, '#a89a8a'], [1, '#3a3430']]),
+    shadow: curve([[cx + 20, 520], [cx + 220, 520], [cx + 220, 900], [cx + 20, 900]]), shadowColor: 'rgba(20,10,10,0.4)',
+    rim: [4, 4, 'rgba(255,240,210,1)'], ink: '#1a1410', inkW: 2.6,
+    extra: () => {
+      line(c, curve([[cx - 146, 570], [cx, 532], [cx + 146, 570]], false), '#e0b050', 5);
+      line(c, curve([[cx, 540], [cx, 870]], false), 'rgba(20,10,10,0.3)', 2);
+    },
+  });
+  // 金獅紋章
+  glow(c, cx, 680, 70, 'rgba(255,200,110,0.5)');
+  const crest = curve([[cx, 630, 1], [cx + 40, 650], [cx + 34, 710], [cx, 740, 1], [cx - 34, 710], [cx - 40, 650]]);
+  part(c, crest, { fill: vgrad(c, 630, 740, [[0, '#ffe8a0'], [1, '#b07a2a']]), ink: '#4a2a06', inkW: 2, extra: () => fill(c, star(cx, 684, 20, 8), '#8a2a22') });
+  for (const s of [-1, 1] as const) {
+    const pad = curve([[cx + s * 120, 500], [cx + s * 210, 488], [cx + s * 280, 540], [cx + s * 290, 620, 1], [cx + s * 210, 610], [cx + s * 130, 580]]);
+    part(c, pad, { fill: vgrad(c, 488, 620, [[0, '#f4ecdc'], [1, '#5a4e44']]), rim: [3, 4, 'rgba(255,240,210,1)'], ink: '#1a1410', inkW: 2.4,
+      extra: () => line(c, curve([[cx + s * 140, 560], [cx + s * 210, 548], [cx + s * 266, 590]], false), '#e0b050', 4) });
+  }
+  const f: FaceStyle = { skin: '#f0d0ba', skinShadow: '#c89c86', skinDeep: '#a07060', ink: '#2a1610', blush: 'rgba(200,100,90,0.1)', rimColor: '#ffe0b0', shadowSide: 1, jaw: 1.02, neck: 1.0 };
+  const face = drawNeckAndFace(c, cx, f);
+  const gorget = curve([[cx - 80, 466], [cx, 452], [cx + 80, 466], [cx + 96, 524], [cx, 540], [cx - 96, 524]]);
+  part(c, gorget, { fill: vgrad(c, 452, 540, [[0, '#f0e6d8'], [1, '#5a4e44']]), rim: [3, 3, 'rgba(255,240,210,1)'], ink: '#1a1410', inkW: 2.4 });
+  // 銳利冷峻的眼
+  const eye = { iris: ['#1a2a3a', '#4a7a9a', '#bfe0f0'] as [string, string, string], ink: '#140a08', shine: 'rgba(190,230,255,0.7)', open: 0.42, lift: 9, lash: 7, look: -0.3 };
+  animeEye(c, cx - 50, 308, 60, -1, eye);
+  animeEye(c, cx + 50, 308, 60, 1, eye);
+  fill(c, curve([[cx - 96, 260, 1], [cx - 60, 262], [cx - 22, 282], [cx - 22, 290, 1], [cx - 62, 274], [cx - 94, 270]]), '#6a4a1e');
+  fill(c, curve([[cx + 96, 260, 1], [cx + 60, 262], [cx + 22, 282], [cx + 22, 290, 1], [cx + 62, 274], [cx + 94, 270]]), '#6a4a1e');
+  line(c, curve([[cx + 6, 330], [cx + 12, 356], [cx + 2, 364]], false), f.skinDeep, 2.4);
+  line(c, curve([[cx - 22, 396], [cx, 393], [cx + 22, 396]], false), '#5a2a1e', 3);
+  // 頰上的舊傷
+  line(c, curve([[cx - 76, 340], [cx - 60, 372]], false), 'rgba(190,100,90,0.7)', 2.5);
+  shade(c, face, curve([[cx - 130, 150], [cx + 130, 150], [cx + 130, 222], [cx - 130, 232]]), 'rgba(160,100,80,0.3)');
+  shortHair(c, vgrad(c, 60, 300, [[0, '#f4d07a'], [1, '#a8762e']]), '#3a2408', '255,240,200', true);
+}
+
+// ---------------------------------------------------------------- 伯恩：魁梧的老鐵匠／獵人小屋長老（灰白大鬍子、皮圍裙、鍛鎚）
+export function drawBern(c: C): void {
+  aura(c, 300, 400, 'rgba(255,150,80,0.22)', 'rgba(255,120,60,0.05)');
+  // 鍛鎚（肩後）
+  line(c, curve([[80, 900], [470, 120]], false), '#3a2418', 16);
+  part(c, curve([[420, 60, 1], [540, 120, 1], [512, 176, 1], [392, 116, 1]]), { fill: lgrad(c, 400, 60, 540, 176, [[0, '#d8d4dc'], [1, '#3a3640']]), rim: [-3, 3, 'rgba(255,220,180,1)'], ink: '#14121a', inkW: 2.6 });
+  // 寬厚身體（亞麻衫＋皮圍裙）
+  const body = curve([[-30, AH + 20], [-10, 640], [30, 540], [130, 486], [cx, 476], [470, 486], [570, 540], [610, 640], [630, AH + 20]]);
+  part(c, body, {
+    fill: vgrad(c, 476, AH, [[0, '#c8b49a'], [1, '#6a5a48']]),
+    shadow: curve([[-40, 520], [180, 500], [200, AH + 40], [-40, AH + 40]]), shadowColor: 'rgba(40,20,10,0.4)',
+    rim: [-4, 3, 'rgba(255,190,130,0.9)'], ink: '#2a1a10', inkW: 3,
+  });
+  const apron = curve([[cx - 140, 600], [cx + 140, 600], [cx + 160, AH + 20], [cx - 160, AH + 20]]);
+  part(c, apron, {
+    fill: vgrad(c, 600, AH, [[0, '#7a4a2a'], [1, '#3a2010']]), rim: [-3, 3, 'rgba(255,190,130,0.8)'], ink: '#1a0e06', inkW: 2.6,
+    extra: () => { for (const [x, y] of [[cx - 80, 700], [cx + 60, 760], [cx - 20, 820]] as [number, number][]) fill(c, curve([[x, y], [x + 20, y + 6], [x + 6, y + 14]]), 'rgba(20,10,4,0.4)'); },
+  });
+  for (const s of [-1, 1]) line(c, curve([[cx + s * 120, 604], [cx + s * 90, 520], [cx + s * 60, 470]], false), '#3a2010', 10);
+  const f: FaceStyle = { skin: '#e8b898', skinShadow: '#b88468', skinDeep: '#8a5a44', ink: '#2a1610', blush: 'rgba(220,110,90,0.25)', rimColor: '#ffd0a8', shadowSide: -1, jaw: 1.1, neck: 1.2 };
+  const face = drawNeckAndFace(c, cx, f);
+  // 大鬍子
+  const beard = curve([[cx - 104, 300], [cx - 96, 380], [cx - 70, 470], [cx - 30, 540], [cx, 560, 1], [cx + 30, 540], [cx + 70, 470], [cx + 96, 380], [cx + 104, 300], [cx + 70, 352], [cx + 30, 372], [cx, 366], [cx - 30, 372], [cx - 70, 352]]);
+  part(c, beard, {
+    fill: vgrad(c, 300, 560, [[0, '#e8e4e0'], [1, '#a8a4a0']]), rim: [-3, 3, 'rgba(255,210,170,0.9)'], ink: '#4a4440', inkW: 2.4,
+    extra: () => { for (let i = 0; i < 9; i++) line(c, curve([[cx - 80 + i * 20, 380], [cx - 70 + i * 17, 460], [cx - 40 + i * 10, 530]], false), 'rgba(90,84,80,0.4)', 1.8); },
+  });
+  // 八字鬍與嘴
+  part(c, curve([[cx - 60, 376], [cx - 20, 360], [cx, 368], [cx + 20, 360], [cx + 60, 376], [cx + 30, 386], [cx, 380], [cx - 30, 386]]), { fill: '#d8d4d0', ink: '#4a4440', inkW: 2 });
+  // 慈祥但嚴格的眼
+  const eye = { iris: ['#2a1a0a', '#7a5a3a', '#e0c8a0'] as [string, string, string], ink: '#1a0c08', shine: 'rgba(255,220,180,0.7)', open: 0.38, lift: -3, lash: 6, look: 0 };
+  animeEye(c, cx - 50, 302, 58, -1, eye);
+  animeEye(c, cx + 50, 302, 58, 1, eye);
+  fill(c, curve([[cx - 96, 262, 1], [cx - 60, 248], [cx - 22, 262], [cx - 22, 274, 1], [cx - 62, 262], [cx - 94, 274]]), '#d8d4d0');
+  fill(c, curve([[cx + 96, 262, 1], [cx + 60, 248], [cx + 22, 262], [cx + 22, 274, 1], [cx + 62, 262], [cx + 94, 274]]), '#d8d4d0');
+  line(c, curve([[cx + 4, 322], [cx + 14, 350], [cx + 2, 358]], false), f.skinDeep, 2.6);
+  shade(c, face, curve([[cx - 130, 150], [cx + 130, 150], [cx + 130, 210], [cx - 130, 220]]), 'rgba(140,90,70,0.3)');
+  // 稀疏的灰白頭髮（往後梳）＋頭巾
+  shortHair(c, vgrad(c, 60, 300, [[0, '#e0dcd8'], [1, '#8a8682']]), '#4a4440', '255,220,190', true);
+  line(c, curve([[cx - 122, 200], [cx - 40, 160], [cx + 50, 158], [cx + 128, 196]], false), '#8a2a22', 16);
+  line(c, curve([[cx - 122, 194], [cx - 40, 154], [cx + 50, 152], [cx + 128, 190]], false), 'rgba(255,170,120,0.6)', 2.5);
+  // 爐火照臉
+  within(c, face, () => {
+    c.save();
+    c.globalCompositeOperation = 'soft-light';
+    c.fillStyle = lgrad(c, cx + 140, 400, cx - 60, 240, [[0, 'rgba(255,140,70,0.8)'], [1, 'rgba(255,140,70,0)']]);
+    c.fillRect(0, 0, AW, AH);
+    c.restore();
+  });
+  rim(c, face, -4, 0, 'rgba(255,180,120,0.8)');
+}
