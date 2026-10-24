@@ -281,6 +281,15 @@ export class CardScene extends Phaser.Scene {
       fontFamily: TITLE_FONT, fontSize: '36px', fontStyle: '700', color: t0 > t1 ? '#7dffb0' : t0 < t1 ? '#ff9a8a' : '#ffffff',
       stroke: '#000', strokeThickness: 5,
     }).setOrigin(0.5));
+    // 教學局逐步提示
+    const coach = this.coachText(t0, t1);
+    if (coach) {
+      const ct = this.add.text(GAME_WIDTH / 2, 742, coach, {
+        fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe2a8', backgroundColor: '#1a1208cc', padding: { x: 12, y: 6 }, align: 'center',
+      }).setOrigin(0.5);
+      this.layer.add(ct);
+      this.tweens.add({ targets: ct, alpha: 0.65, duration: 650, yoyo: true, repeat: -1 });
+    }
     this.layer.add(this.add.text(30, 790, lights(me.nightWins), { fontFamily: UI_FONT, fontSize: '28px', color: '#ffd27a' }).setOrigin(0, 0.5));
     // 手牌
     const n = me.hand.length;
@@ -359,6 +368,19 @@ export class CardScene extends Phaser.Scene {
     this.layer.add(this.add.text(GAME_WIDTH - 40, 1190, `牌庫 ${me.deck.length}`, { fontFamily: UI_FONT, fontSize: '24px', color: '#aab4dd' }).setOrigin(1, 0.5));
     const turn = s.phase === 'ended' ? '' : me.passed ? '你已熄燈' : s.current === 0 ? '你的回合' : `${this.opp.name} 思考中…`;
     this.layer.add(this.add.text(GAME_WIDTH / 2 + 110, 1190, turn, { fontFamily: UI_FONT, fontSize: '24px', color: s.current === 0 ? '#ffd27a' : '#aab4dd' }).setOrigin(0.5));
+  }
+
+  /** 教學局（洛克）：依局面給下一步提示 */
+  private coachText(t0: number, t1: number): string | null {
+    if (this.matchId !== 'rourke_tutorial' || this.st.phase !== 'playing') return null;
+    const [me, op] = this.st.sides;
+    if (this.st.current !== 0 || me.passed) return null;
+    const mine = me.board.filter(Boolean).length;
+    if (this.st.night >= 2 && mine === 0) return '④ 先熄燈的一方，下一夜會多抽 1 張';
+    if (mine === 0) return '① 把一張牌拖到下方發光的燈座（或點牌再點燈座）';
+    if (op.passed) return t0 > t1 ? '③ 洛克熄燈了，你領先——按「熄燈」收下這一夜' : '③ 洛克熄燈了——再出牌追過他！';
+    if (mine === 1) return '② ▲ 你會燒掉對面　▼ 你的牌會被燒　夜晚結束比總分';
+    return null;
   }
 
   private canAct(): boolean {
