@@ -1,0 +1,82 @@
+// 即時戰鬥原型資料（D-063：劍士單人；技能暫用 design/20 §A6 四技能＋閃避；霧角狼王依 design/19 §2.9）。
+// 數值是第一版基準，之後由模擬器（sim.ts）校準。
+import { sec, u, type EnemyDefinition, type PlayerDefinition, type SkillDefinition, type StageDefinition } from './types';
+
+export const SKILLS: Record<string, SkillDefinition> = {
+  // 重斬：4s、施放 0.3s、前方扇形 2.0／90°、180%
+  heavy_slash: {
+    id: 'heavy_slash', name: '重斬', cooldownTicks: sec(4), castTicks: sec(0.3), moveFactor: 0, role: 'single', useRange: u(2),
+    hits: [{ atTick: sec(0.3) - 1, shape: { type: 'sector', r: u(2), deg: 90 }, mult: 180 }],
+  },
+  // 旋風斬：8s、施放 0.9s、自身圓 R2.2、3×80%（每 0.3s），可邊轉邊走（70% 移速）
+  whirlwind: {
+    id: 'whirlwind', name: '旋風斬', cooldownTicks: sec(8), castTicks: sec(0.9), moveFactor: 0.7, role: 'aoe', useRange: u(2.2),
+    hits: [0, 1, 2].map((k) => ({ atTick: sec(0.3) * (k + 1) - 1, shape: { type: 'circle' as const, r: u(2.2) }, mult: 80 })),
+  },
+  // 衝鋒：7s、施放 0.3s、直線 4／寬 1.2、140%、命中減速；同敵一次施放最多受傷一次
+  charge: {
+    id: 'charge', name: '衝鋒', cooldownTicks: sec(7), castTicks: sec(0.3), moveFactor: 0, role: 'gap', useRange: u(4.5),
+    dash: { fromTick: 0, ticks: sec(0.3), distance: u(4) },
+    hits: [0, 3, 6].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 140, oncePerTarget: true, status: { id: 'slow' as const, ticks: sec(1) } })),
+  },
+  // 格擋反擊：8s、施放 0.6s；窗口 0～9 ticks 被可格擋攻擊命中 → 傷害 −80% 並立即反擊 220%（前扇形 2）
+  parry: {
+    id: 'parry', name: '格擋反擊', cooldownTicks: sec(8), castTicks: sec(0.6), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 9, reducePct: 80, counter: { atTick: 0, shape: { type: 'sector', r: u(2), deg: 120 }, mult: 220 } },
+  },
+};
+
+export const SWORDSMAN: PlayerDefinition = {
+  id: 'swordsman',
+  hp: 620,
+  atk: 34,
+  def: 20,
+  speed: 3.5,
+  radius: u(0.4),
+  attackIntervalTicks: sec(0.8),
+  attackRange: u(1.5),
+  attackWindupTicks: sec(0.2),
+  attackRecoverTicks: sec(0.6) - 1,
+  critRate: 5,
+  critDmg: 150,
+  mp: 100,
+  skills: ['heavy_slash', 'whirlwind', 'charge', 'parry'],
+  // 閃避：位移 2.5、動作 9 ticks、無敵 1～6、冷卻 5s
+  dodge: { distance: u(2.5), ticks: 9, invulnFrom: 1, invulnTo: 6, cooldownTicks: sec(5) },
+};
+
+export const ENEMIES: Record<string, EnemyDefinition> = {
+  wolf: {
+    id: 'wolf', name: '野狼', hp: 150, atk: 26, def: 6, speed: 3.2, radius: u(0.4), hitstunTicks: 4,
+    attacks: [
+      { id: 'wolf_bite', shape: { type: 'sector', r: u(1.5), deg: 80 }, warningTicks: sec(0.7), recoverTicks: sec(0.5), damageMultiplier: 100, cooldownTicks: sec(2.2), triggerRange: u(1.3), blockable: true, weight: 1 },
+    ],
+  },
+  wolf_king: {
+    id: 'wolf_king', name: '霧角狼王', hp: 4200, atk: 34, def: 12, speed: 3.0, radius: u(0.9), hitstunTicks: 0,
+    attacks: [
+      // P1：爪擊（小扇形、快）、扇形撕咬、直線衝鋒；P2 加環形震波
+      { id: 'king_claw', shape: { type: 'sector', r: u(2.2), deg: 70 }, warningTicks: sec(0.7), recoverTicks: sec(0.4), damageMultiplier: 110, cooldownTicks: sec(3.2), triggerRange: u(2.0), blockable: true, weight: 3 },
+      { id: 'king_bite', shape: { type: 'sector', r: u(3.2), deg: 110 }, warningTicks: sec(1.0), recoverTicks: sec(0.6), damageMultiplier: 170, cooldownTicks: sec(6), triggerRange: u(3.0), blockable: true, weight: 2 },
+      { id: 'king_charge', shape: { type: 'line', len: u(7), width: u(1.6) }, warningTicks: sec(0.9), recoverTicks: sec(0.5), damageMultiplier: 160, cooldownTicks: sec(9), triggerRange: u(7), blockable: true, charge: { ticks: sec(0.5), wallStunTicks: sec(2) }, weight: 2 },
+      { id: 'king_quake', shape: { type: 'ring', rIn: u(2.0), rOut: u(4.5) }, warningTicks: sec(1.2), recoverTicks: sec(0.6), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(4), blockable: false, phase2Only: true, weight: 2 },
+    ],
+    boss: { phase2AtPct: 50, phase2CooldownPct: 87, summon: { enemyId: 'wolf', count: 2, everyTicks: sec(12) } },
+  },
+};
+
+export const STAGES: Record<string, StageDefinition> = {
+  forest_entry: {
+    id: 'forest_entry', name: '森林入口', arena: { w: u(14), h: u(18) }, player: { x: u(7), y: u(15) }, timeLimitTicks: sec(180),
+    enemies: [{ enemyId: 'wolf', x: u(5), y: u(5) }, { enemyId: 'wolf', x: u(7), y: u(4) }, { enemyId: 'wolf', x: u(9), y: u(5) }],
+  },
+  wolf_den: {
+    id: 'wolf_den', name: '狼群巢穴', arena: { w: u(16), h: u(20) }, player: { x: u(8), y: u(17) }, timeLimitTicks: sec(240),
+    enemies: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => ({ enemyId: 'wolf', x: u(3 + (k % 4) * 3.3), y: u(4 + Math.floor(k / 4) * 2.5) })),
+  },
+  wolf_king: {
+    id: 'wolf_king', name: '霧角狼王', arena: { w: u(16), h: u(20) }, player: { x: u(8), y: u(16) }, timeLimitTicks: sec(300),
+    enemies: [{ enemyId: 'wolf_king', x: u(8), y: u(6) }],
+  },
+};
