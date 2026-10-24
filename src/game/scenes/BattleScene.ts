@@ -1194,6 +1194,36 @@ export class BattleScene extends Phaser.Scene {
         this.tweens.add({ targets: orb, x: tgt.x, y: tgt.y - 30, duration: 200, ease: 'Quad.In', onComplete: () => { orb.destroy(); res(); } }),
       );
     }
+    if (c.skillId === 'dawn_flash' && tgt) {
+      // 破曉一閃：橫越畫面的斜向白光
+      const g = this.add.graphics().setDepth(760).setBlendMode(Phaser.BlendModes.ADD);
+      g.lineStyle(26, 0xfff2d0, 0.9).lineBetween(tgt.x - 260, tgt.y + 120, tgt.x + 260, tgt.y - 160);
+      g.lineStyle(8, 0xffffff, 1).lineBetween(tgt.x - 260, tgt.y + 120, tgt.x + 260, tgt.y - 160);
+      this.cameras.main.flash(120, 255, 245, 220);
+      SFX.perfect();
+      this.tweens.add({ targets: g, alpha: 0, duration: 380, onComplete: () => g.destroy() });
+      sparks(this, tgt.x, tgt.y - 20, 40, 'spark', 0xfff2d0, 360);
+    } else if (c.skillId === 'all_in') {
+      // 梭哈：硬幣翻轉
+      const coin = this.add.container(v.x, v.y - 220).setDepth(760);
+      const face = this.add.circle(0, 0, 34, 0xffd27a).setStrokeStyle(5, 0xb08030);
+      const mark = this.add.text(0, 0, '♠', { fontFamily: UI_FONT, fontSize: '40px', color: '#7a5010' }).setOrigin(0.5);
+      coin.add([face, mark]);
+      SFX.cardPlay();
+      await new Promise<void>((res) => this.tweens.add({ targets: coin, scaleX: { from: 1, to: -1 }, duration: 90, yoyo: true, repeat: 3, onComplete: () => res() }));
+      this.tweens.add({ targets: coin, y: coin.y - 40, alpha: 0, duration: 300, onComplete: () => coin.destroy() });
+    } else if (c.skillId === 'chain_blast') {
+      // 連鎖大爆破：敵人身上依序炸開
+      this.enemies.forEach((ev2, k) => {
+        if (ev2.dead) return;
+        this.time.delayedCall(k * 90, () => {
+          shockRing(this, ev2.x, ev2.y - 30, 0xff8a3a, 150, 420, 8);
+          sparks(this, ev2.x, ev2.y - 30, 24, 'ember', 0xffa040, 320);
+        });
+      });
+      this.cameras.main.shake(320, 0.012);
+      SFX.hitHeavy();
+    }
     if (timing === 'perfect') void slowMo(this, 0.25, 180);
     this.tweens.add({ targets: v.root, x: v.x, y: v.y - 14, scale: 1.08, duration: 320, delay: 80, ease: 'Cubic.Out' });
   }
