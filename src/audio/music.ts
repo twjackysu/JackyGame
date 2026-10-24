@@ -131,6 +131,84 @@ export const TRACKS: Record<string, Track> = {
     },
     volume: 0.4,
   },
+  // 王都（第 3 章地圖／對話）：D 大調 104 BPM，撥弦感方波琶音＋輕快 hat，市集與燈火的熱鬧（I – V – vi – IV）
+  capital: {
+    id: 'capital',
+    bpm: 104,
+    chords: [
+      { root: 50, tones: [0, 4, 7, 12] }, // D
+      { root: 45, tones: [0, 4, 7, 12] }, // A
+      { root: 47, tones: [0, 3, 7, 12] }, // Bm
+      { root: 43, tones: [0, 4, 7, 14] }, // G(add9)
+    ],
+    arp: [0, -1, 2, 1, 3, -1, 2, 1, 0, -1, 2, 3, 1, 2, 3, -1],
+    arpWave: 'square',
+    arpOctave: 12,
+    arpVolume: 0.045,
+    arpLen: 0.7,
+    arpLp: 2600,
+    padVolume: 0.04,
+    padWave: 'triangle',
+    bassPattern: [1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 2, 0, 0, 0],
+    bassVolume: 0.2,
+    drums: {
+      kick: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      hat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1],
+    },
+    volume: 0.36,
+  },
+  // 深處（第 4 章研究院地下、終章裂谷）：E 小調 72 BPM，長音 pad＋稀疏高音正弦，像星光在黑暗裡呼吸
+  abyss: {
+    id: 'abyss',
+    bpm: 72,
+    chords: [
+      { root: 40, tones: [0, 7, 12, 15] }, // Em
+      { root: 36, tones: [0, 7, 12, 16] }, // C
+      { root: 38, tones: [0, 7, 12, 14] }, // Dsus2
+      { root: 35, tones: [0, 7, 12, 15] }, // Bm
+    ],
+    arp: [3, -1, -1, 2, -1, -1, 1, -1, 3, -1, -1, -1, 2, -1, 1, -1],
+    arpWave: 'sine',
+    arpOctave: 24,
+    arpVolume: 0.07,
+    arpLen: 3.5,
+    arpLp: 4200,
+    padVolume: 0.06,
+    padWave: 'sine',
+    bassPattern: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    bassVolume: 0.16,
+    bassLen: 6,
+    volume: 0.4,
+  },
+  // 洛克決鬥（鐘塔屋頂）：A 小調 140 BPM，八度跳躍鋸齒低音＋切分小鼓，悲壯而熱血（i – VI – III – VII）
+  duel: {
+    id: 'duel',
+    bpm: 140,
+    chords: [
+      { root: 45, tones: [0, 3, 7, 12] }, // Am
+      { root: 41, tones: [0, 4, 7, 12] }, // F
+      { root: 48, tones: [0, 4, 7, 12] }, // C
+      { root: 43, tones: [0, 4, 7, 12] }, // G
+    ],
+    arp: [0, 1, 2, 3, 2, 1, 0, 1, 0, 1, 2, 3, 3, 2, 3, 2],
+    arpWave: 'sawtooth',
+    arpOctave: 12,
+    arpVolume: 0.05,
+    arpLen: 0.9,
+    arpLp: 2200,
+    padVolume: 0.03,
+    padWave: 'sawtooth',
+    bassPattern: [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 1],
+    bassWave: 'sawtooth',
+    bassVolume: 0.18,
+    bassLen: 0.8,
+    drums: {
+      kick: [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
+      hat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    },
+    volume: 0.4,
+  },
   // 探索（城鎮／森林地圖、對話）：F 大調 80 BPM、溫暖抒情（I – vi – IV – V），
   // 正弦琶音稀疏柔和、三角波 pad、無打擊。
   explore: {
@@ -324,4 +402,11 @@ export function stopMusic(fadeSec = 0.8): void {
   c.out.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + fadeSec);
   window.setTimeout(() => c.out.disconnect(), (fadeSec + 0.3) * 1000);
   current = null;
+}
+
+/** 各章的探索曲（地圖與對話）：第 3 章王都、第 4 章起深處，其餘溫暖探索曲 */
+export function chapterTrack(chapter: string): string {
+  if (chapter === 'ch3') return 'capital';
+  if (chapter === 'ch4' || chapter === 'ch5') return 'abyss';
+  return 'explore';
 }

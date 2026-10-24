@@ -1,7 +1,7 @@
 // 節點地圖（07 §2）：依目前章節（src/data/maps.ts）顯示。點地點 → 確認 → 提燈標記沿路徑移動 → 進入該地點的劇本入口。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { playMusic } from '../../audio/music';
+import { chapterTrack, playMusic } from '../../audio/music';
 import { check } from '../../core/state/gameState';
 import { CHAPTER_MAPS, currentChapter, type ChapterMap } from '../../data/maps';
 import { HEROES } from '../../data/combatants';
@@ -12,9 +12,9 @@ import { openSettings } from '../ui/settingsPanel';
 import { HERO_COLOR, openParty } from '../ui/partyPanel';
 import { drawMapCh2, drawMapCh3, drawMapCh4, drawMapCh5 } from '../art/mapArt';
 import { session } from '../session';
+import { ENDING_NAME } from '../credits';
 
 type NodeState = 'locked' | 'open' | 'done' | 'waiting';
-const ENDING_NAME: Record<string, string> = { light: '燈火長明', crown: '新的大司星', dream: '餘燼之夢' };
 
 export class MapScene extends Phaser.Scene {
   private token!: Phaser.GameObjects.Container;
@@ -89,7 +89,7 @@ export class MapScene extends Phaser.Scene {
         this.busy = false;
       });
     });
-    playMusic('explore');
+    playMusic(chapterTrack(this.map.id));
     this.cameras.main.fadeIn(400, 0, 0, 0);
     this.input.on('pointerdown', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       if (over.length === 0) this.closeBubble();

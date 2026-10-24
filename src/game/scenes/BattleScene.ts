@@ -122,6 +122,8 @@ export class BattleScene extends Phaser.Scene {
     ringStart: number;
   };
   private lastTelegraph?: Extract<BattleEvent, { type: 'telegraph' }>;
+  /** 旅程統計（片尾字幕用）：本場累計，結束時寫進存檔 */
+  private statAcc = { perfect: 0, lamps: 0, maxRes: 0 };
 
   constructor() {
     super('Battle');
@@ -152,6 +154,7 @@ export class BattleScene extends Phaser.Scene {
     this.buttons = [];
     this.coachStep = 0;
     this.coach = undefined;
+    this.statAcc = { perfect: 0, lamps: 0, maxRes: 0 };
   }
 
   create(): void {
@@ -207,7 +210,7 @@ export class BattleScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onPointer('move', p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onPointer('up', p));
 
-    playMusic(boss ? 'boss' : 'battle');
+    playMusic(this.data0.encounter.startsWith('rourke_') ? 'duel' : boss ? 'boss' : 'battle');
     this.cameras.main.fadeIn(350, 0, 0, 0);
     void this.intro(boss);
   }
@@ -1360,6 +1363,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async playOne(e: BattleEvent): Promise<void> {
+    if (e.type === 'defense' && e.result === 'perfect') this.statAcc.perfect++;
+    else if (e.type === 'damage' && e.timing === 'perfect' && e.target.side === 'enemy') this.statAcc.perfect++;
+    else if (e.type === 'lampPlaced') this.statAcc.lamps += e.count;
+    else if (e.type === 'finale') this.statAcc.lamps += e.lamps;
+    else if (e.type === 'resonance') this.statAcc.maxRes = Math.max(this.statAcc.maxRes, e.totalLamps);
     switch (e.type) {
       case 'turnStart':
         this.updateTurnBar();
@@ -1793,6 +1801,12 @@ export class BattleScene extends Phaser.Scene {
           const key = `retry_${this.data0.encounter}`;
           if (win) delete session.state.flags[key];
           else session.state.flags[key] = this.retryCount() + 1;
+          const f = session.state.flags;
+          const n = (k: string) => (typeof f[k] === 'number' ? (f[k] as number) : 0);
+          f['stat_perfect'] = n('stat_perfect') + this.statAcc.perfect;
+          f['stat_lamps'] = n('stat_lamps') + this.statAcc.lamps;
+          f['stat_max_resonance'] = Math.max(n('stat_max_resonance'), this.statAcc.maxRes);
+          if (win) f['stat_wins'] = n('stat_wins') + 1;
           session.save();
           this.scene.stop();
           this.scene.wake('Dialogue', { outcome: win ? 'win' : 'lose' });

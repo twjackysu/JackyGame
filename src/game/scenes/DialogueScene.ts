@@ -1,7 +1,7 @@
 // 對話場景（07 §4）：打字機、名牌、剪影立繪、選擇與檢定擲骰、外部事件（戰鬥／章節卡）。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { playMusic, stopMusic } from '../../audio/music';
+import { chapterTrack, playMusic, stopMusic } from '../../audio/music';
 import { DialogueRunner, type DialogueStep, type ShownOption } from '../../core/dialogue/runner';
 import type { HeroId } from '../../core/battle/skills';
 import { SPEAKER_NAMES } from '../../data/dialogue/speakers';
@@ -10,6 +10,7 @@ import { CH3_PORTRAITS, CH4_PORTRAITS, generateCombatantArt, generatePortraitArt
 import { backdropFor, backdropKey } from '../art/backdrops';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
+import { creditsLines } from '../credits';
 import { RENAMEABLE, SCRIPTS, session, withNames } from '../session';
 import { textCharMs } from '../settings';
 import type { BattleSceneData } from './BattleScene';
@@ -714,7 +715,7 @@ export class DialogueScene extends Phaser.Scene {
   /** 序章保持寂靜（冷開場），其餘章節播放探索曲 */
   private ambientMusic(fade: number): void {
     if (this.scriptId === 'ch0') stopMusic(fade);
-    else playMusic('explore', fade);
+    else playMusic(chapterTrack(this.scriptId), fade);
   }
 
   private async chapterCard(id: string): Promise<void> {
@@ -732,8 +733,50 @@ export class DialogueScene extends Phaser.Scene {
     this.tweens.add({ targets: t2, alpha: 1, y: 640, duration: 900, delay: 300, ease: 'Cubic.Out' });
     shockRing(this, GAME_WIDTH / 2, 620, 0xffd27a, 420, 1200, 6);
     await new Promise((r) => this.time.delayedCall(2600, r));
-    this.tweens.add({ targets: [t1, t2, dim], alpha: 0, duration: 600 });
+    if (id === 'fin') {
+      this.tweens.add({ targets: [t1, t2], alpha: 0, duration: 600 });
+      await this.rollCredits();
+      this.tweens.add({ targets: dim, alpha: 0, duration: 600 });
+    } else this.tweens.add({ targets: [t1, t2, dim], alpha: 0, duration: 600 });
     await new Promise((r) => this.time.delayedCall(600, r));
+  }
+
+  /** 片尾字幕：旅程統計＋製作名單由下往上捲動（點擊加速） */
+  private async rollCredits(): Promise<void> {
+    session.save(); // 先結算遊玩時間
+    playMusic('title');
+    const lines = creditsLines(session.state);
+    const c = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT + 40).setDepth(402);
+    let y = 0;
+    for (const l of lines) {
+      if (l.kind === 'gap') {
+        y += 50;
+        continue;
+      }
+      const st = {
+        title: { fontFamily: TITLE_FONT, fontSize: '72px', color: '#ffd27a', stroke: '#1a0f08', strokeThickness: 8 },
+        head: { fontFamily: TITLE_FONT, fontSize: '36px', color: '#ffe2a8' },
+        stat: { fontFamily: UI_FONT, fontSize: '32px', color: '#ffffff' },
+        body: { fontFamily: UI_FONT, fontSize: '26px', color: '#aab4dd' },
+      }[l.kind];
+      const t = this.add.text(0, y, l.text, st).setOrigin(0.5, 0);
+      c.add(t);
+      y += t.height + 18;
+    }
+    const total = GAME_HEIGHT + 40 + y;
+    // 漂浮餘燼
+    const em = this.add.particles(0, 0, 'ember', {
+      x: { min: 0, max: GAME_WIDTH }, y: GAME_HEIGHT + 20, lifespan: 6000, speedY: { min: -120, max: -50 },
+      scale: { start: 0.5, end: 0 }, alpha: { start: 0.8, end: 0 }, frequency: 180, blendMode: Phaser.BlendModes.ADD,
+    }).setDepth(401);
+    await new Promise<void>((resolve) => {
+      const tw = this.tweens.add({ targets: c, y: -y - 40, duration: total * 10, ease: 'Linear', onComplete: () => resolve() });
+      const fast = () => tw.setTimeScale(4);
+      this.input.once('pointerdown', fast);
+      this.time.delayedCall(total * 10 + 500, () => resolve());
+    });
+    em.stop();
+    c.destroy();
   }
 
   private finish(): void {

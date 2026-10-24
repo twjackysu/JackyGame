@@ -386,7 +386,7 @@ try {
       // 達成後再等場景收尾，確認回到地圖（不是卡在對話或被踢回標題）
       goalAt ??= Date.now();
       const settled = !st.active.includes('Dialogue') && !st.active.includes('Battle') && !st.active.includes('Cards');
-      if (settled || Date.now() - goalAt > 40_000) {
+      if (settled || Date.now() - goalAt > 90_000) {
         log(`*** ${GOAL} reached; now in ${st.active.join('+')} ***`);
         afterGoalScene = st.active.join('+');
         exitCode = process.env.EXPECT_AFTER && !st.active.includes(process.env.EXPECT_AFTER) ? 1 : 0;
