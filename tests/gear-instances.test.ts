@@ -196,3 +196,23 @@ describe('讀檔保險', () => {
     expect(bagCount(s, 'first_lamp')).toBe(1);
   });
 });
+
+describe('賣出／交出的順序（第 12 輪）', () => {
+  it('先移除強化最低、詞綴最少、沒上鎖的那件', () => {
+    const s = newGame();
+    const a = createInstance(s, 'lantern_star', 'shop');
+    const b = createInstance(s, 'lantern_star', 'drop');
+    const c = createInstance(s, 'lantern_star', 'shop');
+    const d = createInstance(s, 'lantern_star', 'shop');
+    a.enhancement = 3;
+    b.affixes = [{ id: 'atk_flat', value: 4 }];
+    d.locked = true;
+    addItem(s, 'lantern_star', -1);
+    expect(s.gear[c.instanceId]).toBeUndefined();
+    addItem(s, 'lantern_star', -1);
+    expect(s.gear[b.instanceId]).toBeUndefined();
+    addItem(s, 'lantern_star', -5);
+    expect(s.gear[a.instanceId]).toBeUndefined();
+    expect(s.gear[d.instanceId]).toBeDefined(); // 上鎖的不動
+  });
+});

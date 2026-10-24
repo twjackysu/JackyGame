@@ -104,8 +104,8 @@ export function addItem(s: GameState, templateId: string, n: number, origin: Gea
   if (isGearTemplate(templateId)) {
     if (n > 0) for (let i = 0; i < n; i++) createInstance(s, templateId, origin);
     else {
-      // 上鎖的不會被移除；先移除強化等級最低的（賣掉／交出時不會誤動強化過的那件）
-      const pool = freeInstances(s, templateId).filter((x) => !x.locked).sort((a, b) => a.enhancement - b.enhancement || (a.instanceId < b.instanceId ? -1 : 1));
+      // 上鎖的不會被移除；先移除強化等級最低、詞綴最少的（賣掉／交出時不會誤動強化過或刷到好詞綴的那件）
+      const pool = freeInstances(s, templateId).filter((x) => !x.locked).sort((a, b) => a.enhancement - b.enhancement || a.affixes.length - b.affixes.length || (a.instanceId < b.instanceId ? -1 : 1));
       for (const g of pool.slice(0, -n)) delete s.gear[g.instanceId];
     }
     return;
