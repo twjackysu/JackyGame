@@ -264,7 +264,7 @@ describe('boss_wolfking', () => {
 
   it('below 50% HP: phaseChange, fog windowScale 0.7 for 3 rounds', () => {
     const r = toPhase2(5);
-    expect(r.events).toContainEqual({ type: 'phaseChange', enemy: 0, phase: 2 });
+    expect(r.events).toContainEqual({ type: 'phaseChange', enemy: 0, phase: 2, title: '霧起', sub: '判定窗口縮小' });
     expect(r.state.enemies[0]!.bossPhase).toBe(2);
     expect(r.state.windowScale).toBe(0.7);
     expect(r.state.fogRounds).toBe(3);

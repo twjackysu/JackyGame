@@ -55,6 +55,8 @@ function pickTarget(s: BattleState, elem: string): number {
   return pool[0]?.i ?? 0;
 }
 
+let cleansePolicy = true;
+
 function policy(s: BattleState): Command {
   const hero = currentHero(s)!;
   const usable = new Set(availableCommands(s).filter((c) => c.usable).map((c) => c.skillId ?? c.type));
@@ -63,6 +65,10 @@ function policy(s: BattleState): Command {
     .map((e, i) => ({ e, i }))
     .filter((x) => x.e.hp > 0)
     .sort((a, b) => b.e.hp - a.e.hp)[0];
+  // 反燈印：快引爆時優先淨化
+  const doomed = cleansePolicy && s.heroes.some((h) => !h.downed && h.status.doomMark > 0 && h.status.doomMark <= 2);
+  if (doomed && hero.id === 'lian' && usable.has('guiding_light')) return { type: 'skill', skillId: 'guiding_light' };
+  if (doomed && hero.id === 'io' && usable.has('glimmer_song')) return { type: 'skill', skillId: 'glimmer_song' };
   if (hero.id === 'lian') {
     const lamps = totalLamps(s);
     if (lamps >= 4 && usable.has('resonance')) return { type: 'skill', skillId: 'resonance' };
@@ -94,11 +100,13 @@ export function simulateBattle(
   encounterId: string,
   skill: SimSkill,
   seed: number,
+  opts: { guidingLight?: boolean; cleanse?: boolean } = {},
 ): SimResult {
   const enemies = ENCOUNTERS[encounterId];
   if (!enemies) throw new Error(`unknown encounter ${encounterId}`);
   const rng = mulberry32(seed ^ 0x9e3779b9);
-  let s = createBattle({ party, enemies, seed }).state;
+  let s = createBattle({ party, enemies, seed, flags: { guidingLight: opts.guidingLight } }).state;
+  cleansePolicy = opts.cleanse ?? true;
   let steps = 0;
   while (s.phase !== 'victory' && s.phase !== 'defeat' && s.round <= MAX_SIM_ROUNDS && steps++ < 5000) {
     if (s.phase === 'playerCommand') s = chooseCommand(s, policy(s)).state;

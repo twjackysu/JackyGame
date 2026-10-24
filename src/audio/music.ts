@@ -102,6 +102,35 @@ export const TRACKS: Record<string, Track> = {
     },
     volume: 0.42,
   },
+  // Boss 階段 2「星空舞台」（瓦爾德蘭）：B 小調 132 BPM——伊歐之歌的旋律被扭成星術變奏，
+  // 高八度正弦琶音像歌聲、三角波 pad 持續、低音八度跳躍、打擊只留 kick/hat 讓空間變大。
+  boss_starstage: {
+    id: 'boss_starstage',
+    bpm: 132,
+    chords: [
+      { root: 47, tones: [0, 3, 7, 14] }, // Bm(add9)
+      { root: 43, tones: [0, 4, 7, 11] }, // Gmaj7
+      { root: 38, tones: [0, 4, 7, 14] }, // D(add9)
+      { root: 42, tones: [0, 4, 7, 10] }, // F#7
+    ],
+    arp: [0, 3, 2, 1, 3, 2, 1, 0, 0, 3, 2, 3, 1, 2, 3, -1],
+    arpWave: 'sine',
+    arpOctave: 24,
+    arpVolume: 0.08,
+    arpLen: 2.4,
+    arpLp: 5200,
+    padVolume: 0.05,
+    padWave: 'triangle',
+    bassPattern: [1, 0, 2, 0, 1, 0, 2, 1, 1, 0, 2, 0, 1, 2, 1, 2],
+    bassWave: 'sawtooth',
+    bassVolume: 0.17,
+    bassLen: 1.2,
+    drums: {
+      kick: [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+      hat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0],
+    },
+    volume: 0.4,
+  },
   // 探索（城鎮／森林地圖、對話）：F 大調 80 BPM、溫暖抒情（I – vi – IV – V），
   // 正弦琶音稀疏柔和、三角波 pad、無打擊。
   explore: {

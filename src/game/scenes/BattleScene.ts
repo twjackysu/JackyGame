@@ -26,7 +26,7 @@ import { getSettings } from '../settings';
 import { backdropKey, battleBackdropFor } from '../art/backdrops';
 import { grantXp } from '../../core/state/gameState';
 import {
-  UI_FONT, bigText, floatNumber, hitStop, pressBounce, setBaseSpeed, shockRing, slowMo, sparks, wait, fadeOutThen } from '../fx/feel';
+  TITLE_FONT, UI_FONT, bigText, floatNumber, hitStop, pressBounce, setBaseSpeed, shockRing, slowMo, sparks, wait, fadeOutThen } from '../fx/feel';
 
 export interface BattleSceneData {
   encounter?: string;
@@ -57,6 +57,8 @@ interface UnitView {
   maxHp: number;
   side: 'hero' | 'enemy';
   dead: boolean;
+  /** 反燈印：紫色倒數印記（懶建立） */
+  mark?: Phaser.GameObjects.Container;
 }
 
 const HERO_COLOR: Record<string, number> = {
@@ -66,7 +68,7 @@ const TELE_COLOR: Record<Telegraph, number> = { white: 0xffffff, red: 0xff4a4a, 
 const TELE_HINT: Record<Telegraph, string> = { white: '點擊 → 格擋', red: '滑動 → 閃避', purple: '長按 → 引路' };
 const STATUS_LABEL: Record<string, string> = {
   guarding: '防禦', taunt: '挑釁', counterStance: '反擊架勢', veteranInstinct: '老兵的直覺', weakRevealed: '弱點顯現',
-  silenced: '靜默', howl: '嚎叫！', poison: '中毒', umbra: '蝕', empowered: '引路之光',
+  silenced: '靜默', howl: '嚎叫！', poison: '中毒', umbra: '蝕', empowered: '引路之光', doomMark: '反燈印！',
 };
 
 const ATTACK_LEAD_MS = 260; // 光環出現到開始收縮
@@ -496,7 +498,9 @@ export class BattleScene extends Phaser.Scene {
       if (h.status.poison) st.push('毒');
       if (h.status.umbra) st.push('蝕');
       if (h.status.empowered) st.push('✦');
+      if (h.status.sealed) st.push(`封:${SKILLS[h.status.sealed]?.name ?? '技能'}`);
       v.status.setText(st.join(' '));
+      this.setDoomMark(i, h.downed ? 0 : h.status.doomMark);
     });
     this.bs.enemies.forEach((e, i) => {
       const v = this.enemies[i];
@@ -512,6 +516,77 @@ export class BattleScene extends Phaser.Scene {
     });
     this.updateTurnBar();
     this.roundText.setText(`第 ${Math.max(1, this.bs.round)} 回合`);
+  }
+
+  /** 瓦爾德蘭階段 2「星空舞台」：背景翻轉成星空、星座連線、BGM 換成星空變奏 */
+  private starStage(): void {
+    const sky = this.add.graphics().setDepth(-5).setAlpha(0);
+    sky.fillGradientStyle(0x060a24, 0x060a24, 0x1a0c3a, 0x2a1050, 1);
+    sky.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    const stars = this.add.container(0, 0).setDepth(-4).setAlpha(0);
+    for (let k = 0; k < 90; k++) {
+      const x = Phaser.Math.Between(0, GAME_WIDTH);
+      const y = Phaser.Math.Between(0, 1050);
+      const st = this.add.image(x, y, 'spark').setScale(Phaser.Math.FloatBetween(0.15, 0.5)).setBlendMode(Phaser.BlendModes.ADD)
+        .setTint(Phaser.Utils.Array.GetRandom([0xffffff, 0xd9e4ff, 0xffe2a8, 0xd9b8ff]));
+      stars.add(st);
+      this.tweens.add({ targets: st, alpha: 0.25, duration: Phaser.Math.Between(500, 1600), yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 1200) });
+    }
+    // 兩組小星座（舞台的「觀眾」）：左上、右上各 5 顆，連線
+    const lines = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    for (const [cx, cy] of [[110, 260], [600, 330]] as const) {
+      const pts: [number, number][] = [];
+      for (let k = 0; k < 5; k++) pts.push([cx + Phaser.Math.Between(-80, 80), cy + Phaser.Math.Between(-70, 70)]);
+      pts.sort((a, b) => a[0] - b[0]);
+      lines.lineStyle(2, 0xb8c8ff, 0.4);
+      for (let k = 1; k < pts.length; k++) lines.lineBetween(pts[k - 1]![0], pts[k - 1]![1], pts[k]![0], pts[k]![1]);
+      for (const [x, y] of pts) stars.add(this.add.image(x, y, 'spark').setScale(0.6).setBlendMode(Phaser.BlendModes.ADD));
+    }
+    stars.add(lines);
+    // 地面翻轉：一道光從下往上掃
+    const sweep = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT, GAME_WIDTH, 40, 0xd9b8ff, 0.6).setDepth(-3).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: sweep, y: 0, duration: 900, ease: 'Cubic.InOut', onComplete: () => sweep.destroy() });
+    this.tweens.add({ targets: [sky, stars], alpha: 1, duration: 900, delay: 200 });
+    playMusic('boss_starstage', 0.8);
+  }
+
+  /** 反燈印：英雄頭上的紫色反向燈印 + 倒數數字 */
+  private setDoomMark(i: number, n: number): void {
+    const v = this.heroes[i];
+    if (!v) return;
+    if (n <= 0) {
+      if (v.mark) {
+        const m = v.mark;
+        v.mark = undefined;
+        this.tweens.add({ targets: m, alpha: 0, scale: 1.6, duration: 260, onComplete: () => m.destroy() });
+      }
+      return;
+    }
+    if (!v.mark) {
+      const m = this.add.container(v.x, v.y - 40).setDepth(260);
+      const g = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+      g.lineStyle(5, 0xb46bff, 0.9).strokeCircle(0, 0, 70);
+      g.lineStyle(2, 0xe0c8ff, 0.7).strokeCircle(0, 0, 58);
+      // 倒過來的燈印：六芒刻痕向內
+      for (let k = 0; k < 6; k++) {
+        const a = (Math.PI * 2 * k) / 6;
+        g.lineStyle(4, 0xd9b8ff, 0.9).lineBetween(Math.cos(a) * 70, Math.sin(a) * 70, Math.cos(a) * 46, Math.sin(a) * 46);
+      }
+      const glow = this.add.image(0, 0, 'glow').setScale(1.3).setTint(0xb46bff).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD);
+      const num = this.add.text(0, -96, '', {
+        fontFamily: TITLE_FONT, fontSize: '40px', color: '#e8d4ff', stroke: '#2a0a4a', strokeThickness: 7,
+      }).setOrigin(0.5);
+      m.add([glow, g, num]);
+      m.setData('num', num);
+      this.tweens.add({ targets: g, angle: -360, duration: 3200, repeat: -1 });
+      this.tweens.add({ targets: glow, alpha: 0.6, duration: 420, yoyo: true, repeat: -1 });
+      m.setScale(0.2);
+      this.tweens.add({ targets: m, scale: 1, duration: 320, ease: 'Back.Out' });
+      v.mark = m;
+    }
+    const num = v.mark.getData('num') as Phaser.GameObjects.Text;
+    num.setText(String(n)).setColor(n <= 1 ? '#ff8ab0' : '#e8d4ff');
+    if (n <= 1) this.tweens.add({ targets: num, scale: 1.35, duration: 180, yoyo: true });
   }
 
   private setLamps(i: number, n: number): void {
@@ -1376,10 +1451,54 @@ export class BattleScene extends Phaser.Scene {
         SFX.hitHeavy();
         await wait(this, 300);
         if (v) shockRing(this, v.x, v.y, 0xb46bff, 420, 800, 14);
-        bigText(this, GAME_WIDTH / 2, 560, '霧起', '#d9b8ff', 90, 700);
-        this.fog.forEach((f) => this.tweens.add({ targets: f, alpha: 0.32, duration: 1200 }));
-        floatNumber(this, GAME_WIDTH / 2, 660, '判定窗口縮小', { color: '#c8b0ff', size: 28 });
+        const be = this.bs.enemies[e.enemy];
+        if (be?.id === 'boss_valderan') this.starStage();
+        bigText(this, GAME_WIDTH / 2, 560, e.title, '#d9b8ff', 90, 700);
+        if (this.bs.windowScale < 1) this.fog.forEach((f) => this.tweens.add({ targets: f, alpha: 0.32, duration: 1200 }));
+        if (e.sub) floatNumber(this, GAME_WIDTH / 2, 660, e.sub, { color: '#c8b0ff', size: 28 });
         await wait(this, 1100);
+        return;
+      }
+      case 'markDetonate': {
+        const v = this.heroes[e.hero];
+        if (!v) return;
+        this.setDoomMark(e.hero, 0);
+        this.tweens.add({ targets: this.dim, alpha: 0.5, duration: 120, yoyo: true, hold: 200 });
+        shockRing(this, v.x, v.y - 40, 0xb46bff, 340, 520, 16);
+        shockRing(this, v.x, v.y - 40, 0xffffff, 200, 300, 6);
+        sparks(this, v.x, v.y - 40, 60, 'shard', 0xc8a0ff, 720);
+        bigText(this, v.x, v.y - 200, '反燈印・爆', '#e0b8ff', 56, 420);
+        this.cameras.main.shake(420, 0.02);
+        this.cameras.main.flash(160, 180, 110, 255);
+        SFX.hitHeavy();
+        await wait(this, 420);
+        return;
+      }
+      case 'markCleansed': {
+        for (const i of e.heroes) {
+          const v = this.heroes[i];
+          if (!v) continue;
+          this.setDoomMark(i, 0);
+          sparks(this, v.x, v.y - 40, 30, 'ember', 0xffe2a8, 360);
+          shockRing(this, v.x, v.y - 40, 0xffd27a, 150, 420, 8);
+          floatNumber(this, v.x, v.y - 150, '淨化！', { color: '#ffe2a8', size: 32 });
+        }
+        SFX.perfect();
+        await wait(this, 380);
+        return;
+      }
+      case 'skillSealed': {
+        const v = this.heroes[e.hero];
+        if (!v) return;
+        // 吞噬記憶：技能名被黑霧吞掉
+        const t = this.add.text(v.x, v.y - 150, e.name, {
+          fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: '#2a0a4a', strokeThickness: 6,
+        }).setOrigin(0.5).setDepth(800);
+        sparks(this, v.x, v.y - 150, 26, 'ember', 0x6a3aa0, 300);
+        this.tweens.add({ targets: t, alpha: 0, scaleX: 1.6, scaleY: 0.2, y: v.y - 120, delay: 380, duration: 420, ease: 'Cubic.In', onComplete: () => t.destroy() });
+        floatNumber(this, v.x, v.y - 200, `記憶被吞噬・封印 ${e.rounds} 回合`, { color: '#c8a0ff', size: 26 });
+        SFX.uiCancel();
+        await wait(this, 700);
         return;
       }
       case 'combo': {

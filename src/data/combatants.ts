@@ -28,6 +28,10 @@ export interface EnemyAttack {
   weight: number; // 出招權重
   phase?: 1 | 2; // 限定階段
   drainEmber?: number; // 吸走我方星燼：失敗吸 n、成功吸 ceil(n/2)、完美不吸；每吸 1 點回復 3% 最大 HP
+  /** 反燈印：未完美閃避 → 目標被標記，n 回合後引爆（場上同時只會有一個） */
+  mark?: number;
+  /** 吞噬記憶：防守失敗 → 隨機封印一名目標的一個技能 n 回合 */
+  seal?: number;
 }
 
 export interface EnemyDef {
@@ -46,6 +50,8 @@ export interface EnemyDef {
   attacks: EnemyAttack[];
   /** 特殊被動 */
   traits?: ('wallCrash' | 'howl' | 'fogPhase2')[];
+  /** 轉階段字卡（預設：霧起／狂化） */
+  phase2?: { title: string; sub?: string };
 }
 
 export const ENEMIES: Record<string, EnemyDef> = {
@@ -118,6 +124,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'burrow', name: '鑽地突襲', telegraph: 'red', windUpMs: 600, mul: 1.5, weight: 2, phase: 2 },
       { id: 'ember_devour', name: '吞噬星燼', telegraph: 'purple', windUpMs: 750, mul: 0.7, aoe: true, status: 'umbra', weight: 1, phase: 2, drainEmber: 3 },
     ],
+    phase2: { title: '鐘裂', sub: '鑽地＋吞噬星燼' },
   },
   // ───────── 第 3 章：王都星冠城 ─────────
   sewer_rat: {
@@ -191,7 +198,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'quake', name: '地鳴', telegraph: 'white', windUpMs: 900, mul: 0.6, aoe: true, weight: 1 },
     ],
   },
-  // 大司星 瓦爾德蘭（Lv 16）：階段 1 白紅交錯的星術；階段 2 星燼吞噬 + 長蓄力（反燈印機制待做，見 NEXT）
+  // 大司星 瓦爾德蘭（Lv 16）：階段 1 白紅交錯的星術；階段 2 星燼吞噬 + 反燈印（3 回合後引爆，引路之光淨化）
   boss_valderan: {
     id: 'boss_valderan', name: '大司星 瓦爾德蘭', level: 16, hp: 1400, atk: 47, def: 20, spd: 12, breakMax: 140, weak: ['light'], resist: ['fire'],
     actionsPerRound: 2, xp: 500,
@@ -201,7 +208,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'crown_ray', name: '星冠光束', telegraph: 'white', windUpMs: 1200, mul: 0.7, aoe: true, weight: 1 },
       { id: 'core_siphon', name: '星核汲取', telegraph: 'purple', windUpMs: 800, mul: 0.6, aoe: true, status: 'umbra', weight: 2, phase: 2, drainEmber: 2 },
       { id: 'false_lamp', name: '仿燈印・爆', telegraph: 'red', windUpMs: 550, mul: 1.8, weight: 1, phase: 2 },
+      { id: 'inverse_mark', name: '反燈印', telegraph: 'red', windUpMs: 850, mul: 0.5, weight: 3, phase: 2, mark: 3 },
     ],
+    phase2: { title: '星空舞台', sub: '反燈印：用引路之光淨化' },
   },
   // ───────── 終章：墜星裂谷 ─────────
   rift_spawn: {
@@ -219,8 +228,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'meteor', name: '墜星雨', telegraph: 'red', windUpMs: 650, mul: 1.2, weight: 3 },
       { id: 'gaze', name: '凝視', telegraph: 'white', windUpMs: 700, mul: 0.45, hits: [0, 350, 700], weight: 2 },
       { id: 'meteor_storm', name: '流星暴', telegraph: 'red', windUpMs: 750, mul: 0.8, aoe: true, weight: 1, phase: 2 },
-      { id: 'devour_memory', name: '吞噬記憶', telegraph: 'purple', windUpMs: 800, mul: 0.6, aoe: true, status: 'umbra', weight: 2, phase: 2, drainEmber: 3 },
+      { id: 'devour_memory', name: '吞噬記憶', telegraph: 'purple', windUpMs: 800, mul: 0.6, aoe: true, status: 'umbra', weight: 2, phase: 2, drainEmber: 3, seal: 2 },
     ],
+    phase2: { title: '吞噬', sub: '吞噬記憶：防守失敗會被封印技能' },
   },
 };
 

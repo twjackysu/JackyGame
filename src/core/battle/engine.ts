@@ -17,7 +17,7 @@ import {
   type Telegraph,
   type Timing,
 } from './formulas';
-import { BASIC_ATTACK, ITEMS, SKILLS, type HeroId, type ItemId } from './skills';
+import { BASIC_ATTACK, ITEMS, SKILLS, skillsFor, type HeroId, type ItemId } from './skills';
 
 export type Phase = 'playerCommand' | 'playerTiming' | 'enemyTelegraph' | 'victory' | 'defeat';
 
@@ -30,6 +30,11 @@ export interface UnitStatus {
   weakRevealed: number;
   empowered: boolean; // 引路之光：下次攻擊 +30%
   howl: number; // 敵：ATK +20%
+  /** 反燈印：倒數回合，歸零時引爆（引路之光/微光之歌可淨化） */
+  doomMark: number;
+  /** 吞噬記憶：被封印的技能 id 與剩餘回合 */
+  sealed: string | null;
+  sealRounds: number;
 }
 
 export interface Unit {
@@ -124,7 +129,10 @@ export type BattleEvent =
   | { type: 'counter'; hero: number; enemy: number; amount: number }
   | { type: 'downed'; target: ActorRef }
   | { type: 'revived'; target: ActorRef; hp: number }
-  | { type: 'phaseChange'; enemy: number; phase: 2 }
+  | { type: 'phaseChange'; enemy: number; phase: 2; title: string; sub?: string }
+  | { type: 'markDetonate'; hero: number }
+  | { type: 'markCleansed'; heroes: number[] }
+  | { type: 'skillSealed'; hero: number; skill: string; name: string; rounds: number }
   | { type: 'ember'; delta: number; total: number }
   | { type: 'emberDrained'; enemy: number; amount: number; healed: number }
   | { type: 'combo'; skill: 'lamp_slash' | 'lamp_detonator' }
@@ -148,7 +156,12 @@ export interface CreateBattleOptions {
 
 const freshStatus = (): UnitStatus => ({
   poison: 0, umbra: 0, guarding: false, taunt: 0, counterStance: false, weakRevealed: 0, empowered: false, howl: 0,
+  doomMark: 0, sealed: null, sealRounds: 0,
 });
+
+/** 反燈印引爆：被標記者失去 50% 最大 HP（無視防禦），其他隊友 15% */
+export const DOOM_MARK_SELF = 0.5;
+export const DOOM_MARK_SPLASH = 0.15;
 
 // ---------- RNG（狀態存在 state 內，確保可序列化與決定性） ----------
 function rand(s: BattleState): number {
@@ -248,6 +261,7 @@ function applyDamage(
   if (u.hp <= 0) {
     u.downed = true;
     u.status.guarding = false;
+    u.status.doomMark = 0;
     if (u.side === 'enemy') u.lamps = 0;
     ev.push({ type: 'downed', target: ref });
     return;
@@ -256,7 +270,12 @@ function applyDamage(
     const def = ENEMIES[u.id];
     if (def?.attacks.some((a) => a.phase === 2)) {
       u.bossPhase = 2;
-      ev.push({ type: 'phaseChange', enemy: ref.index, phase: 2 });
+      const fog = !!def.traits?.includes('fogPhase2');
+      ev.push({
+        type: 'phaseChange', enemy: ref.index, phase: 2,
+        title: def.phase2?.title ?? (fog ? '霧起' : '狂化'),
+        sub: def.phase2?.sub ?? (fog ? '判定窗口縮小' : undefined),
+      });
       if (def.traits?.includes('fogPhase2')) {
         s.windowScale = 0.7;
         s.fogRounds = 3;
@@ -286,7 +305,19 @@ function startRound(s: BattleState, ev: BattleEvent[]) {
       st.umbra = Math.max(0, st.umbra - 1);
       st.weakRevealed = Math.max(0, st.weakRevealed - 1);
       st.howl = Math.max(0, st.howl - 1);
+      if (st.sealRounds > 0 && --st.sealRounds === 0) st.sealed = null;
     }
+    // 反燈印倒數；歸零引爆
+    s.heroes.forEach((h, i) => {
+      if (!alive(h) || h.status.doomMark <= 0) return;
+      h.status.doomMark -= 1;
+      if (h.status.doomMark > 0) return;
+      ev.push({ type: 'markDetonate', hero: i });
+      applyDamage(s, ev, { side: 'hero', index: i }, Math.max(1, Math.round(h.maxHp * DOOM_MARK_SELF)), { source: 'doomMark' });
+      s.heroes.forEach((o, j) => {
+        if (j !== i && alive(o)) applyDamage(s, ev, { side: 'hero', index: j }, Math.max(1, Math.round(o.maxHp * DOOM_MARK_SPLASH)), { source: 'doomMark' });
+      });
+    });
     if (s.fogRounds > 0 && --s.fogRounds === 0) s.windowScale = 1;
     if (s.leadBonusRounds > 0 && --s.leadBonusRounds === 0) s.telegraphLeadBonusMs = 0;
   }
@@ -300,7 +331,17 @@ function startRound(s: BattleState, ev: BattleEvent[]) {
   entries.sort((a, b) => b.spd - a.spd || a.order - b.order);
   const ambush = s.round === 1 && !!s.flags.ambushed;
   s.queue = entries.filter((e) => !(ambush && e.ref.side === 'hero')).map((e) => e.ref);
-  void ev;
+}
+
+function cleanseMarks(s: BattleState, ev: BattleEvent[]) {
+  const heroes: number[] = [];
+  s.heroes.forEach((h, i) => {
+    if (h.status.doomMark > 0) {
+      h.status.doomMark = 0;
+      heroes.push(i);
+    }
+  });
+  if (heroes.length) ev.push({ type: 'markCleansed', heroes });
 }
 
 function nextActor(s: BattleState, ev: BattleEvent[]) {
@@ -356,7 +397,8 @@ function enemyChooseAction(s: BattleState, ev: BattleEvent[], idx: number): bool
     ev.push({ type: 'statusApplied', target: { side: 'enemy', index: idx }, status: 'howl', rounds: 3 });
     return false;
   }
-  const pool = def.attacks.filter((a) => !a.phase || a.phase <= e.bossPhase);
+  const marked = s.heroes.some((h) => alive(h) && h.status.doomMark > 0);
+  const pool = def.attacks.filter((a) => (!a.phase || a.phase <= e.bossPhase) && !(a.mark && marked));
   const totalW = pool.reduce((a, b) => a + b.weight, 0);
   let r = rand(s) * totalW;
   let attack = pool[0]!;
@@ -368,6 +410,7 @@ function enemyChooseAction(s: BattleState, ev: BattleEvent[], idx: number): bool
     }
   }
   const living = s.heroes.map((h, i) => ({ h, i })).filter((x) => alive(x.h));
+  if (living.length === 0) return false;
   let targets: number[];
   if (attack.aoe) targets = living.map((x) => x.i);
   else {
@@ -420,6 +463,7 @@ function skillUsable(s: BattleState, hero: Unit, skillId: string): boolean {
   if ((sk.costSp ?? 0) > hero.sp) return false;
   if ((sk.costEmber ?? 0) > s.ember) return false;
   if (sk.oncePerBattle && s.usedOnce.includes(sk.id)) return false;
+  if (hero.status.sealed === sk.id) return false;
   if (sk.partner && !s.heroes.some((h) => h.id === sk.partner && alive(h))) return false;
   if (sk.id === 'lamp_mark' && totalLamps(s) >= MAX_LAMPS) return false;
   if (sk.id === 'resonance' && totalLamps(s) === 0) return false;
@@ -550,6 +594,7 @@ function applyInstantSkill(s: BattleState, ev: BattleEvent[], hero: Unit, actor:
       s.heroes.forEach((h, i) => {
         if (i !== actor.index && alive(h)) h.status.empowered = true;
       });
+      cleanseMarks(s, ev);
       break;
     case 'silence': {
       const idx = target !== undefined && s.enemies[target]?.status.howl ? target : s.enemies.findIndex((e) => e.status.howl > 0);
@@ -677,6 +722,7 @@ export function resolveTiming(state: BattleState, timing: Timing): Result {
         ev.push({ type: 'heal', target: ref, amount: amt });
       }
     });
+    cleanseMarks(s, ev);
   }
   if (emberEarned) gainEmber(s, ev, 1);
   if (!checkEnd(s, ev)) nextActor(s, ev);
@@ -731,6 +777,30 @@ export function resolveDefense(state: BattleState, results: DefenseResult[]): Re
       if (!alive(h)) continue;
       h.status[atk.status] = 3;
       ev.push({ type: 'statusApplied', target: { side: 'hero', index: ti }, status: atk.status, rounds: 3 });
+    }
+  }
+  // 反燈印：沒有全部完美防守就被標記
+  if (atk.mark && !p.hits.every((_, hi) => results[hi] === 'perfect')) {
+    for (const ti of p.targets) {
+      const h = s.heroes[ti]!;
+      if (!alive(h)) continue;
+      h.status.doomMark = atk.mark;
+      ev.push({ type: 'statusApplied', target: { side: 'hero', index: ti }, status: 'doomMark', rounds: atk.mark });
+    }
+  }
+  // 吞噬記憶：防守失敗時封印一名目標的一個技能
+  if (atk.seal && anyFail) {
+    const cands = p.targets.filter((ti) => alive(s.heroes[ti]!) && skillsFor(s.heroes[ti]!.id as HeroId).length > 0);
+    if (cands.length) {
+      const ti = cands[Math.floor(rand(s) * cands.length)]!;
+      const h = s.heroes[ti]!;
+      const pool = skillsFor(h.id as HeroId).filter((k) => (!k.unlockFlag || s.flags[k.unlockFlag]) && k.id !== h.status.sealed);
+      const sk = pool[Math.floor(rand(s) * pool.length)];
+      if (sk) {
+        h.status.sealed = sk.id;
+        h.status.sealRounds = atk.seal;
+        ev.push({ type: 'skillSealed', hero: ti, skill: sk.id, name: sk.name, rounds: atk.seal });
+      }
     }
   }
   if (atk.drainEmber && s.ember > 0 && alive(e)) {
