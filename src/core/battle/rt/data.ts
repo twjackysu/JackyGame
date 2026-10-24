@@ -48,28 +48,35 @@ export const SWORDSMAN: PlayerDefinition = {
 
 export const ENEMIES: Record<string, EnemyDefinition> = {
   wolf: {
-    id: 'wolf', name: '野狼', hp: 150, atk: 26, def: 6, speed: 3.2, radius: u(0.4), hitstunTicks: 4,
+    id: 'wolf', name: '野狼', hp: 280, atk: 26, def: 6, speed: 3.2, radius: u(0.4), hitstunTicks: 4,
     attacks: [
       { id: 'wolf_bite', shape: { type: 'sector', r: u(1.5), deg: 80 }, warningTicks: sec(0.7), recoverTicks: sec(0.5), damageMultiplier: 100, cooldownTicks: sec(2.2), triggerRange: u(1.3), blockable: true, weight: 1 },
     ],
   },
+  // 狼王召喚的小狼（比野狼脆）
+  wolf_pup: {
+    id: 'wolf_pup', name: '小狼', hp: 120, atk: 20, def: 4, speed: 3.4, radius: u(0.35), hitstunTicks: 5,
+    attacks: [
+      { id: 'pup_bite', shape: { type: 'sector', r: u(1.3), deg: 80 }, warningTicks: sec(0.7), recoverTicks: sec(0.5), damageMultiplier: 100, cooldownTicks: sec(2.4), triggerRange: u(1.1), blockable: true, weight: 1 },
+    ],
+  },
   // 遠程：保持距離、直線毒刺（紫＝附負面狀態；可格擋）
   thorn_shooter: {
-    id: 'thorn_shooter', name: '荊棘射手', hp: 110, atk: 24, def: 4, speed: 2.8, radius: u(0.4), hitstunTicks: 5,
+    id: 'thorn_shooter', name: '荊棘射手', hp: 200, atk: 24, def: 4, speed: 2.8, radius: u(0.4), hitstunTicks: 5,
     attacks: [
       { id: 'thorn_shot', shape: { type: 'line', len: u(7), width: u(0.8) }, warningTicks: sec(0.8), recoverTicks: sec(0.6), damageMultiplier: 90, cooldownTicks: sec(3), triggerRange: u(6), blockable: true, status: { id: 'poison', ticks: sec(8), powerPct: 10 }, weight: 1 },
     ],
   },
   // 精英：撕咬＋短衝鋒
   alpha_wolf: {
-    id: 'alpha_wolf', name: '狼群首領', hp: 620, atk: 32, def: 10, speed: 3.6, radius: u(0.55), hitstunTicks: 2,
+    id: 'alpha_wolf', name: '狼群首領', hp: 1000, atk: 32, def: 10, speed: 3.6, radius: u(0.55), hitstunTicks: 2,
     attacks: [
       { id: 'alpha_bite', shape: { type: 'sector', r: u(1.8), deg: 90 }, warningTicks: sec(0.7), recoverTicks: sec(0.4), damageMultiplier: 110, cooldownTicks: sec(2.4), triggerRange: u(1.5), blockable: true, weight: 3 },
       { id: 'alpha_charge', shape: { type: 'line', len: u(4.5), width: u(1.2) }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 140, cooldownTicks: sec(8), triggerRange: u(4.5), blockable: true, charge: { ticks: sec(0.35), wallStunTicks: sec(1.5) }, weight: 1 },
     ],
   },
   wolf_king: {
-    id: 'wolf_king', name: '霧角狼王', hp: 4200, atk: 34, def: 12, speed: 3.0, radius: u(0.9), hitstunTicks: 0,
+    id: 'wolf_king', name: '霧角狼王', hp: 4200, atk: 31, def: 12, speed: 3.0, radius: u(0.9), hitstunTicks: 0,
     attacks: [
       // P1：爪擊（小扇形、快）、扇形撕咬、直線衝鋒；P2 加環形震波
       { id: 'king_claw', shape: { type: 'sector', r: u(2.2), deg: 70 }, warningTicks: sec(0.7), recoverTicks: sec(0.4), damageMultiplier: 110, cooldownTicks: sec(3.2), triggerRange: u(2.0), blockable: true, weight: 3 },
@@ -77,7 +84,7 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'king_charge', shape: { type: 'line', len: u(7), width: u(1.6) }, warningTicks: sec(0.9), recoverTicks: sec(0.5), damageMultiplier: 160, cooldownTicks: sec(9), triggerRange: u(7), blockable: true, charge: { ticks: sec(0.5), wallStunTicks: sec(2) }, weight: 2 },
       { id: 'king_quake', shape: { type: 'ring', rIn: u(2.0), rOut: u(4.5) }, warningTicks: sec(1.2), recoverTicks: sec(0.6), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(4), blockable: false, phase2Only: true, weight: 2 },
     ],
-    boss: { phase2AtPct: 50, phase2CooldownPct: 87, summon: { enemyId: 'wolf', count: 2, everyTicks: sec(12) } },
+    boss: { phase2AtPct: 50, phase2CooldownPct: 87, summon: { enemyId: 'wolf_pup', count: 2, everyTicks: sec(12) } },
   },
 };
 
