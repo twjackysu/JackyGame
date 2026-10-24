@@ -932,7 +932,9 @@ describe('地面掉落與自動撿取（design/20 B5 最小版本）', () => {
   const run = (loot: boolean) => {
     const st = STAGES.camp_clearing!;
     const was = st.loot;
+    const wasEnh = st.lootEnhance;
     st.loot = loot;
+    st.lootEnhance = undefined; // 只比較亂數獨立性（撿材料變強會改變戰鬥，另測）
     try {
       const s = createBattle({ stageId: 'camp_clearing', seed: 4 });
       const bot = expert();
@@ -940,6 +942,7 @@ describe('地面掉落與自動撿取（design/20 B5 最小版本）', () => {
       return s;
     } finally {
       st.loot = was;
+      st.lootEnhance = wasEnh;
     }
   };
 
@@ -959,5 +962,18 @@ describe('地面掉落與自動撿取（design/20 B5 最小版本）', () => {
     const sig = (s: ReturnType<typeof run>) => JSON.stringify([s.tick, s.rngState, s.units.map((x) => [x.id, x.x, x.y, x.hp, x.dead])]);
     expect(sig(a)).toBe(sig(b));
     expect(b.ground).toBeUndefined();
+  });
+
+  it('營火空地：撿粉塵讓武器在這場裡強化（每 4 粉塵 +1、每級攻擊 +8%、最多 +5）', () => {
+    const s = createBattle({ stageId: 'camp_clearing', seed: 4 });
+    const p = playerOf(s);
+    const base = p.atk;
+    const bot = expert();
+    while (s.outcome === 'running') step(s, bot.decide(s));
+    const lv = s.enhance?.level ?? 0;
+    expect(lv).toBeGreaterThanOrEqual(1);
+    expect(lv).toBeLessThanOrEqual(5);
+    expect(p.atk).toBe(Math.round((base * (100 + 8 * lv)) / 100));
+    expect(s.events.filter((e) => e.type === 'enhance').length).toBe(lv);
   });
 });

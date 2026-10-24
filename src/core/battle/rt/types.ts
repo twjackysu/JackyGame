@@ -247,6 +247,7 @@ export type BattleEvent =
   | { tick: number; type: 'rest'; id: number; campfire: string }
   | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number }
   | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number }
+  | { tick: number; type: 'enhance'; level: number; atk: number }
   /** 單位直接移除（Boss 重置時召喚物消失） */
   | { tick: number; type: 'despawn'; id: number }
   | { tick: number; type: 'revive'; id: number; campfire: string }
@@ -347,6 +348,11 @@ export interface StageDefinition {
   bossZone?: { x: number; y: number; r: number };
   /** 開啟地面掉落與自動撿取（用獨立亂數，不影響戰鬥結果） */
   loot?: boolean;
+  /**
+   * 試玩用的「撿材料就變強」（需要 loot）：每撿 dustPerLevel 粉塵（結晶算 5 個）武器自動強化 +1，
+   * 每級攻擊 +atkPctPerLevel%，最多 maxLevel。只在這一場有效，不碰主線存檔。
+   */
+  lootEnhance?: { dustPerLevel: number; maxLevel: number; atkPctPerLevel: number };
   /** 營火（需要 mapAi） */
   campfires?: Campfire[];
   /** 倒下時在營火復活（不掉裝、不扣經驗；design/20 B4），不算失敗；沒設＝倒下就失敗 */
@@ -387,6 +393,8 @@ export interface BattleState {
   ground?: GroundItem[];
   /** 掉落物流水號 */
   lootSeq?: number;
+  /** 這場的武器強化等級（lootEnhance）與強化前的攻擊力 */
+  enhance?: { level: number; baseAtk: number };
   /** 這場撿到的東西 */
   loot?: Partial<Record<LootId, number>>;
   /** 這場打倒過的 Boss（defId，首殺劇情旗標用） */

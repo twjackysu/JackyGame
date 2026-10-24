@@ -173,7 +173,7 @@ export const STAGES: Record<string, StageDefinition> = {
   // 第七關（第 15 輪）：重生點＋營火的試玩——怪會重生、打不過就退回營火（怪不追進來），倒下在營火醒來；5 分鐘看能刷多少
   camp_clearing: {
     id: 'camp_clearing', name: '營火空地', timeLimitTicks: sec(300), player: { x: u(9), y: u(28.2) },
-    mapAi: true, reviveAtCampfire: true, loot: true, enemies: [],
+    mapAi: true, reviveAtCampfire: true, loot: true, lootEnhance: { dustPerLevel: 4, maxLevel: 5, atkPctPerLevel: 8 }, enemies: [],
     campfires: [{ id: 'camp', x: u(9), y: u(25.8) }],
     arena: { w: u(18), h: u(30), solid: { cell: u(1), rows: [
       '..................',

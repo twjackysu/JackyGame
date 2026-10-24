@@ -517,6 +517,13 @@ export class RtBattleScene extends Phaser.Scene {
           e.kind === 'gold' ? [`+${e.amount} 金`, '#ffd27a'] : e.kind === 'dust' ? [`粉塵 +${e.amount}`, '#9fd8ff'] : e.kind === 'crystal' ? [`結晶 +${e.amount}`, '#d0a0ff'] : [`藥水 +${e.amount}`, '#7dffb0'];
         floatNumber(this, this.sx(p.x) + 40, this.sy(p.y) - 70, L[0], { color: L[1], size: e.kind === 'gold' ? 22 : 24 });
         if (e.kind !== 'gold') SFX.itemGet();
+      } else if (e.type === 'enhance') {
+        const p = playerOf(this.s);
+        SFX.confirm();
+        bigText(this, GAME_WIDTH / 2, 520, `武器強化 +${e.level}！`, '#ffd27a', 46, 800);
+        floatNumber(this, this.sx(p.x), this.sy(p.y) - 100, `攻擊 ${e.atk}`, { color: '#ffd27a', size: 26 });
+        sparks(this, this.sx(p.x), this.sy(p.y) - 30, 24, 'spark', 0xffd27a, 520);
+        shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 130, 450, 6);
       } else if (e.type === 'respawn') {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 10, 'ember', 0x8a7aa8, 500);
@@ -898,7 +905,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
-    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `金 ${s.loot.gold ?? 0}　粉塵 ${s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
+    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${s.loot.gold ?? 0}　粉塵 ${s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
     const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < SWORDSMAN.potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
@@ -1016,7 +1023,7 @@ export class RtBattleScene extends Phaser.Scene {
     const farming = !!STAGES[this.stageId]?.spawnGroups?.length;
     bigText(this, GAME_WIDTH / 2, 420, win ? '勝利！' : r.outcome === 'timeout' ? (farming ? '刷怪結束' : '時間到') : '倒下了…', win || farming ? '#ffd27a' : '#ff8a8a', 72, -1);
     const lines = farming
-      ? `擊殺 ${r.kills}　營火醒來 ${this.s.revives ?? 0} 次\n撿到：金幣 ${this.s.loot?.gold ?? 0}　粉塵 ${this.s.loot?.dust ?? 0}　結晶 ${this.s.loot?.crystal ?? 0}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}　藥水 ${r.potionsUsed}`
+      ? `擊殺 ${r.kills}　營火醒來 ${this.s.revives ?? 0} 次\n撿到：金幣 ${this.s.loot?.gold ?? 0}　粉塵 ${this.s.loot?.dust ?? 0}　結晶 ${this.s.loot?.crystal ?? 0}　武器 +${this.s.enhance?.level ?? 0}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}　藥水 ${r.potionsUsed}`
       : `時間 ${(r.durationTicks / TICKS_PER_SEC).toFixed(1)} 秒　承傷 ${r.damageTaken}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}`;
     this.add.text(GAME_WIDTH / 2, 520, lines, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 8 }).setOrigin(0.5).setDepth(80);
     const mk = (y: number, label: string, fn: () => void) => {

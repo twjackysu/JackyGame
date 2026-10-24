@@ -216,8 +216,22 @@ function processPickup(s: BattleState): void {
     }
     s.loot![it.kind] = (s.loot![it.kind] ?? 0) + it.amount;
     emit(s, { tick: s.tick, type: 'pickup', item: it.id, kind: it.kind, amount: it.amount });
+    if (it.kind === 'dust' || it.kind === 'crystal') lootEnhance(s, p);
     return false;
   });
+}
+
+/** 撿材料就變強（試玩，lootEnhance） */
+function lootEnhance(s: BattleState, p: Unit): void {
+  const rule = STAGES[s.stageId]?.lootEnhance;
+  if (!rule) return;
+  const e = (s.enhance ??= { level: 0, baseAtk: p.atk });
+  const pts = (s.loot!.dust ?? 0) + 5 * (s.loot!.crystal ?? 0);
+  const lv = Math.min(rule.maxLevel, Math.floor(pts / rule.dustPerLevel));
+  if (lv <= e.level) return;
+  e.level = lv;
+  p.atk = Math.round((e.baseAtk * (100 + rule.atkPctPerLevel * lv)) / 100);
+  emit(s, { tick: s.tick, type: 'enhance', level: lv, atk: p.atk });
 }
 
 /** 還有沒有會重生的怪（刷怪地圖不會因清空而勝利） */
