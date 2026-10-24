@@ -104,6 +104,7 @@ export class ExploreScene extends Phaser.Scene {
     const W = this.grid.w * TILE;
     const H = this.grid.h * TILE;
     this.add.image(0, 0, `ex_ground_${this.area.id}`).setOrigin(0, 0).setDepth(-100);
+    this.addProps();
     this.addLights();
     // 實體
     for (const e of this.area.entities) {
@@ -135,7 +136,9 @@ export class ExploreScene extends Phaser.Scene {
     for (let i = 0; i < 60; i++) this.trail.push({ x: px, y: py });
 
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, W, H);
+    // 上方留 HUD 高度，地圖最上面一排也能捲到 HUD 下方看見
+    cam.setBounds(0, -300, W, H + 300);
+    cam.setBackgroundColor('#081008');
     cam.startFollow(this.player, true, 0.14, 0.14, 0, -40);
     cam.fadeIn(400, 0, 0, 0);
     this.refreshMarkers();
@@ -162,7 +165,7 @@ export class ExploreScene extends Phaser.Scene {
     if (!this.textures.exists(key)) {
       const tex = this.textures.createCanvas(key, this.grid.w * TILE, this.grid.h * TILE);
       if (tex) {
-        drawAreaGround(tex.getContext(), this.area, this.grid);
+        drawAreaGround(tex.getContext(), this.area, this.grid, (k) => this.textures.exists(k));
         tex.refresh();
       }
     }
@@ -198,6 +201,48 @@ export class ExploreScene extends Phaser.Scene {
     }
   }
 
+  /** AI 美術物件（建築、樹、路燈、井）：圖片精靈，依腳底 y 排序，角色可以走到後面 */
+  private addProps(): void {
+    const has = (k: string): boolean => this.textures.exists(k);
+    const fit = (img: Phaser.GameObjects.Image, w?: number, h?: number): Phaser.GameObjects.Image =>
+      img.setScale(w ? w / img.width : (h ?? 48) / img.height);
+    for (const b of this.area.buildings) {
+      if (!b.prop || !has(b.prop)) continue;
+      const bottom = (b.y + b.h) * TILE;
+      const img = this.add.image((b.x + b.w / 2) * TILE, bottom + 6, b.prop).setOrigin(0.5, 1);
+      fit(img, b.w * TILE * 1.15).setDepth(bottom);
+      if (this.area.night) img.setTint(0xb8b8d8);
+      if (b.sign) {
+        const t = this.add.text((b.x + b.w / 2) * TILE, bottom - img.displayHeight + 18, b.sign, {
+          fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: '#ffe2a8', backgroundColor: '#2a1a10cc', padding: { x: 8, y: 3 },
+        }).setOrigin(0.5, 0).setDepth(bottom + 1);
+        void t;
+      }
+    }
+    const g = this.grid;
+    let seed = 7;
+    const r = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let y = 0; y < g.h; y++) {
+      for (let x = 0; x < g.w; x++) {
+        const t = g.tiles[y]![x];
+        const cx = x * TILE + TILE / 2;
+        const foot = y * TILE + 44;
+        if (t === 'T' && has('prop_tree_a')) {
+          const key = has('prop_tree_b') && r() < 0.4 ? 'prop_tree_b' : 'prop_tree_a';
+          const img = this.add.image(cx + (r() - 0.5) * 10, foot, key).setOrigin(0.5, 1).setDepth(foot);
+          fit(img, undefined, (key === 'prop_tree_a' ? 96 : 80) * (0.9 + r() * 0.25));
+          if (r() < 0.5) img.setFlipX(true);
+          if (this.area.night) img.setTint(0x9aa0c8);
+        } else if (t === 'L' && has('prop_lamppost')) {
+          fit(this.add.image(cx, foot, 'prop_lamppost').setOrigin(0.5, 1).setDepth(foot), undefined, 112);
+        } else if (t === 'o' && has('prop_well') && g.tiles[y]![x - 1] !== 'o') {
+          const two = g.tiles[y]![x + 1] === 'o';
+          fit(this.add.image(two ? cx + TILE / 2 : cx, foot + 4, 'prop_well').setOrigin(0.5, 1).setDepth(foot), (two ? 2 : 1) * TILE * 0.95);
+        }
+      }
+    }
+  }
+
   private addLights(): void {
     const g = this.grid;
     const flicker = (img: Phaser.GameObjects.Image): void => {
@@ -209,7 +254,8 @@ export class ExploreScene extends Phaser.Scene {
     for (let y = 0; y < g.h; y++) {
       for (let x = 0; x < g.w; x++) {
         if (g.tiles[y]![x] !== 'L') continue;
-        const img = this.add.image(x * TILE + 24, y * TILE + 12, 'ex_glow').setScale(1.3).setAlpha(0.42)
+        const art = this.textures.exists('prop_lamppost');
+        const img = this.add.image(x * TILE + (art ? 4 : 24), y * TILE + (art ? -32 : 12), 'ex_glow').setScale(1.3).setAlpha(0.42)
           .setBlendMode(Phaser.BlendModes.ADD).setDepth(y * TILE + 60);
         flicker(img);
       }
@@ -261,15 +307,22 @@ export class ExploreScene extends Phaser.Scene {
       }
     } else if (e.kind === 'chest') {
       const open = !!session.state.flags[chestFlag(this.area.id, e.id)];
-      a.img = this.add.image(0, -4, open ? 'ex_chest_open' : 'ex_chest');
+      if (this.textures.exists('prop_chest')) {
+        a.img = this.add.image(0, 14, 'prop_chest').setOrigin(0.5, 1);
+        a.img.setScale(42 / a.img.width);
+        if (open) a.img.setTint(0x6a6a7a).setAlpha(0.85);
+      } else a.img = this.add.image(0, -4, open ? 'ex_chest_open' : 'ex_chest');
       c.add(a.img);
       if (!open) {
-        const gl = this.add.image(0, -10, 'glow').setScale(0.7).setTint(0xffd27a).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD);
+        const gl = this.add.image(0, -6, 'ex_glow').setScale(0.45).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD);
         c.addAt(gl, 0);
         this.tweens.add({ targets: gl, alpha: 0.2, duration: 900, yoyo: true, repeat: -1 });
       }
     } else if (e.kind === 'sign') {
-      a.img = this.add.image(0, -4, 'ex_sign');
+      if (this.textures.exists('prop_signpost')) {
+        a.img = this.add.image(0, 16, 'prop_signpost').setOrigin(0.5, 1);
+        a.img.setScale(62 / a.img.height);
+      } else a.img = this.add.image(0, -4, 'ex_sign');
       c.add(a.img);
     }
     c.setVisible(present(session.state, e) || e.kind === 'door' || e.kind === 'gate');
@@ -341,8 +394,13 @@ export class ExploreScene extends Phaser.Scene {
       return a.e.kind === 'npc' && wx !== undefined && wy !== undefined && a.obj
         && Math.abs(wx - a.obj.x) < 26 && wy < a.obj.y && wy > a.obj.y - 80;
     });
-    if (hit) {
-      this.walkToActor(hit);
+    // 點在建築上 → 走到那棟建築的門
+    const bld = this.area.buildings.find((b) => tx >= b.x && tx < b.x + b.w && ty >= b.y - 2 && ty < b.y + b.h);
+    const door = !hit && bld
+      ? this.actors.find((a) => a.e.kind === 'door' && a.tx >= bld.x && a.tx < bld.x + bld.w && a.ty >= bld.y && a.ty < bld.y + bld.h)
+      : undefined;
+    if (hit ?? door) {
+      this.walkToActor((hit ?? door)!);
       return;
     }
     const goal = nearestWalkable(this.grid, { x: tx, y: ty }, this.blockers());
@@ -417,8 +475,9 @@ export class ExploreScene extends Phaser.Scene {
     } else if (r.kind === 'loot') {
       applyEffects(s, r.effects);
       SFX.itemGet();
-      a.img?.setTexture('ex_chest_open');
-      a.obj?.list.filter((o) => o instanceof Phaser.GameObjects.Image && o.texture.key === 'glow').forEach((o) => o.destroy());
+      if (a.img?.texture.key === 'prop_chest') a.img.setTint(0x6a6a7a).setAlpha(0.85);
+      else a.img?.setTexture('ex_chest_open');
+      a.obj?.list.filter((o) => o instanceof Phaser.GameObjects.Image && o.texture.key === 'ex_glow').forEach((o) => o.destroy());
       if (a.obj) {
         sparks(this, a.obj.x, a.obj.y - 10, 22, 'ember', 0xffd27a, 260);
         shockRing(this, a.obj.x, a.obj.y, 0xffd27a, 80, 360, 4);

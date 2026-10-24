@@ -48,11 +48,11 @@ export const GREYLAMP: AreaDef = {
   night: true,
   rows: ROWS,
   buildings: [
-    { x: 2, y: 2, w: 7, h: 4, roof: '#5a3a4a', wall: '#8a7060', sign: '孤兒院', lit: true },
-    { x: 1, y: 12, w: 5, h: 4, roof: '#3d5a48', wall: '#8a7a5a', sign: '雜貨', lit: true },
-    { x: 16, y: 11, w: 5, h: 5, roof: '#6a3a2a', wall: '#7a5a48', sign: '醉燈', lit: true },
-    { x: 2, y: 20, w: 5, h: 4, roof: '#40486a', wall: '#7a7068' },
-    { x: 15, y: 20, w: 5, h: 4, roof: '#5a4a3a', wall: '#7a6a5a', lit: true },
+    { x: 2, y: 2, w: 7, h: 4, roof: '#5a3a4a', wall: '#8a7060', sign: '孤兒院', lit: true, prop: 'prop_house_a' },
+    { x: 1, y: 12, w: 5, h: 4, roof: '#3d5a48', wall: '#8a7a5a', sign: '雜貨', lit: true, prop: 'prop_shop' },
+    { x: 16, y: 11, w: 5, h: 5, roof: '#6a3a2a', wall: '#7a5a48', sign: '醉燈', lit: true, prop: 'prop_tavern' },
+    { x: 2, y: 20, w: 5, h: 4, roof: '#40486a', wall: '#7a7068', prop: 'prop_house_b' },
+    { x: 15, y: 20, w: 5, h: 4, roof: '#5a4a3a', wall: '#7a6a5a', lit: true, prop: 'prop_house_a' },
   ],
   spawns: {
     default: { x: 5, y: 7 },

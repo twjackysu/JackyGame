@@ -10,6 +10,8 @@ export interface Building extends Rect {
   sign?: string;
   /** 窗戶亮燈 */
   lit?: boolean;
+  /** AI 美術物件（public/art/prop_*.webp）；有圖就用圖、沒有就程式畫 */
+  prop?: string;
 }
 
 export type EntityKind = 'npc' | 'door' | 'sign' | 'chest' | 'gate';

@@ -192,8 +192,14 @@ function door(c: CanvasRenderingContext2D, tx: number, ty: number): void {
   c.fill();
 }
 
-/** 把整張區域畫進 canvas（尺寸 grid.w*TILE × grid.h*TILE）。路燈、井在這裡畫底座，光暈由場景加。 */
-export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid): void {
+/**
+ * 把整張區域畫進 canvas（尺寸 grid.w*TILE × grid.h*TILE）。路燈、井在這裡畫底座，光暈由場景加。
+ * hasArt(key) = 該 AI 美術物件已載入：樹／路燈／井／有 prop 的建築改由場景用圖片精靈畫（才能跟角色前後排序），這裡只畫地面與陰影。
+ */
+export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid, hasArt: (key: string) => boolean = () => false): void {
+  const artTree = hasArt('prop_tree_a');
+  const artLamp = hasArt('prop_lamppost');
+  const artWell = hasArt('prop_well');
   const r = rng(a.id.length * 977 + g.w * 31 + g.h);
   for (let y = 0; y < g.h; y++) {
     for (let x = 0; x < g.w; x++) {
@@ -224,8 +230,15 @@ export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid)
       const t = tileAt(g, x, y);
       const px = x * TILE;
       const py = y * TILE;
-      if (t === 'T') tree(c, px, py, r);
-      else if (t === 'L') {
+      if (t === 'T') {
+        if (artTree) {
+          c.fillStyle = 'rgba(0,0,0,0.3)';
+          c.beginPath();
+          c.ellipse(px + 24, py + 40, 20, 7, 0, 0, Math.PI * 2);
+          c.fill();
+        } else tree(c, px, py, r);
+      } else if (t === 'L') {
+        if (artLamp) continue;
         c.fillStyle = 'rgba(0,0,0,0.35)';
         c.beginPath();
         c.ellipse(px + 24, py + 42, 10, 4, 0, 0, Math.PI * 2);
@@ -238,7 +251,7 @@ export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid)
         c.fillRect(px + 18, py + 7, 12, 8);
       } else if (t === 'o') {
         // 井（兩格寬時只在左格畫一次）
-        if (tileAt(g, x - 1, y) === 'o') continue;
+        if (tileAt(g, x - 1, y) === 'o' || artWell) continue;
         const w2 = tileAt(g, x + 1, y) === 'o' ? TILE * 2 : TILE;
         c.fillStyle = '#5a5662';
         c.beginPath();
@@ -276,8 +289,19 @@ export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid)
       }
     }
   }
-  for (const b of a.buildings) building(c, b);
-  for (const e of a.entities) if (e.kind === 'door') door(c, e.x, e.y);
+  for (const b of a.buildings) {
+    if (b.prop && hasArt(b.prop)) {
+      c.fillStyle = 'rgba(0,0,0,0.35)';
+      c.beginPath();
+      c.ellipse((b.x + b.w / 2) * TILE + 10, (b.y + b.h) * TILE - 6, (b.w * TILE) / 2 + 6, 16, 0, 0, Math.PI * 2);
+      c.fill();
+    } else building(c, b);
+  }
+  for (const e of a.entities) {
+    if (e.kind !== 'door') continue;
+    const b = a.buildings.find((bb) => e.x >= bb.x && e.x < bb.x + bb.w && e.y >= bb.y && e.y < bb.y + bb.h);
+    if (!b?.prop || !hasArt(b.prop)) door(c, e.x, e.y);
+  }
 }
 
 /** Q 版 NPC 小人（2 倍解析度 64×96，顯示 0.5 → 32×48 左右，再依場景縮放） */
