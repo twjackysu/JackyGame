@@ -2,6 +2,12 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-037 2026-10-24 不等手繪：主角群立繪先改為動漫風高解析程式繪圖
+- 原計畫（D-036／NEXT）是等 Jacky 上傳到 10/27 才改程式立繪。但他在旅行、可能不會上傳，而「人物太醜」是唯一的業主直接回饋 → 提前處理。
+- 做法：`src/game/art/animeKit.ts`（Catmull-Rom 平滑 Path2D、髮束 lock、賽璐珞陰影、evenodd 月牙邊緣光、動漫眼睛：虹膜漸層＋放射紋＋雙高光＋睫毛線）；`animePortraits.ts`（連恩、伊歐）、`animeCompanions.ts`（瑟琳、莉歐拉、洛克），600×900，執行時畫進 canvas 材質（約數十 ms），底部漸隱。不用 `ctx.filter`（iOS Safari 支援不穩）。
+- 顯示比照手繪立繪（`HD_PORTRAITS`：對話 600px 高、羈絆面板裁頭部）；標題畫面加連恩＋伊歐主視覺。手繪圖若上傳，Boot 先載入同名材質，程式版自動跳過（D-036 管線不變）。
+- 替代：維持剪影等手繪（風險：11/5 仍是醜立繪）；外部 CC0 立繪（授權與風格一致性難保證）。
+
 ## D-036 2026-10-24 角色立繪改用 Jacky 以 AI 繪圖產生，程式立繪當備援
 - Jacky 試玩回饋：程式剪影立繪不夠帥／美。雲端環境無法使用 Gemini／ChatGPT（沒有帳號、網頁被擋），所以由 Jacky 照 `docs/ART_PROMPTS.md` 產生、上傳 `art-inbox/`。
 - 管線：`scripts/import-art.mjs`（rembg isnet-anime 去背 → 失敗時改單色洪水填充 → 都失敗就保留原圖；每步檢查不透明區域 ≥ 12%）→ `public/art/portrait_<id>.webp`（≤1100px 高）＋ `src/data/handArt.ts`。BootScene preload 手繪圖，程式立繪遇到同名材質會自動跳過；對話立繪放大到 600px 高，羈絆面板從頭頂往下裁。
