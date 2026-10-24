@@ -67,6 +67,11 @@ export const MINECAMP: AreaDef = {
       id: 'mine_gate', kind: 'gate', x: 10, y: 21, name: '沉鐘礦坑', to: { area: 'mine', spawn: 'north' }, requires: { flag: 'ch2_camp_done' },
       lines: ['礦工：「坑口現在誰也不准進——\n先去工頭小屋找多恩談談吧。」'],
     },
+    {
+      id: 'date_liora', kind: 'npc', date: true, x: 18, y: 6, name: '莉歐拉', look: { body: '#ff7a5a', hair: '#ff9a5a', hero: 'liora' },
+      when: { all: [{ inParty: 'liora' }, { affinityAtLeast: ['liora', 25] }, { flag: 'date_liora', not: true }] },
+      talk: { script: 'dates', node: 'liora_sparks' }, done: 'date_liora',
+    },
     { id: 'hidden_chest', kind: 'chest', hidden: true, x: 1, y: 12, loot: [{ gold: 80 }, { item: 'potion_m', count: 2 }], lootText: '某個礦工的私房錢。\n獲得 80 金幣、回復藥 ×2。' },
   ],
   props: [{ kind: 'crate', x: 3, y: 14 }, { kind: 'barrel', x: 1, y: 11 }, { kind: 'cart', x: 7, y: 7 }, { kind: 'bench', x: 8, y: 18 }, { kind: 'crate', x: 15, y: 17 }, { kind: 'crate', x: 18, y: 2 }, { kind: 'barrel', x: 3, y: 2 }],

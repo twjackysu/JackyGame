@@ -69,6 +69,8 @@ export interface AreaEntity {
   fx?: 'fire';
   /** 隱藏寶箱：走近（2 格內）才會現形 */
   hidden?: boolean;
+  /** 約會事件：開放且未完成 → 頭上「♥」 */
+  date?: boolean;
 }
 
 export interface AreaDef {
@@ -93,7 +95,7 @@ export function solidRects(a: AreaDef): Rect[] {
   return [...a.buildings, ...(a.props ?? []).map((p) => ({ x: p.x, y: p.y, w: 1, h: 1 }))];
 }
 
-export type Marker = 'main' | 'side' | 'shop' | 'chat' | 'none';
+export type Marker = 'main' | 'side' | 'shop' | 'chat' | 'heart' | 'none';
 
 export function chestFlag(area: string, id: string): string {
   return `chest_${area}_${id}`;
@@ -126,6 +128,7 @@ export function markerOf(s: GameState, area: string, e: AreaEntity): Marker {
     return q && s.flags[q] && !s.flags[lampFlag(area, e.id)] ? 'side' : 'none';
   }
   const open = talkOpen(s, e);
+  if (open && e.date && e.done && !s.flags[e.done]) return 'heart';
   if (open && e.done && !s.flags[e.done]) return e.waiting && check(s, e.waiting) ? 'chat' : e.side ? 'side' : 'main';
   if (open && e.shop) return 'shop';
   if (e.rest) return 'chat';

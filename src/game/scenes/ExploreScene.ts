@@ -37,6 +37,7 @@ const MARK: Record<Marker, { t: string; col: string } | null> = {
   side: { t: '？', col: '#7fd8ff' },
   shop: { t: '$', col: '#9fe8a0' },
   chat: { t: '…', col: '#d8dcf0' },
+  heart: { t: '♥', col: '#ff8ab0' },
   none: null,
 };
 
@@ -188,7 +189,9 @@ export class ExploreScene extends Phaser.Scene {
       : this.spawnAt;
     const px = start.x * TILE + TILE / 2;
     const py = start.y * TILE + TILE / 2;
-    const party = s.party.filter((m) => m !== 'lian').slice(0, 3);
+    // 約會事件的同伴站在地圖上等你 → 不跟在隊伍後面（避免出現兩個人）
+    const waiting = new Set(this.area.entities.filter((e) => e.date && present(s, e)).map((e) => e.look?.hero));
+    const party = s.party.filter((m) => m !== 'lian' && !waiting.has(m)).slice(0, 3);
     party.forEach((m, i) => {
       const f: { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; id?: MemberId } = this.makeWalker(`hero_${m}`, 80);
       f.id = m;

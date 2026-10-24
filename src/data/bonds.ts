@@ -26,6 +26,7 @@ export const BONDS: BondDef[] = [
     id: 'io', name: '伊歐', epithet: '霧湖的歌姬',
     events: [
       { flag: 'bond_io_1', title: '五個音', hint: '第一章・營火' },
+      { flag: 'date_io', title: '井裡的星星', hint: '灰燈鎮・夜（好感 30）' },
       { flag: 'io_rescued', title: '再一次，找到你', hint: '第四章・星核爐' },
       { flag: 'vow_io', title: '心之約定', hint: '終章・最後的營火' },
     ],
@@ -36,6 +37,7 @@ export const BONDS: BondDef[] = [
     events: [
       { flag: 'bond_serin_1', title: '被看見的強', hint: '第二章・礦坑營火' },
       { flag: 'bond_serin_2', title: '留到最後', hint: '第三章・燼牌大賽' },
+      { flag: 'date_serin', title: '劍穗的顏色', hint: '王都・噴水池（好感 35）' },
       { flag: 'bond_serin_3', title: '劍的重量', hint: '第四章・通風井營火' },
       { flag: 'vow_serin', title: '日出之約', hint: '終章・最後的營火' },
     ],
@@ -45,6 +47,7 @@ export const BONDS: BondDef[] = [
     id: 'liora', name: '莉歐拉', epithet: '愛爆炸的發明家',
     events: [
       { flag: 'bond_liora_1', title: '鐘聲與火藥', hint: '第二章・礦坑營火' },
+      { flag: 'date_liora', title: '會開花的火藥', hint: '礦工營地・夜（好感 25）' },
       { flag: 'bond_liora_2', title: '夜市的攤位', hint: '第三章・夜市' },
       { flag: 'bond_liora_3', title: '燒掉，還是留下', hint: '第四章・檔案室' },
       { flag: 'vow_liora', title: '不會爆炸的東西', hint: '終章・最後的營火' },
@@ -56,6 +59,7 @@ export const BONDS: BondDef[] = [
     events: [
       { flag: 'bond_rourke_1', title: '沒人對我說過', hint: '第一章・營火' },
       { flag: 'bond_rourke_2', title: '認得路的人', hint: '第三章・王都' },
+      { flag: 'date_rourke', title: '兩面都是正面', hint: '王都・後巷（好感 35）' },
       { flag: 'bond_rourke_3', title: '鐘塔屋頂', hint: '第三章・決鬥之後' },
     ],
     moods: ['小鬼，別死了。', '……你這燈，還挺亮的。', '老骨頭還能替你擋幾下。', '欠你的，我會還。', '全押了，小子。'],
