@@ -353,7 +353,7 @@ export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid,
         c.fillRect(px + 18, py + 7, 12, 8);
       } else if (t === 'o') {
         // 井（兩格寬時只在左格畫一次）
-        if (tileAt(g, x - 1, y) === 'o' || artWell) continue;
+        if (tileAt(g, x - 1, y) === 'o' || artWell || a.region === 'ch3') continue;
         const w2 = tileAt(g, x + 1, y) === 'o' ? TILE * 2 : TILE;
         c.fillStyle = '#5a5662';
         c.beginPath();

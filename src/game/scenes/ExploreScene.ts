@@ -322,12 +322,32 @@ export class ExploreScene extends Phaser.Scene {
             this.lampPost.set(lamp.id, post);
             if (!session.state.flags[lampFlag(this.area.id, lamp.id)]) post.setTint(0x3a3a48);
           }
+        } else if (t === 'o' && this.area.region === 'ch3' && g.tiles[y]![x - 1] !== 'o') {
+          this.fountain(g.tiles[y]![x + 1] === 'o' ? cx + TILE / 2 : cx, foot);
         } else if (t === 'o' && has('prop_well') && g.tiles[y]![x - 1] !== 'o') {
           const two = g.tiles[y]![x + 1] === 'o';
           fit(this.add.image(two ? cx + TILE / 2 : cx, foot + 4, 'prop_well').setOrigin(0.5, 1).setDepth(foot), (two ? 2 : 1) * TILE * 0.95);
         }
       }
     }
+  }
+
+  /** 王都廣場的噴水池（程式畫＋水花粒子） */
+  private fountain(cx: number, foot: number): void {
+    const g = this.add.graphics().setDepth(foot);
+    const by = foot - 10;
+    g.fillStyle(0x000000, 0.35).fillEllipse(cx, by + 8, 96, 26);
+    g.fillStyle(0x8a8494, 1).fillEllipse(cx, by, 92, 34);
+    g.fillStyle(0x2a5a7a, 1).fillEllipse(cx, by - 3, 76, 24);
+    g.fillStyle(0x6ab8e0, 0.5).fillEllipse(cx - 8, by - 6, 40, 10);
+    g.fillStyle(0xa8a2b4, 1).fillRect(cx - 6, by - 40, 12, 36);
+    g.fillStyle(0x9a94a6, 1).fillEllipse(cx, by - 40, 34, 10);
+    g.fillStyle(0x6ab8e0, 0.8).fillEllipse(cx, by - 42, 24, 6);
+    this.add.particles(cx, by - 44, 'ex_glow', {
+      lifespan: { min: 600, max: 900 }, speedY: { min: -90, max: -60 }, speedX: { min: -34, max: 34 }, gravityY: 220,
+      scale: { start: 0.09, end: 0.03 }, alpha: { start: 0.9, end: 0.1 }, tint: [0xcfefff, 0x9fdcff, 0xffffff],
+      frequency: highFx() ? 40 : 110, blendMode: Phaser.BlendModes.ADD,
+    }).setDepth(foot + 1);
   }
 
   private addLights(): void {
