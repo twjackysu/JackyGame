@@ -27,3 +27,17 @@ describe('二週目 newGamePlus', () => {
     expect(newGamePlus(p).flags.ng_plus).toBe(2);
   });
 });
+
+describe('endingsSeen', () => {
+  it('合併已看過與目前結局，不重複', async () => {
+    const { endingsSeen } = await import('../src/core/state/gameState');
+    const s = newGame(0);
+    expect(endingsSeen(s)).toBe(0);
+    s.flags.ending_seen_dream = true;
+    s.flags.ending = 'dream';
+    expect(endingsSeen(s)).toBe(1);
+    s.flags.ending = 'light';
+    expect(endingsSeen(s)).toBe(2);
+    expect(endingsSeen(null)).toBe(0);
+  });
+});

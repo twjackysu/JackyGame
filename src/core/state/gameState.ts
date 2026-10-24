@@ -85,6 +85,14 @@ export function newGamePlus(prev: GameState, now = Date.now()): GameState {
   return s;
 }
 
+/** 已看過幾種結局（含目前存檔的結局） */
+export function endingsSeen(s: GameState | null): number {
+  if (!s) return 0;
+  const set = new Set(Object.keys(s.flags).filter((k) => k.startsWith('ending_seen_') && s.flags[k]).map((k) => k.slice(12)));
+  if (typeof s.flags.ending === 'string') set.add(s.flags.ending);
+  return set.size;
+}
+
 /** 對話/事件效果。資料檔（src/data/dialogue）以此描述選擇的後果。 */
 export type Effect =
   | { flag: string; value?: FlagValue }

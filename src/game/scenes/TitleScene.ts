@@ -4,7 +4,7 @@ import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
 import { playMusic } from '../../audio/music';
 import { session } from '../session';
-import { newGamePlus } from '../../core/state/gameState';
+import { endingsSeen, newGamePlus } from '../../core/state/gameState';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -193,6 +193,12 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setAlpha(0.8);
+    // 已看過的結局（二週目動機）
+    const seen = session.hasSave() ? endingsSeen(session.load()) : 0;
+    if (seen > 0) {
+      this.add.text(cx, GAME_HEIGHT - 84, `✦ 結局 ${seen}/3`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' })
+        .setOrigin(0.5).setAlpha(0.85);
+    }
 
     // Camera: vignette + fade in.
     const cam = this.cameras.main;
