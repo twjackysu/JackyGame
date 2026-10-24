@@ -63,7 +63,8 @@ export class BootScene extends Phaser.Scene {
       }
       session.save();
     }
-    if (q.get('scene') === 'Battle') this.scene.start('Battle');
+    if (q.get('scene') === 'RtBattle') this.scene.start('RtBattle');
+    else if (q.get('scene') === 'Battle') this.scene.start('Battle');
     else if (q.get('scene') === 'Map') this.scene.start('Map');
     else if (q.get('scene') === 'Explore') this.scene.start('Explore', { area: q.get('area') ?? 'greylamp', spawn: q.get('spawn') ?? undefined });
     else if (q.get('scene') === 'Cards') this.scene.start('Cards', { match: q.get('match') ?? 'demo' });

@@ -7,6 +7,7 @@ import { MapScene } from './scenes/MapScene';
 import { CardScene } from './scenes/CardScene';
 import { ExploreScene } from './scenes/ExploreScene';
 import { ExploreHudScene } from './scenes/ExploreHudScene';
+import { RtBattleScene } from './scenes/RtBattleScene';
 
 /** Portrait 9:16 design resolution. Everything is laid out in these units. */
 export const GAME_WIDTH = 720;
@@ -40,6 +41,6 @@ export function createGameConfig(parent: string | HTMLElement): Phaser.Types.Cor
     input: {
       activePointers: 3,
     },
-    scene: [BootScene, TitleScene, BattleScene, DialogueScene, MapScene, CardScene, ExploreScene, ExploreHudScene],
+    scene: [BootScene, TitleScene, BattleScene, DialogueScene, MapScene, CardScene, ExploreScene, ExploreHudScene, RtBattleScene],
   };
 }
