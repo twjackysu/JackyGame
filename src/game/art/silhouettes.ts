@@ -2,7 +2,7 @@
 // 做法：先用邊緣光色描邊整個輪廓，再把深色本體往右下偏移填上，只留下左上側的亮邊 → 便宜的 rim light。
 import Phaser from 'phaser';
 import { AH, AW, drawIo, drawLian } from './animePortraits';
-import { drawBern, drawGwen, drawLiora, drawRourke, drawSerin, drawTia, drawValderan } from './animeCompanions';
+import { drawBern, drawDorn, drawFarrow, drawGwen, drawLiora, drawRourke, drawSerin, drawTia, drawValderan } from './animeCompanions';
 import { backIo, backLian, backLiora, backRourke, backSerin } from './animeSprites';
 
 type P = [number, number];
@@ -432,74 +432,6 @@ export function generatePortraitArt(scene: Phaser.Scene): void {
     rimPoly(g, [[66, 96], [72, 104], [78, 96], [84, 106], [88, 96]], { fill: 0x2a2018, rim, rimWidth: 1.5, offset: 1 }, s);
   });
 
-  // 法羅：商隊領隊。寬簷帽、長外套、斜背包帶 + 腰側皮包，金棕色邊緣。
-  make(scene, 'npc_farrow', 170, 240, (g, s) => {
-    const rim = 0xd8c08a;
-    const o = { fill: 0x16141c, rim };
-    // 外套
-    rimPoly(g, [[50, 108], [120, 108], [146, 138], [152, 240], [18, 240], [24, 138]], o, s);
-    // 翻領（V 字）
-    g.fillStyle(rim, 0.55);
-    g.fillTriangle(62 * s, 112 * s, 85 * s, 160 * s, 74 * s, 112 * s);
-    g.fillTriangle(108 * s, 112 * s, 85 * s, 160 * s, 96 * s, 112 * s);
-    // 斜背包帶（左肩 → 右腰）
-    g.lineStyle(8 * s, 0x2a2018, 1);
-    g.lineBetween(42 * s, 118 * s, 132 * s, 200 * s);
-    g.lineStyle(2 * s, rim, 0.9);
-    g.lineBetween(40 * s, 114 * s, 130 * s, 196 * s);
-    // 腰側皮包
-    rimPoly(g, [[112, 190], [150, 186], [154, 226], [114, 230]], { fill: 0x2a2018, rim, rimWidth: 2 }, s);
-    g.fillStyle(rim, 0.9);
-    g.fillRect(128 * s, 196 * s, 8 * s, 6 * s);
-    // 臉
-    rimPoly(g, [[68, 62], [102, 62], [106, 90], [85, 108], [64, 90]], { fill: 0x201c26, rim: 0xffffff, rimWidth: 2 }, s);
-    // 寬簷帽：帽冠 + 寬帽簷 + 帽帶
-    const hat = { fill: 0x1e1a22, rim, rimWidth: 3 };
-    rimPoly(g, [[56, 58], [62, 24], [85, 16], [108, 24], [114, 58]], hat, s);
-    rimPoly(g, [[6, 62], [40, 52], [130, 52], [164, 62], [150, 72], [20, 72]], hat, s);
-    g.fillStyle(rim, 0.8);
-    g.fillRect(60 * s, 46 * s, 52 * s, 4 * s);
-  });
-
-  // 多恩：礦工公會工頭。安全帽＋頭燈、肩扛十字鎬、濃密八字鬍，礦燈琥珀色邊緣。
-  make(scene, 'npc_dorn', 170, 240, (g, s) => {
-    const rim = 0xffb565;
-    const o = { fill: 0x16121a, rim };
-    // 十字鎬（扛在右肩）
-    g.lineStyle(6 * s, 0x2a2026, 1);
-    g.lineBetween(118 * s, 150 * s, 160 * s, 40 * s);
-    g.lineStyle(2 * s, rim, 0.8);
-    g.lineBetween(115 * s, 150 * s, 157 * s, 40 * s);
-    rimPoly(g, [[124, 30], [146, 34], [170, 54], [166, 58], [146, 46], [120, 40]], { fill: 0x3a3640, rim: 0xffe0b0, rimWidth: 2 }, s);
-    rimPoly(g, [[150, 36], [168, 22], [172, 26], [158, 44]], { fill: 0x3a3640, rim: 0xffe0b0, rimWidth: 2 }, s);
-    // 寬厚身體（工作背心）
-    rimPoly(g, [[36, 106], [134, 106], [160, 130], [166, 240], [4, 240], [10, 130]], o, s);
-    rimPoly(g, [[56, 112], [114, 112], [120, 240], [50, 240]], { fill: 0x2a2018, rim, rimWidth: 2 }, s);
-    // 皮帶
-    g.fillStyle(rim, 0.8);
-    g.fillRect(14 * s, 196 * s, 142 * s, 5 * s);
-    g.fillRect(78 * s, 192 * s, 14 * s, 13 * s);
-    // 頭
-    rimPoly(g, [[58, 52], [112, 52], [118, 82], [108, 104], [62, 104], [52, 82]], { fill: 0x201a24, rim: 0xffffff, rimWidth: 2 }, s);
-    // 濃眉
-    g.fillStyle(0x6a6068, 1);
-    g.fillRect(64 * s, 68 * s, 16 * s, 4 * s);
-    g.fillRect(90 * s, 68 * s, 16 * s, 4 * s);
-    // 八字鬍
-    rimPoly(g, [[60, 86], [72, 80], [85, 84], [98, 80], [110, 86], [116, 98], [100, 92], [85, 96], [70, 92], [54, 98]], {
-      fill: 0x5e5660, rim: 0xffffff, rimWidth: 1.5, offset: 1.2,
-    }, s);
-    // 安全帽：帽殼＋帽簷
-    const hat = { fill: 0x3a2e1e, rim, rimWidth: 2.5 };
-    rimPoly(g, [[54, 56], [58, 30], [85, 18], [112, 30], [116, 56]], hat, s);
-    rimPoly(g, [[40, 58], [130, 58], [126, 66], [44, 66]], hat, s);
-    // 頭燈
-    g.fillStyle(0xffd27a, 0.35);
-    g.fillCircle(85 * s, 38 * s, 16 * s);
-    g.fillStyle(0xfff0c0, 1);
-    g.fillCircle(85 * s, 38 * s, 7 * s);
-  }, { x: 85, y: 38, color: 0xffd27a, scale: 0.6 });
-
   // 年輕礦工：安全帽＋頭燈、瘦削身形、背帶工作褲。
   make(scene, 'npc_miner', 150, 230, (g, s) => {
     const rim = 0xffc27a;
@@ -650,7 +582,7 @@ function strokeLine(c: Ctx, pts: P[], color: string, w: number): void {
 }
 
 /** 高解析動漫立繪（顯示尺寸與手繪立繪相同：約 600px 高）。 */
-export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern', 'npc_tia']);
+export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern', 'npc_tia', 'npc_dorn', 'npc_farrow']);
 
 function hdPortrait(scene: Phaser.Scene, key: string, draw: (c: Ctx) => void): void {
   ART[key] = { key, w: AW, h: AH, footY: AH / 2 };
@@ -681,6 +613,8 @@ function generateHeroPortraits(scene: Phaser.Scene): void {
   hdPortrait(scene, 'portrait_rourke', drawRourke);
   hdPortrait(scene, 'npc_gwen', drawGwen);
   hdPortrait(scene, 'npc_bern', drawBern);
+  hdPortrait(scene, 'npc_dorn', drawDorn);
+  hdPortrait(scene, 'npc_farrow', drawFarrow);
 
 }
 

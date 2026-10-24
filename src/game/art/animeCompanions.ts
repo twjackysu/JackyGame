@@ -696,3 +696,85 @@ export function drawTia(c: C): void {
   sparkle(c, 120, 260, 14, 'rgba(255,220,160,0.9)');
   sparkle(c, 480, 200, 10, 'rgba(255,220,160,0.9)');
 }
+
+/** 配角男性的共用身體：外套＋內衫。 */
+function workBody(c: C, coat: [string, string], shirt: string, rimRGB: string): void {
+  const body = curve([[-20, AH + 20], [0, 640], [40, 550], [130, 494], [cx, 484], [470, 494], [560, 550], [600, 640], [620, AH + 20]]);
+  part(c, body, {
+    fill: vgrad(c, 484, AH, [[0, coat[0]], [1, coat[1]]]),
+    shadow: curve([[-40, 520], [180, 500], [200, AH + 40], [-40, AH + 40]]), shadowColor: 'rgba(0,0,0,0.4)',
+    rim: [-4, 3, `rgba(${rimRGB},0.9)`], ink: '#0e0a08', inkW: 3,
+  });
+  const inner = curve([[cx - 80, 500], [cx, 560], [cx + 80, 500], [cx + 70, AH + 20], [cx - 70, AH + 20]]);
+  part(c, inner, { fill: vgrad(c, 500, AH, [[0, shirt], [1, '#2a2420']]), rim: [-3, 2, `rgba(${rimRGB},0.7)`], ink: '#0e0a08', inkW: 2.4 });
+  for (const s of [-1, 1]) {
+    const lapel = curve([[cx + s * 80, 496], [cx + s * 150, 500], [cx + s * 110, 640, 1], [cx + s * 70, 560]]);
+    part(c, lapel, { fill: vgrad(c, 496, 640, [[0, coat[0]], [1, coat[1]]]), rim: [-3, 3, `rgba(${rimRGB},0.8)`], ink: '#0e0a08', inkW: 2.4 });
+  }
+}
+
+// ---------------------------------------------------------------- 多恩：礦工公會工頭（安全帽＋頭燈、十字鎬、八字鬍）
+export function drawDorn(c: C): void {
+  aura(c, 300, 400, 'rgba(255,190,100,0.22)', 'rgba(255,160,80,0.05)');
+  // 十字鎬
+  line(c, curve([[90, 900], [460, 200]], false), '#4a3020', 14);
+  part(c, curve([[360, 170, 1], [470, 190], [580, 270, 1], [470, 216], [366, 196, 1]]), { fill: lgrad(c, 360, 170, 580, 270, [[0, '#d8d4dc'], [1, '#4a4654']]), rim: [-2, 3, 'rgba(255,220,170,1)'], ink: '#14121a', inkW: 2.4 });
+  workBody(c, ['#6a6050', '#2a2620'], '#8a7a60', '255,200,120');
+  // 吊帶
+  for (const s of [-1, 1]) line(c, curve([[cx + s * 70, 500], [cx + s * 60, 700], [cx + s * 56, 900]], false), '#3a2a1a', 12);
+  const f: FaceStyle = { skin: '#e8bc9c', skinShadow: '#bc8a6c', skinDeep: '#8a5a44', ink: '#2a1610', blush: 'rgba(220,110,90,0.2)', rimColor: '#ffd8a0', shadowSide: -1, jaw: 1.08, neck: 1.15 };
+  const face = drawNeckAndFace(c, cx, f);
+  // 煤灰
+  within(c, face, () => { for (const [x, y, r] of [[cx - 70, 360, 14], [cx + 60, 380, 10]] as [number, number, number][]) { const d = new Path2D(); d.arc(x, y, r, 0, Math.PI * 2); fill(c, d, 'rgba(60,40,30,0.25)'); } });
+  const eye = { iris: ['#2a1a0a', '#8a6a3a', '#f0d0a0'] as [string, string, string], ink: '#1a0c08', shine: 'rgba(255,220,160,0.8)', open: 0.44, lift: -1, lash: 6.5, look: 0 };
+  animeEye(c, cx - 50, 304, 60, -1, eye);
+  animeEye(c, cx + 50, 304, 60, 1, eye);
+  fill(c, curve([[cx - 98, 266, 1], [cx - 60, 252], [cx - 22, 264], [cx - 22, 278, 1], [cx - 62, 266], [cx - 96, 278]]), '#3a2418');
+  fill(c, curve([[cx + 98, 266, 1], [cx + 60, 252], [cx + 22, 264], [cx + 22, 278, 1], [cx + 62, 266], [cx + 96, 278]]), '#3a2418');
+  line(c, curve([[cx + 4, 324], [cx + 14, 352], [cx + 2, 360]], false), f.skinDeep, 2.6);
+  // 濃密八字鬍＋笑
+  part(c, curve([[cx - 76, 392, 1], [cx - 40, 364], [cx, 374], [cx + 40, 364], [cx + 76, 392, 1], [cx + 36, 384], [cx, 390], [cx - 36, 384]]), { fill: '#4a2e1e', rim: [-2, 2, 'rgba(255,200,140,0.7)'], ink: '#1a0e08', inkW: 2 });
+  line(c, curve([[cx - 18, 404], [cx, 410], [cx + 18, 404]], false), '#5a2a1e', 2.6);
+  shade(c, face, curve([[cx - 130, 150], [cx + 130, 150], [cx + 130, 222], [cx - 130, 232]]), 'rgba(120,70,50,0.4)');
+  // 安全帽＋頭燈
+  const helmet = curve([[cx - 140, 236, 1], [cx - 128, 150], [cx - 70, 92], [cx, 80], [cx + 70, 92], [cx + 128, 150], [cx + 140, 236, 1]]);
+  part(c, helmet, {
+    fill: vgrad(c, 80, 236, [[0, '#f0c050'], [1, '#a0701a']]), rim: [-4, 3, 'rgba(255,240,190,1)'], ink: '#3a2408', inkW: 2.8,
+    extra: () => line(c, curve([[cx, 82], [cx, 230]], false), 'rgba(90,60,10,0.4)', 6),
+  });
+  part(c, curve([[cx - 160, 236, 1], [cx + 160, 236, 1], [cx + 150, 256, 1], [cx - 150, 256, 1]]), { fill: '#c08a2a', ink: '#3a2408', inkW: 2.4 });
+  const lamp = new Path2D(); lamp.arc(cx, 176, 26, 0, Math.PI * 2);
+  part(c, lamp, { fill: rgrad(c, cx - 4, 170, 2, 26, [[0, '#ffffff'], [0.4, '#fff0b0'], [1, '#c87a1a']]), ink: '#3a2408', inkW: 2.4 });
+  glow(c, cx, 176, 90, 'rgba(255,230,160,0.9)');
+}
+
+// ---------------------------------------------------------------- 法羅：商隊領隊（寬簷帽、長外套、斜背皮包）
+export function drawFarrow(c: C): void {
+  aura(c, 300, 400, 'rgba(255,200,130,0.2)', 'rgba(255,170,100,0.05)');
+  workBody(c, ['#6a4a2e', '#2a1a10'], '#d8c8a8', '255,210,150');
+  line(c, curve([[cx + 160, 510], [cx - 40, 760], [cx - 140, 900]], false), '#3a2010', 14);
+  part(c, curve([[cx - 160, 800, 1], [cx - 60, 790, 1], [cx - 56, 880, 1], [cx - 166, 890, 1]]), { fill: vgrad(c, 790, 890, [[0, '#9a6a3e'], [1, '#4a2e18']]), rim: [-2, 3, 'rgba(255,210,150,0.8)'], ink: '#1a0e06', inkW: 2.2 });
+  const f: FaceStyle = { skin: '#eec4a6', skinShadow: '#c49478', skinDeep: '#946450', ink: '#2a1610', blush: 'rgba(220,110,90,0.2)', rimColor: '#ffe0b0', shadowSide: -1, jaw: 1.0, neck: 1.0 };
+  const face = drawNeckAndFace(c, cx, f);
+  // 短絡腮鬍
+  within(c, face, () => {
+    c.fillStyle = 'rgba(80,50,30,0.5)';
+    c.beginPath(); c.moveTo(cx - 96, 330); c.quadraticCurveTo(cx - 80, 420, cx, 440); c.quadraticCurveTo(cx + 80, 420, cx + 96, 330);
+    c.quadraticCurveTo(cx + 60, 400, cx, 404); c.quadraticCurveTo(cx - 60, 400, cx - 96, 330); c.fill();
+  });
+  const eye = { iris: ['#1a2a1a', '#4a8a5a', '#c8f0c0'] as [string, string, string], ink: '#1a0c08', shine: 'rgba(210,255,200,0.8)', open: 0.5, lift: 2, lash: 6.5, look: 0.2 };
+  animeEye(c, cx - 50, 304, 60, -1, eye);
+  animeEye(c, cx + 50, 304, 60, 1, eye);
+  fill(c, curve([[cx - 92, 262, 1], [cx - 60, 252], [cx - 24, 262], [cx - 22, 272, 1], [cx - 60, 262], [cx - 90, 270]]), '#4a2e1e');
+  fill(c, curve([[cx + 92, 262, 1], [cx + 60, 252], [cx + 24, 262], [cx + 22, 272, 1], [cx + 60, 262], [cx + 90, 270]]), '#4a2e1e');
+  line(c, curve([[cx + 4, 328], [cx + 12, 354], [cx + 2, 362]], false), f.skinDeep, 2.4);
+  line(c, curve([[cx - 24, 386], [cx, 396], [cx + 24, 386]], false), '#5a2a1e', 3);
+  shortHair(c, vgrad(c, 60, 300, [[0, '#6a4a2e'], [1, '#2a1a10']]), '#140a04', '255,210,150', false);
+  // 寬簷帽
+  const brim = curve([[cx - 210, 210, 1], [cx - 120, 180], [cx, 172], [cx + 120, 180], [cx + 210, 210, 1], [cx + 120, 214], [cx, 208], [cx - 120, 214]]);
+  const crown = curve([[cx - 110, 196], [cx - 100, 110], [cx - 40, 76], [cx + 40, 76], [cx + 100, 110], [cx + 110, 196]]);
+  part(c, crown, { fill: vgrad(c, 76, 196, [[0, '#8a6a46'], [1, '#4a3420']]), rim: [-4, 3, 'rgba(255,220,160,0.9)'], ink: '#1a0e06', inkW: 2.6,
+    extra: () => line(c, curve([[cx - 110, 170], [cx, 160], [cx + 110, 170]], false), '#2a1a0e', 14) });
+  part(c, brim, { fill: vgrad(c, 172, 214, [[0, '#7a5a3a'], [1, '#3a2614']]), rim: [-3, 2, 'rgba(255,220,160,0.9)'], ink: '#1a0e06', inkW: 2.6 });
+  shade(c, face, curve([[cx - 140, 150], [cx + 140, 150], [cx + 140, 250], [cx - 140, 260]]), 'rgba(120,70,50,0.35)');
+}
