@@ -1,4 +1,4 @@
-// 強化表（design/14 階段 2.4 的數值，D-053／design/13 題目 3 方案 A＋B）。
+// 強化表（design/14 階段 2.4 的數值，D-053／design/13 題目 3 方案 A＋B；D-058 校準：+9／+10 失敗不降級）。
 // 由 src/server/enhancement.ts（階段 2.4）讀取；這裡只放資料。改動任何數字都要 RULES_VERSION +1。
 export interface EnhanceStep {
   /** 目標等級（從 to-1 強化到 to） */
@@ -28,12 +28,19 @@ export const ENHANCE_STEPS: readonly EnhanceStep[] = [
   { to: 6, chance: 0.8, failTo: 5, blessingOnFail: 20, statPct: 19, cost: { gold: 110, mat_dust: 10, mat_crystal: 1 } },
   { to: 7, chance: 0.65, failTo: 5, blessingOnFail: 20, statPct: 23, cost: { gold: 140, mat_dust: 12, mat_crystal: 2 } },
   { to: 8, chance: 0.5, failTo: 6, blessingOnFail: 20, statPct: 28, cost: { gold: 180, mat_dust: 14, mat_crystal: 3 } },
-  { to: 9, chance: 0.35, failTo: 7, blessingOnFail: 10, statPct: 32, cost: { gold: 230, mat_dust: 16, mat_crystal: 4, mat_legend: 1 } },
-  { to: 10, chance: 0.2, failTo: 8, blessingOnFail: 10, statPct: 40, cost: { gold: 300, mat_dust: 20, mat_crystal: 5, mat_legend: 2 } },
+  { to: 9, chance: 0.35, failTo: 8, blessingOnFail: 10, statPct: 32, cost: { gold: 230, mat_dust: 16, mat_crystal: 4, mat_legend: 1 } },
+  { to: 10, chance: 0.2, failTo: 9, blessingOnFail: 10, statPct: 40, cost: { gold: 300, mat_dust: 20, mat_crystal: 5, mat_legend: 2 } },
 ];
 
 /** 給玩家看的失敗後果文字（成功率與後果要直接顯示） */
 export function failText(step: EnhanceStep): string {
   if (step.chance >= 1) return '必定成功';
   return step.failTo >= step.to - 1 ? '失敗：等級不變，累積星之祝福' : `失敗：降到 +${step.failTo}，累積星之祝福`;
+}
+
+/** 強化後的基礎數值倍率（不複利）：+0 → 1、+10 → 1.4 */
+export function enhanceMultiplier(level: number): number {
+  if (level <= 0) return 1;
+  const step = ENHANCE_STEPS[Math.min(MAX_ENHANCE, level) - 1];
+  return 1 + (step?.statPct ?? 0) / 100;
 }

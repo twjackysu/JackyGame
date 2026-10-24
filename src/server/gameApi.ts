@@ -9,7 +9,7 @@ export type ConsumableId = 'potion_s' | 'potion_m' | 'lamp_oil' | 'blast_bottle'
 export interface ApiResult<T = undefined> {
   ok: boolean;
   /** 失敗原因（給 UI 顯示用的代碼） */
-  error?: 'not_enough_gold' | 'not_for_sale' | 'not_owned' | 'cannot_equip' | 'already_claimed' | 'not_found' | 'invalid';
+  error?: 'max_level' | 'not_enough_materials' | 'not_enough_gold' | 'not_for_sale' | 'not_owned' | 'cannot_equip' | 'already_claimed' | 'not_found' | 'invalid';
   /** 同一 operationId 已處理過：沒有再次生效 */
   duplicate?: boolean;
   operationId: string;
@@ -24,7 +24,19 @@ export interface BattleRewards {
   newBossPoint: boolean;
 }
 
+export interface EnhanceResult {
+  success: boolean;
+  guaranteed: boolean;
+  from: number;
+  to: number;
+  level: number;
+  blessing: number;
+  chance: number;
+}
+
 export interface GameApi {
+  /** 強化一件裝備實例（扣金幣與材料，擲 'enhance' stream） */
+  enhance(operationId: string, req: { instanceId: string }): ApiResult<EnhanceResult>;
   buy(operationId: string, req: { itemId: string; discountPct?: number }): ApiResult;
   sell(operationId: string, req: { itemId: string }): ApiResult;
   /** ref：instanceId，或模板 id（取背包裡第一件） */

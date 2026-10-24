@@ -15,8 +15,10 @@ export interface EquipmentInstance {
   templateId: string;
   enhancement: number;
   affixes: { id: string; value: number }[];
-  /** 強化失敗累積的祝福值（綁實例與目標階段；階段 2.4 使用） */
+  /** 舊欄位（第 11 輪前段的存檔有），未使用；祝福值看 blessings */
   blessing: number;
+  /** 強化失敗累積的星之祝福：目標階段 → 值（綁實例與目標階段，降級不清；src/server/enhancement.ts） */
+  blessings?: Partial<Record<number, number>>;
   binding: 'none' | 'bound';
   /** 來源模式：主線（story）／深淵（未來）等；目前只記取得方式 */
   originMode: GearOrigin;

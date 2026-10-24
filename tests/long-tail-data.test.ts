@@ -89,7 +89,8 @@ describe('強化表', () => {
     }
     expect(ENHANCE_STEPS[5]!.failTo).toBe(5);
     expect(failText(ENHANCE_STEPS[5]!)).toContain('不變');
-    expect(failText(ENHANCE_STEPS[9]!)).toContain('+8');
+    expect(failText(ENHANCE_STEPS[7]!)).toContain('+6');
+    expect(failText(ENHANCE_STEPS[9]!)).toContain('不變');
   });
   it('祝福保底：+6～+8 最多 5 次失敗、+9／+10 最多 10 次失敗就必成', () => {
     for (const s of ENHANCE_STEPS.filter((x) => x.chance < 1)) {

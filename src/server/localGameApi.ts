@@ -1,13 +1,15 @@
 // GameApi 的本機實作：同一個程式裡直接改 GameState，並寫事件紀錄（design/14 階段 1.5）。
 // 只依賴注入的埠（狀態存取、EventJournal、Clock）與 core／data 的純邏輯，可整包搬去伺服器。
 import type { Clock, EventJournal } from './ports';
-import type { ApiResult, BattleRewards, ConsumableId, GameApi } from './gameApi';
+import type { ApiResult, BattleRewards, ConsumableId, EnhanceResult, GameApi } from './gameApi';
+import { nextStep, rollEnhance } from './enhancement';
+import { randomFromRng } from './ports';
 import type { GameState, MemberId } from '../core/state/gameState';
 import { applyEffects } from '../core/state/gameState';
 import { buy, buyPrice, equip, grantDrops, sell, sellPrice, unequip } from '../core/state/equip';
 import { resetCost, resetTree } from '../core/state/skillTree';
 import { bagCount } from '../core/state/gear';
-import { drawSeed } from '../core/rngStreams';
+import { drawSeed, streamRng } from '../core/rngStreams';
 import { chestFlag } from '../core/explore/area';
 import { AREAS } from '../data/areas';
 import { firstKillFlag, rollDrops } from '../data/drops';
@@ -42,6 +44,28 @@ export class LocalGameApi implements GameApi {
       });
     }
     return { ...r, operationId, rulesVersion: RULES_VERSION };
+  }
+
+  enhance(operationId: string, req: { instanceId: string }): ApiResult<EnhanceResult> {
+    return this.run(operationId, 'enhance', req, (s) => {
+      const inst = s.gear[req.instanceId];
+      if (!inst) return { ok: false, error: 'not_owned' };
+      const step = nextStep(inst.enhancement);
+      if (!step) return { ok: false, error: 'max_level' };
+      const { gold, ...mats } = step.cost;
+      for (const [m, n] of Object.entries(mats)) if ((s.inventory[m] ?? 0) < (n ?? 0)) return { ok: false, error: 'not_enough_materials' };
+      if (s.gold < gold) return { ok: false, error: 'not_enough_gold' };
+      s.gold -= gold;
+      for (const [m, n] of Object.entries(mats)) {
+        const left = (s.inventory[m] ?? 0) - (n ?? 0);
+        if (left <= 0) delete s.inventory[m];
+        else s.inventory[m] = left;
+      }
+      const r = rollEnhance(inst, randomFromRng(streamRng(s.rng, 'enhance')))!;
+      const { rulesVersion: _rv, ...data } = r;
+      void _rv;
+      return { ok: true, data };
+    });
   }
 
   buy(operationId: string, req: { itemId: string; discountPct?: number }): ApiResult {

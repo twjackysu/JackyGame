@@ -4,6 +4,7 @@ import { HEROES } from '../../data/combatants';
 import { treeEffect, treeSkills } from './skillTree';
 import type { HeroId } from '../battle/skills';
 import { ITEM_DEFS, SHOPS, SLOTS, itemDef, type ItemDef, type Slot } from '../../data/equipment';
+import { enhanceMultiplier } from '../../data/enhancement';
 import type { GameState, MemberId } from './gameState';
 import type { Perk } from '../battle/engine';
 import { addItem, bagCount, bagIds, freeInstances, hasTemplate, templateOf, type GearOrigin } from './gear';
@@ -15,12 +16,14 @@ export function gearBonus(s: GameState, member: MemberId): Required<BaseStats> {
   const out = { hp: 0, atk: 0, def: 0, spd: 0 };
   const eq = s.members[member]?.equipment ?? {};
   for (const slot of SLOTS) {
-    const id = templateOf(s, eq[slot]);
-    const b = id ? ITEM_DEFS[id]?.bonus : undefined;
-    if (!b) continue;
-    out.hp += b.hp ?? 0;
-    out.atk += b.atk ?? 0;
-    out.def += b.def ?? 0;
+    const inst = eq[slot] ? s.gear[eq[slot]!] : undefined;
+    const b = inst ? ITEM_DEFS[inst.templateId]?.bonus : undefined;
+    if (!b || !inst) continue;
+    // 強化只放大基礎數值（不複利；SPD 不受強化影響）
+    const k = enhanceMultiplier(inst.enhancement);
+    out.hp += Math.round((b.hp ?? 0) * k);
+    out.atk += Math.round((b.atk ?? 0) * k);
+    out.def += Math.round((b.def ?? 0) * k);
     out.spd += b.spd ?? 0;
   }
   return out;
@@ -146,8 +149,10 @@ export function grantDrops(s: GameState, items: readonly string[], defeated: rea
 export function gearDelta(s: GameState, member: MemberId, id: string): Required<BaseStats> {
   const def = ITEM_DEFS[id];
   if (!def?.slot) return { hp: 0, atk: 0, def: 0, spd: 0 };
-  const cur = wornTemplate(s, member, def.slot);
-  const prev = cur ? ITEM_DEFS[cur]?.bonus ?? {} : {};
+  const curInst = s.members[member]?.equipment[def.slot] ? s.gear[s.members[member]!.equipment[def.slot]!] : undefined;
+  const k = enhanceMultiplier(curInst?.enhancement ?? 0);
+  const pb = curInst ? ITEM_DEFS[curInst.templateId]?.bonus ?? {} : {};
+  const prev = { hp: Math.round((pb.hp ?? 0) * k), atk: Math.round((pb.atk ?? 0) * k), def: Math.round((pb.def ?? 0) * k), spd: pb.spd ?? 0 };
   const nb = def.bonus ?? {};
   return {
     hp: (nb.hp ?? 0) - (prev.hp ?? 0),
