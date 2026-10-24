@@ -224,3 +224,35 @@ describe('大招與 MP（D-065 ②、D-068）', () => {
     expect(b.durationSec.p50).toBeLessThan(a.durationSec.p50);
   }, 60000);
 });
+
+describe('HP 藥水（design/20 B、D-069）', () => {
+  it('回 30% 最大 HP、冷卻 15 秒、扣攜帶數；滿血與冷卻中無效', () => {
+    const s = createBattle({ stageId: 'forest_entry', seed: 2, potions: 2 });
+    const p = playerOf(s);
+    step(s, [{ type: 'potion' }]);
+    expect(s.potions).toBe(2); // 滿血不能喝
+    p.hp = 100;
+    step(s, [{ type: 'potion' }]);
+    expect(p.hp).toBe(100 + Math.round(p.maxHp * 0.3));
+    expect(s.potions).toBe(1);
+    expect(p.ready['potion']).toBe(s.tick + sec(15));
+    const hp1 = p.hp;
+    step(s, [{ type: 'potion' }]);
+    expect(p.hp).toBeLessThanOrEqual(hp1); // 冷卻中
+    expect(s.potions).toBe(1);
+    // 不會補超過上限
+    p.hp = p.maxHp - 10;
+    p.ready['potion'] = 0;
+    step(s, [{ type: 'potion' }]);
+    expect(p.hp).toBeLessThanOrEqual(p.maxHp);
+    expect(s.potions).toBe(0);
+  });
+
+  it('會喝藥水的新手 Bot：精英狼群從打不過變成有機會（藥水數有上限）', () => {
+    const plain = batch('elite_pack', () => new PlayerBot(BOT_PROFILES.novice, 'novice'), 10);
+    const withPot = batch('elite_pack', () => new PlayerBot({ ...BOT_PROFILES.novice, potionAtPct: 45 }, 'novice+pot'), 10);
+    expect(withPot.winRate).toBeGreaterThanOrEqual(plain.winRate);
+    expect(withPot.avgPotions).toBeGreaterThan(0);
+    expect(withPot.avgPotions).toBeLessThanOrEqual(20);
+  }, 60000);
+});

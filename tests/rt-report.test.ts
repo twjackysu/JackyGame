@@ -13,6 +13,11 @@ describe.skipIf(!env?.env.RT_REPORT)('即時戰鬥報表', () => {
         const r = batch(st.id, () => new PlayerBot(BOT_PROFILES[k], k), runs);
         out.push(`| ${st.name} | ${k} | ${r.winRate}% | ${r.durationSec.p50}／${r.durationSec.p90} | ${r.avgDps} | ${r.avgHpLeftPct}% | ${r.avgDodges} | ${r.avgBlocks} | ${r.damageShare.normal}／${r.damageShare.skill}／${r.damageShare.counter} |`);
       }
+      // 藥水（HP < 45% 就喝，攜帶 20）：新手／普通 Bot 參考（D-069）
+      for (const k of ['novice', 'normal'] as const) {
+        const r = batch(st.id, () => new PlayerBot({ ...BOT_PROFILES[k], potionAtPct: 45 }, `${k}+pot`), runs);
+        out.push(`| ${st.name} | ${k}+藥水 | ${r.winRate}% | ${r.durationSec.p50}／${r.durationSec.p90} | ${r.avgDps} | ${r.avgHpLeftPct}% | ${r.avgDodges} | ${r.avgBlocks} | ${r.damageShare.normal}／${r.damageShare.skill}／${r.damageShare.counter}（藥 ${r.avgPotions}） |`);
+      }
       // 大招（劍刃風暴）還沒放進試玩鍵位：另列「會放大招」的普通／熟練 Bot 給數值參考（D-068）
       for (const k of ['normal', 'expert'] as const) {
         const r = batch(st.id, () => new PlayerBot({ ...BOT_PROFILES[k], ult: true }, `${k}+ult`), runs);

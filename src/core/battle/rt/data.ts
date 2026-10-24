@@ -53,6 +53,7 @@ export const SWORDSMAN: PlayerDefinition = {
   mpStart: 0,
   // 造成直接傷害 +1（持續傷害不算）、受到傷害 +2、格擋成功 +5（D-065 ②；第 13 輪初值，見 D-068）
   mpGain: { deal: 1, hurt: 2, block: 5 },
+  potion: { healPct: 30, cooldownTicks: sec(15), carry: 20 },
   skills: ['heavy_slash', 'whirlwind', 'charge', 'parry', 'blade_storm'],
   // 閃避：位移 2.5、動作 9 ticks、無敵 1～6、冷卻 5s
   dodge: { distance: u(2.5), ticks: 9, invulnFrom: 1, invulnTo: 6, cooldownTicks: sec(5) },

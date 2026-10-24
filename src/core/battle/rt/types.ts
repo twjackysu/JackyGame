@@ -129,6 +129,8 @@ export interface PlayerDefinition {
   mpStart: number;
   /** MP 回復（D-065 ②）：每次造成直接傷害／受到傷害／格擋成功 */
   mpGain: { deal: number; hurt: number; block: number };
+  /** HP 藥水（design/20 B：30% 最大 HP、冷卻 15 秒、攜帶 20、獨立按鍵；瞬間生效、不打斷動作） */
+  potion: { healPct: number; cooldownTicks: number; carry: number };
   skills: string[];
   dodge: { distance: number; ticks: number; invulnFrom: number; invulnTo: number; cooldownTicks: number };
 }
@@ -217,7 +219,8 @@ export type BattleEvent =
   | { tick: number; type: 'cast'; id: number; skill: string }
   | { tick: number; type: 'phase2'; id: number }
   | { tick: number; type: 'summon'; id: number; count: number }
-  | { tick: number; type: 'wallStun'; id: number };
+  | { tick: number; type: 'wallStun'; id: number }
+  | { tick: number; type: 'potion'; id: number; heal: number; left: number };
 
 /** 玩家（或 Bot）的輸入：一個 tick 可以送多個 */
 export type BattleCommand =
@@ -225,7 +228,8 @@ export type BattleCommand =
   | { type: 'stop' }
   | { type: 'skill'; id: string }
   | { type: 'dodge'; dx: number; dy: number }
-  | { type: 'target'; id: number };
+  | { type: 'target'; id: number }
+  | { type: 'potion' };
 
 export interface Arena {
   /** 可走範圍（整數座標，0..w、0..h），邊界即牆 */
@@ -257,4 +261,6 @@ export interface BattleState {
   timeLimitTicks: number;
   /** 玩家這個 tick 有沒有手動移動（有就暫停自動追擊；design/19 方案 A） */
   manualMove: { dx: number; dy: number } | null;
+  /** 剩餘 HP 藥水 */
+  potions: number;
 }

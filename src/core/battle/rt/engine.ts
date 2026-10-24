@@ -70,6 +70,8 @@ export interface BattleSetup {
   player?: PlayerDefinition;
   /** 裝備等加成（之後由裝備系統提供） */
   bonus?: { hp?: number; atk?: number; def?: number; critRate?: number };
+  /** 攜帶的藥水數（預設 PlayerDefinition.potion.carry；之後由背包提供） */
+  potions?: number;
 }
 
 export function createBattle(setup: BattleSetup): BattleState {
@@ -79,6 +81,7 @@ export function createBattle(setup: BattleSetup): BattleState {
   const s: BattleState = {
     tick: 0, rngState: (setup.seed >>> 0) || 1, units: [], telegraphs: [], events: [], nextId: 1, arena: stage.arena,
     stageId: stage.id, outcome: 'running', timeLimitTicks: stage.timeLimitTicks, manualMove: null,
+    potions: setup.potions ?? pd.potion.carry,
   };
   // 打散初始種子
   for (let i = 0; i < 4; i++) nextRand(s);
@@ -346,7 +349,21 @@ function applyCommands(s: BattleState, cmds: readonly BattleCommand[]): void {
     else if (c.type === 'target') p.targetId = c.id;
     else if (c.type === 'skill') startSkill(s, p, c.id);
     else if (c.type === 'dodge') startDodge(s, p, c.dx, c.dy);
+    else if (c.type === 'potion') drinkPotion(s, p);
   }
+}
+
+/** 喝藥水：瞬間回復、不打斷動作；滿血、沒藥、冷卻中、倒下或暈眩時無效 */
+function drinkPotion(s: BattleState, p: Unit): boolean {
+  const pt = playerDef().potion;
+  if (p.dead || disabled(p, s.tick) || s.potions <= 0 || p.hp >= p.maxHp) return false;
+  if ((p.ready['potion'] ?? 0) > s.tick) return false;
+  const heal = Math.min(p.maxHp - p.hp, Math.round((p.maxHp * pt.healPct) / 100));
+  p.hp += heal;
+  s.potions--;
+  p.ready['potion'] = s.tick + pt.cooldownTicks;
+  emit(s, { tick: s.tick, type: 'potion', id: p.id, heal, left: s.potions });
+  return true;
 }
 
 function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillId: string, origin: 'skill' | 'counter'): void {
@@ -572,5 +589,6 @@ export function stateHash(s: BattleState): string {
     mix(x.dead ? 1 : 0);
   }
   mix(s.events.length);
+  mix(s.potions);
   return (h >>> 0).toString(16).padStart(8, '0');
 }

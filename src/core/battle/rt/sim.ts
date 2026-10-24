@@ -33,6 +33,8 @@ export interface BotSkill {
   parries: boolean;
   /** 會不會放大招（劍刃風暴）；試玩鍵位還沒有大招，預設不放，報表另列 */
   ult?: boolean;
+  /** HP 低於這個百分比就喝藥水（undefined＝不喝；試玩鍵位還沒有藥水） */
+  potionAtPct?: number;
 }
 
 export const BOT_PROFILES: Record<'auto' | 'novice' | 'normal' | 'expert', BotSkill> = {
@@ -63,6 +65,8 @@ export class PlayerBot implements BattleController {
     const out: BattleCommand[] = [];
     const ready = (id: string) => (p.ready[id] ?? 0) <= s.tick + 1;
     const busy = !!p.action && p.action.kind !== 'attack';
+    // 0. 藥水（瞬間、不打斷動作）
+    if (this.prof.potionAtPct !== undefined && s.potions > 0 && ready('potion') && p.hp * 100 < p.maxHp * this.prof.potionAtPct) out.push({ type: 'potion' });
     // 1. 迴避
     if (this.prof.reactTicks !== undefined) {
       const seen = threats(s).filter((t) => s.tick + 1 - t.startTick >= this.prof.reactTicks!);
@@ -126,6 +130,7 @@ export interface BattleResult {
   casts: Record<string, number>;
   /** 玩家造成傷害的來源（普攻／技能／反擊／持續傷害），design/20 C3 目標：普攻 35～45%、技能 45～55% */
   damageBy: { normal: number; skill: number; counter: number; dot: number };
+  potionsUsed: number;
   hpLeftPct: number;
   stateHash: string;
 }
@@ -141,6 +146,7 @@ export function summarize(s: BattleState): BattleResult {
   let blocks = 0;
   const casts: Record<string, number> = {};
   const damageBy = { normal: 0, skill: 0, counter: 0, dot: 0 };
+  let potionsUsed = 0;
   for (const e of s.events) {
     if (e.type === 'damage') {
       if (e.src === p.id) {
@@ -152,11 +158,12 @@ export function summarize(s: BattleState): BattleResult {
     else if (e.type === 'dodge') dodges++;
     else if (e.type === 'dodged') dodgedHits++;
     else if (e.type === 'block') blocks++;
+    else if (e.type === 'potion') potionsUsed++;
     else if (e.type === 'cast') casts[e.skill] = (casts[e.skill] ?? 0) + 1;
   }
   return {
     victory: s.outcome === 'victory', outcome: s.outcome, durationTicks: s.tick, totalDamage, damageTaken,
-    deaths: p.dead ? 1 : 0, kills, dodges, dodgedHits, blocks, casts, damageBy, hpLeftPct: Math.round((p.hp / p.maxHp) * 100), stateHash: stateHash(s),
+    deaths: p.dead ? 1 : 0, kills, dodges, dodgedHits, blocks, casts, damageBy, potionsUsed, hpLeftPct: Math.round((p.hp / p.maxHp) * 100), stateHash: stateHash(s),
   };
 }
 
@@ -176,6 +183,7 @@ export interface BatchStats {
   avgHpLeftPct: number;
   avgDodges: number;
   avgBlocks: number;
+  avgPotions: number;
   /** 傷害來源占比（%，所有場次加總後計算） */
   damageShare: { normal: number; skill: number; counter: number; dot: number };
 }
@@ -205,6 +213,7 @@ export function batch(stageId: string, makeController: () => BattleController, r
     avgHpLeftPct: avg((r) => r.hpLeftPct),
     avgDodges: avg((r) => r.dodges),
     avgBlocks: avg((r) => r.blocks),
+    avgPotions: avg((r) => r.potionsUsed),
     damageShare: share(rs),
   };
 }
