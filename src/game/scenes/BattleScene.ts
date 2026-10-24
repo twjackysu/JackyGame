@@ -1811,11 +1811,14 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(300, () => SFX.levelUp());
       // 勝利光芒：VICTORY 後方旋轉的放射光束＋衝擊環
       const rays = this.add.graphics().setDepth(940).setBlendMode(Phaser.BlendModes.ADD).setPosition(GAME_WIDTH / 2, 470).setAlpha(0);
-      for (let k = 0; k < 14; k++) {
-        const a = (Math.PI * 2 * k) / 14;
-        const w = 0.07;
-        rays.fillStyle(0xffd27a, k % 2 ? 0.16 : 0.28);
-        rays.fillTriangle(0, 0, Math.cos(a - w) * 560, Math.sin(a - w) * 560, Math.cos(a + w) * 560, Math.sin(a + w) * 560);
+      // 兩層（長而淡＋短而亮）模擬由中心往外漸淡的光束
+      for (const [len, alpha] of [[460, 0.05], [260, 0.08]] as const) {
+        for (let k = 0; k < 14; k++) {
+          const a = (Math.PI * 2 * k) / 14;
+          const w = k % 2 ? 0.035 : 0.06;
+          rays.fillStyle(0xffd27a, alpha);
+          rays.fillTriangle(0, 0, Math.cos(a - w) * len, Math.sin(a - w) * len, Math.cos(a + w) * len, Math.sin(a + w) * len);
+        }
       }
       rays.setScale(0.3);
       this.tweens.add({ targets: rays, alpha: 1, scale: 1, duration: 500, ease: 'Back.Out' });

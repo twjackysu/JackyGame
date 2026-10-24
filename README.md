@@ -15,6 +15,8 @@
 | ![共鳴](docs/screenshots/04-resonance.jpg) | ![星空舞台](docs/screenshots/05-starstage.jpg) | ![全員共鳴](docs/screenshots/06-finale.jpg) |
 | **燼牌（卡牌小遊戲）** | **同伴羈絆** | **劇情對話** |
 | ![燼牌](docs/screenshots/07-cards.jpg) | ![羈絆](docs/screenshots/08-bonds.jpg) | ![對話](docs/screenshots/09-dialogue.jpg) |
+| **勝利與戰績** | | |
+| ![勝利](docs/screenshots/10-victory.jpg) | | |
 
 > 所有美術、音效、音樂都是程式即時生成（Phaser Graphics／Canvas、WebAudio），repo 裡沒有任何圖片或音訊素材檔。
 
@@ -54,7 +56,7 @@
 | 5 | 10/24 08:12 | 每隻 Boss 的特殊機制、終局全員共鳴、羈絆面板、片尾旅程統計 |
 | 6 | 10/24 10:12 | 成果發表截圖、新手引導補強、自動時機一鍵開、燼牌收藏入牌組、省電畫質、共鳴相機 bug 修正 |
 
-**統計**（2026-10-24 第 6 輪）：執行 6 輪、約 80 個 commit、199 項自動測試、TypeScript 約 1.7 萬行、0 個圖片／音訊素材檔。
+**統計**（2026-10-24 第 6 輪）：執行 6 輪、約 80 個 commit、205 項自動測試、TypeScript 約 1.7 萬行、0 個圖片／音訊素材檔。
 
 ## 開發
 ```bash
