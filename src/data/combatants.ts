@@ -238,7 +238,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   },
   // 蝕星者第二段（D-029）：刪除之眼（每回合抹除全員 HP、保護核心）＋核心（HP ≤ 35% 觸發全員共鳴：十燈）
   boss_starfall_eye: {
-    id: 'boss_starfall_eye', name: '刪除之眼', level: 18, hp: 320, atk: 46, def: 12, spd: 15, breakMax: 40, weak: ['light', 'fire'], xp: 0,
+    id: 'boss_starfall_eye', name: '刪除之眼', level: 18, hp: 280, atk: 46, def: 12, spd: 15, breakMax: 40, weak: ['light', 'fire'], xp: 0,
     traits: ['erase'],
     attacks: [
       { id: 'erase_gaze', name: '刪除凝視', telegraph: 'white', windUpMs: 650, mul: 0.35, hits: [0, 300, 600], weight: 2 },
@@ -246,7 +246,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     ],
   },
   boss_starfall_core: {
-    id: 'boss_starfall_core', name: '蝕星者・核心', level: 18, hp: 750, atk: 52, def: 18, spd: 10, breakMax: 140, weak: ['light'], resist: ['phys'],
+    id: 'boss_starfall_core', name: '蝕星者・核心', level: 18, hp: 750, atk: 52, def: 15, spd: 10, breakMax: 140, weak: ['light'], resist: ['phys'],
     xp: 0, traits: ['eyeShield', 'finale'],
     attacks: [
       { id: 'meteor', name: '墜星雨', telegraph: 'red', windUpMs: 650, mul: 1.2, weight: 2 },
