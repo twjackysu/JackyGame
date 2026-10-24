@@ -12,7 +12,7 @@
 
 > ⭐ **第 9 輪（10/24 16:11）完成**：E3 商店與裝備、E4 技能樹 v1、E5 營火羈絆 v1、第 2 章（`minecamp`＋`mine`）與第 3 章（`capital`）可走、第 1 章支線 ×2、等級差逃跑。相關檔案：`src/data/{equipment,skillTree,sideQuests}.ts`、`src/data/dialogue/camp.ts`、`src/core/state/{equip,skillTree}.ts`、`src/game/ui/{shopPanel,bagPanel,gearUi}.ts`、`src/data/areas/{minecamp,mine,capital}.ts`。
 
-A0. **先確認機器人**：第 1～5 章各自已通過（可走版）。第 9 輪結束時「新遊戲全程」機器人還在跑，下一輪開頭再跑一次從新遊戲到 `ch5_complete`（約 20 分鐘，背景跑）。王都若卡住，多半是實體擋路或 `spawn` 站在建築上（`tests/explore.test.ts` 有可達性檢查，但機器人才測得到劇本回來後的位置）。
+A0. **機器人現況**：第 1～5 章可走版各自通過；從新遊戲全程（第 9 輪中段的 build）1096 秒通關。下一輪做完任何改動後，背景跑一次從新遊戲到 `ch5_complete`（約 20 分鐘）確認全程都走可走區域。
 A1. **E6 收尾＝地圖品質**：全部章節都能走了（D-048），但第 2 章以後的地圖都是「長方形房間＋走廊」：加彎道、寬窄變化、裝飾物件（程式畫的木箱、礦車、書架、實驗台、裂谷星屑）、每區 1 個「引路之光」隱藏通路或隱藏寶箱（11-open-world §2.1）。王都可加夜市攤位、噴水池換成真的噴泉。
 A2. **E5 第二版**：羈絆事件改成「好感達門檻＋到指定地點」觸發（`src/data/bonds.ts` 的事件 → 探索實體 `when: affinityAtLeast`）；城鎮夜晚約會事件 1–2 個（灰燈鎮湖畔、王都鐘塔）；同伴在地圖上偶爾冒對話泡泡（ExploreScene followers 加 `say`）。
 A3. **E3／E4 第二版**：裝備特效（例：星燼提燈「開場燈印 +1」、迅風戒「閃避窗口 +10%」）；技能樹第 4 階換成主動技能（需要 engine `SKILLS` 新增 id 與效果）；商店依章節進貨（`ShopDef.stock` 加 `requires`）。
