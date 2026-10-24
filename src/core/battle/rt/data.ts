@@ -25,6 +25,15 @@ export const SKILLS: Record<string, SkillDefinition> = {
     hits: [],
     block: { windowTicks: 12, reducePct: 80, counter: { atTick: 0, shape: { type: 'sector', r: u(2), deg: 120 }, mult: 220 } },
   },
+  // 劍刃風暴（大招，design/20 A2）：45s、施放 2.4s、自身圓 R3、8×75%＋最後一擊 200%（總 800%）、40 MP；可邊轉邊走（50%）
+  // 原型先做資料與模擬（NEXT 第 3 項），試玩鍵位還沒放
+  blade_storm: {
+    id: 'blade_storm', name: '劍刃風暴', cooldownTicks: sec(45), castTicks: sec(2.4), moveFactor: 0.5, role: 'ult', useRange: u(3), mp: 40,
+    hits: [
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => ({ atTick: 8 * (k + 1) - 1, shape: { type: 'circle' as const, r: u(3) }, mult: 75 })),
+      { atTick: sec(2.4) - 1, shape: { type: 'circle' as const, r: u(3) }, mult: 200 },
+    ],
+  },
 };
 
 export const SWORDSMAN: PlayerDefinition = {
@@ -41,7 +50,10 @@ export const SWORDSMAN: PlayerDefinition = {
   critRate: 5,
   critDmg: 150,
   mp: 100,
-  skills: ['heavy_slash', 'whirlwind', 'charge', 'parry'],
+  mpStart: 0,
+  // 造成直接傷害 +1（持續傷害不算）、受到傷害 +2、格擋成功 +5（D-065 ②；第 13 輪初值，見 D-068）
+  mpGain: { deal: 1, hurt: 2, block: 5 },
+  skills: ['heavy_slash', 'whirlwind', 'charge', 'parry', 'blade_storm'],
   // 閃避：位移 2.5、動作 9 ticks、無敵 1～6、冷卻 5s
   dodge: { distance: u(2.5), ticks: 9, invulnFrom: 1, invulnTo: 6, cooldownTicks: sec(5) },
 };

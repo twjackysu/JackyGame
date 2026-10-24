@@ -31,6 +31,8 @@ export interface BotSkill {
   reactTicks?: number;
   /** 會不會用格擋反擊去接可格擋的攻擊 */
   parries: boolean;
+  /** 會不會放大招（劍刃風暴）；試玩鍵位還沒有大招，預設不放，報表另列 */
+  ult?: boolean;
 }
 
 export const BOT_PROFILES: Record<'auto' | 'novice' | 'normal' | 'expert', BotSkill> = {
@@ -98,7 +100,11 @@ export class PlayerBot implements BattleController {
     const near = es.filter((e) => dist(p.x, p.y, e.x, e.y) <= (SKILLS.whirlwind!.useRange ?? 0) + e.r);
     const tgt = es.find((e) => e.id === p.targetId) ?? es.slice().sort((a, b) => dist(p.x, p.y, a.x, a.y) - dist(p.x, p.y, b.x, b.y))[0]!;
     const d = dist(p.x, p.y, tgt.x, tgt.y);
-    if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
+    const ult = SKILLS.blade_storm!;
+    const ultNear = es.filter((e) => dist(p.x, p.y, e.x, e.y) <= (ult.useRange ?? 0) + e.r);
+    const bossNear = ultNear.some((e) => e.maxHp >= 2000);
+    if (this.prof.ult && ready('blade_storm') && p.mp >= (ult.mp ?? 0) && (ultNear.length >= 3 || bossNear)) out.push({ type: 'skill', id: 'blade_storm' });
+    else if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
     else if (d <= (SKILLS.heavy_slash!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
     else if (d > 250 && d <= (SKILLS.charge!.useRange ?? 0) && ready('charge')) out.push({ type: 'skill', id: 'charge' });
     else if (near.length >= 1 && ready('whirlwind') && es.length === 1) out.push({ type: 'skill', id: 'whirlwind' });

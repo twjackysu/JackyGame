@@ -61,7 +61,7 @@ export interface SkillDefinition {
   /** 大招才耗 MP（D-063） */
   mp?: number;
   /** 自動施放（AUTO）時的用途提示 */
-  role: 'single' | 'aoe' | 'gap' | 'block';
+  role: 'single' | 'aoe' | 'gap' | 'block' | 'ult';
   /** 施放前要多近（整數座標；沒有＝不限） */
   useRange?: number;
 }
@@ -123,7 +123,12 @@ export interface PlayerDefinition {
   attackRecoverTicks: number;
   critRate: number;
   critDmg: number;
+  /** MP 上限（D-065 ②：100） */
   mp: number;
+  /** 開場 MP（之後接地圖時改成延續上一場） */
+  mpStart: number;
+  /** MP 回復（D-065 ②）：每次造成直接傷害／受到傷害／格擋成功 */
+  mpGain: { deal: number; hurt: number; block: number };
   skills: string[];
   dodge: { distance: number; ticks: number; invulnFrom: number; invulnTo: number; cooldownTicks: number };
 }

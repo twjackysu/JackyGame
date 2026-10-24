@@ -175,3 +175,52 @@ describe('五個原型關卡', () => {
     for (const id of Object.keys(STAGES)) expect(batch(id, expert, 5).winRate, id).toBe(100);
   }, 60000);
 });
+
+describe('大招與 MP（D-065 ②、D-068）', () => {
+  it('開場 MP 0、上限 100；MP 不夠不能放大招；造成傷害、受傷、格擋成功會回 MP', () => {
+    const s = createBattle({ stageId: 'forest_entry', seed: 3 });
+    const p = playerOf(s);
+    expect(p.mp).toBe(0);
+    step(s, [{ type: 'skill', id: 'blade_storm' }]);
+    expect(p.action?.id).not.toBe('blade_storm');
+    expect(p.ready['blade_storm']).toBeUndefined();
+    // 打一陣子：MP 只增不超過上限
+    const bot = expert();
+    let maxMp = 0;
+    for (let i = 0; i < sec(20) && s.outcome === 'running'; i++) {
+      step(s, bot.decide(s));
+      maxMp = Math.max(maxMp, p.mp);
+    }
+    expect(maxMp).toBeGreaterThan(0);
+    expect(maxMp).toBeLessThanOrEqual(100);
+    const dealt = s.events.filter((e) => e.type === 'damage' && e.src === p.id && e.origin !== 'dot').length;
+    const hurt = s.events.filter((e) => e.type === 'damage' && e.dst === p.id && e.amount > (e.absorbed ?? 0)).length;
+    const blocks = s.events.filter((e) => e.type === 'block').length;
+    expect(p.mp).toBe(Math.min(100, dealt + hurt * 2 + blocks * 5));
+  });
+
+  it('MP 夠就能放：扣 40 MP、冷卻 45 秒、8 段＋終結一擊、施放中可以慢慢走', () => {
+    const s = createBattle({ stageId: 'wolf_king', seed: 1 });
+    const p = playerOf(s);
+    p.mp = 100;
+    const boss = enemiesOf(s)[0]!;
+    p.x = boss.x;
+    p.y = boss.y + u(1.5);
+    step(s, [{ type: 'skill', id: 'blade_storm' }]);
+    expect(p.action?.id).toBe('blade_storm');
+    expect(p.ready['blade_storm']).toBe(1 + sec(45));
+    const before = s.events.length;
+    for (let i = 0; i < sec(2.4); i++) step(s);
+    const hits = s.events.slice(before).filter((e) => e.type === 'damage' && e.skill === 'blade_storm');
+    expect(hits.length).toBe(9);
+    expect(p.mp).toBeGreaterThanOrEqual(60);
+  });
+
+  it('會放大招的熟練 Bot：狼王更快（大招有感），勝率不下降', () => {
+    const ultBot = () => new PlayerBot({ ...BOT_PROFILES.expert, ult: true }, 'expert+ult');
+    const a = batch('wolf_king', expert, 20);
+    const b = batch('wolf_king', ultBot, 20);
+    expect(b.winRate).toBeGreaterThanOrEqual(a.winRate);
+    expect(b.durationSec.p50).toBeLessThan(a.durationSec.p50);
+  }, 60000);
+});

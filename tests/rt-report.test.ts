@@ -13,6 +13,11 @@ describe.skipIf(!env?.env.RT_REPORT)('即時戰鬥報表', () => {
         const r = batch(st.id, () => new PlayerBot(BOT_PROFILES[k], k), runs);
         out.push(`| ${st.name} | ${k} | ${r.winRate}% | ${r.durationSec.p50}／${r.durationSec.p90} | ${r.avgDps} | ${r.avgHpLeftPct}% | ${r.avgDodges} | ${r.avgBlocks} |`);
       }
+      // 大招（劍刃風暴）還沒放進試玩鍵位：另列「會放大招」的普通／熟練 Bot 給數值參考（D-068）
+      for (const k of ['normal', 'expert'] as const) {
+        const r = batch(st.id, () => new PlayerBot({ ...BOT_PROFILES[k], ult: true }, `${k}+ult`), runs);
+        out.push(`| ${st.name} | ${k}+大招 | ${r.winRate}% | ${r.durationSec.p50}／${r.durationSec.p90} | ${r.avgDps} | ${r.avgHpLeftPct}% | ${r.avgDodges} | ${r.avgBlocks} |`);
+      }
     }
     env!.stdout.write(`\n${out.join('\n')}\n`);
   }, 600000);

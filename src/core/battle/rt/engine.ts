@@ -88,7 +88,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     hp: pd.hp + (b.hp ?? 0), maxHp: pd.hp + (b.hp ?? 0), atk: pd.atk + (b.atk ?? 0), def: pd.def + (b.def ?? 0),
     speedPerTick: speedPerTick(pd.speed), dead: false, facingX: 0, facingY: -DIR, action: null, statuses: [], ready: {},
     nextAttackTick: 0, invulnUntil: -1, hitstunUntil: -1, hitstunImmuneUntil: -1, targetId: null, phase: 1,
-    nextSummonTick: Number.MAX_SAFE_INTEGER, mp: pd.mp,
+    nextSummonTick: Number.MAX_SAFE_INTEGER, mp: Math.min(pd.mp, pd.mpStart),
   });
   for (const e of stage.enemies) {
     const def = ENEMIES[e.enemyId];
@@ -190,6 +190,12 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   return amount;
 }
 
+/** 玩家回 MP（上限 PlayerDefinition.mp） */
+function gainMp(p: Unit, n: number): void {
+  if (p.side !== 'player' || p.dead || n <= 0) return;
+  p.mp = Math.min(playerDef().mp, p.mp + n);
+}
+
 /** 扣血（先扣護盾）、記事件、處理死亡 */
 function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boolean, origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot', skill: string): void {
   let absorbed = 0;
@@ -199,6 +205,10 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     sh.value -= absorbed;
   }
   dst.hp = Math.max(0, dst.hp - (amount - absorbed));
+  if (origin !== 'dot') {
+    if (src.side === 'player' && dst.side === 'enemy') gainMp(src, playerDef().mpGain.deal);
+    if (dst.side === 'player' && amount > absorbed) gainMp(dst, playerDef().mpGain.hurt);
+  }
   emit(s, { tick: s.tick, type: 'damage', src: src.id, dst: dst.id, amount, crit, origin, skill, ...(absorbed ? { absorbed } : {}) });
   if (dst.hp <= 0 && !dst.dead) {
     dst.dead = true;
@@ -432,6 +442,7 @@ function enemyHit(s: BattleState, e: Unit, atk: AreaAttack, p: Unit): void {
   if (a && sk?.block && atk.blockable && !a.blocked && s.tick - a.start <= sk.block.windowTicks) {
     a.blocked = true;
     emit(s, { tick: s.tick, type: 'block', id: p.id, attack: atk.id });
+    gainMp(p, playerDef().mpGain.block);
     dealDamage(s, e, p, atk.damageMultiplier, 'enemy', atk.id, sk.block.reducePct);
     face(p, e);
     a.dirX = p.facingX;
@@ -557,6 +568,7 @@ export function stateHash(s: BattleState): string {
     mix(x.x);
     mix(x.y);
     mix(x.hp);
+    mix(x.mp);
     mix(x.dead ? 1 : 0);
   }
   mix(s.events.length);
