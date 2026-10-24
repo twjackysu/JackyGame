@@ -227,6 +227,20 @@ describe('wolfpath', () => {
       expect(nextObjective(s, d)?.id, flag).toBe(next);
     }
   });
+  it('final chapter locations are in the rift; objectives follow the story', async () => {
+    const { CHAPTER_MAPS } = await import('../src/data/maps');
+    const r = AREAS['rift']!;
+    for (const e of CHAPTER_MAPS.ch5.entries) {
+      const ent = r.entities.find((x) => x.talk?.script === 'ch5' && x.talk.node === e.node);
+      expect(ent, e.node).toBeTruthy();
+      expect(ent!.done, e.node).toBe(CHAPTER_MAPS.ch5.done[e.location]);
+    }
+    const s = newGame();
+    for (const [flag, next] of [['ch4_complete', 'rift_edge'], ['ch5_descent', 'last_campfire'], ['ch5_vow', 'rift_core'], ['ch5_complete', undefined]] as const) {
+      applyEffects(s, [{ flag }]);
+      expect(nextObjective(s, r)?.id, flag).toBe(next);
+    }
+  });
   it('chapter 2 main objectives follow the story order in the mine', () => {
     const a = AREAS['mine']!;
     const s = newGame();

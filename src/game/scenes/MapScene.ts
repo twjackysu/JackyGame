@@ -332,7 +332,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     // 第 2 章：灰燈鎮廣場／礦工營地／沉鐘礦坑都可以走
-    const ch2Area = id === 'ch2' ? CH2_AREA[loc] : id === 'ch3' && CH3_NODES.includes(loc) ? 'capital' : id === 'ch4' && CH4_NODES.includes(loc) ? 'depths' : undefined;
+    const ch2Area = id === 'ch2' ? CH2_AREA[loc] : id === 'ch3' && CH3_NODES.includes(loc) ? 'capital' : id === 'ch4' && CH4_NODES.includes(loc) ? 'depths' : id === 'ch5' && ['rift_edge', 'last_campfire', 'rift_core'].includes(loc) ? 'rift' : undefined;
     if (ch2Area) {
       fadeOutThen(this, 400, () => this.scene.start('Explore', { area: ch2Area, spawn: loc === 'greylamp_plaza' ? 'plaza' : loc }));
       return;

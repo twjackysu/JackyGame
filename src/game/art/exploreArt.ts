@@ -104,9 +104,11 @@ function tree(c: CanvasRenderingContext2D, x: number, y: number, r: () => number
 
 /** 實驗室配色（研究院地下）：地面是藍灰色石磚、礦晶偏紫 */
 let LAB = false;
+/** 裂谷配色（終章）：暗紅岩壁、粉色星晶 */
+let RIFT = false;
 
 function caveFloor(c: CanvasRenderingContext2D, x: number, y: number, r: () => number, rail: boolean): void {
-  c.fillStyle = LAB ? '#262a3c' : '#2e2a30';
+  c.fillStyle = LAB ? '#262a3c' : RIFT ? '#2a1c26' : '#2e2a30';
   c.fillRect(x, y, TILE, TILE);
   if (LAB) {
     c.strokeStyle = 'rgba(120,150,220,0.18)';
@@ -143,7 +145,7 @@ function caveFloor(c: CanvasRenderingContext2D, x: number, y: number, r: () => n
 
 /** 岩壁：below = 下一格（下方是地面時畫出岩壁正面與陰影）；crystal = 嵌著發光礦晶 */
 function rock(c: CanvasRenderingContext2D, x: number, y: number, r: () => number, below: string, crystal: boolean): void {
-  c.fillStyle = LAB ? '#12142a' : '#16131a';
+  c.fillStyle = LAB ? '#12142a' : RIFT ? '#1a0c14' : '#16131a';
   c.fillRect(x, y, TILE, TILE);
   for (let i = 0; i < 5; i++) {
     c.fillStyle = r() < 0.5 ? 'rgba(60,52,66,0.7)' : 'rgba(36,30,40,0.8)';
@@ -171,8 +173,8 @@ function rock(c: CanvasRenderingContext2D, x: number, y: number, r: () => number
       c.rotate(a);
       const g = c.createLinearGradient(0, -h, 0, 0);
       g.addColorStop(0, '#e8fbff');
-      g.addColorStop(0.4, LAB ? '#c89aff' : '#7fe0ff');
-      g.addColorStop(1, LAB ? '#5a2a9a' : '#2a6a9a');
+      g.addColorStop(0.4, LAB ? '#c89aff' : RIFT ? '#ffb0d8' : '#7fe0ff');
+      g.addColorStop(1, LAB ? '#5a2a9a' : RIFT ? '#8a2a5a' : '#2a6a9a');
       c.fillStyle = g;
       c.beginPath();
       c.moveTo(-w, 0);
@@ -293,6 +295,7 @@ function door(c: CanvasRenderingContext2D, tx: number, ty: number): void {
  */
 export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid, hasArt: (key: string) => boolean = () => false): void {
   LAB = a.region === 'ch4';
+  RIFT = a.region === 'ch5';
   const artTree = hasArt('prop_tree_a');
   const artLamp = hasArt('prop_lamppost');
   const artWell = hasArt('prop_well');
