@@ -229,7 +229,9 @@ export type BattleCommand =
   | { type: 'skill'; id: string }
   | { type: 'dodge'; dx: number; dy: number }
   | { type: 'target'; id: number }
-  | { type: 'potion' };
+  | { type: 'potion' }
+  /** 點地移動（D-071）：A* 走到該點；搖桿一動或點敵人就取消 */
+  | { type: 'moveTo'; x: number; y: number };
 
 export interface Arena {
   /** 可走範圍（整數座標，0..w、0..h），邊界即牆 */
@@ -266,6 +268,8 @@ export interface BattleState {
   timeLimitTicks: number;
   /** 玩家這個 tick 有沒有手動移動（有就暫停自動追擊；design/19 方案 A） */
   manualMove: { dx: number; dy: number } | null;
+  /** 點地移動的目的地（D-071）；null＝沒有 */
+  moveGoal?: { x: number; y: number; until: number } | null;
   /** 剩餘 HP 藥水 */
   potions: number;
 }

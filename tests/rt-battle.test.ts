@@ -418,3 +418,55 @@ describe('格子尋路與視線（D-071）', () => {
     }
   }, 60000);
 });
+
+describe('點地移動 moveTo（D-071）', () => {
+  const wallRows = Array.from({ length: 20 }, (_, y) => (y === 10 ? '#############...' : '................'));
+  const solo = (stageId = 'forest_entry') => {
+    const s = createBattle({ stageId, seed: 1 });
+    const p = playerOf(s);
+    return { s, p };
+  };
+
+  it('繞過石頭走到目的地，到了就清掉目的地', () => {
+    const { s, p } = solo();
+    s.arena = { ...s.arena, w: u(16), h: u(20), solid: { cell: u(1), rows: wallRows } };
+    s.units = [p, ...enemiesOf(s).map((e) => ({ ...e, x: u(14.5), y: u(1) }))];
+    for (const e of enemiesOf(s)) e.speedPerTick = 0;
+    p.x = u(2.5);
+    p.y = u(15.5);
+    step(s, [{ type: 'moveTo', x: u(2.5), y: u(5.5) }]);
+    expect(s.moveGoal).toBeTruthy();
+    for (let i = 0; i < sec(9) && s.moveGoal; i++) step(s, [{ type: 'stop' }]);
+    expect(s.moveGoal).toBeNull();
+    expect(s.tick).toBeLessThan(sec(9));
+    expect(dist(p.x, p.y, u(2.5), u(5.5))).toBeLessThanOrEqual(40); // 抵達那一 tick 會接著自動追擊走一步
+  });
+
+  it('搖桿一動或點敵人就取消；點到石頭或走不到的地方無效', () => {
+    const { s, p } = solo();
+    step(s, [{ type: 'moveTo', x: u(2), y: u(2) }]);
+    expect(s.moveGoal).toBeTruthy();
+    step(s, [{ type: 'move', dx: 1000, dy: 0 }]);
+    expect(s.moveGoal).toBeNull();
+    step(s, [{ type: 'moveTo', x: u(2), y: u(2) }]);
+    step(s, [{ type: 'target', id: enemiesOf(s)[0]!.id }]);
+    expect(s.moveGoal).toBeNull();
+    // 'stop'（放開搖桿）不會取消
+    step(s, [{ type: 'moveTo', x: u(2), y: u(2) }, { type: 'stop' }]);
+    expect(s.moveGoal).toBeTruthy();
+    const closed = Array.from({ length: 18 }, (_, y) => (y === 9 ? '##############' : '..............'));
+    const t = solo();
+    t.s.arena = { ...t.s.arena, solid: { cell: u(1), rows: closed } };
+    step(t.s, [{ type: 'moveTo', x: u(7.5), y: u(9.5) }]);
+    expect(t.s.moveGoal ?? null).toBeNull(); // 點在石頭上
+    step(t.s, [{ type: 'moveTo', x: u(7.5), y: u(3) }]);
+    expect(t.s.moveGoal ?? null).toBeNull(); // 牆另一邊走不到
+    expect(p.dead).toBe(false);
+  });
+
+  it('沒用點地移動的紀錄，雜湊與重播都不受影響（可重現）', () => {
+    const a = simulateBattle({ stageId: 'rock_grove', seed: 3 }, expert());
+    const b = simulateBattle({ stageId: 'rock_grove', seed: 3 }, expert());
+    expect(b.stateHash).toBe(a.stateHash);
+  });
+});

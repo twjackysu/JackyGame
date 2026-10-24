@@ -179,7 +179,23 @@ export class RtBattleScene extends Phaser.Scene {
     const wx = (p.x - this.ox) / this.k;
     const wy = (p.y - this.oy) / this.k;
     const hit = enemiesOf(this.s).find((e) => Math.hypot(e.x - wx, e.y - wy) <= e.r + 60);
-    if (hit) this.pending.push({ type: 'target', id: hit.id });
+    if (hit) {
+      this.pending.push({ type: 'target', id: hit.id });
+      return;
+    }
+    // 點地＝走過去（A* 繞石頭；D-071）；搖桿一動或點敵人就取消
+    if (p.y > VIEW_TOP && !this.bot) {
+      this.pending.push({ type: 'moveTo', x: Math.round(wx), y: Math.round(wy) });
+      this.tapMarker(p.x, p.y);
+    }
+  }
+
+  /** 點地標記：一圈縮小的光環 */
+  private tapMarker(x: number, y: number): void {
+    const g = this.add.graphics().setDepth(40).setPosition(x, y);
+    g.lineStyle(4, 0x9fd8ff, 0.9).strokeEllipse(0, 0, 70, 34);
+    g.fillStyle(0x9fd8ff, 0.25).fillEllipse(0, 0, 30, 14);
+    this.tweens.add({ targets: g, scaleX: 0.3, scaleY: 0.3, alpha: 0, duration: 380, ease: 'Cubic.In', onComplete: () => g.destroy() });
   }
 
   private onMove(p: Phaser.Input.Pointer): void {
@@ -323,7 +339,7 @@ export class RtBattleScene extends Phaser.Scene {
     } catch {
       /* 無痕模式 */
     }
-    const lines = ['左下拖曳：走位（放開＝自動追擊＋普攻）', '紅色範圍＝敵人要打這裡，填滿就命中', '黃框＝可以「格擋反擊」　右下：技能／閃避', '粉紅環集滿＝大招　紅瓶＝藥水　點敵人＝鎖定'];
+    const lines = ['左下拖曳：走位（放開＝自動追擊＋普攻）', '紅色範圍＝敵人要打這裡，填滿就命中', '黃框＝可以「格擋反擊」　右下：技能／閃避', '點地面＝走過去　點敵人＝鎖定　粉紅環滿＝大招'];
     const bg = this.add.rectangle(0, 0, 620, 210, 0x000000, 0.72).setStrokeStyle(2, 0xffd27a, 0.8);
     const t = this.add.text(0, 0, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
     this.hint = this.add.container(GAME_WIDTH / 2, 300, [bg, t]).setDepth(70);
@@ -758,6 +774,14 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(boss.phase === 2 ? 0xff5a3a : 0xc04a8a, 1).fillRect(x0, 116, w * (boss.hp / boss.maxHp), 14);
       g.lineStyle(2, 0xffb0d0, 0.9).strokeRect(x0 - 3, 113, w + 6, 20);
       g.lineStyle(2, 0xffffff, 0.6).lineBetween(x0 + w * 0.5, 113, x0 + w * 0.5, 133);
+    }
+    // 點地移動的目的地
+    if (s.moveGoal) {
+      const gx = this.sx(s.moveGoal.x);
+      const gy = this.sy(s.moveGoal.y);
+      const ph = (this.time.now % 600) / 600;
+      g.lineStyle(3, 0x9fd8ff, 0.8 - ph * 0.6).strokeEllipse(gx, gy, 30 + ph * 26, 14 + ph * 12);
+      g.fillStyle(0x9fd8ff, 0.5).fillEllipse(gx, gy, 12, 6);
     }
     // 搖桿
     g.fillStyle(0xffffff, 0.08).fillCircle(this.JOY.x, this.JOY.y, this.JOY.r);

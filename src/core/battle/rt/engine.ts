@@ -3,7 +3,7 @@
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, StatusApply, StatusId, Unit } from './types';
 import { STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
-import { clearLine, gridOf, nextWaypoint } from './path';
+import { cellIndex, clearLine, findPath, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
 export function nextRand(s: BattleState): number {
@@ -423,13 +423,31 @@ function applyCommands(s: BattleState, cmds: readonly BattleCommand[]): void {
   const p = playerOf(s);
   s.manualMove = null;
   for (const c of cmds) {
-    if (c.type === 'move') s.manualMove = c.dx === 0 && c.dy === 0 ? null : { dx: c.dx, dy: c.dy };
+    if (c.type === 'move') {
+      s.manualMove = c.dx === 0 && c.dy === 0 ? null : { dx: c.dx, dy: c.dy };
+      if (s.manualMove) s.moveGoal = null;
+    }
     else if (c.type === 'stop') s.manualMove = null;
-    else if (c.type === 'target') p.targetId = c.id;
+    else if (c.type === 'target') {
+      p.targetId = c.id;
+      s.moveGoal = null;
+    } else if (c.type === 'moveTo') setMoveGoal(s, c.x, c.y);
     else if (c.type === 'skill') startSkill(s, p, c.id);
     else if (c.type === 'dodge') startDodge(s, p, c.dx, c.dy);
     else if (c.type === 'potion') drinkPotion(s, p);
   }
+}
+
+/** 點地移動：夾在場地內；點到石頭上就忽略（D-071） */
+function setMoveGoal(s: BattleState, x: number, y: number): void {
+  const p = playerOf(s);
+  const gx = Math.min(s.arena.w - p.r, Math.max(p.r, Math.round(x)));
+  const gy = Math.min(s.arena.h - p.r, Math.max(p.r, Math.round(y)));
+  if (s.arena.solid && isSolidAt(s.arena.solid, gx, gy)) return;
+  const g = gridOf(s.arena);
+  if (g && findPath(g, cellIndex(g, p.x, p.y), cellIndex(g, gx, gy)) === null) return; // 走不到
+  // 最多走 10 秒（被怪擋住到不了時，自動恢復追擊）
+  s.moveGoal = { x: gx, y: gy, until: s.tick + 10 * TICKS_PER_SEC };
 }
 
 /** 喝藥水：瞬間回復、不打斷動作；滿血、沒藥、冷卻中、倒下或暈眩時無效 */
@@ -478,7 +496,8 @@ function updatePlayer(s: BattleState): void {
         if (s.manualMove) {
           const [fx, fy] = norm(s.manualMove.dx, s.manualMove.dy);
           moveDir(s, p, fx, fy, sk.moveFactor);
-        } else {
+        } else if (s.moveGoal) navToward(s, p, s.moveGoal.x, s.moveGoal.y, 0, sk.moveFactor);
+        else {
           const t = currentTarget(s, p);
           if (t) navToward(s, p, t.x, t.y, p.r + t.r, sk.moveFactor);
         }
@@ -486,7 +505,7 @@ function updatePlayer(s: BattleState): void {
       for (const h of sk.hits) if (h.atTick === k) resolveSkillHit(s, p, a, h, a.id, 'skill');
     } else if (a.kind === 'attack') {
       // 手動移動可以取消普攻後搖（命中前取消就沒打到）
-      if (s.manualMove && k > pd.attackWindupTicks) p.action = null;
+      if ((s.manualMove || s.moveGoal) && k > pd.attackWindupTicks) p.action = null;
       else if (k === pd.attackWindupTicks) {
         const t = unitById(s, a.targetId);
         if (t && !t.dead && dist(p.x, p.y, t.x, t.y) <= pd.attackRange + p.r + t.r + 30) dealDamage(s, p, t, 100, 'normal', 'attack');
@@ -502,6 +521,14 @@ function updatePlayer(s: BattleState): void {
     p.facingY = fy;
     moveDir(s, p, fx, fy);
     return;
+  }
+  // 點地移動中：走到目的地（期間不自動追擊），到了就恢復自動追擊
+  if (s.moveGoal) {
+    if (dist(p.x, p.y, s.moveGoal.x, s.moveGoal.y) <= 12 || s.tick >= s.moveGoal.until) s.moveGoal = null;
+    else {
+      navToward(s, p, s.moveGoal.x, s.moveGoal.y, 0);
+      return;
+    }
   }
   const t = currentTarget(s, p);
   if (!t) return;
@@ -668,6 +695,11 @@ export function stateHash(s: BattleState): string {
     mix(x.hp);
     mix(x.mp);
     mix(x.dead ? 1 : 0);
+  }
+  if (s.moveGoal) {
+    // 只有用到點地移動時才加入（舊紀錄的雜湊不變）
+    mix(s.moveGoal.x);
+    mix(s.moveGoal.y);
   }
   mix(s.events.length);
   mix(s.potions);
