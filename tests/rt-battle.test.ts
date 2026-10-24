@@ -765,3 +765,77 @@ describe('重生點 SpawnGroup（design/20 B1、design/21 §3 第 2 步）', () 
     expect(run()).toBe(run());
   });
 });
+
+describe('營火：安全範圍、休息、復活（design/20 B4）', () => {
+  beforeAll(() => {
+    STAGES.test_camp = {
+      id: 'test_camp', name: '測試營火', timeLimitTicks: sec(9999), player: { x: u(15), y: u(35) }, mapAi: true, enemies: [],
+      arena: { w: u(30), h: u(40) }, reviveAtCampfire: true,
+      campfires: [{ id: 'south', x: u(15), y: u(34) }, { id: 'north', x: u(15), y: u(4) }],
+      spawnGroups: [{ id: 'wolves', enemyId: 'wolf', cx: u(15), cy: u(16), spawnRadius: u(1.5), maxAlive: 3, respawnTicks: sec(30) }],
+    };
+  });
+  afterAll(() => {
+    delete STAGES.test_camp;
+  });
+
+  it('營火旁休息：HP 全滿、補藥水、設復活點；有怪在打你時不能休息', () => {
+    const s = createBattle({ stageId: 'test_camp', seed: 1, potions: 3 });
+    const p = playerOf(s);
+    p.hp = 50;
+    step(s, [{ type: 'rest' }]);
+    expect(p.hp).toBe(p.maxHp);
+    expect(s.potions).toBe(20);
+    expect(s.campfireId).toBe('south');
+    // 走離營火就不能休息
+    p.y = u(28);
+    p.hp = 50;
+    step(s, [{ type: 'rest' }]);
+    expect(p.hp).toBeLessThan(p.maxHp);
+    // 有戰鬥中的怪 → 無效
+    p.y = u(34.5);
+    enemiesOf(s)[0]!.mode = 'combat';
+    step(s, [{ type: 'rest' }]);
+    expect(p.hp).toBeLessThan(p.maxHp);
+  });
+
+  it('怪不追進營火：被追著跑回營火，追兵脫戰回家', () => {
+    const s = createBattle({ stageId: 'test_camp', seed: 2 });
+    const p = playerOf(s);
+    p.hp = p.maxHp = 1e9;
+    p.y = u(20); // 走進仇恨範圍
+    for (let i = 0; i < sec(2); i++) step(s, [{ type: 'stop' }]);
+    expect(enemiesOf(s).every((e) => e.mode === 'combat')).toBe(true);
+    for (let i = 0; i < sec(6); i++) step(s, i === 0 ? [{ type: 'moveTo', x: u(15), y: u(34) }] : []);
+    expect(dist(p.x, p.y, u(15), u(34))).toBeLessThan(u(3));
+    expect(enemiesOf(s).every((e) => e.mode !== 'combat')).toBe(true);
+    // 待在營火旁，牠們不會再醒
+    for (let i = 0; i < sec(10); i++) step(s, [{ type: 'stop' }]);
+    expect(enemiesOf(s).every((e) => e.mode === 'idle' || e.mode === 'dormant')).toBe(true);
+  });
+
+  it('倒下在最後休息的營火復活：不算失敗、HP 全滿、短暫無敵、追兵回家', () => {
+    const s = createBattle({ stageId: 'test_camp', seed: 3 });
+    const p = playerOf(s);
+    p.x = u(15);
+    p.y = u(4.5);
+    step(s, [{ type: 'rest' }]);
+    expect(s.campfireId).toBe('north');
+    p.y = u(17);
+    p.hp = 1;
+    p.atk = 1;
+    for (let i = 0; i < sec(10) && !s.revives; i++) step(s, [{ type: 'stop' }]);
+    expect(s.revives).toBe(1);
+    expect(s.outcome).toBe('running');
+    expect(p.dead).toBe(false);
+    expect(p.hp).toBe(p.maxHp);
+    expect(dist(p.x, p.y, u(15), u(4))).toBeLessThanOrEqual(u(1));
+    expect(p.invulnUntil).toBeGreaterThan(s.tick);
+    expect(enemiesOf(s).some((e) => e.mode === 'combat')).toBe(false);
+  });
+
+  it('沒開 reviveAtCampfire 的關卡倒下照樣失敗', () => {
+    const r = simulateBattle({ stageId: 'rock_grove', seed: 1 }, new PlayerBot(BOT_PROFILES.auto, 'auto'));
+    expect(r.outcome).toBe('defeat');
+  });
+});

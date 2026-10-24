@@ -240,6 +240,8 @@ export type BattleEvent =
   | { tick: number; type: 'damage'; src: number; dst: number; amount: number; crit: boolean; origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot'; skill: string; absorbed?: number }
   | { tick: number; type: 'death'; id: number }
   | { tick: number; type: 'respawn'; id: number; group: string }
+  | { tick: number; type: 'rest'; id: number; campfire: string }
+  | { tick: number; type: 'revive'; id: number; campfire: string }
   | { tick: number; type: 'telegraph'; owner: number; attack: string }
   | { tick: number; type: 'dodge'; id: number }
   | { tick: number; type: 'dodged'; id: number; attack: string }
@@ -265,7 +267,9 @@ export type BattleCommand =
   | { type: 'target'; id: number }
   | { type: 'potion' }
   /** 點地移動（D-071）：A* 走到該點；搖桿一動或點敵人就取消 */
-  | { type: 'moveTo'; x: number; y: number };
+  | { type: 'moveTo'; x: number; y: number }
+  /** 在營火旁休息（design/20 B4）：HP 全滿、補藥水、設復活點；附近有戰鬥中的怪時無效 */
+  | { type: 'rest' };
 
 export interface Arena {
   /** 可走範圍（整數座標，0..w、0..h），邊界即牆 */
@@ -292,6 +296,14 @@ export interface SpawnGroup {
   respawnTicks: number;
   tier?: AggroTier;
 }
+/** 營火（design/20 B4）：怪不追進安全範圍（追進來就脫戰回家）、休息回滿、死亡在最後休息的營火復活 */
+export interface Campfire {
+  id: string;
+  x: number;
+  y: number;
+}
+export const CAMPFIRE_RULES = { safeUnits: 4, restUnits: 1.8, reviveInvulnTicks: 3 * 30 } as const;
+
 /** 重生時玩家離重生點至少這麼遠（單位）；不夠遠就每秒再檢查一次 */
 export const RESPAWN_MIN_PLAYER_UNITS = 9;
 
@@ -306,6 +318,10 @@ export interface StageDefinition {
    * 追太遠或太久沒交手就返回原位回滿。沒設＝舊行為（一開場全部衝過來）。
    */
   mapAi?: boolean;
+  /** 營火（需要 mapAi） */
+  campfires?: Campfire[];
+  /** 倒下時在營火復活（不掉裝、不扣經驗；design/20 B4），不算失敗；沒設＝倒下就失敗 */
+  reviveAtCampfire?: boolean;
   /** 重生點（需要 mapAi）；有可重生的重生點時不會因清空而勝利（刷怪地圖），由時間或出口結束 */
   spawnGroups?: SpawnGroup[];
   /** 自然恢復（D-073，D-065：脫戰 5 秒後每秒 2%）；預設跟 mapAi 一樣 */
@@ -334,6 +350,10 @@ export interface BattleState {
   lastCombatTick?: number;
   /** 剩餘 HP 藥水 */
   potions: number;
+  /** 最後休息的營火（復活點）；沒有＝第一個營火 */
+  campfireId?: string;
+  /** 在營火復活的次數 */
+  revives?: number;
   /** 重生排程：重生點 id → 到期 tick（遞增排序） */
   respawnAt?: Record<string, number[]>;
 }

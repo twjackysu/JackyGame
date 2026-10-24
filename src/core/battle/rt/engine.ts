@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, SpawnGroup, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import { AGGRO_RULES, CAMPFIRE_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -512,7 +512,57 @@ function applyCommands(s: BattleState, cmds: readonly BattleCommand[]): void {
     else if (c.type === 'skill') startSkill(s, p, c.id);
     else if (c.type === 'dodge') startDodge(s, p, c.dx, c.dy);
     else if (c.type === 'potion') drinkPotion(s, p);
+    else if (c.type === 'rest') restAtCampfire(s, p);
   }
+}
+
+// ---------------- 營火（design/20 B4） ----------------
+const campfiresOf = (s: BattleState) => STAGES[s.stageId]?.campfires ?? [];
+
+function campfireNear(s: BattleState, x: number, y: number, units: number) {
+  return campfiresOf(s).find((c) => dist(c.x, c.y, x, y) <= units * UNIT);
+}
+
+/** 玩家在營火安全範圍內：怪不追進來、也不會在這裡被吵醒 */
+const inSafeZone = (s: BattleState, p: Unit): boolean => !!campfireNear(s, p.x, p.y, CAMPFIRE_RULES.safeUnits);
+
+function restAtCampfire(s: BattleState, p: Unit): boolean {
+  const c = campfireNear(s, p.x, p.y, CAMPFIRE_RULES.restUnits);
+  if (!c || p.dead || s.units.some((e) => e.side === 'enemy' && !e.dead && e.mode === 'combat')) return false;
+  p.hp = p.maxHp;
+  p.statuses = [];
+  s.potions = Math.max(s.potions, playerDef().potion.carry);
+  s.campfireId = c.id;
+  s.moveGoal = null;
+  emit(s, { tick: s.tick, type: 'rest', id: p.id, campfire: c.id });
+  return true;
+}
+
+/** 倒下 → 在最後休息的營火復活：HP 全滿、3 秒無敵，戰鬥中的怪全部脫戰回家 */
+function reviveAtCampfire(s: BattleState, p: Unit): boolean {
+  const fires = campfiresOf(s);
+  if (!STAGES[s.stageId]?.reviveAtCampfire || !fires.length) return false;
+  const c = fires.find((f) => f.id === s.campfireId) ?? fires[0]!;
+  p.dead = false;
+  p.hp = p.maxHp;
+  p.statuses = [];
+  p.action = null;
+  p.targetId = null;
+  p.x = c.x;
+  p.y = c.y + UNIT;
+  clampArena(s, p);
+  p.invulnUntil = s.tick + CAMPFIRE_RULES.reviveInvulnTicks;
+  s.moveGoal = null;
+  s.revives = (s.revives ?? 0) + 1;
+  for (const e of s.units) {
+    if (e.side !== 'enemy' || e.dead || e.mode !== 'combat') continue;
+    e.mode = 'returning';
+    e.action = null;
+    e.statuses = [];
+  }
+  s.telegraphs = [];
+  emit(s, { tick: s.tick, type: 'revive', id: p.id, campfire: c.id });
+  return true;
 }
 
 /** 點地移動：夾在場地內；點到石頭上就忽略（D-071） */
@@ -641,7 +691,7 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
   const hx = e.homeX ?? e.x;
   const hy = e.homeY ?? e.y;
   if (e.mode === 'idle') {
-    if (!p.dead && (s.tick + e.id) % 6 === 0 && dist(e.x, e.y, p.x, p.y) <= rule.aggro * UNIT + p.r && hasSight(s, e, p)) aggro(s, e);
+    if (!p.dead && (s.tick + e.id) % 6 === 0 && !inSafeZone(s, p) && dist(e.x, e.y, p.x, p.y) <= rule.aggro * UNIT + p.r && hasSight(s, e, p)) aggro(s, e);
     return e.mode === 'idle';
   }
   if (e.mode === 'returning') {
@@ -657,7 +707,7 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
   if (dist(e.x, e.y, p.x, p.y) <= rule.aggro * UNIT + p.r) e.engagedTick = s.tick;
   const tooFar = dist(e.x, e.y, hx, hy) > rule.chase * UNIT;
   const bored = s.tick - (e.engagedTick ?? s.tick) > rule.waitSec * TICKS_PER_SEC;
-  if (!e.action && (tooFar || bored || p.dead)) {
+  if (!e.action && (tooFar || bored || p.dead || inSafeZone(s, p))) {
     e.mode = 'returning';
     e.statuses = [];
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== e.id);
@@ -826,7 +876,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   processRespawns(s);
   const p = playerOf(s);
   naturalRegen(s, p);
-  if (p.dead) s.outcome = 'defeat';
+  if (p.dead && !reviveAtCampfire(s, p)) s.outcome = 'defeat';
   else if (enemiesOf(s).length === 0 && !pendingRespawn(s)) s.outcome = 'victory';
   else if (s.tick >= s.timeLimitTicks) s.outcome = 'timeout';
 }
@@ -869,6 +919,11 @@ export function stateHash(s: BattleState): string {
     // 只有用到點地移動時才加入（舊紀錄的雜湊不變）
     mix(s.moveGoal.x);
     mix(s.moveGoal.y);
+  }
+  if (s.campfireId || s.revives) {
+    // 只有用到營火時才加入
+    mix(s.revives ?? 0);
+    for (const ch of s.campfireId ?? '') mix(ch.charCodeAt(0));
   }
   if (s.respawnAt) {
     // 只有用到重生點時才加入（舊紀錄的雜湊不變）
