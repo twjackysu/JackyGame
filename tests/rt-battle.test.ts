@@ -172,8 +172,17 @@ describe('狀態（秒計，持續傷害每 30 ticks）', () => {
 });
 
 describe('五個原型關卡', () => {
-  it('熟練 Bot 每一關都能過', () => {
-    for (const id of Object.keys(STAGES)) expect(batch(id, expert, 5).winRate, id).toBe(100);
+  it('熟練 Bot 每一關都能過（刷怪關除外）', () => {
+    for (const st of Object.values(STAGES)) if (!st.spawnGroups?.length) expect(batch(st.id, expert, 5).winRate, st.id).toBe(100);
+  }, 60000);
+
+  it('營火空地（刷怪關）：5 分鐘到才結束；熟練 Bot 持續擊殺、倒下會在營火醒來、可重現', () => {
+    const a = simulateBattle({ stageId: 'camp_clearing', seed: 1 }, expert());
+    const b = simulateBattle({ stageId: 'camp_clearing', seed: 1 }, expert());
+    expect(a.outcome).toBe('timeout');
+    expect(a.durationTicks).toBe(sec(300));
+    expect(a.kills).toBeGreaterThanOrEqual(25);
+    expect(b.stateHash).toBe(a.stateHash);
   }, 60000);
 });
 

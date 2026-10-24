@@ -9,6 +9,7 @@ describe.skipIf(!env?.env.RT_REPORT)('即時戰鬥報表', () => {
     const runs = Number(env!.env.RUNS ?? 200);
     const out: string[] = ['| 關卡 | 操作 | 勝率 | 時間 P50／P90（秒） | DPS | 剩餘 HP | 閃避 | 格擋 | 普攻／技能／反擊 % |', '|---|---|--:|--:|--:|--:|--:|--:|--:|'];
     for (const st of Object.values(STAGES)) {
+      if (st.spawnGroups?.length) continue; // 刷怪關（營火空地）沒有勝負，另見 rt-world-soak
       for (const k of ['auto', 'novice', 'normal', 'expert'] as const) {
         const r = batch(st.id, () => new PlayerBot(BOT_PROFILES[k], k), runs);
         out.push(`| ${st.name} | ${k} | ${r.winRate}% | ${r.durationSec.p50}／${r.durationSec.p90} | ${r.avgDps} | ${r.avgHpLeftPct}% | ${r.avgDodges} | ${r.avgBlocks} | ${r.damageShare.normal}／${r.damageShare.skill}／${r.damageShare.counter} |`);

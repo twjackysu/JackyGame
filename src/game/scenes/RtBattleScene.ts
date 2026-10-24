@@ -6,7 +6,7 @@ import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { createBattle, enemiesOf, playerOf, step } from '../../core/battle/rt/engine';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
-import { TICKS_PER_SEC } from '../../core/battle/rt/types';
+import { CAMPFIRE_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { GAME_WIDTH } from '../config';
@@ -63,6 +63,8 @@ export class RtBattleScene extends Phaser.Scene {
   private sprites = new Map<number, Phaser.GameObjects.Image>();
   /** 點地移動的路徑預覽（世界座標）；玩家換格或目的地改變才重算 */
   private pathPreview: { key: string; pts: [number, number][] } | null = null;
+  /** 點了營火：走到旁邊就自動休息 */
+  private restOnArrive = false;
   private flashUntil = new Map<number, number>();
   /** 命中停頓（hit-stop）剩餘毫秒：期間不推進模擬 */
   private hitStop = 0;
@@ -183,14 +185,24 @@ export class RtBattleScene extends Phaser.Scene {
     // 點敵人＝鎖定
     const wx = (p.x - this.ox) / this.k;
     const wy = (p.y - this.oy) / this.k;
+    // 點營火＝走過去休息（design/20 B4）
+    const fire = (STAGES[this.stageId]?.campfires ?? []).find((c) => Math.hypot(c.x - wx, c.y - wy) <= UNIT * 0.9);
+    if (fire && !this.bot) {
+      this.pending.push({ type: 'moveTo', x: fire.x, y: fire.y + UNIT });
+      this.restOnArrive = true;
+      this.tapMarker(p.x, p.y);
+      return;
+    }
     const hit = enemiesOf(this.s).find((e) => Math.hypot(e.x - wx, e.y - wy) <= e.r + 60);
     if (hit) {
       this.pending.push({ type: 'target', id: hit.id });
+      this.restOnArrive = false;
       return;
     }
     // 點地＝走過去（A* 繞石頭；D-071）；搖桿一動或點敵人就取消
     if (p.y > VIEW_TOP && !this.bot) {
       this.pending.push({ type: 'moveTo', x: Math.round(wx), y: Math.round(wy) });
+      this.restOnArrive = false;
       this.tapMarker(p.x, p.y);
     }
   }
@@ -242,6 +254,15 @@ export class RtBattleScene extends Phaser.Scene {
       if (K.SPACE && Phaser.Input.Keyboard.JustDown(K.SPACE)) out.push({ type: 'dodge', dx, dy });
       if (K.R && Phaser.Input.Keyboard.JustDown(K.R)) out.push({ type: 'skill', id: 'blade_storm' });
       if (K.Q && Phaser.Input.Keyboard.JustDown(K.Q)) out.push({ type: 'potion' });
+    }
+    if (dx || dy) this.restOnArrive = false;
+    if (this.restOnArrive) {
+      const pl = playerOf(this.s);
+      const near = (STAGES[this.stageId]?.campfires ?? []).some((c) => Math.hypot(c.x - pl.x, c.y - pl.y) <= CAMPFIRE_RULES.restUnits * UNIT);
+      if (near) {
+        out.push({ type: 'rest' });
+        this.restOnArrive = false;
+      }
     }
     out.unshift(dx || dy ? { type: 'move', dx, dy } : { type: 'stop' });
     return out;
@@ -695,6 +716,21 @@ export class RtBattleScene extends Phaser.Scene {
     const s = this.s;
     const now = this.time.now;
     this.ground.setPosition(this.ox, this.oy);
+    // 營火：安全範圍淡圈＋木柴＋跳動的火焰與光暈
+    for (const c of STAGES[this.stageId]?.campfires ?? []) {
+      const cx = this.sx(c.x);
+      const cy = this.sy(c.y);
+      const k = this.k * 1.5;
+      g.lineStyle(2, 0xffb060, 0.18).strokeCircle(cx, cy, CAMPFIRE_RULES.safeUnits * UNIT * this.k);
+      g.fillStyle(0xffa040, 0.08 + 0.03 * Math.sin(now / 170)).fillCircle(cx, cy, 120 * k * (1 + 0.05 * Math.sin(now / 130)));
+      g.fillStyle(0x3a2412, 1).fillRoundedRect(cx - 40 * k, cy + 4 * k, 80 * k, 14 * k, 6 * k);
+      g.fillStyle(0x4a2e16, 1).fillRoundedRect(cx - 34 * k, cy - 4 * k, 68 * k, 13 * k, 6 * k);
+      for (let i = 0; i < 3; i++) {
+        const f = Math.sin(now / (90 + i * 37) + i * 2);
+        const fh = (46 - i * 12 + f * 6) * k;
+        g.fillStyle(i === 0 ? 0xff6a20 : i === 1 ? 0xffa83a : 0xfff0a0, 0.95).fillEllipse(cx + f * 3 * k, cy - fh / 2, (36 - i * 10) * k, fh);
+      }
+    }
     // 預告：淡底＋由內往外填滿的進度＋外框（紫＝附狀態、黃框＝可格擋、粗紅＝不可格擋）
     for (const t of s.telegraphs) {
       const prog = Math.min(1, (s.tick - t.startTick) / Math.max(1, t.hitTick - t.startTick));
@@ -820,7 +856,10 @@ export class RtBattleScene extends Phaser.Scene {
     const es = enemiesOf(s);
     const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
     this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　敵人 ${es.length}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
-    this.calmText.setVisible(calm).setText(calm ? (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
+    const fires = STAGES[this.stageId]?.campfires ?? [];
+    const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
+    const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < SWORDSMAN.potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
+    this.calmText.setVisible(calm).setText(calm ? restTip || (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // Boss 大血條（畫面上方）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss);
     if (boss) {
@@ -931,8 +970,11 @@ export class RtBattleScene extends Phaser.Scene {
       const sp = this.sprites.get(pu.id);
       if (sp) this.tweens.add({ targets: sp, alpha: 0.25, angle: sp.flipX ? -80 : 80, duration: 600, ease: 'Cubic.In' });
     }
-    bigText(this, GAME_WIDTH / 2, 420, win ? '勝利！' : r.outcome === 'timeout' ? '時間到' : '倒下了…', win ? '#ffd27a' : '#ff8a8a', 72, -1);
-    const lines = `時間 ${(r.durationTicks / TICKS_PER_SEC).toFixed(1)} 秒　承傷 ${r.damageTaken}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}`;
+    const farming = !!STAGES[this.stageId]?.spawnGroups?.length;
+    bigText(this, GAME_WIDTH / 2, 420, win ? '勝利！' : r.outcome === 'timeout' ? (farming ? '刷怪結束' : '時間到') : '倒下了…', win || farming ? '#ffd27a' : '#ff8a8a', 72, -1);
+    const lines = farming
+      ? `擊殺 ${r.kills}　營火醒來 ${this.s.revives ?? 0} 次\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}　藥水 ${r.potionsUsed}`
+      : `時間 ${(r.durationTicks / TICKS_PER_SEC).toFixed(1)} 秒　承傷 ${r.damageTaken}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}`;
     this.add.text(GAME_WIDTH / 2, 520, lines, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 8 }).setOrigin(0.5).setDepth(80);
     const mk = (y: number, label: string, fn: () => void) => {
       const t = this.add.text(GAME_WIDTH / 2, y, label, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '700', color: '#ffffff', backgroundColor: '#3a2a14' }).setOrigin(0.5).setPadding(30, 12, 30, 12).setDepth(80).setInteractive({ useHandCursor: true });
