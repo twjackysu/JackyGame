@@ -49,7 +49,7 @@ const SHOTS = [
     name: 'cards', url: '?debug&scene=Cards&match=tourney_dealer', ready: `${getScene('Cards')}?.sys.isActive()`, settle: 20000, at: [0, 6000],
   },
   {
-    name: 'dialogue', url: '?debug&scene=Dialogue&script=ch3&node=academy', ready: `${getScene('Dialogue')}?.sys.isActive()`, settle: 20000, at: [0, 10000],
+    name: 'dialogue', url: '?debug&scene=Dialogue&script=ch5&node=vow_io', ready: `${getScene('Dialogue')}?.sys.isActive()`, settle: 20000, at: [0, 10000],
   },
 ];
 
