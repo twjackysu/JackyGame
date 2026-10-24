@@ -4,6 +4,10 @@
 
 ## 待處理
 
+### 1. 角色立繪（你回饋「人物太醜」）
+- 雲端環境連不到 Gemini／ChatGPT，也不能用你的帳號。請照 [`docs/ART_PROMPTS.md`](ART_PROMPTS.md) 生成 5 張半身立繪，上傳到 `art-inbox/`（或貼在標題含「立繪」的 Issue）。**連恩和伊歐優先**。
+- 上傳後下一輪（每 2 小時）會自動去背並換進遊戲，不用改程式。
+
 ### 2. iOS 建置（回國後，需 Mac + Xcode）
 - 見 README「iOS 安裝」。專案在 `ios/`（Capacitor 8，使用 Swift Package Manager，不需要 CocoaPods）。
 

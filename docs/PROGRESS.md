@@ -1,5 +1,11 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-10-24 11:40–12:00（台北）插單 — Jacky 回饋「人物太醜」→ 立繪匯入管線
+- Jacky 試玩：音效 OK，角色立繪太醜，希望男女主角夠帥／美；建議用 Gemini／ChatGPT。雲端環境不能用（無帳號、網頁被擋），改成請他產生後上傳。
+- 新增 `docs/ART_PROMPTS.md`（5 角色＋反派的英文 prompt、共同風格、規格、手機上傳步驟）、`art-inbox/`、`scripts/import-art.mjs`＋`scripts/remove-bg.py`（rembg isnet-anime 去背，已驗證可從 GitHub 下載模型；單色背景洪水填充備援；白髮遇淺色背景會被吃掉 → 規格要求綠幕或透明）。
+- 遊戲端：`src/data/handArt.ts` 清單 → BootScene preload；對話立繪 600px 高、羈絆面板裁頭部。用測試圖驗證載入與尺寸（截圖），測試圖未提交。
+- 驗證：typecheck、206 tests、build。
+
 ## 2026-10-24 10:12–11:00（台北）第 6 輪 — 成果發表截圖、新手引導、二週目、燼牌紋章、效能與 bug 修正
 **做了什麼**
 - **README 成果發表打底**：`scripts/promo.mjs`（每張圖開新頁、直接呼叫場景方法擺畫面、多時間點截圖）→ 9 張 432×768 JPG 放 `docs/screenshots/`（共約 380KB）；README 加畫面表格、開發日誌時間軸、統計。`.gitignore` 的 `screenshots/` 改 `/screenshots/`（原本把 docs/screenshots 也擋掉）。

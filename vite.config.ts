@@ -50,7 +50,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2,json,mp3,ogg,wav}'],
+        globPatterns: ['**/*.{js,css,html,png,webp,svg,webmanifest,woff2,json,mp3,ogg,wav}'],
         // Phaser bundle exceeds the 2 MiB default.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,

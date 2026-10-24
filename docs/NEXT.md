@@ -1,9 +1,16 @@
 # 下一步（依優先順序，最上面先做）
 
+> **Jacky 10/24 11:40 有回來試玩**：音效可以，角色太醜 → 請他用 Gemini/ChatGPT 產生立繪上傳（`docs/ART_PROMPTS.md`），匯入管線已完成（D-036）。
 > **設計已定稿（D-013）**。序章～終章全部可以玩到結局（三結局＋片尾統計），Boss 都有特殊機制（第 5 輪）；第 6 輪補了 README 截圖、新手引導、省電畫質、二週目。進度大幅超前 PLAN：接下來是**打磨、平衡檢查、成果發表素材**。LocationScene 暫不做（D-033）。
 > 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch5.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`、`waiting`）；敵人/遭遇 `src/data/combatants.ts`（`phase2` 字卡、`mark`/`seal`、traits `erase`/`eyeShield`/`finale`）；羈絆 `src/data/bonds.ts` + `src/game/ui/bondPanel.ts`；片尾 `src/game/credits.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；音樂 `src/audio/music.ts`（`chapterTrack`）。
 > 除錯入口：`?debug&chapter=2|3|4|5&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?debug&scene=Battle&enc=boss_starfall_2&party=lian,serin,io&lv=17`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
 
+0. **【最優先，每輪開頭都做】匯入 Jacky 的角色立繪**（Jacky 10/24 試玩回饋：「人物太醜，至少男女主角要夠帥」）。
+   - 檢查 `art-inbox/` 有沒有圖片；也用 GitHub MCP 看有沒有標題含「立繪」的 Issue（圖片附件從 github.com/user-attachments 下載到 `art-inbox/`，用角色 id 命名，處理完在 Issue 留言並關閉）。
+   - 有圖：`pip install "rembg[cpu]" --break-system-packages`（第一次會從 GitHub 下載 isnet-anime 模型約 176MB），然後 `node scripts/import-art.mjs` → 產生 `public/art/portrait_<id>.webp`、更新 `src/data/handArt.ts`、刪掉原檔。用 Read 看去背結果（flatten 到洋紅底檢查），頭髮/邊緣被吃掉就調 `ART_TOL` 或 `ART_NO_REMBG=1`。`git add -A art-inbox public/art src/data/handArt.ts`。
+   - 截對話（`?debug&scene=Dialogue&script=ch1&node=...`）與羈絆面板確認尺寸（對話立繪高 600px、底部 y=1010 在對話框後面；羈絆卡從頭頂往下裁）。
+   - 記到 `docs/CREDITS.md`（「角色立繪：Jacky 使用 ChatGPT／Gemini 生成」）、README 截圖重拍。
+   - 沒圖：不要等，照常做下面的工作。若到 10/27 還沒有圖，改做「程式立繪大改版」（連恩、伊歐優先：更大的 600px 畫布、動漫比例的臉、眼睛高光、髮絲分層、衣服皺褶與邊緣光；`src/game/art/silhouettes.ts` 的 `canvasPortrait`）。
 1. **截通關存檔的「新的旅程」確認框**（三顆按鈕：二週目／覆蓋／取消；需要有 `ch5_complete` 的存檔，可用機器人通關後的頁面或在 console 設 flag 後 `session.save()`）。勝利畫面已確認（README 10-victory）。
 2. **README 截圖更新**：燼牌已換成對局中段（新紋章，`screenshots/cards.mjs` 寫法：等 `canAct()` 後 `act(playsFor(i)[0])`）；可再加一張片尾統計（`getScene('Dialogue').rollCredits()`；直接呼叫沒有暗幕，要先加全螢幕黑色 rectangle depth 400，或讓機器人從 `?chapter=5` 跑到終幕再截）。燼牌紋章在小卡上偏小（左上點數會擋到），可微調 `drawEmblem` 半徑/位置。`node scripts/promo.mjs http://localhost:4180/ screenshots/promoN <名稱,...>` 可以只截指定幾張。
 3. **燼牌對局手感**：拖曳出牌若在 AI 回合結束 render 時按住會失效（極少見）。（收藏入牌組的勝率影響已模擬：+0～8%，見 D-031，不用調。）

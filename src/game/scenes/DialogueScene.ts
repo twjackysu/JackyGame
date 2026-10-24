@@ -13,6 +13,7 @@ import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, fadeOutTh
 import { creditsLines } from '../credits';
 import { RENAMEABLE, SCRIPTS, session, withNames } from '../session';
 import { highFx, textCharMs } from '../settings';
+import { HAND_ART } from '../../data/handArt';
 import type { BattleSceneData } from './BattleScene';
 
 export interface DialogueSceneData {
@@ -209,9 +210,12 @@ export class DialogueScene extends Phaser.Scene {
     }
     if (cur) this.tweens.add({ targets: cur, alpha: 0, x: cur.x + (side === 'left' ? -60 : 60), duration: 200, onComplete: () => cur.destroy() });
     const x = side === 'left' ? 200 : GAME_WIDTH - 200;
-    const img = this.add.image(x + (side === 'left' ? -80 : 80), 820, key).setOrigin(0.5, 1).setScale(0.95).setAlpha(0).setDepth(50);
+    // 手繪立繪比程式立繪大很多：統一縮到約 560px 高（程式立繪 300px × 0.95）
+    const hand = HAND_ART.includes(key);
+    const img = this.add.image(x + (side === 'left' ? -80 : 80), hand ? 1010 : 820, key).setOrigin(0.5, 1).setAlpha(0).setDepth(hand ? 40 : 50);
+    img.setScale(hand ? 600 / img.height : 0.95);
     if (side === 'right' && speaker !== 'gwen' && speaker !== 'knight') img.setFlipX(false);
-    if (this.renderer.type === Phaser.WEBGL && highFx()) img.preFX?.addGlow(0xffb565, 1.5, 0, false, 0.1, 8);
+    if (this.renderer.type === Phaser.WEBGL && highFx() && !hand) img.preFX?.addGlow(0xffb565, 1.5, 0, false, 0.1, 8);
     this.tweens.add({ targets: img, x, alpha: 1, duration: 260, ease: 'Cubic.Out' });
     this.portraits[side] = img;
   }
