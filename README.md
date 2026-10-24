@@ -17,10 +17,12 @@
 | ![共鳴](docs/screenshots/04-resonance.jpg) | ![星空舞台](docs/screenshots/05-starstage.jpg) | ![全員共鳴](docs/screenshots/06-finale.jpg) |
 | **燼牌（卡牌小遊戲）** | **同伴羈絆** | **劇情對話** |
 | ![燼牌](docs/screenshots/07-cards.jpg) | ![羈絆](docs/screenshots/08-bonds.jpg) | ![對話](docs/screenshots/09-dialogue.jpg) |
-| **勝利與戰績** | | |
-| ![勝利](docs/screenshots/10-victory.jpg) | | |
+| **勝利與戰績** | **自由探索：灰燈鎮** | **自由探索：霧角森林（明雷）** |
+| ![勝利](docs/screenshots/10-victory.jpg) | ![灰燈鎮](docs/screenshots/11-town.jpg) | ![霧角森林](docs/screenshots/12-forest.jpg) |
+| **Boss：霧角狼王** | | |
+| ![霧角狼王](docs/screenshots/13-wolfking.jpg) | | |
 
-> 所有美術、音效、音樂都是程式即時生成（Phaser Graphics／Canvas、WebAudio），repo 裡沒有音訊素材檔；圖片只有 Jacky 用 AI 繪圖產生的 6 張主要角色立繪（`public/art/`，見 CREDITS），其他角色立繪是用 Canvas 2D 一筆一筆「畫」出來的（`src/game/art/anime*.ts`）。
+> 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。圖片：主要角色立繪、Q 版戰鬥圖、標題主視覺、Boss、小怪、地圖物件與道具圖示由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單見 `docs/ART_REQUESTS.md`）；地面圖塊、光影、粒子、配角立繪等仍是程式繪製（`src/game/art/`），每張 AI 圖都有程式備援。
 
 
 ## 目前可以玩到（2026-10-24）
@@ -58,8 +60,9 @@
 | 5 | 10/24 08:12 | 每隻 Boss 的特殊機制、終局全員共鳴、羈絆面板、片尾旅程統計 |
 | 6 | 10/24 10:12 | 成果發表截圖、新手引導、燼牌專屬紋章與收藏入牌組、二週目、勝利戰績、省電畫質（低 FPS 自動）、共鳴相機 bug 修正 |
 | 7 | 10/24 12:12 | 回應業主「人物太醜」：接上 Jacky 提供的 6 張主要角色立繪；14 位配角改為**動漫風程式立繪**（賽璐珞陰影、邊緣光、大眼高光），戰鬥背影同步重畫，標題加主視覺 |
+| 8 | 10/24 14:12 | **改版為自由探索**：探索引擎（點擊尋路、虛擬搖桿、同伴跟隨、NPC 閒晃）、**第 1 章三個可走區域**（灰燈鎮、霧角森林、狼徑・古燈塔）、明雷戰鬥；匯入 Jacky 的 AI 美術（標題主視覺、Boss、小怪、地圖物件、道具） |
 
-**統計**（2026-10-24 第 7 輪）：執行 7 輪、約 105 個 commit、206 項自動測試、TypeScript 約 1.9 萬行、6 張立繪圖、0 個音訊素材檔。
+**統計**（2026-10-24 第 8 輪）：執行 8 輪、約 115 個 commit、229 項自動測試、TypeScript 約 2.1 萬行、62 張 AI 美術圖、0 個音訊素材檔。
 
 ## 開發
 ```bash

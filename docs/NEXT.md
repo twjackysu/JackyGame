@@ -6,13 +6,18 @@
 > 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch5.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`、`waiting`）；敵人/遭遇 `src/data/combatants.ts`（`phase2` 字卡、`mark`/`seal`、traits `erase`/`eyeShield`/`finale`）；羈絆 `src/data/bonds.ts` + `src/game/ui/bondPanel.ts`；片尾 `src/game/credits.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；音樂 `src/audio/music.ts`（`chapterTrack`）。
 > 除錯入口：`?debug&chapter=2|3|4|5&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?debug&scene=Battle&enc=boss_starfall_2&party=lian,serin,io&lv=17`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
 
-> 🎨 **美術需求**：需要 AI 圖時只寫進 `docs/ART_REQUESTS.md`（總額度 GPT 8／Gemini 12，精緻用 GPT、普通用 Gemini、多物件用 sheet），一律先做程式備援，Jacky 回國後由本機 Agent 照表產圖。`import-art.mjs` 支援 `bg_/enemy_/npc_/walk_/prop_/item_/sheet_` 前綴（D-039）。
-> ⭐ **方向已改（D-038）：自由探索 RPG。** 先讀 `docs/design/11-open-world.md`。下面 A 系列是主線，照順序做；1～9 的舊打磨項目只在 A 系列卡住或空檔時做。
+> 🎨 **美術需求**：需要 AI 圖時只寫進 `docs/ART_REQUESTS.md`（總額度 GPT 8／Gemini 12，目前排 GPT 4、Gemini 7），一律先做程式備援。R-001～R-009 已到貨並匯入（第 8 輪；Jacky 本機 Agent 也同時匯入，保留他 rembg 版的圖）。R-010（隊伍正面走路小人 `walk_*`）、R-011（鎮民 `walk_npc_*`）待產，ExploreScene 有圖會自動換。
+> ⭐ **方向（D-038）：自由探索 RPG。** 讀 `docs/design/11-open-world.md`。**第 1 章已全部可走**（第 8 輪）：`src/data/areas/{greylamp,mistwood,wolfpath}.ts`；引擎 `src/game/scenes/ExploreScene.ts`＋`ExploreHudScene.ts`；純邏輯 `src/core/explore/{grid,area}.ts`（測試 `tests/explore.test.ts`）。序章後直接站在灰燈鎮；世界地圖上第 1 章所有地點都會走進對應區域（MapScene `GREYLAMP_/MISTWOOD_/WOLFPATH_NODES`）。
+> 除錯：`?debug&scene=Explore&area=mistwood&spawn=north`；`window.__explore.{goto(id), tap(x,y), pos(), objective(), entities(), setFlags({...}), busy()}`。機器人在 Explore 場景會 `goto(objective)`，沒有目標就回世界地圖。
 
-A1. **ExploreScene 引擎（E1）**：`src/game/scenes/ExploreScene.ts` + `src/core/explore/`（純邏輯：ASCII 地圖解析、碰撞、A* 尋路、實體查詢，全部寫 vitest）。點地面走過去、按住拖曳虛擬搖桿、鏡頭跟隨、同伴跟隨。地塊先用程式生成材質（48px）。
-A2. **灰燈鎮第一張可走地圖**：`src/data/areas/greylamp.ts`（ASCII＋entities：NPC 對話接 `ch1` 現有劇本節點、門、告示、寶箱、出口）。主角用 `hero_lian` Q 版圖縮小（走路彈跳、左右翻轉）。從世界地圖（現有 MapScene）點「灰燈鎮」相關節點進入；不破壞原流程。
-A3. **存讀檔座標＋除錯 API**（`window.__explore.goto(id)`）＋ Playwright 截圖 ＋ 機器人能在探索場景推進。
-A4. 之後依 11-open-world.md 的 E2→E7。
+A1. **E2 收尾：第 1 章探索手感**
+   - 明雷：背後偷襲（我方先攻）／被追上（敵方先攻）、等級差 ≥ 5 小怪逃跑（11-open-world §2.3）；BattleSceneData 加 `ambush: 'player' | 'enemy'`。
+   - 建築內部（酒館、雜貨店、孤兒院）目前是「門 → 直接跑劇本」；可以先不做室內地圖，改成門口出現店員／老闆 NPC 也行。
+   - 第 1 章各區域支線 2–3 個（11-open-world §2.2）：例如灰燈鎮老燈伕「點亮廣場四盞燈」小任務（用 `side: true` ＋旗標）、森林迷路小孩、燼牌路人對手（`talk` 接一段新的 ch1 劇本節點 → `event: cards`）。
+   - 狼徑的古燈塔目前是程式建築（沒有塔的 prop）；之後可在 ART_REQUESTS 加 `prop_lighthouse_ruin`（Gemini sheet 一格）。
+A2. **E3 商店與裝備**（11-open-world §2.4）：裝備資料表 `src/data/equipment.ts`（武器／防具／飾品，ATK/DEF/HP/SPD）、`MemberState.equipment` 生效於 BattleScene、商店買賣（賣價 50%）、探索選單 ☰（道具／裝備）。**道具與裝備圖示已經有了**：`public/art/item_*.webp`（28 張，名稱見 `scripts/art-sheets.json` 的 sheet_items／sheet_gear）。
+A3. **E6 第 2 章可走**：沉鐘礦坑（礦工營地＋礦坑隧道），照第 1 章的做法：`src/data/areas/<id>.ts` → `AREAS` → MapScene 節點路由 → 測試「每個世界地圖地點都在某區域」（目前只檢查 ch1，加到 ch2）→ 機器人 `?debug&chapter=2&scene=Map` 跑通。
+A4. E4 技能樹、E5 自由羈絆（營火聊天、送禮）。
 
 0. **【每輪開頭都做】檢查 Jacky 有沒有上傳手繪立繪**：`art-inbox/` 有圖或 GitHub 有標題含「立繪」的 Issue → `pip install "rembg[cpu]" --break-system-packages`、`node scripts/import-art.mjs`（流程見 D-036）；手繪會自動取代同名程式立繪。沒圖就照常往下做。
 1. **配角程式立繪與手繪主角的畫風落差**：主角群是 AI 厚塗，配角是賽璐珞程式繪。可做：配角立繪加一層柔光／顆粒（`ensurePortrait` 畫完後 soft-light 漸層＋邊緣暈影）讓質感接近；或在 FOR_JACKY 已請 Jacky 補 `npc_tia`／`npc_gwen`／`npc_bern`。
