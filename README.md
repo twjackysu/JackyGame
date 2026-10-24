@@ -4,7 +4,20 @@
 
 原創冒險 RPG，手機單機（iOS / Android / PWA），**完全離線**、直式單手操作。
 
-🚧 **開發中**（2026-10-23 開工，11/05 成果發表）。進度見 [`docs/PROGRESS.md`](docs/PROGRESS.md)，計畫見 [`docs/PLAN.md`](docs/PLAN.md)。
+🚧 **開發中**（2026-10-23 開工，11/05 成果發表）。主線已可從序章一路玩到終章三結局。進度見 [`docs/PROGRESS.md`](docs/PROGRESS.md)，計畫見 [`docs/PLAN.md`](docs/PLAN.md)。
+
+## 畫面
+
+| 標題 | 章節地圖 | 時機光環 |
+|:-:|:-:|:-:|
+| ![標題](docs/screenshots/01-title.jpg) | ![地圖](docs/screenshots/02-map.jpg) | ![時機](docs/screenshots/03-timing.jpg) |
+| **五燈共鳴** | **Boss：星空舞台** | **終局：全員共鳴** |
+| ![共鳴](docs/screenshots/04-resonance.jpg) | ![星空舞台](docs/screenshots/05-starstage.jpg) | ![全員共鳴](docs/screenshots/06-finale.jpg) |
+| **燼牌（卡牌小遊戲）** | **同伴羈絆** | **劇情對話** |
+| ![燼牌](docs/screenshots/07-cards.jpg) | ![羈絆](docs/screenshots/08-bonds.jpg) | ![對話](docs/screenshots/09-dialogue.jpg) |
+
+> 所有美術、音效、音樂都是程式即時生成（Phaser Graphics／Canvas、WebAudio），repo 裡沒有任何圖片或音訊素材檔。
+
 
 ## 目前可以玩到（2026-10-24）
 - 標題 →「新的旅程」：序章對話（屬性檢定、攻略筆記選項、星形骰）→ 教學戰（燈印 + 共鳴）→ 第 1 章節點地圖 → 各地點劇情、戰鬥、燼牌對局、雜貨店 → 狼王 Boss → 章節結算。自動存檔，「繼續旅程」可接續。
@@ -22,7 +35,7 @@
 - **選擇與後果**：屬性檢定、聲望、延遲回收的選擇、多結局。
 
 ## 怎麼玩
-- **PWA（任何手機瀏覽器）**：https://twjackysu.github.io/JackyGame/ （需先在 repo 啟用 Pages）
+- **PWA（任何手機瀏覽器）**：https://twjackysu.github.io/JackyGame/ 
   - iOS Safari：分享 → 加入主畫面；Android Chrome：選單 → 安裝應用程式。之後可離線遊玩。
 - **Android APK**：[Releases → latest](https://github.com/twjackysu/JackyGame/releases/tag/latest) 下載 `jackygame-debug.apk`，允許「安裝未知來源應用程式」後安裝。
 - **iOS（原生，需 Mac）**：
@@ -30,6 +43,18 @@
   2. `npm ci && npm run build && npx cap sync ios && npx cap open ios`
   3. Xcode → Signing & Capabilities → Team 選你的（免費）Apple ID，Bundle ID 若衝突就改一個。
   4. 接上 iPhone，按 ▶︎ 執行。iPhone 上到「設定 → 一般 → VPN 與裝置管理」信任開發者。免費帳號簽署 7 天有效。
+
+## 開發日誌
+| 輪次 | 台北時間 | 重點 |
+|:-:|---|---|
+| 1 | 10/23 22:19 | 市場調查、世界觀、設計文件 01–10 定稿；Vite + Phaser + PWA + Capacitor 骨架；CI／Pages／APK 管線 |
+| 2 | 10/24 00:14 | 戰鬥場景（時機光環、三種防守手勢、共鳴演出）、對話、地圖、燼牌 UI；序章＋第 1 章可玩 |
+| 3 | 10/24 02:13 | 自動通關機器人、修致命軟鎖；設定面板、BGM；第 2 章「沉鐘」 |
+| 4 | 10/24 06:12 | 第 3、4、終章完成，**全劇情可玩到三結局**；同伴技能與連攜技 |
+| 5 | 10/24 08:12 | 每隻 Boss 的特殊機制、終局全員共鳴、羈絆面板、片尾旅程統計 |
+| 6 | 10/24 10:12 | 成果發表截圖、新手引導補強、自動時機一鍵開、燼牌收藏入牌組、省電畫質、共鳴相機 bug 修正 |
+
+**統計**（2026-10-24 第 6 輪）：執行 6 輪、約 80 個 commit、199 項自動測試、TypeScript 約 1.7 萬行、0 個圖片／音訊素材檔。
 
 ## 開發
 ```bash

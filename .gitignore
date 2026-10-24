@@ -42,4 +42,4 @@ ios/App/App/config.xml
 xcuserdata/
 
 # screenshots
-screenshots/
+/screenshots/
