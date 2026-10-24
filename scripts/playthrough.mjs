@@ -274,6 +274,12 @@ function installBot() {
         const ex = window.__explore;
         if (!ex) return { scene: 'Explore', acts: [], wait: 'no __explore' };
         if (ex.busy()) return { scene: 'Explore', acts: [], wait: 'walking' };
+        // AUTOBUILD=0 關閉：預設像玩家一樣買裝備、點技能
+        if (cfg.autobuild !== false && window.__auto) {
+          const area = sm.getScene('Explore').area?.id;
+          const r = area ? window.__auto(area) : '';
+          if (r) return { scene: 'Explore', acts: [r] };
+        }
         const obj = ex.objective();
         if (obj) {
           if (cfg.__exLast === obj && Date.now() - (cfg.__exAt ?? 0) < 8000) return { scene: 'Explore', acts: [], wait: `heading to ${obj}` };
@@ -378,7 +384,7 @@ try {
   let lastFlags = {};
   const deadline = t0 + timeoutMin * 60_000;
   // extraOnce：沒有「！」的支線地點各去一次（雜貨店商店、倒木寶箱）；prefer：優先選的選項（觸發改名介面）
-  const cfg = { explore: process.env.EXPLORE === '1', linesPerTick: 25, heal: true, skipTitles: [], extraOnce: ['雜貨店', '倒木下的寶箱'], prefer: ['自己取個名字'] };
+  const cfg = { explore: process.env.EXPLORE === '1', autobuild: process.env.AUTOBUILD !== '0', linesPerTick: 25, heal: true, skipTitles: [], extraOnce: ['雜貨店', '倒木下的寶箱'], prefer: ['自己取個名字'] };
   let goalAt = null;
   let lastMapPick = '';
   let samePickCount = 0;
