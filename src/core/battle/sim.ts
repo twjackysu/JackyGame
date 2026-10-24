@@ -26,6 +26,8 @@ export interface SimResult {
   hpPct?: number[];
   rounds: number;
   hpLostPct: number;
+  /** 效果觸發次數（effect key → 次數）；沒帶效果時不存在 */
+  effectsFired?: Record<string, number>;
 }
 
 export const MAX_SIM_ROUNDS = 40;
@@ -109,12 +111,12 @@ export function simulateBattle(
   encounterId: string,
   skill: SimSkill,
   seed: number,
-  opts: { guidingLight?: boolean; cleanse?: boolean } = {},
+  opts: { guidingLight?: boolean; cleanse?: boolean; effects?: CreateBattleOptions['effects'] } = {},
 ): SimResult {
   const enemies = ENCOUNTERS[encounterId];
   if (!enemies) throw new Error(`unknown encounter ${encounterId}`);
   const rng = mulberry32(seed ^ 0x9e3779b9);
-  let s = createBattle({ party, enemies, seed, flags: { guidingLight: opts.guidingLight } }).state;
+  let s = createBattle({ party, enemies, seed, flags: { guidingLight: opts.guidingLight }, effects: opts.effects }).state;
   cleansePolicy = opts.cleanse ?? true;
   let steps = 0;
   while (s.phase !== 'victory' && s.phase !== 'defeat' && s.round <= MAX_SIM_ROUNDS && steps++ < 5000) {
@@ -127,5 +129,6 @@ export function simulateBattle(
   return {
     won: s.phase === 'victory', rounds: s.round, hpLostPct: (maxHp - hp) / maxHp,
     hpPct: s.heroes.map((h) => (h.downed ? 0 : h.hp / h.maxHp)),
+    ...(s.effectBus ? { effectsFired: { ...s.effectBus.fired } } : {}),
   };
 }

@@ -77,6 +77,8 @@ export interface EffectDef {
   priority?: number;
   /** 可以被其他效果產生的衍生事件觸發（預設 false） */
   allowDerived?: boolean;
+  /** self（預設）：只在持有者本人是事件的 hero 時觸發；team：任何隊友的事件都觸發 */
+  who?: 'self' | 'team';
 }
 
 /** 戰鬥中掛在某位角色身上的一個效果 */
@@ -138,6 +140,7 @@ export class EffectBus {
   /** 這個效果會不會被此事件觸發（不改狀態） */
   canTrigger(eff: EffectInstance, ctx: TriggerContext): boolean {
     if (eff.def.trigger !== ctx.event) return false;
+    if ((eff.def.who ?? 'self') === 'self' && ctx.hero !== eff.ownerHero) return false;
     if (ctx.origin !== 'natural') {
       if (!eff.def.allowDerived) return false;
       if (ctx.originKey === eff.key) return false; // 永不自我觸發

@@ -1,5 +1,6 @@
 // 回合制戰鬥引擎（03 §3、09 §1–2）。純 TypeScript、事件導向、與 UI 無關。
 // 每個 API 回傳新的 state（內部 structuredClone）與本次產生的事件列表。
+import { EffectBus, newEffectBusState, type EffectBusState, type EffectHost, type EffectInstance, type TriggerContext } from './effects';
 import { ENEMIES, HEROES, type EnemyAttack, type EnemyDef } from '../../data/combatants';
 import { mulberry32 } from '../rng';
 import {
@@ -123,6 +124,10 @@ export interface BattleState {
   leadBonusRounds: number;
   /** 回溯用：最近一次敵方行動前的我方快照 */
   rewindSnapshot: { hp: number; downed: boolean; poison: number; umbra: number }[] | null;
+  /** 效果觸發框架（沒有效果時不存在） */
+  effects?: EffectInstance[];
+  effectBus?: EffectBusState;
+  actionSeq?: number;
 }
 
 export type BattleEvent =
@@ -176,6 +181,8 @@ export interface CreateBattleOptions {
   /** retryBoost：劇情戰連敗次數（不屈之燈）→ 開場星燼 +N、敵方攻擊 −5%/次（上限 4 次） */
   flags?: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; preemptive?: boolean; retryBoost?: number };
   items?: Partial<Record<ItemId, number>>;
+  /** 裝備／技能樹效果（design/14 階段 2.1；src/core/battle/effects.ts） */
+  effects?: readonly EffectInstance[];
 }
 
 const freshStatus = (): UnitStatus => ({
@@ -245,8 +252,13 @@ export function createBattle(opts: CreateBattleOptions): Result {
       events.push({ type: 'lampPlaced', target: ei, count: 1, total: e.lamps });
     });
   });
+  if (opts.effects?.length) {
+    state.effects = opts.effects.map((e) => ({ ...e }));
+    state.effectBus = newEffectBusState();
+    state.actionSeq = 0;
+  }
   nextActor(state, events);
-  return { state, events };
+  return withEffects(null, { state, events });
 }
 
 // ---------- 小工具 ----------
@@ -578,6 +590,10 @@ function firstAliveEnemy(s: BattleState): number {
 }
 
 export function chooseCommand(state: BattleState, cmd: Command): Result {
+  return withEffects(state, chooseCommandRaw(state, cmd));
+}
+
+function chooseCommandRaw(state: BattleState, cmd: Command): Result {
   const s = structuredClone(state);
   const ev: BattleEvent[] = [];
   const hero = currentHero(s);
@@ -712,6 +728,10 @@ function applyInstantSkill(s: BattleState, ev: BattleEvent[], hero: Unit, actor:
 }
 
 export function resolveTiming(state: BattleState, timing: Timing): Result {
+  return withEffects(state, resolveTimingRaw(state, timing));
+}
+
+function resolveTimingRaw(state: BattleState, timing: Timing): Result {
   const s = structuredClone(state);
   const ev: BattleEvent[] = [];
   const c = s.pendingCommand;
@@ -885,6 +905,10 @@ export function resolveTiming(state: BattleState, timing: Timing): Result {
 
 // ---------- 敵方攻擊結算 ----------
 export function resolveDefense(state: BattleState, results: DefenseResult[]): Result {
+  return withEffects(state, resolveDefenseRaw(state, results));
+}
+
+function resolveDefenseRaw(state: BattleState, results: DefenseResult[]): Result {
   const s = structuredClone(state);
   const ev: BattleEvent[] = [];
   const p = s.pendingEnemy;
@@ -981,8 +1005,130 @@ export function resolveDefense(state: BattleState, results: DefenseResult[]): Re
  * 若 UI 需要手動跳過目前行動者（例如逾時），可呼叫此函式。
  */
 export function advance(state: BattleState): Result {
+  return withEffects(state, advanceRaw(state));
+}
+
+function advanceRaw(state: BattleState): Result {
   const s = structuredClone(state);
   const ev: BattleEvent[] = [];
   if (!over(s)) nextActor(s, ev);
   return { state: s, events: ev };
+}
+
+
+// ---------- 效果觸發（design/14 階段 2.1） ----------
+/**
+ * 每次引擎公開函式結束後，把這一批「自然事件」翻成觸發事件交給 EffectBus；
+ * 效果產生的事件附加在後面（不再被翻譯，所以不會遞迴）。沒有效果時完全不影響原本的行為。
+ */
+function withEffects(before: BattleState | null, r: Result): Result {
+  const s = r.state;
+  if (!s.effects?.length || !s.effectBus || over(s)) return r;
+  const natural = r.events.slice();
+  const ev = r.events;
+  const host: EffectHost = { apply: (op, eff, ctx) => applyEffectOp(s, ev, op, eff, ctx) };
+  const bus = new EffectBus(s.effects, host, s.effectBus);
+  let cur: number | undefined = before?.actor?.side === 'hero' ? before.actor.index : undefined;
+  const blockers = before?.pendingEnemy?.targets ?? [];
+  const base = () => ({ origin: 'natural' as const, actionId: s.actionSeq ?? 0, round: s.round, enemyCount: s.enemies.filter(alive).length });
+  const enemyInfo = (i: number) => {
+    const e = s.enemies[i];
+    return e ? { target: i, targetMarks: e.lamps, targetBroken: e.broken, targetHpPct: Math.round((e.hp / e.maxHp) * 100) } : { target: i };
+  };
+  for (const e of natural) {
+    if (over(s)) break;
+    if (e.type === 'command' || e.type === 'telegraph') s.actionSeq = (s.actionSeq ?? 0) + 1;
+    if (e.type === 'turnStart') {
+      cur = e.actor.side === 'hero' ? e.actor.index : undefined;
+      if (cur !== undefined) bus.emit({ ...base(), event: 'OnTurnStart', hero: cur });
+    } else if (e.type === 'damage' && e.target.side === 'enemy' && cur !== undefined && e.source !== 'effect') {
+      const c: TriggerContext = { ...base(), event: 'OnAttack', hero: cur, ...enemyInfo(e.target.index), isPerfect: e.timing === 'perfect', damage: e.amount };
+      bus.emit(c);
+      if (e.timing === 'perfect') bus.emit({ ...c, event: 'OnCritical' });
+    } else if (e.type === 'damage' && e.target.side === 'hero' && e.source !== 'effect') {
+      bus.emit({ ...base(), event: 'OnDamaged', hero: e.target.index, damage: e.amount });
+    } else if (e.type === 'lampPlaced') {
+      bus.emit({ ...base(), event: 'OnMarkCreated', hero: cur, ...enemyInfo(e.target) });
+    } else if (e.type === 'resonance') {
+      bus.emit({ ...base(), event: 'OnResonance', hero: cur, marksBefore: e.totalLamps, target: e.perTarget[0]?.target });
+    } else if (e.type === 'break') {
+      bus.emit({ ...base(), event: 'OnBreak', hero: cur, ...enemyInfo(e.target) });
+    } else if (e.type === 'defense' && e.result !== 'fail') {
+      for (const h of blockers) {
+        bus.emit({ ...base(), event: 'OnBlock', hero: h });
+        if (e.result === 'perfect') bus.emit({ ...base(), event: 'OnPerfectBlock', hero: h });
+      }
+    } else if (e.type === 'downed' && e.target.side === 'enemy') {
+      bus.emit({ ...base(), event: 'OnEnemyKilled', hero: cur, target: e.target.index });
+    } else if (e.type === 'downed' && e.target.side === 'hero') {
+      bus.emit({ ...base(), event: 'OnAllyDown', hero: e.target.index });
+    }
+  }
+  checkEnd(s, ev);
+  return r;
+}
+
+/** 效果框架的內建操作在戰鬥狀態上的實作；回傳衍生事件 */
+function applyEffectOp(s: BattleState, ev: BattleEvent[], op: Parameters<EffectHost['apply']>[0], eff: EffectInstance, ctx: TriggerContext): ReturnType<EffectHost['apply']> {
+  const owner = s.heroes[eff.ownerHero];
+  const derived: ReturnType<EffectHost['apply']> = [];
+  const d = { actionId: ctx.actionId, round: ctx.round, hero: eff.ownerHero };
+  switch (op.op) {
+    case 'modifyResource':
+      if (op.resource === 'ember') gainEmber(s, ev, op.delta);
+      else if (owner && alive(owner)) owner.sp = Math.max(0, Math.min(MAX_SP, owner.sp + op.delta));
+      break;
+    case 'heal':
+      for (const [i, h] of s.heroes.entries()) {
+        if (!alive(h) || (op.to === 'self' && i !== eff.ownerHero)) continue;
+        const amount = Math.min(h.maxHp - h.hp, Math.round((h.maxHp * op.pct) / 100));
+        if (amount <= 0) continue;
+        h.hp += amount;
+        ev.push({ type: 'heal', target: { side: 'hero', index: i }, amount });
+      }
+      break;
+    case 'createMark': {
+      const targets = op.to === 'allEnemies' ? s.enemies.map((_, i) => i) : ctx.target !== undefined ? [ctx.target] : [];
+      for (const t of targets) {
+        const e = s.enemies[t];
+        if (!e || !alive(e)) continue;
+        const n = Math.min(op.count, MAX_LAMPS - totalLamps(s));
+        if (n <= 0) break;
+        e.lamps += n;
+        ev.push({ type: 'lampPlaced', target: t, count: n, total: e.lamps });
+        derived.push({ ...d, event: 'OnMarkCreated', target: t, targetMarks: e.lamps });
+      }
+      break;
+    }
+    case 'consumeMarks': {
+      const e = ctx.target !== undefined ? s.enemies[ctx.target] : undefined;
+      if (e) e.lamps = 0;
+      break;
+    }
+    case 'modifyDamage': {
+      const e = ctx.target !== undefined ? s.enemies[ctx.target] : undefined;
+      const extra = Math.round(((ctx.damage ?? 0) * op.pct) / 100);
+      if (e && alive(e) && extra > 0) {
+        applyDamage(s, ev, { side: 'enemy', index: ctx.target! }, extra, { source: 'effect' });
+        if (!alive(e)) derived.push({ ...d, event: 'OnEnemyKilled', target: ctx.target });
+      }
+      break;
+    }
+    case 'extraResonance': {
+      // 簡化版：對每個有燈的敵人造成「燈數 × 0.6 × 連恩 ATK × scale」，不消耗燈（正式數值待模擬校準）
+      let any = false;
+      for (const [i, e] of s.enemies.entries()) {
+        if (!alive(e) || e.lamps <= 0) continue;
+        any = true;
+        applyDamage(s, ev, { side: 'enemy', index: i }, Math.max(1, Math.round(e.lamps * 0.6 * s.lampAtk * op.scale)), { source: 'effect' });
+        if (!alive(e)) derived.push({ ...d, event: 'OnEnemyKilled', target: i });
+      }
+      if (any) derived.push({ ...d, event: 'OnResonance', target: ctx.target });
+      break;
+    }
+    case 'applyStatus':
+      // 尚未支援任何狀態（design/15 拍板後再加白名單）；資料若用到不會出錯，只是沒有效果
+      break;
+  }
+  return derived;
 }
