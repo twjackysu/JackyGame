@@ -1766,7 +1766,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     SFX.resonance();
-    cam.zoomTo(0.92, 250, 'Cubic.Out');
+    cam.zoomTo(0.92, 250, 'Cubic.easeOut');
     await wait(this, 300);
     // 光柱 + 衝擊波
     for (const p of e.perTarget) {
@@ -1780,8 +1780,8 @@ export class BattleScene extends Phaser.Scene {
     }
     cam.flash(200, 255, 230, 180);
     cam.shake(500, 0.02 + e.totalLamps * 0.003);
-    cam.zoomTo(1.06, 120, 'Quad.Out');
-    this.time.delayedCall(140, () => cam.zoomTo(1, 500, 'Cubic.Out'));
+    cam.zoomTo(1.06, 120, 'Quad.easeOut');
+    this.time.delayedCall(140, () => cam.zoomTo(1, 500, 'Cubic.easeOut'));
     if (e.totalLamps >= 5) bigText(this, GAME_WIDTH / 2, 260, '五燈共鳴', '#ffd27a', 80, 700);
     await hitStop(this, 120);
     this.tweens.add({ targets: this.dim, alpha: 0, duration: 400 });

@@ -95,6 +95,28 @@ export class MapScene extends Phaser.Scene {
     this.input.on('pointerdown', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       if (over.length === 0) this.closeBubble();
     });
+    if (!st.flags['tip_map']) this.firstMapTip();
+  }
+
+  /** 第一次打開地圖：說明怎麼走、♥ 與隊伍列在哪（點任何地方關閉，只出現一次） */
+  private firstMapTip(): void {
+    session.state.flags['tip_map'] = true;
+    session.save();
+    const c = this.add.container(GAME_WIDTH / 2, 236).setDepth(820).setAlpha(0);
+    const g = this.add.graphics();
+    g.fillStyle(0x0a0d1a, 0.93).fillRoundedRect(-320, -74, 640, 148, 18);
+    g.lineStyle(2, 0x7fe8ff, 1).strokeRoundedRect(-320, -74, 640, 148, 18);
+    const t = this.add.text(0, -4, '點「！」發亮的地點前往，推進主線。\n完成的地點會打勾，隨時可以回去。\n♥ 羈絆　⚙ 設定　下方隊伍列：換隊', {
+      fontFamily: UI_FONT, fontSize: '24px', color: '#dff6ff', align: 'center', lineSpacing: 6,
+    }).setOrigin(0.5);
+    c.add([g, t]);
+    this.tweens.add({ targets: c, alpha: 1, y: 244, duration: 300, delay: 600 });
+    const close = (): void => {
+      if (!c.active) return;
+      this.tweens.add({ targets: c, alpha: 0, duration: 200, onComplete: () => c.destroy() });
+    };
+    this.time.delayedCall(900, () => this.input.once('pointerdown', close));
+    this.time.delayedCall(12000, close);
   }
 
   private drawBackground(): void {
