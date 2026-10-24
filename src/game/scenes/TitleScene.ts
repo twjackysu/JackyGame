@@ -8,6 +8,7 @@ import { endingsSeen, newGamePlus } from '../../core/state/gameState';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { generatePortraitArt } from '../art/silhouettes';
 
 const TITLE_FONT =
   '"Noto Serif TC", "Noto Serif CJK TC", "Source Han Serif TC", "PingFang TC", "Songti TC", "Microsoft JhengHei", serif';
@@ -24,6 +25,7 @@ export class TitleScene extends Phaser.Scene {
   private busy = false;
   private prompt?: Phaser.GameObjects.Text;
   private menu?: Phaser.GameObjects.Container;
+  private heroes: Phaser.GameObjects.Image[] = [];
 
   constructor() {
     super('Title');
@@ -86,6 +88,23 @@ export class TitleScene extends Phaser.Scene {
       blendMode: Phaser.BlendModes.ADD,
       advance: 6000,
     });
+
+    // 主視覺：連恩與伊歐（動漫風立繪，從兩側滑入）
+    generatePortraitArt(this);
+    this.heroes = [];
+    for (const [key, x, y, sc, from, delay] of [
+      ['portrait_io', 520, GAME_HEIGHT - 10, 0.6, 80, 900],
+      ['portrait_lian', 200, GAME_HEIGHT + 30, 0.68, -80, 1100],
+    ] as [string, number, number, number, number, number][]) {
+      if (!this.textures.exists(key)) continue;
+      const img = this.add.image(x, y, key).setOrigin(0.5, 1).setScale(sc);
+      this.heroes.push(img);
+      if (!skipIntro) {
+        img.setAlpha(0).setX(x + from);
+        this.tweens.add({ targets: img, alpha: 1, x, duration: 1400, delay, ease: 'Cubic.easeOut' });
+      }
+      this.tweens.add({ targets: img, y: y - 6, duration: 2600 + delay, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
 
     // Title.
     const title = this.add
@@ -244,6 +263,10 @@ export class TitleScene extends Phaser.Scene {
       this.tweens.add({ targets: this.prompt, alpha: 0, duration: 200 });
     }
     const cx = GAME_WIDTH / 2;
+    // 立繪往兩側讓位、變暗，不擋選單
+    this.heroes.forEach((h, i) => {
+      this.tweens.add({ targets: h, x: i === 0 ? GAME_WIDTH + 10 - 80 : -10 + 80, alpha: 0.45, duration: 400, ease: 'Cubic.Out' });
+    });
     const items: [string, () => void][] = [];
     if (session.hasSave()) items.push(['繼續旅程', () => this.go(() => this.continueGame())]);
     items.push(['新的旅程', () => {
