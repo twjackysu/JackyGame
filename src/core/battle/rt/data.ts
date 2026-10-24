@@ -19,11 +19,11 @@ export const SKILLS: Record<string, SkillDefinition> = {
     dash: { fromTick: 0, ticks: sec(0.3), distance: u(4) },
     hits: [0, 3, 6].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 140, oncePerTarget: true, status: { id: 'slow' as const, ticks: sec(1) } })),
   },
-  // 格擋反擊：8s、施放 0.6s；窗口 0～9 ticks 被可格擋攻擊命中 → 傷害 −80% 並立即反擊 220%（前扇形 2）
+  // 格擋反擊：8s、施放 0.6s；窗口 0～12 ticks（D-065 放寬） 被可格擋攻擊命中 → 傷害 −80% 並立即反擊 220%（前扇形 2）
   parry: {
     id: 'parry', name: '格擋反擊', cooldownTicks: sec(8), castTicks: sec(0.6), moveFactor: 0, role: 'block',
     hits: [],
-    block: { windowTicks: 9, reducePct: 80, counter: { atTick: 0, shape: { type: 'sector', r: u(2), deg: 120 }, mult: 220 } },
+    block: { windowTicks: 12, reducePct: 80, counter: { atTick: 0, shape: { type: 'sector', r: u(2), deg: 120 }, mult: 220 } },
   },
 };
 

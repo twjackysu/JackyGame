@@ -37,7 +37,7 @@ describe('確定性', () => {
 
   it('rt 核心不用 Math.random、不依賴 Phaser、技能不寫 switch(skillId)', () => {
     const dir = 'src/core/battle/rt';
-    for (const f of readdirSync(dir)) {
+    for (const f of readdirSync(dir).filter((n) => n.endsWith('.ts'))) {
       const src = readFileSync(path.join(dir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       expect(src).not.toMatch(/Math\.random/);
       expect(src).not.toMatch(/from 'phaser'/);
