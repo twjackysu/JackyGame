@@ -134,6 +134,10 @@ export class RtBattleScene extends Phaser.Scene {
     });
     if (this.botName) this.add.text(44, 40, '觀戰', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff', backgroundColor: '#1a2a3a' }).setPadding(8, 4, 8, 4).setOrigin(0.5).setDepth(49);
     if (!this.bot) this.showHint();
+    // 刷怪關的開場說明（怪會重生、營火是安全區）
+    if (STAGES[this.stageId]?.spawnGroups?.length) {
+      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）', '#ffd27a', 30, 2600));
+    }
     this.input.addPointer(2);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onDown(p));
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onMove(p));

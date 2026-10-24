@@ -27,6 +27,8 @@
 | ![強化](docs/screenshots/19-enhance.jpg) | ![分解](docs/screenshots/20-salvage.jpg) | ![詞綴](docs/screenshots/21-affix.jpg) |
 | **新：即時戰鬥試玩（預告＋格擋反擊）** | **即時戰鬥：霧角狼王** | **新：碎石林道（繞石尋路、拉怪、大招／藥水）** |
 | ![即時戰鬥](docs/screenshots/22-realtime.jpg) | ![即時戰鬥・狼王](docs/screenshots/23-realtime-boss.jpg) | ![碎石林道](docs/screenshots/24-rock-grove.jpg) |
+| **新：營火空地（怪會重生、營火休息與復活）** | | |
+| ![營火空地](docs/screenshots/25-camp-clearing.jpg) | | |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。圖片：主要角色立繪、Q 版戰鬥圖、標題主視覺、Boss、小怪、地圖物件與道具圖示由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單見 `docs/ART_REQUESTS.md`）；地面圖塊、裝飾物件、光影、粒子、配角立繪等仍是程式繪製（`src/game/art/`），每張 AI 圖都有程式備援。
 
