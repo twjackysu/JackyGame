@@ -199,7 +199,15 @@ export class CardScene extends Phaser.Scene {
     }).setOrigin(0.5, 0));
     const kws = d.keywords.map((k) => KW[k]?.[0] ?? k).join('·');
     if (kws) box.add(this.add.text(0, h / 2 - 12, kws, { fontFamily: UI_FONT, fontSize: '15px', color: '#ffd27a' }).setOrigin(0.5, 1));
-    if (c.persisted) box.add(this.add.text(w / 2 - 6, h / 2 - 6, '燼', { fontFamily: UI_FONT, fontSize: '16px', color: '#ff9a4a' }).setOrigin(1, 1));
+    if (c.persisted) {
+      // 餘燼：從上一夜留下來的牌——橘色內框、悶燒光暈、角標
+      const eg = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+      eg.lineStyle(3, 0xff7a2a, 0.8).strokeRoundedRect(-w / 2 + 5, -h / 2 + 5, w - 10, h - 10, 9);
+      const glow = this.add.image(0, h / 2 - 10, 'glow').setScale(0.9, 0.35).setTint(0xff6a20).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD);
+      box.add([glow, eg, this.add.text(w / 2 - 6, -h / 2 + 34, '餘燼', {
+        fontFamily: UI_FONT, fontSize: '15px', fontStyle: '700', color: '#120e16', backgroundColor: '#ff9a4a', padding: { x: 4, y: 1 },
+      }).setOrigin(1, 0)]);
+    }
     if (opts.burned) {
       const x = this.add.graphics();
       x.fillStyle(0x000000, 0.65).fillRoundedRect(-w / 2, -h / 2, w, h, 12);
@@ -336,7 +344,10 @@ export class CardScene extends Phaser.Scene {
     const pg = this.add.graphics();
     pg.fillStyle(0x0a0d1a, 0.95).fillRoundedRect(-120, -42, 240, 84, 20);
     pg.lineStyle(3, myTurn ? 0xffd27a : 0x4a4a5a, 1).strokeRoundedRect(-120, -42, 240, 84, 20);
-    pb.add([pg, this.add.text(0, 0, '熄燈', { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '700', color: myTurn ? '#ffffff' : '#666' }).setOrigin(0.5)]);
+    // 熄燈獎勵提示：對手還沒熄燈、又不是最後一夜 → 先熄燈下一夜多抽 1 張
+    const bonusHint = myTurn && !op.passed && s.night < s.maxNights;
+    pb.add([pg, this.add.text(0, bonusHint ? -10 : 0, '熄燈', { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '700', color: myTurn ? '#ffffff' : '#666' }).setOrigin(0.5)]);
+    if (bonusHint) pb.add(this.add.text(0, 24, '先熄燈：下夜 +1 張', { fontFamily: UI_FONT, fontSize: '17px', color: '#ffd27a' }).setOrigin(0.5));
     pb.setSize(240, 84).setInteractive({ useHandCursor: myTurn });
     pb.on('pointerdown', () => {
       if (!this.canAct()) return;
