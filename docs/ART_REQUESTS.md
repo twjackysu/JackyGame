@@ -11,7 +11,7 @@
 5. 能用程式做好的（地面圖塊、水面、光影、粒子、UI）不要列進來。AI 圖塊很難無縫拼接，所以**不要要求 tileset**；地圖用程式圖塊，加上 AI 畫的獨立物件（建築、樹、箱子）。
 
 ## 給產圖 Agent 的流程
-1. 從上往下挑「狀態：待產」的項目，P1 先做。照指定工具（GPT／Gemini）產圖，一項一張；不滿意可以重產，但盡量一次到位。
+1. 從上往下挑「狀態：已上傳 2026-10-24」的項目，P1 先做。照指定工具（GPT／Gemini）產圖，一項一張；不滿意可以重產，但盡量一次到位。
 2. prompt = 項目的 prompt + 下方對應的「共同風格」。
 3. 存成項目指定的**檔名**（`.png`），放進 repo 的 `art-inbox/`，commit 並 push 到 `main`。
 4. 把該項目的狀態改成「已上傳 YYYY-MM-DD」。
@@ -40,7 +40,7 @@
 
 ## 需求清單
 
-### R-001 ｜ GPT ｜ P1 ｜ `enemy_boss_wolfking.png` ｜ 狀態：待產
+### R-001 ｜ GPT ｜ P1 ｜ `enemy_boss_wolfking.png` ｜ 狀態：已上傳 2026-10-24
 - 用途：第 1 章 Boss「霧角狼王」戰鬥圖（正面，Q 版，跟現有我方 Q 版圖同畫風）。要接上 `import-art.mjs` 的 `enemy_` → `enemy_boss_wolfking` 材質。
 ```
 Chibi / SD style (2.5 heads tall) giant mist wolf king boss, front 3/4 view, huge pale antlers like a stag that glow faint violet,
@@ -48,14 +48,14 @@ dark grey-blue fur dissolving into mist at the edges, glowing violet eyes, snarl
 menacing but stylish.
 ```
 
-### R-002 ｜ GPT ｜ P1 ｜ `enemy_boss_bellworm.png` ｜ 狀態：待產
+### R-002 ｜ GPT ｜ P1 ｜ `enemy_boss_bellworm.png` ｜ 狀態：已上傳 2026-10-24
 - 用途：第 2 章 Boss「鐘喉蠕蟲」（礦坑）。
 ```
 Chibi / SD style giant armored mine worm boss rising from rubble, its mouth is shaped like a cracked bronze bell with glowing
 amber light inside, rocky segmented carapace with embedded crystals and old mining lanterns, dust and sparks, front view.
 ```
 
-### R-003 ｜ GPT ｜ P1 ｜ `enemy_boss_starfall.png` ｜ 狀態：待產
+### R-003 ｜ GPT ｜ P1 ｜ `enemy_boss_starfall.png` ｜ 狀態：已上傳 2026-10-24
 - 用途：最終 Boss「蝕星者」本體（第一段＋核心共用）。
 ```
 Chibi / SD style cosmic final boss "the Eclipsar": a floating black sun-like core with a cracked violet slit eye in the center,
@@ -63,7 +63,7 @@ surrounded by orbiting shards of fallen stars and dark tendrils of starlight, om
 awe-inspiring and beautiful.
 ```
 
-### R-004 ｜ GPT ｜ P2 ｜ `bg_title_keyart.png` ｜ 狀態：待產
+### R-004 ｜ GPT ｜ P2 ｜ `bg_title_keyart.png` ｜ 狀態：已上傳 2026-10-24
 - 用途：標題畫面主視覺（直式 9:16，1080×1920 左右，**不去背**）。連恩舉著提燈、伊歐在身旁，背景是墜星的夜空與遠方城堡。標題字由遊戲程式疊上去，**圖上不要有字**，上方 1/3 留給標題。
 ```
 Vertical 9:16 key visual for an anime fantasy RPG title screen. A handsome 16-year-old boy with messy dark brown hair, amber eyes,
@@ -73,7 +73,7 @@ castle city. Upper third of the image is open night sky for a logo. Cinematic wa
 No text. High-quality anime gacha game art, painterly.
 ```
 
-### R-005 ｜ Gemini ｜ P1 ｜ `sheet_items.png`（4×4 共 16 格）｜ 狀態：待產
+### R-005 ｜ Gemini ｜ P1 ｜ `sheet_items.jpg`（4×4 共 16 格）｜ 狀態：已上傳 2026-10-24
 - 用途：道具／送禮物品圖示（商店、背包、送禮）。格子順序見 `scripts/art-sheets.json` 的 `sheet_items`。
 ```
 A 4x4 grid of 16 fantasy RPG item icons, front view, in this order (left to right, top to bottom):
@@ -83,7 +83,7 @@ old leather-bound book, small brass clockwork gear toy, silk ribbon with star ch
 pack of tarot-like playing cards, glowing orange star-ember crystal, rolled parchment map, leather coin pouch.
 ```
 
-### R-006 ｜ Gemini ｜ P1 ｜ `sheet_gear.png`（4×3 共 12 格）｜ 狀態：待產
+### R-006 ｜ Gemini ｜ P1 ｜ `sheet_gear.jpg`（4×3 共 12 格）｜ 狀態：已上傳 2026-10-24
 - 用途：裝備圖示（商店、裝備欄）。順序見 `art-sheets.json` 的 `sheet_gear`。
 ```
 A 4x3 grid of 12 fantasy RPG equipment icons, front view, in this order:
@@ -92,7 +92,7 @@ heavy halberd, alchemist staff with glowing orange bulb, cloth traveler's tunic,
 silver plate armor with star crest, silver ring with violet gem, golden amulet with sun emblem, small lucky charm with bell.
 ```
 
-### R-007 ｜ Gemini ｜ P1 ｜ `sheet_town_props.png`（3×2）｜ 狀態：待產
+### R-007 ｜ Gemini ｜ P1 ｜ `sheet_town_props.jpg`（3×2）｜ 狀態：已上傳 2026-10-24
 - 用途：灰燈鎮地圖物件（探索場景 E1／E2）。順序見 `sheet_town_props`。
 ```
 A 3x2 grid of 6 medieval fantasy town map objects for a top-down JRPG, in this order:
@@ -100,7 +100,7 @@ small stone cottage with red tiled roof, timber-framed two-story house, tavern w
 general store with awning and crates, stone well with wooden roof, iron street lamp post with glowing lantern.
 ```
 
-### R-008 ｜ Gemini ｜ P2 ｜ `sheet_forest_props.png`（3×2）｜ 狀態：待產
+### R-008 ｜ Gemini ｜ P2 ｜ `sheet_forest_props.jpg`（3×2）｜ 狀態：已上傳 2026-10-24
 - 用途：霧語森林、礦坑周邊地圖物件。順序見 `sheet_forest_props`。
 ```
 A 3x2 grid of 6 fantasy forest map objects for a top-down JRPG, in this order:
@@ -108,7 +108,7 @@ tall dark pine tree, round leafy oak tree, mossy boulder, bush with small glowin
 wooden treasure chest with brass trim, wooden signpost with two arrows.
 ```
 
-### R-009 ｜ Gemini ｜ P2 ｜ `sheet_forest_enemies.png`（3×2）｜ 狀態：待產
+### R-009 ｜ Gemini ｜ P2 ｜ `sheet_forest_enemies.jpg`（3×2）｜ 狀態：已上傳 2026-10-24
 - 用途：第 1、2 章小怪（戰鬥＋地圖明雷縮小用）。順序見 `sheet_forest_enemies`。
 ```
 A 3x2 grid of 6 chibi / SD fantasy monsters, front view, in this order:
