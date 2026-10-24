@@ -208,6 +208,25 @@ describe('wolfpath', () => {
       expect(nextObjective(s, cap)?.id, flag).toBe(next);
     }
   });
+  it('every world-map location of chapter 4 is in the academy depths; objectives follow the story', async () => {
+    const { CHAPTER_MAPS } = await import('../src/data/maps');
+    const d = AREAS['depths']!;
+    for (const e of CHAPTER_MAPS.ch4.entries) {
+      const ent = d.entities.find((x) => x.talk?.script === 'ch4' && x.talk.node === e.node);
+      expect(ent, e.node).toBeTruthy();
+      expect(ent!.done, e.node).toBe(CHAPTER_MAPS.ch4.done[e.location]);
+      expect(d.spawns[e.location], e.location).toBeTruthy();
+    }
+    const s = newGame();
+    const order: [string, string | undefined][] = [
+      ['ch3_complete', 'academy_entrance'], ['ch4_entered', 'archive'], ['ch4_archive_done', 'lab'], ['ch4_lab_done', 'hidden_camp'],
+      ['ch4_campfire', 'star_furnace'], ['ch4_complete', undefined],
+    ];
+    for (const [flag, next] of order) {
+      applyEffects(s, [{ flag }]);
+      expect(nextObjective(s, d)?.id, flag).toBe(next);
+    }
+  });
   it('chapter 2 main objectives follow the story order in the mine', () => {
     const a = AREAS['mine']!;
     const s = newGame();

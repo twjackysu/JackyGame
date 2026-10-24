@@ -6,5 +6,6 @@ import { WOLFPATH } from './wolfpath';
 import { MINECAMP } from './minecamp';
 import { MINE } from './mine';
 import { CAPITAL } from './capital';
+import { DEPTHS } from './depths';
 
-export const AREAS: Record<string, AreaDef> = { greylamp: GREYLAMP, mistwood: MISTWOOD, wolfpath: WOLFPATH, minecamp: MINECAMP, mine: MINE, capital: CAPITAL };
+export const AREAS: Record<string, AreaDef> = { greylamp: GREYLAMP, mistwood: MISTWOOD, wolfpath: WOLFPATH, minecamp: MINECAMP, mine: MINE, capital: CAPITAL, depths: DEPTHS };

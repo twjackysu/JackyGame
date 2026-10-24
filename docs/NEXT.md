@@ -12,8 +12,8 @@
 
 > ⭐ **第 9 輪（10/24 16:11）完成**：E3 商店與裝備、E4 技能樹 v1、E5 營火羈絆 v1、第 2 章（`minecamp`＋`mine`）與第 3 章（`capital`）可走、第 1 章支線 ×2、等級差逃跑。相關檔案：`src/data/{equipment,skillTree,sideQuests}.ts`、`src/data/dialogue/camp.ts`、`src/core/state/{equip,skillTree}.ts`、`src/game/ui/{shopPanel,bagPanel,gearUi}.ts`、`src/data/areas/{minecamp,mine,capital}.ts`。
 
-A0. **先確認機器人**：第 1～3 章各自已通過（可走版）。第 9 輪結束時「新遊戲全程」機器人還在跑，下一輪開頭再跑一次從新遊戲到 `ch5_complete`（約 20 分鐘，背景跑）。王都若卡住，多半是實體擋路或 `spawn` 站在建築上（`tests/explore.test.ts` 有可達性檢查，但機器人才測得到劇本回來後的位置）。
-A1. **E6 第 4 章可走**（研究院地下、星核）：`src/data/dialogue/ch4.ts` 的 `CH4_ENTRIES` → 新區域（建議一張「研究院地下」地城圖，地塊用礦坑那套 `#_c` 再加藍紫色調；可在 `exploreArt.ts` 依 `area.region` 換配色）→ MapScene `CH4_NODES` → 測試（照第 3 章的寫法：地點都在區域、`done` 同 `CHAPTER_MAPS.ch4.done`、主線順序）→ 機器人。終章（ch5）時間不夠就維持節點地圖（11-open-world §4 砍法）。
+A0. **先確認機器人**：第 1～4 章各自已通過（可走版）。第 9 輪結束時「新遊戲全程」機器人還在跑，下一輪開頭再跑一次從新遊戲到 `ch5_complete`（約 20 分鐘，背景跑）。王都若卡住，多半是實體擋路或 `spawn` 站在建築上（`tests/explore.test.ts` 有可達性檢查，但機器人才測得到劇本回來後的位置）。
+A1. **E6 終章可走（墜星裂谷）**：`src/data/dialogue/ch5.ts` 的 `CH5_ENTRIES` → 新區域 `rift`（照 `depths.ts`／`mine.ts`：用 `/tmp` 小 python 產生 ASCII、`exploreArt` 依 region 換配色——裂谷可用暗紅＋星光）→ MapScene 加 `CH5_NODES` → `tests/explore.test.ts` 照第 4 章那段加 → 機器人 `?debug&chapter=5&scene=Map`（終章含片尾字幕，達成後等 90 秒）。終章劇情點少、偏線性，一張直向地圖即可。
 A2. **E5 第二版**：羈絆事件改成「好感達門檻＋到指定地點」觸發（`src/data/bonds.ts` 的事件 → 探索實體 `when: affinityAtLeast`）；城鎮夜晚約會事件 1–2 個（灰燈鎮湖畔、王都鐘塔）；同伴在地圖上偶爾冒對話泡泡（ExploreScene followers 加 `say`）。
 A3. **E3／E4 第二版**：裝備特效（例：星燼提燈「開場燈印 +1」、迅風戒「閃避窗口 +10%」）；技能樹第 4 階換成主動技能（需要 engine `SKILLS` 新增 id 與效果）；商店依章節進貨（`ShopDef.stock` 加 `requires`）。
 A4. **E7 平衡**：裝備＋技能樹讓戰鬥變容易（第 1 章武器 ATK +25%、技能樹 lv10 再 +14%）→ 用 `src/core/battle/sim.ts` 跑「全裝備＋技能樹」對各 Boss 的勝率與回合數，必要時調高 Boss HP 或裝備價格；機器人改成會買裝備、點技能。

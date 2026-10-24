@@ -323,7 +323,7 @@ export class ExploreScene extends Phaser.Scene {
     for (let y = 0; y < g.h; y++) {
       for (let x = 0; x < g.w; x++) {
         if (g.tiles[y]![x] !== 'c') continue;
-        const img = this.add.image(x * TILE + 24, y * TILE + 26, 'ex_glow').setScale(1.1).setAlpha(0.35).setTint(0x7fe0ff)
+        const img = this.add.image(x * TILE + 24, y * TILE + 26, 'ex_glow').setScale(1.1).setAlpha(0.35).setTint(this.area.region === 'ch4' ? 0xc89aff : 0x7fe0ff)
           .setBlendMode(Phaser.BlendModes.ADD).setDepth(-40);
         this.tweens.add({ targets: img, alpha: 0.18, scale: 0.95, duration: 1400 + Math.random() * 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random() * 1000 });
       }
