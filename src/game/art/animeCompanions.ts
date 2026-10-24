@@ -650,3 +650,49 @@ export function drawBern(c: C): void {
   });
   rim(c, face, -4, 0, 'rgba(255,180,120,0.8)');
 }
+
+// ---------------------------------------------------------------- 緹雅：被收容的小女孩（長辮垂在肩前、素色連身裙、暖光）
+export function drawTia(c: C): void {
+  const hairInk = '#3a2410';
+  const hair = vgrad(c, 60, 760, [[0, '#c88a4a'], [0.5, '#9a5e2a'], [1, '#6a3a18']]);
+  aura(c, 300, 400, 'rgba(255,210,150,0.26)', 'rgba(255,190,130,0.06)');
+  fill(c, curve([[cx - 116, 300], [cx - 128, 190], [cx - 90, 100], [cx, 76], [cx + 92, 100], [cx + 128, 190], [cx + 116, 300], [cx + 90, 400], [cx - 90, 400]]), '#6a3a18');
+  // 素色連身裙＋白圓領
+  const dress = curve([[60, AH + 20], [76, 680], [110, 580], [190, 520], [cx, 510], [410, 520], [490, 580], [524, 680], [540, AH + 20]]);
+  part(c, dress, {
+    fill: vgrad(c, 510, AH, [[0, '#8aa0b8'], [1, '#3a4a60']]),
+    shadow: curve([[600, 540], [400, 540], [420, AH + 40], [600, AH + 40]]), shadowColor: 'rgba(20,30,50,0.35)',
+    rim: [-3, 4, 'rgba(255,220,170,0.9)'], ink: '#1a2230', inkW: 2.6,
+  });
+  for (const s of [-1, 1] as const) {
+    const collar = curve([[cx, 500], [cx + s * 96, 504], [cx + s * 110, 560], [cx + s * 40, 580, 1]]);
+    part(c, collar, { fill: '#f8f4ec', rim: [-2, 3, 'rgba(255,230,190,1)'], ink: '#5a5448', inkW: 2 });
+  }
+  const f: FaceStyle = { skin: '#fbe6d8', skinShadow: '#e8b8a4', skinDeep: '#c99484', ink: '#3a2418', blush: 'rgba(255,120,120,0.4)', rimColor: '#ffe0c0', shadowSide: 1, jaw: 0.82, neck: 0.7 };
+  const face = drawNeckAndFace(c, cx, f);
+  const eye = { iris: ['#3a2010', '#b07a3a', '#ffe0a8'] as [string, string, string], ink: '#2a1408', shine: 'rgba(255,230,180,1)', open: 0.95, lift: 0, lash: 7, flick: true, look: 0 };
+  animeEye(c, cx - 50, 312, 66, -1, eye);
+  animeEye(c, cx + 50, 312, 66, 1, eye);
+  line(c, curve([[cx - 84, 256], [cx - 60, 248], [cx - 34, 254]], false), '#8a5a2a', 3);
+  line(c, curve([[cx + 34, 254], [cx + 60, 248], [cx + 84, 256]], false), '#8a5a2a', 3);
+  line(c, curve([[cx - 2, 352], [cx + 2, 362]], false), f.skinDeep, 2);
+  line(c, curve([[cx - 12, 392], [cx, 398], [cx + 12, 392]], false), '#a85a5a', 2.6);
+  shade(c, face, curve([[cx - 120, 150], [cx + 120, 150], [cx + 120, 236], [cx + 40, 252], [cx, 236], [cx - 40, 252], [cx - 120, 236]]), 'rgba(190,120,100,0.3)');
+  // 前髮（齊瀏海）
+  const top = curve([[cx - 120, 300], [cx - 132, 196], [cx - 104, 116], [cx - 30, 80], [cx + 40, 80], [cx + 106, 118], [cx + 132, 196], [cx + 120, 300],
+    [cx + 104, 244], [cx + 84, 230, 1], [cx + 62, 248], [cx + 40, 226, 1], [cx + 16, 246], [cx - 8, 226, 1], [cx - 32, 246], [cx - 56, 226, 1], [cx - 80, 248], [cx - 100, 236, 1], [cx - 106, 260]]);
+  part(c, top, { fill: hair, rim: [-3, 4, 'rgba(255,220,170,0.9)'], ink: hairInk, inkW: 2.6,
+    extra: () => { for (const pts of [[[cx - 50, 90], [cx - 70, 160], [cx - 80, 230]], [[cx + 30, 86], [cx + 40, 160], [cx + 44, 226]]] as P[][]) line(c, curve(pts, false), 'rgba(60,30,10,0.4)', 2); } });
+  gloss(c, [[cx - 110, 170, cx - 66, 136], [cx - 46, 124, cx + 2, 116], [cx + 20, 116, cx + 66, 126]], 'rgba(255,230,190,0.6)');
+  // 長辮（垂在右肩前）
+  for (let i = 0; i < 6; i++) {
+    const y = 330 + i * 62;
+    const x = cx + 116 - i * 6;
+    const seg = curve([[x - 26, y], [x, y - 10], [x + 26, y], [x + 22, y + 44], [x, y + 66, 1], [x - 22, y + 44]]);
+    part(c, seg, { fill: hair, rim: [-2, 3, 'rgba(255,220,170,0.85)'], ink: hairInk, inkW: 2.2 });
+  }
+  const tie = curve([[cx + 66, 706], [cx + 106, 700], [cx + 100, 726], [cx + 68, 730]]);
+  part(c, tie, { fill: '#c84a4a', ink: '#4a1010', inkW: 2 });
+  sparkle(c, 120, 260, 14, 'rgba(255,220,160,0.9)');
+  sparkle(c, 480, 200, 10, 'rgba(255,220,160,0.9)');
+}

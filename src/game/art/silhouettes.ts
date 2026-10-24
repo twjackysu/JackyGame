@@ -2,7 +2,7 @@
 // 做法：先用邊緣光色描邊整個輪廓，再把深色本體往右下偏移填上，只留下左上側的亮邊 → 便宜的 rim light。
 import Phaser from 'phaser';
 import { AH, AW, drawIo, drawLian } from './animePortraits';
-import { drawBern, drawGwen, drawLiora, drawRourke, drawSerin, drawValderan } from './animeCompanions';
+import { drawBern, drawGwen, drawLiora, drawRourke, drawSerin, drawTia, drawValderan } from './animeCompanions';
 import { backIo, backLian, backLiora, backRourke, backSerin } from './animeSprites';
 
 type P = [number, number];
@@ -650,7 +650,7 @@ function strokeLine(c: Ctx, pts: P[], color: string, w: number): void {
 }
 
 /** 高解析動漫立繪（顯示尺寸與手繪立繪相同：約 600px 高）。 */
-export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern']);
+export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern', 'npc_tia']);
 
 function hdPortrait(scene: Phaser.Scene, key: string, draw: (c: Ctx) => void): void {
   ART[key] = { key, w: AW, h: AH, footY: AH / 2 };
@@ -1462,53 +1462,8 @@ function generateCh4Combatants(scene: Phaser.Scene): void {
 }
 
 function generateCh4Portraits(scene: Phaser.Scene): void {
-  // 緹雅：九歲的小女孩，一條長辮垂在肩前、素色連身裙；溫柔的暖光。
-  canvasArt(scene, 'npc_tia', NW, NH, (c) => {
-    const rim = '#ffe0c0';
-    const W0 = 0xffc890;
-    npcHalo(c, 85, 120, W0, 0.28);
-    // 身體（窄肩、小）＋連身裙
-    lit(c, sm([[34, 260], [40, 186], [56, 164], [74, 156], [85, 160], [96, 156], [114, 164], [130, 186], [136, 260]]),
-      vgrad(c, 156, 240, [[0, '#4a5a7a'], [1, '#121626']]), rim, 2, 2);
-    // 白色小圓領
-    lit(c, sm([[70, 158], [85, 168], [100, 158], [104, 168], [85, 178], [66, 168]]), vgrad(c, 158, 178, [[0, '#d8d4e0'], [1, '#8a8698']]), '#ffffff', 1, 1);
-    strokeLine(c, [[85, 178], [85, 240]], 'rgba(0,0,0,0.25)', 1.5);
-    for (const y of [190, 206, 222]) {
-      c.fillStyle = 'rgba(255,230,200,0.6)';
-      c.beginPath(); c.arc(85, y, 1.6, 0, Math.PI * 2); c.fill();
-    }
-    // 頸
-    lit(c, sh([[80, 140], [90, 140], [91, 160], [79, 160]]), faceGrad(c), rim, 1, 1);
-    // 臉（圓、小）
-    const F: P[] = [[64, 112], [67, 94], [85, 84], [103, 94], [106, 112], [102, 132], [92, 144], [85, 146], [78, 144], [68, 132]];
-    lit(c, sm(F), vgrad(c, 84, 146, [[0, '#3a3650'], [1, '#1c1a2c']]), rim, 1.5, 1.5);
-    // 頭髮＋瀏海
-    lit(c, sh([[60, 118], [58, 92], [68, 76], [85, 70], [102, 76], [112, 92], [110, 118], [106, 102], [98, 94], [92, 100], [84, 92], [76, 100], [68, 96], [64, 106]]),
-      vgrad(c, 70, 118, [[0, '#6a4a3a'], [1, '#2a1a14']]), rim, 1.5, 1.5);
-    // 長辮（從右耳後垂到胸前）
-    for (let k = 0; k < 6; k++) {
-      const y = 120 + k * 14;
-      const x = 108 + Math.sin(k * 0.6) * 3 - k * 1.5;
-      lit(c, sm([[x - 7, y], [x, y - 3], [x + 7, y], [x + 5, y + 10], [x, y + 13], [x - 5, y + 10]]),
-        vgrad(c, y - 3, y + 13, [[0, '#6a4a3a'], [1, '#2a1a14']]), rim, 1, 1);
-    }
-    lit(c, sm([[94, 206], [104, 204], [106, 214], [96, 216]]), '#b04a4a', '#ffc0b0', 0.8, 0.8);
-    strokeLine(c, [[98, 214], [96, 228]], 'rgba(106,74,58,0.9)', 2);
-    strokeLine(c, [[102, 214], [104, 228]], 'rgba(106,74,58,0.9)', 2);
-    // 小髮飾
-    sparkle(c, 66, 88, 3, 0x9fe0ff);
-    // 溫柔的眼睛（彎彎的）
-    for (const x of [77, 93]) {
-      glow(c, x, 114, 7, 0xa0d8ff, 0.4);
-      strokeLine(c, [[x - 4, 114], [x, 111.5], [x + 4, 114]], '#e0f0ff', 1.6);
-    }
-    c.fillStyle = 'rgba(255,150,150,0.25)';
-    for (const x of [72, 98]) { c.beginPath(); c.arc(x, 124, 4, 0, Math.PI * 2); c.fill(); }
-    strokeLine(c, [[82, 132], [85, 133.5], [88, 132]], 'rgba(255,200,190,0.55)', 1.2);
-    // 小手交握在胸前
-    lit(c, sm([[70, 214], [84, 208], [98, 214], [92, 226], [76, 226]]), faceGrad(c), rim, 1, 1);
-    for (const [x, y] of [[28, 70], [146, 60], [142, 150], [22, 160]] as P[]) sparkle(c, x, y, 2.4, W0, 0.8);
-  });
+  // 緹雅：動漫風高解析立繪（animeCompanions.ts）
+  hdPortrait(scene, 'npc_tia', drawTia);
 }
 
 /** 第四章說話者 id → 立繪材質 key。 */
