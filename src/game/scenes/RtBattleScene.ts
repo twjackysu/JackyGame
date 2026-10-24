@@ -83,6 +83,8 @@ export class RtBattleScene extends Phaser.Scene {
   private lastWarnTick = -1;
   /** 玩家有沒有主動點過怪／按過技能（刷怪關 30 秒沒動作就提示） */
   private engaged = false;
+  /** 精英／Boss 邊緣箭頭的距離字（物件池） */
+  private arrowLabels: Phaser.GameObjects.Text[] = [];
   /** 營火光暈（預先烘好的放射漸層，ADD 混色；每幀只改位置與縮放） */
   private glows: Phaser.GameObjects.Image[] = [];
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
@@ -124,6 +126,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.engaged = false;
     this.idleHinted = false;
     this.zoneName = null;
+    this.arrowLabels = [];
     const p0 = playerOf(this.s);
     this.camX = p0.x;
     this.camY = p0.y;
@@ -992,11 +995,16 @@ export class RtBattleScene extends Phaser.Scene {
   private drawOffscreen(g: Phaser.GameObjects.Graphics): void {
     const s = this.s;
     const now = this.time.now;
+    const p = playerOf(s);
+    let li = 0;
     for (const e of enemiesOf(s)) {
       const px = this.sx(e.x);
       const py = this.sy(e.y);
       const M = 30;
       if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960) continue;
+      const elite = e.tier === 'elite' || !!ENEMIES[e.defId]?.boss;
+      // 有小地圖的大地圖：待機的一般怪只在小地圖上，箭頭只留給追過來的怪與精英／Boss（design/20 B6）
+      if (this.mini && !elite && e.mode !== 'combat') continue;
       const cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
       const cy = Math.max(VIEW_TOP + M, Math.min(960, py));
       const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
@@ -1005,11 +1013,22 @@ export class RtBattleScene extends Phaser.Scene {
       const c = Math.cos(an);
       const sn = Math.sin(an);
       // 精英／Boss：大一號的橘金箭頭＋脈動光圈（值得特地去打）
-      const big = e.tier === 'elite' || !!ENEMIES[e.defId]?.boss;
+      const big = elite;
       const z = big ? 1.7 : 1;
       if (big && !hot) g.fillStyle(0xff9a3a, 0.25 + 0.15 * Math.sin(now / 180)).fillCircle(cx, cy, 26);
       g.fillStyle(big && !hot ? 0xffa040 : col, 0.9).fillTriangle(cx + c * 18 * z, cy + sn * 18 * z, cx - c * 10 * z - sn * 12 * z, cy - sn * 10 * z + c * 12 * z, cx - c * 10 * z + sn * 12 * z, cy - sn * 10 * z - c * 12 * z);
+      if (big && this.mini) {
+        // 距離（1 格＝1 公尺），字放在箭頭內側
+        let tx = this.arrowLabels[li];
+        if (!tx) {
+          tx = this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(51);
+          this.arrowLabels.push(tx);
+        }
+        li++;
+        tx.setVisible(true).setText(`${Math.round(Math.hypot(e.x - p.x, e.y - p.y) / UNIT)}m`).setPosition(cx - c * 40, cy - sn * 40);
+      }
     }
+    for (let i = li; i < this.arrowLabels.length; i++) this.arrowLabels[i]!.setVisible(false);
   }
 
   /** 小地圖：場地面積超過畫面約 2.5 倍才顯示；石頭與邊框烘成材質，單位點每幀畫在 ui 上 */
