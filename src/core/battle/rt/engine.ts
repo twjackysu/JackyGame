@@ -225,10 +225,67 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
 function clampArena(s: BattleState, x: Unit): boolean {
   const nx = Math.min(s.arena.w - x.r, Math.max(x.r, x.x));
   const ny = Math.min(s.arena.h - x.r, Math.max(x.r, x.y));
-  const hit = nx !== x.x || ny !== x.y;
+  let hit = nx !== x.x || ny !== x.y;
   x.x = nx;
   x.y = ny;
+  if (s.arena.solid && pushOutSolid(s.arena.solid, x)) {
+    hit = true;
+    // 推出障礙物後再夾一次外牆（障礙物貼牆時）
+    x.x = Math.min(s.arena.w - x.r, Math.max(x.r, x.x));
+    x.y = Math.min(s.arena.h - x.r, Math.max(x.r, x.y));
+  }
   return hit;
+}
+
+/** 這個座標所在的格子是不是障礙物 */
+export function isSolidAt(solid: NonNullable<BattleState['arena']['solid']>, px: number, py: number): boolean {
+  const cx = Math.floor(px / solid.cell);
+  const cy = Math.floor(py / solid.cell);
+  return solid.rows[cy]?.[cx] === '#';
+}
+
+/** 圓形對障礙物格：推到最近的格子邊外（整數座標、固定掃描順序，確定性） */
+function pushOutSolid(solid: NonNullable<BattleState['arena']['solid']>, u: Unit): boolean {
+  const c = solid.cell;
+  let moved = false;
+  for (let iter = 0; iter < 3; iter++) {
+    let any = false;
+    const x0 = Math.floor((u.x - u.r) / c);
+    const x1 = Math.floor((u.x + u.r) / c);
+    const y0 = Math.floor((u.y - u.r) / c);
+    const y1 = Math.floor((u.y + u.r) / c);
+    for (let cy = y0; cy <= y1; cy++) {
+      for (let cx = x0; cx <= x1; cx++) {
+        if (solid.rows[cy]?.[cx] !== '#') continue;
+        const left = cx * c;
+        const top = cy * c;
+        const qx = Math.min(left + c, Math.max(left, u.x));
+        const qy = Math.min(top + c, Math.max(top, u.y));
+        const dx = u.x - qx;
+        const dy = u.y - qy;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= u.r * u.r) continue;
+        if (d2 === 0) {
+          // 圓心在格子裡：往最短的那一邊推出去
+          const outs = [u.x - left + u.r, left + c - u.x + u.r, u.y - top + u.r, top + c - u.y + u.r];
+          const m = Math.min(...outs);
+          if (m === outs[0]) u.x = left - u.r;
+          else if (m === outs[1]) u.x = left + c + u.r;
+          else if (m === outs[2]) u.y = top - u.r;
+          else u.y = top + c + u.r;
+        } else {
+          const d = Math.sqrt(d2);
+          const push = u.r - d + 1;
+          u.x += Math.round((dx / d) * push);
+          u.y += Math.round((dy / d) * push);
+        }
+        any = true;
+        moved = true;
+      }
+    }
+    if (!any) break;
+  }
+  return moved;
 }
 
 function moveDir(s: BattleState, x: Unit, dirX: number, dirY: number, factor = 1): boolean {

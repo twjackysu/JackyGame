@@ -256,3 +256,67 @@ describe('HP 藥水（design/20 B、D-069）', () => {
     expect(withPot.avgPotions).toBeLessThanOrEqual(20);
   }, 60000);
 });
+
+describe('障礙物格（design/21 §3 第 1 步、D-070）', () => {
+  // 每格 1 單位；第 10 列 x=5..8 有一排石頭
+  const rows = Array.from({ length: 20 }, (_, y) => (y === 10 ? '.....####.......' : '................'));
+  const solid = { cell: u(1), rows };
+
+  it('走不進石頭、會沿邊滑動；外牆照舊', () => {
+    const s = createBattle({ stageId: 'wolf_king', seed: 1 });
+    s.arena = { ...s.arena, solid };
+    const p = playerOf(s);
+    s.units = [p, ...enemiesOf(s)];
+    p.x = u(6.5);
+    p.y = u(12.5);
+    for (let i = 0; i < sec(2); i++) step(s, [{ type: 'move', dx: 0, dy: -1000 }]);
+    expect(p.y - p.r).toBeGreaterThanOrEqual(u(11) - 2); // 停在石頭下緣
+    // 斜著走：y 被擋住、x 照樣前進（滑動）
+    const x0 = p.x;
+    for (let i = 0; i < sec(0.5); i++) step(s, [{ type: 'move', dx: 707, dy: -707 }]);
+    expect(p.x).toBeGreaterThan(x0 + u(0.5));
+    expect(p.y - p.r).toBeGreaterThanOrEqual(u(11) - 2);
+  });
+
+  it('狼王隔著石頭衝鋒會撞上石頭暈眩', () => {
+    let stunned = 0;
+    for (let seed = 1; seed <= 6 && !stunned; seed++) {
+      const s = createBattle({ stageId: 'wolf_king', seed });
+      s.arena = { ...s.arena, solid };
+      const p = playerOf(s);
+      const k = enemiesOf(s)[0]!;
+      k.x = u(6.5);
+      k.y = u(5);
+      p.x = u(6.5);
+      p.y = u(15.5);
+      p.speedPerTick = 0; // 站著不動，讓狼王想用衝鋒
+      for (let i = 0; i < sec(40) && s.outcome === 'running'; i++) {
+        step(s);
+        p.hp = p.maxHp;
+      }
+      stunned += s.events.filter((e) => e.type === 'wallStun').length;
+    }
+    expect(stunned).toBeGreaterThan(0);
+  }, 60000);
+
+  it('有障礙物時一樣可重現；不會有單位卡在石頭裡', () => {
+    const run = () => {
+      const s = createBattle({ stageId: 'wolf_king', seed: 5 });
+      s.arena = { ...s.arena, solid };
+      const bot = expert();
+      while (s.outcome === 'running' && s.tick < sec(120)) step(s, bot.decide(s));
+      return s;
+    };
+    const a = run();
+    const b = run();
+    expect(b.events.length).toBe(a.events.length);
+    expect(b.units.map((x) => [x.x, x.y, x.hp])).toEqual(a.units.map((x) => [x.x, x.y, x.hp]));
+    // 不會有單位卡在石頭裡
+    for (const x of a.units) {
+      if (x.dead) continue;
+      const cx = Math.floor(x.x / solid.cell);
+      const cy = Math.floor(x.y / solid.cell);
+      expect(rows[cy]?.[cx], `unit ${x.id}`).not.toBe('#');
+    }
+  }, 60000);
+});

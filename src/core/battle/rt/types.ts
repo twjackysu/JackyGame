@@ -235,6 +235,11 @@ export interface Arena {
   /** 可走範圍（整數座標，0..w、0..h），邊界即牆 */
   w: number;
   h: number;
+  /**
+   * 障礙物格（design/21 §3 第 1 步，可選）：每格邊長 `cell`（整數座標），`rows[y][x] === '#'` 不可通行。
+   * 單位會被推出障礙物並沿邊滑動；衝鋒撞到障礙物也算撞牆。
+   */
+  solid?: { cell: number; rows: readonly string[] };
 }
 
 export interface StageDefinition {
