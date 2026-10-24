@@ -18,13 +18,30 @@ const TOL = Number(process.env.ART_TOL ?? 38);
 const KNOWN = ['lian', 'io', 'serin', 'liora', 'rourke', 'valdran', 'valderan'];
 /** 角色 id → 遊戲裡的材質 key（反派沿用對話的 npc_ 材質） */
 const TEX = (id, battle = false) => {
-  if (id.startsWith('npc_')) return id;
+  if (kindOf(id)) return id;
   const villain = id === 'valdran' || id === 'valderan';
   // *_battle.png：Q 版戰鬥圖。我方是背影（hero_<id>），瓦爾德蘭是 Boss 正面（enemy_boss_valderan）
   if (battle) return villain ? 'enemy_boss_valderan' : `hero_${id}`;
   return villain ? 'npc_valderan' : `portrait_${id}`;
 };
 /** 戰鬥圖輸出高度 = 程式材質的 2 倍解析度高（BattleScene 以 0.5 倍顯示） */
+/**
+ * 通用素材（docs/ART_REQUESTS.md 的檔名規則）：前綴決定處理方式。
+ * keep=不去背（背景、圖塊）；h=輸出高度上限；w=輸出寬度上限。
+ */
+const KINDS = {
+  bg: { keep: true, w: 1440 }, // 地圖／戰鬥／對話背景，2 倍解析度（720 寬畫面）
+  tile: { keep: true, w: 1024 }, // 圖塊集
+  enemy: { h: 640 }, // 敵人、野獸、Boss（正面）
+  npc: { h: 1100, fade: true }, // 配角立繪
+  walk: { h: 192 }, // 地圖上行走用的小角色
+  prop: { h: 512 }, // 建築、樹、箱子等地圖物件
+  item: { h: 256 }, // 道具、裝備圖示
+};
+const kindOf = (stem) => {
+  const m = /^(bg|tile|enemy|npc|walk|prop|item)_[a-z0-9_]+$/.exec(stem);
+  return m ? m[1] : null;
+};
 const BATTLE_H = { lian: 440, io: 420, serin: 460, liora: 420, rourke: 460, valdran: 680, valderan: 680 };
 
 export async function removeFlatBackground(input, tol = TOL) {
@@ -138,7 +155,7 @@ async function hasAlphaCorners(buf) {
 function idOf(file) {
   const stem = path.basename(file, path.extname(file)).toLowerCase().replace(/^portrait_/, '');
   // 配角：npc_tia.png → 材質 npc_tia（名稱要和 src/game/art 裡的 npc_ 材質一致）
-  if (/^npc_[a-z_]+$/.test(stem)) return stem;
+  if (kindOf(stem)) return stem;
   return KNOWN.find((k) => stem === k || stem.startsWith(`${k}-`) || stem.startsWith(`${k}_`)) ?? null;
 }
 
@@ -147,8 +164,36 @@ function writeManifest(keys) {
   writeFileSync(MANIFEST, `// 自動產生（scripts/import-art.mjs）：public/art/ 裡有的手繪立繪。Boot 會優先載入，程式立繪只在沒有時使用。\nexport const HAND_ART: readonly string[] = ${JSON.stringify(sorted)};\n`);
 }
 
+/**
+ * 一張圖多個物件（省生成額度）：scripts/art-sheets.json 定義 { "sheet_xxx": { "cols": 3, "rows": 2, "names": [...] } }，
+ * 把 art-inbox/sheet_xxx.png 均分切格，每格存成 art-inbox/<name>.png 再照一般流程處理。names 留空字串 = 略過該格。
+ */
+async function sliceSheets() {
+  const cfgPath = 'scripts/art-sheets.json';
+  if (!existsSync(cfgPath) || !existsSync(inbox)) return;
+  const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+  for (const f of readdirSync(inbox)) {
+    const stem = path.basename(f, path.extname(f)).toLowerCase();
+    const sheet = cfg[stem];
+    if (!sheet || !/\.(png|jpe?g|webp)$/i.test(f)) continue;
+    const src = path.join(inbox, f);
+    const meta = await sharp(src).metadata();
+    const cw = Math.floor(meta.width / sheet.cols);
+    const ch = Math.floor(meta.height / sheet.rows);
+    await Promise.all(sheet.names.map((name, i) => {
+      if (!name) return null;
+      const left = (i % sheet.cols) * cw;
+      const top = Math.floor(i / sheet.cols) * ch;
+      return sharp(src).extract({ left, top, width: cw, height: ch }).png().toFile(path.join(inbox, `${name}.png`));
+    }));
+    console.log(`sheet ${f} → ${sheet.names.filter(Boolean).length} 格`);
+    unlinkSync(src);
+  }
+}
+
 export async function main() {
   mkdirSync(OUT, { recursive: true });
+  await sliceSheets();
   const existing = existsSync(OUT) ? readdirSync(OUT).filter((f) => f.endsWith('.webp')).map((f) => f.replace(/\.webp$/, '')) : [];
   const files = existsSync(inbox) ? readdirSync(inbox).filter((f) => /\.(png|jpe?g|webp)$/i.test(f)) : [];
   const done = [];
@@ -156,7 +201,20 @@ export async function main() {
     const id = idOf(f);
     const src = path.join(inbox, f);
     if (!id) {
-      console.log(`skip ${f}: 檔名要是 ${KNOWN.join('/')}`);
+      console.log(`skip ${f}: 檔名要是 ${KNOWN.join('/')}，或 bg_/tile_/enemy_/npc_/walk_/prop_/item_ 開頭`);
+      continue;
+    }
+    const kind = kindOf(id);
+    const spec = kind ? KINDS[kind] : null;
+    if (spec?.keep) {
+      // 背景／圖塊：不去背，只縮圖轉 webp
+      const out = path.join(OUT, `${id}.webp`);
+      await sharp(readFileSync(src)).resize({ width: spec.w, withoutEnlargement: true }).webp({ quality: 80 }).toFile(out);
+      const meta = await sharp(out).metadata();
+      console.log(`ok ${f} → ${out} ${meta.width}x${meta.height}（不去背）`);
+      unlinkSync(src);
+      existing.push(id);
+      done.push(id);
       continue;
     }
     // 去背順序：已透明 → 不動；rembg（isnet-anime，白髮等接近背景色的區域也保得住）→ 單色洪水填充 → 保留原圖。
@@ -185,14 +243,14 @@ export async function main() {
       result = opaqueRatio(r) >= 0.12 ? r : await rawOf(original);
     }
     const { data, info } = result;
-    if (!battle) fadeEdges(data, info.width, info.height);
+    if (!battle && (!spec || spec.fade)) fadeEdges(data, info.width, info.height);
     const removed = info.width * info.height - Math.round(opaqueRatio(result) * info.width * info.height);
     const key = TEX(id, battle);
     const out = path.join(OUT, `${key}.webp`);
     const bb = alphaBBox(data, info.width, info.height);
     await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
       .extract(bb)
-      .resize({ height: battle ? BATTLE_H[id] ?? 440 : 1100, withoutEnlargement: true })
+      .resize({ height: battle ? BATTLE_H[id] ?? 440 : spec?.h ?? 1100, withoutEnlargement: true })
       .webp({ quality: 82, alphaQuality: 90 })
       .toFile(out);
     const meta = await sharp(out).metadata();

@@ -6,6 +6,7 @@
 > 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch5.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`、`waiting`）；敵人/遭遇 `src/data/combatants.ts`（`phase2` 字卡、`mark`/`seal`、traits `erase`/`eyeShield`/`finale`）；羈絆 `src/data/bonds.ts` + `src/game/ui/bondPanel.ts`；片尾 `src/game/credits.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；音樂 `src/audio/music.ts`（`chapterTrack`）。
 > 除錯入口：`?debug&chapter=2|3|4|5&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?debug&scene=Battle&enc=boss_starfall_2&party=lian,serin,io&lv=17`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
 
+> 🎨 **美術需求**：需要 AI 圖時只寫進 `docs/ART_REQUESTS.md`（總額度 GPT 8／Gemini 12，精緻用 GPT、普通用 Gemini、多物件用 sheet），一律先做程式備援，Jacky 回國後由本機 Agent 照表產圖。`import-art.mjs` 支援 `bg_/enemy_/npc_/walk_/prop_/item_/sheet_` 前綴（D-039）。
 > ⭐ **方向已改（D-038）：自由探索 RPG。** 先讀 `docs/design/11-open-world.md`。下面 A 系列是主線，照順序做；1～9 的舊打磨項目只在 A 系列卡住或空檔時做。
 
 A1. **ExploreScene 引擎（E1）**：`src/game/scenes/ExploreScene.ts` + `src/core/explore/`（純邏輯：ASCII 地圖解析、碰撞、A* 尋路、實體查詢，全部寫 vitest）。點地面走過去、按住拖曳虛擬搖桿、鏡頭跟隨、同伴跟隨。地塊先用程式生成材質（48px）。

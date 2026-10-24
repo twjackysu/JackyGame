@@ -81,7 +81,10 @@ function make(
   glow?: ArtInfo['glow'],
 ): void {
   const s = 2; // 以 2 倍解析度繪製，顯示時縮 0.5 → 邊緣較銳利
-  ART[key] = { key, w, h, footY: h / 2 - 6, glow };
+  // 手繪圖（docs/ART_REQUESTS.md → public/art）：尺寸取自圖片，不疊程式發光點
+  const hand = HAND_ART.includes(key) && scene.textures.exists(key);
+  const src = hand ? scene.textures.get(key).getSourceImage() : null;
+  ART[key] = hand && src ? { key, w: src.width / 2, h: src.height / 2, footY: src.height / 4 - 6 } : { key, w, h, footY: h / 2 - 6, glow };
   if (scene.textures.exists(key)) return;
   const g = scene.make.graphics({ x: 0, y: 0 }, false);
   draw(g, s);

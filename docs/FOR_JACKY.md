@@ -4,6 +4,9 @@
 
 ## 待處理
 
+### 0. 回國後產圖：照 `docs/ART_REQUESTS.md`
+- 開發迴圈需要的美術都排在那份清單（有 GPT／Gemini 分工、額度上限、完整 prompt 與檔名）。請本機 Agent 照「給產圖 Agent 的流程」產圖、放進 `art-inbox/` 並 push，匯入會自動完成。
+
 ### 1. iOS 建置（回國後，需 Mac + Xcode）
 - 見 README「iOS 安裝」。專案在 `ios/`（Capacitor 8，使用 Swift Package Manager，不需要 CocoaPods）。
 
