@@ -3,7 +3,8 @@ import { statsAtLevel, type BaseStats } from '../battle/formulas';
 import { HEROES } from '../../data/combatants';
 import { treeEffect, treeSkills } from './skillTree';
 import type { HeroId } from '../battle/skills';
-import { ITEM_DEFS, SHOPS, SLOTS, itemDef, type ItemDef, type Slot } from '../../data/equipment';
+import { ITEM_DEFS, SHOPS, itemDef, type ItemDef } from '../../data/equipment';
+import { EQUIP_SLOTS, slotType, type EquipSlot } from '../../data/rules';
 import { enhanceMultiplier } from '../../data/enhancement';
 import type { GameState, MemberId } from './gameState';
 import type { Perk } from '../battle/engine';
@@ -15,7 +16,7 @@ export const SELL_RATE = 0.5;
 export function gearBonus(s: GameState, member: MemberId): Required<BaseStats> {
   const out = { hp: 0, atk: 0, def: 0, spd: 0 };
   const eq = s.members[member]?.equipment ?? {};
-  for (const slot of SLOTS) {
+  for (const slot of EQUIP_SLOTS) {
     const inst = eq[slot] ? s.gear[eq[slot]!] : undefined;
     const b = inst ? ITEM_DEFS[inst.templateId]?.bonus : undefined;
     if (!b || !inst) continue;
@@ -34,14 +35,33 @@ export function canEquip(member: MemberId, def: ItemDef | undefined): boolean {
 }
 
 /** 某成員某欄位穿著的裝備模板 id */
-export function wornTemplate(s: GameState, member: MemberId, slot: Slot): string | undefined {
+export function wornTemplate(s: GameState, member: MemberId, slot: EquipSlot): string | undefined {
   return templateOf(s, s.members[member]?.equipment[slot]);
+}
+
+/** 某成員身上有沒有穿這個模板（任何欄位） */
+export function wears(s: GameState, member: MemberId, templateId: string): boolean {
+  return EQUIP_SLOTS.some((sl) => wornTemplate(s, member, sl) === templateId);
+}
+
+/** 模板可以放的欄位（飾品有 2 格） */
+export function slotsFor(templateId: string): EquipSlot[] {
+  const t = ITEM_DEFS[templateId]?.slot;
+  return t ? EQUIP_SLOTS.filter((sl) => slotType(sl) === t) : [];
+}
+
+/** 換上這個模板會放進哪一格：指定的格子（合法時）→ 第一個空格 → 第一格 */
+export function targetSlot(s: GameState, member: MemberId, templateId: string, prefer?: EquipSlot): EquipSlot | undefined {
+  const opts = slotsFor(templateId);
+  if (prefer && opts.includes(prefer)) return prefer;
+  const eq = s.members[member]?.equipment ?? {};
+  return opts.find((sl) => !eq[sl]) ?? opts[0];
 }
 
 /**
  * 從背包裝上（原本那件自動回到背包）。`ref` 可以是 instanceId，或模板 id（取背包裡第一件）。成功回傳 true。
  */
-export function equip(s: GameState, member: MemberId, ref: string): boolean {
+export function equip(s: GameState, member: MemberId, ref: string, slot?: EquipSlot): boolean {
   const m = s.members[member];
   const inst = s.gear[ref] ?? freeInstances(s, ref)[0];
   if (!m || !inst) return false;
@@ -49,11 +69,13 @@ export function equip(s: GameState, member: MemberId, ref: string): boolean {
   if (!canEquip(member, def)) return false;
   // 已經穿在別人身上的實例不能直接搶
   for (const other of Object.values(s.members)) if (other && Object.values(other.equipment).includes(inst.instanceId)) return false;
-  m.equipment[def!.slot!] = inst.instanceId;
+  const to = targetSlot(s, member, inst.templateId, slot);
+  if (!to) return false;
+  m.equipment[to] = inst.instanceId;
   return true;
 }
 
-export function unequip(s: GameState, member: MemberId, slot: Slot): boolean {
+export function unequip(s: GameState, member: MemberId, slot: EquipSlot): boolean {
   const m = s.members[member];
   if (!m || !m.equipment[slot]) return false;
   delete m.equipment[slot]; // 實例仍在 s.gear → 回到背包
@@ -129,7 +151,7 @@ export function battleParty(s: GameState): { id: HeroId; level: number; bonus: R
 export function gearPerks(s: GameState, member: MemberId): Perk[] {
   const eq = s.members[member]?.equipment ?? {};
   const out: Perk[] = [];
-  for (const slot of SLOTS) {
+  for (const slot of EQUIP_SLOTS) {
     const t = templateOf(s, eq[slot]);
     const p = t ? ITEM_DEFS[t]?.perk : undefined;
     if (p && !out.includes(p)) out.push(p);
@@ -147,10 +169,12 @@ export function grantDrops(s: GameState, items: readonly string[], defeated: rea
 /**
  * 裝備前後的差異（UI 顯示 ▲▼ 用）：換上 id 之後的加成 − 現在的加成
  */
-export function gearDelta(s: GameState, member: MemberId, id: string): Required<BaseStats> {
+export function gearDelta(s: GameState, member: MemberId, id: string, slot?: EquipSlot): Required<BaseStats> {
   const def = ITEM_DEFS[id];
-  if (!def?.slot) return { hp: 0, atk: 0, def: 0, spd: 0 };
-  const curInst = s.members[member]?.equipment[def.slot] ? s.gear[s.members[member]!.equipment[def.slot]!] : undefined;
+  const to = targetSlot(s, member, id, slot);
+  if (!def?.slot || !to) return { hp: 0, atk: 0, def: 0, spd: 0 };
+  const curId = s.members[member]?.equipment[to];
+  const curInst = curId ? s.gear[curId] : undefined;
   const k = enhanceMultiplier(curInst?.enhancement ?? 0);
   const pb = curInst ? ITEM_DEFS[curInst.templateId]?.bonus ?? {} : {};
   const prev = { hp: Math.round((pb.hp ?? 0) * k), atk: Math.round((pb.atk ?? 0) * k), def: Math.round((pb.def ?? 0) * k), spd: pb.spd ?? 0 };

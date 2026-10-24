@@ -1,5 +1,6 @@
 // 道具與裝備資料表（11-open-world §2.4）。圖示：public/art/item_*.webp（沒有圖就用程式圖示）。
 import type { BaseStats } from '../core/battle/formulas';
+import { GEAR_SLOTS, type EquipSlot, type GearSlot } from './rules';
 import type { MemberId } from '../core/state/gameState';
 import type { Perk } from '../core/battle/engine';
 
@@ -16,9 +17,13 @@ export const PERK_INFO: Record<Perk, { name: string; desc: string }> = {
   swift: { name: '疾影', desc: '每回合都最先行動。' },
 };
 
-export type Slot = 'weapon' | 'armor' | 'charm';
-export const SLOTS: readonly Slot[] = ['weapon', 'armor', 'charm'];
-export const SLOT_NAME: Record<Slot, string> = { weapon: '武器', armor: '防具', charm: '飾品' };
+/** 裝備模板的部位類型（D-053：頭飾、星燼核心目前還沒有模板） */
+export type Slot = GearSlot;
+export const SLOTS: readonly Slot[] = GEAR_SLOTS;
+export const SLOT_NAME: Record<Slot, string> = { weapon: '武器', armor: '防具', head: '頭飾', charm: '飾品', core: '星燼核心' };
+/** 角色身上的 6 個欄位（飾品 2 格） */
+export type { EquipSlot } from './rules';
+export const EQUIP_SLOT_NAME: Record<EquipSlot, string> = { weapon: '武器', armor: '防具', head: '頭飾', charm1: '飾品 1', charm2: '飾品 2', core: '星燼核心' };
 
 export interface ItemDef {
   id: string;

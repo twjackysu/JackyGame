@@ -2,7 +2,7 @@
 // 結構注意：通關機器人會找「depth = 傳入 depth 的 Container」裡第一個可互動的 Container（商品列）與文字「離開」。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { buyPrice, canEquip, gearDelta, sellPrice, sellable, shopStock, wornTemplate } from '../../core/state/equip';
+import { buyPrice, canEquip, gearDelta, sellPrice, sellable, shopStock, wears } from '../../core/state/equip';
 import { bagCount } from '../../core/state/gear';
 import type { MemberId } from '../../core/state/gameState';
 import { SHOPS, itemDef } from '../../data/equipment';
@@ -169,7 +169,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
         }
         who.slice(0, 4).forEach((m: MemberId, i) => {
           const x = 70 + i * 152;
-          const worn = wornTemplate(s, m, d.slot!) === id;
+          const worn = wears(s, m, id);
           const dt = gearDelta(s, m, id);
           const good = deltaScore(dt) > 0;
           const chip = add(scene.add.container(x + 70, top + 148));

@@ -1,5 +1,6 @@
 // 自動配裝／點技能（通關機器人與平衡模擬用；玩家不會用到）。
-import { ITEM_DEFS, SLOTS } from '../../data/equipment';
+import { ITEM_DEFS } from '../../data/equipment';
+import { EQUIP_SLOTS, slotType } from '../../data/rules';
 import { buy, buyPrice, canEquip, equip, wornTemplate } from './equip';
 import { bagIds } from './gear';
 import { learn, learnState, treeFor } from './skillTree';
@@ -14,15 +15,16 @@ const score = (id: string | undefined): number => {
 export function autoOutfit(s: GameState, stock: readonly string[] = [], keepGold = 60): number {
   let n = 0;
   for (const m of s.party as MemberId[]) {
-    for (const slot of SLOTS) {
+    for (const slot of EQUIP_SLOTS) {
+      const type = slotType(slot);
       const cur = wornTemplate(s, m, slot);
-      const owned = bagIds(s).filter((id) => ITEM_DEFS[id]?.slot === slot && canEquip(m, ITEM_DEFS[id]));
+      const owned = bagIds(s).filter((id) => ITEM_DEFS[id]?.slot === type && canEquip(m, ITEM_DEFS[id]));
       const bestOwned = owned.sort((a, b) => score(b) - score(a))[0];
-      if (bestOwned && score(bestOwned) > score(cur) && equip(s, m, bestOwned)) { n++; continue; }
-      const shop = stock.filter((id) => ITEM_DEFS[id]?.slot === slot && canEquip(m, ITEM_DEFS[id]) && score(id) > score(cur))
+      if (bestOwned && score(bestOwned) > score(cur) && equip(s, m, bestOwned, slot)) { n++; continue; }
+      const shop = stock.filter((id) => ITEM_DEFS[id]?.slot === type && canEquip(m, ITEM_DEFS[id]) && score(id) > score(cur))
         .sort((a, b) => score(b) - score(a))
         .find((id) => s.gold - buyPrice(id) >= keepGold);
-      if (shop && buy(s, shop) && equip(s, m, shop)) n++;
+      if (shop && buy(s, shop) && equip(s, m, shop, slot)) n++;
     }
   }
   return n;

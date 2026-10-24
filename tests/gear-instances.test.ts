@@ -13,7 +13,7 @@ function v1Save(): Record<string, unknown> {
   s.version = 1;
   s.inventory = { potion_s: 3, lantern_tin: 2, armor_leather: 1, gift_flower: 1 };
   s.members = {
-    lian: { id: 'lian', level: 6, xp: 0, hp: 100, equipment: { weapon: 'lantern_brass', charm: 'first_lamp' } },
+    lian: { id: 'lian', level: 6, xp: 0, hp: 100, equipment: { weapon: 'lantern_brass', charm: 'ring_swift' } },
     io: { id: 'io', level: 6, xp: 0, hp: 80, equipment: { armor: 'armor_cloth' } },
   };
   s.party = ['lian', 'io'];
@@ -65,7 +65,7 @@ describe('裝備實例', () => {
     const a = createInstance(s, 'ring_swift', 'drop');
     expect(equip(s, 'io', a.instanceId)).toBe(true);
     expect(equip(s, 'lian', a.instanceId)).toBe(false);
-    expect(wornTemplate(s, 'lian', 'charm')).toBeUndefined();
+    expect(wornTemplate(s, 'lian', 'charm1')).toBeUndefined();
   });
 
   it('同種子同操作序列 → 同樣的 instanceId', () => {
@@ -93,18 +93,18 @@ describe('裝備實例', () => {
   });
 });
 
-describe('存檔 v1 → v2', () => {
-  it('目前版本是 2', () => expect(SAVE_VERSION).toBe(2));
+describe('存檔 v1 → v3', () => {
+  it('目前版本是 3', () => expect(SAVE_VERSION).toBe(3));
 
   it('背包裡的裝備與身上的模板 id 都換成實例；消耗品與禮物不動；數值不變', () => {
     const s = deserialize(JSON.stringify(v1Save()))!;
     expect(s).not.toBeNull();
-    expect(s.version).toBe(2);
+    expect(s.version).toBe(3);
     expect(s.inventory).toEqual({ potion_s: 3, gift_flower: 1 });
     expect(bagCount(s, 'lantern_tin')).toBe(2);
     expect(bagCount(s, 'armor_leather')).toBe(1);
     expect(wornTemplate(s, 'lian', 'weapon')).toBe('lantern_brass');
-    expect(wornTemplate(s, 'lian', 'charm')).toBe('first_lamp');
+    expect(wornTemplate(s, 'lian', 'charm1')).toBe('ring_swift');
     expect(wornTemplate(s, 'io', 'armor')).toBe('armor_cloth');
     expect(Object.values(s.gear)).toHaveLength(6);
     expect(Object.values(s.gear).every((g) => g.originMode === 'migrated')).toBe(true);
@@ -126,7 +126,7 @@ describe('存檔 v1 → v2', () => {
     kv.setItem(AUTO_KEY, text);
     const store = new SaveStore(kv);
     const s = store.load();
-    expect(s?.version).toBe(2);
+    expect(s?.version).toBe(3);
     expect(kv.getItem(preMigrationKey(1))).toBe(text);
     store.save(s!);
     expect(kv.getItem(preMigrationKey(1))).toBe(text); // 存新檔不會覆蓋備份
@@ -146,5 +146,53 @@ describe('存檔 v1 → v2', () => {
 
   it('沒有對應 migration 的版本回傳 null', () => {
     expect(deserialize(JSON.stringify({ ...v1Save(), version: 0 }))).toBeNull();
+  });
+});
+
+describe('6 格裝備（design/14 階段 2.2）', () => {
+  it('v2 存檔的 charm → charm1', () => {
+    const v2 = newGame(0, 5) as unknown as Record<string, unknown>;
+    const s0 = newGame(0, 5);
+    const inst = createInstance(s0, 'ring_swift', 'shop');
+    v2.version = 2;
+    v2.gear = s0.gear;
+    v2.members = { lian: { id: 'lian', level: 3, xp: 0, hp: 90, equipment: { charm: inst.instanceId } } };
+    const s = deserialize(JSON.stringify(v2))!;
+    expect(s.members.lian!.equipment).toEqual({ charm1: inst.instanceId });
+    expect(wornTemplate(s, 'lian', 'charm1')).toBe('ring_swift');
+  });
+
+  it('飾品可以戴 2 個：先填空格，指定格子可以替換；數值兩個都算', () => {
+    const s = newGame(0, 6);
+    const a = createInstance(s, 'ring_swift', 'shop');
+    const b = createInstance(s, 'charm_ember', 'shop');
+    expect(equip(s, 'lian', a.instanceId)).toBe(true);
+    expect(equip(s, 'lian', b.instanceId)).toBe(true);
+    expect(s.members.lian!.equipment).toMatchObject({ charm1: a.instanceId, charm2: b.instanceId });
+    const c = createInstance(s, 'ring_swift', 'shop');
+    expect(equip(s, 'lian', c.instanceId, 'charm2')).toBe(true);
+    expect(s.members.lian!.equipment.charm2).toBe(c.instanceId);
+    expect(bagCount(s, 'charm_ember')).toBe(1);
+    const spd = gearBonus(s, 'lian').spd;
+    unequip(s, 'lian', 'charm1');
+    expect(gearBonus(s, 'lian').spd).toBeLessThan(spd);
+  });
+
+  it('武器不能放進飾品格；頭飾、星燼核心目前沒有模板', () => {
+    const s = newGame(0, 7);
+    const w = createInstance(s, 'lantern_tin', 'shop');
+    expect(equip(s, 'lian', w.instanceId, 'charm1')).toBe(true); // 指定不合法的格子 → 放回武器格
+    expect(s.members.lian!.equipment).toEqual({ weapon: w.instanceId });
+  });
+});
+
+describe('讀檔保險', () => {
+  it('部位不符或找不到實例的欄位會被卸下（實例留在背包）', () => {
+    const s0 = newGame(0, 8);
+    const w = createInstance(s0, 'first_lamp', 'drop');
+    s0.members.lian!.equipment = { charm1: w.instanceId, armor: 'ghost-id' };
+    const s = deserialize(serialize(s0))!;
+    expect(s.members.lian!.equipment).toEqual({});
+    expect(bagCount(s, 'first_lamp')).toBe(1);
   });
 });

@@ -5,7 +5,8 @@ import { SKILLS } from '../../core/battle/skills';
 import { canEquip, gearDelta, owns, wornTemplate } from '../../core/state/equip';
 import { bagCount, bagIds } from '../../core/state/gear';
 import type { MemberId } from '../../core/state/gameState';
-import { ITEM_DEFS, PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
+import { EQUIP_SLOT_NAME, ITEM_DEFS, PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, SLOT_NAME, itemDef } from '../../data/equipment';
+import { EQUIP_SLOTS, slotType, type EquipSlot } from '../../data/rules';
 import { TREE_BY_ID, branchName, effectText, type TreeNode } from '../../data/skillTree';
 import { bossPoints, branchPoints, learn, learnState, learned, missingText, nodeDesc, pointsLeft, rankOf, resetCost, treeFor } from '../../core/state/skillTree';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -39,7 +40,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
 
     let tab: Tab = start;
     let who: MemberId = s.party[0] ?? 'lian';
-    let slot: Slot | null = null;
+    let slot: EquipSlot | null = null;
     let page = 0;
     /** 技能樹：第一次點選取（看說明），再點一次才學 */
     let selNode: string | null = null;
@@ -219,26 +220,28 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         add(scene.add.text(x, sy + 12, `${st.base[k] + b}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5));
         if (b) add(scene.add.text(x + 56, sy + 14, `${b > 0 ? '+' : ''}${b}`, { fontFamily: UI_FONT, fontSize: '16px', color: b > 0 ? '#7dffb0' : '#ff9a9a' }).setOrigin(0, 0.5));
       });
-      // 欄位
-      const eq: Partial<Record<Slot, string>> = Object.fromEntries(SLOTS.map((sl) => [sl, wornTemplate(s, who, sl)]).filter(([, t]) => !!t));
-      SLOTS.forEach((sl, i) => {
-        const y = 440 + i * 96;
+      // 欄位（6 格：武器、防具、頭飾、飾品 ×2、星燼核心；design/14 階段 2.2）
+      const ROW0 = 412;
+      const RH = 62;
+      const eq: Partial<Record<EquipSlot, string>> = Object.fromEntries(EQUIP_SLOTS.map((sl) => [sl, wornTemplate(s, who, sl)]).filter(([, t]) => !!t));
+      EQUIP_SLOTS.forEach((sl, i) => {
+        const y = ROW0 + i * RH;
         const id = eq[sl];
         const on = slot === sl;
         const row = add(scene.add.container(GAME_WIDTH / 2, y));
         const bg = scene.add.graphics();
-        bg.fillStyle(on ? 0x2a2f52 : 0x151a30, 1).fillRoundedRect(-310, -42, 620, 84, 14);
-        bg.lineStyle(on ? 3 : 1.5, on ? 0xffd27a : 0x4a5380, 1).strokeRoundedRect(-310, -42, 620, 84, 14);
+        bg.fillStyle(on ? 0x2a2f52 : 0x151a30, 1).fillRoundedRect(-310, -28, 620, 56, 12);
+        bg.lineStyle(on ? 3 : 1.5, on ? 0xffd27a : 0x4a5380, 1).strokeRoundedRect(-310, -28, 620, 56, 12);
         row.add(bg);
-        row.add(scene.add.text(-290, 0, SLOT_NAME[sl], { fontFamily: UI_FONT, fontSize: '20px', color: '#8a94b8' }).setOrigin(0, 0.5));
+        row.add(scene.add.text(-292, 0, EQUIP_SLOT_NAME[sl], { fontFamily: UI_FONT, fontSize: '18px', color: '#8a94b8' }).setOrigin(0, 0.5));
         if (id) {
-          row.add(itemIcon(scene, id, -186, 0, 62));
-          row.add(scene.add.text(-146, -15, itemDef(id).name, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: itemNameColor(id) }).setOrigin(0, 0.5));
-          row.add(scene.add.text(-146, 17, bonusText(itemDef(id).bonus) + (itemDef(id).perk ? `　✦${PERK_INFO[itemDef(id).perk!].name}` : ''), { fontFamily: UI_FONT, fontSize: '18px', color: '#7dffb0' }).setOrigin(0, 0.5));
-        } else row.add(scene.add.text(-186, 0, '（空）', { fontFamily: UI_FONT, fontSize: '22px', color: '#4a5378' }).setOrigin(0, 0.5));
+          row.add(itemIcon(scene, id, -170, 0, 44));
+          row.add(scene.add.text(-140, -11, itemDef(id).name, { fontFamily: UI_FONT, fontSize: '21px', fontStyle: '700', color: itemNameColor(id) }).setOrigin(0, 0.5));
+          row.add(scene.add.text(-140, 13, bonusText(itemDef(id).bonus) + (itemDef(id).perk ? `　✦${PERK_INFO[itemDef(id).perk!].name}` : ''), { fontFamily: UI_FONT, fontSize: '15px', color: '#7dffb0' }).setOrigin(0, 0.5));
+        } else row.add(scene.add.text(-170, 0, '（空）', { fontFamily: UI_FONT, fontSize: '19px', color: '#4a5378' }).setOrigin(0, 0.5));
         const n = candidates(sl).length;
-        row.add(scene.add.text(296, 0, n ? `可換 ${n} ▸` : '▸', { fontFamily: UI_FONT, fontSize: '20px', color: n ? '#ffd27a' : '#4a5378' }).setOrigin(1, 0.5));
-        row.setSize(620, 84).setInteractive({ useHandCursor: true });
+        row.add(scene.add.text(296, 0, n ? `可換 ${n} ▸` : '▸', { fontFamily: UI_FONT, fontSize: '18px', color: n ? '#ffd27a' : '#4a5378' }).setOrigin(1, 0.5));
+        row.setSize(620, 56).setInteractive({ useHandCursor: true });
         onTap(row, () => {
           slot = on ? null : sl;
           page = 0;
@@ -247,18 +250,18 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         });
       });
       // 候選清單
-      const ly = 740;
+      const ly = ROW0 + EQUIP_SLOTS.length * RH + 6;
       if (!slot) {
-        add(scene.add.text(GAME_WIDTH / 2, ly + 120, '點欄位，從行囊挑一件換上。\n錢不夠？去打怪、開寶箱，或把用不到的賣掉。', { fontFamily: UI_FONT, fontSize: '21px', color: '#6a7398', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+        add(scene.add.text(GAME_WIDTH / 2, ly + 110, '點欄位，從行囊挑一件換上。\n錢不夠？去打怪、開寶箱，或把用不到的賣掉。', { fontFamily: UI_FONT, fontSize: '21px', color: '#6a7398', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
         return;
       }
       const sl = slot;
       const opts: (string | null)[] = [...candidates(sl), ...(eq[sl] ? [null] : [])];
       if (opts.length === 0) {
-        add(scene.add.text(GAME_WIDTH / 2, ly + 120, `行囊裡沒有${withNames(heroName(who))}能用的${SLOT_NAME[sl]}。`, { fontFamily: UI_FONT, fontSize: '22px', color: '#6a7398' }).setOrigin(0.5));
+        add(scene.add.text(GAME_WIDTH / 2, ly + 110, slotType(sl) === 'head' || slotType(sl) === 'core' ? `${EQUIP_SLOT_NAME[sl]}會在星燼深淵掉落（即將開放）。` : `行囊裡沒有${withNames(heroName(who))}能用的${EQUIP_SLOT_NAME[sl]}。`, { fontFamily: UI_FONT, fontSize: '22px', color: '#6a7398' }).setOrigin(0.5));
         return;
       }
-      const per = 4;
+      const per = 3;
       const pages = Math.ceil(opts.length / per);
       page = Math.min(page, pages - 1);
       opts.slice(page * per, page * per + per).forEach((id, i) => {
@@ -269,20 +272,20 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         bg.lineStyle(1.5, 0x3a4270, 1).strokeRoundedRect(-290, -36, 580, 72, 12);
         row.add(bg);
         if (id) {
-          const dt = gearDelta(s, who, id);
+          const dt = gearDelta(s, who, id, sl);
           const good = deltaScore(dt) > 0;
           row.add(itemIcon(scene, id, -250, 0, 54));
           row.add(scene.add.text(-212, -13, `${itemDef(id).name} ×${bagCount(s, id)}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: itemNameColor(id) }).setOrigin(0, 0.5));
           row.add(scene.add.text(-212, 16, bonusText(itemDef(id).bonus), { fontFamily: UI_FONT, fontSize: '16px', color: '#9aa4cc' }).setOrigin(0, 0.5));
           row.add(scene.add.text(276, 0, deltaText(dt) || '一樣', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: good ? '#7dffb0' : '#ff9a9a' }).setOrigin(1, 0.5));
-        } else row.add(scene.add.text(0, 0, `卸下${SLOT_NAME[sl]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5));
+        } else row.add(scene.add.text(0, 0, `卸下${EQUIP_SLOT_NAME[sl]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5));
         row.setSize(580, 72).setInteractive({ useHandCursor: true });
         onTap(row, () => {
-          if (id) gameApi.equip(opId('equip'), { member: who, ref: id });
+          if (id) gameApi.equip(opId('equip'), { member: who, ref: id, slot: sl });
           else gameApi.unequip(opId('unequip'), { member: who, slot: sl });
           SFX.confirm();
           pressBounce(scene, row);
-          sparks(scene, GAME_WIDTH / 2, 440 + SLOTS.indexOf(sl) * 96, 12, 'spark', 0x7dffb0);
+          sparks(scene, GAME_WIDTH / 2, ROW0 + EQUIP_SLOTS.indexOf(sl) * RH, 12, 'spark', 0x7dffb0);
           slot = null;
           session.save();
           render();
@@ -291,8 +294,8 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
       if (pages > 1) pager(ly + per * 84 + 30, pages);
     };
 
-    const candidates = (sl: Slot): string[] =>
-      bagIds(s).filter((id) => itemDef(id).slot === sl && canEquip(who, itemDef(id)));
+    const candidates = (sl: EquipSlot): string[] =>
+      bagIds(s).filter((id) => itemDef(id).slot === slotType(sl) && canEquip(who, itemDef(id)));
 
     const pager = (y: number, pages: number): void => {
       add(scene.add.text(GAME_WIDTH / 2, y, `${page + 1} / ${pages}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#aab4dd' }).setOrigin(0.5));

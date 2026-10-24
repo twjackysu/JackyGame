@@ -2,7 +2,7 @@
 // 現在由 LocalGameApi（同一個程式裡直接呼叫）實作；連線版換成 RemoteGameApi（fetch），介面不變。
 // 所有輸入輸出都是可序列化的純資料；每個操作帶 operationId（重複送出不重複扣款或給獎）。
 import type { MemberId } from '../core/state/gameState';
-import type { Slot } from '../data/equipment';
+import type { EquipSlot } from '../data/rules';
 
 export type ConsumableId = 'potion_s' | 'potion_m' | 'lamp_oil' | 'blast_bottle';
 
@@ -48,8 +48,8 @@ export interface GameApi {
   buy(operationId: string, req: { itemId: string; discountPct?: number }): ApiResult;
   sell(operationId: string, req: { itemId: string }): ApiResult;
   /** ref：instanceId，或模板 id（取背包裡第一件） */
-  equip(operationId: string, req: { member: MemberId; ref: string }): ApiResult;
-  unequip(operationId: string, req: { member: MemberId; slot: Slot }): ApiResult;
+  equip(operationId: string, req: { member: MemberId; ref: string; slot?: EquipSlot }): ApiResult;
+  unequip(operationId: string, req: { member: MemberId; slot: EquipSlot }): ApiResult;
   /** 技能樹重置（營火外收費） */
   resetTree(operationId: string, req: { member: MemberId; atCamp: boolean }): ApiResult;
   /** 開地圖上的寶箱（內容由伺服器端的地圖資料決定） */

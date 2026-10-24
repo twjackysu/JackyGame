@@ -1,6 +1,6 @@
 // 存讀檔（版本化 + migration + 備份）。見 docs/design/06-tech-architecture.md §3.5。
 import { SAVE_VERSION, newGame, type GameState } from '../state/gameState';
-import { migrateGearV1 } from '../state/gear';
+import { migrateGearV1, sanitizeEquipment } from '../state/gear';
 import { hashSeed } from '../rng';
 import { newRngState } from '../rngStreams';
 import type { Repository } from '../../server/ports';
@@ -26,6 +26,16 @@ const migrations: Record<number, Migration> = {
     if (!raw.inventory || typeof raw.inventory !== 'object') raw.inventory = {};
     if (!raw.members || typeof raw.members !== 'object') raw.members = {};
     migrateGearV1(raw as unknown as GameState);
+    return raw;
+  },
+  // v2 → v3：6 格裝備（design/14 階段 2.2）：舊的 charm 欄位 → charm1
+  2: (raw) => {
+    for (const m of Object.values((raw.members ?? {}) as Record<string, { equipment?: Record<string, string> } | null>)) {
+      const eq = m?.equipment;
+      if (!eq || typeof eq !== 'object' || !('charm' in eq)) continue;
+      if (eq.charm && !eq.charm1) eq.charm1 = eq.charm;
+      delete eq.charm;
+    }
     return raw;
   },
 };
@@ -60,7 +70,13 @@ export function deserialize(text: string): GameState | null {
   }
   // 以新遊戲為底補齊缺漏欄位（未來加欄位時舊檔不會壞）
   const base = newGame(0) as unknown as Record<string, unknown>;
-  return { ...base, ...raw } as unknown as GameState;
+  const s = { ...base, ...raw } as unknown as GameState;
+  try {
+    sanitizeEquipment(s);
+  } catch {
+    return null;
+  }
+  return s;
 }
 
 /** 記憶體 KV：localStorage 不可用（隱私模式）時的退路。 */

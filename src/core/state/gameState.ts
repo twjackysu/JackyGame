@@ -4,6 +4,7 @@ import { ITEM_DEFS } from '../../data/equipment';
 import { hashSeed } from '../rng';
 import { newRngState, type RngState } from '../rngStreams';
 import { addItem, hasTemplate, type EquipmentInstance } from './gear';
+import type { EquipSlot } from '../../data/rules';
 export type StatKey = 'str' | 'agi' | 'int' | 'cha';
 export type Faction = 'order' | 'town' | 'miners' | 'caravan';
 export type CompanionId = 'serin' | 'liora' | 'io' | 'rourke';
@@ -17,7 +18,7 @@ export interface MemberState {
   hp: number; // 目前 HP（戰鬥外保留）
   guest?: boolean; // 客座（洛克第 1 章）
   /** 各欄位穿著的 instanceId（見 gear.ts；v1 存檔是模板 id，讀檔時升級） */
-  equipment: { weapon?: string; armor?: string; charm?: string };
+  equipment: Partial<Record<EquipSlot, string>>;
 }
 
 export interface GameState {
@@ -51,8 +52,8 @@ export interface GameState {
   rng: RngState;
 }
 
-/** v2：裝備實例化（gear）。v1→v2 migration 在 core/save/save.ts */
-export const SAVE_VERSION = 2;
+/** v2：裝備實例化（gear）。v3：6 格裝備（charm → charm1）。migration 在 core/save/save.ts */
+export const SAVE_VERSION = 3;
 
 export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 

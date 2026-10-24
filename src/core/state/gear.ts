@@ -6,7 +6,7 @@
 import { ITEM_DEFS } from '../../data/equipment';
 import { drawU32 } from '../rngStreams';
 import type { GameState } from './gameState';
-import type { Tier } from '../../data/rules';
+import { slotType, type EquipSlot, type Tier } from '../../data/rules';
 
 export type GearOrigin = 'story' | 'shop' | 'drop' | 'migrated' | 'ngplus';
 
@@ -144,6 +144,18 @@ export function migrateGearV1(raw: GameState): void {
         continue;
       }
       (m.equipment as Record<string, string>)[slot] = createInstance(raw, id, 'migrated').instanceId;
+    }
+  }
+}
+
+/** 讀檔後的保險：欄位裡找不到實例、或部位不符（例：武器在飾品格）→ 卸下（實例留在背包） */
+export function sanitizeEquipment(s: GameState): void {
+  for (const m of Object.values(s.members ?? {})) {
+    if (!m?.equipment) continue;
+    for (const [sl, id] of Object.entries(m.equipment) as [EquipSlot, string | undefined][]) {
+      const inst = id ? s.gear?.[id] : undefined;
+      const t = inst ? ITEM_DEFS[inst.templateId]?.slot : undefined;
+      if (!inst || !t || slotType(sl) !== t) delete m.equipment[sl];
     }
   }
 }

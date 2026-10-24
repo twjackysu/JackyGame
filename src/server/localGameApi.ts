@@ -16,7 +16,8 @@ import { chestFlag } from '../core/explore/area';
 import { AREAS } from '../data/areas';
 import { firstKillFlag, rollDrops } from '../data/drops';
 import { BOSS_POINT_KILLS } from '../data/skillTree';
-import { ITEM_DEFS, type Slot } from '../data/equipment';
+import { ITEM_DEFS } from '../data/equipment';
+import type { EquipSlot } from '../data/rules';
 import { RULES_VERSION } from '../data/rules';
 
 const CONSUMABLES: readonly ConsumableId[] = ['potion_s', 'potion_m', 'lamp_oil', 'blast_bottle'];
@@ -149,11 +150,11 @@ export class LocalGameApi implements GameApi {
     });
   }
 
-  equip(operationId: string, req: { member: MemberId; ref: string }): ApiResult {
-    return this.run(operationId, 'equip', req, (s) => (equip(s, req.member, req.ref) ? { ok: true } : { ok: false, error: 'cannot_equip' }));
+  equip(operationId: string, req: { member: MemberId; ref: string; slot?: EquipSlot }): ApiResult {
+    return this.run(operationId, 'equip', req, (s) => (equip(s, req.member, req.ref, req.slot) ? { ok: true } : { ok: false, error: 'cannot_equip' }));
   }
 
-  unequip(operationId: string, req: { member: MemberId; slot: Slot }): ApiResult {
+  unequip(operationId: string, req: { member: MemberId; slot: EquipSlot }): ApiResult {
     return this.run(operationId, 'unequip', req, (s) => (unequip(s, req.member, req.slot) ? { ok: true } : { ok: false, error: 'not_owned' }));
   }
 
