@@ -25,6 +25,8 @@
 | ![沉鐘礦坑](docs/screenshots/15-mine.jpg) | ![技能樹](docs/screenshots/17-skilltree.jpg) | ![收藏](docs/screenshots/18-codex.jpg) |
 | **強化 +6（成功率、祝福、費用一目了然）** | **一鍵分解（兩段確認）** | **刷到的詞綴與比較** |
 | ![強化](docs/screenshots/19-enhance.jpg) | ![分解](docs/screenshots/20-salvage.jpg) | ![詞綴](docs/screenshots/21-affix.jpg) |
+| **新：即時戰鬥試玩（預告＋格擋反擊）** | | |
+| ![即時戰鬥](docs/screenshots/22-realtime.jpg) | | |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。圖片：主要角色立繪、Q 版戰鬥圖、標題主視覺、Boss、小怪、地圖物件與道具圖示由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單見 `docs/ART_REQUESTS.md`）；地面圖塊、裝飾物件、光影、粒子、配角立繪等仍是程式繪製（`src/game/art/`），每張 AI 圖都有程式備援。
 
@@ -51,6 +53,7 @@
 - **選擇與後果**：屬性檢定、聲望、延遲回收的選擇、多結局。
 
 ## 怎麼玩
+- **即時戰鬥試玩（開發中）**：https://twjackysu.github.io/JackyGame/?debug&scene=RtBattle&stage=wolf_king （左下搖桿、右下技能＋閃避；`stage=forest_entry`／`wolf_den`／`forest_deep`／`elite_pack`）
 - **PWA（任何手機瀏覽器）**：https://twjackysu.github.io/JackyGame/ 
   - iOS Safari：分享 → 加入主畫面；Android Chrome：選單 → 安裝應用程式。之後可離線遊玩。
 - **Android APK**：[Releases → latest](https://github.com/twjackysu/JackyGame/releases/tag/latest) 下載 `jackygame-debug.apk`，允許「安裝未知來源應用程式」後安裝。
@@ -76,7 +79,7 @@
 | 11 | 10/24 20:12 | **長尾刷寶地基**（Jacky 拍板的暗黑／RO 式方向）：可重現的分流亂數、**每件裝備獨立實例**（之後可強化、帶詞綴）＋存檔自動升級、**6 格裝備**（頭飾、雙飾品、星燼核心）、可搬到伺服器的 `GameApi`（買賣、寶箱、掉落都經它並記事件）；**效果觸發框架**（含防無限循環）、**強化 +10**（10 萬次模擬校準：P99 從 200 次降到 34 次）、21 條隨機詞綴與保底、重鑄、分解 |
 | 12 | 10/24 22:12 | **長尾刷寶「摸得到」**：強化 UI（金光／灰煙演出、祝福條）、分解與上鎖、主線戰鬥掉材料、稀有掉落帶詞綴並算進數值、三層裝備 UI（先看詳情再換上、稀有度外框）。同一時間 Jacky 拍板改成**單人即時動作戰鬥**（D-062／063／065），當輪就做出**即時戰鬥核心第一版**（純 TS、30 ticks/秒、可重現、劍士四技能＋閃避、敵人範圍預告、霧角狼王兩階段、五個原型關卡、四種操作模型的 Bot 與無畫面模擬器）；畫面接入等 Jacky 試玩決定 |
 
-**統計**（2026-10-24 第 12 輪）：執行 12 輪、約 178 個 commit、488 項自動測試、TypeScript 約 2.75 萬行、62 張 AI 美術圖、0 個音訊素材檔。
+**統計**（2026-10-24 第 12 輪）：執行 12 輪、約 180 個 commit、489 項自動測試、TypeScript 約 2.75 萬行、62 張 AI 美術圖、0 個音訊素材檔。
 
 ## 開發
 ```bash
