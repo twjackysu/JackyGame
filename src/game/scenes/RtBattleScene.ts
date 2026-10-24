@@ -31,6 +31,8 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   wolf_king: { key: 'enemy_boss_wolfking', h: 3.0, flip: false },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
+const fx0 = (x: Unit): number => x.facingX / 1000;
+const fy0 = (x: Unit): number => x.facingY / 1000;
 
 export class RtBattleScene extends Phaser.Scene {
   private s!: BattleState;
@@ -64,6 +66,8 @@ export class RtBattleScene extends Phaser.Scene {
   private camX = 0;
   private camY = 0;
   private hint: Phaser.GameObjects.Container | null = null;
+  /** 已播過特效的技能段（`施放 tick:段`） */
+  private fxDone = new Set<string>();
 
   constructor() {
     super('RtBattle');
@@ -90,6 +94,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.prev.clear();
     this.sprites.clear();
     this.flashUntil.clear();
+    this.fxDone.clear();
     this.hitStop = 0;
     const p0 = playerOf(this.s);
     this.camX = p0.x;
@@ -211,6 +216,7 @@ export class RtBattleScene extends Phaser.Scene {
       step(this.s, this.commands());
       this.acc -= STEP_MS;
       n++;
+      this.skillFx();
       // 事件逐 tick 播放，命中停頓才能卡在正確的那一下
       this.playEvents();
       if (this.hitStop > 0) {
@@ -298,6 +304,11 @@ export class RtBattleScene extends Phaser.Scene {
         // 命中停頓：暴擊／反擊／技能較長，普攻短一點；被打不停頓（避免拖慢閃避判斷）
         if (!toPlayer && e.origin !== 'dot') this.hitStop = Math.max(this.hitStop, e.crit || e.origin === 'counter' ? 70 : e.origin === 'skill' ? 45 : 25);
         if (!toPlayer && (e.crit || e.origin === 'counter')) this.cameras.main.shake(70, 0.003);
+        const src = u(e.src);
+        if (src && src.side === 'player' && e.origin === 'normal') {
+          this.slash(src.x, src.y, Math.atan2(d.y - src.y, d.x - src.x), 150, 110, e.crit ? 0xffd05a : 0xffffff, 5);
+          this.knock(d.id, d.x - src.x, d.y - src.y, 10);
+        } else if (src && src.side === 'player' && e.origin !== 'dot') this.knock(d.id, d.x - src.x, d.y - src.y, 16);
         floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : 26 });
         if (!toPlayer && e.origin !== 'dot') {
           SFX.hitLight();
@@ -310,6 +321,8 @@ export class RtBattleScene extends Phaser.Scene {
         this.hitStop = Math.max(this.hitStop, 110);
         const p = playerOf(this.s);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0x7dffb0, 90, 300, 6);
+        const cs = SKILLS.parry?.block?.counter.shape;
+        if (cs?.type === 'sector') this.slash(p.x, p.y, Math.atan2(p.facingY, p.facingX), cs.r, cs.deg + 30, 0x7dffb0, 10);
         bigText(this, this.sx(p.x), this.sy(p.y) - 80, '格擋！', '#7dffb0', 40, 300);
       } else if (e.type === 'dodged') {
         const p = playerOf(this.s);
@@ -402,6 +415,73 @@ export class RtBattleScene extends Phaser.Scene {
     return this.add.image(0, 0, key).setOrigin(0).setDisplayOrigin(PAD, PAD);
   }
 
+  /** 刀光：以 (wx, wy) 為圓心、朝 ang 掃過 deg 度的弧（世界單位半徑 wr），疊三層、ADD 混色 */
+  private slash(wx: number, wy: number, ang: number, wr: number, deg: number, color: number, width: number): void {
+    const g = this.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
+    const cx = this.sx(wx);
+    const cy = this.sy(wy);
+    const r = wr * this.k;
+    const h = (deg / 2) * (Math.PI / 180);
+    const draw = (t: number) => {
+      g.clear();
+      const end = ang - h + 2 * h * Math.min(1, t * 1.6);
+      for (let i = 0; i < 3; i++) {
+        g.lineStyle(width * (1.6 - i * 0.45), i === 2 ? 0xffffff : color, (1 - t) * (0.35 + i * 0.3));
+        g.beginPath().arc(cx, cy, r * (0.82 + i * 0.09), ang - h, end).strokePath();
+      }
+    };
+    draw(0);
+    this.tweens.addCounter({ from: 0, to: 1, duration: 170, onUpdate: (tw) => draw(tw.getValue() ?? 1), onComplete: () => g.destroy() });
+  }
+
+  /** 旋轉刀環（旋風斬／劍刃風暴） */
+  private spin(wx: number, wy: number, wr: number, color: number, start: number): void {
+    for (let i = 0; i < 2; i++) this.slash(wx, wy, start + i * Math.PI, wr, 160, color, 7);
+    shockRing(this, this.sx(wx), this.sy(wy), color, wr * this.k, 220, 4);
+  }
+
+  /** 受擊位移（只在畫面上，不影響模擬座標） */
+  private knock(id: number, dx: number, dy: number, px: number): void {
+    const sp = this.sprites.get(id);
+    if (!sp) return;
+    const d = Math.hypot(dx, dy) || 1;
+    sp.setData('kx', (dx / d) * px);
+    sp.setData('ky', (dy / d) * px * 0.6);
+    sp.setData('kUntil', this.time.now + 110);
+  }
+
+  /** 技能每段命中的刀光（資料驅動：依命中形狀畫，不寫 switch(skillId)） */
+  private skillFx(): void {
+    const p = playerOf(this.s);
+    const a = p.action;
+    if (!a || a.kind !== 'skill') return;
+    const sk = SKILLS[a.id];
+    if (!sk) return;
+    const k = this.s.tick - a.start;
+    sk.hits.forEach((h, i) => {
+      const key = `${a.start}:${i}`;
+      if (k < h.atTick || this.fxDone.has(key)) return;
+      this.fxDone.add(key);
+      const ang = Math.atan2(a.dirY, a.dirX);
+      const big = h.mult >= 150;
+      if (sk.dash) {
+        // 衝鋒：身後殘影線
+        const g = this.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+        const L = 90 * this.k;
+        const px = this.sx(p.x);
+        const py = this.sy(p.y);
+        for (let j = -1; j <= 1; j++) {
+          g.lineStyle(4 - Math.abs(j), 0x9fd8ff, 0.8).lineBetween(px - Math.sin(ang) * j * 14, py + Math.cos(ang) * j * 14, px - Math.cos(ang) * L - Math.sin(ang) * j * 14, py - Math.sin(ang) * L + Math.cos(ang) * j * 14);
+        }
+        this.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
+      } else if (h.shape.type === 'circle') this.spin(p.x, p.y, h.shape.r, big ? 0xffd05a : 0x9fd8ff, (this.time.now / 90) % (Math.PI * 2));
+      else if (h.shape.type === 'sector') {
+        this.slash(p.x, p.y, ang, h.shape.r, h.shape.deg + 30, big ? 0xffd05a : 0x9fd8ff, big ? 10 : 7);
+        if (big) this.cameras.main.shake(80, 0.004);
+      }
+    });
+  }
+
   private killSprite(id: number): void {
     const sp = this.sprites.get(id);
     if (!sp) return;
@@ -473,7 +553,12 @@ export class RtBattleScene extends Phaser.Scene {
         const bob = moving ? Math.abs(Math.sin(now / 90 + x.id)) * r * 0.12 : Math.sin(now / 400 + x.id) * r * 0.03;
         // 蓄力：往後縮、放大一點點（敵人出招前的身體語言）
         const squash = winding ? 1 + 0.06 * Math.sin(now / 40) : 1;
-        sp.setPosition(px, py + r * 0.15 - bob).setDepth(10 + pos.y / 100);
+        const kOn = ((sp.getData('kUntil') as number | undefined) ?? 0) > now;
+        const kx = kOn ? ((sp.getData('kx') as number) ?? 0) : 0;
+        const ky = kOn ? ((sp.getData('ky') as number) ?? 0) : 0;
+        // 玩家普攻／施放時往前踏一點
+        const lunge = isP && x.action && (x.action.kind === 'attack' || x.action.kind === 'skill') ? Math.min(1, (s.tick - x.action.start) / 6) * r * 0.25 : 0;
+        sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - bob + ky + (fy0(x) * lunge)).setDepth(10 + pos.y / 100);
         if (sp.scaleY !== 0 && !this.tweens.isTweening(sp)) sp.setScale(base * squash, base / squash);
         if (cfg.flip && x.facingX !== 0) sp.setFlipX(x.facingX < 0);
         sp.setAlpha(inv ? 0.45 : 1);
