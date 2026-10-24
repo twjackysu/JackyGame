@@ -6,6 +6,13 @@
 > 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch5.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`、`waiting`）；敵人/遭遇 `src/data/combatants.ts`（`phase2` 字卡、`mark`/`seal`、traits `erase`/`eyeShield`/`finale`）；羈絆 `src/data/bonds.ts` + `src/game/ui/bondPanel.ts`；片尾 `src/game/credits.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；音樂 `src/audio/music.ts`（`chapterTrack`）。
 > 除錯入口：`?debug&chapter=2|3|4|5&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?debug&scene=Battle&enc=boss_starfall_2&party=lian,serin,io&lv=17`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
 
+> ⭐ **方向已改（D-038）：自由探索 RPG。** 先讀 `docs/design/11-open-world.md`。下面 A 系列是主線，照順序做；1～9 的舊打磨項目只在 A 系列卡住或空檔時做。
+
+A1. **ExploreScene 引擎（E1）**：`src/game/scenes/ExploreScene.ts` + `src/core/explore/`（純邏輯：ASCII 地圖解析、碰撞、A* 尋路、實體查詢，全部寫 vitest）。點地面走過去、按住拖曳虛擬搖桿、鏡頭跟隨、同伴跟隨。地塊先用程式生成材質（48px）。
+A2. **灰燈鎮第一張可走地圖**：`src/data/areas/greylamp.ts`（ASCII＋entities：NPC 對話接 `ch1` 現有劇本節點、門、告示、寶箱、出口）。主角用 `hero_lian` Q 版圖縮小（走路彈跳、左右翻轉）。從世界地圖（現有 MapScene）點「灰燈鎮」相關節點進入；不破壞原流程。
+A3. **存讀檔座標＋除錯 API**（`window.__explore.goto(id)`）＋ Playwright 截圖 ＋ 機器人能在探索場景推進。
+A4. 之後依 11-open-world.md 的 E2→E7。
+
 0. **【每輪開頭都做】檢查 Jacky 有沒有上傳手繪立繪**：`art-inbox/` 有圖或 GitHub 有標題含「立繪」的 Issue → `pip install "rembg[cpu]" --break-system-packages`、`node scripts/import-art.mjs`（流程見 D-036）；手繪會自動取代同名程式立繪。沒圖就照常往下做。
 1. **配角程式立繪與手繪主角的畫風落差**：主角群是 AI 厚塗，配角是賽璐珞程式繪。可做：配角立繪加一層柔光／顆粒（`ensurePortrait` 畫完後 soft-light 漸層＋邊緣暈影）讓質感接近；或在 FOR_JACKY 已請 Jacky 補 `npc_tia`／`npc_gwen`／`npc_bern`。
 2. **戰鬥圖已換成 Jacky 的 Q 版手繪**（程式背影 `animeSprites.ts` 只剩備援）：README 戰鬥截圖要重拍；檢查多段攻擊／死亡（灰化 tint）／PERFECT 演出在手繪圖上是否正常；敵人仍是程式剪影，Boss 瓦爾德蘭是 Q 版正面，跟其他敵人畫風有落差——可考慮請 Jacky 補 Boss（狼王、鐘喉蠕蟲、洛克、蝕星者）Q 版正面圖（檔名 `enemy_boss_wolfking.png` 等，需先在 import-art 加對應）。

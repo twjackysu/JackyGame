@@ -6,6 +6,8 @@
 
 🚧 **開發中**（2026-10-23 開工，11/05 成果發表）。主線已可從序章一路玩到終章三結局。進度見 [`docs/PROGRESS.md`](docs/PROGRESS.md)，計畫見 [`docs/PLAN.md`](docs/PLAN.md)。
 
+> 🧭 **10/24 起改版方向**：自由走動探索的經典 RPG（點擊移動、NPC 觸發劇情、商店裝備、技能搭配、自由戀愛線），見 [`docs/design/11-open-world.md`](docs/design/11-open-world.md)。
+
 ## 畫面
 
 | 標題 | 章節地圖 | 時機光環 |
