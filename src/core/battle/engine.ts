@@ -150,7 +150,7 @@ export interface Result {
 
 export interface CreateBattleOptions {
   /** bonus：裝備加成（src/core/state/equip.ts gearBonus） */
-  party: { id: HeroId; level: number; hp?: number; bonus?: Partial<BaseStats> }[];
+  party: { id: HeroId; level: number; hp?: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number }[];
   enemies: string[];
   seed: number;
   /** retryBoost：劇情戰連敗次數（不屈之燈）→ 開場星燼 +N、敵方攻擊 −5%/次（上限 4 次） */
@@ -188,7 +188,7 @@ export function createBattle(opts: CreateBattleOptions): Result {
     };
     return {
       side: 'hero', id: p.id, name: def.name, level: p.level, hp: p.hp ?? st.hp, maxHp: st.hp, atk: st.atk, def: st.def,
-      spd: st.spd, sp: START_SP, element: def.attackElement, weak: [], resist: [], status: freshStatus(), lamps: 0,
+      spd: st.spd, sp: Math.min(MAX_SP, START_SP + (p.startSp ?? 0)), element: def.attackElement, weak: [], resist: [], status: freshStatus(), lamps: 0,
       breakGauge: 0, breakMax: 0, broken: false, downed: (p.hp ?? st.hp) <= 0, bossPhase: 1, actionsPerRound: 1,
     };
   });
@@ -206,7 +206,7 @@ export function createBattle(opts: CreateBattleOptions): Result {
   if (boost > 0) for (const e of enemies) e.atk = Math.round(e.atk * (1 - 0.05 * boost));
   const lian = heroes.find((h) => h.id === 'lian');
   const state: BattleState = {
-    round: 0, heroes, enemies, ember: opts.flags?.tutorialEmber ? MAX_EMBER : Math.min(MAX_EMBER, START_EMBER + boost), phase: 'playerCommand',
+    round: 0, heroes, enemies, ember: opts.flags?.tutorialEmber ? MAX_EMBER : Math.min(MAX_EMBER, START_EMBER + boost + opts.party.reduce((n, p) => n + (p.startEmber ?? 0), 0)), phase: 'playerCommand',
     actor: null, queue: [], pendingCommand: null, pendingEnemy: null, rngState: opts.seed >>> 0,
     lampAtk: lian?.atk ?? 14, items: { ...(opts.items ?? {}) }, flags: { ...(opts.flags ?? {}) }, usedOnce: [],
     windowScale: 1, fogRounds: 0, telegraphLeadBonusMs: 0, leadBonusRounds: 0, rewindSnapshot: null,

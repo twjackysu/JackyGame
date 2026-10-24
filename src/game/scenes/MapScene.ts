@@ -22,6 +22,11 @@ const GREYLAMP_NODES = ['orphanage', 'tavern', 'general_store', 'town_gate'];
 const MISTWOOD_NODES = ['forest_edge', 'mist_lake', 'hunter_hut'];
 /** 屬於狼徑・古燈塔（可走區域）的地點 */
 const WOLFPATH_NODES = ['wolf_path', 'lighthouse', 'campfire', 'fallen_log', 'wolf_den'];
+/** 第 2 章地點 → 可走區域（D-042） */
+const CH2_AREA: Record<string, string> = {
+  greylamp_plaza: 'greylamp', miners_camp: 'minecamp', upper_tunnel: 'mine', mid_tunnel: 'mine', bell_hall: 'mine',
+  mine_campfire: 'mine', ore_cart: 'mine', deep_level: 'mine', bell_throat: 'mine',
+};
 
 type NodeState = 'locked' | 'open' | 'done' | 'waiting';
 
@@ -321,6 +326,12 @@ export class MapScene extends Phaser.Scene {
     if (id === 'ch1' && (GREYLAMP_NODES.includes(loc) || MISTWOOD_NODES.includes(loc) || WOLFPATH_NODES.includes(loc))) {
       const area = GREYLAMP_NODES.includes(loc) ? 'greylamp' : MISTWOOD_NODES.includes(loc) ? 'mistwood' : 'wolfpath';
       fadeOutThen(this, 400, () => this.scene.start('Explore', { area, spawn: loc }));
+      return;
+    }
+    // 第 2 章：灰燈鎮廣場／礦工營地／沉鐘礦坑都可以走
+    const ch2Area = id === 'ch2' ? CH2_AREA[loc] : undefined;
+    if (ch2Area) {
+      fadeOutThen(this, 400, () => this.scene.start('Explore', { area: ch2Area, spawn: loc === 'greylamp_plaza' ? 'plaza' : loc }));
       return;
     }
     fadeOutThen(this, 400, () => {

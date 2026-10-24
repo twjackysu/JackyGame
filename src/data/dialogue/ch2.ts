@@ -641,6 +641,13 @@ export const CH2: DialogueScript = {
       { goto: 'end' },
     ],
 
+    // ───────── 礦工營地補給站（探索中的商店） ─────────
+    camp_shop: [
+      { say: 'miner', text: '補給站開張！要下坑，燈油和藥別省。' },
+      { event: 'shop', id: 'ch2_camp' },
+      { goto: 'end' },
+    ],
+
     end: [],
   },
 };

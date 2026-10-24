@@ -128,6 +128,12 @@ export const GREYLAMP: AreaDef = {
       id: `plaza_lamp_${i + 1}`, kind: 'lamp' as const, x, y, name: '熄滅的路燈', requires: { flag: 'q_lamps' },
       lines: ['（路燈熄了，燈罩裡積滿灰。\n廣場上那位老燈伕，好像一直望著這裡。）'],
     })),
+    // ── 第 2 章：瑟琳在廣場等你（ch2 plaza） ──
+    {
+      id: 'serin_plaza', kind: 'npc', x: 9, y: 15, name: '瑟琳', look: { body: '#c8d4ff', hair: '#e8e8f0', hero: 'serin' },
+      talk: { script: 'ch2', node: 'plaza' }, done: 'ch2_serin_joined', after: 'map',
+      when: { all: [{ flag: 'ch1_complete' }, { flag: 'ch2_serin_joined', not: true }] },
+    },
     // ── 支線：霧菇與紅頭巾（露絲 → 森林蕈圈的米亞） ──
     {
       id: 'ruth', kind: 'npc', x: 16, y: 25, name: '露絲', look: { body: '#8a6a8a', hair: '#5a3a2a', art: 'walk_npc_ruth' },

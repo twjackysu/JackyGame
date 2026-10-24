@@ -15,6 +15,10 @@ export const WALKABLE: Record<string, boolean> = {
   W: false, // 城牆
   o: false, // 井
   f: false, // 柵欄
+  '#': false, // 岩壁（礦坑）
+  _: true, // 坑道地面
+  r: true, // 礦車軌道（直）
+  c: false, // 發光礦晶
 };
 
 export interface Rect {

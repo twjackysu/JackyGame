@@ -1,7 +1,7 @@
 // 商店與背包共用的小元件：道具圖示、數值文字、角色有效數值。
 import Phaser from 'phaser';
 import { statsAtLevel, type BaseStats } from '../../core/battle/formulas';
-import { gearBonus } from '../../core/state/equip';
+import { totalBonus } from '../../core/state/equip';
 import type { GameState, MemberId } from '../../core/state/gameState';
 import { HEROES } from '../../data/combatants';
 import { itemDef, type ItemDef } from '../../data/equipment';
@@ -57,7 +57,7 @@ export function itemSubline(d: ItemDef): string {
 export function memberStats(s: GameState, m: MemberId): { base: BaseStats; bonus: BaseStats; level: number } {
   const level = s.members[m]?.level ?? 1;
   const st = statsAtLevel(HEROES[m].base, level);
-  return { base: { hp: st.hp, atk: st.atk, def: st.def, spd: st.spd }, bonus: gearBonus(s, m), level };
+  return { base: { hp: st.hp, atk: st.atk, def: st.def, spd: st.spd }, bonus: totalBonus(s, m), level };
 }
 
 export function heroName(m: MemberId): string {

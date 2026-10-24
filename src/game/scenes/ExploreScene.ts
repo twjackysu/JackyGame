@@ -12,6 +12,7 @@ import {
 import { applyEffects, check, type Condition } from '../../core/state/gameState';
 import { AREAS } from '../../data/areas';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
+import { currentChapter } from '../../data/maps';
 import type { BattleSceneData } from './BattleScene';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TILE, drawAreaGround, drawChest, drawChibi, drawSignBoard } from '../art/exploreArt';
@@ -311,6 +312,15 @@ export class ExploreScene extends Phaser.Scene {
           }
         }
         flicker(img);
+      }
+    }
+    // 礦晶：藍色呼吸光
+    for (let y = 0; y < g.h; y++) {
+      for (let x = 0; x < g.w; x++) {
+        if (g.tiles[y]![x] !== 'c') continue;
+        const img = this.add.image(x * TILE + 24, y * TILE + 26, 'ex_glow').setScale(1.1).setAlpha(0.35).setTint(0x7fe0ff)
+          .setBlendMode(Phaser.BlendModes.ADD).setDepth(-40);
+        this.tweens.add({ targets: img, alpha: 0.18, scale: 0.95, duration: 1400 + Math.random() * 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random() * 1000 });
       }
     }
     for (const b of this.area.buildings) {
@@ -683,6 +693,14 @@ export class ExploreScene extends Phaser.Scene {
   private enterGate(a: Actor): void {
     const s = session.state;
     const r = interact(s, this.area.id, a.e);
+    // 單純出口但有條件（例：礦坑口要先跟多恩談）
+    if (!a.e.talk && a.e.requires && !check(s, a.e.requires)) {
+      SFX.uiCancel();
+      this.say(a, a.e.lines?.[0] ?? '（現在還不能過去。）');
+      const back = findPath(this.grid, this.playerTile(), { x: a.tx, y: a.ty - 2 }, this.blockers());
+      if (back) this.path = back;
+      return;
+    }
     // 主線已完成（或本來就是單純出口）→ 前往下一個區域／世界地圖
     if ((a.e.done && s.flags[a.e.done]) || (r.kind !== 'script' && a.e.to)) {
       if (a.e.to === 'map' || !a.e.to) this.leaveToMap();
@@ -722,8 +740,12 @@ export class ExploreScene extends Phaser.Scene {
     SFX.confirm();
     const s = session.state;
     this.savePos(false);
-    s.location = { region: this.area.region, node: this.area.mapNode ?? s.location.node };
-    session.setScriptPos('map', this.area.region);
+    // 灰燈鎮在第 2 章也會回來（廣場）：用目前章節的地圖節點
+    const ch = currentChapter(s.flags);
+    const region = ch === 'ch2' && this.area.id === 'greylamp' ? 'ch2' : this.area.region;
+    const node = region === 'ch2' && this.area.id === 'greylamp' ? 'greylamp_plaza' : this.area.mapNode ?? s.location.node;
+    s.location = { region, node };
+    session.setScriptPos('map', region);
     session.save();
     fadeOutThen(this, 400, () => this.scene.start('Map'));
   }

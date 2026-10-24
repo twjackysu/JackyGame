@@ -1,5 +1,7 @@
 // 裝備、買賣（純邏輯，不 import phaser）。資料：src/data/equipment.ts。
-import type { BaseStats } from '../battle/formulas';
+import { statsAtLevel, type BaseStats } from '../battle/formulas';
+import { HEROES } from '../../data/combatants';
+import { treeEffect } from './skillTree';
 import type { HeroId } from '../battle/skills';
 import { ITEM_DEFS, SHOPS, SLOTS, itemDef, type ItemDef, type Slot } from '../../data/equipment';
 import type { GameState, MemberId } from './gameState';
@@ -92,9 +94,25 @@ export function owns(s: GameState, id: string): boolean {
   return Object.values(s.members).some((m) => m && Object.values(m.equipment).includes(id));
 }
 
-/** 戰鬥上場隊伍（前 3 位）＋裝備加成 */
-export function battleParty(s: GameState): { id: HeroId; level: number; bonus: Required<BaseStats> }[] {
-  return s.party.slice(0, 3).map((m) => ({ id: m as HeroId, level: s.members[m]?.level ?? 1, bonus: gearBonus(s, m) }));
+/** 裝備＋技能樹的總加成（技能樹的 % 以等級基礎數值計算） */
+export function totalBonus(s: GameState, m: MemberId): Required<BaseStats> {
+  const g = gearBonus(s, m);
+  const t = treeEffect(s, m);
+  const base = statsAtLevel(HEROES[m].base, s.members[m]?.level ?? 1);
+  return {
+    hp: g.hp + Math.round((base.hp * t.hpPct) / 100),
+    atk: g.atk + Math.round((base.atk * t.atkPct) / 100),
+    def: g.def + Math.round((base.def * t.defPct) / 100),
+    spd: g.spd + t.spd,
+  };
+}
+
+/** 戰鬥上場隊伍（前 3 位）＋裝備與技能樹加成 */
+export function battleParty(s: GameState): { id: HeroId; level: number; bonus: Required<BaseStats>; startSp: number; startEmber: number }[] {
+  return s.party.slice(0, 3).map((m) => {
+    const t = treeEffect(s, m);
+    return { id: m as HeroId, level: s.members[m]?.level ?? 1, bonus: totalBonus(s, m), startSp: t.startSp, startEmber: t.startEmber };
+  });
 }
 
 /**

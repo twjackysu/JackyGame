@@ -4,7 +4,7 @@ import {
 } from '../src/core/explore/grid';
 import { chestFlag, interact, markerOf, nextObjective, present } from '../src/core/explore/area';
 import { AREAS } from '../src/data/areas';
-import { newGame, applyEffects } from '../src/core/state/gameState';
+import { newGame, applyEffects, check } from '../src/core/state/gameState';
 import { SCRIPTS } from '../src/game/session';
 
 const SMALL = [
@@ -183,6 +183,37 @@ describe('wolfpath', () => {
     const { CHAPTER_MAPS } = await import('../src/data/maps');
     const ids = new Set(Object.values(AREAS).flatMap((x) => x.entities.map((e) => e.talk?.node)));
     for (const e of CHAPTER_MAPS.ch1.entries) expect(ids.has(e.node), e.node).toBe(true);
+  });
+  it('every world-map location of chapter 2 is in some area (ch2 script)', async () => {
+    const { CHAPTER_MAPS } = await import('../src/data/maps');
+    const ids = new Set(Object.values(AREAS).flatMap((x) => x.entities.filter((e) => e.talk?.script === 'ch2').map((e) => e.talk!.node)));
+    for (const e of CHAPTER_MAPS.ch2.entries) expect(ids.has(e.node), e.node).toBe(true);
+  });
+  it('chapter 2 main objectives follow the story order in the mine', () => {
+    const a = AREAS['mine']!;
+    const s = newGame();
+    const order: [string, string][] = [
+      ['ch2_camp_done', 'upper_tunnel'], ['ch2_liora_joined', 'mid_tunnel'], ['ch2_mid_cleared', 'bell_hall'],
+      ['ch2_bell_done', 'mine_campfire'], ['ch2_campfire', 'deep_level'], ['ch2_deep_done', 'bell_throat'],
+    ];
+    for (const [flag, next] of order) {
+      applyEffects(s, [{ flag }]);
+      expect(nextObjective(s, a)?.id, flag).toBe(next);
+    }
+    applyEffects(s, [{ flag: 'ch2_complete' }]);
+    expect(nextObjective(s, a)).toBeUndefined();
+  });
+  it('mine gate is locked until the camp talk; serin waits on the plaza only in chapter 2', () => {
+    const s = newGame();
+    const gate = AREAS['minecamp']!.entities.find((e) => e.id === 'mine_gate')!;
+    expect(check(s, gate.requires!)).toBe(false);
+    applyEffects(s, [{ flag: 'ch2_camp_done' }]);
+    expect(check(s, gate.requires!)).toBe(true);
+    const serin = AREAS['greylamp']!.entities.find((e) => e.id === 'serin_plaza')!;
+    expect(present(s, serin)).toBe(false);
+    for (const flag of ['ch1_got_lantern', 'ch1_rourke_joined', 'ch1_left_town', 'ch1_complete']) applyEffects(s, [{ flag }]);
+    expect(present(s, serin)).toBe(true);
+    expect(nextObjective(s, AREAS['greylamp']!)?.id).toBe('serin_plaza');
   });
 });
 

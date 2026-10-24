@@ -4,13 +4,15 @@ import { SFX } from '../../audio/sfx';
 import { canEquip, gearDelta, unequip, equip } from '../../core/state/equip';
 import type { MemberId } from '../../core/state/gameState';
 import { SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
+import { branchName } from '../../data/skillTree';
+import { learn, learnState, learned, pointsLeft, resetTree, treeFor } from '../../core/state/skillTree';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce, sparks } from '../fx/feel';
 import { session, withNames } from '../session';
 import { HERO_COLOR } from './partyPanel';
 import { bonusText, deltaScore, deltaText, heroName, itemIcon, itemSubline, memberStats } from './gearUi';
 
-type Tab = 'gear' | 'items';
+type Tab = 'gear' | 'skills' | 'items';
 
 export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): Promise<void> {
   return new Promise((resolve) => {
@@ -22,12 +24,14 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
     g.lineStyle(2, 0xffd27a, 0.8).strokeRoundedRect(24, 70, GAME_WIDTH - 48, 1150, 24);
     const title = scene.add.text(GAME_WIDTH / 2, 120, '行囊', { fontFamily: TITLE_FONT, fontSize: '40px', color: '#ffd27a' }).setOrigin(0.5);
     const gold = scene.add.text(GAME_WIDTH - 60, 120, '', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe6a0' }).setOrigin(1, 0.5);
+    const TAB_X: Record<Tab, number> = { gear: 180, skills: 360, items: 540 };
     const tabs: Record<Tab, Phaser.GameObjects.Text> = {
-      gear: scene.add.text(250, 186, '裝備', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
-      items: scene.add.text(470, 186, '道具', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
+      skills: scene.add.text(TAB_X.skills, 186, '技能', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
+      gear: scene.add.text(TAB_X.gear, 186, '裝備', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
+      items: scene.add.text(TAB_X.items, 186, '道具', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#fff' }).setOrigin(0.5).setPadding(24, 8, 24, 8).setInteractive({ useHandCursor: true }),
     };
     const tabG = scene.add.graphics();
-    ui.add([dim, g, title, gold, tabG, tabs.gear, tabs.items]);
+    ui.add([dim, g, title, gold, tabG, tabs.gear, tabs.skills, tabs.items]);
 
     let tab: Tab = start;
     let who: MemberId = s.party[0] ?? 'lian';
@@ -50,15 +54,14 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
       body.forEach((o) => o.destroy());
       body = [];
       gold.setText(`◎ ${s.gold}`);
-      tabG.clear().fillStyle(0xffd27a, 1).fillRoundedRect((tab === 'gear' ? 250 : 470) - 60, 208, 120, 5, 2);
-      tabs.gear.setColor(tab === 'gear' ? '#ffd27a' : '#6a7398');
-      tabs.items.setColor(tab === 'items' ? '#ffd27a' : '#6a7398');
+      tabG.clear().fillStyle(0xffd27a, 1).fillRoundedRect(TAB_X[tab] - 60, 208, 120, 5, 2);
+      (Object.keys(tabs) as Tab[]).forEach((k) => tabs[k].setColor(tab === k ? '#ffd27a' : '#6a7398'));
       if (tab === 'gear') renderGear();
+      else if (tab === 'skills') renderSkills();
       else renderItems();
     };
 
-    const renderGear = (): void => {
-      // 角色選擇
+    const memberChips = (): void => {
       const party = s.party.filter((m) => s.members[m]);
       const cw = Math.min(150, (GAME_WIDTH - 100) / Math.max(1, party.length));
       party.forEach((m, i) => {
@@ -80,6 +83,72 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
           render();
         });
       });
+    };
+
+    const renderSkills = (): void => {
+      memberChips();
+      const left = pointsLeft(s, who);
+      add(scene.add.text(60, 340, `技能點 ${left}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: left > 0 ? '#7dffb0' : '#8a94b8' }).setOrigin(0, 0.5));
+      add(scene.add.text(GAME_WIDTH - 60, 340, `（Lv ${s.members[who]?.level ?? 1}・每升一級 +1）`, { fontFamily: UI_FONT, fontSize: '18px', color: '#6a7398' }).setOrigin(1, 0.5));
+      const nodes = treeFor(who);
+      const have = learned(s, who);
+      const lines = add(scene.add.graphics());
+      ([0, 1] as const).forEach((br) => {
+        const cx = br === 0 ? 196 : 524;
+        add(scene.add.text(cx, 392, `— ${branchName(who, br)} —`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a' }).setOrigin(0.5));
+        nodes.filter((n) => n.branch === br).forEach((n) => {
+          const y = 470 + (n.tier - 1) * 148;
+          const st = learnState(s, who, n.id);
+          const on = have.includes(n.id);
+          if (n.tier > 1) {
+            lines.lineStyle(4, on ? 0xffd27a : 0x2a3050, 1).lineBetween(cx, y - 148 + 52, cx, y - 52);
+          }
+          const box = add(scene.add.container(cx, y));
+          const bg = scene.add.graphics();
+          bg.fillStyle(on ? 0x3a3018 : st === 'ok' ? 0x1a2440 : 0x10142a, 1).fillRoundedRect(-140, -52, 280, 104, 16);
+          bg.lineStyle(on ? 3 : 2, on ? 0xffd27a : st === 'ok' ? 0x7dffb0 : 0x2a3050, 1).strokeRoundedRect(-140, -52, 280, 104, 16);
+          box.add(bg);
+          box.add(scene.add.text(0, -22, `${on ? '✦ ' : ''}${n.name}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: on ? '#ffe6a0' : st === 'ok' ? '#ffffff' : '#5a6380' }).setOrigin(0.5));
+          box.add(scene.add.text(0, 10, n.desc, { fontFamily: UI_FONT, fontSize: '17px', color: on ? '#ffd27a' : st === 'ok' ? '#9fe8c0' : '#4a5378' }).setOrigin(0.5));
+          box.add(scene.add.text(0, 36, on ? '已習得' : `${n.cost} 點`, { fontFamily: UI_FONT, fontSize: '15px', color: '#6a7398' }).setOrigin(0.5));
+          box.setSize(280, 104).setInteractive({ useHandCursor: true });
+          onTap(box, () => {
+            if (learn(s, who, n.id)) {
+              SFX.levelUp();
+              sparks(scene, cx, y, 18, 'spark', 0xffd27a);
+              session.save();
+              render();
+              return;
+            }
+            SFX.uiCancel();
+            pressBounce(scene, box);
+            hint(st === 'locked' ? '先學上一階' : st === 'points' ? '技能點不夠——升級就有' : '');
+          });
+        });
+      });
+      // 重置
+      if (have.length > 0) {
+        const rb = add(scene.add.text(GAME_WIDTH / 2, 1080, '↺ 重置（免費，點數全部退回）', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5).setPadding(16, 8, 16, 8).setInteractive({ useHandCursor: true }));
+        onTap(rb, () => {
+          resetTree(s, who);
+          SFX.uiCancel();
+          session.save();
+          render();
+        });
+      } else add(scene.add.text(GAME_WIDTH / 2, 1080, '點節點學習。可以隨時免費重置、換一套搭配。', { fontFamily: UI_FONT, fontSize: '20px', color: '#6a7398' }).setOrigin(0.5));
+    };
+
+    let hintT: Phaser.GameObjects.Text | undefined;
+    const hint = (msg: string): void => {
+      if (!msg) return;
+      hintT?.destroy();
+      const h = scene.add.text(GAME_WIDTH / 2, 1120, msg, { fontFamily: UI_FONT, fontSize: '22px', color: '#ff9a9a', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(depth + 1);
+      hintT = h;
+      scene.tweens.add({ targets: h, alpha: 0, delay: 800, duration: 400, onComplete: () => h.destroy() });
+    };
+
+    const renderGear = (): void => {
+      memberChips();
       // 數值
       const st = memberStats(s, who);
       const sy = 350;

@@ -102,6 +102,79 @@ function tree(c: CanvasRenderingContext2D, x: number, y: number, r: () => number
   c.fill();
 }
 
+function caveFloor(c: CanvasRenderingContext2D, x: number, y: number, r: () => number, rail: boolean): void {
+  c.fillStyle = '#2e2a30';
+  c.fillRect(x, y, TILE, TILE);
+  for (let i = 0; i < 8; i++) {
+    c.fillStyle = r() < 0.5 ? 'rgba(90,80,90,0.55)' : 'rgba(10,8,12,0.45)';
+    c.fillRect(x + r() * TILE, y + r() * TILE, 2 + r() * 5, 2 + r() * 3);
+  }
+  if (r() < 0.12) {
+    c.fillStyle = 'rgba(120,110,120,0.5)';
+    c.beginPath();
+    c.ellipse(x + 10 + r() * 28, y + 10 + r() * 28, 4, 3, 0, 0, Math.PI * 2);
+    c.fill();
+  }
+  if (rail) {
+    // 枕木＋兩條鐵軌（直向）
+    c.fillStyle = '#4a3624';
+    for (let k = 0; k < 3; k++) c.fillRect(x + 8, y + 4 + k * 16, 32, 6);
+    c.fillStyle = '#8a8a96';
+    c.fillRect(x + 13, y, 4, TILE);
+    c.fillRect(x + 31, y, 4, TILE);
+    c.fillStyle = 'rgba(255,255,255,0.25)';
+    c.fillRect(x + 13, y, 1, TILE);
+    c.fillRect(x + 31, y, 1, TILE);
+  }
+}
+
+/** 岩壁：below = 下一格（下方是地面時畫出岩壁正面與陰影）；crystal = 嵌著發光礦晶 */
+function rock(c: CanvasRenderingContext2D, x: number, y: number, r: () => number, below: string, crystal: boolean): void {
+  c.fillStyle = '#16131a';
+  c.fillRect(x, y, TILE, TILE);
+  for (let i = 0; i < 5; i++) {
+    c.fillStyle = r() < 0.5 ? 'rgba(60,52,66,0.7)' : 'rgba(36,30,40,0.8)';
+    const w = 8 + r() * 16;
+    c.fillRect(x + r() * (TILE - w), y + r() * (TILE - 8), w, 4 + r() * 6);
+  }
+  const open = below === '_' || below === 'r' || below === '.' || below === ':';
+  if (open) {
+    const g = c.createLinearGradient(x, y + 18, x, y + TILE);
+    g.addColorStop(0, '#3a3240');
+    g.addColorStop(1, '#241e28');
+    c.fillStyle = g;
+    c.fillRect(x, y + 18, TILE, TILE - 18);
+    c.fillStyle = 'rgba(150,130,160,0.35)';
+    c.fillRect(x, y + 18, TILE, 2);
+    c.fillStyle = 'rgba(0,0,0,0.35)';
+    c.fillRect(x + r() * 30, y + 24, 2, 18);
+  }
+  if (crystal) {
+    const cx = x + 24;
+    const cy = y + (open ? 30 : 24);
+    const shard = (dx: number, h: number, w: number, a: number) => {
+      c.save();
+      c.translate(cx + dx, cy + 10);
+      c.rotate(a);
+      const g = c.createLinearGradient(0, -h, 0, 0);
+      g.addColorStop(0, '#e8fbff');
+      g.addColorStop(0.4, '#7fe0ff');
+      g.addColorStop(1, '#2a6a9a');
+      c.fillStyle = g;
+      c.beginPath();
+      c.moveTo(-w, 0);
+      c.lineTo(0, -h);
+      c.lineTo(w, 0);
+      c.closePath();
+      c.fill();
+      c.restore();
+    };
+    shard(-9, 18, 5, -0.35);
+    shard(8, 16, 5, 0.4);
+    shard(0, 26, 7, 0);
+  }
+}
+
 function wall(c: CanvasRenderingContext2D, x: number, y: number): void {
   c.fillStyle = '#3a3640';
   c.fillRect(x, y, TILE, TILE);
@@ -219,6 +292,8 @@ export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid,
       else if (t === '~') water(c, px, py, r);
       else if (t === ':') dirt(c, px, py, r);
       else if (t === 'W') wall(c, px, py);
+      else if (t === '_' || t === 'r') caveFloor(c, px, py, r, t === 'r');
+      else if (t === '#' || t === 'c') rock(c, px, py, r, tileAt(g, x, y + 1), t === 'c');
       else grass(c, px, py, r, t === ',');
     }
   }

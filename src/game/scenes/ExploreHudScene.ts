@@ -4,6 +4,7 @@ import { SFX } from '../../audio/sfx';
 import { AREAS } from '../../data/areas';
 import { SIDE_GOALS } from '../../data/sideQuests';
 import { check } from '../../core/state/gameState';
+import { pointsLeft } from '../../core/state/skillTree';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce } from '../fx/feel';
 import { openBonds } from '../ui/bondPanel';
@@ -27,6 +28,7 @@ export class ExploreHudScene extends Phaser.Scene {
 
   init(data: { area?: string }): void {
     this.areaId = data.area ?? 'greylamp';
+    this.badge = undefined;
     this.actName = null;
   }
 
@@ -122,7 +124,13 @@ export class ExploreHudScene extends Phaser.Scene {
       if (side) text += `　${side.text}`;
     }
     this.goal?.setText(text);
+    // 有沒用掉的技能點 → 🎒 旁邊亮綠點
+    const pts = session.state.party.some((m) => pointsLeft(session.state, m) > 0);
+    if (!this.badge) this.badge = this.add.circle(GAME_WIDTH - 148, 36, 9, 0x7dffb0).setStrokeStyle(2, 0x000000).setDepth(13);
+    this.badge.setVisible(pts);
   }
+
+  private badge?: Phaser.GameObjects.Arc;
 
   showStick(x: number, y: number, vx: number, vy: number): void {
     this.base.setPosition(x, y).setVisible(true);

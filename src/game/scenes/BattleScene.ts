@@ -30,7 +30,7 @@ import {
 
 export interface BattleSceneData {
   encounter?: string;
-  party?: { id: HeroId; level: number; bonus?: Partial<BaseStats> }[];
+  party?: { id: HeroId; level: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number }[];
   /** 示範連戰：勝利後接下一場 */
   chain?: string[];
   seed?: number;

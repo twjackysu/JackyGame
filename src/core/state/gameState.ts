@@ -37,6 +37,8 @@ export interface GameState {
   skills: string[]; // 已解鎖技能（連恩）
   location: { region: string; node: string };
   quests: Record<string, { stage: number; done?: boolean }>;
+  /** 技能樹已學節點（E4；舊存檔沒有這個欄位） */
+  tree?: Partial<Record<MemberId, string[]>>;
 }
 
 export const SAVE_VERSION = 1;
