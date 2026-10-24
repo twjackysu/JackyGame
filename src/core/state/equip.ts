@@ -7,7 +7,7 @@ import { ITEM_DEFS, SHOPS, SLOTS, itemDef, type ItemDef, type Slot } from '../..
 import { enhanceMultiplier } from '../../data/enhancement';
 import type { GameState, MemberId } from './gameState';
 import type { Perk } from '../battle/engine';
-import { addItem, bagCount, bagIds, freeInstances, hasTemplate, templateOf, type GearOrigin } from './gear';
+import { addItem, bagCount, bagIds, freeInstances, hasTemplate, isGearTemplate, templateOf, type GearOrigin } from './gear';
 
 export const SELL_RATE = 0.5;
 
@@ -83,6 +83,7 @@ export function buy(s: GameState, id: string, discountPct = 0): boolean {
 export function sell(s: GameState, id: string): boolean {
   const p = sellPrice(id);
   if (p <= 0 || bagCount(s, id) <= 0) return false;
+  if (isGearTemplate(id) && !freeInstances(s, id).some((g) => !g.locked)) return false; // 上鎖的不能賣
   take(s, id, 1);
   s.gold += p;
   return true;

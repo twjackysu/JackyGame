@@ -9,7 +9,7 @@ export type ConsumableId = 'potion_s' | 'potion_m' | 'lamp_oil' | 'blast_bottle'
 export interface ApiResult<T = undefined> {
   ok: boolean;
   /** 失敗原因（給 UI 顯示用的代碼） */
-  error?: 'max_level' | 'not_enough_materials' | 'not_enough_gold' | 'not_for_sale' | 'not_owned' | 'cannot_equip' | 'already_claimed' | 'not_found' | 'invalid';
+  error?: 'no_affixes' | 'bad_locks' | 'pending' | 'locked' | 'max_level' | 'not_enough_materials' | 'not_enough_gold' | 'not_for_sale' | 'not_owned' | 'cannot_equip' | 'already_claimed' | 'not_found' | 'invalid';
   /** 同一 operationId 已處理過：沒有再次生效 */
   duplicate?: boolean;
   operationId: string;
@@ -35,6 +35,14 @@ export interface EnhanceResult {
 }
 
 export interface GameApi {
+  /** 詞綴重鑄：locks＝要保留的詞綴索引（最多 2 條）；結果是候選，要再呼叫 settleReroll */
+  reroll(operationId: string, req: { instanceId: string; locks: number[] }): ApiResult<{ candidate: { id: string; value: number }[]; previous: { id: string; value: number }[] }>;
+  /** 接受新詞綴（accept=true）或保留舊詞綴 */
+  settleReroll(operationId: string, req: { instanceId: string; accept: boolean }): ApiResult;
+  /** 分解指定的裝備實例（傳說以上要明確指定）；quick=true 時只分解一鍵分解範圍內的 */
+  salvage(operationId: string, req: { instanceIds: string[]; quick?: boolean }): ApiResult<{ salvaged: number; materials: Record<string, number> }>;
+  /** 上鎖／解鎖（上鎖的不能賣、不能分解） */
+  setLock(operationId: string, req: { instanceId: string; locked: boolean }): ApiResult;
   /** 強化一件裝備實例（扣金幣與材料，擲 'enhance' stream） */
   enhance(operationId: string, req: { instanceId: string }): ApiResult<EnhanceResult>;
   buy(operationId: string, req: { itemId: string; discountPct?: number }): ApiResult;

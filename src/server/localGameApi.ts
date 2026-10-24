@@ -3,6 +3,8 @@
 import type { Clock, EventJournal } from './ports';
 import type { ApiResult, BattleRewards, ConsumableId, EnhanceResult, GameApi } from './gameApi';
 import { nextStep, rollEnhance } from './enhancement';
+import { canSalvage, rerollCheck, rollReroll, salvageYield, settleReroll } from './crafting';
+import { wornIds } from '../core/state/gear';
 import { randomFromRng } from './ports';
 import type { GameState, MemberId } from '../core/state/gameState';
 import { applyEffects } from '../core/state/gameState';
@@ -66,6 +68,69 @@ export class LocalGameApi implements GameApi {
       void _rv;
       return { ok: true, data };
     });
+  }
+
+  reroll(operationId: string, req: { instanceId: string; locks: number[] }) {
+    return this.run(operationId, 'reroll', req, (s) => {
+      const inst = s.gear[req.instanceId];
+      if (!inst) return { ok: false, error: 'not_owned' as const };
+      const c = rerollCheck(inst, req.locks);
+      if ('error' in c) return { ok: false, error: c.error };
+      const { gold, ...mats } = c.cost;
+      if (!this.pay(s, gold, mats)) return { ok: false, error: s.gold < gold ? ('not_enough_gold' as const) : ('not_enough_materials' as const) };
+      const previous = inst.affixes.map((a) => ({ ...a }));
+      const candidate = rollReroll(inst, req.locks, randomFromRng(streamRng(s.rng, 'enhance')));
+      return { ok: true, data: { candidate, previous } };
+    });
+  }
+
+  settleReroll(operationId: string, req: { instanceId: string; accept: boolean }): ApiResult {
+    return this.run(operationId, 'settleReroll', req, (s) => {
+      const inst = s.gear[req.instanceId];
+      if (!inst) return { ok: false, error: 'not_owned' };
+      return settleReroll(inst, req.accept) ? { ok: true } : { ok: false, error: 'invalid' };
+    });
+  }
+
+  salvage(operationId: string, req: { instanceIds: string[]; quick?: boolean }) {
+    return this.run(operationId, 'salvage', req, (s) => {
+      const worn = wornIds(s);
+      const materials: Record<string, number> = {};
+      let salvaged = 0;
+      for (const id of new Set(req.instanceIds)) {
+        const inst = s.gear[id];
+        if (!inst || !canSalvage(inst, worn, !!req.quick)) continue;
+        for (const [m, n] of Object.entries(salvageYield(inst))) materials[m] = (materials[m] ?? 0) + (n ?? 0);
+        delete s.gear[id];
+        salvaged++;
+      }
+      if (salvaged === 0) return { ok: false, error: 'invalid' as const };
+      for (const [m, n] of Object.entries(materials)) s.inventory[m] = (s.inventory[m] ?? 0) + n;
+      return { ok: true, data: { salvaged, materials } };
+    });
+  }
+
+  setLock(operationId: string, req: { instanceId: string; locked: boolean }): ApiResult {
+    return this.run(operationId, 'setLock', req, (s) => {
+      const inst = s.gear[req.instanceId];
+      if (!inst) return { ok: false, error: 'not_owned' };
+      if (req.locked) inst.locked = true;
+      else delete inst.locked;
+      return { ok: true };
+    });
+  }
+
+  /** 扣金幣與材料（全部夠才扣） */
+  private pay(s: GameState, gold: number, mats: Record<string, number | undefined>): boolean {
+    if (s.gold < gold) return false;
+    for (const [m, n] of Object.entries(mats)) if ((s.inventory[m] ?? 0) < (n ?? 0)) return false;
+    s.gold -= gold;
+    for (const [m, n] of Object.entries(mats)) {
+      const left = (s.inventory[m] ?? 0) - (n ?? 0);
+      if (left <= 0) delete s.inventory[m];
+      else s.inventory[m] = left;
+    }
+    return true;
   }
 
   buy(operationId: string, req: { itemId: string; discountPct?: number }): ApiResult {

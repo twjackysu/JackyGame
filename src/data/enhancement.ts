@@ -44,3 +44,21 @@ export function enhanceMultiplier(level: number): number {
   const step = ENHANCE_STEPS[Math.min(MAX_ENHANCE, level) - 1];
   return 1 + (step?.statPct ?? 0) / 100;
 }
+
+/**
+ * 詞綴重鑄成本（design/14 階段 2.5）：鎖越多越貴、同一件重鑄越多次越貴（上限 8 次的漲幅）。
+ * 鎖 0 條：金幣＋魔力結晶；每鎖 1 條多 1 個傳說殘片。
+ */
+export const REROLL = {
+  gold: 100,
+  goldGrowthPerReroll: 0.25,
+  growthCap: 8,
+  crystal: 1,
+  legendPerLock: 1,
+  maxLocks: 2,
+} as const;
+
+export function rerollCost(rerolls: number, locks: number): { gold: number; mat_crystal: number; mat_legend?: number } {
+  const g = Math.round(REROLL.gold * (1 + REROLL.goldGrowthPerReroll * Math.min(REROLL.growthCap, Math.max(0, rerolls))));
+  return { gold: g, mat_crystal: REROLL.crystal + locks, ...(locks > 0 ? { mat_legend: REROLL.legendPerLock * locks } : {}) };
+}

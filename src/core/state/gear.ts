@@ -6,6 +6,7 @@
 import { ITEM_DEFS } from '../../data/equipment';
 import { drawU32 } from '../rngStreams';
 import type { GameState } from './gameState';
+import type { Tier } from '../../data/rules';
 
 export type GearOrigin = 'story' | 'shop' | 'drop' | 'migrated' | 'ngplus';
 
@@ -20,6 +21,14 @@ export interface EquipmentInstance {
   /** 強化失敗累積的星之祝福：目標階段 → 值（綁實例與目標階段，降級不清；src/server/enhancement.ts） */
   blessings?: Partial<Record<number, number>>;
   binding: 'none' | 'bound';
+  /** 長尾稀有度（沒有＝依模板的舊 3 階推算，見 src/server/crafting.ts tierOf） */
+  tier?: Tier;
+  /** 已重鑄次數（重鑄成本遞增） */
+  rerolls?: number;
+  /** 重鑄後等玩家決定「接受新詞綴／保留舊詞綴」的候選 */
+  pendingAffixes?: { id: string; value: number }[];
+  /** 玩家上鎖：不能賣、不能分解 */
+  locked?: boolean;
   /** 來源模式：主線（story）／深淵（未來）等；目前只記取得方式 */
   originMode: GearOrigin;
 }
@@ -94,7 +103,7 @@ export function addItem(s: GameState, templateId: string, n: number, origin: Gea
   if (n === 0) return;
   if (isGearTemplate(templateId)) {
     if (n > 0) for (let i = 0; i < n; i++) createInstance(s, templateId, origin);
-    else for (const g of freeInstances(s, templateId).slice(0, -n)) delete s.gear[g.instanceId];
+    else for (const g of freeInstances(s, templateId).filter((x) => !x.locked).slice(0, -n)) delete s.gear[g.instanceId]; // 上鎖的不會被移除
     return;
   }
   const v = (s.inventory[templateId] ?? 0) + n;
