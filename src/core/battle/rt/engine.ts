@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, StatusApply, StatusId, Unit } from './types';
-import { STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import { AGGRO_RULES, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, findPath, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -97,7 +97,15 @@ export function createBattle(setup: BattleSetup): BattleState {
   for (const e of stage.enemies) {
     const def = ENEMIES[e.enemyId];
     if (!def) throw new Error(`unknown enemy ${e.enemyId}`);
-    s.units.push(makeEnemy(s, def, e.x, e.y));
+    const m = makeEnemy(s, def, e.x, e.y);
+    if (stage.mapAi) {
+      m.mode = 'idle';
+      m.tier = e.tier ?? (def.boss ? 'boss' : 'normal');
+      m.homeX = e.x;
+      m.homeY = e.y;
+      m.engagedTick = 0;
+    }
+    s.units.push(m);
   }
   return s;
 }
@@ -163,6 +171,10 @@ function playerDef(): PlayerDefinition {
 
 function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 'normal' | 'skill' | 'counter' | 'enemy', skill: string, reducePct = 0): number {
   if (dst.dead) return 0;
+  if (dst.mode === 'returning') return 0; // 脫戰返回中不吃傷害（D-072）
+  if (dst.mode === 'idle') aggro(s, dst); // 被打到就醒
+  if (dst.mode) dst.engagedTick = s.tick;
+  if (src.mode) src.engagedTick = s.tick;
   if (dst.invulnUntil >= s.tick) {
     emit(s, { tick: s.tick, type: 'dodged', id: dst.id, attack: skill });
     return 0;
@@ -373,7 +385,9 @@ function nearestEnemy(s: BattleState, p: Unit): Unit | undefined {
   let best: Unit | undefined;
   let bd = Infinity;
   for (const e of enemiesOf(s)) {
-    const d = dist(p.x, p.y, e.x, e.y);
+    if (e.mode === 'returning') continue;
+    // 地圖怪：優先打已經在戰鬥中的（待機的怪距離加權，不會放著咬人的怪去拉新的一群）
+    const d = dist(p.x, p.y, e.x, e.y) + (e.mode === 'idle' ? 1e6 : 0);
     if (d < bd) {
       bd = d;
       best = e;
@@ -546,6 +560,49 @@ function updatePlayer(s: BattleState): void {
 }
 
 // ---------------- 敵人 ----------------
+// ---------------- 地圖怪：待機／戰鬥／返回（D-072，design/20 B1） ----------------
+function aggro(s: BattleState, e: Unit): void {
+  if (e.mode !== 'idle') return;
+  e.mode = 'combat';
+  e.engagedTick = s.tick;
+  e.nextAttackTick = Math.max(e.nextAttackTick, s.tick + 15); // 發現後 0.5 秒才出手
+  emit(s, { tick: s.tick, type: 'aggro', id: e.id });
+  // 同伴連鎖：附近 3 單位內待機的一起醒（狼群）
+  for (const o of s.units) if (o.side === 'enemy' && !o.dead && o.mode === 'idle' && dist(o.x, o.y, e.x, e.y) <= 3 * UNIT) aggro(s, o);
+}
+
+/** 回傳 true＝這個 tick 由地圖行為處理完（不跑戰鬥 AI） */
+function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
+  const rule = AGGRO_RULES[e.tier ?? 'normal'];
+  const hx = e.homeX ?? e.x;
+  const hy = e.homeY ?? e.y;
+  if (e.mode === 'idle') {
+    if (!p.dead && (s.tick + e.id) % 6 === 0 && dist(e.x, e.y, p.x, p.y) <= rule.aggro * UNIT + p.r && hasSight(s, e, p)) aggro(s, e);
+    return e.mode === 'idle';
+  }
+  if (e.mode === 'returning') {
+    if (dist(e.x, e.y, hx, hy) <= 20) {
+      e.mode = 'idle';
+      e.hp = e.maxHp;
+      e.statuses = [];
+      emit(s, { tick: s.tick, type: 'reset', id: e.id });
+    } else navToward(s, e, hx, hy, 0, 1.3);
+    return true;
+  }
+  // 戰鬥中：在仇恨範圍內就算還在交手
+  if (dist(e.x, e.y, p.x, p.y) <= rule.aggro * UNIT + p.r) e.engagedTick = s.tick;
+  const tooFar = dist(e.x, e.y, hx, hy) > rule.chase * UNIT;
+  const bored = s.tick - (e.engagedTick ?? s.tick) > rule.waitSec * TICKS_PER_SEC;
+  if (!e.action && (tooFar || bored || p.dead)) {
+    e.mode = 'returning';
+    e.statuses = [];
+    s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== e.id);
+    emit(s, { tick: s.tick, type: 'leash', id: e.id });
+    return true;
+  }
+  return false;
+}
+
 function pickAttack(s: BattleState, e: Unit, def: EnemyDefinition, d: number, target: Unit): AreaAttack | undefined {
   const sight = hasSight(s, e, target);
   // 隔著石頭不能射擊（衝鋒例外：隔石衝鋒會撞上石頭暈眩，是可利用的弱點）
@@ -602,6 +659,7 @@ function updateEnemy(s: BattleState, e: Unit): void {
       emit(s, { tick: s.tick, type: 'summon', id: e.id, count: sm.count });
     }
   }
+  if (e.mode && mapAi(s, e, p)) return;
   if (disabled(e, s.tick)) return;
   const a = e.action;
   if (a) {

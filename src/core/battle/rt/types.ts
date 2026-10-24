@@ -193,7 +193,22 @@ export interface Unit {
   phase: 1 | 2;
   nextSummonTick: number;
   mp: number;
+  /** 地圖怪（D-072）；undefined＝一般戰鬥行為 */
+  mode?: 'idle' | 'combat' | 'returning';
+  tier?: AggroTier;
+  homeX?: number;
+  homeY?: number;
+  /** 最後一次「在仇恨範圍內或有交手」的 tick */
+  engagedTick?: number;
 }
+
+export type AggroTier = 'normal' | 'elite' | 'boss';
+/** design/20 B1：仇恨半徑、最大追擊（距原位，單位）、脫戰等待（秒） */
+export const AGGRO_RULES: Record<AggroTier, { aggro: number; chase: number; waitSec: number }> = {
+  normal: { aggro: 5, chase: 12, waitSec: 3 },
+  elite: { aggro: 7, chase: 16, waitSec: 5 },
+  boss: { aggro: 10, chase: 40, waitSec: 8 },
+};
 
 export interface Telegraph {
   ownerId: number;
@@ -220,7 +235,11 @@ export type BattleEvent =
   | { tick: number; type: 'phase2'; id: number }
   | { tick: number; type: 'summon'; id: number; count: number }
   | { tick: number; type: 'wallStun'; id: number }
-  | { tick: number; type: 'potion'; id: number; heal: number; left: number };
+  | { tick: number; type: 'potion'; id: number; heal: number; left: number }
+  /** 地圖怪（D-072）：發現玩家進入戰鬥／脫戰返回／回到原位回滿 */
+  | { tick: number; type: 'aggro'; id: number }
+  | { tick: number; type: 'leash'; id: number }
+  | { tick: number; type: 'reset'; id: number };
 
 /** 玩家（或 Bot）的輸入：一個 tick 可以送多個 */
 export type BattleCommand =
@@ -249,7 +268,12 @@ export interface StageDefinition {
   name: string;
   arena: Arena;
   player: { x: number; y: number };
-  enemies: { enemyId: string; x: number; y: number }[];
+  enemies: { enemyId: string; x: number; y: number; tier?: AggroTier }[];
+  /**
+   * 地圖怪行為（D-072，design/20 B1）：敵人一開始待機，玩家進入仇恨半徑（且看得到）才進戰鬥，
+   * 追太遠或太久沒交手就返回原位回滿。沒設＝舊行為（一開場全部衝過來）。
+   */
+  mapAi?: boolean;
   /** 超過這麼多 tick 算失敗（防無限戰鬥） */
   timeLimitTicks: number;
 }

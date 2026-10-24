@@ -470,3 +470,76 @@ describe('點地移動 moveTo（D-071）', () => {
     expect(b.stateHash).toBe(a.stateHash);
   });
 });
+
+describe('地圖怪：待機／戰鬥／返回（D-072，design/20 B1）', () => {
+  const setup = () => {
+    const s = createBattle({ stageId: 'rock_grove', seed: 1 });
+    const p = playerOf(s);
+    return { s, p };
+  };
+
+  it('開場全部待機；玩家站著不動就不會被打', () => {
+    const { s, p } = setup();
+    expect(enemiesOf(s).every((e) => e.mode === 'idle')).toBe(true);
+    p.speedPerTick = 0; // 站著不動（不然會自動走去打最近的怪）
+    for (let i = 0; i < sec(10); i++) step(s);
+    expect(p.hp).toBe(p.maxHp);
+    expect(s.events.some((e) => e.type === 'telegraph')).toBe(false);
+  });
+
+  it('走進仇恨半徑會醒，同組的狼一起醒；看不到（隔石）不會醒', () => {
+    const { s, p } = setup();
+    const [w1, w2] = enemiesOf(s);
+    p.x = w1!.x;
+    p.y = w1!.y + u(4);
+    for (let i = 0; i < 12; i++) step(s, [{ type: 'move', dx: 0, dy: 0 }, { type: 'moveTo', x: p.x, y: p.y }]);
+    expect(w1!.mode).toBe('combat');
+    expect(w2!.mode).toBe('combat');
+    // 射手在第 2～3 列石頭後面：從石頭正下方靠近也看不到
+    const t = setup();
+    const sh = enemiesOf(t.s).find((e) => e.defId === 'thorn_shooter')!;
+    t.s.units = [t.p, sh];
+    t.p.x = u(4);
+    t.p.y = u(4.6); // 第 2～3 列 x=3..4 是石頭，射手在 (4,1.5)
+    for (let i = 0; i < 24; i++) step(t.s, [{ type: 'moveTo', x: t.p.x, y: t.p.y }]);
+    expect(sh.mode).toBe('idle');
+  });
+
+  it('拉太遠會返回原位、返回途中不吃傷害、回到原位回滿', () => {
+    const { s, p } = setup();
+    const w = enemiesOf(s)[0]!;
+    s.units = [p, w];
+    w.mode = 'combat';
+    w.hp = 100;
+    // 玩家跑到很遠（超過最大追擊 12）且一直不交手
+    p.x = u(15);
+    p.y = u(21.5);
+    w.x = u(15);
+    w.y = u(20);
+    w.homeX = u(2);
+    w.homeY = u(4);
+    for (let i = 0; i < 3 && w.mode === 'combat'; i++) step(s, [{ type: 'moveTo', x: p.x, y: p.y }]);
+    expect(w.mode).toBe('returning');
+    expect(s.events.some((e) => e.type === 'leash')).toBe(true);
+    // 返回途中打不到
+    const hp0 = w.hp;
+    p.x = w.x;
+    p.y = w.y + u(1);
+    step(s, [{ type: 'skill', id: 'whirlwind' }]);
+    for (let i = 0; i < sec(1.2); i++) step(s);
+    expect(w.hp).toBe(hp0);
+    for (let i = 0; i < sec(15) && (w.mode as string) !== 'idle'; i++) {
+      step(s, [{ type: 'moveTo', x: u(15), y: u(21.5) }]);
+    }
+    expect(w.mode).toBe('idle');
+    expect(w.hp).toBe(w.maxHp);
+    expect(dist(w.x, w.y, u(2), u(4))).toBeLessThanOrEqual(25);
+  });
+
+  it('普通 Bot 一定通關、可重現；自動戰鬥（只放著打）會一次拉太多而輸', () => {
+    expect(batch('rock_grove', () => new PlayerBot(BOT_PROFILES.normal, 'normal'), 10).winRate).toBe(100);
+    expect(batch('rock_grove', () => new PlayerBot(BOT_PROFILES.auto, 'auto'), 5).winRate).toBeLessThan(100);
+    const a = simulateBattle({ stageId: 'rock_grove', seed: 11 }, expert());
+    expect(simulateBattle({ stageId: 'rock_grove', seed: 11 }, expert()).stateHash).toBe(a.stateHash);
+  }, 60000);
+});

@@ -397,6 +397,15 @@ export class RtBattleScene extends Phaser.Scene {
         SFX.itemGet();
         floatNumber(this, this.sx(p.x), this.sy(p.y) - 50, `+${e.heal}`, { color: '#7dffb0', size: 30 });
         sparks(this, this.sx(p.x), this.sy(p.y), 12, 'ember', 0x7dffb0, 380);
+      } else if (e.type === 'aggro') {
+        const d = u(e.id);
+        if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '!', { color: '#ff5a5a', size: 40 });
+      } else if (e.type === 'leash') {
+        const d = u(e.id);
+        if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '脫戰', { color: '#c8d0f0', size: 22 });
+      } else if (e.type === 'reset') {
+        const d = u(e.id);
+        if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 50, '回滿', { color: '#7dffb0', size: 22 });
       } else if (e.type === 'dodge') SFX.dodge();
       else if (e.type === 'block') {
         SFX.parry();
@@ -690,7 +699,8 @@ export class RtBattleScene extends Phaser.Scene {
         sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - bob + ky + (fy0(x) * lunge)).setDepth(10 + pos.y / 100);
         if (sp.scaleY !== 0 && !this.tweens.isTweening(sp)) sp.setScale(base * squash, base / squash);
         if (cfg.flip && x.facingX !== 0) sp.setFlipX(x.facingX < 0);
-        sp.setAlpha(inv ? 0.45 : 1);
+        // 脫戰返回中半透明（打不到）；待機的怪稍暗
+        sp.setAlpha(inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' ? 0.85 : 1);
         if ((this.flashUntil.get(x.id) ?? 0) > now) sp.setTintFill(0xffffff);
         else if (winding) sp.setTint(Math.floor(now / 90) % 2 ? 0xff9a9a : 0xffffff);
         else if (cfg.tint) sp.setTint(cfg.tint);

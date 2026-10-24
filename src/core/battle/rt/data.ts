@@ -128,9 +128,10 @@ export const STAGES: Record<string, StageDefinition> = {
     id: 'wolf_king', name: '霧角狼王', arena: { w: u(16), h: u(20) }, player: { x: u(8), y: u(16) }, timeLimitTicks: sec(300),
     enemies: [{ enemyId: 'wolf_king', x: u(8), y: u(6) }],
   },
-  // D-071：有石頭的試玩關（尋路、視線、隔石衝鋒）；遠程隔著石頭不能射擊，狼會繞過石頭
+  // D-071／D-072：有石頭的試玩關（尋路、視線、隔石衝鋒、地圖怪待機與脫戰）；遠程隔著石頭不能射擊，狼會繞過石頭
   rock_grove: {
     id: 'rock_grove', name: '碎石林道', timeLimitTicks: sec(240), player: { x: u(8), y: u(19.5) },
+    mapAi: true, // D-072：怪物待機，走近（看得到）才醒；追太遠會回家回滿
     arena: { w: u(16), h: u(22), solid: { cell: u(1), rows: [
       '................',
       '................',
@@ -156,9 +157,12 @@ export const STAGES: Record<string, StageDefinition> = {
       '................',
     ] } },
     enemies: [
-      { enemyId: 'wolf', x: u(4.5), y: u(11) }, { enemyId: 'wolf', x: u(11.5), y: u(11) }, { enemyId: 'wolf', x: u(8), y: u(6.5) },
+      // 三組狼（每組兩隻，同伴會連鎖醒來）＋精英＋兩隻躲在石頭後的射手
+      { enemyId: 'wolf', x: u(4.5), y: u(11) }, { enemyId: 'wolf', x: u(5.5), y: u(11.8) },
+      { enemyId: 'wolf', x: u(11.5), y: u(11) }, { enemyId: 'wolf', x: u(10.5), y: u(11.8) },
+      { enemyId: 'wolf', x: u(7.5), y: u(6.5) }, { enemyId: 'wolf', x: u(8.5), y: u(6.5) },
       { enemyId: 'thorn_shooter', x: u(4), y: u(1.5) }, { enemyId: 'thorn_shooter', x: u(12), y: u(1.5) },
-      { enemyId: 'alpha_wolf', x: u(8), y: u(9.5) },
+      { enemyId: 'alpha_wolf', x: u(8), y: u(9.5), tier: 'elite' },
     ],
   },
 };
