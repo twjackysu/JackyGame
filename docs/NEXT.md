@@ -5,7 +5,7 @@
 > 除錯入口：`?debug&chapter=2|3|4|5&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?debug&scene=Battle&enc=boss_starfall_2&party=lian,serin,io&lv=17`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
 
 1. **截通關存檔的「新的旅程」確認框**（三顆按鈕：二週目／覆蓋／取消；需要有 `ch5_complete` 的存檔，可用機器人通關後的頁面或在 console 設 flag 後 `session.save()`）。勝利畫面已確認（README 10-victory）。
-2. **README 截圖更新**：燼牌已換成對局中段（新紋章，`screenshots/cards.mjs` 寫法：等 `canAct()` 後 `act(playsFor(i)[0])`）；可再加一張片尾統計（`getScene('Dialogue').rollCredits()`）。燼牌紋章在小卡上偏小（左上點數會擋到），可微調 `drawEmblem` 半徑/位置。`node scripts/promo.mjs http://localhost:4180/ screenshots/promoN <名稱,...>` 可以只截指定幾張。
+2. **README 截圖更新**：燼牌已換成對局中段（新紋章，`screenshots/cards.mjs` 寫法：等 `canAct()` 後 `act(playsFor(i)[0])`）；可再加一張片尾統計（`getScene('Dialogue').rollCredits()`；直接呼叫沒有暗幕，要先加全螢幕黑色 rectangle depth 400，或讓機器人從 `?chapter=5` 跑到終幕再截）。燼牌紋章在小卡上偏小（左上點數會擋到），可微調 `drawEmblem` 半徑/位置。`node scripts/promo.mjs http://localhost:4180/ screenshots/promoN <名稱,...>` 可以只截指定幾張。
 3. **燼牌對局手感**：拖曳出牌若在 AI 回合結束 render 時按住會失效（極少見）。（收藏入牌組的勝率影響已模擬：+0～8%，見 D-031，不用調。）
 4. **全員共鳴演出節奏**：fxFinale 約 3 秒，真機前無法確認；可加「點擊加速」。
 5. **羈絆事件覆蓋率檢查**：每位同伴羈絆事件（`src/data/bonds.ts`）在劇情中是否都能觸發；機器人跑一次蒐集 `bond_*` 旗標。
