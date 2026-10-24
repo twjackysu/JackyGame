@@ -76,3 +76,6 @@ high priest robes with a star crown and orbiting constellation ornaments. Intimi
 ## 之後
 - 戰鬥畫面的小人目前還是程式剪影。立繪換好、風格確定後，可以再請你生成「Q 版戰鬥站姿」（同樣規格，全身、透明背景）。
 - 生成的圖會記在 `docs/CREDITS.md`（「角色立繪：由 Jacky 使用 ChatGPT／Gemini 生成」）。
+
+## 已完成
+- 10/24：6 張半身立繪＋6 張 Q 版戰鬥圖（`<id>_battle.png`）都已匯入。之後若要補 Boss 的 Q 版正面圖，檔名先問開發迴圈（需要加對應）；配角立繪用 `npc_tia.png` 這種名稱即可。

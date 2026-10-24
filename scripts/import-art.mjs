@@ -17,7 +17,15 @@ const MANIFEST = 'src/data/handArt.ts';
 const TOL = Number(process.env.ART_TOL ?? 38);
 const KNOWN = ['lian', 'io', 'serin', 'liora', 'rourke', 'valdran', 'valderan'];
 /** 角色 id → 遊戲裡的材質 key（反派沿用對話的 npc_ 材質） */
-const TEX = (id) => (id === 'valdran' || id === 'valderan' ? 'npc_valderan' : `portrait_${id}`);
+const TEX = (id, battle = false) => {
+  if (id.startsWith('npc_')) return id;
+  const villain = id === 'valdran' || id === 'valderan';
+  // *_battle.png：Q 版戰鬥圖。我方是背影（hero_<id>），瓦爾德蘭是 Boss 正面（enemy_boss_valderan）
+  if (battle) return villain ? 'enemy_boss_valderan' : `hero_${id}`;
+  return villain ? 'npc_valderan' : `portrait_${id}`;
+};
+/** 戰鬥圖輸出高度 = 程式材質的 2 倍解析度高（BattleScene 以 0.5 倍顯示） */
+const BATTLE_H = { lian: 440, io: 420, serin: 460, liora: 420, rourke: 460, valdran: 680, valderan: 680 };
 
 export async function removeFlatBackground(input, tol = TOL) {
   const img = sharp(input).ensureAlpha();
@@ -90,6 +98,29 @@ function fadeEdges(data, w, h) {
   }
 }
 
+/** 不透明區域的外框（sharp.trim 看 RGB，透明像素顏色不一時裁不乾淨，所以自己算） */
+function alphaBBox(data, w, h) {
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 20) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return { left: 0, top: 0, width: w, height: h };
+  return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+}
+
+function midRatio({ data, info }) {
+  let n = 0;
+  for (let k = 3; k < data.length; k += 4) if (data[k] > 20 && data[k] < 200) n++;
+  return n / (info.width * info.height);
+}
+
 function opaqueRatio({ data, info }) {
   let n = 0;
   for (let k = 3; k < data.length; k += 4) if (data[k] > 128) n++;
@@ -106,6 +137,8 @@ async function hasAlphaCorners(buf) {
 
 function idOf(file) {
   const stem = path.basename(file, path.extname(file)).toLowerCase().replace(/^portrait_/, '');
+  // 配角：npc_tia.png → 材質 npc_tia（名稱要和 src/game/art 裡的 npc_ 材質一致）
+  if (/^npc_[a-z_]+$/.test(stem)) return stem;
   return KNOWN.find((k) => stem === k || stem.startsWith(`${k}-`) || stem.startsWith(`${k}_`)) ?? null;
 }
 
@@ -128,9 +161,14 @@ export async function main() {
     }
     // 去背順序：已透明 → 不動；rembg（isnet-anime，白髮等接近背景色的區域也保得住）→ 單色洪水填充 → 保留原圖。
     // 每一步都檢查「不透明區域 ≥ 12%」，避免整張被吃掉。
+    const battle = /_battle\.[a-z]+$/i.test(f);
     const original = readFileSync(src);
     let result = null;
-    if (await hasAlphaCorners(original)) result = await rawOf(original);
+    // 已透明且半透明像素不多（< 7%）才直接用；有大片半透明光暈（例：白色暈影）就再丟給 rembg
+    if (await hasAlphaCorners(original)) {
+      const r0 = await rawOf(original);
+      if (midRatio(r0) < 0.07) result = r0;
+    }
     if (!result && process.env.ART_NO_REMBG !== '1') {
       const tmp = path.join(os.tmpdir(), `rembg-${id}.png`);
       try {
@@ -147,18 +185,20 @@ export async function main() {
       result = opaqueRatio(r) >= 0.12 ? r : await rawOf(original);
     }
     const { data, info } = result;
-    fadeEdges(data, info.width, info.height);
+    if (!battle) fadeEdges(data, info.width, info.height);
     const removed = info.width * info.height - Math.round(opaqueRatio(result) * info.width * info.height);
-    const out = path.join(OUT, `${TEX(id)}.webp`);
+    const key = TEX(id, battle);
+    const out = path.join(OUT, `${key}.webp`);
+    const bb = alphaBBox(data, info.width, info.height);
     await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-      .trim({ threshold: 1 })
-      .resize({ height: 1100, withoutEnlargement: true })
+      .extract(bb)
+      .resize({ height: battle ? BATTLE_H[id] ?? 440 : 1100, withoutEnlargement: true })
       .webp({ quality: 82, alphaQuality: 90 })
       .toFile(out);
     const meta = await sharp(out).metadata();
     console.log(`ok ${f} → ${out} ${meta.width}x${meta.height} (去背 ${removed} px)`);
     unlinkSync(src);
-    existing.push(TEX(id));
+    existing.push(key);
     done.push(id);
   }
   writeManifest(existing);

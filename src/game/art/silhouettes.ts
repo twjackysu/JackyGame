@@ -1,6 +1,7 @@
 // 程式生成的角色／敵人剪影材質（05：剪影 + 邊緣光）。
 // 做法：先用邊緣光色描邊整個輪廓，再把深色本體往右下偏移填上，只留下左上側的亮邊 → 便宜的 rim light。
 import Phaser from 'phaser';
+import { HAND_ART } from '../../data/handArt';
 import { AH, AW, drawIo, drawLian } from './animePortraits';
 import { drawAnnouncer, drawBern, drawDealer, drawDorn, drawGateCaptain, drawResearcher, drawVendor, drawFarrow, drawGwen, drawHanna, drawLiora, drawMara, drawMiner, drawToby, drawRourke, drawSerin, drawTia, drawValderan } from './animeCompanions';
 import { backIo, backLian, backLiora, backRourke, backSerin } from './animeSprites';
@@ -60,7 +61,10 @@ export const ART: Record<string, ArtInfo> = {};
 function heroCanvas(
   scene: Phaser.Scene, key: string, w: number, h: number, draw: (c: CanvasRenderingContext2D) => void, glow?: ArtInfo['glow'],
 ): void {
-  ART[key] = { key, w, h, footY: h / 2 - 6, glow };
+  // 手繪 Q 版圖（public/art）：燈的位置不同，不疊程式的發光點；尺寸以手繪圖為準（BattleScene 顯示 0.5 倍）
+  const hand = HAND_ART.includes(key) && scene.textures.exists(key);
+  const src = hand ? scene.textures.get(key).getSourceImage() : null;
+  ART[key] = hand && src ? { key, w: src.width / 2, h: src.height / 2, footY: src.height / 4 - 6 } : { key, w, h, footY: h / 2 - 6, glow };
   if (scene.textures.exists(key)) return;
   const tex = scene.textures.createCanvas(key, w * 2, h * 2);
   if (!tex) return;
@@ -544,7 +548,9 @@ function generateHeroPortraits(scene: Phaser.Scene): void {
 function canvasArt(
   scene: Phaser.Scene, key: string, w: number, h: number, draw: (c: Ctx) => void, glowInfo?: ArtInfo['glow'],
 ): void {
-  ART[key] = { key, w, h, footY: h / 2 - 6, glow: glowInfo };
+  const hand = HAND_ART.includes(key) && scene.textures.exists(key);
+  const src = hand ? scene.textures.get(key).getSourceImage() : null;
+  ART[key] = hand && src ? { key, w: src.width / 2, h: src.height / 2, footY: src.height / 4 - 6 } : { key, w, h, footY: h / 2 - 6, glow: glowInfo };
   if (scene.textures.exists(key)) return;
   const tex = scene.textures.createCanvas(key, w * 2, h * 2);
   if (!tex) return;

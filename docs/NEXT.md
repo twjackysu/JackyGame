@@ -1,5 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
+> **10/24 13:20 插單**：Jacky 又上傳 6 張 Q 版戰鬥圖，已匯入成 `hero_<id>`（我方背影）與 `enemy_boss_valderan`（Boss）；`scripts/import-art.mjs` 支援 `<id>_battle.png` 與 `npc_<名稱>.png`。
 > **第 7 輪（10/24 12:12）**：Jacky 上傳了 6 張 AI 立繪（連恩、伊歐、瑟琳、莉歐拉、洛克、瓦爾德蘭，`public/art/`）；其他有台詞的配角改為動漫風程式立繪（D-037；`src/game/art/animeKit.ts`、`animePortraits.ts`、`animeCompanions.ts`、`animeSprites.ts`）。預覽工具見下方「工具」。
 > **設計已定稿（D-013）**。序章～終章全部可以玩到結局（三結局＋片尾統計），Boss 都有特殊機制（第 5 輪）；第 6 輪補了 README 截圖、新手引導、省電畫質、二週目。進度大幅超前 PLAN：接下來是**打磨、平衡檢查、成果發表素材**。LocationScene 暫不做（D-033）。
 > 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch5.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`、`waiting`）；敵人/遭遇 `src/data/combatants.ts`（`phase2` 字卡、`mark`/`seal`、traits `erase`/`eyeShield`/`finale`）；羈絆 `src/data/bonds.ts` + `src/game/ui/bondPanel.ts`；片尾 `src/game/credits.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；音樂 `src/audio/music.ts`（`chapterTrack`）。
@@ -7,7 +8,7 @@
 
 0. **【每輪開頭都做】檢查 Jacky 有沒有上傳手繪立繪**：`art-inbox/` 有圖或 GitHub 有標題含「立繪」的 Issue → `pip install "rembg[cpu]" --break-system-packages`、`node scripts/import-art.mjs`（流程見 D-036）；手繪會自動取代同名程式立繪。沒圖就照常往下做。
 1. **配角程式立繪與手繪主角的畫風落差**：主角群是 AI 厚塗，配角是賽璐珞程式繪。可做：配角立繪加一層柔光／顆粒（`ensurePortrait` 畫完後 soft-light 漸層＋邊緣暈影）讓質感接近；或在 FOR_JACKY 已請 Jacky 補 `npc_tia`／`npc_gwen`／`npc_bern`。
-2. **戰鬥背影對齊手繪配色**：連恩外套已改黑（第 7 輪）；其餘大致相符（瑟琳銀甲＋藏青披風、莉歐拉棕背心＋白襯衫、洛克深色＋灰毛領）；README `03-timing.jpg` 已重拍。
+2. **戰鬥圖已換成 Jacky 的 Q 版手繪**（程式背影 `animeSprites.ts` 只剩備援）：README 戰鬥截圖要重拍；檢查多段攻擊／死亡（灰化 tint）／PERFECT 演出在手繪圖上是否正常；敵人仍是程式剪影，Boss 瓦爾德蘭是 Q 版正面，跟其他敵人畫風有落差——可考慮請 Jacky 補 Boss（狼王、鐘喉蠕蟲、洛克、蝕星者）Q 版正面圖（檔名 `enemy_boss_wolfking.png` 等，需先在 import-art 加對應）。
 3. **截通關存檔的「新的旅程」確認框**（三顆按鈕：二週目／覆蓋／取消；需要有 `ch5_complete` 的存檔，可用機器人通關後的頁面或在 console 設 flag 後 `session.save()`）。勝利畫面已確認（README 10-victory）。
 4. **README 截圖更新**（標題／戰鬥／羈絆／對話已在第 7 輪重拍）：燼牌已換成對局中段（新紋章，`screenshots/cards.mjs` 寫法：等 `canAct()` 後 `act(playsFor(i)[0])`）；可再加一張片尾統計（`getScene('Dialogue').rollCredits()`；直接呼叫沒有暗幕，要先加全螢幕黑色 rectangle depth 400，或讓機器人從 `?chapter=5` 跑到終幕再截）。燼牌紋章在小卡上偏小（左上點數會擋到），可微調 `drawEmblem` 半徑/位置。`node scripts/promo.mjs http://localhost:4180/ screenshots/promoN <名稱,...>` 可以只截指定幾張。
 5. **燼牌對局手感**：拖曳出牌若在 AI 回合結束 render 時按住會失效（極少見）。（收藏入牌組的勝率影響已模擬：+0～8%，見 D-031，不用調。）
