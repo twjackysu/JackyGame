@@ -7,6 +7,7 @@ import { createBattle, enemiesOf, playerOf, step } from '../../core/battle/rt/en
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
 import { TICKS_PER_SEC } from '../../core/battle/rt/types';
+import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
@@ -60,6 +61,8 @@ export class RtBattleScene extends Phaser.Scene {
   /** 上一 tick 的座標（60 FPS 插值用） */
   private prev = new Map<number, { x: number; y: number }>();
   private sprites = new Map<number, Phaser.GameObjects.Image>();
+  /** 點地移動的路徑預覽（世界座標）；玩家換格或目的地改變才重算 */
+  private pathPreview: { key: string; pts: [number, number][] } | null = null;
   private flashUntil = new Map<number, number>();
   /** 命中停頓（hit-stop）剩餘毫秒：期間不推進模擬 */
   private hitStop = 0;
@@ -135,7 +138,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onUp(p));
     const kb = this.input.keyboard;
     if (kb) this.keys = kb.addKeys('W,A,S,D,ONE,TWO,THREE,FOUR,SPACE,R,Q') as Record<string, Phaser.Input.Keyboard.Key>;
-    (window as unknown as { __rt?: unknown }).__rt = { state: () => this.s, result: () => summarize(this.s) };
+    (window as unknown as { __rt?: unknown }).__rt = { state: () => this.s, result: () => summarize(this.s), send: (c: BattleCommand) => this.pending.push(c) };
   }
 
   // ---------- 輸入 ----------
@@ -270,6 +273,27 @@ export class RtBattleScene extends Phaser.Scene {
     this.updateCamera(Math.min(1, dt / 120));
     this.draw();
     if (this.s.outcome !== 'running') this.finish();
+  }
+
+  private previewPath(s: BattleState, p: Unit): [number, number][] {
+    const goal = s.moveGoal!;
+    const grid = gridOf(s.arena);
+    const from = grid ? cellIndex(grid, p.x, p.y) : 0;
+    const key = `${goal.x},${goal.y},${grid ? from : `${p.x},${p.y}`}`;
+    if (this.pathPreview?.key === key) {
+      this.pathPreview.pts[0] = [p.x, p.y];
+      return this.pathPreview.pts;
+    }
+    let pts: [number, number][] = [[p.x, p.y], [goal.x, goal.y]];
+    if (grid) {
+      const cells = findPath(grid, from, cellIndex(grid, goal.x, goal.y));
+      if (cells && cells.length > 1) {
+        const mid = cells.slice(0, -1).map((c): [number, number] => [((c % grid.w) + 0.5) * grid.cell, (Math.floor(c / grid.w) + 0.5) * grid.cell]);
+        pts = [[p.x, p.y], ...mid, [goal.x, goal.y]];
+      }
+    }
+    this.pathPreview = { key, pts };
+    return pts;
   }
 
   private sx(x: number): number {
@@ -457,6 +481,19 @@ export class RtBattleScene extends Phaser.Scene {
       else if (e.type === 'summon') {
         const b = u(e.id);
         if (b) shockRing(this, this.sx(b.x), this.sy(b.y), 0xb080ff, 140, 400, 5);
+      } else if (e.type === 'respawn') {
+        const d = u(e.id);
+        if (d) sparks(this, this.sx(d.x), this.sy(d.y), 10, 'ember', 0x8a7aa8, 500);
+      } else if (e.type === 'rest') {
+        const p = playerOf(this.s);
+        SFX.itemGet();
+        shockRing(this, this.sx(p.x), this.sy(p.y), 0xffb060, 120, 500, 6);
+        bigText(this, this.sx(p.x), this.sy(p.y) - 90, '休息・HP 全滿', '#ffd27a', 32, 600);
+      } else if (e.type === 'revive') {
+        const p = playerOf(this.s);
+        this.cameras.main.flash(260, 255, 210, 140);
+        bigText(this, GAME_WIDTH / 2, 520, '在營火旁醒來', '#ffd27a', 40, 900);
+        shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 160, 600, 6);
       }
     }
   }
@@ -794,10 +831,21 @@ export class RtBattleScene extends Phaser.Scene {
       g.lineStyle(2, 0xffb0d0, 0.9).strokeRect(x0 - 3, 113, w + 6, 20);
       g.lineStyle(2, 0xffffff, 0.6).lineBetween(x0 + w * 0.5, 113, x0 + w * 0.5, 133);
     }
-    // 點地移動的目的地
+    // 點地移動的目的地＋路徑預覽（沿 A* 格子路線的光點，往目的地流動）
     if (s.moveGoal) {
       const gx = this.sx(s.moveGoal.x);
       const gy = this.sy(s.moveGoal.y);
+      const pts = this.previewPath(s, p);
+      const flow = (this.time.now % 500) / 500;
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const [ax, ay] = pts[i]!;
+        const [bx, by] = pts[i + 1]!;
+        const len = Math.hypot(bx - ax, by - ay);
+        for (let d = (flow * 45) % 45; d < len; d += 45) {
+          const t = d / len;
+          g.fillStyle(0x9fd8ff, 0.55).fillCircle(this.sx(ax + (bx - ax) * t), this.sy(ay + (by - ay) * t), 4);
+        }
+      }
       const ph = (this.time.now % 600) / 600;
       g.lineStyle(3, 0x9fd8ff, 0.8 - ph * 0.6).strokeEllipse(gx, gy, 30 + ph * 26, 14 + ph * 12);
       g.fillStyle(0x9fd8ff, 0.5).fillEllipse(gx, gy, 12, 6);
