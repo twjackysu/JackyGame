@@ -10,14 +10,14 @@
 > ⭐ **方向（D-038）：自由探索 RPG。** 讀 `docs/design/11-open-world.md`。**第 1 章已全部可走**（第 8 輪）：`src/data/areas/{greylamp,mistwood,wolfpath}.ts`；引擎 `src/game/scenes/ExploreScene.ts`＋`ExploreHudScene.ts`；純邏輯 `src/core/explore/{grid,area}.ts`（測試 `tests/explore.test.ts`）。序章後直接站在灰燈鎮；世界地圖上第 1 章所有地點都會走進對應區域（MapScene `GREYLAMP_/MISTWOOD_/WOLFPATH_NODES`）。
 > 除錯：`?debug&scene=Explore&area=mistwood&spawn=north`；`window.__explore.{goto(id), tap(x,y), pos(), objective(), entities(), setFlags({...}), busy()}`。機器人在 Explore 場景會 `goto(objective)`，沒有目標就回世界地圖。
 
-A1. **E2 收尾：第 1 章探索手感**
-   - ✅ 先攻：沒被發現就碰到 → 先制（`preemptive`，敵方第 1 輪不動）；被追上 → 伏擊（沿用 `ambushed`）。敵人只看得到前方 4 格或身邊 2 格（D-041）。未做：等級差 ≥ 5 小怪逃跑。
-   - ✅ 支線 1：灰燈鎮「廣場的四盞燈」（老燈伕，ch1 `lamplighter*` 節點，`kind: 'lamp'` 實體）。**再做 1～2 個**：森林迷路小孩（找到後帶回鎮上）、燼牌路人對手（`talk` 接新 ch1 節點 → `event: cards`）。支線進度在 HUD 目標列（`ExploreHudScene.refreshGoal`，目前只認點燈，做新支線時改成資料化）。
-   - 建築內部（酒館、雜貨店、孤兒院）目前是「門 → 直接跑劇本」，先不做室內地圖。
-   - 古燈塔是程式建築；之後可在 ART_REQUESTS 加 `prop_lighthouse_ruin`。
-A2. **E3 商店與裝備**（11-open-world §2.4）：裝備資料表 `src/data/equipment.ts`（武器／防具／飾品，ATK/DEF/HP/SPD）、`MemberState.equipment` 生效於 BattleScene、商店買賣（賣價 50%）、探索選單 ☰（道具／裝備）。**道具與裝備圖示已經有了**：`public/art/item_*.webp`（28 張，名稱見 `scripts/art-sheets.json` 的 sheet_items／sheet_gear）。
-A3. **E6 第 2 章可走**：沉鐘礦坑（礦工營地＋礦坑隧道），照第 1 章的做法：`src/data/areas/<id>.ts` → `AREAS` → MapScene 節點路由 → 測試「每個世界地圖地點都在某區域」（目前只檢查 ch1，加到 ch2）→ 機器人 `?debug&chapter=2&scene=Map` 跑通。
-A4. E4 技能樹、E5 自由羈絆（營火聊天、送禮）。
+> ⭐ **第 9 輪（10/24 16:11）完成**：E3 商店與裝備、E4 技能樹 v1、E5 營火羈絆 v1、第 2 章（`minecamp`＋`mine`）與第 3 章（`capital`）可走、第 1 章支線 ×2、等級差逃跑。相關檔案：`src/data/{equipment,skillTree,sideQuests}.ts`、`src/data/dialogue/camp.ts`、`src/core/state/{equip,skillTree}.ts`、`src/game/ui/{shopPanel,bagPanel,gearUi}.ts`、`src/data/areas/{minecamp,mine,capital}.ts`。
+
+A0. **先確認機器人**：第 1～3 章各自已通過（可走版）。第 9 輪結束時「新遊戲全程」機器人還在跑，下一輪開頭再跑一次從新遊戲到 `ch5_complete`（約 20 分鐘，背景跑）。王都若卡住，多半是實體擋路或 `spawn` 站在建築上（`tests/explore.test.ts` 有可達性檢查，但機器人才測得到劇本回來後的位置）。
+A1. **E6 第 4 章可走**（研究院地下、星核）：`src/data/dialogue/ch4.ts` 的 `CH4_ENTRIES` → 新區域（建議一張「研究院地下」地城圖，地塊用礦坑那套 `#_c` 再加藍紫色調；可在 `exploreArt.ts` 依 `area.region` 換配色）→ MapScene `CH4_NODES` → 測試（照第 3 章的寫法：地點都在區域、`done` 同 `CHAPTER_MAPS.ch4.done`、主線順序）→ 機器人。終章（ch5）時間不夠就維持節點地圖（11-open-world §4 砍法）。
+A2. **E5 第二版**：羈絆事件改成「好感達門檻＋到指定地點」觸發（`src/data/bonds.ts` 的事件 → 探索實體 `when: affinityAtLeast`）；城鎮夜晚約會事件 1–2 個（灰燈鎮湖畔、王都鐘塔）；同伴在地圖上偶爾冒對話泡泡（ExploreScene followers 加 `say`）。
+A3. **E3／E4 第二版**：裝備特效（例：星燼提燈「開場燈印 +1」、迅風戒「閃避窗口 +10%」）；技能樹第 4 階換成主動技能（需要 engine `SKILLS` 新增 id 與效果）；商店依章節進貨（`ShopDef.stock` 加 `requires`）。
+A4. **E7 平衡**：裝備＋技能樹讓戰鬥變容易（第 1 章武器 ATK +25%、技能樹 lv10 再 +14%）→ 用 `src/core/battle/sim.ts` 跑「全裝備＋技能樹」對各 Boss 的勝率與回合數，必要時調高 Boss HP 或裝備價格；機器人改成會買裝備、點技能。
+A5. 第 1 章探索小項：建築內部仍是「門 → 直接跑劇本」；古燈塔是程式建築（可在 ART_REQUESTS 加 `prop_lighthouse_ruin`）；礦坑地形可加更多彎道／高低差；王都可加夜市攤位物件（程式畫棚子）。
 
 0. **【每輪開頭都做】檢查 Jacky 有沒有上傳手繪立繪**：`art-inbox/` 有圖或 GitHub 有標題含「立繪」的 Issue → `pip install "rembg[cpu]" --break-system-packages`、`node scripts/import-art.mjs`（流程見 D-036）；手繪會自動取代同名程式立繪。沒圖就照常往下做。
 1. **配角程式立繪與手繪主角的畫風落差**：主角群是 AI 厚塗，配角是賽璐珞程式繪。可做：配角立繪加一層柔光／顆粒（`ensurePortrait` 畫完後 soft-light 漸層＋邊緣暈影）讓質感接近；或在 FOR_JACKY 已請 Jacky 補 `npc_tia`／`npc_gwen`／`npc_bern`。

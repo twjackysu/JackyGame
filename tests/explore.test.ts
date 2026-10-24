@@ -189,6 +189,25 @@ describe('wolfpath', () => {
     const ids = new Set(Object.values(AREAS).flatMap((x) => x.entities.filter((e) => e.talk?.script === 'ch2').map((e) => e.talk!.node)));
     for (const e of CHAPTER_MAPS.ch2.entries) expect(ids.has(e.node), e.node).toBe(true);
   });
+  it('every world-map location of chapter 3 is in the capital; objectives follow the story', async () => {
+    const { CHAPTER_MAPS } = await import('../src/data/maps');
+    const cap = AREAS['capital']!;
+    for (const e of CHAPTER_MAPS.ch3.entries) {
+      const ent = cap.entities.find((x) => x.talk?.script === 'ch3' && x.talk.node === e.node);
+      expect(ent, e.node).toBeTruthy();
+      expect(ent!.done, e.node).toBe(CHAPTER_MAPS.ch3.done[e.location]);
+      expect(cap.spawns[e.location], e.location).toBeTruthy();
+    }
+    const s = newGame();
+    const order: [string, string | undefined][] = [
+      ['ch2_complete', 'capital_gate'], ['ch3_entered', 'crown_plaza'], ['ch3_plaza_done', 'rourke_lodging'], ['ch3_rourke_met', 'tourney_hall'],
+      ['ch3_tourney_done', 'academy'], ['ch3_academy_done', 'inn_night'], ['ch3_betrayal', 'rooftop'], ['ch3_duel_done', 'crown_plaza_dawn'], ['ch3_complete', undefined],
+    ];
+    for (const [flag, next] of order) {
+      applyEffects(s, [{ flag }]);
+      expect(nextObjective(s, cap)?.id, flag).toBe(next);
+    }
+  });
   it('chapter 2 main objectives follow the story order in the mine', () => {
     const a = AREAS['mine']!;
     const s = newGame();

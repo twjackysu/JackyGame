@@ -27,6 +27,8 @@ const CH2_AREA: Record<string, string> = {
   greylamp_plaza: 'greylamp', miners_camp: 'minecamp', upper_tunnel: 'mine', mid_tunnel: 'mine', bell_hall: 'mine',
   mine_campfire: 'mine', ore_cart: 'mine', deep_level: 'mine', bell_throat: 'mine',
 };
+/** 第 3 章地點全部在王都（D-046） */
+const CH3_NODES = ['capital_gate', 'crown_plaza', 'rourke_lodging', 'tourney_hall', 'night_market', 'academy', 'inn_night', 'rooftop', 'crown_plaza_dawn'];
 
 type NodeState = 'locked' | 'open' | 'done' | 'waiting';
 
@@ -329,7 +331,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     // 第 2 章：灰燈鎮廣場／礦工營地／沉鐘礦坑都可以走
-    const ch2Area = id === 'ch2' ? CH2_AREA[loc] : undefined;
+    const ch2Area = id === 'ch2' ? CH2_AREA[loc] : id === 'ch3' && CH3_NODES.includes(loc) ? 'capital' : undefined;
     if (ch2Area) {
       fadeOutThen(this, 400, () => this.scene.start('Explore', { area: ch2Area, spawn: loc === 'greylamp_plaza' ? 'plaza' : loc }));
       return;
