@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, StatusApply, StatusId, Unit } from './types';
-import { TICKS_PER_SEC, UNIT } from './types';
+import { STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
 export function nextRand(s: BattleState): number {
@@ -102,12 +102,43 @@ export const playerOf = (s: BattleState): Unit => s.units[0]!;
 export const enemiesOf = (s: BattleState): Unit[] => s.units.filter((x) => x.side === 'enemy' && !x.dead);
 const unitById = (s: BattleState, id: number | null | undefined): Unit | undefined => (id == null ? undefined : s.units.find((x) => x.id === id));
 const has = (x: Unit, id: StatusId, tick: number): boolean => x.statuses.some((st) => st.id === id && st.until > tick);
+/** 暈眩或冰凍：不能移動與攻擊 */
+const disabled = (x: Unit, tick: number): boolean => has(x, 'stun', tick) || has(x, 'freeze', tick);
 
-function addStatus(s: BattleState, x: Unit, st: StatusApply): void {
+/** 上狀態：同一種刷新時間；可疊層的（燃燒、中毒）加一層；冰凍對 Boss 改成緩速；護盾總量 ≤ 最大 HP 50% */
+export function addStatus(s: BattleState, x: Unit, st: StatusApply, src?: Unit): void {
+  let id = st.id;
+  if (id === 'freeze' && ENEMIES[x.defId]?.boss) id = 'slow';
   const until = s.tick + st.ticks;
-  const cur = x.statuses.find((q) => q.id === st.id);
-  if (cur) cur.until = Math.max(cur.until, until); // 不疊加、刷新取最長
-  else x.statuses.push({ id: st.id, until });
+  const rule = STATUS_RULES[id];
+  const power = src && st.powerPct ? Math.max(1, Math.round((src.atk * st.powerPct) / 100)) : 0;
+  const cur = x.statuses.find((q) => q.id === id);
+  if (id === 'shield') {
+    const cap = Math.floor(x.maxHp / 2);
+    if (cur) {
+      cur.value = Math.min(cap, cur.value + power);
+      cur.until = Math.max(cur.until, until);
+    } else x.statuses.push({ id, until, stacks: 1, value: Math.min(cap, power), srcId: src?.id ?? 0, next: 0 });
+    return;
+  }
+  if (cur) {
+    cur.until = Math.max(cur.until, until); // 不疊加的取最長
+    if (rule.dot) {
+      cur.stacks = Math.min(rule.maxStacks, cur.stacks + 1);
+      cur.value = Math.max(cur.value, power);
+    }
+  } else x.statuses.push({ id, until, stacks: 1, value: power, srcId: src?.id ?? 0, next: s.tick + TICKS_PER_SEC });
+}
+
+/** 持續傷害（每 30 ticks；不吃暴擊與加算池、不觸發其他效果） */
+function tickDots(s: BattleState, x: Unit): void {
+  for (const st of x.statuses) {
+    if (!STATUS_RULES[st.id].dot || s.tick < st.next || st.until <= s.tick || x.dead) continue;
+    st.next += TICKS_PER_SEC;
+    const amount = Math.max(1, st.value * st.stacks);
+    const src = unitById(s, st.srcId) ?? x;
+    applyHp(s, src, x, amount, false, 'dot', st.id);
+  }
 }
 
 function emit(s: BattleState, e: BattleEvent): void {
@@ -145,24 +176,36 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
     }
   }
   let amount = computeDamage(atk, mult, pool, dst.def, critMul);
+  if (has(src, 'weak', s.tick)) amount = Math.max(1, Math.round(amount * 0.8)); // 虛弱：造成傷害 −20%
   if (reducePct > 0) amount = Math.max(1, Math.round((amount * (100 - reducePct)) / 100));
-  dst.hp = Math.max(0, dst.hp - amount);
-  emit(s, { tick: s.tick, type: 'damage', src: src.id, dst: dst.id, amount, crit, origin, skill });
+  applyHp(s, src, dst, amount, crit, origin, skill);
   // 受擊硬直（小怪；Boss 0）＋1 秒硬直免疫
-  if (dst.side === 'enemy') {
+  if (dst.side === 'enemy' && !dst.dead) {
     const def = ENEMIES[dst.defId]!;
     if (def.hitstunTicks > 0 && s.tick >= dst.hitstunImmuneUntil) {
       dst.hitstunUntil = s.tick + def.hitstunTicks;
       dst.hitstunImmuneUntil = s.tick + TICKS_PER_SEC;
     }
   }
-  if (dst.hp <= 0) {
+  return amount;
+}
+
+/** 扣血（先扣護盾）、記事件、處理死亡 */
+function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boolean, origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot', skill: string): void {
+  let absorbed = 0;
+  const sh = dst.statuses.find((q) => q.id === 'shield' && q.until > s.tick && q.value > 0);
+  if (sh) {
+    absorbed = Math.min(sh.value, amount);
+    sh.value -= absorbed;
+  }
+  dst.hp = Math.max(0, dst.hp - (amount - absorbed));
+  emit(s, { tick: s.tick, type: 'damage', src: src.id, dst: dst.id, amount, crit, origin, skill, ...(absorbed ? { absorbed } : {}) });
+  if (dst.hp <= 0 && !dst.dead) {
     dst.dead = true;
     dst.action = null;
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== dst.id);
     emit(s, { tick: s.tick, type: 'death', id: dst.id });
   }
-  return amount;
 }
 
 // ---------------- 移動 ----------------
@@ -257,7 +300,7 @@ function currentTarget(s: BattleState, p: Unit): Unit | undefined {
 
 function startSkill(s: BattleState, p: Unit, id: string): boolean {
   const sk = SKILLS[id];
-  if (!sk || p.dead || has(p, 'stun', s.tick)) return false;
+  if (!sk || p.dead || disabled(p, s.tick)) return false;
   if ((p.ready[id] ?? 0) > s.tick) return false;
   if (sk.mp && p.mp < sk.mp) return false;
   if (p.action && p.action.kind !== 'attack') return false; // 同時只能一個主動技能
@@ -272,7 +315,7 @@ function startSkill(s: BattleState, p: Unit, id: string): boolean {
 
 function startDodge(s: BattleState, p: Unit, dx: number, dy: number): boolean {
   const pd = playerDef();
-  if (p.dead || has(p, 'stun', s.tick) || (p.ready['dodge'] ?? 0) > s.tick) return false;
+  if (p.dead || disabled(p, s.tick) || (p.ready['dodge'] ?? 0) > s.tick) return false;
   // 格擋有效窗口內不能用閃避取消
   const a = p.action;
   if (a?.kind === 'skill' && SKILLS[a.id]?.block && s.tick - a.start <= SKILLS[a.id]!.block!.windowTicks) return false;
@@ -302,13 +345,13 @@ function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillI
     if (!inShape(h.shape, p.x, p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
     a.hitIds?.push(e.id);
     dealDamage(s, p, e, h.mult, origin, skillId);
-    if (h.status && !e.dead) addStatus(s, e, h.status);
+    if (h.status && !e.dead) addStatus(s, e, h.status, p);
   }
 }
 
 function updatePlayer(s: BattleState): void {
   const p = playerOf(s);
-  if (p.dead || has(p, 'stun', s.tick)) return;
+  if (p.dead || disabled(p, s.tick)) return;
   const pd = playerDef();
   const a = p.action;
   if (a) {
@@ -397,7 +440,7 @@ function enemyHit(s: BattleState, e: Unit, atk: AreaAttack, p: Unit): void {
     return;
   }
   dealDamage(s, e, p, atk.damageMultiplier, 'enemy', atk.id);
-  if (atk.status && !p.dead && p.invulnUntil < s.tick) addStatus(s, p, atk.status);
+  if (atk.status && !p.dead && p.invulnUntil < s.tick) addStatus(s, p, atk.status, e);
 }
 
 function updateEnemy(s: BattleState, e: Unit): void {
@@ -423,7 +466,7 @@ function updateEnemy(s: BattleState, e: Unit): void {
       emit(s, { tick: s.tick, type: 'summon', id: e.id, count: sm.count });
     }
   }
-  if (has(e, 'stun', s.tick)) return;
+  if (disabled(e, s.tick)) return;
   const a = e.action;
   if (a) {
     const atk = def.attacks.find((x) => x.id === a.id)!;
@@ -488,6 +531,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   updatePlayer(s);
   for (const e of s.units) if (e.side === 'enemy' && !e.dead) updateEnemy(s, e);
   separate(s);
+  for (const x of s.units) if (x.statuses.length && !x.dead) tickDots(s, x);
   for (const x of s.units) if (x.statuses.length) x.statuses = x.statuses.filter((st) => st.until > s.tick);
   const p = playerOf(s);
   if (p.dead) s.outcome = 'defeat';

@@ -2,9 +2,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { computeDamage, createBattle, enemiesOf, inShape, playerOf, step } from '../src/core/battle/rt/engine';
+import { addStatus, computeDamage, createBattle, enemiesOf, inShape, playerOf, step } from '../src/core/battle/rt/engine';
 import { BOT_PROFILES, IdleController, PlayerBot, ScriptedTestController, batch, simulateBattle } from '../src/core/battle/rt/sim';
-import { ENEMIES, SKILLS } from '../src/core/battle/rt/data';
+import { ENEMIES, SKILLS, STAGES } from '../src/core/battle/rt/data';
 import { sec, u } from '../src/core/battle/rt/types';
 
 const expert = () => new PlayerBot(BOT_PROFILES.expert, 'expert');
@@ -141,5 +141,37 @@ describe('模擬器指標（第一版基準；之後校準時更新）', () => {
     expect(k.durationSec.p50).toBeGreaterThanOrEqual(60);
     expect(k.durationSec.p50).toBeLessThanOrEqual(120);
     expect(batch('wolf_king', () => new IdleController(), 10).winRate).toBe(0);
+  }, 60000);
+});
+
+describe('狀態（秒計，持續傷害每 30 ticks）', () => {
+  it('燃燒疊到 3 層、每秒結算；冰凍對 Boss 變緩速；護盾先吸收且總量 ≤ 最大 HP 50%', () => {
+    const s = createBattle({ stageId: 'wolf_king', seed: 1 });
+    const p = playerOf(s);
+    const king = enemiesOf(s)[0]!;
+    for (let i = 0; i < 5; i++) addStatus(s, king, { id: 'burn', ticks: sec(5), powerPct: 10 }, p);
+    const burn = king.statuses.find((x) => x.id === 'burn')!;
+    expect(burn.stacks).toBe(3);
+    const hp0 = king.hp;
+    p.x = 0; // 讓雙方碰不到，只看持續傷害
+    p.y = 0;
+    king.x = s.arena.w - king.r;
+    king.y = s.arena.h - king.r;
+    king.nextAttackTick = 1e9;
+    for (let i = 0; i < sec(1); i++) step(s);
+    const dots = s.events.filter((e) => e.type === 'damage' && e.origin === 'dot');
+    expect(dots.length).toBe(1);
+    expect(hp0 - king.hp).toBe(burn.value * 3);
+    addStatus(s, king, { id: 'freeze', ticks: sec(2) });
+    expect(king.statuses.some((x) => x.id === 'freeze')).toBe(false);
+    expect(king.statuses.some((x) => x.id === 'slow')).toBe(true);
+    addStatus(s, p, { id: 'shield', ticks: sec(8), powerPct: 100000 }, p);
+    expect(p.statuses.find((x) => x.id === 'shield')!.value).toBe(Math.floor(p.maxHp / 2));
+  });
+});
+
+describe('五個原型關卡', () => {
+  it('熟練 Bot 每一關都能過', () => {
+    for (const id of Object.keys(STAGES)) expect(batch(id, expert, 5).winRate, id).toBe(100);
   }, 60000);
 });

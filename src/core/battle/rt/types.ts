@@ -15,11 +15,20 @@ export type Shape =
   | { type: 'line'; len: number; width: number }
   | { type: 'ring'; rIn: number; rOut: number };
 
-export type StatusId = 'break' | 'slow' | 'stun' | 'atkUp';
+export type StatusId = 'break' | 'slow' | 'stun' | 'atkUp' | 'burn' | 'poison' | 'freeze' | 'weak' | 'shield';
+
+/** 狀態規則（design/19 §2.10）：疊層上限；持續傷害每 30 ticks 結算一次 */
+export const STATUS_RULES: Record<StatusId, { maxStacks: number; dot?: boolean }> = {
+  break: { maxStacks: 1 }, slow: { maxStacks: 1 }, stun: { maxStacks: 1 }, atkUp: { maxStacks: 1 },
+  burn: { maxStacks: 3, dot: true }, poison: { maxStacks: 5, dot: true },
+  freeze: { maxStacks: 1 }, weak: { maxStacks: 1 }, shield: { maxStacks: 1 },
+};
 
 export interface StatusApply {
   id: StatusId;
   ticks: number;
+  /** 持續傷害：每秒每層的傷害（施放者攻擊力 %）；護盾：吸收量（施放者攻擊力 %） */
+  powerPct?: number;
 }
 
 /** 技能的一次命中（相對施放開始的 tick） */
@@ -122,6 +131,12 @@ export interface PlayerDefinition {
 export interface Status {
   id: StatusId;
   until: number;
+  stacks: number;
+  /** 持續傷害：每層每秒的傷害；護盾：剩餘吸收量 */
+  value: number;
+  srcId: number;
+  /** 下一次持續傷害結算的 tick */
+  next: number;
 }
 
 export type ActionKind = 'attack' | 'skill' | 'dodge' | 'enemyAttack' | 'charge';
@@ -188,7 +203,7 @@ export interface Telegraph {
 }
 
 export type BattleEvent =
-  | { tick: number; type: 'damage'; src: number; dst: number; amount: number; crit: boolean; origin: 'normal' | 'skill' | 'counter' | 'enemy'; skill: string }
+  | { tick: number; type: 'damage'; src: number; dst: number; amount: number; crit: boolean; origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot'; skill: string; absorbed?: number }
   | { tick: number; type: 'death'; id: number }
   | { tick: number; type: 'telegraph'; owner: number; attack: string }
   | { tick: number; type: 'dodge'; id: number }
