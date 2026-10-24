@@ -41,6 +41,15 @@ export const BANTER_AREA: Record<string, Lines> = {
   },
 };
 
-export function banterFor(area: string, m: MemberId): string[] {
-  return [...(BANTER_AREA[area]?.[m] ?? []), ...(BANTER_GENERIC[m] ?? [])];
+/** 好感 ≥ 50 才會說的話（羈絆變深，語氣也跟著變） */
+export const BANTER_CLOSE: Lines = {
+  io: ['連恩的影子，跟我的影子疊在一起了。', '……可以牽一下袖子嗎？霧太濃了。', '我今天又記住了一件事：你走路會配合我的步伐。'],
+  rourke: ['小子，你背後我顧著。安心走。', '……你這燈，看久了還挺順眼。', '哪天你要是累了，換我提燈也行。'],
+  serin: ['走在你旁邊，比走在前面安心。……別誤會。', '你的背，我會守住。這是誓言。', '下次停下來的時候，陪我練一下劍。'],
+  liora: ['欸，下一個發明我想取你的名字。可以嗎？', '跟你出門，好像就不用一直想著要爆炸了。', '你身上有煤灰的味道。……我的錯。'],
+};
+export const CLOSE_AFFINITY = 50;
+
+export function banterFor(area: string, m: MemberId, affinity = 0): string[] {
+  return [...(BANTER_AREA[area]?.[m] ?? []), ...(BANTER_GENERIC[m] ?? []), ...(affinity >= CLOSE_AFFINITY ? [...(BANTER_CLOSE[m] ?? []), ...(BANTER_CLOSE[m] ?? [])] : [])];
 }

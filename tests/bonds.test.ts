@@ -48,3 +48,12 @@ describe('約會事件（D-051）', () => {
     for (const a of Object.values(AREAS)) for (const e of a.entities) if (e.date) expect(DATES.nodes[e.talk!.node], e.id).toBeDefined();
   });
 });
+
+import { BANTER_CLOSE, banterFor } from '../src/data/banter';
+describe('閒聊泡泡依好感', () => {
+  it('好感 ≥ 50 才會出現親近台詞', () => {
+    const close = BANTER_CLOSE.io![0]!;
+    expect(banterFor('mine', 'io', 10)).not.toContain(close);
+    expect(banterFor('mine', 'io', 60)).toContain(close);
+  });
+});

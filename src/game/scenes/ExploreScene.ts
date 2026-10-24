@@ -9,7 +9,7 @@ import {
 import {
   findPath, nearestWalkable, parseGrid, pathToAdjacent, slideMove, walkable, type Grid, type Pt,
 } from '../../core/explore/grid';
-import { applyEffects, check, type Condition, type MemberId } from '../../core/state/gameState';
+import { applyEffects, check, type CompanionId, type Condition, type MemberId } from '../../core/state/gameState';
 import { AREAS } from '../../data/areas';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { currentChapter } from '../../data/maps';
@@ -757,7 +757,7 @@ export class ExploreScene extends Phaser.Scene {
     const cands = this.followers.filter((f) => f.id);
     const f = cands[Math.floor(Math.random() * cands.length)];
     if (!f?.id) return;
-    const lines = banterFor(this.area.id, f.id);
+    const lines = banterFor(this.area.id, f.id, f.id === 'lian' ? 0 : session.state.affinity[f.id as CompanionId] ?? 0);
     const text = lines[Math.floor(Math.random() * lines.length)];
     if (!text) return;
     this.lastBanter = this.time.now;
