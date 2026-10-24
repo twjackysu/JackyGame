@@ -31,7 +31,7 @@ export function backLian(c: C): void {
   // 大衣
   const coat = curve([[42, 82], [86, 82], [98, 120], [106, 194], [66, 186], [22, 194], [32, 120]]);
   part(c, coat, {
-    fill: vgrad(c, 80, 196, [[0, '#2c3a68'], [1, '#0e1430']]),
+    fill: vgrad(c, 80, 196, [[0, '#3a3236'], [1, '#100c10']]),
     shadow: curve([[20, 80], [60, 80], [56, 200], [10, 200]]), shadowColor: 'rgba(0,0,10,0.4)',
     rim: [-2, 1, 'rgba(255,196,120,0.95)'], ink: INK, inkW: 1.2,
     extra: () => {
@@ -42,7 +42,7 @@ export function backLian(c: C): void {
   });
   // 舉燈的右臂
   const arm = curve([[78, 88], [90, 84], [108, 66], [104, 60], [84, 76], [74, 92]]);
-  part(c, arm, { fill: '#26335c', rim: [-1, 1.5, 'rgba(255,210,140,1)'], ink: INK, inkW: 1.1 });
+  part(c, arm, { fill: '#2e282c', rim: [-1, 1.5, 'rgba(255,210,140,1)'], ink: INK, inkW: 1.1 });
   const hand = new Path2D(); hand.arc(106, 63, 4, 0, Math.PI * 2);
   part(c, hand, { fill: '#5a3a26', ink: INK, inkW: 1 });
   // 圍巾＋飄帶
