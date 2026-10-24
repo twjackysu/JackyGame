@@ -1,5 +1,6 @@
 // 片尾字幕與旅程統計（終幕之後捲動）。純函式：由存檔產生要顯示的文字列。
 import type { GameState } from '../core/state/gameState';
+import { BONDS, BOND_TIERS, bondMet, bondTier } from '../data/bonds';
 
 export const ENDING_NAME: Record<string, string> = { light: '燈火長明', crown: '新的大司星', dream: '餘燼之夢' };
 
@@ -21,9 +22,10 @@ export interface CreditLine {
 
 export function creditsLines(s: GameState): CreditLine[] {
   const ending = ENDING_NAME[String(s.flags['ending'])] ?? '？';
-  const bonds = (['serin', 'liora', 'rourke', 'io'] as const)
-    .filter((c) => s.affinity[c] !== undefined)
-    .map((c) => `${{ serin: '瑟琳', liora: '莉歐拉', rourke: '洛克', io: '伊歐' }[c]} ${'♥'.repeat(Math.min(5, Math.floor((s.affinity[c] ?? 0) / 20)))}`);
+  const bonds = BONDS.filter((b) => bondMet(s, b)).map((b) => {
+    const t = bondTier(s, b);
+    return `${b.name}　${BOND_TIERS[t]} ${'♥'.repeat(t)}`;
+  });
   return [
     { text: '星燼回響', kind: 'title' },
     { text: 'Echoes of Starfall', kind: 'body' },

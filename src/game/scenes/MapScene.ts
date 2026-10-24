@@ -9,6 +9,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TITLE_FONT, UI_FONT, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
+import { openBonds } from '../ui/bondPanel';
 import { HERO_COLOR, openParty } from '../ui/partyPanel';
 import { drawMapCh2, drawMapCh3, drawMapCh4, drawMapCh5 } from '../art/mapArt';
 import { session } from '../session';
@@ -288,6 +289,18 @@ export class MapScene extends Phaser.Scene {
       SFX.uiTap();
       session.save();
       this.scene.start('Title');
+    });
+    // 羈絆面板
+    const heart = this.add.text(GAME_WIDTH - 92, 70, '♥', { fontFamily: UI_FONT, fontSize: '40px', color: '#ff9ab8' })
+      .setOrigin(1, 0.5).setDepth(91).setInteractive({ useHandCursor: true });
+    this.tweens.add({ targets: heart, scale: 1.12, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    heart.on('pointerdown', () => {
+      if (this.busy) return;
+      this.busy = true;
+      SFX.uiTap();
+      void openBonds(this).then(() => {
+        this.busy = false;
+      });
     });
     // 隊伍頭像（點擊開啟隊伍編成）
     const bar = this.add.graphics().setDepth(90);
