@@ -1809,8 +1809,28 @@ export class BattleScene extends Phaser.Scene {
     if (win) {
       SFX.roundWin();
       this.time.delayedCall(300, () => SFX.levelUp());
+      // 勝利光芒：VICTORY 後方旋轉的放射光束＋衝擊環
+      const rays = this.add.graphics().setDepth(940).setBlendMode(Phaser.BlendModes.ADD).setPosition(GAME_WIDTH / 2, 470).setAlpha(0);
+      for (let k = 0; k < 14; k++) {
+        const a = (Math.PI * 2 * k) / 14;
+        const w = 0.07;
+        rays.fillStyle(0xffd27a, k % 2 ? 0.16 : 0.28);
+        rays.fillTriangle(0, 0, Math.cos(a - w) * 560, Math.sin(a - w) * 560, Math.cos(a + w) * 560, Math.sin(a + w) * 560);
+      }
+      rays.setScale(0.3);
+      this.tweens.add({ targets: rays, alpha: 1, scale: 1, duration: 500, ease: 'Back.Out' });
+      this.tweens.add({ targets: rays, angle: 360, duration: 24000, repeat: -1 });
+      shockRing(this, GAME_WIDTH / 2, 470, 0xffd27a, 360, 700, 10);
       bigText(this, GAME_WIDTH / 2, 470, 'VICTORY', '#ffd27a', 110, -1);
       sparks(this, GAME_WIDTH / 2, 470, 60, 'ember', undefined, 700);
+      // 本場戰績
+      const bits = [`${this.bs.round} 回合`];
+      if (this.statAcc.perfect > 0) bits.push(`PERFECT ×${this.statAcc.perfect}`);
+      if (this.statAcc.maxRes > 0) bits.push(`最大共鳴 ${this.statAcc.maxRes} 燈`);
+      const stat = this.add.text(GAME_WIDTH / 2, 680, bits.join('　·　'), {
+        fontFamily: UI_FONT, fontSize: '24px', color: '#ffe9c4', stroke: '#000', strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(960).setAlpha(0);
+      this.tweens.add({ targets: stat, alpha: 1, duration: 400, delay: 900 });
     } else {
       bigText(this, GAME_WIDTH / 2, 470, '燈火熄滅……', '#ff8a8a', 72, -1);
     }
