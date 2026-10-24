@@ -35,14 +35,16 @@ export interface BotSkill {
   ult?: boolean;
   /** HP 低於這個百分比就喝藥水（undefined＝不喝；試玩鍵位還沒有藥水） */
   potionAtPct?: number;
+  /** 地圖怪關卡（D-073）：清完一組後，HP 回到這個百分比才點下一隻待機的怪（undefined＝馬上點） */
+  restUntilPct?: number;
 }
 
 export const BOT_PROFILES: Record<'auto' | 'novice' | 'normal' | 'expert', BotSkill> = {
   // AUTO：不保證閃避（design/19 §5：不用隱藏懲罰，只是策略保守）
   auto: { parries: false },
-  novice: { reactTicks: 18, parries: false },
-  normal: { reactTicks: 9, parries: true },
-  expert: { reactTicks: 4, parries: true },
+  novice: { reactTicks: 18, parries: false, restUntilPct: 60 },
+  normal: { reactTicks: 9, parries: true, restUntilPct: 80 },
+  expert: { reactTicks: 4, parries: true, restUntilPct: 85 },
 };
 
 /** 會打到玩家目前位置、還沒結算的預告 */
@@ -65,6 +67,18 @@ export class PlayerBot implements BattleController {
     const out: BattleCommand[] = [];
     const ready = (id: string) => (p.ready[id] ?? 0) <= s.tick + 1;
     const busy = !!p.action && p.action.kind !== 'attack';
+    // 地圖怪：沒有戰鬥中的怪時，休息到 restUntilPct 再點最近的待機怪（D-073）
+    const es0 = s.units.filter((e) => e.side === 'enemy' && !e.dead);
+    if (es0.length && !es0.some((e) => e.mode === 'combat') && es0.some((e) => e.mode === 'idle')) {
+      const want = this.prof.restUntilPct ?? 0;
+      const tgt = s.units.find((e) => e.id === p.targetId);
+      if (p.hp * 100 >= p.maxHp * want && (!tgt || tgt.dead || tgt.mode !== 'idle')) {
+        let best: (typeof es0)[number] | undefined;
+        for (const e of es0) if (e.mode === 'idle' && (!best || Math.hypot(e.x - p.x, e.y - p.y) < Math.hypot(best.x - p.x, best.y - p.y))) best = e;
+        if (best) return [{ type: 'target', id: best.id }];
+      }
+      if (p.hp * 100 < p.maxHp * want) return [{ type: 'stop' }];
+    }
     // 0. 藥水（瞬間、不打斷動作）
     if (this.prof.potionAtPct !== undefined && s.potions > 0 && ready('potion') && p.hp * 100 < p.maxHp * this.prof.potionAtPct) out.push({ type: 'potion' });
     // 1. 迴避

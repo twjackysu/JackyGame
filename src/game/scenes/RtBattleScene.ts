@@ -56,6 +56,7 @@ export class RtBattleScene extends Phaser.Scene {
   private top!: Phaser.GameObjects.Graphics;
   /** 靜態地面（只畫一次，每幀只移動位置） */
   private ground!: Phaser.GameObjects.Image;
+  private calmText!: Phaser.GameObjects.Text;
   /** 上一 tick 的座標（60 FPS 插值用） */
   private prev = new Map<number, { x: number; y: number }>();
   private sprites = new Map<number, Phaser.GameObjects.Image>();
@@ -115,6 +116,7 @@ export class RtBattleScene extends Phaser.Scene {
     hdr.fillStyle(0x0b1410, 0.94).fillRect(0, 0, GAME_WIDTH, VIEW_TOP);
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
     this.add.text(GAME_WIDTH / 2, 40, `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
+    this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     this.makeButtons();
     this.menu = null;
@@ -397,6 +399,9 @@ export class RtBattleScene extends Phaser.Scene {
         SFX.itemGet();
         floatNumber(this, this.sx(p.x), this.sy(p.y) - 50, `+${e.heal}`, { color: '#7dffb0', size: 30 });
         sparks(this, this.sx(p.x), this.sy(p.y), 12, 'ember', 0x7dffb0, 380);
+      } else if (e.type === 'regen') {
+        const p = playerOf(this.s);
+        floatNumber(this, this.sx(p.x) + 30, this.sy(p.y) - 40, `+${e.heal}`, { color: '#9affc0', size: 18 });
       } else if (e.type === 'aggro') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '!', { color: '#ff5a5a', size: 40 });
@@ -774,7 +779,11 @@ export class RtBattleScene extends Phaser.Scene {
     const g = this.ui.clear();
     const s = this.s;
     const p = playerOf(s);
-    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　敵人 ${enemiesOf(s).length}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
+    // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
+    const es = enemiesOf(s);
+    const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle');
+    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　敵人 ${es.length}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
+    this.calmText.setVisible(calm).setText(calm ? (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // Boss 大血條（畫面上方）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss);
     if (boss) {

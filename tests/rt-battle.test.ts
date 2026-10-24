@@ -491,7 +491,7 @@ describe('地圖怪：待機／戰鬥／返回（D-072，design/20 B1）', () =>
     const { s, p } = setup();
     const [w1, w2] = enemiesOf(s);
     p.x = w1!.x;
-    p.y = w1!.y + u(4);
+    p.y = w1!.y + u(3);
     for (let i = 0; i < 12; i++) step(s, [{ type: 'move', dx: 0, dy: 0 }, { type: 'moveTo', x: p.x, y: p.y }]);
     expect(w1!.mode).toBe('combat');
     expect(w2!.mode).toBe('combat');
@@ -542,4 +542,37 @@ describe('地圖怪：待機／戰鬥／返回（D-072，design/20 B1）', () =>
     const a = simulateBattle({ stageId: 'rock_grove', seed: 11 }, expert());
     expect(simulateBattle({ stageId: 'rock_grove', seed: 11 }, expert()).stateHash).toBe(a.stateHash);
   }, 60000);
+});
+
+describe('自然恢復（D-073）', () => {
+  it('地圖怪關卡：脫戰 5 秒後每秒回 2%，有怪在戰鬥就不回；舊關卡不回', () => {
+    const s = createBattle({ stageId: 'rock_grove', seed: 1 });
+    const p = playerOf(s);
+    p.speedPerTick = 0;
+    p.hp = 300;
+    for (let i = 0; i < sec(5) - 1; i++) step(s);
+    expect(p.hp).toBe(300);
+    for (let i = 0; i < sec(3); i++) step(s); // 第 150、180、210 tick 各回一次
+    const per = Math.round(p.maxHp * 0.02);
+    expect(p.hp).toBe(300 + per * 3);
+    expect(s.events.filter((e) => e.type === 'regen').length).toBe(3);
+    // 有怪在戰鬥中：不回
+    enemiesOf(s)[0]!.mode = 'combat';
+    enemiesOf(s)[0]!.speedPerTick = 0;
+    enemiesOf(s)[0]!.engagedTick = 1e9; // 不讓它因為太久沒交手而脫戰
+    const hp = p.hp;
+    for (let i = 0; i < sec(2); i++) step(s);
+    expect(p.hp).toBe(hp);
+    // 不超過上限
+    enemiesOf(s)[0]!.mode = 'idle';
+    for (let i = 0; i < sec(60); i++) step(s);
+    expect(p.hp).toBe(p.maxHp);
+    // 舊關卡沒有自然恢復
+    const o = createBattle({ stageId: 'forest_entry', seed: 1 });
+    const op = playerOf(o);
+    o.units = [op];
+    op.hp = 300;
+    for (let i = 0; i < sec(10); i++) step(o);
+    expect(op.hp).toBe(300);
+  });
 });

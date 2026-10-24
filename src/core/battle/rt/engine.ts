@@ -175,6 +175,7 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   if (dst.mode === 'idle') aggro(s, dst); // 被打到就醒
   if (dst.mode) dst.engagedTick = s.tick;
   if (src.mode) src.engagedTick = s.tick;
+  if (src.side === 'player' || dst.side === 'player') s.lastCombatTick = s.tick;
   if (dst.invulnUntil >= s.tick) {
     emit(s, { tick: s.tick, type: 'dodged', id: dst.id, attack: skill });
     return 0;
@@ -385,9 +386,10 @@ function nearestEnemy(s: BattleState, p: Unit): Unit | undefined {
   let best: Unit | undefined;
   let bd = Infinity;
   for (const e of enemiesOf(s)) {
-    if (e.mode === 'returning') continue;
-    // 地圖怪：優先打已經在戰鬥中的（待機的怪距離加權，不會放著咬人的怪去拉新的一群）
-    const d = dist(p.x, p.y, e.x, e.y) + (e.mode === 'idle' ? 1e6 : 0);
+    // 地圖怪（D-072／D-073）：自動追擊只找戰鬥中的怪；待機的要玩家點它（或技能打到）才開打，
+    // 清完一組就停下來（自然恢復），不會自己走去拉下一群
+    if (e.mode === 'returning' || e.mode === 'idle') continue;
+    const d = dist(p.x, p.y, e.x, e.y);
     if (d < bd) {
       bd = d;
       best = e;
@@ -398,7 +400,7 @@ function nearestEnemy(s: BattleState, p: Unit): Unit | undefined {
 
 function currentTarget(s: BattleState, p: Unit): Unit | undefined {
   const t = unitById(s, p.targetId);
-  if (t && !t.dead) return t;
+  if (t && !t.dead && t.mode !== 'returning') return t;
   const n = nearestEnemy(s, p);
   p.targetId = n?.id ?? null;
   return n;
@@ -728,9 +730,23 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   for (const x of s.units) if (x.statuses.length && !x.dead) tickDots(s, x);
   for (const x of s.units) if (x.statuses.length) x.statuses = x.statuses.filter((st) => st.until > s.tick);
   const p = playerOf(s);
+  naturalRegen(s, p);
   if (p.dead) s.outcome = 'defeat';
   else if (enemiesOf(s).length === 0) s.outcome = 'victory';
   else if (s.tick >= s.timeLimitTicks) s.outcome = 'timeout';
+}
+
+/** 自然恢復（D-073）：只在開 regen（預設＝mapAi）的關卡；沒有戰鬥中的怪、且 5 秒沒受傷也沒出手 → 每秒回 2% */
+const REGEN = { afterTicks: 5 * TICKS_PER_SEC, everyTicks: TICKS_PER_SEC, pct: 2 };
+function naturalRegen(s: BattleState, p: Unit): void {
+  const st = STAGES[s.stageId];
+  if (!st || !(st.regen ?? st.mapAi) || p.dead || p.hp >= p.maxHp) return;
+  if (s.tick - (s.lastCombatTick ?? 0) < REGEN.afterTicks) return;
+  if (s.units.some((e) => e.side === 'enemy' && !e.dead && e.mode === 'combat')) return;
+  if ((s.tick - (s.lastCombatTick ?? 0)) % REGEN.everyTicks !== 0) return;
+  const heal = Math.min(p.maxHp - p.hp, Math.max(1, Math.round((p.maxHp * REGEN.pct) / 100)));
+  p.hp += heal;
+  emit(s, { tick: s.tick, type: 'regen', id: p.id, heal });
 }
 
 /** 狀態雜湊（FNV-1a 32 位元）：驗證同種子同輸入結果完全一致 */

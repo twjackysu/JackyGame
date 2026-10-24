@@ -239,7 +239,9 @@ export type BattleEvent =
   /** 地圖怪（D-072）：發現玩家進入戰鬥／脫戰返回／回到原位回滿 */
   | { tick: number; type: 'aggro'; id: number }
   | { tick: number; type: 'leash'; id: number }
-  | { tick: number; type: 'reset'; id: number };
+  | { tick: number; type: 'reset'; id: number }
+  /** 自然恢復（D-073）：脫戰 5 秒後每秒回 2% */
+  | { tick: number; type: 'regen'; id: number; heal: number };
 
 /** 玩家（或 Bot）的輸入：一個 tick 可以送多個 */
 export type BattleCommand =
@@ -274,6 +276,8 @@ export interface StageDefinition {
    * 追太遠或太久沒交手就返回原位回滿。沒設＝舊行為（一開場全部衝過來）。
    */
   mapAi?: boolean;
+  /** 自然恢復（D-073，D-065：脫戰 5 秒後每秒 2%）；預設跟 mapAi 一樣 */
+  regen?: boolean;
   /** 超過這麼多 tick 算失敗（防無限戰鬥） */
   timeLimitTicks: number;
 }
@@ -294,6 +298,8 @@ export interface BattleState {
   manualMove: { dx: number; dy: number } | null;
   /** 點地移動的目的地（D-071）；null＝沒有 */
   moveGoal?: { x: number; y: number; until: number } | null;
+  /** 玩家最後一次受傷或出手的 tick（自然恢復用，D-073） */
+  lastCombatTick?: number;
   /** 剩餘 HP 藥水 */
   potions: number;
 }
