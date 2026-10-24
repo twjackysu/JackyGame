@@ -524,6 +524,8 @@ export class RtBattleScene extends Phaser.Scene {
         floatNumber(this, this.sx(p.x), this.sy(p.y) - 100, `攻擊 ${e.atk}`, { color: '#ffd27a', size: 26 });
         sparks(this, this.sx(p.x), this.sy(p.y) - 30, 24, 'spark', 0xffd27a, 520);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 130, 450, 6);
+      } else if (e.type === 'ramp') {
+        if (e.minute < 5) bigText(this, GAME_WIDTH / 2, 470, `第 ${e.minute} 分鐘・狼群越來越兇了（+${e.pct}%）`, '#ff9a6a', 30, 1100);
       } else if (e.type === 'respawn') {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 10, 'ember', 0x8a7aa8, 500);

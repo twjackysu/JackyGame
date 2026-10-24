@@ -248,6 +248,7 @@ export type BattleEvent =
   | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number }
   | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number }
   | { tick: number; type: 'enhance'; level: number; atk: number }
+  | { tick: number; type: 'ramp'; minute: number; pct: number }
   /** 單位直接移除（Boss 重置時召喚物消失） */
   | { tick: number; type: 'despawn'; id: number }
   | { tick: number; type: 'revive'; id: number; campfire: string }
@@ -353,6 +354,8 @@ export interface StageDefinition {
    * 每級攻擊 +atkPctPerLevel%，最多 maxLevel。只在這一場有效，不碰主線存檔。
    */
   lootEnhance?: { dustPerLevel: number; maxLevel: number; atkPctPerLevel: number };
+  /** 刷怪關的壓力曲線：每過 1 分鐘，之後重生的怪 HP 與攻擊 +這麼多 %（每分鐘發一次 ramp 事件） */
+  rampPctPerMin?: number;
   /** 營火（需要 mapAi） */
   campfires?: Campfire[];
   /** 倒下時在營火復活（不掉裝、不扣經驗；design/20 B4），不算失敗；沒設＝倒下就失敗 */

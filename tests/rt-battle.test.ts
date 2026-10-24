@@ -976,4 +976,13 @@ describe('地面掉落與自動撿取（design/20 B5 最小版本）', () => {
     expect(p.atk).toBe(Math.round((base * (100 + 8 * lv)) / 100));
     expect(s.events.filter((e) => e.type === 'enhance').length).toBe(lv);
   });
+
+  it('營火空地的壓力曲線：每分鐘之後重生的怪 HP／攻擊 +10%，每分鐘一則 ramp 事件', () => {
+    const s = createBattle({ stageId: 'camp_clearing', seed: 5 });
+    const bot = expert();
+    while (s.outcome === 'running') step(s, bot.decide(s));
+    expect(s.events.filter((e) => e.type === 'ramp').map((e) => (e as { pct: number }).pct)).toEqual([10, 20, 30, 40, 50]);
+    const late = s.events.filter((e) => e.type === 'respawn' && e.tick >= sec(120) && e.tick < sec(180)).map((e) => s.units.find((x) => x.id === (e as { id: number }).id)).filter((x) => x && x.defId === 'wolf');
+    for (const w of late) expect(w!.maxHp).toBe(Math.round((ENEMIES.wolf!.hp * 120) / 100));
+  });
 });

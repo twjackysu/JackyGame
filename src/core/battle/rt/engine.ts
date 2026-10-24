@@ -138,6 +138,11 @@ function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Un
   const def = ENEMIES[g.enemyId];
   if (!def) throw new Error(`unknown enemy ${g.enemyId}`);
   const m = makeEnemy(s, def, x, y);
+  const ramp = rampPct(s);
+  if (ramp) {
+    m.hp = m.maxHp = Math.round((m.maxHp * (100 + ramp)) / 100);
+    m.atk = Math.round((m.atk * (100 + ramp)) / 100);
+  }
   clampArena(s, m);
   if (s.arena.solid) pushOutSolid(s.arena.solid, m);
   m.mode = 'idle';
@@ -148,6 +153,9 @@ function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Un
   m.groupId = g.id;
   return m;
 }
+
+/** 目前的壓力加成（%）：每滿 1 分鐘 +rampPctPerMin */
+const rampPct = (s: BattleState): number => (STAGES[s.stageId]?.rampPctPerMin ?? 0) * Math.floor(s.tick / (60 * TICKS_PER_SEC));
 
 function groupOf(s: BattleState, id: string): SpawnGroup | undefined {
   return STAGES[s.stageId]?.spawnGroups?.find((g) => g.id === id);
@@ -978,6 +986,8 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   separate(s);
   for (const x of s.units) if (x.statuses.length && !x.dead) tickDots(s, x);
   for (const x of s.units) if (x.statuses.length) x.statuses = x.statuses.filter((st) => st.until > s.tick);
+  const rpm = STAGES[s.stageId]?.rampPctPerMin;
+  if (rpm && s.tick % (60 * TICKS_PER_SEC) === 0) emit(s, { tick: s.tick, type: 'ramp', minute: s.tick / (60 * TICKS_PER_SEC), pct: rampPct(s) });
   processRespawns(s);
   processPickup(s);
   const p = playerOf(s);
