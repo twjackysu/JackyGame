@@ -1,8 +1,8 @@
 // 控制器、無畫面模擬器與統計（design/19 §7、D-063 P2）。
 // 控制器只讀 BattleState、回傳 BattleCommand；同種子＋同控制器＝同結果（stateHash 驗證）。
-import { SKILLS } from './data';
+import { SKILLS, STAGES } from './data';
 import { createBattle, dist, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
-import { AGGRO_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
+import { AGGRO_RULES, CAMPFIRE_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
 
 export interface BattleController {
   readonly name: string;
@@ -39,6 +39,8 @@ export interface BotSkill {
   restUntilPct?: number;
   /** 地圖怪關卡：挑「不會連帶拉到第二組」的怪（safestPull）；沒設＝直接點最近的 */
   safePull?: boolean;
+  /** 有營火的地圖：沒在打的時候，藥水少於這個數就走回最近的營火休息補滿（undefined＝不回營火） */
+  campfireBelowPotions?: number;
 }
 
 export const BOT_PROFILES: Record<'auto' | 'novice' | 'normal' | 'expert', BotSkill> = {
@@ -139,6 +141,14 @@ export class PlayerBot implements BattleController {
     // 地圖怪：沒有戰鬥中的怪時，休息到 restUntilPct 再點下一隻待機的怪（D-073）
     const es0 = s.units.filter((e) => e.side === 'enemy' && !e.dead);
     const sleeping = (e: (typeof es0)[number]) => e.mode === 'idle' || e.mode === 'dormant';
+    const fires = STAGES[s.stageId]?.campfires ?? [];
+    if (fires.length && this.prof.campfireBelowPotions !== undefined && s.potions < this.prof.campfireBelowPotions && !es0.some((e) => e.mode === 'combat')) {
+      let c = fires[0]!;
+      for (const f of fires) if (dist(f.x, f.y, p.x, p.y) < dist(c.x, c.y, p.x, p.y)) c = f;
+      if (dist(c.x, c.y, p.x, p.y) <= CAMPFIRE_RULES.restUnits * UNIT - 10) return [{ type: 'rest' }];
+      if (!s.moveGoal || s.moveGoal.x !== c.x || s.moveGoal.y !== c.y + UNIT) return [{ type: 'moveTo', x: c.x, y: c.y + UNIT }];
+      return [];
+    }
     if (es0.length && !es0.some((e) => e.mode === 'combat') && es0.some(sleeping)) {
       const want = this.prof.restUntilPct ?? 0;
       const tgt = s.units.find((e) => e.id === p.targetId);
