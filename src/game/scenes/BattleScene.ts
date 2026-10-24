@@ -1680,7 +1680,14 @@ export class BattleScene extends Phaser.Scene {
       });
       const kx = isEnemy ? 0 : 0;
       const ky = isEnemy ? -18 : 18;
-      this.tweens.add({ targets: v.sprite, x: kx + Phaser.Math.Between(-8, 8), y: ky, duration: 60, yoyo: true, ease: 'Quad.Out' });
+      this.tweens.add({
+        targets: v.sprite, x: kx + Phaser.Math.Between(-8, 8), y: ky, duration: 60, yoyo: true, ease: 'Quad.Out',
+        // 多段攻擊時擊退補間會重疊 → 結束時歸位並保證白閃已清除
+        onComplete: () => {
+          v.sprite.setX(0);
+          if (!v.dead || isEnemy) v.sprite.clearTint();
+        },
+      });
       sparks(this, v.x, v.y - 20, Math.round(10 + pct * 60), e.crit ? 'ember' : 'spark', e.weak ? 0xffb060 : undefined, 380 + pct * 400);
       if (pct > 0.18 || e.crit) SFX.hitHeavy();
       else SFX.hitLight();
