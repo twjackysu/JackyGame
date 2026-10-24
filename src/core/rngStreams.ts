@@ -4,7 +4,7 @@
 // 例如多看了幾句閒聊（ui）不會改變下一場戰鬥（battle）或掉落（loot）的結果。
 import { hashSeed, type Rng } from './rng';
 
-export const RNG_STREAMS = ['battle', 'loot', 'enhance', 'abyss', 'story', 'ui'] as const;
+export const RNG_STREAMS = ['battle', 'loot', 'enhance', 'abyss', 'story', 'ui', 'ids'] as const;
 export type RngStream = (typeof RNG_STREAMS)[number];
 
 export interface RngState {

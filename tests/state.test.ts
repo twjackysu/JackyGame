@@ -1,3 +1,4 @@
+import { bagCount } from '../src/core/state/gear';
 import { describe, expect, it } from 'vitest';
 import {
   applyEffects,
@@ -30,8 +31,8 @@ describe('GameState effects & conditions', () => {
     expect(s.divergence).toBe(100);
     expect(s.reputation.order).toBe(-100);
     expect(s.affinity.io).toBe(10);
-    expect(s.inventory.old_lantern).toBe(1);
-    expect(s.inventory.potion_s).toBeUndefined();
+    expect(bagCount(s, 'old_lantern')).toBe(1);
+    expect(bagCount(s, 'potion_s')).toBe(0);
     expect(s.gold).toBe(0);
     expect(s.codex).toEqual(['legacy_lighthouse']);
     expect(s.party).toEqual(['lian', 'rourke']);

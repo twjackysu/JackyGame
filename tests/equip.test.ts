@@ -1,3 +1,5 @@
+import { wornTemplate } from '../src/core/state/equip';
+import { addItem, bagCount } from '../src/core/state/gear';
 import { describe, expect, it } from 'vitest';
 import { createBattle } from '../src/core/battle/engine';
 import { ITEMS } from '../src/core/battle/skills';
@@ -57,7 +59,7 @@ describe('買賣', () => {
     s.gold = 100;
     expect(buy(s, 'sword_iron')).toBe(true);
     expect(s.gold).toBe(30);
-    expect(s.inventory.sword_iron).toBe(1);
+    expect(bagCount(s, 'sword_iron')).toBe(1);
     expect(buy(s, 'sword_iron')).toBe(false);
     expect(s.gold).toBe(30);
   });
@@ -67,13 +69,13 @@ describe('買賣', () => {
     expect(sellPrice('lamp_wick')).toBe(0);
     expect(sellPrice('old_lantern')).toBe(0);
     const s = newGame();
-    s.inventory.lamp_wick = 1;
+    addItem(s, 'lamp_wick', 1);
     expect(sell(s, 'lamp_wick')).toBe(false);
     expect(sellable(s)).toEqual(['potion_s']);
     const g = s.gold;
     expect(sell(s, 'potion_s')).toBe(true);
     expect(s.gold).toBe(g + 15);
-    expect(s.inventory.potion_s).toBe(1);
+    expect(bagCount(s, 'potion_s')).toBe(1);
   });
   it('非賣品不能買', () => {
     const s = newGame();
@@ -89,22 +91,22 @@ describe('買賣', () => {
 describe('裝備', () => {
   it('換裝：背包 ↔ 欄位，原本那件放回背包', () => {
     const s = newGame();
-    s.inventory.lantern_tin = 1;
-    s.inventory.old_lantern = 1;
+    addItem(s, 'lantern_tin', 1);
+    addItem(s, 'old_lantern', 1);
     expect(equip(s, 'lian', 'old_lantern')).toBe(true);
-    expect(s.inventory.old_lantern).toBeUndefined();
+    expect(bagCount(s, 'old_lantern')).toBe(0);
     expect(gearBonus(s, 'lian').atk).toBe(2);
     expect(gearDelta(s, 'lian', 'lantern_tin').atk).toBe(2);
     expect(equip(s, 'lian', 'lantern_tin')).toBe(true);
-    expect(s.inventory.old_lantern).toBe(1);
-    expect(s.members.lian!.equipment.weapon).toBe('lantern_tin');
+    expect(bagCount(s, 'old_lantern')).toBe(1);
+    expect(wornTemplate(s, 'lian', 'weapon')).toBe('lantern_tin');
     expect(unequip(s, 'lian', 'weapon')).toBe(true);
-    expect(s.inventory.lantern_tin).toBe(1);
+    expect(bagCount(s, 'lantern_tin')).toBe(1);
     expect(gearBonus(s, 'lian').atk).toBe(0);
   });
   it('限定角色：瑟琳的劍連恩不能裝；沒有的東西不能裝', () => {
     const s = newGame();
-    s.inventory.sword_iron = 1;
+    addItem(s, 'sword_iron', 1);
     expect(canEquip('lian', ITEM_DEFS.sword_iron)).toBe(false);
     expect(equip(s, 'lian', 'sword_iron')).toBe(false);
     expect(equip(s, 'lian', 'armor_cloth')).toBe(false);
@@ -120,7 +122,7 @@ describe('裝備', () => {
     const s = newGame();
     const plain = createBattle({ party: battleParty(s), enemies: ['mist_wolf'], seed: 1 }).state.heroes[0]!;
     for (const id of ['lantern_brass', 'armor_leather', 'ring_swift']) {
-      s.inventory[id] = 1;
+      addItem(s, id, 1);
       equip(s, 'lian', id);
     }
     const geared = createBattle({ party: battleParty(s), enemies: ['mist_wolf'], seed: 1 }).state.heroes[0]!;

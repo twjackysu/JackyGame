@@ -1,6 +1,7 @@
 // 自動配裝／點技能（通關機器人與平衡模擬用；玩家不會用到）。
 import { ITEM_DEFS, SLOTS } from '../../data/equipment';
-import { buy, buyPrice, canEquip, equip } from './equip';
+import { buy, buyPrice, canEquip, equip, wornTemplate } from './equip';
+import { bagIds } from './gear';
 import { learn, learnState, treeFor } from './skillTree';
 import type { GameState, MemberId } from './gameState';
 
@@ -14,8 +15,8 @@ export function autoOutfit(s: GameState, stock: readonly string[] = [], keepGold
   let n = 0;
   for (const m of s.party as MemberId[]) {
     for (const slot of SLOTS) {
-      const cur = s.members[m]?.equipment[slot];
-      const owned = Object.keys(s.inventory).filter((id) => (s.inventory[id] ?? 0) > 0 && ITEM_DEFS[id]?.slot === slot && canEquip(m, ITEM_DEFS[id]));
+      const cur = wornTemplate(s, m, slot);
+      const owned = bagIds(s).filter((id) => ITEM_DEFS[id]?.slot === slot && canEquip(m, ITEM_DEFS[id]));
       const bestOwned = owned.sort((a, b) => score(b) - score(a))[0];
       if (bestOwned && score(bestOwned) > score(cur) && equip(s, m, bestOwned)) { n++; continue; }
       const shop = stock.filter((id) => ITEM_DEFS[id]?.slot === slot && canEquip(m, ITEM_DEFS[id]) && score(id) > score(cur))

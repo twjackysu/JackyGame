@@ -3,6 +3,7 @@
 import { ITEM_DEFS } from '../../data/equipment';
 import { hashSeed } from '../rng';
 import { newRngState, type RngState } from '../rngStreams';
+import { addItem, hasTemplate, type EquipmentInstance } from './gear';
 export type StatKey = 'str' | 'agi' | 'int' | 'cha';
 export type Faction = 'order' | 'town' | 'miners' | 'caravan';
 export type CompanionId = 'serin' | 'liora' | 'io' | 'rourke';
@@ -15,6 +16,7 @@ export interface MemberState {
   xp: number;
   hp: number; // 目前 HP（戰鬥外保留）
   guest?: boolean; // 客座（洛克第 1 章）
+  /** 各欄位穿著的 instanceId（見 gear.ts；v1 存檔是模板 id，讀檔時升級） */
   equipment: { weapon?: string; armor?: string; charm?: string };
 }
 
@@ -28,7 +30,10 @@ export interface GameState {
   party: MemberId[]; // 依加入順序；戰鬥上場取前 3
   members: Partial<Record<MemberId, MemberState>>;
   gold: number;
+  /** 消耗品／禮物／重要物品：模板 id → 數量（裝備不在這裡，在 gear） */
   inventory: Record<string, number>;
+  /** 擁有的裝備實例（背包＋身上），以 instanceId 為鍵 */
+  gear: Record<string, EquipmentInstance>;
   cards: Record<string, number>; // 燼牌收藏：id → 張數
   deck: string[];
   flags: Record<string, FlagValue>;
@@ -46,7 +51,8 @@ export interface GameState {
   rng: RngState;
 }
 
-export const SAVE_VERSION = 1;
+/** v2：裝備實例化（gear）。v1→v2 migration 在 core/save/save.ts */
+export const SAVE_VERSION = 2;
 
 export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
@@ -63,6 +69,7 @@ export function newGame(now = Date.now(), seed = hashSeed(`game:${now}`)): GameS
     members: { lian: { id: 'lian', level: 1, xp: 0, hp: 90, equipment: {} } },
     gold: 50,
     inventory: { potion_s: 2 },
+    gear: {},
     cards: {},
     deck: [],
     flags: {},
@@ -90,9 +97,10 @@ export function newGamePlus(prev: GameState, now = Date.now()): GameState {
   s.flags.ng_plus = Number(prev.flags.ng_plus ?? 0) + 1;
   for (const [k, v] of Object.entries(prev.flags)) if (k.startsWith('ending_seen_') || k.startsWith('tip_') || k.startsWith('seen_')) s.flags[k] = v;
   // 稀有／神級裝備（背包＋身上）帶進二週目——刷到的寶物不會白費
+  // 實例原樣保留（之後的強化、詞綴也會跟著帶過去），全部放回背包
   const keep = (id: string) => (ITEM_DEFS[id]?.rarity ?? 'common') !== 'common';
-  for (const [id, n] of Object.entries(prev.inventory)) if (keep(id) && n > 0) s.inventory[id] = (s.inventory[id] ?? 0) + n;
-  for (const m of Object.values(prev.members)) for (const id of Object.values(m?.equipment ?? {})) if (id && keep(id)) s.inventory[id] = (s.inventory[id] ?? 0) + 1;
+  for (const [id, n] of Object.entries(prev.inventory)) if (keep(id) && n > 0) addItem(s, id, n, 'ngplus');
+  for (const g of Object.values(prev.gear ?? {})) if (keep(g.templateId)) s.gear[g.instanceId] = { ...g, affixes: g.affixes.map((a) => ({ ...a })) };
   if (typeof prev.flags.ending === 'string') s.flags[`ending_seen_${prev.flags.ending}`] = true;
   return s;
 }
@@ -125,11 +133,8 @@ export function applyEffect(s: GameState, e: Effect): void {
   else if ('divergence' in e) s.divergence = clamp(s.divergence + e.divergence, 0, 100);
   else if ('rep' in e) s.reputation[e.rep] = clamp(s.reputation[e.rep] + e.delta, -100, 100);
   else if ('affinity' in e) s.affinity[e.affinity] = clamp(s.affinity[e.affinity] + e.delta, 0, 100);
-  else if ('item' in e) {
-    const n = (s.inventory[e.item] ?? 0) + (e.count ?? 1);
-    if (n <= 0) delete s.inventory[e.item];
-    else s.inventory[e.item] = n;
-  } else if ('gold' in e) s.gold = Math.max(0, s.gold + e.gold);
+  else if ('item' in e) addItem(s, e.item, e.count ?? 1, 'story');
+  else if ('gold' in e) s.gold = Math.max(0, s.gold + e.gold);
   else if ('card' in e) s.cards[e.card] = (s.cards[e.card] ?? 0) + (e.count ?? 1);
   else if ('codex' in e) {
     if (!s.codex.includes(e.codex)) s.codex.push(e.codex);
@@ -171,7 +176,7 @@ export function check(s: GameState, c: Condition): boolean {
   if ('affinityAtLeast' in c) return s.affinity[c.affinityAtLeast[0]] >= c.affinityAtLeast[1];
   if ('repAtLeast' in c) return s.reputation[c.repAtLeast[0]] >= c.repAtLeast[1];
   if ('divergenceAtLeast' in c) return s.divergence >= c.divergenceAtLeast;
-  if ('hasItem' in c) return (s.inventory[c.hasItem] ?? 0) > 0 || Object.values(s.members).some((m) => !!m && Object.values(m.equipment).includes(c.hasItem));
+  if ('hasItem' in c) return hasTemplate(s, c.hasItem);
   if ('hasCodex' in c) return s.codex.includes(c.hasCodex);
   if ('inParty' in c) return s.party.includes(c.inParty);
   if ('all' in c) return c.all.every((x) => check(s, x));

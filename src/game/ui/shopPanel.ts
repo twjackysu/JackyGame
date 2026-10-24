@@ -2,7 +2,8 @@
 // 結構注意：通關機器人會找「depth = 傳入 depth 的 Container」裡第一個可互動的 Container（商品列）與文字「離開」。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { buy, buyPrice, canEquip, equip, gearDelta, sell, sellPrice, sellable, shopStock } from '../../core/state/equip';
+import { buy, buyPrice, canEquip, equip, gearDelta, sell, sellPrice, sellable, shopStock, wornTemplate } from '../../core/state/equip';
+import { bagCount } from '../../core/state/gear';
 import type { MemberId } from '../../core/state/gameState';
 import { SHOPS, itemDef } from '../../data/equipment';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -57,7 +58,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
         pressBounce(scene, row);
         sparks(scene, row.x + 240, row.y, 10, 'spark', 0xffd27a);
       }
-      if (mode === 'sell' && (s.inventory[id] ?? 0) <= 0) selected = null;
+      if (mode === 'sell' && bagCount(s, id) <= 0) selected = null;
       render();
     };
 
@@ -96,7 +97,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
         bg.lineStyle(sel ? 3 : 1.5, sel ? 0xffd27a : afford ? 0x4a5380 : 0x2a3050, 1).strokeRoundedRect(-310, -40, 620, 80, 14);
         row.add(bg);
         row.add(itemIcon(scene, id, -266, 0, 62));
-        const own = s.inventory[id] ?? 0;
+        const own = bagCount(s, id);
         row.add(scene.add.text(-224, -16, d.name, { fontFamily: UI_FONT, fontSize: '25px', fontStyle: '700', color: afford ? itemNameColor(d.id) : '#6a7398' }).setOrigin(0, 0.5));
         row.add(scene.add.text(-224, 17, itemSubline(d), { fontFamily: UI_FONT, fontSize: '18px', color: '#9aa4cc' }).setOrigin(0, 0.5));
         row.add(scene.add.text(296, -14, mode === 'buy' ? `${price} 金` : `+${price} 金`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: afford ? '#ffd27a' : '#5a6380' }).setOrigin(1, 0.5));
@@ -168,7 +169,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
         }
         who.slice(0, 4).forEach((m: MemberId, i) => {
           const x = 70 + i * 152;
-          const worn = s.members[m]?.equipment[d.slot!] === id;
+          const worn = wornTemplate(s, m, d.slot!) === id;
           const dt = gearDelta(s, m, id);
           const good = deltaScore(dt) > 0;
           const chip = add(scene.add.container(x + 70, top + 148));
@@ -182,7 +183,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
           chip.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
             stop(ev);
             if (worn) return;
-            if ((s.inventory[id] ?? 0) <= 0) {
+            if (bagCount(s, id) <= 0) {
               SFX.uiCancel();
               flash('先買下來才能裝備');
               return;

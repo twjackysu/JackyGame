@@ -1,3 +1,4 @@
+import { bagCount } from '../src/core/state/gear';
 import { describe, expect, it } from 'vitest';
 import { DialogueRunner, type DialogueScript, type DialogueStep } from '../src/core/dialogue/runner';
 import { check, newGame, type GameState } from '../src/core/state/gameState';
@@ -189,7 +190,7 @@ describe('ch1 探索支線', () => {
     const gold = s.gold;
     runEntry(s, 'ruth');
     expect(s.flags.q_lost_kid_done).toBe(true);
-    expect(s.inventory.amulet_guard).toBe(1);
+    expect(bagCount(s, 'amulet_guard')).toBe(1);
     expect(s.gold).toBe(gold + 20);
     const r = runEntry(s, 'ruth');
     expect(r.speakers).toEqual(['ruth']);

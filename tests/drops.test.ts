@@ -1,3 +1,4 @@
+import { addItem, bagCount } from '../src/core/state/gear';
 import { describe, expect, it } from 'vitest';
 import { createBattle, chooseCommand, resolveDefense, resolveTiming, WIDE_PERFECT_SCALE, type BattleState } from '../src/core/battle/engine';
 import { battleParty, buy, equip, gearPerks, grantDrops, sellPrice } from '../src/core/state/equip';
@@ -69,20 +70,20 @@ describe('rollDrops', () => {
   it('grantDrops 寫進背包並設定首殺旗標', () => {
     const s = newGame();
     grantDrops(s, ['wolfking_pelt'], ['boss_wolfking', 'mist_wolf']);
-    expect(s.inventory['wolfking_pelt']).toBe(1);
+    expect(bagCount(s, 'wolfking_pelt')).toBe(1);
     expect(s.flags[firstKillFlag('boss_wolfking')]).toBe(true);
     expect(s.flags[firstKillFlag('mist_wolf')]).toBeUndefined();
   });
   it('二週目保留稀有／神級（背包與身上），普通裝備不保留', () => {
     const s = newGame();
-    s.inventory['moon_fang'] = 1;
-    s.inventory['lantern_tin'] = 1;
-    s.inventory['first_lamp'] = 1;
+    addItem(s, 'moon_fang', 1);
+    addItem(s, 'lantern_tin', 1);
+    addItem(s, 'first_lamp', 1);
     equip(s, 'lian', 'first_lamp');
     const n = newGamePlus(s);
-    expect(n.inventory['moon_fang']).toBe(1);
-    expect(n.inventory['first_lamp']).toBe(1);
-    expect(n.inventory['lantern_tin']).toBeUndefined();
+    expect(bagCount(n, 'moon_fang')).toBe(1);
+    expect(bagCount(n, 'first_lamp')).toBe(1);
+    expect(bagCount(n, 'lantern_tin')).toBe(0);
   });
 });
 
@@ -91,7 +92,7 @@ describe('神級特效（perks）', () => {
     createBattle({ party: [{ id: 'lian', level: 5, perks }, { id: 'serin', level: 5 }], enemies, seed: 7 });
   it('裝備神級 → battleParty 帶 perks', () => {
     const s = newGame();
-    s.inventory['first_lamp'] = 1;
+    addItem(s, 'first_lamp', 1);
     equip(s, 'lian', 'first_lamp');
     expect(gearPerks(s, 'lian')).toEqual(['lampStart']);
     expect(battleParty(s)[0]!.perks).toEqual(['lampStart']);
