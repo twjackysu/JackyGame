@@ -7,7 +7,7 @@
 | `types.ts` | 型別、單位（1 遊戲單位＝100 整數座標；30 ticks/秒；`sec()`、`u()`）、`SkillDefinition`、`AreaAttack`、狀態規則 |
 | `data.ts` | 劍士（design/20 §A6：重斬、旋風斬、衝鋒、格擋反擊＋閃避）、敵人（野狼、小狼、荊棘射手、狼群首領、霧角狼王）、五個原型關卡 |
 | `engine.ts` | `createBattle`、`step(state, commands)`、`stateHash`、`computeDamage`、`inShape`、`addStatus` |
-| `path.ts` | 格子 A* 尋路（8 方向不切角、確定性排序）、`clearLine` 視線／身體寬度、`nextWaypoint` 拉直路徑（D-071） |
+| `path.ts` | 可走格、`clearLine` 視線／身體寬度、**流場** `flowField`（D-074，追擊共用）、`nextWaypoint` 沿流場＋拉直路徑；`findPath`（A*，保留給路徑預覽） |
 | `sim.ts` | `BattleController`、`IdleController`、`ScriptedTestController`、`PlayerBot`（`BOT_PROFILES`：auto／novice／normal／expert）、`simulateBattle`、`batch` |
 
 - 每個 tick 的處理順序固定：輸入 → 玩家 → 敵人（id 順序）→ 分離 → 持續傷害 → 狀態到期 → 勝負。
@@ -23,3 +23,4 @@
 - **尋路與視線**（D-071）：有 `solid` 時，敵人追擊與玩家自動追擊在直線被擋時走 A*；敵人非衝鋒攻擊需要視線（隔石衝鋒照樣會撞暈）。沒有障礙物的關卡完全不走這段。
 - **點地移動**（D-071）：`{ type: "moveTo", x, y }`；搖桿 `move` 或 `target` 取消，`stop` 不取消；點石頭或走不到無效；最多 10 秒。
 - **地圖怪**（D-072）：`StageDefinition.mapAi` 開啟後敵人待機（`mode: idle`），進仇恨半徑＋看得到、或被打到才進戰鬥，3 單位內同伴連鎖；超過最大追擊或脫戰等待就 `returning`（不吃傷害），回原位回滿。參數 `AGGRO_RULES`（design/20 B1）。目前只有第六關「碎石林道」開啟。
+- **自然恢復**（D-073）：`regen`（預設＝`mapAi`）關卡，5 秒沒受傷沒出手且沒有戰鬥中的怪 → 每秒 2%。地圖怪關卡的自動追擊只找戰鬥中的怪（待機的要點它）。Bot `restUntilPct` 休息到指定血量才拉下一組。
