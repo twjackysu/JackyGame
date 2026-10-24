@@ -24,6 +24,8 @@ export interface BattleRewards {
   newBossPoint: boolean;
   /** 得到的材料（材料 id → 數量） */
   materials: Record<string, number>;
+  /** 每件掉落（與 drops 同順序）擲出的詞綴 */
+  dropAffixes: { id: string; value: number }[][];
 }
 
 export interface EnhanceResult {

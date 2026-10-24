@@ -16,6 +16,7 @@ import {
   type Command,
   type Perk,
 } from '../../core/battle/engine';
+import { AFFIX_BY_ID } from '../../data/affixes';
 import { PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, itemDef, rarityOf } from '../../data/equipment';
 import { itemIcon, perkLine } from '../ui/gearUi';
 import { HP_CARRY_FROM, MAX_EMBER, WINDOWS, carriedHp, judgeAttack, judgeDefense, type BaseStats, type DefenseResult, type Telegraph, type Timing } from '../../core/battle/formulas';
@@ -1743,10 +1744,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** 掉落演出：卡片翻開＋稀有藍／神級金光柱（畫面上方，VICTORY 之上） */
-  private async showDrops(items: string[]): Promise<void> {
+  private async showDrops(items: string[], affixes: { id: string; value: number }[][] = []): Promise<void> {
     const n = Math.min(items.length, 3);
     const best = items.some((id) => rarityOf(id) === 'legendary') ? 'legendary' : items.some((id) => rarityOf(id) === 'rare') ? 'rare' : 'common';
     const cy = 250;
+    // 卡片下方有詞綴時，說明文字往下讓位
+    const dy = affixes.slice(0, 3).some((a) => a.length) ? 60 : 0;
     const gap = 210;
     // 點一下畫面 → 後面的卡片加速翻開（刷寶時不用每次等完整演出）
     let fast = false;
@@ -1788,6 +1791,9 @@ export class BattleScene extends Phaser.Scene {
       card.add(itemIcon(this, id, 0, -28, 96));
       card.add(this.add.text(0, 50, d.name, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: RARITY_CSS[rar], stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: 150, useAdvancedWrap: true } }).setOrigin(0.5));
       card.add(this.add.text(0, 84, RARITY_NAME[rar], { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5));
+      // 刷到的詞綴（卡片下方，一條一行）
+      const af = (affixes[i] ?? []).map((a) => AFFIX_BY_ID[a.id]?.text.replace('{v}', String(a.value))).filter(Boolean);
+      if (af.length) card.add(this.add.text(0, 112, af.join('\n'), { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: '#9fd8ff', stroke: '#000', strokeThickness: 4, align: 'center', lineSpacing: 2 }).setOrigin(0.5, 0));
       await new Promise<void>((res) => this.tweens.add({ targets: card, scaleX: 1, duration: 160, ease: 'Back.Out', onComplete: () => res() }));
       shockRing(this, x, cy, col, 180, 500, 6);
       sparks(this, x, cy, rar === 'legendary' ? 50 : 26, 'ember', col, 500);
@@ -1806,16 +1812,16 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 1, y: 92, duration: 300 });
     const perk = items.map((id) => itemDef(id)).find((d) => d.perk);
     if (perk) {
-      const pt = this.add.text(GAME_WIDTH / 2, 392, perkLine(perk), {
+      const pt = this.add.text(GAME_WIDTH / 2, 392 + dy, perkLine(perk), {
         fontFamily: UI_FONT, fontSize: '22px', color: '#ffe6a0', stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: 620, useAdvancedWrap: true },
       }).setOrigin(0.5).setDepth(960).setAlpha(0);
       this.tweens.add({ targets: pt, alpha: 1, duration: 400 });
     }
-    if (items.length > n) floatNumber(this, GAME_WIDTH / 2, 392, `另外 ${items.length - n} 件已放進行囊`, { color: '#c8d0f0', size: 22 });
+    if (items.length > n) floatNumber(this, GAME_WIDTH / 2, 392 + dy, `另外 ${items.length - n} 件已放進行囊`, { color: '#c8d0f0', size: 22 });
     // 第一次掉裝備：教玩家去哪裡換
     if (!session.state.flags['tip_drop'] && items.some((id) => itemDef(id).kind === 'gear')) {
       session.state.flags['tip_drop'] = true;
-      const tip = this.add.text(GAME_WIDTH / 2, perk ? 436 : 400, '（右上 🎒 行囊 → 裝備，就能換上）', {
+      const tip = this.add.text(GAME_WIDTH / 2, (perk ? 436 : 400) + dy, '（右上 🎒 行囊 → 裝備，就能換上）', {
         fontFamily: UI_FONT, fontSize: '22px', color: '#c8f0ff', stroke: '#000', strokeThickness: 4,
       }).setOrigin(0.5).setDepth(960).setAlpha(0);
       this.tweens.add({ targets: tip, alpha: 1, duration: 400, delay: 300 });
@@ -2057,7 +2063,7 @@ export class BattleScene extends Phaser.Scene {
       }
       if (drops.length) {
         session.save();
-        await this.showDrops(drops);
+        await this.showDrops(drops, rw.data?.dropAffixes ?? []);
       }
       const mats = Object.entries(rw.data?.materials ?? {}).filter(([, n]) => n > 0);
       if (mats.length) {

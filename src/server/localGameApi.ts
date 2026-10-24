@@ -218,10 +218,15 @@ export class LocalGameApi implements GameApi {
       const before = new Set(Object.keys(s.gear));
       grantDrops(s, drops, req.defeated);
       this.rollNewGear(s, before);
+      const fresh = Object.values(s.gear).filter((g) => !before.has(g.instanceId));
+      const dropAffixes = drops.map((tid) => {
+        const k = fresh.findIndex((g) => g.templateId === tid);
+        return k < 0 ? [] : fresh.splice(k, 1)[0]!.affixes.map((a) => ({ ...a }));
+      });
       // 材料：擲骰在稀有掉落之後，不影響既有掉落序列
       const materials = rollStoryMaterials(req.defeated, randomFromRng(streamRng(s.rng, 'loot')));
       for (const [m, n] of Object.entries(materials)) s.inventory[m] = (s.inventory[m] ?? 0) + n;
-      return { ok: true, data: { drops, newBossPoint, materials } };
+      return { ok: true, data: { drops, newBossPoint, materials, dropAffixes } };
     });
   }
 }
