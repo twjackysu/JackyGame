@@ -124,6 +124,8 @@ export interface BattleResult {
   dodgedHits: number;
   blocks: number;
   casts: Record<string, number>;
+  /** 玩家造成傷害的來源（普攻／技能／反擊／持續傷害），design/20 C3 目標：普攻 35～45%、技能 45～55% */
+  damageBy: { normal: number; skill: number; counter: number; dot: number };
   hpLeftPct: number;
   stateHash: string;
 }
@@ -138,9 +140,13 @@ export function summarize(s: BattleState): BattleResult {
   let dodgedHits = 0;
   let blocks = 0;
   const casts: Record<string, number> = {};
+  const damageBy = { normal: 0, skill: 0, counter: 0, dot: 0 };
   for (const e of s.events) {
     if (e.type === 'damage') {
-      if (e.src === p.id) totalDamage += e.amount;
+      if (e.src === p.id) {
+        totalDamage += e.amount;
+        if (e.origin !== 'enemy') damageBy[e.origin] += e.amount;
+      }
       if (e.dst === p.id) damageTaken += e.amount;
     } else if (e.type === 'death' && e.id !== p.id) kills++;
     else if (e.type === 'dodge') dodges++;
@@ -150,7 +156,7 @@ export function summarize(s: BattleState): BattleResult {
   }
   return {
     victory: s.outcome === 'victory', outcome: s.outcome, durationTicks: s.tick, totalDamage, damageTaken,
-    deaths: p.dead ? 1 : 0, kills, dodges, dodgedHits, blocks, casts, hpLeftPct: Math.round((p.hp / p.maxHp) * 100), stateHash: stateHash(s),
+    deaths: p.dead ? 1 : 0, kills, dodges, dodgedHits, blocks, casts, damageBy, hpLeftPct: Math.round((p.hp / p.maxHp) * 100), stateHash: stateHash(s),
   };
 }
 
@@ -170,9 +176,19 @@ export interface BatchStats {
   avgHpLeftPct: number;
   avgDodges: number;
   avgBlocks: number;
+  /** 傷害來源占比（%，所有場次加總後計算） */
+  damageShare: { normal: number; skill: number; counter: number; dot: number };
 }
 
 const pct = (sorted: number[], q: number): number => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] ?? 0;
+
+function share(rs: BattleResult[]): BatchStats['damageShare'] {
+  const t = { normal: 0, skill: 0, counter: 0, dot: 0 };
+  for (const r of rs) for (const k of Object.keys(t) as (keyof typeof t)[]) t[k] += r.damageBy[k];
+  const sum = t.normal + t.skill + t.counter + t.dot || 1;
+  const q = (n: number) => Math.round((n / sum) * 1000) / 10;
+  return { normal: q(t.normal), skill: q(t.skill), counter: q(t.counter), dot: q(t.dot) };
+}
 
 /** 批量模擬（MetricsCollector）：種子 seed0..seed0+runs-1 */
 export function batch(stageId: string, makeController: () => BattleController, runs: number, seed0 = 1, bonus?: BattleSetup['bonus']): BatchStats {
@@ -189,5 +205,6 @@ export function batch(stageId: string, makeController: () => BattleController, r
     avgHpLeftPct: avg((r) => r.hpLeftPct),
     avgDodges: avg((r) => r.dodges),
     avgBlocks: avg((r) => r.blocks),
+    damageShare: share(rs),
   };
 }
