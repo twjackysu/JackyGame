@@ -2,7 +2,7 @@
 // 控制器只讀 BattleState、回傳 BattleCommand；同種子＋同控制器＝同結果（stateHash 驗證）。
 import { SKILLS } from './data';
 import { createBattle, dist, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
-import type { BattleCommand, BattleState, Telegraph } from './types';
+import { AGGRO_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
 
 export interface BattleController {
   readonly name: string;
@@ -37,20 +37,89 @@ export interface BotSkill {
   potionAtPct?: number;
   /** 地圖怪關卡（D-073）：清完一組後，HP 回到這個百分比才點下一隻待機的怪（undefined＝馬上點） */
   restUntilPct?: number;
+  /** 地圖怪關卡：挑「不會連帶拉到第二組」的怪（safestPull）；沒設＝直接點最近的 */
+  safePull?: boolean;
 }
 
 export const BOT_PROFILES: Record<'auto' | 'novice' | 'normal' | 'expert', BotSkill> = {
   // AUTO：不保證閃避（design/19 §5：不用隱藏懲罰，只是策略保守）
   auto: { parries: false },
-  novice: { reactTicks: 18, parries: false, restUntilPct: 60 },
-  normal: { reactTicks: 9, parries: true, restUntilPct: 80 },
-  expert: { reactTicks: 4, parries: true, restUntilPct: 85 },
+  novice: { reactTicks: 18, parries: false, restUntilPct: 60, safePull: true },
+  normal: { reactTicks: 9, parries: true, restUntilPct: 80, safePull: true },
+  expert: { reactTicks: 4, parries: true, restUntilPct: 85, safePull: true },
 };
 
 /** 會打到玩家目前位置、還沒結算的預告 */
 function threats(s: BattleState): Telegraph[] {
   const p = playerOf(s);
   return s.telegraphs.filter((t) => t.hitTick > s.tick && inShape(t.shape, t.ox, t.oy, t.dirX, t.dirY, p.x, p.y, p.r + 10));
+}
+
+type U = BattleState['units'][number];
+const sleepingOf = (s: BattleState): U[] => s.units.filter((e) => e.side === 'enemy' && !e.dead && (e.mode === 'idle' || e.mode === 'dormant'));
+
+function nearestSleeping(s: BattleState): U | undefined {
+  const p = playerOf(s);
+  let best: U | undefined;
+  for (const e of sleepingOf(s)) if (!best || dist(e.x, e.y, p.x, p.y) < dist(best.x, best.y, p.x, p.y)) best = e;
+  return best;
+}
+
+/**
+ * 拉怪判斷（像真人一樣「一次拉一組」）：點了 e 會一起醒的同伴（3 單位連鎖，同引擎 aggro）＝一組；
+ * 在這組位置開打時，仇恨半徑內的其他待機怪＝會被連帶拉到的「第二組」。
+ * 依（連帶隻數、這組隻數、距離）挑最安全的；全部都會連帶時仍挑連帶最少的。
+ */
+export function pullRisk(s: BattleState, e: U): { group: number; extra: number } {
+  const sleeping = sleepingOf(s);
+  const group = new Set<U>([e]);
+  const queue = [e];
+  while (queue.length) {
+    const g = queue.pop()!;
+    for (const o of sleeping) if (!group.has(o) && dist(o.x, o.y, g.x, g.y) <= 3 * UNIT) {
+      group.add(o);
+      queue.push(o);
+    }
+  }
+  // 第二組：在這組位置開打、或走過去的路上（直線近似），會進入其仇恨半徑的其他待機怪
+  const p = playerOf(s);
+  let extra = 0;
+  for (const o of sleeping) {
+    if (group.has(o)) continue;
+    const r = AGGRO_RULES[o.tier ?? 'normal'].aggro * UNIT + p.r;
+    if (segDist(o.x, o.y, p.x, p.y, e.x, e.y) <= r) {
+      extra++;
+      continue;
+    }
+    for (const g of group) if (dist(o.x, o.y, g.x, g.y) <= r) {
+      extra++;
+      break;
+    }
+  }
+  return { group: group.size, extra };
+}
+
+function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const vx = bx - ax;
+  const vy = by - ay;
+  const l2 = vx * vx + vy * vy;
+  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * vx + (py - ay) * vy) / l2));
+  return dist(px, py, ax + t * vx, ay + t * vy);
+}
+
+export function safestPull(s: BattleState): U | undefined {
+  const p = playerOf(s);
+  let best: U | undefined;
+  let key: [number, number, number] | undefined;
+  for (const e of sleepingOf(s)) {
+    const r = pullRisk(s, e);
+    const k: [number, number, number] = [r.extra, r.group, dist(e.x, e.y, p.x, p.y)];
+    if (!key || k[0] < key[0] || (k[0] === key[0] && (k[1] < key[1] || (k[1] === key[1] && k[2] < key[2])))) {
+      best = e;
+      key = k;
+    }
+  }
+  return best;
 }
 
 /**
@@ -67,14 +136,14 @@ export class PlayerBot implements BattleController {
     const out: BattleCommand[] = [];
     const ready = (id: string) => (p.ready[id] ?? 0) <= s.tick + 1;
     const busy = !!p.action && p.action.kind !== 'attack';
-    // 地圖怪：沒有戰鬥中的怪時，休息到 restUntilPct 再點最近的待機怪（D-073）
+    // 地圖怪：沒有戰鬥中的怪時，休息到 restUntilPct 再點下一隻待機的怪（D-073）
     const es0 = s.units.filter((e) => e.side === 'enemy' && !e.dead);
-    if (es0.length && !es0.some((e) => e.mode === 'combat') && es0.some((e) => e.mode === 'idle')) {
+    const sleeping = (e: (typeof es0)[number]) => e.mode === 'idle' || e.mode === 'dormant';
+    if (es0.length && !es0.some((e) => e.mode === 'combat') && es0.some(sleeping)) {
       const want = this.prof.restUntilPct ?? 0;
       const tgt = s.units.find((e) => e.id === p.targetId);
-      if (p.hp * 100 >= p.maxHp * want && (!tgt || tgt.dead || tgt.mode !== 'idle')) {
-        let best: (typeof es0)[number] | undefined;
-        for (const e of es0) if (e.mode === 'idle' && (!best || Math.hypot(e.x - p.x, e.y - p.y) < Math.hypot(best.x - p.x, best.y - p.y))) best = e;
+      if (p.hp * 100 >= p.maxHp * want && (!tgt || tgt.dead || !sleeping(tgt))) {
+        const best = this.prof.safePull ? safestPull(s) : nearestSleeping(s);
         if (best) return [{ type: 'target', id: best.id }];
       }
       if (p.hp * 100 < p.maxHp * want) return [{ type: 'stop' }];

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { addStatus, computeDamage, createBattle, dist, enemiesOf, inShape, playerOf, step } from '../src/core/battle/rt/engine';
 import { cellIndex, clearLine, findPath, gridOf } from '../src/core/battle/rt/path';
-import { BOT_PROFILES, IdleController, PlayerBot, ScriptedTestController, batch, simulateBattle } from '../src/core/battle/rt/sim';
+import { BOT_PROFILES, IdleController, PlayerBot, ScriptedTestController, batch, pullRisk, safestPull, simulateBattle } from '../src/core/battle/rt/sim';
 import { ENEMIES, SKILLS, STAGES } from '../src/core/battle/rt/data';
 import { sec, u, type Unit } from '../src/core/battle/rt/types';
 
@@ -675,5 +675,28 @@ describe('同時追擊上限與沉睡（design/20 B1）', () => {
     for (let i = 0; i < sec(30); i++) step(s, [{ type: 'stop' }]);
     const ms = (performance.now() - t0) / sec(30);
     expect(ms).toBeLessThan(0.5);
+  });
+
+  it('Bot 拉怪判斷：避開會連鎖到第二組的怪，先打落單的；只放著打的 Bot 照樣點最近的', () => {
+    // A 組（2 隻）離玩家 6 單位，旁邊 4 單位有 B 組；C 落單、離玩家 9 單位
+    const pack: [number, number][] = [[20, 24], [21, 24], [24.2, 23], [25.2, 23], [12, 28]];
+    const { s, p, es } = openField(40, 40, 20, 30, pack);
+    expect(pullRisk(s, es[0]!)).toEqual({ group: 2, extra: 2 });
+    expect(pullRisk(s, es[4]!)).toEqual({ group: 1, extra: 0 });
+    expect(safestPull(s)?.id).toBe(es[4]!.id);
+    expect(p.hp).toBeGreaterThan(0);
+    const peak = (bot: PlayerBot) => {
+      const { s: s2 } = openField(40, 40, 20, 30, pack);
+      const p2 = playerOf(s2);
+      p2.speedPerTick = 9;
+      let most = 0;
+      for (let i = 0; i < sec(6); i++) {
+        step(s2, bot.decide(s2));
+        most = Math.max(most, enemiesOf(s2).filter((e) => e.mode === 'combat').length);
+      }
+      return most;
+    };
+    expect(peak(new PlayerBot(BOT_PROFILES.normal, 'normal'))).toBe(1);
+    expect(peak(new PlayerBot(BOT_PROFILES.auto, 'auto'))).toBeGreaterThanOrEqual(3);
   });
 });
