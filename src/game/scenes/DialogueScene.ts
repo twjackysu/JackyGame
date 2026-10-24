@@ -19,6 +19,8 @@ import type { BattleSceneData } from './BattleScene';
 export interface DialogueSceneData {
   script: string;
   node?: string;
+  /** 劇本結束後回到哪個場景（自由探索區域觸發的劇本 → 'Explore'）；預設 'Map' */
+  returnTo?: 'Map' | 'Explore';
 }
 
 const PORTRAIT: Record<string, string> = {
@@ -55,6 +57,7 @@ const ENCOUNTER_LEVEL_FLOOR: Record<string, number> = {
 export class DialogueScene extends Phaser.Scene {
   private runner!: DialogueRunner;
   private scriptId = 'ch0';
+  private returnTo: 'Map' | 'Explore' = 'Map';
   private lastNode = '';
   private box!: Phaser.GameObjects.Container;
   private nameText!: Phaser.GameObjects.Text;
@@ -74,6 +77,10 @@ export class DialogueScene extends Phaser.Scene {
 
   init(data: DialogueSceneData): void {
     this.scriptId = data.script ?? 'ch0';
+    // returnTo 也記在 flags，App 中途關掉、從標題「繼續」回到劇本時仍會回到探索場景
+    const ret = data.returnTo ?? (session.state.flags['__return'] as DialogueSceneData['returnTo'] | undefined);
+    this.returnTo = ret === 'Explore' ? 'Explore' : 'Map';
+    session.state.flags['__return'] = this.returnTo;
     const script = SCRIPTS[this.scriptId];
     if (!script) throw new Error(`unknown script ${this.scriptId}`);
     const node = data.node && script.nodes[data.node] ? data.node : script.start ?? 'start';
@@ -809,6 +816,13 @@ export class DialogueScene extends Phaser.Scene {
         else if (this.scriptId === 'ch4' && s.flags['ch4_complete']) session.setScriptPos('map', 'ch4');
         else if (this.scriptId === 'ch3' && s.flags['ch3_complete']) session.setScriptPos('map', 'ch3');
         else if (this.scriptId === 'ch2' && s.flags['ch2_complete']) session.setScriptPos('map', 'ch2');
+        delete s.flags['__return'];
+        if (this.returnTo === 'Explore' && !s.flags[`${this.scriptId}_complete`]) {
+          session.setScriptPos('explore', String(s.flags['__ex_area'] ?? 'greylamp'));
+          session.save();
+          this.scene.start('Explore');
+          return;
+        }
         session.save();
         this.scene.start('Map');
       } else {

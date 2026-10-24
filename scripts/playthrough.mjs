@@ -267,10 +267,32 @@ function installBot() {
         }
         return { scene: 'Dialogue', acts: [], wait: `waiting=${d.waiting} node=${d.runner?.currentNode}` };
       }
+      // ---------------------------------------------------------------- Explore（自由探索，window.__explore 除錯 API）
+      if (active.includes('Explore')) {
+        const ex = window.__explore;
+        if (!ex) return { scene: 'Explore', acts: [], wait: 'no __explore' };
+        if (ex.busy()) return { scene: 'Explore', acts: [], wait: 'walking' };
+        const obj = ex.objective();
+        if (obj) {
+          if (cfg.__exLast === obj && Date.now() - (cfg.__exAt ?? 0) < 8000) return { scene: 'Explore', acts: [], wait: `heading to ${obj}` };
+          cfg.__exLast = obj;
+          cfg.__exAt = Date.now();
+          return { scene: 'Explore', acts: [ex.goto(obj) ? `explore goto ${obj}` : `explore goto ${obj} FAILED`] };
+        }
+        sm.getScene('Explore').leaveToMap();
+        return { scene: 'Explore', acts: ['explore → world map'] };
+      }
       // ---------------------------------------------------------------- Map
       if (active.includes('Map')) {
         const m = sm.getScene('Map');
         if (m.busy) return { scene: 'Map', acts: [], wait: 'travelling' };
+        // EXPLORE=1：第 1 章出鎮前改走可自由探索的灰燈鎮
+        if (cfg.explore && m.map?.id === 'ch1' && !g.registry.get('__botExplored') && !flagsFromSave()['ch1_left_town']) {
+          g.registry.set('__botExplored', true);
+          m.busy = true;
+          m.scene.start('Explore', { area: 'greylamp' });
+          return { scene: 'Map', acts: ['map → explore greylamp'] };
+        }
         if (m.bubble && !m.bubble.__bot) {
           const b = m.bubble;
           b.__bot = true;
@@ -354,7 +376,7 @@ try {
   let lastFlags = {};
   const deadline = t0 + timeoutMin * 60_000;
   // extraOnce：沒有「！」的支線地點各去一次（雜貨店商店、倒木寶箱）；prefer：優先選的選項（觸發改名介面）
-  const cfg = { linesPerTick: 25, heal: true, skipTitles: [], extraOnce: ['雜貨店', '倒木下的寶箱'], prefer: ['自己取個名字'] };
+  const cfg = { explore: process.env.EXPLORE === '1', linesPerTick: 25, heal: true, skipTitles: [], extraOnce: ['雜貨店', '倒木下的寶箱'], prefer: ['自己取個名字'] };
   let goalAt = null;
   let lastMapPick = '';
   let samePickCount = 0;

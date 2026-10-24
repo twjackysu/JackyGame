@@ -79,6 +79,7 @@ export class MapScene extends Phaser.Scene {
     this.tweens.add({ targets: glow, alpha: 0.6, duration: 170, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [3] });
 
     this.drawHud(states);
+    if (map.id === 'ch1') this.exploreButton();
     const gear = this.add.text(44, 70, '⚙', { fontFamily: UI_FONT, fontSize: '44px', color: '#c8d0f0', stroke: '#000', strokeThickness: 4 })
       .setOrigin(0.5).setDepth(800).setPadding(12, 12, 12, 12).setInteractive({ useHandCursor: true });
     gear.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
@@ -96,6 +97,27 @@ export class MapScene extends Phaser.Scene {
       if (over.length === 0) this.closeBubble();
     });
     if (!st.flags['tip_map']) this.firstMapTip();
+  }
+
+  /** 第 1 章：走進可自由探索的灰燈鎮（docs/design/11-open-world.md） */
+  private exploreButton(): void {
+    const c = this.add.container(GAME_WIDTH - 150, 226).setDepth(95);
+    const g = this.add.graphics();
+    g.fillStyle(0x2a1a0a, 0.95).fillRoundedRect(-120, -28, 240, 56, 28);
+    g.lineStyle(3, 0xffd27a, 1).strokeRoundedRect(-120, -28, 240, 56, 28);
+    const t = this.add.text(0, 0, '🚶 走進灰燈鎮', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#ffd27a' }).setOrigin(0.5);
+    c.add([g, t]);
+    c.setSize(240, 56).setInteractive({ useHandCursor: true });
+    this.tweens.add({ targets: c, scale: 1.05, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      if (this.busy) return;
+      this.busy = true;
+      SFX.confirm();
+      const st = session.state;
+      const spawn = st.flags['ch1_left_town'] ? 'gate' : st.flags['ch1_got_lantern'] ? 'plaza' : 'default';
+      fadeOutThen(this, 400, () => this.scene.start('Explore', { area: 'greylamp', spawn }));
+    });
   }
 
   /** 第一次打開地圖：說明怎麼走、♥ 與隊伍列在哪（點任何地方關閉，只出現一次） */
