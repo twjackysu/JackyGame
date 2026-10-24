@@ -692,7 +692,7 @@ export class RtBattleScene extends Phaser.Scene {
     };
     if (this.textures.exists(chunkKey(0, 0))) return place();
     // 每塊各自重畫一次（Graphics.generateTexture 不吃物件位置，要用 translateCanvas 平移；同一個固定種子，所以每塊畫出同一張地圖）
-    const paint = (g: Phaser.GameObjects.Graphics): void => {
+    const paint = (g: Phaser.GameObjects.Graphics, bx0: number, by0: number, bx1: number, by1: number): void => {
       g.fillStyle(0x16261c, 1).fillRect(0, 0, W, H);
       // 固定種子的地面斑點（不影響戰鬥 PRNG）
       let seed = 1234567;
@@ -700,32 +700,68 @@ export class RtBattleScene extends Phaser.Scene {
       for (let i = 0; i < (a.w * a.h) / 9000; i++) {
         const x = rnd() * W;
         const y = rnd() * H;
-        g.fillStyle(rnd() < 0.5 ? 0x1a2c1f : 0x14231a, 0.8).fillEllipse(x, y, 30 + rnd() * 60, 14 + rnd() * 24);
-        if (rnd() < 0.3) {
+        const dark = rnd() < 0.5;
+        const ew = 30 + rnd() * 60;
+        const eh = 14 + rnd() * 24;
+        const grass = rnd() < 0.3 ? [0, 1, 2, 3, 4].map(() => rnd() * 8) : null;
+        // 亂數照樣消耗（每塊畫出同一張圖），只是這塊外面的不畫
+        if (x < bx0 - 80 || x > bx1 + 80 || y < by0 - 40 || y > by1 + 40) continue;
+        g.fillStyle(dark ? 0x1a2c1f : 0x14231a, 0.8).fillEllipse(x, y, ew, eh);
+        if (grass) {
           g.lineStyle(2, 0x2f5a36, 0.8);
-          for (let j = -2; j <= 2; j++) g.lineBetween(x + j * 4, y, x + j * 6, y - 10 - rnd() * 8);
+          for (let j = -2; j <= 2; j++) g.lineBetween(x + j * 4, y, x + j * 6, y - 10 - grass[j + 2]!);
         }
       }
       g.lineStyle(1, 0x203a28, 1);
       for (let x = 0; x <= a.w; x += 100) g.lineBetween(x * k, 0, x * k, H);
       for (let y = 0; y <= a.h; y += 100) g.lineBetween(0, y * k, W, y * k);
-      // 障礙物（D-070／D-071）：每格一顆圓石，影子＋底色＋亮面＋裂紋（固定種子）
+      // 障礙物（D-070／D-071）：成片的（周圍 8 格有 5 格以上也是障礙）畫成樹林，零散的畫成圓石。
+      // 每格用座標雜湊當亂數（分塊時只畫這一塊附近的格子，結果仍一致）
       if (a.solid) {
         const c = a.solid.cell * k;
-        a.solid.rows.forEach((row, cy) => {
-          for (let cx = 0; cx < row.length; cx++) {
-            if (row[cx] !== '#') continue;
-            const x = cx * c;
-            const y = cy * c;
-            const j = rnd() * 0.12;
-            g.fillStyle(0x050a07, 0.55).fillEllipse(x + c * 0.55, y + c * 0.78, c * 1.05, c * 0.42);
-            g.fillStyle(0x4a4f52, 1).fillRoundedRect(x + c * (0.04 + j), y + c * 0.06, c * (0.92 - j), c * 0.86, c * 0.28);
-            g.fillStyle(0x6c7378, 1).fillRoundedRect(x + c * (0.12 + j), y + c * 0.1, c * (0.7 - j), c * 0.46, c * 0.22);
-            g.fillStyle(0x8d959a, 0.8).fillEllipse(x + c * 0.36, y + c * 0.24, c * 0.3, c * 0.12);
-            g.lineStyle(2, 0x2c3033, 0.9).lineBetween(x + c * (0.3 + j), y + c * 0.5, x + c * 0.5, y + c * 0.68);
-            if (rnd() < 0.5) g.fillStyle(0x3f6b3a, 0.85).fillEllipse(x + c * (0.2 + rnd() * 0.5), y + c * 0.84, c * 0.28, c * 0.1);
+        const rows = a.solid.rows;
+        const solidAt = (x: number, y: number): boolean => x < 0 || y < 0 || y >= rows.length || x >= rows[y]!.length || rows[y]![x] === '#';
+        const dense = (x: number, y: number): boolean => {
+          let n = 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && solidAt(x + dx, y + dy)) n++;
+          return n >= 5;
+        };
+        const hr = (x: number, y: number, i: number): number => {
+          let h = (x * 374761393 + y * 668265263 + i * 2246822519) | 0;
+          h = Math.imul(h ^ (h >>> 13), 1274126177);
+          return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+        };
+        const cx0 = Math.max(0, Math.floor(bx0 / c) - 1);
+        const cx1 = Math.ceil(bx1 / c) + 1;
+        const cy0 = Math.max(0, Math.floor(by0 / c) - 1);
+        const cy1 = Math.min(rows.length - 1, Math.ceil(by1 / c) + 1);
+        // 樹林底（深色地面，讓林帶讀起來是一整片）
+        for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= Math.min(cx1, rows[cy]!.length - 1); cx++) {
+          if (rows[cy]![cx] === '#' && dense(cx, cy)) g.fillStyle(0x0c170e, 1).fillRect(cx * c - 1, cy * c - 1, c + 2, c + 2);
+        }
+        for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= Math.min(cx1, rows[cy]!.length - 1); cx++) {
+          if (rows[cy]![cx] !== '#') continue;
+          const x = cx * c;
+          const y = cy * c;
+          if (dense(cx, cy)) {
+            // 樹冠：影子＋兩層葉團＋左上亮面（由上往下畫，下面的樹蓋住上面的，有前後感）
+            const ox = (hr(cx, cy, 1) - 0.5) * c * 0.3;
+            const oy = (hr(cx, cy, 2) - 0.5) * c * 0.3;
+            const r = c * (0.62 + hr(cx, cy, 3) * 0.18);
+            g.fillStyle(0x050a06, 0.5).fillEllipse(x + c / 2 + ox + c * 0.12, y + c * 0.75 + oy, r * 2.1, r * 1.1);
+            g.fillStyle(hr(cx, cy, 4) < 0.5 ? 0x1b3620 : 0x203f25, 1).fillCircle(x + c / 2 + ox, y + c / 2 + oy, r);
+            g.fillStyle(0x2a5230, 1).fillCircle(x + c / 2 + ox - r * 0.2, y + c / 2 + oy - r * 0.25, r * 0.62);
+            g.fillStyle(0x3d7042, 0.7).fillCircle(x + c / 2 + ox - r * 0.35, y + c / 2 + oy - r * 0.4, r * 0.28);
+            continue;
           }
-        });
+          const j = hr(cx, cy, 5) * 0.12;
+          g.fillStyle(0x050a07, 0.55).fillEllipse(x + c * 0.55, y + c * 0.78, c * 1.05, c * 0.42);
+          g.fillStyle(0x4a4f52, 1).fillRoundedRect(x + c * (0.04 + j), y + c * 0.06, c * (0.92 - j), c * 0.86, c * 0.28);
+          g.fillStyle(0x6c7378, 1).fillRoundedRect(x + c * (0.12 + j), y + c * 0.1, c * (0.7 - j), c * 0.46, c * 0.22);
+          g.fillStyle(0x8d959a, 0.8).fillEllipse(x + c * 0.36, y + c * 0.24, c * 0.3, c * 0.12);
+          g.lineStyle(2, 0x2c3033, 0.9).lineBetween(x + c * (0.3 + j), y + c * 0.5, x + c * 0.5, y + c * 0.68);
+          if (hr(cx, cy, 6) < 0.5) g.fillStyle(0x3f6b3a, 0.85).fillEllipse(x + c * (0.2 + hr(cx, cy, 7) * 0.5), y + c * 0.84, c * 0.28, c * 0.1);
+        }
       }
       g.lineStyle(10, 0x0a120d, 1).strokeRect(-5, -5, W + 10, H + 10);
       g.lineStyle(3, 0x5a8a60, 1).strokeRect(0, 0, W, H);
@@ -735,7 +771,7 @@ export class RtBattleScene extends Phaser.Scene {
       const ry = j * GROUND_CHUNK;
       const g = this.make.graphics({ x: 0, y: 0 }, false);
       g.translateCanvas(PAD - rx, PAD - ry);
-      paint(g);
+      paint(g, rx - PAD, ry - PAD, rx - PAD + GROUND_CHUNK, ry - PAD + GROUND_CHUNK);
       g.generateTexture(chunkKey(i, j), Math.min(GROUND_CHUNK, TW - rx), Math.min(GROUND_CHUNK, TH - ry));
       g.destroy();
     }
@@ -1122,7 +1158,8 @@ export class RtBattleScene extends Phaser.Scene {
     const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < SWORDSMAN.potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
     this.calmText.setVisible(calm).setText(calm ? restTip || (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // Boss 大血條（畫面上方）
-    const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss);
+    // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
+    const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss && (!STAGES[this.stageId]?.mapAi || e.mode === 'combat'));
     if (boss) {
       const w = 600;
       const x0 = (GAME_WIDTH - w) / 2;
