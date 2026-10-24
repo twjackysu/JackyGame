@@ -1,8 +1,8 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
-import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, MAP_AI_LIMITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, SpawnGroup, StatusApply, StatusId, Unit } from './types';
+import { AGGRO_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -107,8 +107,68 @@ export function createBattle(setup: BattleSetup): BattleState {
     }
     s.units.push(m);
   }
+  for (const g of stage.spawnGroups ?? []) {
+    // 開場：等角度排在半徑 60% 的圓上（不用亂數，方便擺關卡）；石頭上的會被推出去
+    for (let k = 0; k < g.maxAlive; k++) {
+      const a = (k / g.maxAlive) * Math.PI * 2;
+      const r = g.maxAlive === 1 ? 0 : g.spawnRadius * 0.6;
+      s.units.push(spawnFromGroup(s, g, g.cx + Math.round(Math.cos(a) * r), g.cy + Math.round(Math.sin(a) * r)));
+    }
+  }
   return s;
 }
+
+function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Unit {
+  const def = ENEMIES[g.enemyId];
+  if (!def) throw new Error(`unknown enemy ${g.enemyId}`);
+  const m = makeEnemy(s, def, x, y);
+  clampArena(s, m);
+  if (s.arena.solid) pushOutSolid(s.arena.solid, m);
+  m.mode = 'idle';
+  m.tier = g.tier ?? (def.boss ? 'boss' : 'normal');
+  m.homeX = m.x;
+  m.homeY = m.y;
+  m.engagedTick = s.tick;
+  m.groupId = g.id;
+  return m;
+}
+
+function groupOf(s: BattleState, id: string): SpawnGroup | undefined {
+  return STAGES[s.stageId]?.spawnGroups?.find((g) => g.id === id);
+}
+
+function queueRespawn(s: BattleState, groupId: string): void {
+  const g = groupOf(s, groupId);
+  if (!g || g.respawnTicks <= 0) return;
+  (s.respawnAt ??= {})[groupId] = [...(s.respawnAt[groupId] ?? []), s.tick + g.respawnTicks];
+}
+
+/** 到期的重生：玩家夠遠才生（不然每秒再試）；同時把這組已倒下的單位從清單移掉（長時間刷怪不讓陣列一直變大） */
+function processRespawns(s: BattleState): void {
+  if (!s.respawnAt) return;
+  const p = playerOf(s);
+  for (const id of Object.keys(s.respawnAt).sort()) {
+    const due = s.respawnAt[id]!;
+    const g = groupOf(s, id)!;
+    while (due.length && due[0]! <= s.tick) {
+    if (dist(p.x, p.y, g.cx, g.cy) < RESPAWN_MIN_PLAYER_UNITS * UNIT) {
+      for (let k = 0; k < due.length && due[k]! <= s.tick; k++) due[k] = s.tick + TICKS_PER_SEC;
+      break;
+    }
+    due.shift();
+    const a = nextRand(s) * Math.PI * 2;
+    const r = Math.sqrt(nextRand(s)) * g.spawnRadius;
+    const m = spawnFromGroup(s, g, g.cx + Math.round(Math.cos(a) * r), g.cy + Math.round(Math.sin(a) * r));
+    const gone = s.units.findIndex((u) => u.dead && u.groupId === id);
+    if (gone >= 0) s.units.splice(gone, 1);
+    s.units.push(m);
+    emit(s, { tick: s.tick, type: 'respawn', id: m.id, group: id });
+    }
+  }
+}
+
+/** 還有沒有會重生的怪（刷怪地圖不會因清空而勝利） */
+const pendingRespawn = (s: BattleState): boolean => !!s.respawnAt && Object.values(s.respawnAt).some((d) => d.length > 0);
 
 export const playerOf = (s: BattleState): Unit => s.units[0]!;
 export const enemiesOf = (s: BattleState): Unit[] => s.units.filter((x) => x.side === 'enemy' && !x.dead);
@@ -232,6 +292,7 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     dst.action = null;
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== dst.id);
     emit(s, { tick: s.tick, type: 'death', id: dst.id });
+    if (dst.groupId) queueRespawn(s, dst.groupId);
   }
 }
 
@@ -388,7 +449,7 @@ function nearestEnemy(s: BattleState, p: Unit): Unit | undefined {
   for (const e of enemiesOf(s)) {
     // 地圖怪（D-072／D-073）：自動追擊只找戰鬥中的怪；待機的要玩家點它（或技能打到）才開打，
     // 清完一組就停下來（自然恢復），不會自己走去拉下一群
-    if (e.mode === 'returning' || e.mode === 'idle') continue;
+    if (e.mode && e.mode !== 'combat') continue;
     const d = dist(p.x, p.y, e.x, e.y);
     if (d < bd) {
       bd = d;
@@ -762,10 +823,11 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   separate(s);
   for (const x of s.units) if (x.statuses.length && !x.dead) tickDots(s, x);
   for (const x of s.units) if (x.statuses.length) x.statuses = x.statuses.filter((st) => st.until > s.tick);
+  processRespawns(s);
   const p = playerOf(s);
   naturalRegen(s, p);
   if (p.dead) s.outcome = 'defeat';
-  else if (enemiesOf(s).length === 0) s.outcome = 'victory';
+  else if (enemiesOf(s).length === 0 && !pendingRespawn(s)) s.outcome = 'victory';
   else if (s.tick >= s.timeLimitTicks) s.outcome = 'timeout';
 }
 
@@ -807,6 +869,10 @@ export function stateHash(s: BattleState): string {
     // 只有用到點地移動時才加入（舊紀錄的雜湊不變）
     mix(s.moveGoal.x);
     mix(s.moveGoal.y);
+  }
+  if (s.respawnAt) {
+    // 只有用到重生點時才加入（舊紀錄的雜湊不變）
+    for (const id of Object.keys(s.respawnAt).sort()) for (const t of s.respawnAt[id]!) mix(t);
   }
   mix(s.events.length);
   mix(s.potions);

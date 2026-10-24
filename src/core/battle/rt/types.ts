@@ -196,6 +196,8 @@ export interface Unit {
   /** 地圖怪（D-072）；undefined＝一般戰鬥行為 */
   /** dormant＝離玩家太遠的待機怪，整個不跑 AI、不參與分離（design/20 B1） */
   mode?: 'dormant' | 'idle' | 'combat' | 'returning';
+  /** 由哪個重生點生出來的（SpawnGroup，design/20 B1） */
+  groupId?: string;
   /** 進入戰鬥的 tick（同時追擊上限的排隊順序：先醒的先打） */
   aggroTick?: number;
   tier?: AggroTier;
@@ -237,6 +239,7 @@ export interface Telegraph {
 export type BattleEvent =
   | { tick: number; type: 'damage'; src: number; dst: number; amount: number; crit: boolean; origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot'; skill: string; absorbed?: number }
   | { tick: number; type: 'death'; id: number }
+  | { tick: number; type: 'respawn'; id: number; group: string }
   | { tick: number; type: 'telegraph'; owner: number; attack: string }
   | { tick: number; type: 'dodge'; id: number }
   | { tick: number; type: 'dodged'; id: number; attack: string }
@@ -275,6 +278,23 @@ export interface Arena {
   solid?: { cell: number; rows: readonly string[] };
 }
 
+/**
+ * 重生點（design/20 B1、design/21 §2）：在 (cx, cy) 半徑 spawnRadius 內維持 maxAlive 隻 enemyId；
+ * 死掉後 respawnTicks 才補一隻（玩家太近時延後，不會在眼前憑空冒出來）。respawnTicks 為 0＝不重生（Boss）。
+ */
+export interface SpawnGroup {
+  id: string;
+  enemyId: string;
+  cx: number;
+  cy: number;
+  spawnRadius: number;
+  maxAlive: number;
+  respawnTicks: number;
+  tier?: AggroTier;
+}
+/** 重生時玩家離重生點至少這麼遠（單位）；不夠遠就每秒再檢查一次 */
+export const RESPAWN_MIN_PLAYER_UNITS = 9;
+
 export interface StageDefinition {
   id: string;
   name: string;
@@ -286,6 +306,8 @@ export interface StageDefinition {
    * 追太遠或太久沒交手就返回原位回滿。沒設＝舊行為（一開場全部衝過來）。
    */
   mapAi?: boolean;
+  /** 重生點（需要 mapAi）；有可重生的重生點時不會因清空而勝利（刷怪地圖），由時間或出口結束 */
+  spawnGroups?: SpawnGroup[];
   /** 自然恢復（D-073，D-065：脫戰 5 秒後每秒 2%）；預設跟 mapAi 一樣 */
   regen?: boolean;
   /** 超過這麼多 tick 算失敗（防無限戰鬥） */
@@ -312,4 +334,6 @@ export interface BattleState {
   lastCombatTick?: number;
   /** 剩餘 HP 藥水 */
   potions: number;
+  /** 重生排程：重生點 id → 到期 tick（遞增排序） */
+  respawnAt?: Record<string, number[]>;
 }

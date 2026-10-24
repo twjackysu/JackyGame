@@ -1,8 +1,8 @@
 // 即時戰鬥核心（D-063 P1／P2）：確定性、公式、冷卻、閃避、預告、格擋、Boss 階段、模擬器指標。
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { addStatus, computeDamage, createBattle, dist, enemiesOf, inShape, playerOf, step } from '../src/core/battle/rt/engine';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { addStatus, computeDamage, createBattle, dist, enemiesOf, inShape, playerOf, stateHash, step } from '../src/core/battle/rt/engine';
 import { cellIndex, clearLine, findPath, gridOf } from '../src/core/battle/rt/path';
 import { BOT_PROFILES, IdleController, PlayerBot, ScriptedTestController, batch, pullRisk, safestPull, simulateBattle } from '../src/core/battle/rt/sim';
 import { ENEMIES, SKILLS, STAGES } from '../src/core/battle/rt/data';
@@ -698,5 +698,70 @@ describe('同時追擊上限與沉睡（design/20 B1）', () => {
     };
     expect(peak(new PlayerBot(BOT_PROFILES.normal, 'normal'))).toBe(1);
     expect(peak(new PlayerBot(BOT_PROFILES.auto, 'auto'))).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('重生點 SpawnGroup（design/20 B1、design/21 §3 第 2 步）', () => {
+  beforeAll(() => {
+  STAGES.test_spawn = {
+    id: 'test_spawn', name: '測試重生', timeLimitTicks: sec(9999), player: { x: u(15), y: u(9) }, mapAi: true, enemies: [],
+    arena: { w: u(30), h: u(40) },
+    spawnGroups: [{ id: 'wolves', enemyId: 'wolf', cx: u(15), cy: u(6), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30) }],
+  };
+  });
+  afterAll(() => {
+    delete STAGES.test_spawn;
+  });
+  const killAll = (s: ReturnType<typeof createBattle>) => {
+    const p = playerOf(s);
+    p.atk = 99999;
+    p.hp = p.maxHp = 1e9;
+    const bot = expert();
+    for (let i = 0; i < sec(30) && enemiesOf(s).length; i++) step(s, bot.decide(s));
+  };
+
+  it('開場生滿 maxAlive 隻待機怪；清光後不算勝利，30 秒後在玩家走遠時補回', () => {
+    const s = createBattle({ stageId: 'test_spawn', seed: 5 });
+    expect(enemiesOf(s).map((e) => [e.groupId, e.mode])).toEqual([['wolves', 'idle'], ['wolves', 'idle'], ['wolves', 'idle']]);
+    killAll(s);
+    expect(enemiesOf(s).length).toBe(0);
+    expect(s.outcome).toBe('running');
+    const deaths = s.events.filter((e) => e.type === 'death').map((e) => e.tick);
+    expect(deaths.length).toBe(3);
+    const p = playerOf(s);
+    p.x = u(15);
+    p.y = u(36); // 離重生點 30 單位
+    for (let i = 0; i < sec(40); i++) step(s, [{ type: 'stop' }]);
+    const rs = s.events.filter((e) => e.type === 'respawn').map((e) => e.tick);
+    expect(rs).toEqual(deaths.map((t) => t + sec(30)));
+    const es = enemiesOf(s);
+    expect(es.length).toBe(3);
+    for (const e of es) expect(dist(e.x, e.y, u(15), u(6))).toBeLessThanOrEqual(u(2) + 1);
+    // 倒下的舊單位被換掉，陣列不會一直變大
+    expect(s.units.length).toBe(4);
+  });
+
+  it('玩家站在重生點旁邊時延後重生，離開後才補', () => {
+    const s = createBattle({ stageId: 'test_spawn', seed: 6 });
+    killAll(s);
+    const p = playerOf(s);
+    p.x = u(15);
+    p.y = u(10); // 只有 4 單位
+    for (let i = 0; i < sec(45); i++) step(s, [{ type: 'stop' }]);
+    expect(s.events.some((e) => e.type === 'respawn')).toBe(false);
+    p.y = u(36);
+    for (let i = 0; i < sec(2); i++) step(s, [{ type: 'stop' }]);
+    expect(enemiesOf(s).length).toBe(3);
+  });
+
+  it('有重生點也可重現（stateHash 一致）', () => {
+    const run = () => {
+      const s = createBattle({ stageId: 'test_spawn', seed: 9 });
+      killAll(s);
+      playerOf(s).y = u(36);
+      for (let i = 0; i < sec(35); i++) step(s, [{ type: 'stop' }]);
+      return stateHash(s);
+    };
+    expect(run()).toBe(run());
   });
 });
