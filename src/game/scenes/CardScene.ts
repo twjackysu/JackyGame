@@ -91,6 +91,8 @@ export class CardScene extends Phaser.Scene {
   private matchId = 'demo';
   private layer!: Phaser.GameObjects.Container;
   private selected = -1;
+  private dragging = -1;
+  private dragMoved = false;
   private busy = false;
   private rng = mulberry32(1);
   private info?: Phaser.GameObjects.Container;
@@ -105,6 +107,8 @@ export class CardScene extends Phaser.Scene {
     this.opp = OPPONENTS[this.matchId] ?? OPPONENTS.demo!;
     this.story = !!data.story;
     this.selected = -1;
+    this.dragging = -1;
+    this.dragMoved = false;
     this.busy = false;
     this.info = undefined;
     const seed = (Math.random() * 1e9) | 0;
@@ -115,6 +119,7 @@ export class CardScene extends Phaser.Scene {
   create(): void {
     this.drawTable();
     this.layer = this.add.container(0, 0);
+    this.input.dragDistanceThreshold = 14;
     stopMusic(0.4);
     this.time.delayedCall(500, () => playMusic('cards'));
     this.cameras.main.fadeIn(400, 0, 0, 0);
@@ -277,8 +282,51 @@ export class CardScene extends Phaser.Scene {
       const sel = i === this.selected;
       const v = this.cardView(c, null, { small: true, glow: sel });
       v.setPosition(x, HAND_Y - (sel ? 40 : 0)).setAngle((i - (n - 1) / 2) * 2.2).setScale(sel ? 1.12 : 1);
-      v.setSize(100, 146).setInteractive({ useHandCursor: true });
-      v.on('pointerdown', () => this.onHand(i));
+      v.setSize(100, 146).setInteractive({ useHandCursor: true, draggable: true });
+      // 點一下：選牌；拖曳：直接丟到燈座（放開位置不合法就彈回）
+      v.on('pointerup', () => {
+        if (this.dragMoved) return;
+        this.onHand(i);
+      });
+      v.on('dragstart', () => {
+        if (!this.canAct()) return;
+        this.dragging = i;
+        this.dragMoved = true;
+        this.tweens.killTweensOf(v);
+        v.setAngle(0).setScale(1.18);
+        this.layer.bringToTop(v);
+        const c = this.st.sides[0].hand[i];
+        if (c) this.showInfo(c);
+        // 可放的燈座發光提示
+        const hint = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+        for (const a of this.playsFor(i)) {
+          if (a.type !== 'play') continue;
+          const k = a.slot ?? a.target;
+          if (k === undefined) continue;
+          const y = a.slot === undefined && c && defOf(c).effect === 'gust' ? OPP_Y : MY_Y;
+          hint.lineStyle(4, 0xffd27a, 0.9).strokeRoundedRect(slotX(k) - CW / 2 - 4, y - CH / 2 - 4, CW + 8, CH + 8, 14);
+        }
+        this.layer.addAt(hint, 0);
+        this.tweens.add({ targets: hint, alpha: 0.4, duration: 380, yoyo: true, repeat: -1 });
+      });
+      v.on('drag', (_p: Phaser.Input.Pointer, dx: number, dy: number) => {
+        if (this.dragging === i) v.setPosition(dx, dy - 30);
+      });
+      v.on('dragend', (p: Phaser.Input.Pointer) => {
+        this.time.delayedCall(0, () => (this.dragMoved = false));
+        if (this.dragging !== i) return;
+        this.dragging = -1;
+        const a = this.dropAction(i, p.worldX, p.worldY - 30);
+        if (a) {
+          SFX.cardPlay();
+          void this.act(a);
+        } else {
+          SFX.uiCancel();
+          this.selected = -1;
+          this.info?.destroy();
+          this.render();
+        }
+      });
       this.layer.add(v);
       if (sel) this.layer.bringToTop(v);
     });
@@ -347,6 +395,21 @@ export class CardScene extends Phaser.Scene {
     const targets = acts.flatMap((a) => (a.type === 'play' && a.target !== undefined ? [a.target] : []));
     const eff = c ? defOf(c).effect : undefined;
     this.render({ slots, targets: targets.length ? { side: eff === 'gust' ? 'opp' : 'me', idx: targets } : undefined });
+  }
+
+  /** 拖曳放開的位置 → 合法出牌動作（找不到回傳 undefined） */
+  private dropAction(i: number, x: number, y: number): Action | undefined {
+    if (!this.canAct()) return undefined;
+    const acts = this.playsFor(i);
+    // 無目標的術：拖到手牌區以上就使用
+    const free = acts.find((a) => a.type === 'play' && a.slot === undefined && a.target === undefined);
+    if (free) return y < HAND_Y - 140 ? free : undefined;
+    let k = -1;
+    for (let j = 0; j < SLOTS; j++) if (Math.abs(slotX(j) - x) <= CW / 2 + 12) k = j;
+    if (k < 0) return undefined;
+    const side = Math.abs(y - MY_Y) <= CH / 2 + 40 ? 'me' : Math.abs(y - OPP_Y) <= CH / 2 + 40 ? 'opp' : null;
+    if (!side) return undefined;
+    return acts.find((a) => a.type === 'play' && (side === 'me' ? a.slot === k || a.target === k : a.target === k));
   }
 
   private playsFor(i: number): Action[] {
