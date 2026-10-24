@@ -69,6 +69,22 @@ export function newGame(now = Date.now()): GameState {
   };
 }
 
+/**
+ * 二週目（D-035）：從頭開始劇情，但保留連恩等級與經驗、金錢、燼牌收藏、已看過的結局與教學提示。
+ * 同伴加入時沿用連恩等級（見 join），所以全隊都會是高等級。
+ */
+export function newGamePlus(prev: GameState, now = Date.now()): GameState {
+  const s = newGame(now);
+  const lian = prev.members.lian;
+  if (lian) s.members.lian = { ...s.members.lian!, level: lian.level, xp: lian.xp };
+  s.gold = prev.gold;
+  s.cards = { ...prev.cards };
+  s.flags.ng_plus = Number(prev.flags.ng_plus ?? 0) + 1;
+  for (const [k, v] of Object.entries(prev.flags)) if (k.startsWith('ending_seen_') || k.startsWith('tip_')) s.flags[k] = v;
+  if (typeof prev.flags.ending === 'string') s.flags[`ending_seen_${prev.flags.ending}`] = true;
+  return s;
+}
+
 /** 對話/事件效果。資料檔（src/data/dialogue）以此描述選擇的後果。 */
 export type Effect =
   | { flag: string; value?: FlagValue }

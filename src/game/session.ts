@@ -33,6 +33,12 @@ export const session = {
     sessionStart = performance.now();
     return current;
   },
+  /** 換成指定的狀態（例：二週目） */
+  replace(s: GameState): GameState {
+    current = s;
+    sessionStart = performance.now();
+    return current;
+  },
   load(): GameState | null {
     current = store.load();
     sessionStart = performance.now();

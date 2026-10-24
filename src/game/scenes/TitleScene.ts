@@ -4,6 +4,7 @@ import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
 import { playMusic } from '../../audio/music';
 import { session } from '../session';
+import { newGamePlus } from '../../core/state/gameState';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -239,10 +240,13 @@ export class TitleScene extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
     const items: [string, () => void][] = [];
     if (session.hasSave()) items.push(['繼續旅程', () => this.go(() => this.continueGame())]);
-    items.push(['新的旅程', () => this.go(() => {
-      session.newGame();
-      this.scene.start('Dialogue', { script: 'ch0' });
-    })]);
+    items.push(['新的旅程', () => {
+      if (!session.hasSave()) {
+        this.go(() => this.startNew(false));
+        return;
+      }
+      this.confirmNew();
+    }]);
     items.push(['戰鬥演示', () => this.go(() => this.scene.start('Battle', {
       encounter: 'forest_a', chain: ['forest_b', 'shrine_boar', 'boss_wolfking'],
     }))]);
@@ -270,6 +274,61 @@ export class TitleScene extends Phaser.Scene {
         fn();
       });
       menu.add(c);
+    });
+  }
+
+  private startNew(plus: boolean): void {
+    const prev = plus ? session.load() : null;
+    session.newGame();
+    if (prev) {
+      session.replace(newGamePlus(prev));
+      session.save();
+    }
+    this.scene.start('Dialogue', { script: 'ch0' });
+  }
+
+  /** 已有存檔時的「新的旅程」確認；通關存檔另外提供二週目（D-035）。 */
+  private confirmNew(): void {
+    if (this.busy) return;
+    this.busy = true;
+    const prev = session.load();
+    const cleared = !!prev?.flags['ch5_complete'];
+    const ui = this.add.container(0, 0).setDepth(900);
+    const dim = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75).setInteractive();
+    const h = cleared ? 520 : 400;
+    const top = GAME_HEIGHT / 2 - h / 2;
+    const g = this.add.graphics();
+    g.fillStyle(0x0a0d1a, 0.97).fillRoundedRect(60, top, GAME_WIDTH - 120, h, 24);
+    g.lineStyle(2, 0xffd27a, 0.8).strokeRoundedRect(60, top, GAME_WIDTH - 120, h, 24);
+    const msg = cleared
+      ? '你已經走完一次旅程。\n二週目會保留等級、金錢與燼牌收藏，\n可以試試不同的選擇與結局。'
+      : '開始新的旅程會覆蓋目前的存檔。';
+    const t = this.add.text(GAME_WIDTH / 2, top + 100, msg, {
+      fontFamily: UI_FONT, fontSize: '26px', color: '#ffe9c4', align: 'center', lineSpacing: 10,
+    }).setOrigin(0.5);
+    ui.add([dim, g, t]);
+    const close = (): void => {
+      ui.destroy();
+      this.busy = false;
+    };
+    const buttons: [string, number, () => void][] = [];
+    if (cleared) buttons.push(['二週目 ✦', 0xffd27a, () => { ui.destroy(); this.busy = false; this.go(() => this.startNew(true)); }]);
+    buttons.push(['覆蓋並重新開始', cleared ? 0x9fb0d8 : 0xffd27a, () => { ui.destroy(); this.busy = false; this.go(() => this.startNew(false)); }]);
+    buttons.push(['取消', 0x5a6380, close]);
+    buttons.forEach(([label, col, fn], i) => {
+      const y = top + (cleared ? 230 : 200) + i * 96;
+      const c = this.add.container(GAME_WIDTH / 2, y);
+      const bg = this.add.graphics();
+      bg.fillStyle(0x14182c, 1).fillRoundedRect(-220, -38, 440, 76, 18);
+      bg.lineStyle(2, col, 1).strokeRoundedRect(-220, -38, 440, 76, 18);
+      const tx = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: '30px', color: '#ffffff' }).setOrigin(0.5);
+      c.add([bg, tx]).setSize(440, 76).setInteractive({ useHandCursor: true });
+      c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+        ev.stopPropagation();
+        SFX.confirm();
+        fn();
+      });
+      ui.add(c);
     });
   }
 
