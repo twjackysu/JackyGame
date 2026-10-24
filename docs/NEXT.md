@@ -12,6 +12,10 @@
 
 > ⭐ **第 9 輪（10/24 16:11）完成**：E3 商店與裝備、E4 技能樹 v1、E5 營火羈絆 v1、第 2 章（`minecamp`＋`mine`）與第 3 章（`capital`）可走、第 1 章支線 ×2、等級差逃跑。相關檔案：`src/data/{equipment,skillTree,sideQuests}.ts`、`src/data/dialogue/camp.ts`、`src/core/state/{equip,skillTree}.ts`、`src/game/ui/{shopPanel,bagPanel,gearUi}.ts`、`src/data/areas/{minecamp,mine,capital}.ts`。
 
+> 🔥 **Jacky 10/24 17:30 新方向（D-049，最優先）**：稀有／神級裝備只能靠打 Boss 或小怪低機率掉落；技能樹要有前置技能與「先點多少」的門檻，深處才有更強的技能。設計在 `docs/design/11-open-world.md` §2.4b、§2.5 v2。
+
+A-1. **稀有掉落（§2.4b）**：①`ItemDef.rarity`（'common'|'rare'|'legendary'）＋每章 2–3 件稀有、1 件神級（神級帶 `perk`），稀有以上不進任何 `SHOPS`（測試）；②`src/data/drops.ts` 掉落表＋`rollDrops(encounter, rng, firstKill)` 純函式（測試：Boss 首殺必掉、機率統計）；③BattleScene 勝利時擲骰、寫進背包、演出（卡片翻開＋藍／金光柱）；探索明雷與劇情戰都走這條；④神級特效接進引擎（`createBattle` 收 `perks`，先做 3–4 種簡單的）；⑤行囊名稱上色、收藏頁（可放下一輪）。
+A-2. **技能樹 v2（§2.5 v2）**：①資料改成節點有 `requires: { nodes?: [id, rank][]; branchPoints?: number }`、`maxRank`；每條分支 5–7 節點、底部一個新主動技能（先做連恩、瑟琳、莉歐拉、伊歐、洛克各 1 個，引擎 `SKILLS` 加 id 與效果＋測試）；②舊存檔 `tree` 遷移（找不到的 id 直接退點）；③UI 改成可捲動的樹狀圖、鎖住節點顯示缺什麼；④Boss 首殺 +1 技能點；⑤營火免費重置、其他地方收金幣。
 A0. **機器人現況**：第 1～5 章可走版各自通過；從新遊戲全程（第 9 輪中段的 build）1096 秒通關。下一輪做完任何改動後，背景跑一次從新遊戲到 `ch5_complete`（約 20 分鐘）確認全程都走可走區域。
 A1. **E6 收尾＝地圖品質**：全部章節都能走了（D-048），但第 2 章以後的地圖都是「長方形房間＋走廊」：加彎道、寬窄變化、裝飾物件（程式畫的木箱、礦車、書架、實驗台、裂谷星屑）、每區 1 個「引路之光」隱藏通路或隱藏寶箱（11-open-world §2.1）。王都可加夜市攤位、噴水池換成真的噴泉。
 A2. **E5 第二版**：羈絆事件改成「好感達門檻＋到指定地點」觸發（`src/data/bonds.ts` 的事件 → 探索實體 `when: affinityAtLeast`）；城鎮夜晚約會事件 1–2 個（灰燈鎮湖畔、王都鐘塔）；同伴在地圖上偶爾冒對話泡泡（ExploreScene followers 加 `say`）。
