@@ -2,7 +2,7 @@
 // 地圖只存在測試裡（P2 霧語森林本體等 Jacky 試玩回覆，D-065）。
 import { writeFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createBattle, isSolidAt, playerOf, step } from '../src/core/battle/rt/engine';
+import { createBattle, isSolidAt, step } from '../src/core/battle/rt/engine';
 import { BOT_PROFILES, PlayerBot, summarize, type BotSkill } from '../src/core/battle/rt/sim';
 import { STAGES } from '../src/core/battle/rt/data';
 import { sec, u } from '../src/core/battle/rt/types';
