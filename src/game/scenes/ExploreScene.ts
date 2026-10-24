@@ -120,7 +120,15 @@ export class ExploreScene extends Phaser.Scene {
   private lampGlow = new Map<string, Phaser.GameObjects.Image>();
   private lampPost = new Map<string, Phaser.GameObjects.Image>();
 
-  private defeated(): Set<string> {
+  /** 是否在營火旁（4 格內）——技能樹免費重置用 */
+  nearRest(): boolean {
+    if (!this.player) return false;
+    const px = this.player.x / TILE - 0.5;
+    const py = this.player.y / TILE - 0.5;
+    return this.actors.some((a) => !!a.e.rest && Math.hypot(a.tx - px, a.ty - py) <= 4);
+  }
+
+    private defeated(): Set<string> {
     let d = DEFEATED.get(this.area.id);
     if (!d) DEFEATED.set(this.area.id, (d = new Set()));
     return d;

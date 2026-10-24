@@ -18,6 +18,8 @@ export interface SkillDef {
   unlockFlag?: 'guidingLight';
   /** 連攜技：此夥伴也必須在場（未倒地） */
   partner?: HeroId;
+  /** 技能樹解鎖（Unit.treeSkills 有才能用；D-049） */
+  tree?: true;
 }
 
 /** 普攻倍率與目標（洛克普攻打全體） */
@@ -48,6 +50,12 @@ export const SKILLS: Record<string, SkillDef> = {
   // 連攜技（03 §連攜技）：與連恩同時在場、消耗星燼
   lamp_slash: { id: 'lamp_slash', hero: 'serin', name: '連攜・燈下斬', costEmber: 4, timing: true, targeting: 'enemy', partner: 'lian' },
   lamp_detonator: { id: 'lamp_detonator', hero: 'liora', name: '連攜・燈火雷管', costEmber: 4, timing: true, targeting: 'allEnemies', partner: 'lian' },
+  // 技能樹底部的主動技能（11-open-world §2.5 v2）
+  thousand_lamps: { id: 'thousand_lamps', hero: 'lian', name: '千燈共鳴', costSp: 4, costEmber: 2, timing: true, targeting: 'allEnemies', tree: true },
+  dawn_flash: { id: 'dawn_flash', hero: 'serin', name: '破曉一閃', costSp: 4, timing: true, targeting: 'enemy', tree: true },
+  all_in: { id: 'all_in', hero: 'rourke', name: '梭哈', costSp: 3, timing: true, targeting: 'allEnemies', tree: true },
+  star_lullaby: { id: 'star_lullaby', hero: 'io', name: '星之搖籃曲', costSp: 5, timing: true, targeting: 'allAllies', tree: true },
+  chain_blast: { id: 'chain_blast', hero: 'liora', name: '連鎖大爆破', costSp: 5, timing: true, targeting: 'allEnemies', tree: true },
 };
 
 export function skillsFor(hero: HeroId): SkillDef[] {

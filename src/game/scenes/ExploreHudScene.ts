@@ -64,7 +64,7 @@ export class ExploreHudScene extends Phaser.Scene {
     this.refreshGoal();
     this.button(44, 56, '⚙', '#c8d0f0', () => openSettings(this));
     this.button(GAME_WIDTH - 40, 56, '♥', '#ff9ab8', () => openBonds(this));
-    this.button(GAME_WIDTH - 168, 56, '🎒', '#ffd27a', () => openBag(this));
+    this.button(GAME_WIDTH - 168, 56, '🎒', '#ffd27a', () => openBag(this, 300, 'gear', !!(this.scene.get('Explore') as unknown as { nearRest?: () => boolean }).nearRest?.()));
     this.button(GAME_WIDTH - 104, 56, '🗺', '#aab4dd', async () => {
       this.world().leaveToMap();
     }, true);

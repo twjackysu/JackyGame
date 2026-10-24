@@ -4,8 +4,8 @@ import { SFX } from '../../audio/sfx';
 import { canEquip, gearDelta, owns, unequip, equip } from '../../core/state/equip';
 import type { MemberId } from '../../core/state/gameState';
 import { ITEM_DEFS, PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
-import { branchName } from '../../data/skillTree';
-import { learn, learnState, learned, pointsLeft, resetTree, treeFor } from '../../core/state/skillTree';
+import { TREE_BY_ID, branchName, effectText, type TreeNode } from '../../data/skillTree';
+import { bossPoints, branchPoints, learn, learnState, learned, missingText, nodeDesc, pointsLeft, rankOf, resetCost, resetTree, treeFor } from '../../core/state/skillTree';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce, sparks } from '../fx/feel';
 import { session, withNames } from '../session';
@@ -14,7 +14,8 @@ import { bonusText, deltaScore, deltaText, heroName, itemIcon, itemSubline, memb
 
 type Tab = 'gear' | 'skills' | 'items' | 'codex';
 
-export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): Promise<void> {
+/** atCamp：在營火旁開啟 → 技能樹重置免費 */
+export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', atCamp = false): Promise<void> {
   return new Promise((resolve) => {
     const s = session.state;
     const ui = scene.add.container(0, 0).setDepth(depth);
@@ -90,63 +91,100 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
     const renderSkills = (): void => {
       memberChips();
       const left = pointsLeft(s, who);
+      const bp = bossPoints(s);
       add(scene.add.text(60, 340, `技能點 ${left}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: left > 0 ? '#7dffb0' : '#8a94b8' }).setOrigin(0, 0.5));
-      add(scene.add.text(GAME_WIDTH - 60, 340, `（Lv ${s.members[who]?.level ?? 1}・每升一級 +1）`, { fontFamily: UI_FONT, fontSize: '18px', color: '#6a7398' }).setOrigin(1, 0.5));
-      const nodes = treeFor(who);
+      add(scene.add.text(214, 342, `Lv${s.members[who]?.level ?? 1}${bp ? `＋Boss ${bp}` : ''}`, { fontFamily: UI_FONT, fontSize: '17px', color: '#6a7398' }).setOrigin(0, 0.5));
       const have = learned(s, who);
-      const lines = add(scene.add.graphics());
-      ([0, 1] as const).forEach((br) => {
-        const cx = br === 0 ? 196 : 524;
-        add(scene.add.text(cx, 392, `— ${branchName(who, br)} —`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a' }).setOrigin(0.5));
-        nodes.filter((n) => n.branch === br).forEach((n) => {
-          const y = 470 + (n.tier - 1) * 148;
-          const st = learnState(s, who, n.id);
-          const on = have.includes(n.id);
-          if (n.tier > 1) {
-            lines.lineStyle(4, on ? 0xffd27a : 0x2a3050, 1).lineBetween(cx, y - 148 + 52, cx, y - 52);
-          }
-          const box = add(scene.add.container(cx, y));
-          const bg = scene.add.graphics();
-          bg.fillStyle(on ? 0x3a3018 : st === 'ok' ? 0x1a2440 : 0x10142a, 1).fillRoundedRect(-140, -52, 280, 104, 16);
-          bg.lineStyle(on ? 3 : 2, on ? 0xffd27a : st === 'ok' ? 0x7dffb0 : 0x2a3050, 1).strokeRoundedRect(-140, -52, 280, 104, 16);
-          box.add(bg);
-          box.add(scene.add.text(0, -22, `${on ? '✦ ' : ''}${n.name}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: on ? '#ffe6a0' : st === 'ok' ? '#ffffff' : '#5a6380' }).setOrigin(0.5));
-          box.add(scene.add.text(0, 10, n.desc, { fontFamily: UI_FONT, fontSize: '17px', color: on ? '#ffd27a' : st === 'ok' ? '#9fe8c0' : '#4a5378' }).setOrigin(0.5));
-          box.add(scene.add.text(0, 36, on ? '已習得' : `${n.cost} 點`, { fontFamily: UI_FONT, fontSize: '15px', color: '#6a7398' }).setOrigin(0.5));
-          box.setSize(280, 104).setInteractive({ useHandCursor: true });
-          onTap(box, () => {
-            if (learn(s, who, n.id)) {
-              SFX.levelUp();
-              sparks(scene, cx, y, 18, 'spark', 0xffd27a);
-              session.save();
-              render();
-              return;
-            }
-            SFX.uiCancel();
-            pressBounce(scene, box);
-            hint(st === 'locked' ? '先學上一階' : st === 'points' ? '技能點不夠——升級就有' : '');
-          });
-        });
-      });
-      // 重置
       if (have.length > 0) {
-        const rb = add(scene.add.text(GAME_WIDTH / 2, 1080, '↺ 重置（免費，點數全部退回）', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5).setPadding(16, 8, 16, 8).setInteractive({ useHandCursor: true }));
+        const cost = resetCost(s, who, atCamp);
+        const rb = add(scene.add.text(GAME_WIDTH - 56, 340, `↺ 重置${cost ? `（${cost} 金）` : '（營火・免費）'}`, { fontFamily: UI_FONT, fontSize: '20px', color: cost > s.gold ? '#6a5a5a' : '#ffb0a0' }).setOrigin(1, 0.5).setPadding(12, 8, 12, 8).setInteractive({ useHandCursor: true }));
         onTap(rb, () => {
-          resetTree(s, who);
+          if (!resetTree(s, who, atCamp)) {
+            SFX.uiCancel();
+            hint('金幣不夠——在營火旁重置免費');
+            return;
+          }
           SFX.uiCancel();
           session.save();
           render();
+          hint(cost ? `已重置（花了 ${cost} 金）` : '已重置，點數全部退回', '#ffe6a0');
         });
-      } else add(scene.add.text(GAME_WIDTH / 2, 1080, '點節點學習。可以隨時免費重置、換一套搭配。', { fontFamily: UI_FONT, fontSize: '20px', color: '#6a7398' }).setOrigin(0.5));
+      }
+      const nodes = treeFor(who);
+      const lines = add(scene.add.graphics());
+      const pos = (n: TreeNode) => ({ x: (n.branch === 0 ? 196 : 524) + n.col * 80, y: 476 + n.row * 140 });
+      ([0, 1] as const).forEach((br) => {
+        const cx = br === 0 ? 196 : 524;
+        add(scene.add.text(cx, 398, `— ${branchName(who, br)}　${branchPoints(s, who, br)} 點 —`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffd27a' }).setOrigin(0.5));
+      });
+      // 連線先畫（在節點下面）
+      for (const n of nodes) {
+        const p = pos(n);
+        for (const [rid, r] of n.requires.nodes ?? []) {
+          const q = TREE_BY_ID[rid];
+          if (!q) continue;
+          const a = pos(q);
+          const met = rankOf(s, who, rid) >= r;
+          lines.lineStyle(met ? 5 : 3, met ? 0xffd27a : 0x2a3050, met ? 0.9 : 1).lineBetween(a.x, a.y + 46, p.x, p.y - 46);
+        }
+      }
+      for (const n of nodes) {
+        const { x, y } = pos(n);
+        const rank = rankOf(s, who, n.id);
+        const st = learnState(s, who, n.id);
+        const on = rank > 0;
+        const ult = n.row === 4;
+        const box = add(scene.add.container(x, y));
+        const bg = scene.add.graphics();
+        const edge = st === 'maxed' ? 0xffd27a : on ? 0xd8b060 : st === 'ok' ? 0x7dffb0 : 0x2a3050;
+        bg.fillStyle(on ? (n.skill ? 0x3a2448 : 0x3a3018) : st === 'ok' ? 0x1a2440 : 0x10142a, 1).fillRoundedRect(-74, -46, 148, 92, 14);
+        bg.lineStyle(on || st === 'ok' ? 3 : 2, n.skill && st !== 'locked' ? (on ? 0xffc84a : 0xc890ff) : edge, 1).strokeRoundedRect(-74, -46, 148, 92, 14);
+        if (ult && st !== 'locked') {
+          const glow = scene.add.circle(0, 0, 70, n.skill ? 0xc890ff : 0xffd27a, on ? 0.18 : 0.08).setBlendMode(Phaser.BlendModes.ADD);
+          box.add(glow);
+          scene.tweens.add({ targets: glow, alpha: on ? 0.06 : 0.02, duration: 1000, yoyo: true, repeat: -1 });
+        }
+        box.add(bg);
+        const nameCol = on ? '#ffe6a0' : st === 'ok' ? '#ffffff' : '#5a6380';
+        box.add(scene.add.text(0, -24, `${n.skill ? '★ ' : ''}${n.name}`, { fontFamily: UI_FONT, fontSize: n.name.length > 4 ? '18px' : '20px', fontStyle: '700', color: nameCol }).setOrigin(0.5));
+        box.add(scene.add.text(0, 2, nodeDesc(n, rank || 1), { fontFamily: UI_FONT, fontSize: '13px', color: on ? '#ffd27a' : st === 'ok' ? '#9fe8c0' : '#4a5378', align: 'center', wordWrap: { width: 140, useAdvancedWrap: true } }).setOrigin(0.5));
+        // 等級點點
+        const pips = add(scene.add.graphics());
+        pips.setPosition(x, y + 30);
+        for (let k = 0; k < n.maxRank; k++) {
+          const px = (k - (n.maxRank - 1) / 2) * 16;
+          pips.fillStyle(k < rank ? 0xffd27a : 0x2a3050, 1).fillCircle(px, 0, 5);
+        }
+        if (n.cost > 1) box.add(scene.add.text(66, -38, `${n.cost}點`, { fontFamily: UI_FONT, fontSize: '12px', color: '#8a94b8' }).setOrigin(1, 0.5));
+        if (st === 'locked') box.add(scene.add.text(-64, -36, '🔒', { fontFamily: UI_FONT, fontSize: '14px' }).setOrigin(0.5));
+        box.setSize(148, 92).setInteractive({ useHandCursor: true });
+        onTap(box, () => {
+          if (learn(s, who, n.id)) {
+            SFX.levelUp();
+            sparks(scene, x, y, n.skill ? 40 : 18, 'spark', n.skill ? 0xc890ff : 0xffd27a);
+            session.save();
+            render();
+            const r = rankOf(s, who, n.id);
+            hint(n.skill ? `學會主動技能「${n.name}」！戰鬥的技能選單裡可以用。` : `${n.name}${n.maxRank > 1 ? ` Lv${r}` : ''}：${effectText(n.effect, r)}`, '#ffe6a0');
+            return;
+          }
+          SFX.uiCancel();
+          pressBounce(scene, box);
+          if (st === 'maxed') hint(`${n.name} 已經滿級`, '#ffe6a0');
+          else if (st === 'locked') hint(missingText(s, who, n));
+          else if (st === 'points') hint(`技能點不夠（要 ${n.cost} 點）——升級或首殺 Boss 都會給`);
+        });
+      }
+      if (have.length === 0) add(scene.add.text(GAME_WIDTH / 2, 1124, '點節點學習。越深的節點越強，最底下是主動技能。', { fontFamily: UI_FONT, fontSize: '19px', color: '#6a7398' }).setOrigin(0.5));
     };
 
     let hintT: Phaser.GameObjects.Text | undefined;
-    const hint = (msg: string): void => {
+    const hint = (msg: string, color = '#ff9a9a'): void => {
       if (!msg) return;
       hintT?.destroy();
-      const h = scene.add.text(GAME_WIDTH / 2, 1120, msg, { fontFamily: UI_FONT, fontSize: '22px', color: '#ff9a9a', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(depth + 1);
+      const h = scene.add.text(GAME_WIDTH / 2, 1124, msg, { fontFamily: UI_FONT, fontSize: '21px', color, stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: GAME_WIDTH - 90, useAdvancedWrap: true } }).setOrigin(0.5).setDepth(depth + 1);
       hintT = h;
-      scene.tweens.add({ targets: h, alpha: 0, delay: 800, duration: 400, onComplete: () => h.destroy() });
+      scene.tweens.add({ targets: h, alpha: 0, delay: 1600, duration: 400, onComplete: () => h.destroy() });
     };
 
     const renderGear = (): void => {

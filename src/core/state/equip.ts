@@ -1,7 +1,7 @@
 // 裝備、買賣（純邏輯，不 import phaser）。資料：src/data/equipment.ts。
 import { statsAtLevel, type BaseStats } from '../battle/formulas';
 import { HEROES } from '../../data/combatants';
-import { treeEffect } from './skillTree';
+import { treeEffect, treeSkills } from './skillTree';
 import type { HeroId } from '../battle/skills';
 import { ITEM_DEFS, SHOPS, SLOTS, itemDef, type ItemDef, type Slot } from '../../data/equipment';
 import type { GameState, MemberId } from './gameState';
@@ -109,10 +109,10 @@ export function totalBonus(s: GameState, m: MemberId): Required<BaseStats> {
 }
 
 /** 戰鬥上場隊伍（前 3 位）＋裝備與技能樹加成 */
-export function battleParty(s: GameState): { id: HeroId; level: number; bonus: Required<BaseStats>; startSp: number; startEmber: number; perks: Perk[] }[] {
+export function battleParty(s: GameState): { id: HeroId; level: number; bonus: Required<BaseStats>; startSp: number; startEmber: number; perks: Perk[]; skills: string[] }[] {
   return s.party.slice(0, 3).map((m) => {
     const t = treeEffect(s, m);
-    return { id: m as HeroId, level: s.members[m]?.level ?? 1, bonus: totalBonus(s, m), startSp: t.startSp, startEmber: t.startEmber, perks: gearPerks(s, m) };
+    return { id: m as HeroId, level: s.members[m]?.level ?? 1, bonus: totalBonus(s, m), startSp: t.startSp, startEmber: t.startEmber, perks: gearPerks(s, m), skills: treeSkills(s, m) };
   });
 }
 

@@ -18,6 +18,7 @@ import {
 } from '../../core/battle/engine';
 import { PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, itemDef, rarityOf } from '../../data/equipment';
 import { firstKillFlag, rollDrops } from '../../data/drops';
+import { BOSS_POINT_KILLS } from '../../data/skillTree';
 import { grantDrops } from '../../core/state/equip';
 import { itemIcon, perkLine } from '../ui/gearUi';
 import { HP_CARRY_FROM, MAX_EMBER, WINDOWS, carriedHp, judgeAttack, judgeDefense, type BaseStats, type DefenseResult, type Telegraph, type Timing } from '../../core/battle/formulas';
@@ -35,7 +36,7 @@ import {
 
 export interface BattleSceneData {
   encounter?: string;
-  party?: { id: HeroId; level: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number; perks?: readonly Perk[] }[];
+  party?: { id: HeroId; level: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number; perks?: readonly Perk[]; skills?: readonly string[] }[];
   /** 示範連戰：勝利後接下一場 */
   chain?: string[];
   seed?: number;
@@ -78,6 +79,7 @@ const TELE_HINT: Record<Telegraph, string> = { white: '點擊 → 格擋', red: 
 const STATUS_LABEL: Record<string, string> = {
   guarding: '防禦', taunt: '挑釁', counterStance: '反擊架勢', veteranInstinct: '老兵的直覺', weakRevealed: '弱點顯現',
   silenced: '靜默', howl: '嚎叫！', poison: '中毒', umbra: '蝕', empowered: '引路之光', doomMark: '反燈印！',
+  allInWin: '梭哈——大獲全勝！', allInLose: '梭哈……輸了',
 };
 
 const ATTACK_LEAD_MS = 260; // 光環出現到開始收縮
@@ -992,6 +994,11 @@ export class BattleScene extends Phaser.Scene {
       blast_art: '全體火屬性爆破',
       lamp_slash: '與連恩合擊：光＋物理 3 倍單體、破防 40',
       lamp_detonator: '與連恩合擊：全體火傷，每盞燈印追加並引爆',
+      thousand_lamps: '燈印一口氣補滿並立刻共鳴引爆（完美 +20%）',
+      dawn_flash: '無視防禦的光之一閃，破防 30',
+      all_in: '賭一把：贏了全體 2 倍＋星燼 2；輸了自傷（完美必贏）',
+      star_lullaby: '全體回復 40%（完美 55%）、復活、淨化所有異常',
+      chain_blast: '全體火傷，燈印加成；炸倒敵人會連鎖爆炸',
       potion_s: '回復 60 HP（HP 最低的隊友）',
       potion_m: '回復 160 HP（HP 最低的隊友）',
       lamp_oil: '回復 2 SP',
@@ -1001,6 +1008,7 @@ export class BattleScene extends Phaser.Scene {
 
   private costLabel(c: AvailableCommand): string {
     if (c.type === 'item') return `×${c.count ?? 0}`;
+    if (c.costEmber && c.costSp) return `SP ${c.costSp}＋星燼 ${c.costEmber}`;
     if (c.costEmber) return `星燼 ${c.costEmber}`;
     if (c.costSp) return `SP ${c.costSp}`;
     return '';
@@ -1037,15 +1045,21 @@ export class BattleScene extends Phaser.Scene {
     this.bs = r.state;
     const heroIdx = r.events.find((e) => e.type === 'command')?.actor.index ?? 0;
     const sk = cmd.skillId ? SKILLS[cmd.skillId] : undefined;
+    if (sk?.tree) {
+      // 技能樹奧義：先一道閃光＋震動再出字卡
+      this.cameras.main.flash(180, 255, 240, 200);
+      this.cameras.main.shake(260, 0.008);
+      SFX.resonance();
+    }
     if (sk) await this.skillBanner(sk.name, HERO_COLOR[this.bs.heroes[heroIdx]?.id ?? ''] ?? 0xffd27a);
     if (this.bs.phase === 'playerTiming') {
       const c = this.bs.pendingCommand!;
       let tx = this.enemies[c.target ?? this.target]?.x ?? 360;
       let ty = this.enemies[c.target ?? this.target]?.y ?? 420;
-      if (c.skillId === 'resonance' || c.skillId === 'blast_art' || c.skillId === 'lamp_detonator') {
+      if (c.skillId === 'resonance' || c.skillId === 'blast_art' || c.skillId === 'lamp_detonator' || c.skillId === 'thousand_lamps' || c.skillId === 'all_in' || c.skillId === 'chain_blast') {
         tx = 360;
         ty = 420;
-      } else if (c.skillId === 'glimmer_song') {
+      } else if (c.skillId === 'glimmer_song' || c.skillId === 'star_lullaby') {
         tx = this.heroes[heroIdx]?.x ?? 360;
         ty = (this.heroes[heroIdx]?.y ?? 790) - 20;
       }
@@ -1154,13 +1168,21 @@ export class BattleScene extends Phaser.Scene {
     const v = this.heroes[i];
     if (!v) return;
     const tgt = this.enemies[c.target ?? this.target];
+    if (c.skillId === 'star_lullaby') {
+      SFX.levelUp();
+      shockRing(this, v.x, v.y - 40, 0xbfe8ff, 260, 700, 8);
+      sparks(this, v.x, v.y - 40, 50, 'spark', 0xd8f4ff, 500);
+      this.cameras.main.flash(200, 200, 230, 255);
+      await wait(this, 400);
+      return;
+    }
     if (c.skillId === 'glimmer_song') {
       SFX.levelUp();
       sparks(this, v.x, v.y - 40, 30, 'spark', 0x9fe8ff, 300);
       await wait(this, 300);
       return;
     }
-    if (c.skillId === 'resonance') return;
+    if (c.skillId === 'resonance' || c.skillId === 'thousand_lamps') return;
     const dx = tgt ? (tgt.x - v.x) * 0.25 : 0;
     await new Promise<void>((res) =>
       this.tweens.add({ targets: v.root, x: v.x + dx, y: v.y - 120, scale: 1.15, duration: 140, ease: 'Cubic.In', onComplete: () => res() }),
@@ -1984,7 +2006,13 @@ export class BattleScene extends Phaser.Scene {
       const defeated = this.bs.enemies.map((e) => e.id);
       const f = session.state.flags;
       const drops = rollDrops(defeated, (this.data0.seed ^ 0x9e3779b9) >>> 0, (id) => !!f[firstKillFlag(id)]);
+      const newBossPoint = defeated.some((id) => (BOSS_POINT_KILLS as readonly string[]).includes(id) && !f[firstKillFlag(id)]);
       grantDrops(session.state, drops, defeated);
+      if (newBossPoint) {
+        bigText(this, GAME_WIDTH / 2, 720, '首殺！全員技能點 +1', '#7dffb0', 34, 1400);
+        SFX.levelUp();
+        await wait(this, 400);
+      }
       if (drops.length) {
         session.save();
         await this.showDrops(drops);

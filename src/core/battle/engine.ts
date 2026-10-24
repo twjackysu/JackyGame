@@ -64,6 +64,8 @@ export interface Unit {
   perks?: Perk[];
   /** 不滅（lastStand）尚未用掉 */
   lastStand?: boolean;
+  /** 技能樹解鎖的主動技能 */
+  treeSkills?: string[];
 }
 
 /**
@@ -168,7 +170,7 @@ export interface Result {
 
 export interface CreateBattleOptions {
   /** bonus：裝備加成（src/core/state/equip.ts gearBonus） */
-  party: { id: HeroId; level: number; hp?: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number; perks?: readonly Perk[] }[];
+  party: { id: HeroId; level: number; hp?: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number; perks?: readonly Perk[]; skills?: readonly string[] }[];
   enemies: string[];
   seed: number;
   /** retryBoost：劇情戰連敗次數（不屈之燈）→ 開場星燼 +N、敵方攻擊 −5%/次（上限 4 次） */
@@ -209,6 +211,7 @@ export function createBattle(opts: CreateBattleOptions): Result {
       spd: st.spd, sp: Math.min(MAX_SP, START_SP + (p.startSp ?? 0)), element: def.attackElement, weak: [], resist: [], status: freshStatus(), lamps: 0,
       breakGauge: 0, breakMax: 0, broken: false, downed: (p.hp ?? st.hp) <= 0, bossPhase: 1, actionsPerRound: 1,
       ...(p.perks?.length ? { perks: [...p.perks], lastStand: p.perks.includes('lastStand') } : {}),
+      ...(p.skills?.length ? { treeSkills: [...p.skills] } : {}),
     };
   });
   const enemies: Unit[] = opts.enemies.map((id) => {
@@ -536,6 +539,7 @@ function skillUsable(s: BattleState, hero: Unit, skillId: string): boolean {
   const sk = SKILLS[skillId];
   if (!sk || sk.hero !== hero.id) return false;
   if (sk.unlockFlag && !s.flags[sk.unlockFlag]) return false;
+  if (sk.tree && !hero.treeSkills?.includes(sk.id)) return false;
   if ((sk.costSp ?? 0) > hero.sp) return false;
   if ((sk.costEmber ?? 0) > s.ember) return false;
   if (sk.oncePerBattle && s.usedOnce.includes(sk.id)) return false;
@@ -555,6 +559,7 @@ export function availableCommands(s: BattleState): AvailableCommand[] {
   for (const sk of Object.values(SKILLS)) {
     if (sk.hero !== hero.id) continue;
     if (sk.unlockFlag && !s.flags[sk.unlockFlag]) continue;
+    if (sk.tree && !hero.treeSkills?.includes(sk.id)) continue;
     out.push({
       type: 'skill', skillId: sk.id, name: hero.status.sealed === sk.id ? `${sk.name}（封印）` : sk.name, costSp: sk.costSp, costEmber: sk.costEmber, usable: skillUsable(s, hero, sk.id),
     });
@@ -785,6 +790,78 @@ export function resolveTiming(state: BattleState, timing: Timing): Result {
         if (alive(e)) hitEnemy(i, 1.4 + 0.35 * (snap[i] ?? 0), ['fire'], true);
       });
     }
+  } else if (c.skillId === 'thousand_lamps') {
+    // 千燈共鳴：把燈印補滿（平均分給存活敵人），立刻引爆——完美時倍率 +20%
+    const live = s.enemies.map((e, i) => (alive(e) ? i : -1)).filter((i) => i >= 0);
+    for (let k = 0; live.length && totalLamps(s) < MAX_LAMPS && k < 20; k++) {
+      const t = live[k % live.length]!;
+      s.enemies[t]!.lamps += 1;
+      ev.push({ type: 'lampPlaced', target: t, count: 1, total: totalLamps(s) });
+    }
+    s.lampAtk = hero.atk;
+    const N = totalLamps(s);
+    const snapshot = s.enemies.map((e) => (alive(e) ? e.lamps : 0));
+    s.enemies.forEach((e) => (e.lamps = 0));
+    const per: { target: number; lamps: number; amount: number }[] = [];
+    const bonus = timing === 'perfect' ? 1.2 : 1;
+    snapshot.forEach((n, i) => {
+      if (n <= 0) return;
+      const r = hitEnemy(i, resonanceMul(n, N) * bonus, ['fire', 'light'], true);
+      per.push({ target: i, lamps: n, amount: r.amount });
+    });
+    ev.push({ type: 'resonance', perTarget: per, totalLamps: N });
+  } else if (c.skillId === 'dawn_flash') {
+    // 破曉一閃：無視防禦的光＋物理單體 2.2 倍（完美 2.6）、破防 30
+    const t = c.target ?? firstAliveEnemy(s);
+    const e = s.enemies[t];
+    if (e && alive(e)) {
+      const weak = e.weak.includes('light') || e.weak.includes('phys');
+      const amount = damage({
+        atk: hero.atk, def: 0, skillMul: (timing === 'perfect' ? 2.6 : 2.2) * empowered, timing, weak, resist: false, broken: e.broken, variance: variance(s),
+      });
+      applyDamage(s, ev, { side: 'enemy', index: t }, amount, { timing, weak, crit: true });
+      if (alive(e)) reduceBreak(s, ev, t, 30);
+      emberEarned = true;
+    }
+  } else if (c.skillId === 'all_in') {
+    // 梭哈：完美必贏；否則 60% 贏——贏：全體 2.0 倍＋星燼 +2；輸：全體 0.6 倍、自己失去 20% HP
+    const win = timing === 'perfect' || rand(s) < 0.6;
+    ev.push({ type: 'statusApplied', target: s.actor, status: win ? 'allInWin' : 'allInLose' });
+    s.enemies.forEach((e, i) => {
+      if (alive(e)) hitEnemy(i, win ? 2.0 : 0.6, ['phys'], true);
+    });
+    if (win) gainEmber(s, ev, 2);
+    else applyDamage(s, ev, s.actor, Math.max(1, Math.round(hero.maxHp * 0.2)), { source: 'allIn' });
+  } else if (c.skillId === 'chain_blast') {
+    // 連鎖大爆破：全體火 1.3 倍，每盞燈印 +0.25 倍（不消耗）；被炸倒的敵人再把餘波 0.5 倍傳給其他敵人
+    const before = s.enemies.map((e) => alive(e));
+    s.enemies.forEach((e, i) => {
+      if (alive(e)) hitEnemy(i, 1.3 + 0.25 * e.lamps, ['fire'], false);
+    });
+    const chained = s.enemies.filter((e, i) => before[i] && !alive(e)).length;
+    for (let k = 0; k < chained; k++) {
+      s.enemies.forEach((e, i) => {
+        if (alive(e)) hitEnemy(i, 0.5, ['fire'], true);
+      });
+    }
+  } else if (c.skillId === 'star_lullaby') {
+    // 星之搖籃曲：全體回復 40%（完美 55%）、復活（30%）、淨化反燈印／中毒／蝕
+    const pct = timing === 'perfect' ? 0.55 : 0.4;
+    s.heroes.forEach((h, i) => {
+      const ref: ActorRef = { side: 'hero', index: i };
+      h.status.poison = 0;
+      h.status.umbra = 0;
+      if (h.downed) {
+        h.downed = false;
+        h.hp = Math.max(1, Math.round(h.maxHp * 0.3));
+        ev.push({ type: 'revived', target: ref, hp: h.hp });
+      } else {
+        const amt = Math.min(Math.round(h.maxHp * pct), h.maxHp - h.hp);
+        h.hp += amt;
+        ev.push({ type: 'heal', target: ref, amount: amt });
+      }
+    });
+    cleanseMarks(s, ev);
   } else if (c.skillId === 'glimmer_song') {
     const pct = timing === 'perfect' ? 0.3 : 0.2;
     s.heroes.forEach((h, i) => {
@@ -871,7 +948,7 @@ export function resolveDefense(state: BattleState, results: DefenseResult[]): Re
     if (cands.length) {
       const ti = cands[Math.floor(rand(s) * cands.length)]!;
       const h = s.heroes[ti]!;
-      const pool = skillsFor(h.id as HeroId).filter((k) => (!k.unlockFlag || s.flags[k.unlockFlag]) && k.id !== h.status.sealed);
+      const pool = skillsFor(h.id as HeroId).filter((k) => (!k.unlockFlag || s.flags[k.unlockFlag]) && (!k.tree || !!h.treeSkills?.includes(k.id)) && k.id !== h.status.sealed);
       const sk = pool[Math.floor(rand(s) * pool.length)];
       if (sk) {
         h.status.sealed = sk.id;
