@@ -6,12 +6,12 @@
 >
 > **下一輪依序做（讓玩家摸得到長尾）：**
 > 1. **確認 6 格版本機器人**：第 11 輪結束時背景跑的結果沒保留 → 先 build＋從新遊戲跑到 `ch5_complete` 一次（見「工具」）。
-> 2. **材料道具化**：`mat_dust/mat_crystal/mat_legend/mat_divine` 目前不在 `ITEM_DEFS`，**一旦進背包，行囊「道具」頁的 `itemDef()` 會出錯** → 在 `equipment.ts` 加 `kind: 'mat'`（或擴充 `ItemDef.kind`）並讓 bagPanel／shopPanel 的 kind 排序表與標籤支援，商店不收購。
+> 2. ~~材料道具化~~ ✅（第 11 輪尾：`kind: 'mat'`、price 0 不能買賣、行囊道具頁「材料」標籤）。
 > 3. **強化／分解 UI（2.4／2.6 的 UI）**：行囊裝備頁點已裝備欄位 → 詳情區加「強化 +N→+N+1（成功率 X%｜失敗後果 `failText`｜星之祝福 n/100｜費用）」按鈕，呼叫 `gameApi.enhance`；成功／失敗演出（成功：金光＋音階上升；失敗：灰煙＋祝福條增加）。道具頁或新分頁加「分解」（單件＋一鍵分解普通～稀有）、上鎖 🔒。名稱顯示 `+N`。
 > 4. **材料來源**：主線戰鬥勝利少量掉粉塵（經 `claimBattleRewards`，資料放 `lootTables.ts`，RULES_VERSION +1），Boss 掉結晶；讓一週目就能體驗 +1～+5。注意 D-050 平衡：+5 只加基礎值 15%。
 > 5. **三層裝備 UI（2.2 剩下的）**：候選清單點一下看詳情（詞綴、強化、祝福）、比較模式只顯示差異；稀有度 6 階外框顏色（`TIER_CSS`）。
 > 6. **帶詞綴的裝備**：掉落時依 `tierOf` 用 `rollAffixes` 生成詞綴（`stat` 類先接進 `gearBonus`；`effect` 類轉成 `EffectInstance` 交給戰鬥：`battleParty` → `createBattle({ effects })`）。
-> 7. **詞綴對齊 D-057**：D-057 規定「詞綴用百分比、基礎裝備維持固定值」，第 11 輪的 `src/data/affixes.ts` 還有 `atk_flat`／`hp_flat`／`def_flat`／`spd_flat` 固定值詞綴 → 改成百分比版本並對照 design/15 §2.6／§5 的詞綴池結構與全角色軟上限（RULES_VERSION +1、`tests/long-tail-data.test.ts`／`loot.test.ts` 跟著改）。
+> 7. **詞綴對齊 D-057**（工作量不小，單獨一輪）：design/15 §2.6 是**每部位一池、每池 10 條有名字的詞綴**（銳利的、破星的…）、14 個互斥群組、每件最多一條回星燼詞綴、全角色軟上限；很多詞綴需要**護盾**與**移除蝕化**操作 → 先在 `effects.ts` 的 `EffectOp` 加 `shield`／`removeStatus`（引擎要有護盾值）。D-057 規定「詞綴用百分比、基礎裝備維持固定值」，第 11 輪的 `src/data/affixes.ts` 還有 `atk_flat`／`hp_flat`／`def_flat`／`spd_flat` 固定值詞綴 → 改成百分比版本並對照 design/15 §2.6／§5 的詞綴池結構與全角色軟上限（RULES_VERSION +1、`tests/long-tail-data.test.ts`／`loot.test.ts` 跟著改）。
 > 8. **故事修訂（D-055）**：階段 1 已完成，上面那條 📖 的範圍（design/16 §11：只動文字與 `ENDING_LIGHT` 判定）可以和 2～6 穿插做。
 > 9. 之後：2.7 三流派（D-057 已拍板 8 個星燼核心，先做 C01 永燃之心等 3 個驗證；第一批 5 件傳說）、階段 3 星燼深淵。
 
