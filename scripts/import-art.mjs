@@ -15,7 +15,9 @@ const inbox = process.argv[2] ?? 'art-inbox';
 const OUT = 'public/art';
 const MANIFEST = 'src/data/handArt.ts';
 const TOL = Number(process.env.ART_TOL ?? 38);
-const KNOWN = ['lian', 'io', 'serin', 'liora', 'rourke', 'valdran'];
+const KNOWN = ['lian', 'io', 'serin', 'liora', 'rourke', 'valdran', 'valderan'];
+/** 角色 id → 遊戲裡的材質 key（反派沿用對話的 npc_ 材質） */
+const TEX = (id) => (id === 'valdran' || id === 'valderan' ? 'npc_valderan' : `portrait_${id}`);
 
 export async function removeFlatBackground(input, tol = TOL) {
   const img = sharp(input).ensureAlpha();
@@ -75,6 +77,19 @@ async function rawOf(buf) {
   return { data, info };
 }
 
+/** 角色被原圖左右/上緣切到時會出現一條直線硬邊 → 邊緣 6% 範圍內 alpha 漸淡（底部藏在對話框後面，不處理） */
+function fadeEdges(data, w, h) {
+  const band = Math.max(8, Math.round(w * 0.06));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const d = Math.min(x, w - 1 - x, Math.round(y * 0.6));
+      if (d >= band) continue;
+      const i = (y * w + x) * 4 + 3;
+      data[i] = Math.round(data[i] * (d / band) ** 0.8);
+    }
+  }
+}
+
 function opaqueRatio({ data, info }) {
   let n = 0;
   for (let k = 3; k < data.length; k += 4) if (data[k] > 128) n++;
@@ -132,8 +147,9 @@ export async function main() {
       result = opaqueRatio(r) >= 0.12 ? r : await rawOf(original);
     }
     const { data, info } = result;
+    fadeEdges(data, info.width, info.height);
     const removed = info.width * info.height - Math.round(opaqueRatio(result) * info.width * info.height);
-    const out = path.join(OUT, `portrait_${id}.webp`);
+    const out = path.join(OUT, `${TEX(id)}.webp`);
     await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
       .trim({ threshold: 1 })
       .resize({ height: 1100, withoutEnlargement: true })
@@ -142,7 +158,7 @@ export async function main() {
     const meta = await sharp(out).metadata();
     console.log(`ok ${f} → ${out} ${meta.width}x${meta.height} (去背 ${removed} px)`);
     unlinkSync(src);
-    existing.push(`portrait_${id}`);
+    existing.push(TEX(id));
     done.push(id);
   }
   writeManifest(existing);
