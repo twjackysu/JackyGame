@@ -23,5 +23,13 @@
 8. 數值與機率放在資料表（`src/data/`）或設定，不寫死在函式裡；結果要附規則版本。
 
 ## 前端怎麼用它
-前端只透過 `GameApi` 之類的介面呼叫（之後建立），不直接 import `src/server` 的內部函式。
-現在是 `LocalGameApi`（同一個程式裡直接呼叫），將來是 `RemoteGameApi`（fetch）。
+前端只透過 `GameApi`（`gameApi.ts`）呼叫：場景與 UI 用 `src/game/session.ts` 匯出的 `gameApi` 與 `opId(kind)`，
+不直接 import `src/server` 的內部函式，也不直接改 `inventory`／`gear`／`gold`／`equipment`（`tests/game-api.test.ts` 會檢查）。
+現在是 `LocalGameApi`（`localGameApi.ts`，同一個程式裡直接呼叫，埠由 session 注入：`SaveStore`、`KvEventJournal`、`systemClock`），
+將來是 `RemoteGameApi`（fetch）。新增會改變資產的功能＝在 `GameApi` 加方法＋在 `LocalGameApi` 實作＋測試。
+
+## 已有的東西（階段 1，D-057）
+- `ports.ts`：`RandomProvider`、`Clock`、`EventJournal`、`Repository`
+- `gameApi.ts`／`localGameApi.ts`：買賣、換裝、重置技能樹、寶箱、小怪金幣、戰鬥獎勵；回傳 `{ ok, error, duplicate, operationId, rulesVersion, data }`
+- 亂數：存檔內的 `GameState.rng`（`src/core/rngStreams.ts`，stream：battle／loot／enhance／abyss／story／ui／ids）
+- 裝備實例：`src/core/state/gear.ts`；資料表：`src/data/{rules,affixes,enhancement,lootTables,materials}.ts`

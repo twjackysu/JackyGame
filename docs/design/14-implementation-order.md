@@ -13,7 +13,7 @@
 ## 階段 0：已完成
 - 邊界與埠：`src/server/README.md`、`src/server/ports.ts`（`RandomProvider`、`Clock`、`EventJournal`、`Repository`）、`tests/server-boundary.test.ts`。
 
-## 階段 1：地基（玩家看不出差別，但所有後續都靠它）
+## 階段 1：地基（玩家看不出差別，但所有後續都靠它）— ✅ 第 11 輪完成（D-057）
 | # | 工作 | 驗收 |
 |---|---|---|
 | 1.1 | **亂數注入**：把 `Math.random` 全部換成注入的 `RandomProvider`（`core/dialogue/runner.ts` 預設參數、`BattleScene`、`CardScene`、`ExploreScene`；音訊的隨機可例外），依用途拆 stream：`battle`／`loot`／`enhance`／`abyss`／`ui`。種子由 session 持有並存進存檔 | 同一種子同一操作序列，結果完全相同（有測試）；`grep Math.random src/core src/server` 為空 |
