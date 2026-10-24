@@ -38,3 +38,26 @@ describe('Bot advanceTo', () => {
     (globalThis as any).process.stdout.write(`advance: 北林 ${(a.reachedAt / 30).toFixed(0)} 秒、北邊擊殺 ${a.northKills}；不推進：${b.reachedAt === Infinity ? '沒到' : (b.reachedAt / 30).toFixed(0) + ' 秒'}、${b.northKills}\n`);
   }, 60000);
 });
+
+describe('SpawnGroup 區域難度 hpPct／atkPct', () => {
+  beforeAll(() => {
+    STAGES.test_world = makeTestWorldStage();
+  });
+  afterAll(() => {
+    delete STAGES.test_pct;
+    delete STAGES.test_world;
+  });
+  it('開場與重生的怪都套用加成；沒設的組不變', () => {
+    const base = makeTestWorldStage();
+    STAGES.test_pct = { ...base, id: 'test_pct', spawnGroups: base.spawnGroups!.map((g) => (g.id === 'north' ? { ...g, hpPct: 50, atkPct: 20 } : g)) };
+    const s = createBattle({ stageId: 'test_pct', seed: 1 });
+    const plain = createBattle({ stageId: 'test_world', seed: 1 });
+    const n = s.units.find((x) => x.groupId === 'north')!;
+    const n0 = plain.units.find((x) => x.groupId === 'north')!;
+    expect(n.maxHp).toBe(Math.round(n0.maxHp * 1.5));
+    expect(n.atk).toBe(Math.round(n0.atk * 1.2));
+    const w = s.units.find((x) => x.groupId === 'wolves_a')!;
+    const w0 = plain.units.find((x) => x.groupId === 'wolves_a')!;
+    expect([w.maxHp, w.atk]).toEqual([w0.maxHp, w0.atk]);
+  });
+});

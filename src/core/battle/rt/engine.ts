@@ -139,10 +139,10 @@ function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Un
   if (!def) throw new Error(`unknown enemy ${g.enemyId}`);
   const m = makeEnemy(s, def, x, y);
   const ramp = rampPct(s);
-  if (ramp) {
-    m.hp = m.maxHp = Math.round((m.maxHp * (100 + ramp)) / 100);
-    m.atk = Math.round((m.atk * (100 + ramp)) / 100);
-  }
+  const hpPct = ramp + (g.hpPct ?? 0);
+  const atkPct = ramp + (g.atkPct ?? 0);
+  if (hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + hpPct)) / 100);
+  if (atkPct) m.atk = Math.round((m.atk * (100 + atkPct)) / 100);
   clampArena(s, m);
   if (s.arena.solid) pushOutSolid(s.arena.solid, m);
   m.mode = 'idle';
