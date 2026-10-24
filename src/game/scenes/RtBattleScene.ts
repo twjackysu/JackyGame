@@ -520,6 +520,10 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'respawn') {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 10, 'ember', 0x8a7aa8, 500);
+        if (d && d.tier === 'elite') {
+          bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]?.name ?? '精英'}出現了！`, '#ffa040', 40, 900);
+          SFX.warn(true);
+        }
       } else if (e.type === 'rest') {
         const p = playerOf(this.s);
         SFX.itemGet();
@@ -879,7 +883,11 @@ export class RtBattleScene extends Phaser.Scene {
       const col = hot ? (Math.floor(now / 100) % 2 ? 0xff3a3a : 0xffffff) : ENEMIES[e.defId]?.boss ? 0xffb0d0 : 0xffd27a;
       const c = Math.cos(an);
       const sn = Math.sin(an);
-      g.fillStyle(col, 0.9).fillTriangle(cx + c * 18, cy + sn * 18, cx - c * 10 - sn * 12, cy - sn * 10 + c * 12, cx - c * 10 + sn * 12, cy - sn * 10 - c * 12);
+      // 精英／Boss：大一號的橘金箭頭＋脈動光圈（值得特地去打）
+      const big = e.tier === 'elite' || !!ENEMIES[e.defId]?.boss;
+      const z = big ? 1.7 : 1;
+      if (big && !hot) g.fillStyle(0xff9a3a, 0.25 + 0.15 * Math.sin(now / 180)).fillCircle(cx, cy, 26);
+      g.fillStyle(big && !hot ? 0xffa040 : col, 0.9).fillTriangle(cx + c * 18 * z, cy + sn * 18 * z, cx - c * 10 * z - sn * 12 * z, cy - sn * 10 * z + c * 12 * z, cx - c * 10 * z + sn * 12 * z, cy - sn * 10 * z - c * 12 * z);
     }
   }
 
