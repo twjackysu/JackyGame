@@ -3,6 +3,7 @@ import { SAVE_VERSION, newGame, type GameState } from '../state/gameState';
 import { migrateGearV1 } from '../state/gear';
 import { hashSeed } from '../rng';
 import { newRngState } from '../rngStreams';
+import type { Repository } from '../../server/ports';
 
 /** 最小 Storage 介面（localStorage 相容），方便測試注入。 */
 export interface KV {
@@ -13,6 +14,8 @@ export interface KV {
 
 export const AUTO_KEY = 'jackygame.save.v1.auto';
 export const BAK_KEY = AUTO_KEY + '.bak';
+/** 寫入前先寫這裡：寫得進去（空間夠、序列化成功）才動主檔與備份 */
+export const TMP_KEY = AUTO_KEY + '.tmp';
 
 type Migration = (raw: Record<string, unknown>) => Record<string, unknown>;
 /** migrations[n] 把 version n 升到 n+1。 */
@@ -86,23 +89,36 @@ export function detectStorage(): { kv: KV; persistent: boolean } {
   }
 }
 
-export class SaveStore {
+/**
+ * 本機存檔（`Repository<GameState>` 的離線實作，design/14 階段 1.4）。
+ * 原子性：localStorage 單一 setItem 本身是原子的；先把新內容寫進暫存鍵（失敗＝什麼都沒動），
+ * 再把舊主檔搬去備份、寫主檔、刪暫存。任何一步中斷，主檔或備份至少有一份完整存檔。
+ */
+export class SaveStore implements Repository<GameState> {
   constructor(private kv: KV) {}
 
   save(s: GameState): boolean {
+    let text: string;
+    try {
+      text = serialize(s);
+      this.kv.setItem(TMP_KEY, text);
+    } catch {
+      return false; // 空間不足等：舊存檔原封不動
+    }
     try {
       const prev = this.kv.getItem(AUTO_KEY);
       if (prev) this.kv.setItem(BAK_KEY, prev);
-      this.kv.setItem(AUTO_KEY, serialize(s));
+      this.kv.setItem(AUTO_KEY, text);
+      this.kv.removeItem(TMP_KEY);
       return true;
     } catch {
-      return false; // 空間不足等：不讓遊戲崩潰
+      return false; // 主檔沒寫成：load() 會依序讀主檔、備份、暫存
     }
   }
 
   /** 讀主檔；壞掉就讀備份。 */
   load(): GameState | null {
-    for (const key of [AUTO_KEY, BAK_KEY]) {
+    for (const key of [AUTO_KEY, BAK_KEY, TMP_KEY]) {
       const t = this.kv.getItem(key);
       if (!t) continue;
       this.keepPreMigration(t);
@@ -131,5 +147,6 @@ export class SaveStore {
   clear(): void {
     this.kv.removeItem(AUTO_KEY);
     this.kv.removeItem(BAK_KEY);
+    this.kv.removeItem(TMP_KEY);
   }
 }
