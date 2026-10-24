@@ -673,6 +673,19 @@ export class RtBattleScene extends Phaser.Scene {
     this.ended = true;
     const r = summarize(this.s);
     const win = r.victory;
+    // 結束：畫面變暗、勝利金光／倒下時主角淡出
+    const dim = this.add.rectangle(GAME_WIDTH / 2, 640, GAME_WIDTH, 1280, 0x000000, 0).setDepth(75);
+    this.tweens.add({ targets: dim, fillAlpha: 0.55, duration: 500 });
+    this.add.rectangle(GAME_WIDTH / 2, 575, 560, 400, 0x120c06, 0.92).setStrokeStyle(3, win ? 0xffd27a : 0x8a5050, 0.9).setDepth(78);
+    const pu = playerOf(this.s);
+    if (win) {
+      SFX.confirm();
+      sparks(this, this.sx(pu.x), this.sy(pu.y) - 40, 30, 'ember', 0xffd27a, 520);
+      shockRing(this, this.sx(pu.x), this.sy(pu.y), 0xffd27a, 220, 600, 8);
+    } else {
+      const sp = this.sprites.get(pu.id);
+      if (sp) this.tweens.add({ targets: sp, alpha: 0.25, angle: sp.flipX ? -80 : 80, duration: 600, ease: 'Cubic.In' });
+    }
     bigText(this, GAME_WIDTH / 2, 420, win ? '勝利！' : r.outcome === 'timeout' ? '時間到' : '倒下了…', win ? '#ffd27a' : '#ff8a8a', 72, -1);
     const lines = `時間 ${(r.durationTicks / TICKS_PER_SEC).toFixed(1)} 秒　承傷 ${r.damageTaken}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}`;
     this.add.text(GAME_WIDTH / 2, 520, lines, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 8 }).setOrigin(0.5).setDepth(80);
