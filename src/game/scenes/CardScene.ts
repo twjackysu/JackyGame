@@ -562,6 +562,30 @@ export class CardScene extends Phaser.Scene {
     }
   }
 
+  /** 燼牌大賽：觀眾歡呼＋彩紙；決賽勝利加冠軍字卡 */
+  private async tourneyCelebration(final: boolean): Promise<void> {
+    SFX.crowdCheer();
+    const cols = [0xffd27a, 0xff7a5a, 0x7fd8ff, 0xc8d4ff, 0x7dffb0, 0xff9ab8];
+    for (let k = 0; k < (final ? 90 : 50); k++) {
+      const x = Phaser.Math.Between(0, GAME_WIDTH);
+      const piece = this.add.rectangle(x, -20, Phaser.Math.Between(8, 14), Phaser.Math.Between(14, 22), Phaser.Utils.Array.GetRandom(cols)).setDepth(60);
+      this.tweens.add({
+        targets: piece, y: GAME_HEIGHT + 40, x: x + Phaser.Math.Between(-120, 120), angle: Phaser.Math.Between(-720, 720),
+        duration: Phaser.Math.Between(1600, 2800), delay: Phaser.Math.Between(0, 900), ease: 'Sine.In', onComplete: () => piece.destroy(),
+      });
+    }
+    if (final) {
+      await wait(this, 700);
+      SFX.levelUp();
+      const crown = bigText(this, GAME_WIDTH / 2, 380, '♛ 燼牌大賽 冠軍 ♛', '#ffe2a8', 54, -1);
+      crown.setDepth(61);
+      sparks(this, GAME_WIDTH / 2, 380, 70, 'ember', 0xffd27a, 800);
+      this.cameras.main.shake(300, 0.008);
+      floatAtCenter(this, '全場起立鼓掌！');
+    }
+    await wait(this, 600);
+  }
+
   private async endMatch(): Promise<void> {
     const w = this.st.winner;
     const win = w === 0;
@@ -573,6 +597,7 @@ export class CardScene extends Phaser.Scene {
       sparks(this, GAME_WIDTH / 2, 520, 60, 'ember', undefined, 700);
     }
     bigText(this, GAME_WIDTH / 2, 520, win ? '勝利' : w === 'draw' ? '和局' : '敗北', win ? '#ffd27a' : '#ff9a8a', 110, -1);
+    if (win && this.matchId.startsWith('tourney_')) await this.tourneyCelebration(this.matchId === 'tourney_dealer');
     await wait(this, 900);
     const btn = this.add.container(GAME_WIDTH / 2, 760);
     const g = this.add.graphics();
@@ -607,4 +632,9 @@ export class CardScene extends Phaser.Scene {
     this.tweens.add({ targets: c, alpha: 1, duration: 200 });
     this.tweens.add({ targets: c, alpha: 0, delay: ms, duration: 300, onComplete: () => c.destroy() });
   }
+}
+
+function floatAtCenter(scene: Phaser.Scene, text: string): void {
+  const t = scene.add.text(GAME_WIDTH / 2, 640, text, { fontFamily: UI_FONT, fontSize: '28px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(61).setAlpha(0);
+  scene.tweens.add({ targets: t, alpha: 1, y: 620, duration: 500 });
 }

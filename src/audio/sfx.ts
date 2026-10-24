@@ -165,6 +165,14 @@ export function playSfx(p: SfxParams = {}): void {
 
 /** Ready-made presets. */
 export const SFX = {
+  /** 觀眾歡呼：一團低通雜訊（人聲）＋隨機拍手 */
+  crowdCheer: (): void => {
+    playSfx({ wave: 'noise', freq: 900, freqEnd: 1300, attack: 0.25, sustain: 1.2, release: 1.0, volume: 0.22, lowpass: 1600 });
+    playSfx({ wave: 'noise', freq: 600, freqEnd: 900, attack: 0.3, sustain: 1.0, release: 1.2, volume: 0.16, lowpass: 900, delay: 0.1 });
+    for (let i = 0; i < 22; i++) {
+      playSfx({ wave: 'noise', freq: 2500, freqEnd: 1200, sustain: 0.005, release: 0.04, volume: 0.12 + Math.random() * 0.1, lowpass: 5000, delay: 0.1 + Math.random() * 1.8 });
+    }
+  },
   blip: (): void => playSfx({ wave: 'square', freq: 880, freqEnd: 1320, sustain: 0.03, release: 0.08, volume: 0.25 }),
   confirm: (): void => {
     playSfx({ wave: 'triangle', freq: 523, freqEnd: 1046, sustain: 0.06, release: 0.3, volume: 0.35 });
