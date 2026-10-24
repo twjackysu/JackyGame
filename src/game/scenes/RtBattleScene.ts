@@ -152,7 +152,7 @@ export class RtBattleScene extends Phaser.Scene {
   private btnPos(i: number): { x: number; y: number } {
     // 右下：四技能呈弧形，閃避在最右下
     // 5＝大招（劍刃風暴，MP 40）、6＝藥水（D-071：試玩場景放上鍵位）
-    const P = [{ x: 470, y: 1190 }, { x: 470, y: 1080 }, { x: 570, y: 1010 }, { x: 670, y: 1060 }, { x: 640, y: 1185 }, { x: 570, y: 900 }, { x: 672, y: 948 }];
+    const P = [{ x: 470, y: 1190 }, { x: 470, y: 1080 }, { x: 570, y: 1010 }, { x: 660, y: 1075 }, { x: 640, y: 1185 }, { x: 570, y: 900 }, { x: 672, y: 948 }];
     return P[i]!;
   }
   private btnR(i: number): number {
