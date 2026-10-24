@@ -124,6 +124,7 @@ export class BattleScene extends Phaser.Scene {
   private lastTelegraph?: Extract<BattleEvent, { type: 'telegraph' }>;
   /** 旅程統計（片尾字幕用）：本場累計，結束時寫進存檔 */
   private statAcc = { perfect: 0, lamps: 0, maxRes: 0 };
+  private markHintShown = false;
 
   constructor() {
     super('Battle');
@@ -155,6 +156,7 @@ export class BattleScene extends Phaser.Scene {
     this.coachStep = 0;
     this.coach = undefined;
     this.statAcc = { perfect: 0, lamps: 0, maxRes: 0 };
+    this.markHintShown = false;
   }
 
   create(): void {
@@ -1421,6 +1423,12 @@ export class BattleScene extends Phaser.Scene {
         if (!v || !lbl) return;
         if (e.status === 'guarding') return;
         floatNumber(this, v.x, v.y - (v.side === 'enemy' ? 90 : 120), lbl, { color: e.target.side === 'enemy' ? '#ffd27a' : '#c8b0ff', size: 28 });
+        if (e.status === 'doomMark' && !this.markHintShown) {
+          // 第一次被反燈印標記：教玩家怎麼解
+          this.markHintShown = true;
+          const canCleanse = this.bs.heroes.some((h) => (h.id === 'lian' && this.bs.flags.guidingLight) || h.id === 'io');
+          floatNumber(this, GAME_WIDTH / 2, 700, canCleanse ? '3 回合後引爆！用「引路之光」淨化' : '3 回合後引爆！', { color: '#e0c8ff', size: 30 });
+        }
         if (e.status === 'howl') {
           this.cameras.main.shake(400, 0.008);
           SFX.hitHeavy();

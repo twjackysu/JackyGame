@@ -511,7 +511,7 @@ export function availableCommands(s: BattleState): AvailableCommand[] {
     if (sk.hero !== hero.id) continue;
     if (sk.unlockFlag && !s.flags[sk.unlockFlag]) continue;
     out.push({
-      type: 'skill', skillId: sk.id, name: sk.name, costSp: sk.costSp, costEmber: sk.costEmber, usable: skillUsable(s, hero, sk.id),
+      type: 'skill', skillId: sk.id, name: hero.status.sealed === sk.id ? `${sk.name}（封印）` : sk.name, costSp: sk.costSp, costEmber: sk.costEmber, usable: skillUsable(s, hero, sk.id),
     });
   }
   for (const id of Object.keys(ITEMS) as ItemId[]) {
