@@ -212,6 +212,14 @@ export const DECK_TOURNEY_KNIGHT: readonly string[] = [
   'n_moonturn',
 ];
 
+/** 流浪牌手（18，第 1 章支線）：鎮民牌組＋吞火人、走私客。 */
+export const DECK_DRIFTER: readonly string[] = [
+  ...DECK_PLAYER_STARTER.filter((id) => id !== 't_child'),
+  'c_fire_eater',
+  'c_smuggler',
+  'n_gust',
+];
+
 /** 礦工公會代表 葛蘭妲（19）：孤燈＋連燈，賭位置。 */
 export const DECK_TOURNEY_MINER: readonly string[] = [
   ...rep('t_hunter', 2),

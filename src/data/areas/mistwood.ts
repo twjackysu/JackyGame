@@ -71,6 +71,16 @@ export const MISTWOOD: AreaDef = {
       waiting: { all: [{ any: [{ flag: 'bern_wait' }, { flag: 'bern_lost_cards' }] }, { flag: 'ch1_path_cleared', not: true }] },
       lines: ['（門鎖著。窗台上掛著乾燥的狼皮。）'],
     },
+    // 支線：霧菇與紅頭巾（灰燈鎮露絲委託）——西南蕈圈的米亞，旁邊有一隻霧狼守著
+    {
+      id: 'mia', kind: 'npc', x: 3, y: 26, name: '米亞', look: { body: '#c84040', hair: '#7a4a2a', art: 'walk_npc_mia' },
+      talk: { script: 'ch1', node: 'mia' }, side: true, done: 'q_lost_kid_found',
+      when: { all: [{ flag: 'q_lost_kid' }, { flag: 'q_lost_kid_found', not: true }] },
+    },
+    {
+      id: 'mia_wolf', kind: 'enemy', x: 6, y: 24, battle: 'forest_b', gold: 15, wander: 1,
+      when: { all: [{ flag: 'q_lost_kid' }, { flag: 'q_lost_kid_found', not: true }] },
+    },
     { id: 'north_exit', kind: 'gate', x: 10, y: 0, name: '往灰燈鎮', to: { area: 'greylamp', spawn: 'gate' } },
     { id: 'south_exit', kind: 'gate', x: 10, y: 31, name: '往狼徑', to: { area: 'wolfpath', spawn: 'north' } },
     { id: 'signpost', kind: 'sign', x: 12, y: 3, name: '路標', lines: ['↑ 灰燈鎮\n↓ 狼徑・古燈塔遺跡\n→ 獵人小屋'] },

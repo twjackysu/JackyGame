@@ -669,6 +669,100 @@ export const CH1: DialogueScript = {
       { goto: 'end' },
     ],
 
+    // ───────── 支線「霧菇與紅頭巾」（灰燈鎮露絲 → 森林西南蕈圈的米亞） ─────────
+    ruth: [
+      { goto: 'ruth_reward', if: { all: [{ flag: 'q_lost_kid_found' }, { flag: 'q_lost_kid_done', not: true }] } },
+      { goto: 'ruth_thanks', if: { flag: 'q_lost_kid_done' } },
+      { goto: 'ruth_wait', if: { flag: 'q_lost_kid' } },
+      { say: 'ruth', text: '請問……有沒有看到一個綁紅頭巾的小女孩？' },
+      { say: 'ruth', text: '米亞說要去森林採霧菇給我煮湯，\n一大早出去，到現在都沒回來……' },
+      { say: 'lian_inner', text: '（原作裡沒有這段——\n還是說，原作的我根本沒停下來聽？\n森林裡有狼。）' },
+      {
+        choice: [
+          { text: '「我去找她。」', next: 'ruth_accept' },
+          { text: '「自衛團呢？」', next: 'ruth_guard' },
+        ],
+      },
+    ],
+    ruth_guard: [
+      { say: 'ruth', text: '他們說狼太多，要等明天……\n明天就太晚了啊！' },
+      {
+        choice: [
+          { text: '「……我去。」', next: 'ruth_accept' },
+          { text: '「抱歉，我還有事。」', next: 'end' },
+        ],
+      },
+    ],
+    ruth_accept: [
+      { say: 'ruth', text: '謝謝你！她說過，要去找「會發光的蘑菇」……', effects: [{ flag: 'q_lost_kid' }] },
+      { say: 'lian_inner', text: '（發光的蘑菇——霧角森林西南角的蕈圈。\n出鎮門往南，沿著湖往下走。）' },
+      { goto: 'end' },
+    ],
+    ruth_wait: [
+      { say: 'ruth', text: '森林西南邊……她說那裡有發光的蘑菇。\n拜託你了。' },
+      { goto: 'end' },
+    ],
+    mia: [
+      { say: 'narration', text: '〔蕈圈中央，一個綁紅頭巾的小女孩抱著籃子縮成一團。〕' },
+      { say: 'mia', text: '……你、你是誰？狼、狼走了嗎？' },
+      { say: 'lian', text: '走了。妳媽媽在找妳，我帶妳回家。' },
+      { say: 'io', text: '……別怕。回去的路上，我唱歌給妳聽。', if: { inParty: 'io' }, effects: [{ affinity: 'io', delta: 3 }] },
+      { say: 'rourke', text: '小鬼，籃子給我拿。……蘑菇採得不錯嘛。', if: { inParty: 'rourke' }, effects: [{ affinity: 'rourke', delta: 2 }] },
+      { say: 'mia', text: '……嗯！', effects: [{ flag: 'q_lost_kid_found' }] },
+      { say: 'narration', text: '〔米亞緊緊抓著你的衣角。帶她回灰燈鎮吧。〕' },
+      { goto: 'end' },
+    ],
+    ruth_reward: [
+      { say: 'narration', text: '〔米亞放開你的衣角，撲進母親懷裡。〕' },
+      { say: 'ruth', text: '米亞！妳這孩子……！' },
+      { say: 'mia', text: '媽媽，我找到發光的蘑菇了……\n可是狼好大隻。是大哥哥救我的。' },
+      { say: 'ruth', text: '這條項鍊，本來是要等她長大才給她的。\n可是她說——要給救她的人。' },
+      {
+        say: 'mia',
+        text: '給大哥哥！它會保護你！',
+        effects: [{ flag: 'q_lost_kid_done' }, { item: 'amulet_guard' }, { gold: 20 }, { rep: 'town', delta: 5 }],
+      },
+      { say: 'lian_inner', text: '（守護項鍊、金幣 20。\n……收下吧。這是她們的心意。）' },
+      { goto: 'end' },
+    ],
+    ruth_thanks: [
+      { say: 'ruth', text: '米亞現在只敢在院子裡採蘑菇了。\n謝謝你，掌燈人。' },
+      { goto: 'end' },
+    ],
+
+    // ───────── 支線「流浪牌手」（灰燈鎮廣場，可重複挑戰） ─────────
+    drifter: [
+      { goto: 'drifter_again', if: { flag: 'drifter_beaten' } },
+      { say: 'drifter', text: '嘿，提燈的。會打燼牌嗎？\n我從南方一路贏過來，這鎮上沒人敢跟我玩。' },
+      { say: 'drifter', text: '贏了我，這張「吞火人」歸你。\n輸了嘛……就當學費。' },
+      {
+        choice: [
+          { text: '「來一局。」', next: 'drifter_play' },
+          { text: '「改天。」', next: 'end' },
+        ],
+      },
+    ],
+    drifter_play: [
+      { event: 'cards', id: 'drifter', outcomes: { win: 'drifter_win', lose: 'drifter_lose' } },
+    ],
+    drifter_win: [
+      {
+        say: 'drifter',
+        text: '……哈！好手氣。說好的，牌給你。',
+        effects: [{ flag: 'drifter_beaten' }, { card: 'c_fire_eater' }, { gold: 25 }],
+      },
+      { say: 'lian_inner', text: '（燼牌「吞火人」、金幣 25。\n收藏的牌會自動加進我的牌組。）' },
+      { goto: 'end' },
+    ],
+    drifter_lose: [
+      { say: 'drifter', text: '再練練吧。我會在廣場待上幾天。' },
+      { goto: 'end' },
+    ],
+    drifter_again: [
+      { say: 'drifter', text: '輸給你之後，我想通了。\n牌桌上最強的，是不怕輸的人。' },
+      { goto: 'end' },
+    ],
+
     end: [],
   },
 };

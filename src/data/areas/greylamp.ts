@@ -128,6 +128,23 @@ export const GREYLAMP: AreaDef = {
       id: `plaza_lamp_${i + 1}`, kind: 'lamp' as const, x, y, name: '熄滅的路燈', requires: { flag: 'q_lamps' },
       lines: ['（路燈熄了，燈罩裡積滿灰。\n廣場上那位老燈伕，好像一直望著這裡。）'],
     })),
+    // ── 支線：霧菇與紅頭巾（露絲 → 森林蕈圈的米亞） ──
+    {
+      id: 'ruth', kind: 'npc', x: 16, y: 25, name: '露絲', look: { body: '#8a6a8a', hair: '#5a3a2a', art: 'walk_npc_ruth' },
+      talk: { script: 'ch1', node: 'ruth' }, requires: LANTERN, side: true, done: 'q_lost_kid_done',
+      lines: ['（一位婦人在家門口來回踱步，不時望向鎮門。）'],
+    },
+    {
+      id: 'mia_home', kind: 'npc', x: 18, y: 25, name: '米亞', look: { body: '#c84040', hair: '#7a4a2a', art: 'walk_npc_mia' }, wander: 1,
+      when: { flag: 'q_lost_kid_done' },
+      lines: ['「大哥哥！項鍊有保護你嗎？」', '「下次採蘑菇，我會帶媽媽一起去。」'],
+    },
+    // ── 支線：流浪牌手（燼牌，可重複挑戰） ──
+    {
+      id: 'drifter', kind: 'npc', x: 13, y: 14, name: '流浪牌手', look: { body: '#4a4a6a', hair: '#2a2a2a', art: 'walk_npc_drifter' },
+      talk: { script: 'ch1', node: 'drifter' }, requires: LANTERN, side: true, done: 'drifter_beaten',
+      lines: ['「燼牌？等你拿到提燈再說吧，小鬼。」'],
+    },
     // ── 寶箱 ──
     { id: 'pond_chest', kind: 'chest', x: 19, y: 8, loot: [{ gold: 30 }, { item: 'armor_cloth' }], lootText: '湖畔的樹根下藏著一個包袱。\n獲得 30 金幣、旅人布衣。' },
     { id: 'garden_chest', kind: 'chest', x: 20, y: 25, loot: [{ item: 'potion_s', count: 1 }], lootText: '花叢裡有個舊木箱。\n獲得 小回復藥 ×1。' },

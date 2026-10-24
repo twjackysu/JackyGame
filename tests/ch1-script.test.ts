@@ -173,3 +173,37 @@ describe('ch1 script', () => {
       for (const l of lines) if ('say' in l) expect(l.text.length, l.text).toBeLessThanOrEqual(44);
   });
 });
+
+describe('ch1 探索支線', () => {
+  it('霧菇與紅頭巾：接任務 → 找到米亞 → 回報拿守護項鍊', () => {
+    const s = newGame();
+    s.flags.ch1_got_lantern = true;
+    runEntry(s, 'ruth');
+    expect(s.flags.q_lost_kid).toBe(true);
+    runEntry(s, 'ruth');
+    expect(s.flags.q_lost_kid_done).toBeUndefined();
+    s.party.push('io');
+    runEntry(s, 'mia');
+    expect(s.flags.q_lost_kid_found).toBe(true);
+    expect(s.affinity.io).toBe(3);
+    const gold = s.gold;
+    runEntry(s, 'ruth');
+    expect(s.flags.q_lost_kid_done).toBe(true);
+    expect(s.inventory.amulet_guard).toBe(1);
+    expect(s.gold).toBe(gold + 20);
+    const r = runEntry(s, 'ruth');
+    expect(r.speakers).toEqual(['ruth']);
+  });
+  it('流浪牌手：輸了可以再來，贏了拿吞火人', () => {
+    const s = newGame();
+    const lost = runEntry(s, 'drifter', () => 0, () => 0, 'loseFirst');
+    expect(lost.events).toEqual([{ event: 'cards', id: 'drifter' }]);
+    expect(s.flags.drifter_beaten).toBeUndefined();
+    runEntry(s, 'drifter');
+    expect(s.flags.drifter_beaten).toBe(true);
+    expect(s.cards.c_fire_eater).toBe(1);
+  });
+  it('新說話者都有名字', () => {
+    for (const id of ['ruth', 'mia', 'drifter']) expect(SPEAKER_NAMES[id]).toBeTruthy();
+  });
+});

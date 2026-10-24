@@ -9,7 +9,7 @@ import {
 import {
   findPath, nearestWalkable, parseGrid, pathToAdjacent, slideMove, walkable, type Grid, type Pt,
 } from '../../core/explore/grid';
-import { applyEffects } from '../../core/state/gameState';
+import { applyEffects, check, type Condition } from '../../core/state/gameState';
 import { AREAS } from '../../data/areas';
 import { ENCOUNTERS } from '../../data/combatants';
 import type { BattleSceneData } from './BattleScene';
@@ -51,6 +51,11 @@ interface Actor {
 /** 已打倒的明雷敵人（區域 → id）。從出口或世界地圖進入區域時清空＝重生；劇本／戰鬥回來則保留。 */
 const DEFEATED = new Map<string, Set<string>>();
 
+/** 支線中跟著隊伍走的 NPC */
+const ESCORTS: { id: string; body: string; hair: string; art?: string; when: Condition }[] = [
+  { id: 'mia', body: '#c84040', hair: '#7a4a2a', art: 'walk_npc_mia', when: { all: [{ flag: 'q_lost_kid_found' }, { flag: 'q_lost_kid_done', not: true }] } },
+];
+
 export class ExploreScene extends Phaser.Scene {
   area!: AreaDef;
   private grid!: Grid;
@@ -58,6 +63,7 @@ export class ExploreScene extends Phaser.Scene {
   private playerImg!: Phaser.GameObjects.Image;
   private followers: { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image }[] = [];
   private trail: Pt[] = [];
+  private escorts = new Map<string, { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image }>();
   private path: Pt[] = [];
   private pending?: Actor;
   private actors: Actor[] = [];
@@ -86,6 +92,7 @@ export class ExploreScene extends Phaser.Scene {
     this.grid = parseGrid(this.area.rows, this.area.buildings);
     this.followers = [];
     this.trail = [];
+    this.escorts = new Map();
     this.path = [];
     this.pending = undefined;
     this.actors = [];
@@ -115,7 +122,7 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   private alive(a: Actor): boolean {
-    return a.e.kind !== 'enemy' || !this.defeated().has(a.e.id);
+    return a.e.kind !== 'enemy' || (!this.defeated().has(a.e.id) && present(session.state, a.e));
   }
 
   create(): void {
@@ -228,6 +235,8 @@ export class ExploreScene extends Phaser.Scene {
         canvasTex(`ex_npc_${e.look.body}_${e.look.hair}`, 64, 96, (c) => drawChibi(c, e.look!.body, e.look!.hair));
       }
     }
+    // 跟著隊伍走的 NPC（支線護送）
+    for (const f of ESCORTS) canvasTex(`ex_npc_${f.body}_${f.hair}`, 64, 96, (c) => drawChibi(c, f.body, f.hair));
   }
 
   /** AI 美術物件（建築、樹、路燈、井）：圖片精靈，依腳底 y 排序，角色可以走到後面 */
@@ -413,12 +422,34 @@ export class ExploreScene extends Phaser.Scene {
     c.setVisible(present(session.state, e) || e.kind === 'door' || e.kind === 'gate');
   }
 
+  /** 支線護送的 NPC：條件成立就加到隊伍最後面，結束就移除 */
+  private syncEscorts(): void {
+    const s = session.state;
+    for (const f of ESCORTS) {
+      const on = check(s, f.when);
+      const cur = this.escorts.get(f.id);
+      if (on && !cur && this.player) {
+        const art = f.art && this.textures.exists(f.art) ? f.art : `ex_npc_${f.body}_${f.hair}`;
+        const w = this.makeWalker(art, 60);
+        w.c.setPosition(this.player.x, this.player.y);
+        this.followers.push(w);
+        this.escorts.set(f.id, w);
+      } else if (!on && cur) {
+        cur.c.destroy();
+        this.followers = this.followers.filter((x) => x !== cur);
+        this.escorts.delete(f.id);
+      }
+    }
+  }
+
   /** 頭上標記依旗標刷新（劇本回來、寶箱開啟後） */
   refreshMarkers(): void {
     const s = session.state;
+    this.syncEscorts();
     for (const a of this.actors) {
       a.mark?.destroy();
       a.mark = undefined;
+      a.obj?.setVisible(present(s, a.e) || a.e.kind === 'door' || a.e.kind === 'gate');
       if (!present(s, a.e)) continue;
       const m = MARK[markerOf(s, this.area.id, a.e)];
       if (!m || !a.obj) continue;

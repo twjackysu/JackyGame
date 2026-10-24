@@ -2,6 +2,8 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { AREAS } from '../../data/areas';
+import { SIDE_GOALS } from '../../data/sideQuests';
+import { check } from '../../core/state/gameState';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce } from '../fx/feel';
 import { openBonds } from '../ui/bondPanel';
@@ -115,6 +117,9 @@ export class ExploreHudScene extends Phaser.Scene {
     if (lamps.length > 0 && f['q_lamps'] && !f['q_lamps_rewarded']) {
       const lit = lamps.filter((e) => f[`lamp_${this.areaId}_${e.id}`]).length;
       text += lit >= lamps.length ? '　◇ 回報老燈伕' : `　◇ 點燈 ${lit}/${lamps.length}`;
+    } else {
+      const side = SIDE_GOALS.find((g) => check(session.state, g.when));
+      if (side) text += `　${side.text}`;
     }
     this.goal?.setText(text);
   }

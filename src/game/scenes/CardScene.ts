@@ -9,7 +9,7 @@ import {
 import { chooseAction, chooseTutorialAction } from '../../core/cards/ai';
 import { mulberry32 } from '../../core/rng';
 import {
-  DECK_BERN, DECK_LIORA, DECK_PLAYER_CH3, DECK_TOURNEY_DEALER, DECK_TOURNEY_KNIGHT, DECK_TOURNEY_MINER, DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL, DECK_ROURKE_OFFICIAL_NO_LEGEND, DECK_ROURKE_TUTORIAL,
+  DECK_BERN, DECK_DRIFTER, DECK_LIORA, DECK_PLAYER_CH3, DECK_TOURNEY_DEALER, DECK_TOURNEY_KNIGHT, DECK_TOURNEY_MINER, DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL, DECK_ROURKE_OFFICIAL_NO_LEGEND, DECK_ROURKE_TUTORIAL,
   DECK_TUTORIAL_PLAYER, getCard, withCollection, type Keyword,
 } from '../../data/cards';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -43,6 +43,7 @@ const OPPONENTS: Record<string, Opponent> = {
     name: '洛克', ai: 0.2, intro: '這次不作弊。三夜兩勝。',
     config: { decks: [DECK_PLAYER_STARTER, DECK_ROURKE_OFFICIAL_NO_LEGEND] },
   },
+  drifter: { name: '流浪牌手', ai: 0.25, intro: '流浪牌手：他手上有吞火人——灼照會燒掉對面最強的牌。', config: { decks: [DECK_PLAYER_STARTER, DECK_DRIFTER] } },
   bern: { name: '伯恩', ai: 0.2, intro: '獵人伯恩：月相會改變戰局。', config: { decks: [DECK_PLAYER_STARTER, DECK_BERN] } },
   liora_intro: {
     name: '莉歐拉', ai: 0.2, intro: '爆破師莉歐拉：月相會改變戰局——滿月點亮中央、弦月照奇數燈座、血月讓對峙更兇。',

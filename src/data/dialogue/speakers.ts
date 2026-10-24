@@ -19,6 +19,9 @@ export const SPEAKER_NAMES: Record<string, string> = {
   girl: '少女',
   bern: '伯恩',
   lamplighter: '老燈伕',
+  ruth: '露絲',
+  mia: '米亞',
+  drifter: '流浪牌手',
   ancient_voice: '古老的聲音',
   // 第 2 章
   dorn: '多恩',
