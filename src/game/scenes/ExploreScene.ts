@@ -4,14 +4,14 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { chapterTrack, playMusic } from '../../audio/music';
 import {
-  interact, markerOf, nextObjective, present, chestFlag, lampFlag, type AreaDef, type AreaEntity, type Marker,
+  interact, markerOf, outleveled, nextObjective, present, chestFlag, lampFlag, type AreaDef, type AreaEntity, type Marker,
 } from '../../core/explore/area';
 import {
   findPath, nearestWalkable, parseGrid, pathToAdjacent, slideMove, walkable, type Grid, type Pt,
 } from '../../core/explore/grid';
 import { applyEffects, check, type Condition } from '../../core/state/gameState';
 import { AREAS } from '../../data/areas';
-import { ENCOUNTERS } from '../../data/combatants';
+import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import type { BattleSceneData } from './BattleScene';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TILE, drawAreaGround, drawChest, drawChibi, drawSignBoard } from '../art/exploreArt';
@@ -93,6 +93,7 @@ export class ExploreScene extends Phaser.Scene {
     this.followers = [];
     this.trail = [];
     this.escorts = new Map();
+    this.fleeing = new Set();
     this.path = [];
     this.pending = undefined;
     this.actors = [];
@@ -797,8 +798,10 @@ export class ExploreScene extends Phaser.Scene {
     if (!this.busy && !this.leaving) {
       for (const a of this.actors) {
         if (a.e.kind !== 'enemy' || !a.obj || !this.alive(a)) continue;
-        if (Math.hypot(a.obj.x - this.player.x, a.obj.y - this.player.y) < 42) {
-          this.startBattle(a);
+        const weak = this.weakling(a);
+        if (Math.hypot(a.obj.x - this.player.x, a.obj.y - this.player.y) < (weak ? 62 : 42)) {
+          if (weak) this.scareOff(a);
+          else this.startBattle(a);
           break;
         }
       }
@@ -862,7 +865,20 @@ export class ExploreScene extends Phaser.Scene {
       const facingRight = !!a.img?.flipX;
       const inFront = facingRight ? pt.x >= a.tx : pt.x <= a.tx;
       const notice = this.chasing.has(a.e.id) ? d <= 5 : d <= 2 || (d <= 4 && inFront);
-      if (notice && homeD < 8) {
+      if (d <= 4 && this.weakling(a)) {
+        // 等級差太大：看到你就逃
+        if (!this.fleeing.has(a.e.id)) {
+          this.fleeing.add(a.e.id);
+          const sw = this.add.text(18, -80, '💦', { fontFamily: UI_FONT, fontSize: '28px' }).setOrigin(0.5);
+          a.obj.add(sw);
+          this.tweens.add({ targets: sw, y: -96, alpha: 0, duration: 900, delay: 400, onComplete: () => sw.destroy() });
+        }
+        const opts: Pt[] = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+          .map((o) => ({ x: a.tx + o.x, y: a.ty + o.y }))
+          .filter((n) => walkable(this.grid, n.x, n.y, blockers) && Math.max(Math.abs(n.x - a.home.x), Math.abs(n.y - a.home.y)) <= 6)
+          .filter((n) => Math.max(Math.abs(n.x - pt.x), Math.abs(n.y - pt.y)) > d);
+        step = opts[Math.floor(Math.random() * opts.length)];
+      } else if (notice && homeD < 8) {
         // 發現玩家：追
         if (!this.chasing.has(a.e.id)) {
           this.chasing.add(a.e.id);
@@ -903,6 +919,33 @@ export class ExploreScene extends Phaser.Scene {
         },
       });
     }
+  }
+
+  private fleeing = new Set<string>();
+
+  /** 等級差 ≥ 5 的小怪（Boss 不算） */
+  private weakling(a: Actor): boolean {
+    const ids = ENCOUNTERS[a.e.battle ?? 'forest_a'] ?? [];
+    const lv = Math.max(1, ...ids.map((id) => ENEMIES[id]?.level ?? 1));
+    return outleveled(session.state.members.lian?.level ?? 1, lv, ids.some((id) => id.startsWith('boss_')));
+  }
+
+  /** 碰到逃跑中的小怪：直接趕跑（拿金幣、不進戰鬥） */
+  private scareOff(a: Actor): void {
+    const s = session.state;
+    this.defeated().add(a.e.id);
+    this.chasing.delete(a.e.id);
+    const g = a.e.gold ?? 0;
+    if (g > 0) applyEffects(s, [{ gold: g }]);
+    SFX.hitLight();
+    if (a.obj) {
+      sparks(this, a.obj.x, a.obj.y - 20, 12, 'ember', 0xffd27a, 200);
+      const dir = a.obj.x >= this.player.x ? 1 : -1;
+      this.tweens.add({ targets: a.obj, x: a.obj.x + dir * 160, alpha: 0, duration: 420, ease: 'Quad.In', onComplete: () => a.obj?.destroy() });
+    }
+    this.actors = this.actors.filter((x) => x !== a);
+    this.hud()?.toast(g > 0 ? `魔物嚇得逃走了！　金幣 +${g}` : '魔物嚇得逃走了！', 1600);
+    this.savePos(true);
   }
 
   private battleWith?: Actor;

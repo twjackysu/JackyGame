@@ -148,3 +148,9 @@ export function interact(s: GameState, area: string, e: AreaEntity, pick = 0): I
   if (lines.length === 0) return { kind: 'empty' };
   return { kind: 'say', text: lines[Math.min(lines.length - 1, Math.floor(pick * lines.length))]! };
 }
+
+/** 等級差逃跑（11-open-world §2.3）：隊伍等級比遭遇最高等級高 FLEE_GAP 以上 → 小怪看到你就逃，碰到直接趕跑（拿金幣、不進戰鬥） */
+export const FLEE_GAP = 5;
+export function outleveled(partyLevel: number, encounterLevel: number, boss = false): boolean {
+  return !boss && partyLevel - encounterLevel >= FLEE_GAP;
+}

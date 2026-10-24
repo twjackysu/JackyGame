@@ -226,3 +226,12 @@ describe('greylamp side quest: four plaza lamps', () => {
     expect(s.gold).toBe(g + 40);
   });
 });
+
+describe('等級差逃跑', () => {
+  it('差 5 級以上逃跑；Boss 不逃', async () => {
+    const { outleveled } = await import('../src/core/explore/area');
+    expect(outleveled(7, 2)).toBe(true);
+    expect(outleveled(6, 2)).toBe(false);
+    expect(outleveled(20, 2, true)).toBe(false);
+  });
+});
