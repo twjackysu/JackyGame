@@ -49,7 +49,7 @@ export interface EnemyDef {
   xp: number;
   attacks: EnemyAttack[];
   /** 特殊被動 */
-  traits?: ('wallCrash' | 'howl' | 'fogPhase2')[];
+  traits?: ('wallCrash' | 'howl' | 'fogPhase2' | 'erase' | 'eyeShield' | 'finale')[];
   /** 轉階段字卡（預設：霧起／狂化） */
   phase2?: { title: string; sub?: string };
 }
@@ -226,7 +226,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   },
   // 蝕星者（終局 Boss）：階段 1 墜星雨（紅光）；階段 2 吞噬（吸星燼、蝕化全體）
   boss_starfall: {
-    id: 'boss_starfall', name: '蝕星者', level: 18, hp: 1500, atk: 50, def: 20, spd: 11, breakMax: 160, weak: ['light'], resist: ['phys'],
+    id: 'boss_starfall', name: '蝕星者', level: 18, hp: 1000, atk: 50, def: 20, spd: 11, breakMax: 160, weak: ['light'], resist: ['phys'],
     actionsPerRound: 2, xp: 0,
     attacks: [
       { id: 'meteor', name: '墜星雨', telegraph: 'red', windUpMs: 650, mul: 1.2, weight: 3 },
@@ -235,6 +235,24 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { id: 'devour_memory', name: '吞噬記憶', telegraph: 'purple', windUpMs: 800, mul: 0.6, aoe: true, status: 'umbra', weight: 2, phase: 2, drainEmber: 3, seal: 2 },
     ],
     phase2: { title: '吞噬', sub: '吞噬記憶：防守失敗會被封印技能' },
+  },
+  // 蝕星者第二段（D-029）：刪除之眼（每回合抹除全員 HP、保護核心）＋核心（HP ≤ 35% 觸發全員共鳴：十燈）
+  boss_starfall_eye: {
+    id: 'boss_starfall_eye', name: '刪除之眼', level: 18, hp: 320, atk: 46, def: 12, spd: 15, breakMax: 40, weak: ['light', 'fire'], xp: 0,
+    traits: ['erase'],
+    attacks: [
+      { id: 'erase_gaze', name: '刪除凝視', telegraph: 'white', windUpMs: 650, mul: 0.35, hits: [0, 300, 600], weight: 2 },
+      { id: 'blink', name: '眨眼', telegraph: 'red', windUpMs: 550, mul: 1.2, weight: 1 },
+    ],
+  },
+  boss_starfall_core: {
+    id: 'boss_starfall_core', name: '蝕星者・核心', level: 18, hp: 750, atk: 52, def: 18, spd: 10, breakMax: 140, weak: ['light'], resist: ['phys'],
+    xp: 0, traits: ['eyeShield', 'finale'],
+    attacks: [
+      { id: 'meteor', name: '墜星雨', telegraph: 'red', windUpMs: 650, mul: 1.2, weight: 2 },
+      { id: 'meteor_storm', name: '流星暴', telegraph: 'red', windUpMs: 750, mul: 0.8, aoe: true, weight: 1 },
+      { id: 'devour_memory', name: '吞噬記憶', telegraph: 'purple', windUpMs: 800, mul: 0.6, aoe: true, status: 'umbra', weight: 2, drainEmber: 3, seal: 2 },
+    ],
   },
 };
 
@@ -270,4 +288,5 @@ export const ENCOUNTERS: Record<string, string[]> = {
   // 終章
   ch5_rift: ['rift_spawn', 'rift_spawn'],
   boss_starfall: ['boss_starfall'],
+  boss_starfall_2: ['boss_starfall_eye', 'boss_starfall_core'],
 };

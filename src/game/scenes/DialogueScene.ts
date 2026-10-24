@@ -47,7 +47,7 @@ const ENCOUNTER_LEVEL_FLOOR: Record<string, number> = {
   mine_a: 5, mine_b: 6, bell_hall: 7, deep_1: 7, deep_2: 8, deep_3: 8, boss_bellworm: 8,
   sewer_rats: 9, alley_thugs: 10, academy_guard: 11, rourke_1: 12, rourke_2: 12, rourke_3: 12,
   ch4_gate: 13, ch4_lab_a: 14, ch4_lab_b: 14, boss_valderan: 15,
-  ch5_rift: 16, boss_starfall: 17,
+  ch5_rift: 16, boss_starfall: 17, boss_starfall_2: 17,
 };
 
 export class DialogueScene extends Phaser.Scene {

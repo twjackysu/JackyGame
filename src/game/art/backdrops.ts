@@ -2434,6 +2434,6 @@ export function battleBackdropFor(encounter: string): BackdropId | null {
   if (encounter === 'ch4_lab_a' || encounter === 'ch4_lab_b') return 'lab';
   if (encounter === 'boss_valderan') return 'furnace';
   if (encounter === 'ch5_rift') return 'rift';
-  if (encounter === 'boss_starfall') return 'rift_core';
+  if (encounter === 'boss_starfall' || encounter === 'boss_starfall_2') return 'rift_core';
   return null;
 }

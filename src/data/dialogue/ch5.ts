@@ -182,11 +182,28 @@ export const CH5: DialogueScript = {
       { goto: 'boss_fight' },
     ],
     boss_fight: [
-      { event: 'battle', id: 'boss_starfall', outcomes: { win: 'boss_won', lose: 'boss_retry' } },
+      { event: 'battle', id: 'boss_starfall', outcomes: { win: 'boss_eye', lose: 'boss_retry' } },
     ],
     boss_retry: [
-      { say: 'lian_inner', text: '（「刪除之眼」先打！\n伊歐撐不了太久。）' },
+      { say: 'lian_inner', text: '（紫光要長按撐住。\n被吞掉的技能，兩回合後就會回來。）' },
       { goto: 'boss_fight' },
+    ],
+    // 第二段：刪除之眼（D-029）
+    boss_eye: [
+      { say: 'narration', text: '〔黑色星辰的外殼剝落。\n裂縫之中，一隻巨大的眼睛睜開了。〕' },
+      { say: 'ancient_voice', text: '看見……就……刪除……' },
+      { say: 'io', text: '……唔。', if: { inParty: 'io' } },
+      { say: 'io', text: '連恩……我的名字，\n好像……正在變淡……', if: { inParty: 'io' } },
+      { say: 'lian_inner', text: '（攻略筆記上沒有這一頁。\n但我知道該先打哪裡。）' },
+      { say: 'lian', text: '先閉上那隻眼睛！\n它看著的時候，核心打不痛！' },
+      { goto: 'boss_fight_2' },
+    ],
+    boss_fight_2: [
+      { event: 'battle', id: 'boss_starfall_2', outcomes: { win: 'boss_won', lose: 'boss_retry_2' } },
+    ],
+    boss_retry_2: [
+      { say: 'lian_inner', text: '（「刪除之眼」先打！\n它每回合都在抹掉我們。）' },
+      { goto: 'boss_fight_2' },
     ],
     boss_won: [
       { say: 'ancient_voice', text: '……那麼……最後……\n連你們的名字……一起……' },

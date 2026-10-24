@@ -94,7 +94,7 @@ export interface BattleState {
   lampAtk: number;
   items: Partial<Record<ItemId, number>>;
   /** ambushed：被伏擊，第 1 輪我方不行動 */
-  flags: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; retryBoost?: number };
+  flags: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; retryBoost?: number; finaleDone?: boolean };
   usedOnce: string[];
   /** 霧：判定窗口倍率 & 剩餘回合 */
   windowScale: number;
@@ -108,7 +108,7 @@ export interface BattleState {
 export type BattleEvent =
   | { type: 'turnStart'; actor: ActorRef; round: number }
   | { type: 'command'; actor: ActorRef; command: Command }
-  | { type: 'damage'; target: ActorRef; amount: number; timing?: Timing; weak: boolean; crit: boolean; source?: string }
+  | { type: 'damage'; target: ActorRef; amount: number; timing?: Timing; weak: boolean; crit: boolean; source?: string; shielded?: boolean }
   | { type: 'heal'; target: ActorRef; amount: number }
   | { type: 'lampPlaced'; target: number; count: number; total: number }
   | { type: 'resonance'; perTarget: { target: number; lamps: number; amount: number }[]; totalLamps: number }
@@ -131,6 +131,8 @@ export type BattleEvent =
   | { type: 'revived'; target: ActorRef; hp: number }
   | { type: 'phaseChange'; enemy: number; phase: 2; title: string; sub?: string }
   | { type: 'markDetonate'; hero: number }
+  | { type: 'erase'; enemy: number }
+  | { type: 'finale'; enemy: number; lamps: number }
   | { type: 'markCleansed'; heroes: number[] }
   | { type: 'skillSealed'; hero: number; skill: string; name: string; rounds: number }
   | { type: 'ember'; delta: number; total: number }
@@ -249,6 +251,14 @@ function checkEnd(s: BattleState, ev: BattleEvent[]): boolean {
   return false;
 }
 
+export const EYE_SHIELD_MUL = 0.4;
+export const ERASE_PCT = 0.06;
+export const ERASE_PCT_IO = 0.1;
+export const FINALE_HP = 0.35;
+export const FINALE_LAMPS = 10;
+const hasTrait = (u: Unit, t: NonNullable<EnemyDef['traits']>[number]) => !!ENEMIES[u.id]?.traits?.includes(t);
+const eyeAlive = (s: BattleState) => s.enemies.some((e) => alive(e) && hasTrait(e, 'erase'));
+
 /** 對單位造成傷害（已算好數值），處理倒地、Boss 轉階段 */
 function applyDamage(
   s: BattleState, ev: BattleEvent[], ref: ActorRef, amount: number,
@@ -256,8 +266,14 @@ function applyDamage(
 ) {
   const u = unitAt(s, ref);
   if (!alive(u)) return;
+  // 刪除之眼存活時，核心受到的傷害 ×0.4
+  const shielded = u.side === 'enemy' && hasTrait(u, 'eyeShield') && eyeAlive(s);
+  if (shielded) amount = Math.max(1, Math.round(amount * EYE_SHIELD_MUL));
   u.hp = Math.max(0, u.hp - amount);
-  ev.push({ type: 'damage', target: ref, amount, timing: info.timing, weak: !!info.weak, crit: !!info.crit, source: info.source });
+  ev.push({
+    type: 'damage', target: ref, amount, timing: info.timing, weak: !!info.weak, crit: !!info.crit, source: info.source,
+    ...(shielded ? { shielded: true } : {}),
+  });
   if (u.hp <= 0) {
     u.downed = true;
     u.status.guarding = false;
@@ -265,6 +281,13 @@ function applyDamage(
     if (u.side === 'enemy') u.lamps = 0;
     ev.push({ type: 'downed', target: ref });
     return;
+  }
+  // 終局：核心 HP ≤ 35% 且刪除之眼已倒 → 全員共鳴（所有人的燈交給連恩：核心掛上 10 盞燈、星燼全滿）
+  if (u.side === 'enemy' && hasTrait(u, 'finale') && !s.flags.finaleDone && !eyeAlive(s) && u.hp <= u.maxHp * FINALE_HP) {
+    s.flags.finaleDone = true;
+    u.lamps = FINALE_LAMPS;
+    ev.push({ type: 'finale', enemy: ref.index, lamps: FINALE_LAMPS });
+    gainEmber(s, ev, MAX_EMBER);
   }
   if (u.side === 'enemy' && u.bossPhase === 1 && u.hp <= u.maxHp * 0.5) {
     const def = ENEMIES[u.id];
@@ -307,6 +330,14 @@ function startRound(s: BattleState, ev: BattleEvent[]) {
       st.howl = Math.max(0, st.howl - 1);
       if (st.sealRounds > 0 && --st.sealRounds === 0) st.sealed = null;
     }
+    // 刪除之眼：每回合抹去全員 6% 最大 HP（伊歐 10%——她正被一點一點刪掉）
+    s.enemies.forEach((e, ei) => {
+      if (!alive(e) || !hasTrait(e, 'erase')) return;
+      ev.push({ type: 'erase', enemy: ei });
+      s.heroes.forEach((h, i) => {
+        if (alive(h)) applyDamage(s, ev, { side: 'hero', index: i }, Math.max(1, Math.round(h.maxHp * (h.id === 'io' ? ERASE_PCT_IO : ERASE_PCT))), { source: 'erase' });
+      });
+    });
     // 反燈印倒數；歸零引爆
     s.heroes.forEach((h, i) => {
       if (!alive(h) || h.status.doomMark <= 0) return;

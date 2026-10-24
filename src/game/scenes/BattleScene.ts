@@ -609,7 +609,11 @@ export class BattleScene extends Phaser.Scene {
     v.lamps.each((c: Phaser.GameObjects.GameObject) => {
       const img = c as Phaser.GameObjects.Image;
       const k = v.lamps.getIndex(img);
-      img.setX((k - (v.lamps.length - 1) / 2) * 30);
+      // 超過 5 盞（終局十燈）排成兩列
+      const per = v.lamps.length > 5 ? Math.ceil(v.lamps.length / 2) : v.lamps.length;
+      const row = Math.floor(k / per);
+      const inRow = Math.min(per, v.lamps.length - row * per);
+      img.setPosition((k - row * per - (inRow - 1) / 2) * 30, -row * 30);
     });
   }
 
@@ -1465,6 +1469,23 @@ export class BattleScene extends Phaser.Scene {
         await wait(this, 1100);
         return;
       }
+      case 'erase': {
+        // 刪除之眼：一道紫色掃描線掃過我方，被掃到的人輪廓像訊號一樣閃爍
+        const v = this.enemies[e.enemy];
+        if (!v) return;
+        const line = this.add.rectangle(GAME_WIDTH / 2, v.y, GAME_WIDTH, 10, 0xc8a0ff, 0.8).setDepth(720).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: line, y: 860, scaleY: 3, alpha: 0.2, duration: 520, ease: 'Cubic.In', onComplete: () => line.destroy() });
+        for (const h of this.heroes) {
+          if (h.dead) continue;
+          this.tweens.add({ targets: h.sprite, alpha: 0.25, duration: 60, yoyo: true, repeat: 3, delay: 380 });
+        }
+        bigText(this, GAME_WIDTH / 2, 640, '刪除', '#c8a0ff', 44, 300);
+        SFX.uiCancel();
+        await wait(this, 560);
+        return;
+      }
+      case 'finale':
+        return this.fxFinale(e);
       case 'markDetonate': {
         const v = this.heroes[e.hero];
         if (!v) return;
@@ -1582,7 +1603,7 @@ export class BattleScene extends Phaser.Scene {
     v.hp = Math.max(0, v.hp - e.amount);
     const isEnemy = e.target.side === 'enemy';
     const pct = e.amount / v.maxHp;
-    const dot = e.source === 'burn' || e.source === 'poison';
+    const dot = e.source === 'burn' || e.source === 'poison' || e.source === 'erase';
     if (!dot) {
       // 白閃 + 擊退
       v.sprite.setTintFill(0xffffff);
@@ -1597,14 +1618,65 @@ export class BattleScene extends Phaser.Scene {
       else SFX.hitLight();
       this.cameras.main.shake(80 + pct * 300, Math.min(0.025, 0.004 + pct * 0.05));
     }
-    const color = dot ? (e.source === 'poison' ? '#9dff6a' : '#ffa54a') : isEnemy ? (e.crit ? '#ffd27a' : e.weak ? '#ffb060' : '#ffffff') : '#ff6a6a';
-    const size = dot ? 30 : e.crit ? 64 : e.weak ? 54 : 46;
-    const label = e.source === 'counter' ? '反擊' : e.weak && !dot ? '弱點！' : e.source === 'burn' ? '灼燒' : undefined;
+    const color = dot
+      ? (e.source === 'poison' ? '#9dff6a' : e.source === 'erase' ? '#c8a0ff' : '#ffa54a')
+      : e.shielded ? '#9a94b8' : isEnemy ? (e.crit ? '#ffd27a' : e.weak ? '#ffb060' : '#ffffff') : '#ff6a6a';
+    const size = dot ? 30 : e.shielded ? 36 : e.crit ? 64 : e.weak ? 54 : 46;
+    const label = e.shielded ? '被凝視守護' : e.source === 'counter' ? '反擊' : e.weak && !dot ? '弱點！' : e.source === 'burn' ? '灼燒' : e.source === 'erase' ? '刪除' : undefined;
     floatNumber(this, v.x, v.y - (isEnemy ? 60 : 90), `${e.amount}`, { color, size, label });
     const be = isEnemy ? this.bs.enemies[e.target.index] : undefined;
     this.drawBars(v, isEnemy ? undefined : this.bs.heroes[e.target.index]?.sp, be ? be.breakGauge / Math.max(1, be.breakMax) : undefined);
     if (!dot) await hitStop(this, Math.round(50 + Math.min(70, pct * 200)));
     await wait(this, dot ? 260 : 120);
+  }
+
+  /** 全員共鳴（終局）：每位同伴的燈飛向連恩、再一盞盞掛上核心，十盞燈＋星燼全滿 */
+  private async fxFinale(e: Extract<BattleEvent, { type: 'finale' }>): Promise<void> {
+    const target = this.enemies[e.enemy];
+    if (!target) return;
+    const lianI = this.bs.heroes.findIndex((h) => h.id === 'lian');
+    const lian = this.heroes[lianI];
+    const dark = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0).setDepth(740);
+    this.tweens.add({ targets: dark, fillAlpha: 0.75, duration: 400 });
+    await wait(this, 420);
+    bigText(this, GAME_WIDTH / 2, 600, '全員共鳴', '#ffe2a8', 92, 900);
+    SFX.resonance();
+    // 同伴的燈 → 連恩
+    this.heroes.forEach((v, i) => {
+      if (i === lianI || v.dead || !lian) return;
+      const col = HERO_COLOR[this.bs.heroes[i]?.id ?? ''] ?? 0xffd27a;
+      const orb = this.add.image(v.x, v.y - 60, 'glow').setScale(0.6).setTint(col).setBlendMode(Phaser.BlendModes.ADD).setDepth(760);
+      this.tweens.add({ targets: orb, x: lian.x, y: lian.y - 60, duration: 600, ease: 'Cubic.InOut', onComplete: () => orb.destroy() });
+    });
+    if (lian) {
+      const beam = this.add.rectangle(lian.x, lian.y - 300, 120, 760, 0xffd27a, 0).setDepth(745).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: beam, fillAlpha: 0.6, duration: 300, yoyo: true, hold: 500, delay: 500, onComplete: () => beam.destroy() });
+      lian.root.setDepth(750);
+    }
+    await wait(this, 900);
+    // 十盞燈依序亮起
+    const from = lian ?? target;
+    for (let k = 0; k < e.lamps; k++) {
+      const orb = this.add.image(from.x, from.y - 60, 'ember').setScale(1.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(760);
+      this.tweens.add({
+        targets: orb, x: target.x + Phaser.Math.Between(-60, 60), y: target.y - 40 + Phaser.Math.Between(-40, 40), duration: 380, ease: 'Cubic.In',
+        onComplete: () => {
+          sparks(this, orb.x, orb.y, 12, 'ember', undefined, 260);
+          orb.destroy();
+        },
+      });
+      this.setLamps(e.enemy, k + 1);
+      SFX.lampPlace(Math.min(4, k));
+      await wait(this, 110);
+    }
+    await wait(this, 300);
+    shockRing(this, target.x, target.y, 0xffd27a, 420, 800, 16);
+    this.cameras.main.shake(500, 0.016);
+    bigText(this, GAME_WIDTH / 2, 700, '十燈・星河', '#ffd27a', 60, 900);
+    floatNumber(this, GAME_WIDTH / 2, 780, '用「共鳴」引爆全部的燈！', { color: '#ffe2a8', size: 30 });
+    await wait(this, 900);
+    if (lian) lian.root.setDepth(200);
+    this.tweens.add({ targets: dark, fillAlpha: 0, duration: 400, onComplete: () => dark.destroy() });
   }
 
   private async fxResonance(e: Extract<BattleEvent, { type: 'resonance' }>): Promise<void> {

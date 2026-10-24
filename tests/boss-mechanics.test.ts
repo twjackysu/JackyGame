@@ -5,6 +5,7 @@ import {
   chooseCommand,
   createBattle,
   resolveDefense,
+  resolveTiming,
   type BattleState,
 } from '../src/core/battle/engine';
 import { simulateBattle } from '../src/core/battle/sim';
@@ -119,3 +120,52 @@ describe('吞噬記憶（蝕星者階段 2）', () => {
     expect(r.events.some((e) => e.type === 'skillSealed')).toBe(false);
   });
 });
+
+describe('蝕星者第二段：刪除之眼 + 核心（全員共鳴）', () => {
+  const party = [{ id: 'lian' as const, level: 17 }, { id: 'serin' as const, level: 17 }, { id: 'io' as const, level: 17 }];
+  const start = () => createBattle({ party, enemies: ['boss_starfall_eye', 'boss_starfall_core'], seed: 3, flags: { guidingLight: true } }).state;
+
+  it('眼睛存活時核心傷害 ×0.4；每回合抹除全員 HP（伊歐較多）', () => {
+    let s = start();
+    s.enemies.forEach((e) => (e.atk = 0));
+    const io0 = s.heroes[2]!.hp;
+    const serin0 = s.heroes[1]!.hp;
+    const { s: after, events } = passRounds(s, 1);
+    expect(events).toContain('erase');
+    expect(io0 - after.heroes[2]!.hp).toBeGreaterThan(serin0 - after.heroes[1]!.hp - 1);
+    expect(after.heroes[2]!.hp).toBeLessThan(io0);
+    // 攻擊核心：被凝視守護
+    s = after;
+    for (let i = 0; i < 30 && s.phase !== 'playerCommand'; i++) s = resolveDefense(s, s.pendingEnemy!.hits.map(() => 'perfect')).state;
+    const r1 = chooseCommand(s, { type: 'attack', target: 1 });
+    const r2 = resolveTimingPerfect(r1.state);
+    const dmg = r2.events.find((e) => e.type === 'damage' && e.target.side === 'enemy');
+    expect(dmg && dmg.type === 'damage' && dmg.shielded).toBe(true);
+  });
+
+  it('眼睛倒下後，核心 HP ≤ 35% → 全員共鳴：十燈＋星燼全滿（只觸發一次）', () => {
+    let s = start();
+    s.enemies[0]!.hp = 0;
+    s.enemies[0]!.downed = true;
+    s.enemies[1]!.hp = Math.round(s.enemies[1]!.maxHp * 0.36);
+    s.ember = 1;
+    for (let i = 0; i < 30 && s.phase !== 'playerCommand'; i++) s = resolveDefense(s, s.pendingEnemy!.hits.map(() => 'perfect')).state;
+    const r = resolveTimingPerfect(chooseCommand(s, { type: 'attack', target: 1 }).state);
+    expect(r.events.some((e) => e.type === 'finale')).toBe(true);
+    expect(r.state.enemies[1]!.lamps).toBe(10);
+    expect(r.state.ember).toBe(10);
+    expect(r.state.flags.finaleDone).toBe(true);
+  });
+
+  it('模擬：中等玩家能打贏第二段', () => {
+    const skill = { attack: { perfect: 0.45, good: 0.45 }, defense: 0.75 };
+    let wins = 0;
+    const N = 80;
+    for (let i = 0; i < N; i++) wins += +simulateBattle(party, 'boss_starfall_2', skill, 500 + i, { guidingLight: true }).won;
+    expect(wins / N).toBeGreaterThan(0.6);
+  });
+});
+
+function resolveTimingPerfect(s: BattleState) {
+  return resolveTiming(s, 'perfect');
+}

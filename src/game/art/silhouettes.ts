@@ -652,7 +652,9 @@ export function generatePortraitArt(scene: Phaser.Scene): void {
 }
 
 export const heroArtKey = (id: string): string => `hero_${id}`;
-export const enemyArtKey = (id: string): string => `enemy_${id}`;
+/** 共用美術的敵人（終局核心沿用蝕星者本體） */
+const ENEMY_ART_ALIAS: Record<string, string> = { boss_starfall_core: 'boss_starfall' };
+export const enemyArtKey = (id: string): string => `enemy_${ENEMY_ART_ALIAS[id] ?? id}`;
 
 // ======================================================================
 // 主角對話立繪（Canvas 2D：漸層本體 + 柔和邊緣光 + 發光點綴）
@@ -2010,6 +2012,76 @@ export const CH4_PORTRAITS: Record<string, string> = { tia: 'npc_tia', contact: 
 // 終章「燈火」：墜星裂谷
 // ======================================================================
 function generateCh5Combatants(scene: Phaser.Scene): void {
+  // ---------------- 刪除之眼：裂縫中睜開的巨眼，虹膜是一圈被抹去的星座 ----------------
+  canvasArt(scene, 'enemy_boss_starfall_eye', 260, 220, (c) => {
+    const V = 0xa060ff;
+    const cx = 130;
+    const cy = 104;
+    glow(c, cx, cy, 130, 0x5a20b0, 0.35);
+    // 裂縫（眼瞼）：上下兩道鋸齒黑殼
+    c.save();
+    c.fillStyle = '#07040f';
+    c.beginPath();
+    c.moveTo(4, cy);
+    for (let i = 0; i <= 12; i++) c.lineTo(4 + i * 21, cy - 58 * Math.sin((i / 12) * Math.PI) - (i % 2 ? 10 : 0));
+    for (let i = 12; i >= 0; i--) c.lineTo(4 + i * 21, cy + 52 * Math.sin((i / 12) * Math.PI) + (i % 2 ? 9 : 0));
+    c.closePath();
+    c.fill();
+    c.restore();
+    // 眼白（病態的淡紫）
+    c.save();
+    c.beginPath();
+    c.ellipse(cx, cy, 104, 44, 0, 0, Math.PI * 2);
+    c.clip();
+    const sclera = c.createRadialGradient(cx, cy, 10, cx, cy, 110);
+    sclera.addColorStop(0, '#f4e8ff');
+    sclera.addColorStop(0.7, '#b89ad8');
+    sclera.addColorStop(1, '#3a1c60');
+    c.fillStyle = sclera;
+    c.fillRect(0, 0, 260, 220);
+    // 血絲般的紫色裂紋
+    c.strokeStyle = rgba(V, 0.6);
+    c.lineWidth = 1.4;
+    const r = rng5(11);
+    for (let i = 0; i < 14; i++) {
+      const a = r() * Math.PI * 2;
+      c.beginPath();
+      c.moveTo(cx + Math.cos(a) * 108, cy + Math.sin(a) * 46);
+      c.quadraticCurveTo(cx + Math.cos(a + 0.3) * 70, cy + Math.sin(a + 0.3) * 30, cx + Math.cos(a) * 44, cy + Math.sin(a) * 20);
+      c.stroke();
+    }
+    // 虹膜：黑紫漸層 + 一圈星點
+    const iris = c.createRadialGradient(cx, cy, 6, cx, cy, 40);
+    iris.addColorStop(0, '#000000');
+    iris.addColorStop(0.45, '#1a0630');
+    iris.addColorStop(0.8, '#6a2ab8');
+    iris.addColorStop(1, '#2a0a4a');
+    c.fillStyle = iris;
+    c.beginPath(); c.arc(cx, cy, 40, 0, Math.PI * 2); c.fill();
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      sparkle(c, cx + Math.cos(a) * 30, cy + Math.sin(a) * 30, 2.2, i % 3 ? 0xd9b8ff : 0xffe2a8, 0.9);
+    }
+    // 瞳孔：豎直細縫
+    c.fillStyle = '#000';
+    c.beginPath(); c.ellipse(cx, cy, 6, 30, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+    // 高光
+    glow(c, cx - 14, cy - 14, 12, 0xffffff, 0.6);
+    // 下方滴落的黑色殘響
+    c.save();
+    c.strokeStyle = '#0c0618';
+    c.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {
+      const x = 50 + i * 32;
+      c.lineWidth = 6 - (i % 3);
+      c.beginPath(); c.moveTo(x, cy + 40); c.lineTo(x + (i % 2 ? 6 : -6), cy + 70 + (i % 3) * 22); c.stroke();
+      sparkle(c, x + (i % 2 ? 6 : -6), cy + 70 + (i % 3) * 22, 2.5, V, 0.8);
+    }
+    c.restore();
+  }, { x: 130, y: 104, color: 0xb46bff, scale: 1.1 });
+
+
   // ---------------- 裂谷墜影：墜星碎片拼成的影獸，裂隙透出紫焰與餘燼 ----------------
   canvasArt(scene, 'enemy_rift_spawn', 200, 200, (c) => {
     const V = 0xa060ff;

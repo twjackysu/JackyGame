@@ -114,7 +114,7 @@ describe('ch5 script', () => {
   it('only uses allowed battle ids and only the fin chapter card', () => {
     for (const lines of Object.values(CH5.nodes))
       for (const l of lines) {
-        if ('event' in l && l.event === 'battle') expect(['ch5_rift', 'boss_starfall']).toContain(l.id);
+        if ('event' in l && l.event === 'battle') expect(['ch5_rift', 'boss_starfall', 'boss_starfall_2']).toContain(l.id);
         if ('event' in l && l.event === 'chapterCard') expect(l.id).toBe('fin');
       }
   });
@@ -199,7 +199,7 @@ describe('ch5 script', () => {
     };
     const runs = play(s, first, loseOnce);
     const battles = runs.flatMap((r) => r.events).filter((e) => e.event === 'battle').map((e) => e.id);
-    expect(battles).toEqual(['ch5_rift', 'ch5_rift', 'boss_starfall', 'boss_starfall']);
+    expect(battles).toEqual(['ch5_rift', 'ch5_rift', 'boss_starfall', 'boss_starfall', 'boss_starfall_2', 'boss_starfall_2']);
     expect(s.flags.game_clear).toBe(true);
   });
 
