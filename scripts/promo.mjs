@@ -25,25 +25,25 @@ const SHOTS = [
     name: 'timing', url: '?debug&scene=Battle&enc=boss_wolfking&party=lian,rourke,io&lv=6',
     ready: `${getScene('Battle')}?.mode === 'command'`, settle: 2000,
     act: `(() => { const s = ${getScene('Battle')}; const e = s.enemies[0]; s.setLamps(0, 3); void s.runTiming(e.x, e.y - 40); })()`,
-    at: [1500, 4000, 7000],
+    at: [150, 500, 900],
   },
   {
     name: 'resonance', url: '?debug&scene=Battle&enc=forest_b&party=lian,serin,liora&lv=10',
     ready: `${getScene('Battle')}?.mode === 'command'`, settle: 2000,
     act: `(() => { const s = ${getScene('Battle')}; s.enemies.forEach((_, i) => s.setLamps(i, 3)); void s.playOne({ type: 'resonance', totalLamps: 6, perTarget: s.enemies.map((_, i) => ({ target: i, lamps: 3, amount: 120 })) }); })()`,
-    at: [6000, 9000, 12000, 15000, 18000],
+    at: [3000, 6000, 9000, 12000, 15000],
   },
   {
-    name: 'starstage', url: '?debug&scene=Battle&enc=boss_valderan&party=lian,serin,liora,io&lv=15',
+    name: 'starstage', url: '?debug&scene=Battle&enc=boss_valderan&party=lian,serin,io&lv=15',
     ready: `${getScene('Battle')}?.mode === 'command'`, settle: 2000,
-    act: `(() => { const s = ${getScene('Battle')}; s.starStage(); s.setDoomMark?.(0, 2); s.setLamps(0, 4); })()`,
+    act: `(() => { const s = ${getScene('Battle')}; s.starStage(); s.setDoomMark?.(1, 2); s.setLamps(0, 4); })()`,
     at: [8000, 16000],
   },
   {
-    name: 'finale', url: '?debug&scene=Battle&enc=boss_starfall_2&party=lian,serin,io,liora&lv=17',
+    name: 'finale', url: '?debug&scene=Battle&enc=boss_starfall_2&party=serin,lian,io&lv=17',
     ready: `${getScene('Battle')}?.mode === 'command'`, settle: 2000,
     act: `(() => { const s = ${getScene('Battle')}; const i = s.enemies.length - 1; void s.playOne({ type: 'finale', enemy: i, lamps: 10 }); })()`,
-    at: [5000, 9000, 13000, 17000, 22000],
+    at: [4000, 7000, 10000, 13000, 16000, 20000],
   },
   {
     name: 'cards', url: '?debug&scene=Cards&match=tourney_dealer', ready: `${getScene('Cards')}?.sys.isActive()`, settle: 20000, at: [0, 6000],
@@ -59,7 +59,7 @@ const browser = await chromium.launch({
 });
 for (const shot of SHOTS) {
   if (only && !only.split(',').includes(shot.name)) continue;
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ viewport: { width: 405, height: 720 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.log(`[${shot.name}] pageerror ${e.message}`));
   try {

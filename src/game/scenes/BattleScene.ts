@@ -408,7 +408,7 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: v.sprite, y: -6, duration: 1400 + i * 200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.enemies.push(v);
     });
-    const hx = [[360], [240, 480], [140, 360, 580]][this.bs.heroes.length - 1] ?? [360];
+    const hx = [[360], [240, 480], [140, 360, 580], [96, 272, 448, 624]][this.bs.heroes.length - 1] ?? [140, 360, 580];
     this.bs.heroes.forEach((h, i) => {
       const art = ART[heroArtKey(h.id)];
       const v = this.makeUnitView('hero', heroArtKey(h.id), hx[i] ?? 360, 790, h.hp, h.maxHp, h.name, art?.h ?? 200);
@@ -1717,8 +1717,10 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: orb, x: lian.x, y: lian.y - 60, duration: 600, ease: 'Cubic.InOut', onComplete: () => orb.destroy() });
     });
     if (lian) {
-      const beam = this.add.rectangle(lian.x, lian.y - 300, 120, 760, 0xffd27a, 0).setDepth(745).setBlendMode(Phaser.BlendModes.ADD);
-      this.tweens.add({ targets: beam, fillAlpha: 0.6, duration: 300, yoyo: true, hold: 500, delay: 500, onComplete: () => beam.destroy() });
+      // 柔邊光柱（用共鳴的 pillar 材質，不用硬邊矩形）
+      const beam = this.add.image(lian.x, lian.y - 380, 'pillar').setDisplaySize(90, 1000).setTint(0xffd27a).setAlpha(0)
+        .setDepth(745).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: beam, alpha: 1, displayWidth: 200, duration: 300, yoyo: true, hold: 500, delay: 500, onComplete: () => beam.destroy() });
       lian.root.setDepth(750);
     }
     await wait(this, 900);
