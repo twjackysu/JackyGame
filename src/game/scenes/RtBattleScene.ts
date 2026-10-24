@@ -506,6 +506,10 @@ export class RtBattleScene extends Phaser.Scene {
       else if (e.type === 'summon') {
         const b = u(e.id);
         if (b) shockRing(this, this.sx(b.x), this.sy(b.y), 0xb080ff, 140, 400, 5);
+      } else if (e.type === 'despawn') {
+        const d = u(e.id);
+        if (d) sparks(this, this.sx(d.x), this.sy(d.y), 8, 'ember', 0x8a7aa8, 400);
+        this.killSprite(e.id);
       } else if (e.type === 'respawn') {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 10, 'ember', 0x8a7aa8, 500);

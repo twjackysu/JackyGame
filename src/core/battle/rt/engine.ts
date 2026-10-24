@@ -293,6 +293,7 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== dst.id);
     emit(s, { tick: s.tick, type: 'death', id: dst.id });
     if (dst.groupId) queueRespawn(s, dst.groupId);
+    if (dst.mode && ENEMIES[dst.defId]?.boss && !(s.bossKills ??= []).includes(dst.defId)) s.bossKills.push(dst.defId);
   }
 }
 
@@ -699,8 +700,18 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
       e.mode = 'idle';
       e.hp = e.maxHp;
       e.statuses = [];
+      if (ENEMIES[e.defId]?.boss) resetBoss(s, e);
       emit(s, { tick: s.tick, type: 'reset', id: e.id });
     } else navToward(s, e, hx, hy, 0, 1.3);
+    return true;
+  }
+  // Boss 區域：玩家跑出去 → Boss 回家（回到原位時整場重置）
+  const zone = STAGES[s.stageId]?.bossZone;
+  if (zone && ENEMIES[e.defId]?.boss && !e.action && dist(p.x, p.y, zone.x, zone.y) > zone.r) {
+    e.mode = 'returning';
+    e.statuses = [];
+    s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== e.id);
+    emit(s, { tick: s.tick, type: 'leash', id: e.id });
     return true;
   }
   // 戰鬥中：在仇恨範圍內就算還在交手
@@ -722,6 +733,22 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
     return true;
   }
   return false;
+}
+
+/** Boss 整場重置（design/20 B1）：回第一階段、冷卻與召喚計時歸零、召喚物消失 */
+function resetBoss(s: BattleState, b: Unit): void {
+  b.phase = 1;
+  b.ready = {};
+  b.action = null;
+  b.nextAttackTick = s.tick + 15;
+  b.nextSummonTick = Number.MAX_SAFE_INTEGER;
+  for (let i = s.units.length - 1; i >= 0; i--) {
+    const m = s.units[i]!;
+    if (m.summonedBy !== b.id) continue;
+    s.units.splice(i, 1);
+    s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== m.id);
+    if (!m.dead) emit(s, { tick: s.tick, type: 'despawn', id: m.id });
+  }
 }
 
 /** 戰鬥中、比自己先醒（同 tick 比 id）的怪已經有 maxChasers 隻 → 排隊 */
@@ -795,6 +822,16 @@ function updateEnemy(s: BattleState, e: Unit): void {
         const m = makeEnemy(s, minion, e.x + (k % 2 === 0 ? -1 : 1) * 160, e.y - 60);
         clampArena(s, m);
         m.nextAttackTick = s.tick + 30;
+        if (e.mode) {
+          // 地圖上的 Boss：召喚物直接進戰鬥、家在 Boss 原位，Boss 重置時消失
+          m.summonedBy = e.id;
+          m.mode = 'combat';
+          m.tier = 'normal';
+          m.homeX = e.homeX;
+          m.homeY = e.homeY;
+          m.engagedTick = s.tick;
+          m.aggroTick = s.tick;
+        }
         s.units.push(m);
       }
       emit(s, { tick: s.tick, type: 'summon', id: e.id, count: sm.count });

@@ -848,3 +848,82 @@ describe('營火：安全範圍、休息、復活（design/20 B4）', () => {
     expect(r.outcome).toBe('defeat');
   });
 });
+
+describe('Boss 區域重置（design/21 §2、design/20 B1）', () => {
+  beforeAll(() => {
+    STAGES.test_boss = {
+      id: 'test_boss', name: '測試巢穴', timeLimitTicks: sec(9999), player: { x: u(15), y: u(34) }, mapAi: true, enemies: [],
+      arena: { w: u(30), h: u(40) }, reviveAtCampfire: true,
+      campfires: [{ id: 'camp', x: u(15), y: u(36) }],
+      bossZone: { x: u(15), y: u(10), r: u(10) },
+      spawnGroups: [{ id: 'king', enemyId: 'wolf_king', cx: u(15), cy: u(8), spawnRadius: 0, maxAlive: 1, respawnTicks: 0, tier: 'boss' }],
+    };
+  });
+  afterAll(() => {
+    delete STAGES.test_boss;
+  });
+  const boss = (s: ReturnType<typeof createBattle>) => s.units.find((x) => x.defId === 'wolf_king')!;
+  const toPhase2 = (s: ReturnType<typeof createBattle>) => {
+    const p = playerOf(s);
+    p.hp = p.maxHp = 1e9;
+    p.speedPerTick = 0;
+    p.x = u(15);
+    p.y = u(12);
+    for (let i = 0; i < sec(2); i++) step(s, [{ type: 'stop' }]);
+    const b = boss(s);
+    expect(b.mode).toBe('combat');
+    b.hp = Math.floor(b.maxHp * 0.4);
+    // 玩家釘在巢穴裡（Boss 的衝撞會把人推出區域）
+    for (let i = 0; i < sec(14); i++) {
+      p.x = u(15);
+      p.y = u(12);
+      step(s, [{ type: 'stop' }]);
+    }
+    expect(b.phase).toBe(2);
+    expect(s.units.some((x) => x.summonedBy === b.id && !x.dead)).toBe(true);
+    return b;
+  };
+
+  it('打到第二階段後跑出巢穴：Boss 回家後回滿、回第一階段、召喚的小狼消失', () => {
+    const s = createBattle({ stageId: 'test_boss', seed: 1 });
+    const b = toPhase2(s);
+    const p = playerOf(s);
+    p.y = u(30); // 巢穴外
+    for (let i = 0; i < sec(15); i++) step(s, [{ type: 'stop' }]);
+    expect(b.mode === 'idle' || b.mode === 'dormant').toBe(true);
+    expect(b.hp).toBe(b.maxHp);
+    expect(b.phase).toBe(1);
+    expect(s.units.some((x) => x.summonedBy === b.id)).toBe(false);
+    expect(s.events.some((e) => e.type === 'despawn')).toBe(true);
+  });
+
+  it('倒下在營火醒來也會重置 Boss；打倒 Boss 記下首殺、不重生', () => {
+    const s = createBattle({ stageId: 'test_boss', seed: 2 });
+    const b = toPhase2(s);
+    const p = playerOf(s);
+    p.hp = 1;
+    p.maxHp = 620;
+    for (let i = 0; i < sec(10) && !s.revives; i++) {
+      if (!p.dead) {
+        p.x = u(15);
+        p.y = u(12);
+      }
+      step(s, [{ type: 'stop' }]);
+    }
+    expect(s.revives).toBe(1);
+    for (let i = 0; i < sec(15); i++) step(s, [{ type: 'stop' }]);
+    expect(b.phase).toBe(1);
+    expect(b.hp).toBe(b.maxHp);
+    // 再來一次，這次打倒
+    p.hp = p.maxHp = 1e9;
+    p.atk = 99999;
+    p.speedPerTick = 0;
+    p.x = u(15);
+    p.y = u(9.3);
+    for (let i = 0; i < sec(20) && !b.dead; i++) step(s, [{ type: 'target', id: b.id }]);
+    expect(b.dead).toBe(true);
+    expect(s.bossKills).toEqual(['wolf_king']);
+    for (let i = 0; i < sec(10); i++) step(s, [{ type: 'stop' }]);
+    expect(s.units.some((x) => x.defId === 'wolf_king' && !x.dead)).toBe(false);
+  });
+});

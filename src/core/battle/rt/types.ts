@@ -196,6 +196,8 @@ export interface Unit {
   /** 地圖怪（D-072）；undefined＝一般戰鬥行為 */
   /** dormant＝離玩家太遠的待機怪，整個不跑 AI、不參與分離（design/20 B1） */
   mode?: 'dormant' | 'idle' | 'combat' | 'returning';
+  /** Boss 召喚出來的（召喚者 id）；Boss 重置時一起消失 */
+  summonedBy?: number;
   /** 由哪個重生點生出來的（SpawnGroup，design/20 B1） */
   groupId?: string;
   /** 進入戰鬥的 tick（同時追擊上限的排隊順序：先醒的先打） */
@@ -241,6 +243,8 @@ export type BattleEvent =
   | { tick: number; type: 'death'; id: number }
   | { tick: number; type: 'respawn'; id: number; group: string }
   | { tick: number; type: 'rest'; id: number; campfire: string }
+  /** 單位直接移除（Boss 重置時召喚物消失） */
+  | { tick: number; type: 'despawn'; id: number }
   | { tick: number; type: 'revive'; id: number; campfire: string }
   | { tick: number; type: 'telegraph'; owner: number; attack: string }
   | { tick: number; type: 'dodge'; id: number }
@@ -318,6 +322,11 @@ export interface StageDefinition {
    * 追太遠或太久沒交手就返回原位回滿。沒設＝舊行為（一開場全部衝過來）。
    */
   mapAi?: boolean;
+  /**
+   * Boss 區域（需要 mapAi，design/21 §2）：玩家離開這個圓（世界座標）Boss 就脫戰回家，
+   * 回到原位時整場重置（回滿、回第一階段、召喚物消失）。倒下在營火醒來也會重置。
+   */
+  bossZone?: { x: number; y: number; r: number };
   /** 營火（需要 mapAi） */
   campfires?: Campfire[];
   /** 倒下時在營火復活（不掉裝、不扣經驗；design/20 B4），不算失敗；沒設＝倒下就失敗 */
@@ -352,6 +361,8 @@ export interface BattleState {
   potions: number;
   /** 最後休息的營火（復活點）；沒有＝第一個營火 */
   campfireId?: string;
+  /** 這場打倒過的 Boss（defId，首殺劇情旗標用） */
+  bossKills?: string[];
   /** 在營火復活的次數 */
   revives?: number;
   /** 重生排程：重生點 id → 到期 tick（遞增排序） */
