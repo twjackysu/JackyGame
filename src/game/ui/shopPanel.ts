@@ -8,7 +8,7 @@ import { SHOPS, itemDef } from '../../data/equipment';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce, sparks } from '../fx/feel';
 import { session, withNames } from '../session';
-import { deltaScore, deltaText, heroName, itemIcon, itemSubline } from './gearUi';
+import { deltaScore, deltaText, heroName, itemIcon, itemSubline, itemNameColor, perkLine } from './gearUi';
 
 const PAGE = 6;
 const ROW_H = 88;
@@ -97,7 +97,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
         row.add(bg);
         row.add(itemIcon(scene, id, -266, 0, 62));
         const own = s.inventory[id] ?? 0;
-        row.add(scene.add.text(-224, -16, d.name, { fontFamily: UI_FONT, fontSize: '25px', fontStyle: '700', color: afford ? '#ffffff' : '#6a7398' }).setOrigin(0, 0.5));
+        row.add(scene.add.text(-224, -16, d.name, { fontFamily: UI_FONT, fontSize: '25px', fontStyle: '700', color: afford ? itemNameColor(d.id) : '#6a7398' }).setOrigin(0, 0.5));
         row.add(scene.add.text(-224, 17, itemSubline(d), { fontFamily: UI_FONT, fontSize: '18px', color: '#9aa4cc' }).setOrigin(0, 0.5));
         row.add(scene.add.text(296, -14, mode === 'buy' ? `${price} 金` : `+${price} 金`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: afford ? '#ffd27a' : '#5a6380' }).setOrigin(1, 0.5));
         row.add(scene.add.text(296, 18, `持有 ${own}`, { fontFamily: UI_FONT, fontSize: '18px', color: '#7a84a8' }).setOrigin(1, 0.5));
@@ -144,7 +144,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
       const id = selected;
       const d = itemDef(id);
       add(scene.add.text(70, top + 22, d.name, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a' }));
-      add(scene.add.text(70, top + 58, d.desc, { fontFamily: UI_FONT, fontSize: '20px', color: '#c8d0f0', wordWrap: { width: 420, useAdvancedWrap: true } }));
+      add(scene.add.text(70, top + 58, [d.desc, perkLine(d)].filter(Boolean).join('\n'), { fontFamily: UI_FONT, fontSize: '20px', color: '#c8d0f0', wordWrap: { width: 420, useAdvancedWrap: true } }));
       // 成交按鈕
       const price = mode === 'buy' ? buyPrice(id, discountPct) : sellPrice(id);
       const ok = mode === 'sell' || s.gold >= price;

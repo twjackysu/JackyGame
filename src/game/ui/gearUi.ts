@@ -4,7 +4,7 @@ import { statsAtLevel, type BaseStats } from '../../core/battle/formulas';
 import { totalBonus } from '../../core/state/equip';
 import type { GameState, MemberId } from '../../core/state/gameState';
 import { HEROES } from '../../data/combatants';
-import { itemDef, type ItemDef } from '../../data/equipment';
+import { PERK_INFO, RARITY_COLOR, RARITY_CSS, itemDef, rarityOf, type ItemDef } from '../../data/equipment';
 import { UI_FONT } from '../fx/feel';
 
 const GLYPH: Record<string, string> = { weapon: '⚔', armor: '⛨', charm: '◈', use: '✚', key: '✦' };
@@ -15,7 +15,15 @@ export function itemIcon(scene: Phaser.Scene, id: string, x: number, y: number, 
   const d = itemDef(id);
   const out: Phaser.GameObjects.GameObject[] = [];
   const kindKey = d.slot ?? d.kind;
+  const rar = d.rarity ?? 'common';
+  if (rar !== 'common') {
+    // 稀有／神級：外圈光暈（神級會呼吸）
+    const glow = scene.add.circle(x, y, size * 0.56, RARITY_COLOR[rar], rar === 'legendary' ? 0.32 : 0.22).setBlendMode(Phaser.BlendModes.ADD);
+    if (rar === 'legendary') scene.tweens.add({ targets: glow, alpha: 0.12, scale: 1.12, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    out.push(glow);
+  }
   const halo = scene.add.circle(x, y, size * 0.48, GLYPH_COL[kindKey] ?? 0xffffff, 0.12);
+  if (rar !== 'common') halo.setStrokeStyle(2, RARITY_COLOR[rar], 0.9);
   out.push(halo);
   if (d.icon && scene.textures.exists(d.icon)) {
     const img = scene.add.image(x, y, d.icon);
@@ -50,7 +58,19 @@ export function deltaScore(b: BaseStats): number {
 export function itemSubline(d: ItemDef): string {
   if (d.kind !== 'gear') return d.desc;
   const who = d.for ? `　${d.for.map((m) => HEROES[m]?.name ?? m).join('、')}` : '　全員';
-  return `${bonusText(d.bonus)}${who}`;
+  const perk = d.perk ? `　✦${PERK_INFO[d.perk].name}` : '';
+  return `${bonusText(d.bonus)}${who}${perk}`;
+}
+
+/** 神級特效完整說明（沒有回傳空字串） */
+export function perkLine(d: ItemDef): string {
+  return d.perk ? `✦${PERK_INFO[d.perk].name}：${PERK_INFO[d.perk].desc}` : '';
+}
+
+/** 物品名稱顏色（稀有藍、神級金） */
+export function itemNameColor(id: string, fallback = '#ffffff'): string {
+  const r = rarityOf(id);
+  return r === 'common' ? fallback : RARITY_CSS[r];
 }
 
 /** 角色有效數值（等級＋裝備） */

@@ -5,6 +5,7 @@ import { treeEffect } from './skillTree';
 import type { HeroId } from '../battle/skills';
 import { ITEM_DEFS, SHOPS, SLOTS, itemDef, type ItemDef, type Slot } from '../../data/equipment';
 import type { GameState, MemberId } from './gameState';
+import type { Perk } from '../battle/engine';
 
 export const SELL_RATE = 0.5;
 
@@ -64,7 +65,7 @@ export function sellPrice(id: string): number {
 
 export function buy(s: GameState, id: string, discountPct = 0): boolean {
   const p = buyPrice(id, discountPct);
-  if (!ITEM_DEFS[id] || ITEM_DEFS[id]!.price <= 0 || s.gold < p) return false;
+  if (!ITEM_DEFS[id] || ITEM_DEFS[id]!.price <= 0 || (ITEM_DEFS[id]!.rarity ?? 'common') !== 'common' || s.gold < p) return false;
   s.gold -= p;
   give(s, id, 1);
   return true;
@@ -108,11 +109,29 @@ export function totalBonus(s: GameState, m: MemberId): Required<BaseStats> {
 }
 
 /** 戰鬥上場隊伍（前 3 位）＋裝備與技能樹加成 */
-export function battleParty(s: GameState): { id: HeroId; level: number; bonus: Required<BaseStats>; startSp: number; startEmber: number }[] {
+export function battleParty(s: GameState): { id: HeroId; level: number; bonus: Required<BaseStats>; startSp: number; startEmber: number; perks: Perk[] }[] {
   return s.party.slice(0, 3).map((m) => {
     const t = treeEffect(s, m);
-    return { id: m as HeroId, level: s.members[m]?.level ?? 1, bonus: totalBonus(s, m), startSp: t.startSp, startEmber: t.startEmber };
+    return { id: m as HeroId, level: s.members[m]?.level ?? 1, bonus: totalBonus(s, m), startSp: t.startSp, startEmber: t.startEmber, perks: gearPerks(s, m) };
   });
+}
+
+/** 身上神級裝備的特效 */
+export function gearPerks(s: GameState, member: MemberId): Perk[] {
+  const eq = s.members[member]?.equipment ?? {};
+  const out: Perk[] = [];
+  for (const slot of SLOTS) {
+    const p = eq[slot] ? ITEM_DEFS[eq[slot]!]?.perk : undefined;
+    if (p && !out.includes(p)) out.push(p);
+  }
+  return out;
+}
+
+/** 把掉落寫進背包，並設定 Boss 首殺旗標 */
+export function grantDrops(s: GameState, items: readonly string[], defeated: readonly string[]): void {
+  for (const id of items) give(s, id, 1);
+  for (const e of defeated) if (e.startsWith('boss_')) s.flags[`kill_${e}`] = true;
+  for (const id of items) s.flags[`seen_${id}`] = true;
 }
 
 /**

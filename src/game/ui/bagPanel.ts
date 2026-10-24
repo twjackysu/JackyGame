@@ -3,14 +3,14 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { canEquip, gearDelta, unequip, equip } from '../../core/state/equip';
 import type { MemberId } from '../../core/state/gameState';
-import { SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
+import { PERK_INFO, SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
 import { branchName } from '../../data/skillTree';
 import { learn, learnState, learned, pointsLeft, resetTree, treeFor } from '../../core/state/skillTree';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce, sparks } from '../fx/feel';
 import { session, withNames } from '../session';
 import { HERO_COLOR } from './partyPanel';
-import { bonusText, deltaScore, deltaText, heroName, itemIcon, itemSubline, memberStats } from './gearUi';
+import { bonusText, deltaScore, deltaText, heroName, itemIcon, itemSubline, memberStats, itemNameColor } from './gearUi';
 
 type Tab = 'gear' | 'skills' | 'items';
 
@@ -174,8 +174,8 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
         row.add(scene.add.text(-290, 0, SLOT_NAME[sl], { fontFamily: UI_FONT, fontSize: '20px', color: '#8a94b8' }).setOrigin(0, 0.5));
         if (id) {
           row.add(itemIcon(scene, id, -186, 0, 62));
-          row.add(scene.add.text(-146, -15, itemDef(id).name, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5));
-          row.add(scene.add.text(-146, 17, bonusText(itemDef(id).bonus), { fontFamily: UI_FONT, fontSize: '18px', color: '#7dffb0' }).setOrigin(0, 0.5));
+          row.add(scene.add.text(-146, -15, itemDef(id).name, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: itemNameColor(id) }).setOrigin(0, 0.5));
+          row.add(scene.add.text(-146, 17, bonusText(itemDef(id).bonus) + (itemDef(id).perk ? `　✦${PERK_INFO[itemDef(id).perk!].name}` : ''), { fontFamily: UI_FONT, fontSize: '18px', color: '#7dffb0' }).setOrigin(0, 0.5));
         } else row.add(scene.add.text(-186, 0, '（空）', { fontFamily: UI_FONT, fontSize: '22px', color: '#4a5378' }).setOrigin(0, 0.5));
         const n = candidates(sl).length;
         row.add(scene.add.text(296, 0, n ? `可換 ${n} ▸` : '▸', { fontFamily: UI_FONT, fontSize: '20px', color: n ? '#ffd27a' : '#4a5378' }).setOrigin(1, 0.5));
@@ -213,7 +213,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
           const dt = gearDelta(s, who, id);
           const good = deltaScore(dt) > 0;
           row.add(itemIcon(scene, id, -250, 0, 54));
-          row.add(scene.add.text(-212, -13, `${itemDef(id).name} ×${s.inventory[id] ?? 0}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5));
+          row.add(scene.add.text(-212, -13, `${itemDef(id).name} ×${s.inventory[id] ?? 0}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: itemNameColor(id) }).setOrigin(0, 0.5));
           row.add(scene.add.text(-212, 16, bonusText(itemDef(id).bonus), { fontFamily: UI_FONT, fontSize: '16px', color: '#9aa4cc' }).setOrigin(0, 0.5));
           row.add(scene.add.text(276, 0, deltaText(dt) || '一樣', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: good ? '#7dffb0' : '#ff9a9a' }).setOrigin(1, 0.5));
         } else row.add(scene.add.text(0, 0, `卸下${SLOT_NAME[sl]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5));
@@ -264,7 +264,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear'): 
         const bg = add(scene.add.graphics());
         bg.fillStyle(0x151a30, 1).fillRoundedRect(50, y - 40, GAME_WIDTH - 100, 80, 14);
         for (const o of itemIcon(scene, id, 96, y, 60)) add(o);
-        add(scene.add.text(140, y - 16, `${d.name}　×${s.inventory[id]}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: d.kind === 'key' ? '#ffe08a' : '#ffffff' }).setOrigin(0, 0.5));
+        add(scene.add.text(140, y - 16, `${d.name}　×${s.inventory[id]}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: d.kind === 'key' ? '#ffe08a' : itemNameColor(id) }).setOrigin(0, 0.5));
         add(scene.add.text(140, y + 17, d.kind === 'gear' ? itemSubline(d) : d.desc, { fontFamily: UI_FONT, fontSize: '18px', color: '#9aa4cc' }).setOrigin(0, 0.5));
         const tag = d.kind === 'use' ? '戰鬥用' : d.kind === 'gear' ? SLOT_NAME[d.slot!] : d.kind === 'gift' ? '禮物' : '重要';
         add(scene.add.text(GAME_WIDTH - 70, y, tag, { fontFamily: UI_FONT, fontSize: '18px', color: '#7a84a8' }).setOrigin(1, 0.5));

@@ -60,7 +60,22 @@ export interface Unit {
   downed: boolean;
   bossPhase: 1 | 2;
   actionsPerRound: number;
+  /** 神級裝備特效（src/data/equipment.ts PERK_INFO） */
+  perks?: Perk[];
+  /** 不滅（lastStand）尚未用掉 */
+  lastStand?: boolean;
 }
+
+/**
+ * 神級裝備特效（11-open-world §2.4b）
+ * - lampStart：開場時每個敵人掛 1 盞燈
+ * - spRegen：自己回合開始時額外 +1 SP
+ * - lastStand：第一次受到致命傷害時以 1 HP 撐住
+ * - widePerfect：全隊時機判定窗口 +15%
+ * - swift：每回合最先行動
+ */
+export type Perk = 'lampStart' | 'spRegen' | 'lastStand' | 'widePerfect' | 'swift';
+export const WIDE_PERFECT_SCALE = 1.15;
 
 export interface ActorRef {
   side: 'hero' | 'enemy';
@@ -99,6 +114,8 @@ export interface BattleState {
   usedOnce: string[];
   /** 霧：判定窗口倍率 & 剩餘回合 */
   windowScale: number;
+  /** 沒有霧時的判定窗口倍率（widePerfect = 1.15） */
+  baseWindow?: number;
   fogRounds: number;
   telegraphLeadBonusMs: number;
   leadBonusRounds: number;
@@ -140,6 +157,7 @@ export type BattleEvent =
   | { type: 'emberDrained'; enemy: number; amount: number; healed: number }
   | { type: 'combo'; skill: 'lamp_slash' | 'lamp_detonator' }
   | { type: 'skip'; actor: ActorRef; reason: 'broken' | 'downed' }
+  | { type: 'perk'; target: ActorRef; perk: Perk }
   | { type: 'victory' }
   | { type: 'defeat' };
 
@@ -150,7 +168,7 @@ export interface Result {
 
 export interface CreateBattleOptions {
   /** bonus：裝備加成（src/core/state/equip.ts gearBonus） */
-  party: { id: HeroId; level: number; hp?: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number }[];
+  party: { id: HeroId; level: number; hp?: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number; perks?: readonly Perk[] }[];
   enemies: string[];
   seed: number;
   /** retryBoost：劇情戰連敗次數（不屈之燈）→ 開場星燼 +N、敵方攻擊 −5%/次（上限 4 次） */
@@ -190,6 +208,7 @@ export function createBattle(opts: CreateBattleOptions): Result {
       side: 'hero', id: p.id, name: def.name, level: p.level, hp: p.hp ?? st.hp, maxHp: st.hp, atk: st.atk, def: st.def,
       spd: st.spd, sp: Math.min(MAX_SP, START_SP + (p.startSp ?? 0)), element: def.attackElement, weak: [], resist: [], status: freshStatus(), lamps: 0,
       breakGauge: 0, breakMax: 0, broken: false, downed: (p.hp ?? st.hp) <= 0, bossPhase: 1, actionsPerRound: 1,
+      ...(p.perks?.length ? { perks: [...p.perks], lastStand: p.perks.includes('lastStand') } : {}),
     };
   });
   const enemies: Unit[] = opts.enemies.map((id) => {
@@ -212,6 +231,17 @@ export function createBattle(opts: CreateBattleOptions): Result {
     windowScale: 1, fogRounds: 0, telegraphLeadBonusMs: 0, leadBonusRounds: 0, rewindSnapshot: null,
   };
   const events: BattleEvent[] = [];
+  if (heroes.some((h) => h.perks?.includes('widePerfect'))) state.baseWindow = state.windowScale = WIDE_PERFECT_SCALE;
+  // 神級：開場燈印（每位持有者讓每個敵人 +1 盞，總數不超過上限）
+  heroes.forEach((h, hi) => {
+    if (!h.perks?.includes('lampStart')) return;
+    events.push({ type: 'perk', target: { side: 'hero', index: hi }, perk: 'lampStart' });
+    enemies.forEach((e, ei) => {
+      if (totalLamps(state) >= MAX_LAMPS) return;
+      e.lamps += 1;
+      events.push({ type: 'lampPlaced', target: ei, count: 1, total: e.lamps });
+    });
+  });
   nextActor(state, events);
   return { state, events };
 }
@@ -277,10 +307,17 @@ function applyDamage(
   const shielded = u.side === 'enemy' && hasTrait(u, 'eyeShield') && eyeAlive(s);
   if (shielded) amount = Math.max(1, Math.round(amount * EYE_SHIELD_MUL));
   u.hp = Math.max(0, u.hp - amount);
+  // 神級：不滅——第一次致命傷以 1 HP 撐住
+  const saved = u.hp <= 0 && u.side === 'hero' && !!u.lastStand;
+  if (saved) {
+    u.hp = 1;
+    u.lastStand = false;
+  }
   ev.push({
     type: 'damage', target: ref, amount, timing: info.timing, weak: !!info.weak, crit: !!info.crit, source: info.source,
     ...(shielded ? { shielded: true } : {}),
   });
+  if (saved) ev.push({ type: 'perk', target: ref, perk: 'lastStand' });
   if (u.hp <= 0) {
     u.downed = true;
     u.status.guarding = false;
@@ -307,7 +344,7 @@ function applyDamage(
         sub: def.phase2?.sub ?? (fog ? '判定窗口縮小' : undefined),
       });
       if (def.traits?.includes('fogPhase2')) {
-        s.windowScale = 0.7;
+        s.windowScale = 0.7 * (s.baseWindow ?? 1);
         s.fogRounds = 3;
       }
     }
@@ -356,11 +393,11 @@ function startRound(s: BattleState, ev: BattleEvent[]) {
         if (j !== i && alive(o)) applyDamage(s, ev, { side: 'hero', index: j }, Math.max(1, Math.round(o.maxHp * DOOM_MARK_SPLASH)), { source: 'doomMark' });
       });
     });
-    if (s.fogRounds > 0 && --s.fogRounds === 0) s.windowScale = 1;
+    if (s.fogRounds > 0 && --s.fogRounds === 0) s.windowScale = s.baseWindow ?? 1;
     if (s.leadBonusRounds > 0 && --s.leadBonusRounds === 0) s.telegraphLeadBonusMs = 0;
   }
   const entries: { ref: ActorRef; spd: number; order: number }[] = [];
-  s.heroes.forEach((h, i) => entries.push({ ref: { side: 'hero', index: i }, spd: h.spd, order: i }));
+  s.heroes.forEach((h, i) => entries.push({ ref: { side: 'hero', index: i }, spd: h.spd + (h.perks?.includes('swift') ? 1000 : 0), order: i }));
   s.enemies.forEach((e, i) => {
     for (let k = 0; k < e.actionsPerRound; k++) {
       entries.push({ ref: { side: 'enemy', index: i }, spd: e.spd / (k + 1), order: 10 + i + k * 0.5 });
@@ -395,7 +432,7 @@ function nextActor(s: BattleState, ev: BattleEvent[]) {
     s.actor = ref;
     ev.push({ type: 'turnStart', actor: ref, round: s.round });
     if (ref.side === 'hero') {
-      u.sp = Math.min(MAX_SP, u.sp + 1);
+      u.sp = Math.min(MAX_SP, u.sp + (u.perks?.includes('spRegen') ? 2 : 1));
       u.status.guarding = false;
       if (u.id === 'rourke') u.status.counterStance = false;
       if (u.status.poison > 0) {

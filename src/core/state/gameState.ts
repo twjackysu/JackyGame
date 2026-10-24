@@ -1,5 +1,6 @@
 // 全域遊戲狀態（純邏輯，不 import phaser）。見 docs/design/06-tech-architecture.md §3。
 
+import { ITEM_DEFS } from '../../data/equipment';
 export type StatKey = 'str' | 'agi' | 'int' | 'cha';
 export type Faction = 'order' | 'town' | 'miners' | 'caravan';
 export type CompanionId = 'serin' | 'liora' | 'io' | 'rourke';
@@ -82,7 +83,11 @@ export function newGamePlus(prev: GameState, now = Date.now()): GameState {
   s.gold = prev.gold;
   s.cards = { ...prev.cards };
   s.flags.ng_plus = Number(prev.flags.ng_plus ?? 0) + 1;
-  for (const [k, v] of Object.entries(prev.flags)) if (k.startsWith('ending_seen_') || k.startsWith('tip_')) s.flags[k] = v;
+  for (const [k, v] of Object.entries(prev.flags)) if (k.startsWith('ending_seen_') || k.startsWith('tip_') || k.startsWith('seen_')) s.flags[k] = v;
+  // 稀有／神級裝備（背包＋身上）帶進二週目——刷到的寶物不會白費
+  const keep = (id: string) => (ITEM_DEFS[id]?.rarity ?? 'common') !== 'common';
+  for (const [id, n] of Object.entries(prev.inventory)) if (keep(id) && n > 0) s.inventory[id] = (s.inventory[id] ?? 0) + n;
+  for (const m of Object.values(prev.members)) for (const id of Object.values(m?.equipment ?? {})) if (id && keep(id)) s.inventory[id] = (s.inventory[id] ?? 0) + 1;
   if (typeof prev.flags.ending === 'string') s.flags[`ending_seen_${prev.flags.ending}`] = true;
   return s;
 }

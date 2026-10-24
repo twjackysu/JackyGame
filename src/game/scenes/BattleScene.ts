@@ -14,7 +14,12 @@ import {
   type BattleEvent,
   type BattleState,
   type Command,
+  type Perk,
 } from '../../core/battle/engine';
+import { PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, itemDef, rarityOf } from '../../data/equipment';
+import { firstKillFlag, rollDrops } from '../../data/drops';
+import { grantDrops } from '../../core/state/equip';
+import { itemIcon, perkLine } from '../ui/gearUi';
 import { HP_CARRY_FROM, MAX_EMBER, WINDOWS, carriedHp, judgeAttack, judgeDefense, type BaseStats, type DefenseResult, type Telegraph, type Timing } from '../../core/battle/formulas';
 import { SKILLS, type HeroId } from '../../core/battle/skills';
 import { GestureTracker, type Gesture } from '../../core/input/gesture';
@@ -30,7 +35,7 @@ import {
 
 export interface BattleSceneData {
   encounter?: string;
-  party?: { id: HeroId; level: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number }[];
+  party?: { id: HeroId; level: number; bonus?: Partial<BaseStats>; startSp?: number; startEmber?: number; perks?: readonly Perk[] }[];
   /** 示範連戰：勝利後接下一場 */
   chain?: string[];
   seed?: number;
@@ -132,6 +137,8 @@ export class BattleScene extends Phaser.Scene {
   /** 旅程統計（片尾字幕用）：本場累計，結束時寫進存檔 */
   private statAcc = { perfect: 0, lamps: 0, maxRes: 0 };
   private markHintShown = false;
+  /** 開場事件（神級「先燃」的燈印）——intro 結束時播放 */
+  private openingEvents: BattleEvent[] = [];
 
   constructor() {
     super('Battle');
@@ -175,7 +182,7 @@ export class BattleScene extends Phaser.Scene {
     const enemies = [...(ENCOUNTERS[this.data0.encounter] ?? ['mist_wolf'])];
     // 劇情分歧：吹口哨讓狼群回來 → 狼王戰多一隻霧狼（ch1）
     if (this.data0.story && this.data0.encounter === 'boss_wolfking' && session.state.flags['wolfpack_returned']) enemies.push('mist_wolf');
-    this.bs = createBattle({
+    const created = createBattle({
       party: this.data0.party, enemies, seed: this.data0.seed,
       items: this.data0.story ? {
         potion_s: session.state.inventory['potion_s'] ?? 0, lamp_oil: session.state.inventory['lamp_oil'] ?? 0,
@@ -188,7 +195,9 @@ export class BattleScene extends Phaser.Scene {
         preemptive: this.data0.ambush === 'player',
         retryBoost: this.retryCount(),
       } : { guidingLight: true },
-    }).state;
+    });
+    this.bs = created.state;
+    this.openingEvents = created.events.filter((e) => e.type === 'perk' || e.type === 'lampPlaced');
     for (const h of this.bs.heroes) {
       h.name = withNames(h.name);
       // 第 2 章：瑟琳獨自衝鋒時受的傷（serin_scar）→ 最大 HP −10%
@@ -263,6 +272,10 @@ export class BattleScene extends Phaser.Scene {
       bigText(this, GAME_WIDTH / 2, 600, '不屈之燈', '#ffd27a', 56, 800);
       floatNumber(this, GAME_WIDTH / 2, 670, `星燼 +${boost}・敵方攻擊 −${boost * 5}%`, { color: '#ffe2a8', size: 28 });
       await wait(this, 1000);
+    }
+    if (this.openingEvents.length) {
+      await this.play(this.openingEvents);
+      this.openingEvents = [];
     }
     this.step();
   }
@@ -1471,6 +1484,8 @@ export class BattleScene extends Phaser.Scene {
       }
       case 'resonance':
         return this.fxResonance(e);
+      case 'perk':
+        return this.fxPerk(e.target, e.perk);
       case 'break': {
         const v = this.enemies[e.target];
         if (!v) return;
@@ -1676,6 +1691,83 @@ export class BattleScene extends Phaser.Scene {
       default:
         return;
     }
+  }
+
+  /** 掉落演出：卡片翻開＋稀有藍／神級金光柱（畫面上方，VICTORY 之上） */
+  private async showDrops(items: string[]): Promise<void> {
+    const n = Math.min(items.length, 3);
+    const best = items.some((id) => rarityOf(id) === 'legendary') ? 'legendary' : items.some((id) => rarityOf(id) === 'rare') ? 'rare' : 'common';
+    const cy = 250;
+    const gap = 210;
+    for (let i = 0; i < n; i++) {
+      const id = items[i]!;
+      const d = itemDef(id);
+      const rar = rarityOf(id);
+      const col = RARITY_COLOR[rar];
+      const x = GAME_WIDTH / 2 + (i - (n - 1) / 2) * gap;
+      // 光柱
+      const pillar = this.add.image(x, cy - 40, 'pillar').setDepth(945).setBlendMode(Phaser.BlendModes.ADD)
+        .setTint(col).setDisplaySize(rar === 'legendary' ? 150 : 110, 620).setAlpha(0).setOrigin(0.5, 0.75);
+      this.tweens.add({ targets: pillar, alpha: rar === 'legendary' ? 0.9 : 0.6, duration: 260 });
+      this.tweens.add({ targets: pillar, alpha: { from: 0.75, to: 0.4 }, duration: 900, delay: 300, yoyo: true, repeat: -1 });
+      // 卡背
+      const card = this.add.container(x, cy).setDepth(950).setScale(0.2).setAlpha(0);
+      const back = this.add.graphics();
+      back.fillStyle(0x141a33, 1).fillRoundedRect(-80, -105, 160, 210, 16);
+      back.lineStyle(4, col, 1).strokeRoundedRect(-80, -105, 160, 210, 16);
+      const q = this.add.text(0, 0, '?', { fontFamily: TITLE_FONT, fontSize: '80px', color: RARITY_CSS[rar] }).setOrigin(0.5);
+      card.add([back, q]);
+      this.tweens.add({ targets: card, scale: 1, alpha: 1, duration: 320, ease: 'Back.Out' });
+      SFX.cardPlay();
+      await wait(this, 380);
+      // 翻面
+      await new Promise<void>((res) => this.tweens.add({ targets: card, scaleX: 0, duration: 140, ease: 'Sine.In', onComplete: () => res() }));
+      card.removeAll(true);
+      const face = this.add.graphics();
+      face.fillStyle(0x0d1124, 1).fillRoundedRect(-80, -105, 160, 210, 16);
+      face.fillStyle(col, 0.18).fillRoundedRect(-80, -105, 160, 210, 16);
+      face.lineStyle(4, col, 1).strokeRoundedRect(-80, -105, 160, 210, 16);
+      card.add(face);
+      card.add(itemIcon(this, id, 0, -28, 96));
+      card.add(this.add.text(0, 50, d.name, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: RARITY_CSS[rar], stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: 150, useAdvancedWrap: true } }).setOrigin(0.5));
+      card.add(this.add.text(0, 84, RARITY_NAME[rar], { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5));
+      await new Promise<void>((res) => this.tweens.add({ targets: card, scaleX: 1, duration: 160, ease: 'Back.Out', onComplete: () => res() }));
+      shockRing(this, x, cy, col, 180, 500, 6);
+      sparks(this, x, cy, rar === 'legendary' ? 50 : 26, 'ember', col, 500);
+      if (rar === 'legendary') {
+        this.cameras.main.shake(400, 0.012);
+        this.cameras.main.flash(250, 255, 220, 120);
+        SFX.levelUp();
+        this.time.delayedCall(180, () => SFX.perfect());
+      } else SFX.itemGet();
+      await wait(this, 260);
+    }
+    const head = best === 'legendary' ? '✦ 神級掉落！ ✦' : best === 'rare' ? '稀有掉落！' : '獲得物品';
+    const t = this.add.text(GAME_WIDTH / 2, 100, head, {
+      fontFamily: TITLE_FONT, fontSize: best === 'legendary' ? '48px' : '40px', color: RARITY_CSS[best], stroke: '#000', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(960).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, y: 92, duration: 300 });
+    const perk = items.map((id) => itemDef(id)).find((d) => d.perk);
+    if (perk) {
+      const pt = this.add.text(GAME_WIDTH / 2, 392, perkLine(perk), {
+        fontFamily: UI_FONT, fontSize: '22px', color: '#ffe6a0', stroke: '#000', strokeThickness: 4, align: 'center', wordWrap: { width: 620, useAdvancedWrap: true },
+      }).setOrigin(0.5).setDepth(960).setAlpha(0);
+      this.tweens.add({ targets: pt, alpha: 1, duration: 400 });
+    }
+    if (items.length > n) floatNumber(this, GAME_WIDTH / 2, 392, `另外 ${items.length - n} 件已放進行囊`, { color: '#c8d0f0', size: 22 });
+    await wait(this, 500);
+  }
+
+  /** 神級特效發動：金色字卡＋光環 */
+  private async fxPerk(ref: ActorRef, perk: Perk): Promise<void> {
+    const v = this.viewOf(ref);
+    if (!v) return;
+    SFX.perfect();
+    shockRing(this, v.x, v.y - 40, 0xffc84a, 160, 500, 6);
+    sparks(this, v.x, v.y - 40, 26, 'ember', 0xffd05a, 400);
+    floatNumber(this, v.x, v.y - 150, `✦ ${PERK_INFO[perk].name}`, { color: '#ffd05a', size: 40 });
+    if (perk === 'lastStand') this.cameras.main.flash(200, 255, 220, 120);
+    await wait(this, 420);
   }
 
   private async fxDamage(e: Extract<BattleEvent, { type: 'damage' }>): Promise<void> {
@@ -1887,6 +1979,15 @@ export class BattleScene extends Phaser.Scene {
         const left = this.bs.items[it];
         if (left === 0) delete session.state.inventory[it];
         else if (left !== undefined) session.state.inventory[it] = left;
+      }
+      // 稀有掉落（D-049）：每隻敵人各擲一次；Boss 首殺必掉
+      const defeated = this.bs.enemies.map((e) => e.id);
+      const f = session.state.flags;
+      const drops = rollDrops(defeated, (this.data0.seed ^ 0x9e3779b9) >>> 0, (id) => !!f[firstKillFlag(id)]);
+      grantDrops(session.state, drops, defeated);
+      if (drops.length) {
+        session.save();
+        await this.showDrops(drops);
       }
     }
     const label = story ? (win ? '繼續 ▶' : '重新振作') : win ? (next ? '繼續前進 ▶' : '回到標題') : '再試一次';
