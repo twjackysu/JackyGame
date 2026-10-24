@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 📖 **故事修訂（D-055，優先度次於上一條的階段 1）**：Jacky 已採用「星燼＝記憶殘響」與「戀愛選擇／世界結局分開判定」。工作範圍與驗收見 `docs/design/16-story-upgrade.md` §11（只動文字與結局判定，不改系統）。design/16 其他項目、design/15 技能樹與裝備**尚未拍板，不要動**。
+> 📖 **故事修訂（D-055，優先度次於上一條的階段 1）**：Jacky 已採用「星燼＝記憶殘響」與「戀愛選擇／世界結局分開判定」。工作範圍與驗收見 `docs/design/16-story-upgrade.md` §11（只動文字與結局判定，不改系統）。design/16 其他項目、design/15 技能樹與裝備的方向已拍板（D-056、D-057），但**要等 14 的階段 1 與 2.1 完成後才做**，不要提前動。
 
 > 🧭 **最高優先（Jacky 10/24 晚，D-053／D-054）**：長尾刷寶＋後端可移植層。**先讀 `docs/design/14-implementation-order.md`，從「階段 1 地基」依序做**（亂數注入 → 裝備實例化＋存檔 migration → 資料表與 `RULES_VERSION` → 本機埠 → `GameApi`），階段 1 驗收前不要開始階段 2 以後。之後影響玩家資產的邏輯一律寫在 `src/server/`（規則見其 README，`tests/server-boundary.test.ts` 強制）。設計依據：`docs/design/13-chatgpt-ideas.md`。與探索里程碑（11-open-world）交錯時，以本條為先；每輪結束遊戲仍要能玩、測試全綠。
 
