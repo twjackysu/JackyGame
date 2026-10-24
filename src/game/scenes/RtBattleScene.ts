@@ -510,6 +510,13 @@ export class RtBattleScene extends Phaser.Scene {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 8, 'ember', 0x8a7aa8, 400);
         this.killSprite(e.id);
+      } else if (e.type === 'pickup') {
+        const p = playerOf(this.s);
+        // 只是畫面上的字（這些東西是試玩場景的戰利品統計，不是主線玩家資產）
+        const L: [string, string] =
+          e.kind === 'gold' ? [`+${e.amount} 金`, '#ffd27a'] : e.kind === 'dust' ? [`粉塵 +${e.amount}`, '#9fd8ff'] : e.kind === 'crystal' ? [`結晶 +${e.amount}`, '#d0a0ff'] : [`藥水 +${e.amount}`, '#7dffb0'];
+        floatNumber(this, this.sx(p.x) + 40, this.sy(p.y) - 70, L[0], { color: L[1], size: e.kind === 'gold' ? 22 : 24 });
+        if (e.kind !== 'gold') SFX.itemGet();
       } else if (e.type === 'respawn') {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 10, 'ember', 0x8a7aa8, 500);
@@ -724,6 +731,26 @@ export class RtBattleScene extends Phaser.Scene {
     const s = this.s;
     const now = this.time.now;
     this.ground.setPosition(this.ox, this.oy);
+    // 地面掉落：金幣（金色閃光）、粉塵（藍點）、結晶（紫菱形）、藥水（紅瓶）；上下浮動
+    for (const it of s.ground ?? []) {
+      const ix = this.sx(it.x);
+      const iy = this.sy(it.y) - 6 - 4 * Math.sin(now / 260 + it.id);
+      const k = this.k;
+      g.fillStyle(0x000000, 0.35).fillEllipse(ix, this.sy(it.y) + 6, 26 * k * 2, 8 * k * 2);
+      if (it.kind === 'gold') {
+        g.fillStyle(0xffc83a, 1).fillCircle(ix, iy, 13);
+        g.fillStyle(0xfff0a0, 1).fillCircle(ix - 4, iy - 4, 4);
+      } else if (it.kind === 'dust') {
+        g.fillStyle(0x7ac8ff, 0.9).fillCircle(ix, iy, 8).fillCircle(ix + 11, iy + 4, 6).fillCircle(ix - 10, iy + 5, 6);
+      } else if (it.kind === 'crystal') {
+        g.fillStyle(0xc080ff, 1).fillTriangle(ix, iy - 20, ix - 13, iy, ix + 13, iy).fillTriangle(ix, iy + 14, ix - 13, iy, ix + 13, iy);
+        g.lineStyle(2, 0xffffff, 0.7).lineBetween(ix - 4, iy - 10, ix, iy - 17);
+      } else {
+        g.fillStyle(0xe04848, 1).fillCircle(ix, iy + 3, 13);
+        g.fillStyle(0xf0e0c0, 1).fillRect(ix - 4, iy - 17, 8, 10);
+      }
+      if ((now / 400 + it.id) % 3 < 0.3) g.fillStyle(0xffffff, 0.8).fillCircle(ix + 6, iy - 8, 2.5);
+    }
     // 營火：安全範圍淡圈＋木柴＋跳動的火焰與光暈
     for (const c of STAGES[this.stageId]?.campfires ?? []) {
       const cx = this.sx(c.x);
@@ -863,7 +890,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
-    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　敵人 ${es.length}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
+    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `金 ${s.loot.gold ?? 0}　粉塵 ${s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
     const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < SWORDSMAN.potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
@@ -981,7 +1008,7 @@ export class RtBattleScene extends Phaser.Scene {
     const farming = !!STAGES[this.stageId]?.spawnGroups?.length;
     bigText(this, GAME_WIDTH / 2, 420, win ? '勝利！' : r.outcome === 'timeout' ? (farming ? '刷怪結束' : '時間到') : '倒下了…', win || farming ? '#ffd27a' : '#ff8a8a', 72, -1);
     const lines = farming
-      ? `擊殺 ${r.kills}　營火醒來 ${this.s.revives ?? 0} 次\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}　藥水 ${r.potionsUsed}`
+      ? `擊殺 ${r.kills}　營火醒來 ${this.s.revives ?? 0} 次\n撿到：金幣 ${this.s.loot?.gold ?? 0}　粉塵 ${this.s.loot?.dust ?? 0}　結晶 ${this.s.loot?.crystal ?? 0}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}　藥水 ${r.potionsUsed}`
       : `時間 ${(r.durationTicks / TICKS_PER_SEC).toFixed(1)} 秒　承傷 ${r.damageTaken}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}`;
     this.add.text(GAME_WIDTH / 2, 520, lines, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 8 }).setOrigin(0.5).setDepth(80);
     const mk = (y: number, label: string, fn: () => void) => {

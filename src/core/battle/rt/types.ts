@@ -99,6 +99,8 @@ export interface EnemyDefinition {
   speed: number;
   radius: number;
   attacks: AreaAttack[];
+  /** 掉落（只在開 loot 的關卡生效）：金幣範圍＋各種東西的機率（%）與數量 */
+  drops?: { gold: [number, number]; items?: { id: LootId; chance: number; count?: [number, number] }[] };
   boss?: {
     /** HP 比例 ≤ 此值進入第二階段（%） */
     phase2AtPct: number;
@@ -243,6 +245,8 @@ export type BattleEvent =
   | { tick: number; type: 'death'; id: number }
   | { tick: number; type: 'respawn'; id: number; group: string }
   | { tick: number; type: 'rest'; id: number; campfire: string }
+  | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number }
+  | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number }
   /** 單位直接移除（Boss 重置時召喚物消失） */
   | { tick: number; type: 'despawn'; id: number }
   | { tick: number; type: 'revive'; id: number; campfire: string }
@@ -308,6 +312,20 @@ export interface Campfire {
 }
 export const CAMPFIRE_RULES = { safeUnits: 4, restUnits: 1.8, reviveInvulnTicks: 3 * 30 } as const;
 
+/** 地面掉落（design/20 B5 的最小版本）：金幣、強化粉塵、強化結晶、HP 藥水 */
+export type LootId = 'gold' | 'dust' | 'crystal' | 'potion';
+export interface GroundItem {
+  id: number;
+  kind: LootId;
+  amount: number;
+  x: number;
+  y: number;
+  /** 掉下來的 tick（0.3 秒後才能撿，看得到掉落） */
+  tick: number;
+}
+/** 自動撿取半徑 2.5 單位（design/20 B5）；地上放 120 秒消失 */
+export const LOOT_RULES = { pickupUnits: 2.5, pickupDelayTicks: 9, expireTicks: 120 * 30 } as const;
+
 /** 重生時玩家離重生點至少這麼遠（單位）；不夠遠就每秒再檢查一次 */
 export const RESPAWN_MIN_PLAYER_UNITS = 9;
 
@@ -327,6 +345,8 @@ export interface StageDefinition {
    * 回到原位時整場重置（回滿、回第一階段、召喚物消失）。倒下在營火醒來也會重置。
    */
   bossZone?: { x: number; y: number; r: number };
+  /** 開啟地面掉落與自動撿取（用獨立亂數，不影響戰鬥結果） */
+  loot?: boolean;
   /** 營火（需要 mapAi） */
   campfires?: Campfire[];
   /** 倒下時在營火復活（不掉裝、不扣經驗；design/20 B4），不算失敗；沒設＝倒下就失敗 */
@@ -361,6 +381,14 @@ export interface BattleState {
   potions: number;
   /** 最後休息的營火（復活點）；沒有＝第一個營火 */
   campfireId?: string;
+  /** 掉落用的獨立亂數狀態（不動 rngState，開不開掉落戰鬥結果都一樣） */
+  lootRng?: number;
+  /** 地上的掉落物 */
+  ground?: GroundItem[];
+  /** 掉落物流水號 */
+  lootSeq?: number;
+  /** 這場撿到的東西 */
+  loot?: Partial<Record<LootId, number>>;
   /** 這場打倒過的 Boss（defId，首殺劇情旗標用） */
   bossKills?: string[];
   /** 在營火復活的次數 */

@@ -1,8 +1,8 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
-import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, SpawnGroup, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, CAMPFIRE_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, LootId, PlayerDefinition, Shape, SkillHit, SpawnGroup, StatusApply, StatusId, Unit } from './types';
+import { AGGRO_RULES, CAMPFIRE_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -12,6 +12,16 @@ export function nextRand(s: BattleState): number {
   x ^= x >>> 17;
   x ^= x << 5;
   s.rngState = x >>> 0;
+  return (x >>> 0) / 4294967296;
+}
+
+/** 掉落專用亂數（獨立狀態，不動戰鬥的 rngState） */
+function lootRand(s: BattleState): number {
+  let x = (s.lootRng ?? 0) | 0 || 0x85ebca6b;
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  s.lootRng = x >>> 0;
   return (x >>> 0) / 4294967296;
 }
 
@@ -86,6 +96,12 @@ export function createBattle(setup: BattleSetup): BattleState {
   };
   // 打散初始種子
   for (let i = 0; i < 4; i++) nextRand(s);
+  if (stage.loot) {
+    s.lootRng = ((setup.seed ^ 0x5bd1e995) >>> 0) || 1;
+    s.ground = [];
+    s.loot = {};
+    s.lootSeq = 0;
+  }
   const b = setup.bonus ?? {};
   s.units.push({
     id: s.nextId++, side: 'player', defId: pd.id, x: stage.player.x, y: stage.player.y, r: pd.radius,
@@ -165,6 +181,43 @@ function processRespawns(s: BattleState): void {
     emit(s, { tick: s.tick, type: 'respawn', id: m.id, group: id });
     }
   }
+}
+
+// ---------------- 掉落與自動撿取（design/20 B5 最小版本） ----------------
+function rollDrops(s: BattleState, e: Unit): void {
+  const d = ENEMIES[e.defId]?.drops;
+  if (!d) return;
+  const range = (r: [number, number]) => r[0] + Math.floor(lootRand(s) * (r[1] - r[0] + 1));
+  const put = (kind: LootId, amount: number) => {
+    if (amount <= 0) return;
+    const a = lootRand(s) * Math.PI * 2;
+    const r = (0.3 + lootRand(s) * 0.5) * UNIT;
+    const it = { id: (s.lootSeq = (s.lootSeq ?? 0) + 1), kind, amount, x: e.x + Math.round(Math.cos(a) * r), y: e.y + Math.round(Math.sin(a) * r), tick: s.tick };
+    it.x = Math.min(s.arena.w - 20, Math.max(20, it.x));
+    it.y = Math.min(s.arena.h - 20, Math.max(20, it.y));
+    s.ground!.push(it);
+    emit(s, { tick: s.tick, type: 'drop', item: it.id, kind, amount });
+  };
+  put('gold', range(d.gold));
+  for (const i of d.items ?? []) if (lootRand(s) * 100 < i.chance) put(i.id, i.count ? range(i.count) : 1);
+}
+
+/** 走近 2.5 單位自動撿起；藥水滿了就留在地上；放太久消失 */
+function processPickup(s: BattleState): void {
+  if (!s.ground?.length) return;
+  const p = playerOf(s);
+  const carry = playerDef().potion.carry;
+  s.ground = s.ground.filter((it) => {
+    if (s.tick - it.tick > LOOT_RULES.expireTicks) return false;
+    if (p.dead || s.tick - it.tick < LOOT_RULES.pickupDelayTicks || dist(p.x, p.y, it.x, it.y) > LOOT_RULES.pickupUnits * UNIT) return true;
+    if (it.kind === 'potion') {
+      if (s.potions >= carry) return true;
+      s.potions = Math.min(carry, s.potions + it.amount);
+    }
+    s.loot![it.kind] = (s.loot![it.kind] ?? 0) + it.amount;
+    emit(s, { tick: s.tick, type: 'pickup', item: it.id, kind: it.kind, amount: it.amount });
+    return false;
+  });
 }
 
 /** 還有沒有會重生的怪（刷怪地圖不會因清空而勝利） */
@@ -293,6 +346,7 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== dst.id);
     emit(s, { tick: s.tick, type: 'death', id: dst.id });
     if (dst.groupId) queueRespawn(s, dst.groupId);
+    if (s.ground && dst.side === 'enemy' && !dst.summonedBy) rollDrops(s, dst);
     if (dst.mode && ENEMIES[dst.defId]?.boss && !(s.bossKills ??= []).includes(dst.defId)) s.bossKills.push(dst.defId);
   }
 }
@@ -911,6 +965,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   for (const x of s.units) if (x.statuses.length && !x.dead) tickDots(s, x);
   for (const x of s.units) if (x.statuses.length) x.statuses = x.statuses.filter((st) => st.until > s.tick);
   processRespawns(s);
+  processPickup(s);
   const p = playerOf(s);
   naturalRegen(s, p);
   if (p.dead && !reviveAtCampfire(s, p)) s.outcome = 'defeat';

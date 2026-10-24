@@ -927,3 +927,37 @@ describe('Boss 區域重置（design/21 §2、design/20 B1）', () => {
     expect(s.units.some((x) => x.defId === 'wolf_king' && !x.dead)).toBe(false);
   });
 });
+
+describe('地面掉落與自動撿取（design/20 B5 最小版本）', () => {
+  const run = (loot: boolean) => {
+    const st = STAGES.camp_clearing!;
+    const was = st.loot;
+    st.loot = loot;
+    try {
+      const s = createBattle({ stageId: 'camp_clearing', seed: 4 });
+      const bot = expert();
+      while (s.outcome === 'running') step(s, bot.decide(s));
+      return s;
+    } finally {
+      st.loot = was;
+    }
+  };
+
+  it('營火空地刷 5 分鐘：撿到金幣與粉塵；掉落＝撿到＋地上＋過期', () => {
+    const s = run(true);
+    expect(s.loot!.gold!).toBeGreaterThan(50);
+    expect(s.loot!.dust!).toBeGreaterThan(3);
+    const drops = s.events.filter((e) => e.type === 'drop').length;
+    const picks = s.events.filter((e) => e.type === 'pickup').length;
+    expect(drops).toBeGreaterThanOrEqual(picks + s.ground!.length); // 其餘是放超過 120 秒消失的
+    expect(picks).toBeGreaterThan(drops * 0.7); // 近戰打死的東西大多會順手撿到
+  });
+
+  it('掉落用獨立亂數：開不開掉落，戰鬥過程（擊殺、位置、HP）完全一樣', () => {
+    const a = run(true);
+    const b = run(false);
+    const sig = (s: ReturnType<typeof run>) => JSON.stringify([s.tick, s.rngState, s.units.map((x) => [x.id, x.x, x.y, x.hp, x.dead])]);
+    expect(sig(a)).toBe(sig(b));
+    expect(b.ground).toBeUndefined();
+  });
+});
