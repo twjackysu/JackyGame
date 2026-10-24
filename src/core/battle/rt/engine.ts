@@ -114,6 +114,8 @@ export function createBattle(setup: BattleSetup): BattleState {
     const def = ENEMIES[e.enemyId];
     if (!def) throw new Error(`unknown enemy ${e.enemyId}`);
     const m = makeEnemy(s, def, e.x, e.y);
+    if (e.hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + e.hpPct)) / 100);
+    if (e.atkPct) m.atk = Math.round((m.atk * (100 + e.atkPct)) / 100);
     if (stage.mapAi) {
       m.mode = 'idle';
       m.tier = e.tier ?? (def.boss ? 'boss' : 'normal');

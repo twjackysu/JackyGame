@@ -339,7 +339,8 @@ export interface StageDefinition {
   name: string;
   arena: Arena;
   player: { x: number; y: number };
-  enemies: { enemyId: string; x: number; y: number; tier?: AggroTier }[];
+  /** 固定敵人；hpPct／atkPct＝這隻 HP／攻擊 +%（地圖上的 Boss 想比試玩關耐打時用，不必改 ENEMIES） */
+  enemies: { enemyId: string; x: number; y: number; tier?: AggroTier; hpPct?: number; atkPct?: number }[];
   /**
    * 地圖怪行為（D-072，design/20 B1）：敵人一開始待機，玩家進入仇恨半徑（且看得到）才進戰鬥，
    * 追太遠或太久沒交手就返回原位回滿。沒設＝舊行為（一開場全部衝過來）。

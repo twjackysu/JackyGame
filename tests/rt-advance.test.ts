@@ -61,3 +61,19 @@ describe('SpawnGroup 區域難度 hpPct／atkPct', () => {
     expect([w.maxHp, w.atk]).toEqual([w0.maxHp, w0.atk]);
   });
 });
+
+describe('固定敵人 hpPct／atkPct', () => {
+  afterAll(() => {
+    delete STAGES.test_boss_pct;
+  });
+  it('只影響有設的那隻；Boss 二階段門檻跟著新的 maxHp', () => {
+    const base = STAGES.wolf_king!;
+    STAGES.test_boss_pct = { ...base, id: 'test_boss_pct', enemies: base.enemies.map((e) => (e.enemyId === 'wolf_king' ? { ...e, hpPct: 100, atkPct: 10 } : e)) };
+    const a = createBattle({ stageId: 'test_boss_pct', seed: 1 });
+    const b = createBattle({ stageId: 'wolf_king', seed: 1 });
+    const ka = a.units.find((x) => x.defId === 'wolf_king')!;
+    const kb = b.units.find((x) => x.defId === 'wolf_king')!;
+    expect(ka.maxHp).toBe(kb.maxHp * 2);
+    expect(ka.atk).toBe(Math.round(kb.atk * 1.1));
+  });
+});
