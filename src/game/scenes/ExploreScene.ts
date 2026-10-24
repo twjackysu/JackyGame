@@ -9,10 +9,12 @@ import {
 import {
   findPath, nearestWalkable, parseGrid, pathToAdjacent, slideMove, walkable, type Grid, type Pt,
 } from '../../core/explore/grid';
-import { applyEffects, check, type Condition } from '../../core/state/gameState';
+import { applyEffects, check, type Condition, type MemberId } from '../../core/state/gameState';
 import { AREAS } from '../../data/areas';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { currentChapter } from '../../data/maps';
+import { banterFor } from '../../data/banter';
+import { HERO_COLOR } from '../ui/partyPanel';
 import type { BattleSceneData } from './BattleScene';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TILE, drawAreaGround, drawChest, drawChibi, drawSignBoard } from '../art/exploreArt';
@@ -62,7 +64,7 @@ export class ExploreScene extends Phaser.Scene {
   private grid!: Grid;
   private player!: Phaser.GameObjects.Container;
   private playerImg!: Phaser.GameObjects.Image;
-  private followers: { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image }[] = [];
+  private followers: { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; id?: MemberId }[] = [];
   private trail: Pt[] = [];
   private escorts = new Map<string, { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image }>();
   private path: Pt[] = [];
@@ -95,6 +97,7 @@ export class ExploreScene extends Phaser.Scene {
     this.trail = [];
     this.escorts = new Map();
     this.fleeing = new Set();
+    this.lastBanter = 0;
     this.path = [];
     this.pending = undefined;
     this.actors = [];
@@ -154,7 +157,8 @@ export class ExploreScene extends Phaser.Scene {
     const py = start.y * TILE + TILE / 2;
     const party = s.party.filter((m) => m !== 'lian').slice(0, 3);
     party.forEach((m, i) => {
-      const f = this.makeWalker(`hero_${m}`, 80);
+      const f: { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; id?: MemberId } = this.makeWalker(`hero_${m}`, 80);
+      f.id = m;
       f.c.setPosition(px, py + (i + 1) * 4);
       this.followers.push(f);
     });
@@ -181,6 +185,7 @@ export class ExploreScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onMove(p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onUp(p));
     this.time.addEvent({ delay: 2200, loop: true, callback: () => this.wanderTick() });
+    this.time.addEvent({ delay: 9000, loop: true, callback: () => this.banterTick() });
     this.time.addEvent({ delay: 420, loop: true, callback: () => this.enemyTick() });
     this.events.off(Phaser.Scenes.Events.WAKE);
     this.events.on(Phaser.Scenes.Events.WAKE, (_: unknown, d?: { outcome?: string }) => this.onBattleEnd(d?.outcome ?? 'win'));
@@ -680,6 +685,31 @@ export class ExploreScene extends Phaser.Scene {
     this.time.delayedCall(3600, () => {
       if (this.bubble === b) this.closeBubble();
     });
+  }
+
+  /** 同伴偶爾冒一句話（不擋操作，跟著同伴走） */
+  private lastBanter = 0;
+  private banterTick(): void {
+    if (this.busy || this.leaving || this.bubble) return;
+    if (this.time.now - this.lastBanter < 22000 || Math.random() < 0.45) return;
+    const cands = this.followers.filter((f) => f.id);
+    const f = cands[Math.floor(Math.random() * cands.length)];
+    if (!f?.id) return;
+    const lines = banterFor(this.area.id, f.id);
+    const text = lines[Math.floor(Math.random() * lines.length)];
+    if (!text) return;
+    this.lastBanter = this.time.now;
+    const t = this.add.text(0, 0, withNames(text), { fontFamily: UI_FONT, fontSize: '19px', color: '#ffffff', wordWrap: { width: 300, useAdvancedWrap: true } }).setOrigin(0.5, 1);
+    const w = t.width + 26;
+    const h = t.height + 18;
+    const g = this.add.graphics();
+    g.fillStyle(0x070912, 0.88).fillRoundedRect(-w / 2, -h, w, h, 12);
+    g.lineStyle(2, HERO_COLOR[f.id] ?? 0xffffff, 0.9).strokeRoundedRect(-w / 2, -h, w, h, 12);
+    t.setPosition(0, -9);
+    const b = this.add.container(0, -96, [g, t]).setScale(0.6).setAlpha(0);
+    f.c.add(b);
+    this.tweens.add({ targets: b, scale: 1, alpha: 1, duration: 160, ease: 'Back.Out' });
+    this.tweens.add({ targets: b, alpha: 0, delay: 3200, duration: 300, onComplete: () => b.destroy() });
   }
 
   private closeBubble(): void {

@@ -285,3 +285,10 @@ describe('等級差逃跑', () => {
     expect(outleveled(20, 2, true)).toBe(false);
   });
 });
+
+describe('同伴閒聊', () => {
+  it('每個區域每位同伴都有台詞', async () => {
+    const { banterFor } = await import('../src/data/banter');
+    for (const area of Object.keys(AREAS)) for (const m of ['io', 'rourke', 'serin', 'liora'] as const) expect(banterFor(area, m).length, `${area}/${m}`).toBeGreaterThan(0);
+  });
+});
