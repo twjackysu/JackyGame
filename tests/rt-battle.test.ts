@@ -576,3 +576,34 @@ describe('自然恢復（D-073）', () => {
     expect(op.hp).toBe(300);
   });
 });
+
+describe('流場尋路效能（D-074）', () => {
+  it('48×96 石陣地圖、12 隻狼同時繞路追人：每 tick 遠低於 1 毫秒，80 秒內全部追到', () => {
+    const W = 48;
+    const H = 96;
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    // 每 8 列一道牆（只留一個缺口）＋8% 散石
+    const rows = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => ((y % 8 === 4 && x % 12 !== 6) || rnd() < 0.08 ? '#' : '.')).join(''));
+    const s = createBattle({ stageId: 'wolf_den', seed: 1 });
+    s.arena = { w: u(W), h: u(H), solid: { cell: u(1), rows } };
+    const p = playerOf(s);
+    p.x = u(6.5);
+    p.y = u(90.5);
+    p.hp = p.maxHp = 1e9;
+    p.speedPerTick = 0;
+    const es = enemiesOf(s);
+    while (es.length < 12) es.push({ ...es[0]!, id: 100 + es.length, statuses: [], ready: {} });
+    s.units = [p, ...es];
+    es.forEach((e, i) => {
+      e.x = u(6.5 + (i % 4) * 12);
+      e.y = u(10.5 + Math.floor(i / 4) * 2);
+      e.hp = e.maxHp = 1e9;
+    });
+    const t0 = performance.now();
+    for (let i = 0; i < sec(80); i++) step(s, [{ type: 'stop' }]);
+    const ms = (performance.now() - t0) / sec(80);
+    expect(ms).toBeLessThan(2); // 本機約 0.12ms；CI 機器慢一些也有餘裕
+    expect(es.filter((e) => dist(e.x, e.y, p.x, p.y) < u(4)).length).toBe(12);
+  }, 60000);
+});

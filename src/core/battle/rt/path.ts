@@ -159,19 +159,94 @@ export function findPath(g: Grid, from: number, to: number, maxNodes = 4000): nu
 }
 
 /**
+ * 流場（D-074）：從目標格往外的最短距離（Dijkstra，8 方向不切角，10／14）。
+ * 所有追同一個目標的單位共用一份，O(格數) 算一次；結果只取決於地圖與目標格（確定性）。
+ * -1＝走不到。
+ */
+export function flowField(g: Grid, goal: number): Int32Array {
+  let m = fieldCache.get(g);
+  if (!m) fieldCache.set(g, (m = new Map()));
+  const hit = m.get(goal);
+  if (hit) {
+    // LRU：用到的移到最後
+    m.delete(goal);
+    m.set(goal, hit);
+    return hit;
+  }
+  const n = g.w * g.h;
+  const d = new Int32Array(n).fill(-1);
+  if (g.walk[goal]) {
+    // 只有 10／14 兩種邊長：用兩條 FIFO 佇列＋依距離分桶的簡易 Dial 演算法
+    const buckets: number[][] = [];
+    d[goal] = 0;
+    buckets[0] = [goal];
+    for (let cost = 0; cost < buckets.length; cost++) {
+      const b = buckets[cost];
+      if (!b) continue;
+      for (let k = 0; k < b.length; k++) {
+        const cur = b[k]!;
+        if (d[cur] !== cost) continue;
+        const cx = cur % g.w;
+        const cy = (cur - cx) / g.w;
+        for (const [ox, oy, c] of NB) {
+          const x = cx + ox;
+          const y = cy + oy;
+          if (x < 0 || y < 0 || x >= g.w || y >= g.h) continue;
+          const ni = y * g.w + x;
+          if (!g.walk[ni]) continue;
+          if (ox && oy && (!g.walk[cy * g.w + x] || !g.walk[y * g.w + cx])) continue;
+          const nd = cost + c;
+          if (d[ni] !== -1 && d[ni]! <= nd) continue;
+          d[ni] = nd;
+          (buckets[nd] ??= []).push(ni);
+        }
+      }
+      buckets[cost] = undefined as unknown as number[];
+    }
+  }
+  m.set(goal, d);
+  if (m.size > 8) m.delete(m.keys().next().value as number);
+  return d;
+}
+const fieldCache = new WeakMap<Grid, Map<number, Int32Array>>();
+
+/** 沿流場往下走一格（距離最小的鄰格；同距離依 NB 順序） */
+function descend(g: Grid, d: Int32Array, i: number): number {
+  const cx = i % g.w;
+  const cy = (i - cx) / g.w;
+  let best = -1;
+  let bd = d[i]!;
+  for (const [ox, oy] of NB) {
+    const x = cx + ox;
+    const y = cy + oy;
+    if (x < 0 || y < 0 || x >= g.w || y >= g.h) continue;
+    const ni = y * g.w + x;
+    const v = d[ni]!;
+    if (v < 0 || v >= bd) continue;
+    if (ox && oy && (!g.walk[cy * g.w + x] || !g.walk[y * g.w + cx])) continue;
+    bd = v;
+    best = ni;
+  }
+  return best;
+}
+
+/**
  * 從 (ax,ay) 走向 (bx,by) 時，下一個要走去的點。
- * 直線走得通就直接回傳目標；否則沿 A* 路徑，挑「直線走得到的最遠路徑點」（拉直路徑，最多往前看 8 格）。
- * 回傳 null＝沒有路（呼叫端退回直線移動＋沿邊滑動）。
+ * 直線走得通就直接回傳目標；否則沿流場往下走（最多 8 格），挑直線走得到的最遠點（拉直路徑）。
+ * 回傳 null＝走不到（呼叫端退回直線移動＋沿邊滑動）。
  */
 export function nextWaypoint(g: Grid, ax: number, ay: number, bx: number, by: number, r: number): [number, number] | null {
   if (clearLine(g, ax, ay, bx, by, r)) return [bx, by];
-  const path = findPath(g, cellIndex(g, ax, ay), cellIndex(g, bx, by));
-  if (!path || path.length === 0) return null;
-  let best = cellCenter(g, path[0]!);
-  const look = Math.min(path.length, 8);
-  for (let k = 1; k < look; k++) {
-    const c = cellCenter(g, path[k]!);
-    if (!clearLine(g, ax, ay, c[0], c[1], r)) break;
+  const d = flowField(g, cellIndex(g, bx, by));
+  let i = cellIndex(g, ax, ay);
+  if (d[i]! < 0) return null;
+  let best: [number, number] | null = null;
+  for (let k = 0; k < 8; k++) {
+    const nx = descend(g, d, i);
+    if (nx < 0) break;
+    i = nx;
+    const c = cellCenter(g, i);
+    if (best && !clearLine(g, ax, ay, c[0], c[1], r)) break;
     best = c;
   }
   return best;

@@ -3,7 +3,7 @@
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
-import { cellIndex, clearLine, findPath, gridOf, nextWaypoint } from './path';
+import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
 export function nextRand(s: BattleState): number {
@@ -461,7 +461,7 @@ function setMoveGoal(s: BattleState, x: number, y: number): void {
   const gy = Math.min(s.arena.h - p.r, Math.max(p.r, Math.round(y)));
   if (s.arena.solid && isSolidAt(s.arena.solid, gx, gy)) return;
   const g = gridOf(s.arena);
-  if (g && findPath(g, cellIndex(g, p.x, p.y), cellIndex(g, gx, gy)) === null) return; // 走不到
+  if (g && flowField(g, cellIndex(g, gx, gy))[cellIndex(g, p.x, p.y)]! < 0) return; // 走不到
   // 最多走 10 秒（被怪擋住到不了時，自動恢復追擊）
   s.moveGoal = { x: gx, y: gy, until: s.tick + 10 * TICKS_PER_SEC };
 }
