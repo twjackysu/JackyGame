@@ -10,7 +10,7 @@
 - **營火光暈**改預烘放射漸層（ADD）；地圖怪關卡的 Boss 血條交戰中才顯示。
 - **`validateStage`**（`rt/maps/validate.ts`）：畫新地圖時檢查尺寸、起點／營火／重生點、可達性、營火安全圈、enemyId、地區範圍。
 - 刷怪關 30 秒沒動作提示「點一下怪物」；倒下在營火醒來改黑幕 1 秒淡入。
-- 核心 opt-in（沒設＝不變，舊七關 42 場 stateHash 相同）：Bot `advanceTo`（清路往目標推進）、`SpawnGroup.hpPct／atkPct`（區域難度）。
+- 核心 opt-in（沒設＝不變，舊七關 42 場 stateHash 相同）：Bot `advanceTo`（清路往目標推進）、`SpawnGroup.hpPct／atkPct` 與 `enemies[].hpPct／atkPct`（區域難度、地圖上的 Boss 加成）。
 
 ## D-083 2026-10-25 等 Jacky 試玩回覆的期限：10/26 12:00（台北）
 - 第 12 輪（10/24 23:10）起等 Jacky 回答試玩六題與 design/21 Q1～Q4，D-065 要求每個 Phase 做完停下來等試玩；但 Jacky 旅行中「大多時候聯絡不到」，11/3 前還有 P2 地圖、P3 Boss 整合、P4 刷寶要做。

@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> ✅ **第 16 輪（10/25 06:12–06:50）**：Jacky 仍沒回（沒有 Issue）。只做與 design/21 Q1～Q4 無關的準備（D-084）：**地面分塊烘焙**（順便修好地面一直偏 8px）、**成片障礙畫成樹林**、**小地圖（點了就走過去）**、地區名稱橫幅（`zones`）、每關鏡頭寬（`viewUnits`）、營火光暈材質、精英／Boss 箭頭距離、Boss 血條交戰才顯示；刷怪關 30 秒沒動作提示、營火醒來黑幕淡入；**`validateStage`** 關卡檢查；**design/22 霧語森林 48×96 草稿**（ASCII 版面＋重生點表，validateStage 0 問題，普通 Bot 10 分鐘 58 殺且打倒狼王）。538 項測試。
+> ✅ **第 16 輪（10/25 06:12–06:50）**：Jacky 仍沒回（沒有 Issue）。只做與 design/21 Q1～Q4 無關的準備（D-084）：**地面分塊烘焙**（順便修好地面一直偏 8px）、**成片障礙畫成樹林**、**小地圖（點了就走過去）**、地區名稱橫幅（`zones`）、每關鏡頭寬（`viewUnits`）、營火光暈材質、精英／Boss 箭頭距離、Boss 血條交戰才顯示；刷怪關 30 秒沒動作提示、營火醒來黑幕淡入；**`validateStage`** 關卡檢查；**design/22 霧語森林 48×96 草稿**（ASCII 版面＋重生點表，validateStage 0 問題，普通 Bot 10 分鐘 58 殺且打倒狼王）。539 項測試。
 > ⏰ **D-083：等 Jacky 回覆到 10/26 12:00（台北）**。期限到了還沒回 → 照 ⭐ 開工霧語森林（下面「期限到了」那段），只當新的獨立入口。
 > 除錯入口：`?debug&scene=RtBattle&stage=test_world`（48×96 測試大地圖，有小地圖、地區、13 格鏡頭；不在選單）。
 
@@ -12,19 +12,19 @@
 ## 開工霧語森林（Jacky 回覆或 D-083 期限到）
 1. 新檔 `src/core/battle/rt/maps/mistwood.ts`：貼 `docs/design/22-mistwood-draft.md` 的 ASCII（或 `python3 scripts/gen-mistwood-draft.py` 產生的 `/tmp/claude-0/mw/mw.json`），重生點照表（格中心＝`u(x) + 50`）、狼王 `enemies` ＋ `bossZone`、兩個營火、`reviveAtCampfire`、`loot`、`zones`（六區）、`viewUnits: 1300`。加進 `tests/rt-stage-validate.test.ts`（必須 0 問題）。**不要**放進 `STAGES` 的試玩選單迴圈以外會影響舊關卡雜湊的地方（舊七關 stateHash 要不變）。
 2. 入口：標題畫面加「即時戰鬥原型・霧語森林」按鈕 → `RtBattle` 場景 `stage=mistwood`（或新 `ForestScene` 繼承 `RtBattleScene`；畫面層的大地圖功能第 16 輪都已在 `RtBattleScene`）。不限時（`timeLimitTicks` 給很大），右上 ☰ 加「回標題」。獨立存檔（localStorage 新 key：首殺、累計擊殺、撿到的東西）——先只存這些，裝備／強化接主線存檔等 P4。
-3. 地圖版 Bot：第 16 輪已加 `advanceTo`（`tests/rt-advance.test.ts`）。開工時寫「新遊戲→打倒狼王」的模擬測試（三種 Bot 都設 `advanceTo` 狼王位置）。草稿地圖現在 3 分鐘就打完狼王（design/22），區域難度第 16 輪已有 `SpawnGroup.hpPct／atkPct`，起始值與試刷結果見 design/22（新手 5～6 分鐘、普通／熟練 3～4 分鐘打倒狼王）；`bossZone` 要 13 格；狼王想更耐打要讓 `enemies[]` 也支援 `hpPct`（不要改 `ENEMIES.wolf_king`，會動到第五關）。
+3. 地圖版 Bot：第 16 輪已加 `advanceTo`（`tests/rt-advance.test.ts`）。開工時寫「新遊戲→打倒狼王」的模擬測試（三種 Bot 都設 `advanceTo` 狼王位置）。草稿地圖現在 3 分鐘就打完狼王（design/22），區域難度第 16 輪已有 `SpawnGroup.hpPct／atkPct` 與 `enemies[].hpPct／atkPct`，**照 design/22 第二張表的數字**（狼王 +100%／+30%：新手約 10 分鐘倒 2～3 次、普通／熟練 4～5 分鐘）；`bossZone` 要 13 格。
 4. 地圖手感：地區入口提示（例如精英區「危險：狼群首領出沒」）、狼王巢穴入口的「Boss 方向」箭頭、首殺狼王的勝利演出＋「離開巢穴可再挑戰」。
 5. 「好玩嗎？」檢查：截圖每區、看 Bot 路線，深處要有更好的掉落（精英／狼王掉結晶）。
 
 ## 等待期間可以做（核心 opt-in、不改舊七關的規則與數值）
 1. ~~營火空地手感（30 秒提示、營火醒來黑幕淡入）~~、~~營火光暈材質~~：第 16 輪完成。
-2. ~~地圖版 Bot 往北推進~~（`advanceTo`）、~~`SpawnGroup` 區域難度~~（`hpPct／atkPct`）：第 16 輪完成。可以先做：`stage.enemies[]` 也支援 `hpPct／atkPct`（固定敵人／Boss 用；舊七關沒設＝不變，要做雜湊比對）。
+2. ~~地圖版 Bot 往北推進~~（`advanceTo`）、~~`SpawnGroup` 區域難度~~（`hpPct／atkPct`）：第 16 輪完成。`enemies[].hpPct／atkPct` 也完成。
 3. **數值觀察（不急，等裝備）**：舊四關一般戰普攻占比 12～29%（低於目標 35～45%）。
 4. **試玩場景小項**：技能鍵長按說明（Jacky 說看不懂再做）。
 5. **README 成果頁**：即時戰鬥介紹段落，等地圖接上後補完整章節。
 
 ## 驗證小抄
-- `npm run build`（含 tsc，**commit 前一定要跑**，第 15 輪漏跑推了一次紅燈）、`npx vitest run`（目前 538 項）、`RUNS=60 npm run sim:rt`（刷怪關會略過）。
+- `npm run build`（含 tsc，**commit 前一定要跑**，第 15 輪漏跑推了一次紅燈）、`npx vitest run`（目前 539 項）、`RUNS=60 npm run sim:rt`（刷怪關會略過）。
 - 場景檔裡不要寫出 `{ gold: …}`／`.gold +=` 之類的字樣：`tests/game-api.test.ts` 會掃描 `src/game/**` 防止繞過 GameApi 改資產（第 15 輪踩過）。
 - 刷怪耐久數據：`RT_SOAK_OUT=/tmp/claude-0/soak.json npx vitest run tests/rt-world-soak.test.ts`。
 - 舊關卡雜湊比對：寫一個暫時的 vitest 把 `Object.keys(STAGES)` × 種子 1–3 × normal／expert 的 `stateHash` 寫進檔案，`git stash -- src` 前後各跑一次 diff（第 15 輪的做法）。
