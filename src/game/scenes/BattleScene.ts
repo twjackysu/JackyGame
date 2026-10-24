@@ -22,7 +22,7 @@ import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silhouettes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { session, withNames } from '../session';
-import { getSettings, updateSettings } from '../settings';
+import { getSettings, highFx, updateSettings } from '../settings';
 import { backdropKey, battleBackdropFor } from '../art/backdrops';
 import { grantXp } from '../../core/state/gameState';
 import {
@@ -395,7 +395,7 @@ export class BattleScene extends Phaser.Scene {
       const v = this.makeUnitView('enemy', enemyArtKey(e.id), ex[i] ?? 360, ey[i] ?? 430, e.hp, e.maxHp, e.name, art?.h ?? 140);
       const boss = e.id.startsWith('boss_');
       v.sprite.setScale(boss ? 0.62 : 0.5);
-      if (this.isWebGL) v.sprite.preFX?.addGlow(boss ? 0x9a6bff : 0x5a7cff, 2, 0, false, 0.1, 10);
+      if (this.isWebGL && highFx()) v.sprite.preFX?.addGlow(boss ? 0x9a6bff : 0x5a7cff, 2, 0, false, 0.1, 10);
       // 敵人發光點（核心、眼睛、提燈）：緩慢脈動，讓剪影在暗背景中更有存在感
       if (art?.glow) {
         const k = boss ? 0.62 / 0.5 : 1;

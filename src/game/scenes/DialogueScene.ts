@@ -12,7 +12,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, pressBounce, shockRing, sparks, fadeOutThen } from '../fx/feel';
 import { creditsLines } from '../credits';
 import { RENAMEABLE, SCRIPTS, session, withNames } from '../session';
-import { textCharMs } from '../settings';
+import { highFx, textCharMs } from '../settings';
 import type { BattleSceneData } from './BattleScene';
 
 export interface DialogueSceneData {
@@ -211,7 +211,7 @@ export class DialogueScene extends Phaser.Scene {
     const x = side === 'left' ? 200 : GAME_WIDTH - 200;
     const img = this.add.image(x + (side === 'left' ? -80 : 80), 820, key).setOrigin(0.5, 1).setScale(0.95).setAlpha(0).setDepth(50);
     if (side === 'right' && speaker !== 'gwen' && speaker !== 'knight') img.setFlipX(false);
-    if (this.renderer.type === Phaser.WEBGL) img.preFX?.addGlow(0xffb565, 1.5, 0, false, 0.1, 8);
+    if (this.renderer.type === Phaser.WEBGL && highFx()) img.preFX?.addGlow(0xffb565, 1.5, 0, false, 0.1, 8);
     this.tweens.add({ targets: img, x, alpha: 1, duration: 260, ease: 'Cubic.Out' });
     this.portraits[side] = img;
   }

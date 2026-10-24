@@ -1,4 +1,5 @@
 // Game feel 工具（05 §4）：hit-stop、慢動作、傷害數字、火花、衝擊環、大字。
+import { getSettings, highFx } from '../settings';
 import Phaser from 'phaser';
 
 export const UI_FONT =
@@ -100,7 +101,7 @@ export function sparks(
     emitting: false,
   });
   p.setDepth(800);
-  p.explode(n);
+  p.explode(getSettings().lowFx ? Math.max(1, Math.round(n * 0.4)) : n);
   scene.time.delayedCall(900, () => p.destroy());
 }
 
@@ -135,7 +136,7 @@ export function bigText(
     .setDepth(950)
     .setScale(2.2)
     .setAlpha(0);
-  if (scene.renderer.type === Phaser.WEBGL) t.postFX?.addGlow(Phaser.Display.Color.HexStringToColor(color).color, 3, 0, false, 0.1, 12);
+  if (scene.renderer.type === Phaser.WEBGL && highFx()) t.postFX?.addGlow(Phaser.Display.Color.HexStringToColor(color).color, 3, 0, false, 0.1, 12);
   scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 180, ease: 'Back.Out' });
   if (hold >= 0) {
     scene.tweens.add({ targets: t, alpha: 0, scale: 1.15, delay: 180 + hold, duration: 260, onComplete: () => t.destroy() });

@@ -9,12 +9,14 @@ export interface Settings {
   sfx: boolean;
   /** 文字速度：每字毫秒 */
   textSpeed: 'normal' | 'fast';
+  /** 省電畫質：粒子減量、關閉逐物件光暈濾鏡（中低階手機） */
+  lowFx: boolean;
   /** 已顯示過「防守太難？可開自動時機」提示 */
   autoTipShown: boolean;
 }
 
 const KEY = 'jackygame.settings';
-const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, textSpeed: 'normal', autoTipShown: false };
+const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, textSpeed: 'normal', autoTipShown: false, lowFx: false };
 let cache: Settings | null = null;
 
 export function getSettings(): Settings {
@@ -45,5 +47,8 @@ export function applySettings(): void {
   setMuted(!s.sfx);
   setMusicEnabled(s.bgm);
 }
+
+/** 高畫質特效是否開啟（光暈濾鏡等） */
+export const highFx = (): boolean => !getSettings().lowFx;
 
 export const textCharMs = (): number => (getSettings().textSpeed === 'fast' ? 14 : 32);
