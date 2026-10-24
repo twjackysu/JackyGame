@@ -2,15 +2,15 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS } from '../../core/battle/skills';
-import { canEquip, gearDelta, owns, unequip, equip, wornTemplate } from '../../core/state/equip';
+import { canEquip, gearDelta, owns, wornTemplate } from '../../core/state/equip';
 import { bagCount, bagIds } from '../../core/state/gear';
 import type { MemberId } from '../../core/state/gameState';
 import { ITEM_DEFS, PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, SLOTS, SLOT_NAME, itemDef, type Slot } from '../../data/equipment';
 import { TREE_BY_ID, branchName, effectText, type TreeNode } from '../../data/skillTree';
-import { bossPoints, branchPoints, learn, learnState, learned, missingText, nodeDesc, pointsLeft, rankOf, resetCost, resetTree, treeFor } from '../../core/state/skillTree';
+import { bossPoints, branchPoints, learn, learnState, learned, missingText, nodeDesc, pointsLeft, rankOf, resetCost, treeFor } from '../../core/state/skillTree';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce, sparks } from '../fx/feel';
-import { session, withNames } from '../session';
+import { gameApi, opId, session, withNames } from '../session';
 import { HERO_COLOR } from './partyPanel';
 import { bonusText, deltaScore, deltaText, heroName, itemIcon, itemSubline, memberStats, itemNameColor } from './gearUi';
 
@@ -104,7 +104,7 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         const cost = resetCost(s, who, atCamp);
         const rb = add(scene.add.text(GAME_WIDTH - 56, 340, `↺ 重置${cost ? `（${cost} 金）` : '（營火・免費）'}`, { fontFamily: UI_FONT, fontSize: '20px', color: cost > s.gold ? '#6a5a5a' : '#ffb0a0' }).setOrigin(1, 0.5).setPadding(12, 8, 12, 8).setInteractive({ useHandCursor: true }));
         onTap(rb, () => {
-          if (!resetTree(s, who, atCamp)) {
+          if (!gameApi.resetTree(opId('resetTree'), { member: who, atCamp }).ok) {
             SFX.uiCancel();
             hint('金幣不夠——在營火旁重置免費');
             return;
@@ -278,8 +278,8 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         } else row.add(scene.add.text(0, 0, `卸下${SLOT_NAME[sl]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a0' }).setOrigin(0.5));
         row.setSize(580, 72).setInteractive({ useHandCursor: true });
         onTap(row, () => {
-          if (id) equip(s, who, id);
-          else unequip(s, who, sl);
+          if (id) gameApi.equip(opId('equip'), { member: who, ref: id });
+          else gameApi.unequip(opId('unequip'), { member: who, slot: sl });
           SFX.confirm();
           pressBounce(scene, row);
           sparks(scene, GAME_WIDTH / 2, 440 + SLOTS.indexOf(sl) * 96, 12, 'spark', 0x7dffb0);

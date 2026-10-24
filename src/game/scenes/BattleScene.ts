@@ -17,9 +17,6 @@ import {
   type Perk,
 } from '../../core/battle/engine';
 import { PERK_INFO, RARITY_COLOR, RARITY_CSS, RARITY_NAME, itemDef, rarityOf } from '../../data/equipment';
-import { firstKillFlag, rollDrops } from '../../data/drops';
-import { BOSS_POINT_KILLS } from '../../data/skillTree';
-import { grantDrops } from '../../core/state/equip';
 import { itemIcon, perkLine } from '../ui/gearUi';
 import { HP_CARRY_FROM, MAX_EMBER, WINDOWS, carriedHp, judgeAttack, judgeDefense, type BaseStats, type DefenseResult, type Telegraph, type Timing } from '../../core/battle/formulas';
 import { SKILLS, type HeroId } from '../../core/battle/skills';
@@ -27,7 +24,7 @@ import { GestureTracker, type Gesture } from '../../core/input/gesture';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { ART, enemyArtKey, generateCombatantArt, heroArtKey } from '../art/silhouettes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { session, withNames } from '../session';
+import { gameApi, opId, session, withNames } from '../session';
 import { getSettings, highFx, updateSettings } from '../settings';
 import { backdropKey, battleBackdropFor } from '../art/backdrops';
 import { grantXp } from '../../core/state/gameState';
@@ -2045,17 +2042,14 @@ export class BattleScene extends Phaser.Scene {
       if (Object.values(HP_CARRY_FROM).includes(this.data0.encounter)) {
         for (const h of this.bs.heroes) session.state.flags[`hp_${this.data0.encounter}_${h.id}`] = h.downed ? 0 : Math.round((h.hp / h.maxHp) * 100) / 100;
       }
-      for (const it of ['potion_s', 'potion_m', 'lamp_oil', 'blast_bottle'] as const) {
-        const left = this.bs.items[it];
-        if (left === 0) delete session.state.inventory[it];
-        else if (left !== undefined) session.state.inventory[it] = left;
-      }
-      // 稀有掉落（D-049）：每隻敵人各擲一次；Boss 首殺必掉
+      // 消耗品同步、稀有掉落（D-049：每隻敵人各擲一次；Boss 首殺必掉）一律經 GameApi
       const defeated = this.bs.enemies.map((e) => e.id);
-      const f = session.state.flags;
-      const drops = rollDrops(defeated, session.seed('loot'), (id) => !!f[firstKillFlag(id)]);
-      const newBossPoint = defeated.some((id) => (BOSS_POINT_KILLS as readonly string[]).includes(id) && !f[firstKillFlag(id)]);
-      grantDrops(session.state, drops, defeated);
+      const rw = gameApi.claimBattleRewards(opId('battle'), {
+        defeated,
+        consumablesLeft: { potion_s: this.bs.items.potion_s, potion_m: this.bs.items.potion_m, lamp_oil: this.bs.items.lamp_oil, blast_bottle: this.bs.items.blast_bottle },
+      });
+      const drops = rw.data?.drops ?? [];
+      const newBossPoint = !!rw.data?.newBossPoint;
       if (newBossPoint) {
         bigText(this, GAME_WIDTH / 2, 720, '首殺！全員技能點 +1', '#7dffb0', 34, 1400);
         SFX.levelUp();

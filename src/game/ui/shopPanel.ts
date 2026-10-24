@@ -2,13 +2,13 @@
 // 結構注意：通關機器人會找「depth = 傳入 depth 的 Container」裡第一個可互動的 Container（商品列）與文字「離開」。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { buy, buyPrice, canEquip, equip, gearDelta, sell, sellPrice, sellable, shopStock, wornTemplate } from '../../core/state/equip';
+import { buyPrice, canEquip, gearDelta, sellPrice, sellable, shopStock, wornTemplate } from '../../core/state/equip';
 import { bagCount } from '../../core/state/gear';
 import type { MemberId } from '../../core/state/gameState';
 import { SHOPS, itemDef } from '../../data/equipment';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce, sparks } from '../fx/feel';
-import { session, withNames } from '../session';
+import { gameApi, opId, session, withNames } from '../session';
 import { deltaScore, deltaText, heroName, itemIcon, itemSubline, itemNameColor, perkLine } from './gearUi';
 
 const PAGE = 6;
@@ -47,7 +47,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
     const list = (): string[] => (mode === 'buy' ? shopStock(shopId) : sellable(s));
 
     const deal = (id: string, row?: Phaser.GameObjects.Container): void => {
-      const ok = mode === 'buy' ? buy(s, id, discountPct) : sell(s, id);
+      const ok = (mode === 'buy' ? gameApi.buy(opId('buy'), { itemId: id, discountPct }) : gameApi.sell(opId('sell'), { itemId: id })).ok;
       if (!ok) {
         SFX.uiCancel();
         flash(mode === 'buy' ? '金幣不夠' : '不能賣');
@@ -188,7 +188,7 @@ export function openShop(scene: Phaser.Scene, shopId: string, depth = 300, disco
               flash('先買下來才能裝備');
               return;
             }
-            equip(s, m, id);
+            gameApi.equip(opId('equip'), { member: m, ref: id });
             SFX.confirm();
             sparks(scene, chip.x, chip.y, 12, 'spark', 0x7dffb0);
             render();

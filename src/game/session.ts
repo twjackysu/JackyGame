@@ -3,6 +3,9 @@ import { SaveStore, detectStorage } from '../core/save/save';
 import { newGame, type GameState } from '../core/state/gameState';
 import { drawSeed, newRngState, streamRng, type RngStream } from '../core/rngStreams';
 import type { Rng } from '../core/rng';
+import { KvEventJournal, systemClock } from '../core/save/localPorts';
+import { LocalGameApi } from '../server/localGameApi';
+import type { GameApi } from '../server/gameApi';
 import type { DialogueScript } from '../core/dialogue/runner';
 import { CH0 } from '../data/dialogue/ch0';
 import { CH1 } from '../data/dialogue/ch1';
@@ -92,6 +95,19 @@ export const session = {
     return typeof script === 'string' && typeof node === 'string' ? { script, node } : null;
   },
 };
+
+/**
+ * 改變玩家資產（金幣、裝備、道具）的唯一入口（design/14 階段 1.5）。
+ * 場景與 UI 不直接改 inventory／gear／gold；連線版只要把這裡換成 RemoteGameApi。
+ */
+export const gameApi: GameApi = new LocalGameApi(() => session.state, new KvEventJournal(storage.kv), systemClock);
+
+let opSeq = 0;
+/** 產生 operationId（同一次點擊只產生一次；重送同一個 id 不會重複生效） */
+export function opId(kind: string): string {
+  opSeq = (opSeq + 1) % 1e9;
+  return `${kind}-${Date.now().toString(36)}-${opSeq.toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
+}
 
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {

@@ -10,7 +10,7 @@ import {
 import {
   findPath, nearestWalkable, parseGrid, pathToAdjacent, slideMove, walkable, type Grid, type Pt,
 } from '../../core/explore/grid';
-import { applyEffects, check, type CompanionId, type Condition, type MemberId } from '../../core/state/gameState';
+import { check, type CompanionId, type Condition, type MemberId } from '../../core/state/gameState';
 import { AREAS } from '../../data/areas';
 import { ENCOUNTERS, ENEMIES } from '../../data/combatants';
 import { currentChapter } from '../../data/maps';
@@ -21,7 +21,7 @@ import { generateCombatantArt } from '../art/silhouettes';
 import { TILE, drawAreaGround, drawChest, drawChibi, drawSignBoard } from '../art/exploreArt';
 import { UI_FONT, fadeOutThen, shockRing, sparks } from '../fx/feel';
 import { highFx } from '../settings';
-import { session, withNames } from '../session';
+import { gameApi, opId, session, withNames } from '../session';
 import { battleParty } from '../../core/state/equip';
 import { ITEM_DEFS } from '../../data/equipment';
 import type { ExploreHudScene } from './ExploreHudScene';
@@ -671,7 +671,7 @@ export class ExploreScene extends Phaser.Scene {
       SFX.blip();
       this.say(a, `${a.e.name ? `${a.e.name}\n` : ''}${r.text}`);
     } else if (r.kind === 'loot') {
-      applyEffects(s, r.effects);
+      if (!gameApi.openChest(opId('chest'), { areaId: this.area.id, entityId: a.e.id }).ok) return;
       SFX.itemGet();
       if (a.img?.texture.key === 'prop_chest') a.img.setTint(0x6a6a7a).setAlpha(0.85);
       else a.img?.setTexture('ex_chest_open');
@@ -1053,11 +1053,10 @@ export class ExploreScene extends Phaser.Scene {
 
   /** 碰到逃跑中的小怪：直接趕跑（拿金幣、不進戰鬥） */
   private scareOff(a: Actor): void {
-    const s = session.state;
     this.defeated().add(a.e.id);
     this.chasing.delete(a.e.id);
     const g = a.e.gold ?? 0;
-    if (g > 0) applyEffects(s, [{ gold: g }]);
+    if (g > 0) gameApi.claimEnemyGold(opId('gold'), { areaId: this.area.id, entityId: a.e.id });
     SFX.hitLight();
     if (a.obj) {
       sparks(this, a.obj.x, a.obj.y - 20, 12, 'ember', 0xffd27a, 200);
@@ -1106,12 +1105,11 @@ export class ExploreScene extends Phaser.Scene {
     const a = this.battleWith;
     this.battleWith = undefined;
     this.cameras.main.fadeIn(300, 0, 0, 0);
-    const s = session.state;
     if (a && outcome === 'win') {
       this.defeated().add(a.e.id);
       this.chasing.delete(a.e.id);
       const g = a.e.gold ?? 0;
-      if (g > 0) applyEffects(s, [{ gold: g }]);
+      if (g > 0) gameApi.claimEnemyGold(opId('gold'), { areaId: this.area.id, entityId: a.e.id });
       if (a.obj) {
         sparks(this, a.obj.x, a.obj.y - 20, 20, 'ember', 0xffd27a, 240);
         this.tweens.add({ targets: a.obj, alpha: 0, scale: 0.6, duration: 300, onComplete: () => a.obj?.destroy() });
