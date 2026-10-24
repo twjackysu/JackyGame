@@ -1,6 +1,7 @@
 // 自由探索場景（docs/design/11-open-world.md E1）：俯視格子地圖、點擊尋路＋拖曳虛擬搖桿、鏡頭跟隨、同伴跟隨、
 // NPC／門／寶箱／告示互動（跑現有 DialogueRunner 劇本節點）、城門出口。HUD 與面板在 ExploreHudScene（不跟鏡頭捲動）。
 import Phaser from 'phaser';
+import { mulberry32 } from '../../core/rng';
 import { SFX } from '../../audio/sfx';
 import { chapterTrack, playMusic } from '../../audio/music';
 import {
@@ -67,6 +68,8 @@ export class ExploreScene extends Phaser.Scene {
   private playerImg!: Phaser.GameObjects.Image;
   private followers: { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; id?: MemberId }[] = [];
   private trail: Pt[] = [];
+  /** 純外觀用亂數（NPC 閒晃、閒聊、燈光閃爍）：每次進場由 session 的 'ui' stream 取種子 */
+  private fx: () => number = mulberry32(1);
   private escorts = new Map<string, { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image }>();
   private path: Pt[] = [];
   private pending?: Actor;
@@ -165,6 +168,7 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.fx = mulberry32(session.seed('ui'));
     const s = session.state;
     session.setScriptPos('explore', this.area.id);
     s.flags['__ex_area'] = this.area.id;
@@ -354,8 +358,8 @@ export class ExploreScene extends Phaser.Scene {
     const g = this.grid;
     const flicker = (img: Phaser.GameObjects.Image): void => {
       this.tweens.add({
-        targets: img, alpha: img.alpha * 0.7, duration: 160 + Math.random() * 200, yoyo: true, repeat: -1,
-        ease: 'Stepped', easeParams: [2], delay: Math.random() * 400,
+        targets: img, alpha: img.alpha * 0.7, duration: 160 + this.fx() * 200, yoyo: true, repeat: -1,
+        ease: 'Stepped', easeParams: [2], delay: this.fx() * 400,
       });
     };
     for (let y = 0; y < g.h; y++) {
@@ -381,7 +385,7 @@ export class ExploreScene extends Phaser.Scene {
         if (g.tiles[y]![x] !== 'c') continue;
         const img = this.add.image(x * TILE + 24, y * TILE + 26, 'ex_glow').setScale(1.1).setAlpha(0.35).setTint(this.area.region === 'ch4' ? 0xc89aff : this.area.region === 'ch5' ? 0xffb0d8 : 0x7fe0ff)
           .setBlendMode(Phaser.BlendModes.ADD).setDepth(-40);
-        this.tweens.add({ targets: img, alpha: 0.18, scale: 0.95, duration: 1400 + Math.random() * 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random() * 1000 });
+        this.tweens.add({ targets: img, alpha: 0.18, scale: 0.95, duration: 1400 + this.fx() * 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: this.fx() * 1000 });
       }
     }
     for (const b of this.area.buildings) {
@@ -436,7 +440,7 @@ export class ExploreScene extends Phaser.Scene {
         const img = this.add.image(0, 6, `ex_npc_${e.look.body}_${e.look.hair}`).setOrigin(0.5, 1).setScale(0.78);
         c.add([sh, img]);
         a.img = img;
-        this.tweens.add({ targets: img, scaleY: 0.8, duration: 900 + Math.random() * 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.tweens.add({ targets: img, scaleY: 0.8, duration: 900 + this.fx() * 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       }
     } else if (e.kind === 'door' && !this.area.buildings.some((b) => e.x >= b.x && e.x < b.x + b.w && e.y >= b.y && e.y < b.y + b.h)) {
       // 野外的劇情地點（湖畔等）：發光的光點
@@ -470,7 +474,7 @@ export class ExploreScene extends Phaser.Scene {
       img.setScale(70 / img.height);
       c.add([sh, img]);
       a.img = img;
-      this.tweens.add({ targets: img, y: 4, duration: 500 + Math.random() * 200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: img, y: 4, duration: 500 + this.fx() * 200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     } else if (e.kind === 'chest') {
       const open = !!session.state.flags[chestFlag(this.area.id, e.id)];
       if (this.textures.exists('prop_chest')) {
@@ -659,7 +663,7 @@ export class ExploreScene extends Phaser.Scene {
     const dx = a.tx * TILE + TILE / 2 - this.player.x;
     if (Math.abs(dx) > 4) this.playerImg.setFlipX(dx < 0);
     if (a.img && a.e.kind === 'npc') a.img.setFlipX(this.player.x < (a.obj?.x ?? 0));
-    const r = interact(s, this.area.id, a.e, Math.random());
+    const r = interact(s, this.area.id, a.e, this.fx());
     if (r.kind === 'script') {
       SFX.confirm();
       this.runScript(r.script, r.node, r.after);
@@ -753,12 +757,12 @@ export class ExploreScene extends Phaser.Scene {
   private lastBanter = 0;
   private banterTick(): void {
     if (this.busy || this.leaving || this.bubble) return;
-    if (this.time.now - this.lastBanter < 22000 || Math.random() < 0.45) return;
+    if (this.time.now - this.lastBanter < 22000 || this.fx() < 0.45) return;
     const cands = this.followers.filter((f) => f.id);
-    const f = cands[Math.floor(Math.random() * cands.length)];
+    const f = cands[Math.floor(this.fx() * cands.length)];
     if (!f?.id) return;
     const lines = banterFor(this.area.id, f.id, f.id === 'lian' ? 0 : session.state.affinity[f.id as CompanionId] ?? 0);
-    const text = lines[Math.floor(Math.random() * lines.length)];
+    const text = lines[Math.floor(this.fx() * lines.length)];
     if (!text) return;
     this.lastBanter = this.time.now;
     const t = this.add.text(0, 0, withNames(text), { fontFamily: UI_FONT, fontSize: '19px', color: '#ffffff', wordWrap: { width: 300, useAdvancedWrap: true } }).setOrigin(0.5, 1);
@@ -944,10 +948,10 @@ export class ExploreScene extends Phaser.Scene {
     const pt = this.playerTile();
     for (const a of this.actors) {
       const r = a.e.wander ?? 0;
-      if (a.e.kind === 'enemy' || r <= 0 || a.moving || !a.obj || Math.random() < 0.5) continue;
+      if (a.e.kind === 'enemy' || r <= 0 || a.moving || !a.obj || this.fx() < 0.5) continue;
       if (this.bubble && this.bubble.x === a.obj.x) continue;
       const dirs: Pt[] = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-      const d = dirs[Math.floor(Math.random() * 4)]!;
+      const d = dirs[Math.floor(this.fx() * 4)]!;
       const nx = a.tx + d.x;
       const ny = a.ty + d.y;
       if (Math.abs(nx - a.home.x) > r || Math.abs(ny - a.home.y) > r) continue;
@@ -994,7 +998,7 @@ export class ExploreScene extends Phaser.Scene {
           .map((o) => ({ x: a.tx + o.x, y: a.ty + o.y }))
           .filter((n) => walkable(this.grid, n.x, n.y, blockers) && Math.max(Math.abs(n.x - a.home.x), Math.abs(n.y - a.home.y)) <= 6)
           .filter((n) => Math.max(Math.abs(n.x - pt.x), Math.abs(n.y - pt.y)) > d);
-        step = opts[Math.floor(Math.random() * opts.length)];
+        step = opts[Math.floor(this.fx() * opts.length)];
       } else if (notice && homeD < 8) {
         // 發現玩家：追
         if (!this.chasing.has(a.e.id)) {
@@ -1011,10 +1015,10 @@ export class ExploreScene extends Phaser.Scene {
         step = p?.[0];
       } else {
         this.chasing.delete(a.e.id);
-        if (Math.random() < 0.35) {
+        if (this.fx() < 0.35) {
           const r = a.e.wander ?? 2;
           const dirs: Pt[] = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-          const dd = dirs[Math.floor(Math.random() * 4)]!;
+          const dd = dirs[Math.floor(this.fx() * 4)]!;
           const n = { x: a.tx + dd.x, y: a.ty + dd.y };
           if (Math.abs(n.x - a.home.x) <= r && Math.abs(n.y - a.home.y) <= r && walkable(this.grid, n.x, n.y, blockers)) step = n;
         }

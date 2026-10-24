@@ -1,6 +1,8 @@
 // 遊戲進行中的全域狀態（單例）：GameState + 自動存檔 + 目前劇本位置。
 import { SaveStore, detectStorage } from '../core/save/save';
 import { newGame, type GameState } from '../core/state/gameState';
+import { drawSeed, newRngState, streamRng, type RngStream } from '../core/rngStreams';
+import type { Rng } from '../core/rng';
 import type { DialogueScript } from '../core/dialogue/runner';
 import { CH0 } from '../data/dialogue/ch0';
 import { CH1 } from '../data/dialogue/ch1';
@@ -17,6 +19,17 @@ const storage = detectStorage();
 const store = new SaveStore(storage.kv);
 
 let current: GameState | null = null;
+
+/** 新存檔的種子：只在建立存檔時取一次真亂數，之後一切由種子決定 */
+function freshSeed(): number {
+  try {
+    const a = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(a);
+    return a[0]!;
+  } catch {
+    return (Math.random() * 4294967296) >>> 0;
+  }
+}
 let sessionStart = performance.now();
 
 export const session = {
@@ -31,7 +44,7 @@ export const session = {
     return store.hasSave();
   },
   newGame(): GameState {
-    current = newGame();
+    current = newGame(Date.now(), freshSeed());
     sessionStart = performance.now();
     return current;
   },
@@ -53,6 +66,18 @@ export const session = {
     current.playTimeMs += t - sessionStart;
     sessionStart = t;
     return store.save(current);
+  },
+  /** 依用途的可重現亂數（存檔內含種子與計數器；design/14 階段 1.1） */
+  rng(stream: RngStream): Rng {
+    const s = session.state;
+    if (!s.rng) s.rng = newRngState(freshSeed());
+    return streamRng(s.rng, stream);
+  },
+  /** 從某個 stream 抽一個種子，給戰鬥引擎／燼牌／掉落表使用 */
+  seed(stream: RngStream): number {
+    const s = session.state;
+    if (!s.rng) s.rng = newRngState(freshSeed());
+    return drawSeed(s.rng, stream);
   },
   /** 劇本位置存在 flags 裡（存檔即包含） */
   setScriptPos(script: string, node: string): void {

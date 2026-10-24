@@ -1,6 +1,8 @@
 // 全域遊戲狀態（純邏輯，不 import phaser）。見 docs/design/06-tech-architecture.md §3。
 
 import { ITEM_DEFS } from '../../data/equipment';
+import { hashSeed } from '../rng';
+import { newRngState, type RngState } from '../rngStreams';
 export type StatKey = 'str' | 'agi' | 'int' | 'cha';
 export type Faction = 'order' | 'town' | 'miners' | 'caravan';
 export type CompanionId = 'serin' | 'liora' | 'io' | 'rourke';
@@ -40,15 +42,18 @@ export interface GameState {
   quests: Record<string, { stage: number; done?: boolean }>;
   /** 技能樹已學節點（E4；舊存檔沒有這個欄位） */
   tree?: Partial<Record<MemberId, string[]>>;
+  /** 依用途拆開的亂數狀態（design/14 階段 1.1）；舊存檔讀取時由 newGame 底補上 */
+  rng: RngState;
 }
 
 export const SAVE_VERSION = 1;
 
 export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
-export function newGame(now = Date.now()): GameState {
+export function newGame(now = Date.now(), seed = hashSeed(`game:${now}`)): GameState {
   return {
     version: SAVE_VERSION,
+    rng: newRngState(seed),
     createdAt: now,
     playTimeMs: 0,
     heroName: '連恩',

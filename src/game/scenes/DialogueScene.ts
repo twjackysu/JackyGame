@@ -88,7 +88,7 @@ export class DialogueScene extends Phaser.Scene {
     const map = CHAPTER_MAPS[this.scriptId as ChapterId] as (typeof CHAPTER_MAPS)[ChapterId] | undefined;
     const entry = map?.entries.find((e) => e.node === node);
     if (map && entry) session.state.location = { region: map.id, node: entry.location };
-    this.runner = new DialogueRunner({ ...script, start: node }, session.state);
+    this.runner = new DialogueRunner({ ...script, start: node }, session.state, session.rng('story'));
     this.lastNode = '';
     this.portraits = { left: null, right: null };
     this.waiting = 'busy';

@@ -115,7 +115,7 @@ export class CardScene extends Phaser.Scene {
     this.dragMoved = false;
     this.busy = false;
     this.info = undefined;
-    const seed = (Math.random() * 1e9) | 0;
+    const seed = session.seed('battle');
     this.rng = mulberry32(seed ^ 0x5eed);
     // 收藏的燼牌加入玩家牌組（教學局除外）
     const config: MatchConfig = { ...this.opp.config, decks: [this.opp.config.decks[0], this.opp.config.decks[1]] };
@@ -524,7 +524,7 @@ export class CardScene extends Phaser.Scene {
     if (this.st.phase !== 'playing' || this.busy) return;
     if (this.st.current === 1) {
       this.busy = true;
-      this.time.delayedCall(650 + Math.random() * 400, () => {
+      this.time.delayedCall(650 + Phaser.Math.Between(0, 400), () => {
         const a = this.opp.ai === 'tutorial'
           ? chooseTutorialAction(this.st, 1)
           : chooseAction(this.st, 1, { rng: this.rng, mistakeRate: this.opp.ai });

@@ -155,7 +155,7 @@ export class BattleScene extends Phaser.Scene {
       encounter: ENCOUNTERS[enc] ? enc : 'forest_a',
       party: data.party ?? partyIds.map((id) => ({ id, level: lv })),
       chain: data.chain ?? [],
-      seed: data.seed ?? ((Math.random() * 1e9) | 0),
+      seed: data.seed ?? session.seed('battle'),
       story: !!data.story,
       tutorial: !!data.tutorial,
       returnTo: data.returnTo,
@@ -2053,7 +2053,7 @@ export class BattleScene extends Phaser.Scene {
       // 稀有掉落（D-049）：每隻敵人各擲一次；Boss 首殺必掉
       const defeated = this.bs.enemies.map((e) => e.id);
       const f = session.state.flags;
-      const drops = rollDrops(defeated, (this.data0.seed ^ 0x9e3779b9) >>> 0, (id) => !!f[firstKillFlag(id)]);
+      const drops = rollDrops(defeated, session.seed('loot'), (id) => !!f[firstKillFlag(id)]);
       const newBossPoint = defeated.some((id) => (BOSS_POINT_KILLS as readonly string[]).includes(id) && !f[firstKillFlag(id)]);
       grantDrops(session.state, drops, defeated);
       if (newBossPoint) {

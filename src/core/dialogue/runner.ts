@@ -9,6 +9,7 @@ import {
   type GameState,
   type StatKey,
 } from '../state/gameState';
+import { hashSeed, mulberry32 } from '../rng';
 
 export type Speaker = string; // 'lian' | 'lian_inner'（內心吐槽）| 'serin' | 'narration' | NPC id
 
@@ -88,7 +89,8 @@ export class DialogueRunner {
   constructor(
     private script: DialogueScript,
     private state: GameState,
-    private rng: () => number = Math.random,
+    // 檢定擲骰；遊戲內由 session 的 'story' stream 注入，未注入時用劇本 id 當種子（可重現）
+    private rng: () => number = mulberry32(hashSeed(`dialogue:${script.id}`)),
   ) {
     this.node = script.start ?? 'start';
     if (!script.nodes[this.node]) throw new Error(`dialogue ${script.id}: missing node ${this.node}`);
