@@ -229,6 +229,23 @@ export const SFX = {
   levelUp: (): void => {
     [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playSfx({ wave: 'square', freq: f, sustain: 0.04, release: 0.2, volume: 0.15, lowpass: 3000, delay: i * 0.07 }));
   },
+  /** 強化成功：音階上升（等級越高越長） */
+  enhanceUp: (level: number): void => {
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568];
+    const n = Math.min(notes.length, 3 + Math.floor(level / 3));
+    notes.slice(0, n).forEach((f, i) => playSfx({ wave: 'triangle', freq: f, sustain: 0.04, release: 0.25, volume: 0.24, delay: i * 0.06 }));
+    playSfx({ wave: 'sine', freq: notes[n - 1]! * 2, sustain: 0.1, release: 0.6, volume: 0.14, vibrato: 6, vibratoRate: 8, delay: n * 0.06 });
+  },
+  /** 強化失敗：悶響＋灰煙嘶聲 */
+  enhanceFail: (): void => {
+    playSfx({ wave: 'sine', freq: 220, freqEnd: 90, sustain: 0.05, release: 0.35, volume: 0.35 });
+    playSfx({ wave: 'noise', freq: 600, freqEnd: 200, attack: 0.05, sustain: 0.1, release: 0.5, volume: 0.18, lowpass: 900, delay: 0.05 });
+  },
+  /** 分解：碎裂聲 */
+  salvage: (): void => {
+    for (let i = 0; i < 3; i++) playSfx({ wave: 'square', freq: 1600 - i * 350, freqEnd: 400, sustain: 0.01, release: 0.1, volume: 0.12, delay: i * 0.05 });
+    playSfx({ wave: 'noise', freq: 1800, freqEnd: 300, sustain: 0.03, release: 0.25, volume: 0.25, lowpass: 3000 });
+  },
   itemGet: (): void => {
     playSfx({ wave: 'triangle', freq: 880, sustain: 0.04, release: 0.15, volume: 0.2 });
     playSfx({ wave: 'triangle', freq: 1318.5, sustain: 0.06, release: 0.3, volume: 0.2, delay: 0.09 });

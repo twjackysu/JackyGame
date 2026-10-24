@@ -2059,6 +2059,13 @@ export class BattleScene extends Phaser.Scene {
         session.save();
         await this.showDrops(drops);
       }
+      const mats = Object.entries(rw.data?.materials ?? {}).filter(([, n]) => n > 0);
+      if (mats.length) {
+        const line = mats.map(([id, n]) => `◆ ${itemDef(id).name} ×${n}`).join('　');
+        const mt = this.add.text(GAME_WIDTH / 2, 690, line, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#9ad8ff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(965).setAlpha(0);
+        this.tweens.add({ targets: mt, alpha: 1, y: 670, duration: 350, ease: 'Cubic.Out' });
+        SFX.itemGet();
+      }
     }
     const label = story ? (win ? '繼續 ▶' : '重新振作') : win ? (next ? '繼續前進 ▶' : '回到標題') : '再試一次';
     const btn = this.add.container(GAME_WIDTH / 2, 800).setDepth(970);

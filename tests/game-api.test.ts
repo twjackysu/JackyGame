@@ -92,6 +92,19 @@ describe('LocalGameApi', () => {
     expect(run().r.data).toEqual(r.data);
   });
 
+  it('戰鬥獎勵：材料（Boss 必給粉塵＋結晶；小怪機率給粉塵；進背包）', () => {
+    const { s, api } = setup(7);
+    const r = api.claimBattleRewards('m1', { defeated: ['boss_wolfking'], consumablesLeft: {} });
+    expect(r.data!.materials.mat_dust).toBeGreaterThanOrEqual(4);
+    expect(r.data!.materials.mat_crystal).toBe(1);
+    expect(s.inventory.mat_dust).toBe(r.data!.materials.mat_dust);
+    let dust = 0;
+    for (let i = 0; i < 200; i++) dust += api.claimBattleRewards(`m${i + 2}`, { defeated: ['mist_wolf'], consumablesLeft: {} }).data!.materials.mat_dust ?? 0;
+    // 期望值 0.6 × 1.5 ＝ 0.9／隻
+    expect(dust).toBeGreaterThan(140);
+    expect(dust).toBeLessThan(220);
+  });
+
   it('技能樹重置收費', () => {
     const { s, api } = setup();
     s.tree = { lian: ['x'] };

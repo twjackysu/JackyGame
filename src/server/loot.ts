@@ -3,7 +3,7 @@
 import type { RandomProvider } from './ports';
 import { AFFIXES, AFFIX_BY_ID, type AffixDef } from '../data/affixes';
 import { AFFIX_COUNT, TIERS, tierRank, type GearSlot, type Tier } from '../data/rules';
-import { LOOT_TABLES, PITY, type TierWeights } from '../data/lootTables';
+import { LOOT_TABLES, PITY, STORY_MATERIALS, type TierWeights } from '../data/lootTables';
 
 export interface RolledAffix {
   id: string;
@@ -86,4 +86,23 @@ export function affixesLegal(slot: GearSlot, tier: Tier, affixes: readonly Rolle
     groups.add(def.group);
   }
   return affixes.length <= AFFIX_COUNT[tier];
+}
+
+/** 主線戰鬥勝利的材料（每隻倒下的敵人各擲一次；Boss 必給） */
+export function rollStoryMaterials(defeated: readonly string[], rng: RandomProvider): Record<string, number> {
+  const out: Record<string, number> = {};
+  const add = (k: string, n: number) => {
+    if (n > 0) out[k] = (out[k] ?? 0) + n;
+  };
+  for (const id of defeated) {
+    if (id.startsWith('boss_')) {
+      const b = STORY_MATERIALS.boss;
+      add('mat_dust', rng.nextInt(b.mat_dust[0], b.mat_dust[1]));
+      add('mat_crystal', rng.nextInt(b.mat_crystal[0], b.mat_crystal[1]));
+    } else {
+      const m = STORY_MATERIALS.minion;
+      if (rng.nextFloat() < m.chance) add('mat_dust', rng.nextInt(m.mat_dust[0], m.mat_dust[1]));
+    }
+  }
+  return out;
 }

@@ -4,6 +4,8 @@ import { statsAtLevel, type BaseStats } from '../../core/battle/formulas';
 import { totalBonus } from '../../core/state/equip';
 import type { GameState, MemberId } from '../../core/state/gameState';
 import { HEROES } from '../../data/combatants';
+import { enhanceMultiplier } from '../../data/enhancement';
+import type { EquipmentInstance } from '../../core/state/gear';
 import { PERK_INFO, RARITY_COLOR, RARITY_CSS, itemDef, rarityOf, type ItemDef } from '../../data/equipment';
 import { UI_FONT } from '../fx/feel';
 
@@ -82,4 +84,16 @@ export function memberStats(s: GameState, m: MemberId): { base: BaseStats; bonus
 
 export function heroName(m: MemberId): string {
   return HEROES[m]?.name ?? m;
+}
+
+/** 實例的有效加成（基礎值 × 強化倍率；SPD 不受強化影響） */
+export function instBonus(inst: EquipmentInstance): BaseStats {
+  const b = itemDef(inst.templateId).bonus ?? {};
+  const k = enhanceMultiplier(inst.enhancement);
+  return { hp: Math.round((b.hp ?? 0) * k), atk: Math.round((b.atk ?? 0) * k), def: Math.round((b.def ?? 0) * k), spd: b.spd ?? 0 };
+}
+
+/** 「舊提燈 +3」 */
+export function instName(inst: EquipmentInstance): string {
+  return `${itemDef(inst.templateId).name}${inst.enhancement > 0 ? ` +${inst.enhancement}` : ''}`;
 }

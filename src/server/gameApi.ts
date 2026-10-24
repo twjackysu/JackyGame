@@ -22,6 +22,8 @@ export interface BattleRewards {
   drops: string[];
   /** 這場是否首殺了會給技能點的 Boss */
   newBossPoint: boolean;
+  /** 得到的材料（材料 id → 數量） */
+  materials: Record<string, number>;
 }
 
 export interface EnhanceResult {

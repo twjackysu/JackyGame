@@ -3,6 +3,7 @@
 import type { Clock, EventJournal } from './ports';
 import type { ApiResult, BattleRewards, ConsumableId, EnhanceResult, GameApi } from './gameApi';
 import { nextStep, rollEnhance } from './enhancement';
+import { rollStoryMaterials } from './loot';
 import { canSalvage, rerollCheck, rollReroll, salvageYield, settleReroll } from './crafting';
 import { wornIds } from '../core/state/gear';
 import { randomFromRng } from './ports';
@@ -200,7 +201,10 @@ export class LocalGameApi implements GameApi {
       const drops = rollDrops(req.defeated, drawSeed(s.rng, 'loot'), (id) => !!f[firstKillFlag(id)]);
       const newBossPoint = req.defeated.some((id) => (BOSS_POINT_KILLS as readonly string[]).includes(id) && !f[firstKillFlag(id)]);
       grantDrops(s, drops, req.defeated);
-      return { ok: true, data: { drops, newBossPoint } };
+      // 材料：擲骰在稀有掉落之後，不影響既有掉落序列
+      const materials = rollStoryMaterials(req.defeated, randomFromRng(streamRng(s.rng, 'loot')));
+      for (const [m, n] of Object.entries(materials)) s.inventory[m] = (s.inventory[m] ?? 0) + n;
+      return { ok: true, data: { drops, newBossPoint, materials } };
     });
   }
 }

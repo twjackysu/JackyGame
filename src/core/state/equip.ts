@@ -169,7 +169,11 @@ export function grantDrops(s: GameState, items: readonly string[], defeated: rea
 /**
  * 裝備前後的差異（UI 顯示 ▲▼ 用）：換上 id 之後的加成 − 現在的加成
  */
-export function gearDelta(s: GameState, member: MemberId, id: string, slot?: EquipSlot): Required<BaseStats> {
+export function gearDelta(s: GameState, member: MemberId, ref: string, slot?: EquipSlot): Required<BaseStats> {
+  // ref：模板 id（視為 +0）或 instanceId（算進強化）
+  const cand = s.gear[ref];
+  const id = cand?.templateId ?? ref;
+  const nk = enhanceMultiplier(cand?.enhancement ?? 0);
   const def = ITEM_DEFS[id];
   const to = targetSlot(s, member, id, slot);
   if (!def?.slot || !to) return { hp: 0, atk: 0, def: 0, spd: 0 };
@@ -180,9 +184,9 @@ export function gearDelta(s: GameState, member: MemberId, id: string, slot?: Equ
   const prev = { hp: Math.round((pb.hp ?? 0) * k), atk: Math.round((pb.atk ?? 0) * k), def: Math.round((pb.def ?? 0) * k), spd: pb.spd ?? 0 };
   const nb = def.bonus ?? {};
   return {
-    hp: (nb.hp ?? 0) - (prev.hp ?? 0),
-    atk: (nb.atk ?? 0) - (prev.atk ?? 0),
-    def: (nb.def ?? 0) - (prev.def ?? 0),
+    hp: Math.round((nb.hp ?? 0) * nk) - (prev.hp ?? 0),
+    atk: Math.round((nb.atk ?? 0) * nk) - (prev.atk ?? 0),
+    def: Math.round((nb.def ?? 0) * nk) - (prev.def ?? 0),
     spd: (nb.spd ?? 0) - (prev.spd ?? 0),
   };
 }

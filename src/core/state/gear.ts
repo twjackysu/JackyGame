@@ -103,7 +103,11 @@ export function addItem(s: GameState, templateId: string, n: number, origin: Gea
   if (n === 0) return;
   if (isGearTemplate(templateId)) {
     if (n > 0) for (let i = 0; i < n; i++) createInstance(s, templateId, origin);
-    else for (const g of freeInstances(s, templateId).filter((x) => !x.locked).slice(0, -n)) delete s.gear[g.instanceId]; // 上鎖的不會被移除
+    else {
+      // 上鎖的不會被移除；先移除強化等級最低的（賣掉／交出時不會誤動強化過的那件）
+      const pool = freeInstances(s, templateId).filter((x) => !x.locked).sort((a, b) => a.enhancement - b.enhancement || (a.instanceId < b.instanceId ? -1 : 1));
+      for (const g of pool.slice(0, -n)) delete s.gear[g.instanceId];
+    }
     return;
   }
   const v = (s.inventory[templateId] ?? 0) + n;

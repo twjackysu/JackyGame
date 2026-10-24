@@ -53,5 +53,15 @@ export const SALVAGE: Record<Tier, Partial<Record<'mat_dust' | 'mat_crystal' | '
   divine: { mat_dust: 10, mat_crystal: 4, mat_legend: 2 },
 };
 
+/**
+ * 主線戰鬥的材料掉落（第 12 輪，NEXT 第 4 項）：讓一週目就能把一兩件裝備強化到 +5，
+ * Boss 給少量魔力結晶，可以試一次 +6。每隻倒下的敵人各擲一次；`boss_` 開頭的算 Boss。
+ * 粗估：一週目約 70～90 粉塵（+0→+5 一件要 23 粉塵、235 金）、結晶 7～10 顆。
+ */
+export const STORY_MATERIALS = {
+  minion: { chance: 0.6, mat_dust: [1, 2] as const },
+  boss: { mat_dust: [4, 6] as const, mat_crystal: [1, 1] as const },
+} as const;
+
 /** 一鍵分解預設只動這些稀有度；傳說以上自動鎖定 */
 export const QUICK_SALVAGE_TIERS: readonly Tier[] = ['common', 'magic', 'rare'];
