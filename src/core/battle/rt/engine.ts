@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import { AGGRO_RULES, MAP_AI_LIMITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -172,7 +172,7 @@ function playerDef(): PlayerDefinition {
 function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 'normal' | 'skill' | 'counter' | 'enemy', skill: string, reducePct = 0): number {
   if (dst.dead) return 0;
   if (dst.mode === 'returning') return 0; // 脫戰返回中不吃傷害（D-072）
-  if (dst.mode === 'idle') aggro(s, dst); // 被打到就醒
+  if (dst.mode === 'idle' || dst.mode === 'dormant') aggro(s, dst); // 被打到就醒
   if (dst.mode) dst.engagedTick = s.tick;
   if (src.mode) src.engagedTick = s.tick;
   if (src.side === 'player' || dst.side === 'player') s.lastCombatTick = s.tick;
@@ -357,7 +357,7 @@ function face(x: Unit, t: Unit): void {
 
 /** 簡單分離（依 id 順序，確定性）：Boss 不被推；閃避中的玩家可以穿過敵人 */
 function separate(s: BattleState): void {
-  const alive = s.units.filter((x) => !x.dead);
+  const alive = s.units.filter((x) => !x.dead && x.mode !== 'dormant');
   for (let i = 0; i < alive.length; i++) {
     for (let j = i + 1; j < alive.length; j++) {
       const a = alive[i]!;
@@ -564,13 +564,14 @@ function updatePlayer(s: BattleState): void {
 // ---------------- 敵人 ----------------
 // ---------------- 地圖怪：待機／戰鬥／返回（D-072，design/20 B1） ----------------
 function aggro(s: BattleState, e: Unit): void {
-  if (e.mode !== 'idle') return;
+  if (e.mode !== 'idle' && e.mode !== 'dormant') return;
   e.mode = 'combat';
   e.engagedTick = s.tick;
+  e.aggroTick = s.tick;
   e.nextAttackTick = Math.max(e.nextAttackTick, s.tick + 15); // 發現後 0.5 秒才出手
   emit(s, { tick: s.tick, type: 'aggro', id: e.id });
   // 同伴連鎖：附近 3 單位內待機的一起醒（狼群）
-  for (const o of s.units) if (o.side === 'enemy' && !o.dead && o.mode === 'idle' && dist(o.x, o.y, e.x, e.y) <= 3 * UNIT) aggro(s, o);
+  for (const o of s.units) if (o.side === 'enemy' && !o.dead && (o.mode === 'idle' || o.mode === 'dormant') && dist(o.x, o.y, e.x, e.y) <= 3 * UNIT) aggro(s, o);
 }
 
 /** 回傳 true＝這個 tick 由地圖行為處理完（不跑戰鬥 AI） */
@@ -602,7 +603,34 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
     emit(s, { tick: s.tick, type: 'leash', id: e.id });
     return true;
   }
+  // 同時追擊上限：排在 8 隻之後的在外圈等，不出手（正在出招的先把招出完）
+  if (!e.action && queuedBehind(s, e)) {
+    e.engagedTick = s.tick; // 排隊不算脫戰
+    face(e, p);
+    if (!disabled(e, s.tick) && dist(e.x, e.y, p.x, p.y) > MAP_AI_LIMITS.queueHoldUnits * UNIT) navToward(s, e, p.x, p.y, MAP_AI_LIMITS.queueHoldUnits * UNIT);
+    return true;
+  }
   return false;
+}
+
+/** 戰鬥中、比自己先醒（同 tick 比 id）的怪已經有 maxChasers 隻 → 排隊 */
+function queuedBehind(s: BattleState, e: Unit): boolean {
+  const at = e.aggroTick ?? 0;
+  let ahead = 0;
+  for (const o of s.units) {
+    if (o === e || o.side !== 'enemy' || o.dead || o.mode !== 'combat') continue;
+    const ot = o.aggroTick ?? 0;
+    if (ot < at || (ot === at && o.id < e.id)) if (++ahead >= MAP_AI_LIMITS.maxChasers) return true;
+  }
+  return false;
+}
+
+/** 沉睡判定（每 10 ticks 依 id 錯開）：待機怪離玩家超過 24 單位就沉睡，回到範圍內變回待機 */
+function updateDormancy(s: BattleState, e: Unit, p: Unit): void {
+  if ((s.tick + e.id) % MAP_AI_LIMITS.dormantCheckEvery !== 0) return;
+  if (e.mode !== 'idle' && e.mode !== 'dormant') return;
+  const far = dist(e.x, e.y, p.x, p.y) > MAP_AI_LIMITS.dormantUnits * UNIT;
+  e.mode = far ? 'dormant' : 'idle';
 }
 
 function pickAttack(s: BattleState, e: Unit, def: EnemyDefinition, d: number, target: Unit): AreaAttack | undefined {
@@ -725,7 +753,12 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   s.tick++;
   applyCommands(s, cmds);
   updatePlayer(s);
-  for (const e of s.units) if (e.side === 'enemy' && !e.dead) updateEnemy(s, e);
+  const p0 = playerOf(s);
+  for (const e of s.units) {
+    if (e.side !== 'enemy' || e.dead) continue;
+    if (e.mode === 'idle' || e.mode === 'dormant') updateDormancy(s, e, p0);
+    if (e.mode !== 'dormant') updateEnemy(s, e);
+  }
   separate(s);
   for (const x of s.units) if (x.statuses.length && !x.dead) tickDots(s, x);
   for (const x of s.units) if (x.statuses.length) x.statuses = x.statuses.filter((st) => st.until > s.tick);

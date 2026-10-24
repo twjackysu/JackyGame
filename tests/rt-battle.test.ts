@@ -6,7 +6,7 @@ import { addStatus, computeDamage, createBattle, dist, enemiesOf, inShape, playe
 import { cellIndex, clearLine, findPath, gridOf } from '../src/core/battle/rt/path';
 import { BOT_PROFILES, IdleController, PlayerBot, ScriptedTestController, batch, simulateBattle } from '../src/core/battle/rt/sim';
 import { ENEMIES, SKILLS, STAGES } from '../src/core/battle/rt/data';
-import { sec, u } from '../src/core/battle/rt/types';
+import { sec, u, type Unit } from '../src/core/battle/rt/types';
 
 const expert = () => new PlayerBot(BOT_PROFILES.expert, 'expert');
 
@@ -606,4 +606,74 @@ describe('流場尋路效能（D-074）', () => {
     expect(ms).toBeLessThan(2); // 本機約 0.12ms；CI 機器慢一些也有餘裕
     expect(es.filter((e) => dist(e.x, e.y, p.x, p.y) < u(4)).length).toBe(12);
   }, 60000);
+});
+
+describe('同時追擊上限與沉睡（design/20 B1）', () => {
+  /** 空曠的大地圖（rock_grove 的 mapAi 行為），玩家不動、雙方都打不死 */
+  function openField(w: number, h: number, px: number, py: number, wolves: [number, number][]) {
+    const s = createBattle({ stageId: 'rock_grove', seed: 3 });
+    s.arena = { w: u(w), h: u(h) };
+    s.timeLimitTicks = sec(9999);
+    const p = playerOf(s);
+    p.x = u(px);
+    p.y = u(py);
+    p.hp = p.maxHp = 1e9;
+    p.speedPerTick = 0;
+    const proto = enemiesOf(s).find((e) => e.defId === 'wolf')!;
+    const es = wolves.map(([x, y], i) => ({ ...proto, id: 100 + i, x: u(x), y: u(y), homeX: u(x), homeY: u(y), hp: 1e9, maxHp: 1e9, statuses: [], ready: {}, action: null, mode: 'idle' as Unit['mode'], tier: 'normal' as const }));
+    s.units = [p, ...es];
+    return { s, p, es };
+  }
+
+  it('12 隻一起醒：只有 8 隻出手，其餘排隊；前面的倒下後排隊的補上', () => {
+    const ring: [number, number][] = Array.from({ length: 12 }, (_, i) => [20 + 3 * Math.cos((i / 12) * Math.PI * 2), 20 + 3 * Math.sin((i / 12) * Math.PI * 2)]);
+    const { s, es } = openField(40, 40, 20, 20, ring);
+    for (let i = 0; i < sec(8); i++) step(s, [{ type: 'stop' }]);
+    expect(es.every((e) => e.mode === 'combat')).toBe(true);
+    const owners = () => new Set(s.events.filter((ev) => ev.type === 'telegraph').map((ev) => (ev as { owner: number }).owner));
+    const first = owners();
+    expect(first.size).toBe(8);
+    // 前面 4 隻倒下 → 排隊的補上
+    for (const e of es.filter((x) => first.has(x.id)).slice(0, 4)) {
+      e.dead = true;
+      e.hp = 0;
+      e.action = null;
+    }
+    s.telegraphs = s.telegraphs.filter((t) => !es.find((e) => e.id === t.ownerId)?.dead);
+    s.events = [];
+    for (let i = 0; i < sec(8); i++) step(s, [{ type: 'stop' }]);
+    const second = owners();
+    expect(second.size).toBe(8);
+    expect([...second].filter((id) => !first.has(id)).length).toBe(4);
+  });
+
+  it('排隊的怪不會因為「太久沒交手」脫戰回家', () => {
+    const ring: [number, number][] = Array.from({ length: 10 }, (_, i) => [20 + 2.5 * Math.cos(i), 20 + 2.5 * Math.sin(i)]);
+    const { s, es } = openField(40, 40, 20, 20, ring);
+    for (let i = 0; i < sec(20); i++) step(s, [{ type: 'stop' }]);
+    expect(es.filter((e) => e.mode === 'combat').length).toBe(10);
+    expect(s.events.some((ev) => ev.type === 'leash')).toBe(false);
+  });
+
+  it('離玩家 24 單位外的待機怪沉睡：不動、不跑 AI；玩家走近就醒來', () => {
+    const far: [number, number][] = Array.from({ length: 30 }, (_, i) => [3 + (i % 10) * 3, 5 + Math.floor(i / 10) * 3]);
+    const { s, p, es } = openField(40, 120, 20, 110, far);
+    for (let i = 0; i < sec(10); i++) step(s, [{ type: 'stop' }]);
+    expect(es.every((e) => e.mode === 'dormant')).toBe(true);
+    expect(es.every((e, i) => e.x === u(far[i]![0]) && e.y === u(far[i]![1]))).toBe(true);
+    // 玩家來到 10 單位外：醒成待機（還沒進仇恨半徑）
+    p.y = u(21);
+    for (let i = 0; i < 12; i++) step(s, [{ type: 'stop' }]);
+    expect(es.every((e) => e.mode === 'idle')).toBe(true);
+  });
+
+  it('沉睡的怪 tick 成本近乎 0：200 隻遠處的怪每 tick 遠低於 0.5 毫秒', () => {
+    const far: [number, number][] = Array.from({ length: 200 }, (_, i) => [2 + (i % 20) * 2, 2 + Math.floor(i / 20) * 2]);
+    const { s } = openField(44, 200, 22, 190, far);
+    for (let i = 0; i < 20; i++) step(s, [{ type: 'stop' }]);
+    const t0 = performance.now();
+    for (let i = 0; i < sec(30); i++) step(s, [{ type: 'stop' }]);
+    const ms = (performance.now() - t0) / sec(30);
+    expect(ms).toBeLessThan(0.5);
+  });
 });

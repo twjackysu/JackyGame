@@ -705,7 +705,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (sp.scaleY !== 0 && !this.tweens.isTweening(sp)) sp.setScale(base * squash, base / squash);
         if (cfg.flip && x.facingX !== 0) sp.setFlipX(x.facingX < 0);
         // 脫戰返回中半透明（打不到）；待機的怪稍暗
-        sp.setAlpha(inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' ? 0.85 : 1);
+        sp.setAlpha(inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' || x.mode === 'dormant' ? 0.85 : 1);
         if ((this.flashUntil.get(x.id) ?? 0) > now) sp.setTintFill(0xffffff);
         else if (winding) sp.setTint(Math.floor(now / 90) % 2 ? 0xff9a9a : 0xffffff);
         else if (cfg.tint) sp.setTint(cfg.tint);
@@ -781,7 +781,7 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(s);
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
-    const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle');
+    const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
     this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　敵人 ${es.length}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
     this.calmText.setVisible(calm).setText(calm ? (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // Boss 大血條（畫面上方）

@@ -194,7 +194,10 @@ export interface Unit {
   nextSummonTick: number;
   mp: number;
   /** 地圖怪（D-072）；undefined＝一般戰鬥行為 */
-  mode?: 'idle' | 'combat' | 'returning';
+  /** dormant＝離玩家太遠的待機怪，整個不跑 AI、不參與分離（design/20 B1） */
+  mode?: 'dormant' | 'idle' | 'combat' | 'returning';
+  /** 進入戰鬥的 tick（同時追擊上限的排隊順序：先醒的先打） */
+  aggroTick?: number;
   tier?: AggroTier;
   homeX?: number;
   homeY?: number;
@@ -209,6 +212,13 @@ export const AGGRO_RULES: Record<AggroTier, { aggro: number; chase: number; wait
   elite: { aggro: 7, chase: 16, waitSec: 5 },
   boss: { aggro: 10, chase: 40, waitSec: 8 },
 };
+
+/**
+ * 地圖怪的效能與公平上限（design/20 B1）：
+ * - 同時追擊玩家最多 8 隻，多出來的在外圈等（先醒的先打），有空位才補上。
+ * - 離玩家超過 24 單位（約可視範圍高度 12 單位的 2 倍）的待機怪進入沉睡，完全不跑 AI。
+ */
+export const MAP_AI_LIMITS = { maxChasers: 8, dormantUnits: 24, queueHoldUnits: 6, dormantCheckEvery: 10 } as const;
 
 export interface Telegraph {
   ownerId: number;
