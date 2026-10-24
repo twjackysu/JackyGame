@@ -307,7 +307,11 @@ export function openBag(scene: Phaser.Scene, depth = 300, start: Tab = 'gear', a
         if (have) for (const o of itemIcon(scene, d.id, 96, y, 56)) add(o);
         else {
           add(scene.add.circle(96, y, 26, 0x0a0d1a, 1).setStrokeStyle(2, RARITY_COLOR[rar], 0.3));
-          add(scene.add.text(96, y, '?', { fontFamily: TITLE_FONT, fontSize: '30px', color: '#3a4366' }).setOrigin(0.5));
+          // 未取得：物品圖示的黑色剪影（沒有圖就畫問號）
+          if (d.icon && scene.textures.exists(d.icon)) {
+            const img = add(scene.add.image(96, y, d.icon));
+            img.setScale(46 / Math.max(img.width, img.height)).setTintFill(0x232a44);
+          } else add(scene.add.text(96, y, '?', { fontFamily: TITLE_FONT, fontSize: '30px', color: '#3a4366' }).setOrigin(0.5));
         }
         add(scene.add.text(140, y - 15, have ? d.name : '？？？', { fontFamily: UI_FONT, fontSize: '23px', fontStyle: '700', color: have ? itemNameColor(d.id) : '#4a5378' }).setOrigin(0, 0.5));
         const sub = have ? itemSubline(d) : `掉落自：${d.source ?? '？？？'}`;

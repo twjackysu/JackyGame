@@ -12,16 +12,14 @@
 
 > ⭐ **第 9 輪（10/24 16:11）完成**：E3 商店與裝備、E4 技能樹 v1、E5 營火羈絆 v1、第 2 章（`minecamp`＋`mine`）與第 3 章（`capital`）可走、第 1 章支線 ×2、等級差逃跑。相關檔案：`src/data/{equipment,skillTree,sideQuests}.ts`、`src/data/dialogue/camp.ts`、`src/core/state/{equip,skillTree}.ts`、`src/game/ui/{shopPanel,bagPanel,gearUi}.ts`、`src/data/areas/{minecamp,mine,capital}.ts`。
 
-> 🔥 **Jacky 10/24 17:30 新方向（D-049，最優先）**：稀有／神級裝備只能靠打 Boss 或小怪低機率掉落；技能樹要有前置技能與「先點多少」的門檻，深處才有更強的技能。設計在 `docs/design/11-open-world.md` §2.4b、§2.5 v2。
+> ⭐ **第 10 輪（10/24 18:12）完成 Jacky 17:30 的指示（D-049）**：稀有／神級掉落（`src/data/drops.ts`、`equipment.ts` 的 `rarity`/`perk`/`source`、engine `Perk`、BattleScene `showDrops`、行囊「收藏」頁）、技能樹 v2（`src/data/skillTree.ts` 版型 A→B/C→D→E→U、`src/core/state/skillTree.ts` 的 `rankOf/missingText/branchPoints/resetCost/treeSkills`、5 個 `tree: true` 主動技能、bagPanel 樹狀圖）；Boss 數值上調（D-050）；地圖裝飾物件＋隱藏寶箱（D-052）；城鎮約會 ×4（D-051，`src/data/dialogue/dates.ts`）；機器人自動配裝點技能（`src/core/state/autoBuild.ts`）。
 
-A-1. **稀有掉落（§2.4b）**：①`ItemDef.rarity`（'common'|'rare'|'legendary'）＋每章 2–3 件稀有、1 件神級（神級帶 `perk`），稀有以上不進任何 `SHOPS`（測試）；②`src/data/drops.ts` 掉落表＋`rollDrops(encounter, rng, firstKill)` 純函式（測試：Boss 首殺必掉、機率統計）；③BattleScene 勝利時擲骰、寫進背包、演出（卡片翻開＋藍／金光柱）；探索明雷與劇情戰都走這條；④神級特效接進引擎（`createBattle` 收 `perks`，先做 3–4 種簡單的）；⑤行囊名稱上色、收藏頁（可放下一輪）。
-A-2. **技能樹 v2（§2.5 v2）**：①資料改成節點有 `requires: { nodes?: [id, rank][]; branchPoints?: number }`、`maxRank`；每條分支 5–7 節點、底部一個新主動技能（先做連恩、瑟琳、莉歐拉、伊歐、洛克各 1 個，引擎 `SKILLS` 加 id 與效果＋測試）；②舊存檔 `tree` 遷移（找不到的 id 直接退點）；③UI 改成可捲動的樹狀圖、鎖住節點顯示缺什麼；④Boss 首殺 +1 技能點；⑤營火免費重置、其他地方收金幣。
-A0. **機器人現況**：第 1～5 章可走版各自通過；從新遊戲全程（第 9 輪中段的 build）1096 秒通關。下一輪做完任何改動後，背景跑一次從新遊戲到 `ch5_complete`（約 20 分鐘）確認全程都走可走區域。
-A1. **E6 收尾＝地圖品質**：全部章節都能走了（D-048），但第 2 章以後的地圖都是「長方形房間＋走廊」：加彎道、寬窄變化、裝飾物件（程式畫的木箱、礦車、書架、實驗台、裂谷星屑）、每區 1 個「引路之光」隱藏通路或隱藏寶箱（11-open-world §2.1）。王都可加夜市攤位、噴水池換成真的噴泉。
-A2. **E5 第二版**：羈絆事件改成「好感達門檻＋到指定地點」觸發（`src/data/bonds.ts` 的事件 → 探索實體 `when: affinityAtLeast`）；城鎮夜晚約會事件 1–2 個（灰燈鎮湖畔、王都鐘塔）；同伴在地圖上偶爾冒對話泡泡（ExploreScene followers 加 `say`）。
-A3. **E3／E4 第二版**：裝備特效（例：星燼提燈「開場燈印 +1」、迅風戒「閃避窗口 +10%」）；技能樹第 4 階換成主動技能（需要 engine `SKILLS` 新增 id 與效果）；商店依章節進貨（`ShopDef.stock` 加 `requires`）。
-A4. **E7 平衡**：裝備＋技能樹讓戰鬥變容易（第 1 章武器 ATK +25%、技能樹 lv10 再 +14%）→ 用 `src/core/battle/sim.ts` 跑「全裝備＋技能樹」對各 Boss 的勝率與回合數，必要時調高 Boss HP 或裝備價格；機器人改成會買裝備、點技能。
-A5. 第 1 章探索小項：建築內部仍是「門 → 直接跑劇本」；古燈塔是程式建築（可在 ART_REQUESTS 加 `prop_lighthouse_ruin`）；礦坑地形可加更多彎道／高低差；王都可加夜市攤位物件（程式畫棚子）。
+A0. **機器人**：第 10 輪中段的 build 從新遊戲全程通關 1201 秒（未含 autobuild）；第 4 章→結局（Boss 上調後）與「autobuild 全程」結果見 PROGRESS 第 10 輪。做完任何改動後，背景跑一次從新遊戲到 `ch5_complete`（約 20 分鐘）。
+A1. **掉落／技能樹打磨**：①掉落卡片在真機上的節奏（headless 很慢看不準）——若嫌長可加「點擊略過」；②（已做：第一次掉裝備會提示去行囊換）；③技能樹節點點一下目前是「直接學」，可考慮改成「先看說明、再點一次學」（誤點風險）；④主動技能在戰鬥中的專屬演出（現在共用技能字卡＋閃光；千燈共鳴可加五盞燈依序飛入、梭哈可加硬幣翻轉）；⑤（已做：收藏頁未取得顯示圖示剪影）。
+A2. **E5 第二版剩下的**：羈絆事件（`bonds.ts` 的 `bond_*`）目前仍綁在劇情節點；可把一部分改成「好感門檻＋到地點」（和約會同一套 `date`/`when`）；同伴閒聊泡泡已有（`banter.ts`），可依好感加新台詞。
+A3. **地圖品質（E6 收尾）**：裝飾物件已加（`props`），但地形仍是「長方形房間＋走廊」：加彎道、寬窄變化；王都夜市可再加攤位、噴水池換成真的噴泉（目前是井）；`引路之光` 謎題（11-open-world §2.1）還沒做。
+A4. **商店依章節進貨**（`ShopDef.stock` 加 `requires`），王都商店後期多幾件；普通裝備的小特效（星燼提燈「開場燈印 +1」等）可改用 `perk` 機制做弱化版。
+A5. 第 1 章探索小項：建築內部仍是「門 → 直接跑劇本」；古燈塔是程式建築（可在 ART_REQUESTS 加 `prop_lighthouse_ruin`）。
 
 0. **【每輪開頭都做】檢查 Jacky 有沒有上傳手繪立繪**：`art-inbox/` 有圖或 GitHub 有標題含「立繪」的 Issue → `pip install "rembg[cpu]" --break-system-packages`、`node scripts/import-art.mjs`（流程見 D-036）；手繪會自動取代同名程式立繪。沒圖就照常往下做。
 1. **配角程式立繪與手繪主角的畫風落差**：主角群是 AI 厚塗，配角是賽璐珞程式繪。可做：配角立繪加一層柔光／顆粒（`ensurePortrait` 畫完後 soft-light 漸層＋邊緣暈影）讓質感接近；或在 FOR_JACKY 已請 Jacky 補 `npc_tia`／`npc_gwen`／`npc_bern`。
@@ -45,6 +43,7 @@ A5. 第 1 章探索小項：建築內部仍是「門 → 直接跑劇本」；�
 ## 工具與注意事項
 - **立繪預覽**（不用開遊戲）：寫 `/tmp/.../entry.ts` import `drawXxx` 畫到 600×900 canvas → `npx vite build -c <lib config：formats iife>` → Playwright 開本機 html 截圖（Playwright 腳本要放在 repo 內 `screenshots/` 才找得到套件）。第 7 輪的做法見 PROGRESS。
 - 立繪座標系：600×900，臉中心 x=300、眼睛 y≈305、下巴 y=432、肩線 y≈500；`drawNeckAndFace(c, 300, FaceStyle)` 畫脖子/耳朵/臉/陰影/腮紅，五官另外畫。對話顯示時 900→600px（0.667 倍），canvas y>735 會被對話框蓋住。
+- **機器人會自動配裝點技能**（`window.__auto(area)`，`src/core/state/autoBuild.ts`；`AUTOBUILD=0` 關閉）。兩個機器人可以同時跑：各自 build 到不同 outDir、不同 port。
 - **機器人**：`npx vite build --outDir /tmp/claude-0/bot/dist --emptyOutDir`、`(setsid python3 -m http.server 4180 -d /tmp/claude-0/bot/dist > /dev/null 2>&1 &)`、`(setsid env GOAL=ch5_complete EXPECT_AFTER=Map WORKAROUNDS=0 node scripts/playthrough.mjs "http://localhost:4180/?debug&chapter=5&scene=Map" /tmp/claude-0/bot/ch5 25 > log 2>&1 &)`。從新遊戲（`?debug` 不加 chapter）到結局約 18–20 分鐘；單章約 3–4 分鐘。達成目標後最多等 90 秒（片尾字幕約 30 秒）。
 - **背景程式一律用 `setsid`**，否則 Bash 呼叫結束或被殺時 server 會一起死。**不要 `pkill -f`**（會殺到自己的 shell，exit 144）；用 PID。
 - 成果發表截圖：`scripts/promo.mjs`（9:16 視窗；標題要加 `skipIntro`，否則 headless 下淡入太慢整張偏暗）。

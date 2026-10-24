@@ -1777,6 +1777,14 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: pt, alpha: 1, duration: 400 });
     }
     if (items.length > n) floatNumber(this, GAME_WIDTH / 2, 392, `另外 ${items.length - n} 件已放進行囊`, { color: '#c8d0f0', size: 22 });
+    // 第一次掉裝備：教玩家去哪裡換
+    if (!session.state.flags['tip_drop'] && items.some((id) => itemDef(id).kind === 'gear')) {
+      session.state.flags['tip_drop'] = true;
+      const tip = this.add.text(GAME_WIDTH / 2, perk ? 436 : 400, '（右上 🎒 行囊 → 裝備，就能換上）', {
+        fontFamily: UI_FONT, fontSize: '22px', color: '#c8f0ff', stroke: '#000', strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(960).setAlpha(0);
+      this.tweens.add({ targets: tip, alpha: 1, duration: 400, delay: 300 });
+    }
     await wait(this, 500);
   }
 
