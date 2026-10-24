@@ -1751,6 +1751,14 @@ export class BattleScene extends Phaser.Scene {
     const best = items.some((id) => rarityOf(id) === 'legendary') ? 'legendary' : items.some((id) => rarityOf(id) === 'rare') ? 'rare' : 'common';
     const cy = 250;
     const gap = 210;
+    // 點一下畫面 → 後面的卡片加速翻開（刷寶時不用每次等完整演出）
+    let fast = false;
+    const onTap = (): void => {
+      fast = true;
+      this.tweens.timeScale = 2.5;
+    };
+    this.input.once('pointerdown', onTap);
+    const w = (ms: number) => wait(this, fast ? Math.round(ms / 3) : ms);
     for (let i = 0; i < n; i++) {
       const id = items[i]!;
       const d = itemDef(id);
@@ -1771,7 +1779,7 @@ export class BattleScene extends Phaser.Scene {
       card.add([back, q]);
       this.tweens.add({ targets: card, scale: 1, alpha: 1, duration: 320, ease: 'Back.Out' });
       SFX.cardPlay();
-      await wait(this, 380);
+      await w(380);
       // 翻面
       await new Promise<void>((res) => this.tweens.add({ targets: card, scaleX: 0, duration: 140, ease: 'Sine.In', onComplete: () => res() }));
       card.removeAll(true);
@@ -1792,7 +1800,7 @@ export class BattleScene extends Phaser.Scene {
         SFX.levelUp();
         this.time.delayedCall(180, () => SFX.perfect());
       } else SFX.itemGet();
-      await wait(this, 260);
+      await w(260);
     }
     const head = best === 'legendary' ? '✦ 神級掉落！ ✦' : best === 'rare' ? '稀有掉落！' : '獲得物品';
     const t = this.add.text(GAME_WIDTH / 2, 100, head, {
@@ -1815,7 +1823,9 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(960).setAlpha(0);
       this.tweens.add({ targets: tip, alpha: 1, duration: 400, delay: 300 });
     }
-    await wait(this, 500);
+    await w(500);
+    this.input.off('pointerdown', onTap);
+    this.tweens.timeScale = 1;
   }
 
   /** 神級特效發動：金色字卡＋光環 */
