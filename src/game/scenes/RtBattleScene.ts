@@ -68,6 +68,9 @@ export class RtBattleScene extends Phaser.Scene {
   private hint: Phaser.GameObjects.Container | null = null;
   /** 已播過特效的技能段（`施放 tick:段`） */
   private fxDone = new Set<string>();
+  /** 選單開著＝暫停 */
+  private menu: Phaser.GameObjects.Container | null = null;
+  private botName: string | null = null;
 
   constructor() {
     super('RtBattle');
@@ -78,8 +81,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
     if (!STAGES[this.stageId]) this.stageId = 'forest_entry';
     this.seed = data.seed ?? Number(q.get('seed') ?? 1);
-    const b = (data.bot ?? q.get('bot')) as keyof typeof BOT_PROFILES | null;
+    const b = (data.bot !== undefined ? data.bot : q.get('bot')) as keyof typeof BOT_PROFILES | null;
     this.bot = b && BOT_PROFILES[b] ? new PlayerBot(BOT_PROFILES[b], b) : null;
+    this.botName = this.bot ? b : null;
   }
 
   create(): void {
@@ -112,6 +116,15 @@ export class RtBattleScene extends Phaser.Scene {
     this.add.text(GAME_WIDTH / 2, 40, `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     this.makeButtons();
+    this.menu = null;
+    // 右上角選單（手機上不用改網址就能換關、重來、看 Bot 示範）
+    const mb = this.add.text(GAME_WIDTH - 44, 40, '☰', { fontFamily: UI_FONT, fontSize: '40px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49).setInteractive({ useHandCursor: true });
+    mb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      SFX.uiTap();
+      this.toggleMenu();
+    });
+    if (this.botName) this.add.text(44, 40, '觀戰', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff', backgroundColor: '#1a2a3a' }).setPadding(8, 4, 8, 4).setOrigin(0.5).setDepth(49);
     if (!this.bot) this.showHint();
     this.input.addPointer(2);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onDown(p));
@@ -139,7 +152,8 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
-    if (this.ended) return;
+    if (this.ended || this.menu) return;
+    if (p.y < VIEW_TOP && p.x > GAME_WIDTH - 100) return; // 選單鍵
     if (this.hint) this.dismissHint();
     for (let i = 0; i < 5; i++) {
       const b = this.btnPos(i);
@@ -205,7 +219,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   // ---------- 主迴圈 ----------
   update(_t: number, delta: number): void {
-    if (this.ended) return;
+    if (this.ended || this.menu) return;
     const dt = Math.min(delta, 250);
     if (this.hitStop > 0) this.hitStop = Math.max(0, this.hitStop - dt);
     else this.acc += dt;
@@ -264,6 +278,33 @@ export class RtBattleScene extends Phaser.Scene {
     else topY = Math.max(-m, Math.min(a.h + m + viewH * 0.3 - viewH, topY));
     this.ox = -left * this.k;
     this.oy = VIEW_TOP - topY * this.k;
+  }
+
+  private toggleMenu(): void {
+    if (this.menu) {
+      this.menu.destroy();
+      this.menu = null;
+      this.acc = 0;
+      return;
+    }
+    if (this.ended) return;
+    this.stick = null;
+    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.7).setInteractive()];
+    items.push(this.add.text(0, -440, '暫停', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
+    const mk = (y: number, label: string, fn: () => void, hi = false) => {
+      const t = this.add.text(0, y, label, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(24, 12, 24, 12).setInteractive({ useHandCursor: true });
+      t.on('pointerdown', () => {
+        SFX.confirm();
+        fn();
+      });
+      items.push(t);
+    };
+    mk(-350, '繼續', () => this.toggleMenu(), true);
+    mk(-270, '重來', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' }));
+    items.push(this.add.text(0, -190, '換關卡', { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
+    STAGE_IDS.forEach((id, i) => mk(-130 + i * 76, `${id === this.stageId ? '▶ ' : ''}${STAGES[id]!.name}`, () => this.scene.restart({ stage: id, seed: this.seed + 1, bot: this.botName ?? '' })));
+    mk(270, this.botName ? '改成自己操作' : '看 Bot 示範（熟練）', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'expert' }));
+    this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(95);
   }
 
   private showHint(): void {
@@ -619,7 +660,7 @@ export class RtBattleScene extends Phaser.Scene {
       const px = this.sx(e.x);
       const py = this.sy(e.y);
       const M = 30;
-      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP && py <= 960) continue;
+      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960) continue;
       const cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
       const cy = Math.max(VIEW_TOP + M, Math.min(960, py));
       const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
@@ -696,8 +737,8 @@ export class RtBattleScene extends Phaser.Scene {
         fn();
       });
     };
-    mk(640, '再一次', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1 }));
+    mk(640, '再一次', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' }));
     const next = STAGE_IDS[(STAGE_IDS.indexOf(this.stageId) + 1) % STAGE_IDS.length]!;
-    mk(730, `下一關：${STAGES[next]!.name}`, () => this.scene.restart({ stage: next, seed: this.seed + 1 }));
+    mk(730, `下一關：${STAGES[next]!.name}`, () => this.scene.restart({ stage: next, seed: this.seed + 1, bot: this.botName ?? '' }));
   }
 }
