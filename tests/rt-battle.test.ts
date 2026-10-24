@@ -2,7 +2,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { addStatus, computeDamage, createBattle, enemiesOf, inShape, playerOf, step } from '../src/core/battle/rt/engine';
+import { addStatus, computeDamage, createBattle, dist, enemiesOf, inShape, playerOf, step } from '../src/core/battle/rt/engine';
+import { cellIndex, clearLine, findPath, gridOf } from '../src/core/battle/rt/path';
 import { BOT_PROFILES, IdleController, PlayerBot, ScriptedTestController, batch, simulateBattle } from '../src/core/battle/rt/sim';
 import { ENEMIES, SKILLS, STAGES } from '../src/core/battle/rt/data';
 import { sec, u } from '../src/core/battle/rt/types';
@@ -317,6 +318,103 @@ describe('障礙物格（design/21 §3 第 1 步、D-070）', () => {
       const cx = Math.floor(x.x / solid.cell);
       const cy = Math.floor(x.y / solid.cell);
       expect(rows[cy]?.[cx], `unit ${x.id}`).not.toBe('#');
+    }
+  }, 60000);
+});
+
+describe('格子尋路與視線（D-071）', () => {
+  // 第 10 列一整排石頭，只在 x=13 留一個缺口
+  const wallRows = Array.from({ length: 20 }, (_, y) => (y === 10 ? '#############...' : '................'));
+  const wall = { cell: u(1), rows: wallRows };
+
+  it('A* 繞過石頭、不切角、同樣輸入同樣路徑', () => {
+    const arena = { w: u(16), h: u(20), solid: wall };
+    const g = gridOf(arena)!;
+    const from = cellIndex(g, u(2.5), u(5.5));
+    const to = cellIndex(g, u(2.5), u(15.5));
+    const a = findPath(g, from, to)!;
+    expect(a).not.toBeNull();
+    expect(findPath(g, from, to)).toEqual(a);
+    let prev = from;
+    for (const i of a) {
+      expect(g.walk[i]).toBe(1);
+      const px = prev % g.w, py = Math.floor(prev / g.w), x = i % g.w, y = Math.floor(i / g.w);
+      expect(Math.max(Math.abs(px - x), Math.abs(py - y))).toBe(1);
+      if (px !== x && py !== y) {
+        expect(g.walk[py * g.w + x]).toBe(1);
+        expect(g.walk[y * g.w + px]).toBe(1);
+      }
+      prev = i;
+    }
+    // 一定經過缺口（x≥13 的第 10 列）
+    expect(a.some((i) => Math.floor(i / g.w) === 10 && i % g.w >= 13)).toBe(true);
+    expect(clearLine(g, u(2.5), u(5.5), u(2.5), u(15.5))).toBe(false);
+    expect(clearLine(g, u(14.5), u(5.5), u(14.5), u(15.5))).toBe(true);
+    // 完全封死 → null
+    const closed = gridOf({ w: u(16), h: u(20), solid: { cell: u(1), rows: Array.from({ length: 20 }, (_, y) => (y === 10 ? '################' : '................')) } })!;
+    expect(findPath(closed, from, to)).toBeNull();
+  });
+
+  it('狼會繞過整排石頭追到人（直線追會卡在牆後）', () => {
+    const s = createBattle({ stageId: 'forest_entry', seed: 3 });
+    s.arena = { ...s.arena, w: u(16), h: u(20), solid: wall };
+    const p = playerOf(s);
+    const w = enemiesOf(s)[0]!;
+    s.units = [p, w];
+    p.x = u(2.5);
+    p.y = u(15.5);
+    p.speedPerTick = 0;
+    w.x = u(2.5);
+    w.y = u(5.5);
+    let reached = -1;
+    for (let i = 0; i < sec(15); i++) {
+      step(s, [{ type: 'stop' }]);
+      p.hp = p.maxHp;
+      if (reached < 0 && dist(w.x, w.y, p.x, p.y) < u(2)) reached = s.tick;
+    }
+    expect(reached).toBeGreaterThan(0);
+    expect(reached).toBeLessThan(sec(10));
+  });
+
+  it('荊棘射手隔著石頭不會射擊；繞出來看得到才射', () => {
+    const rows = Array.from({ length: 20 }, (_, y) => (y === 8 ? '......###.......' : '................'));
+    const s = createBattle({ stageId: 'forest_deep', seed: 2 });
+    s.arena = { ...s.arena, w: u(16), h: u(20), solid: { cell: u(1), rows } };
+    const p = playerOf(s);
+    const sh = enemiesOf(s).find((e) => e.defId === 'thorn_shooter')!;
+    s.units = [p, sh];
+    p.x = u(7.5);
+    p.y = u(10.5);
+    p.speedPerTick = 0;
+    sh.x = u(7.5);
+    sh.y = u(5);
+    sh.speedPerTick = 0; // 不讓它走出來
+    for (let i = 0; i < sec(8); i++) {
+      step(s, [{ type: 'stop' }]);
+      p.hp = p.maxHp;
+    }
+    expect(s.events.filter((e) => e.type === 'telegraph').length).toBe(0);
+    sh.x = u(11.5); // 移到看得到的位置
+    sh.y = u(8.5);
+    for (let i = 0; i < sec(4); i++) {
+      step(s, [{ type: 'stop' }]);
+      p.hp = p.maxHp;
+    }
+    expect(s.events.filter((e) => e.type === 'telegraph').length).toBeGreaterThan(0);
+  });
+
+  it('碎石林道：熟練 Bot 穩定通關、可重現、沒有單位卡進石頭', () => {
+    const a = simulateBattle({ stageId: 'rock_grove', seed: 9 }, expert());
+    const b = simulateBattle({ stageId: 'rock_grove', seed: 9 }, expert());
+    expect(b.stateHash).toBe(a.stateHash);
+    expect(batch('rock_grove', expert, 10).winRate).toBe(100);
+    const s = createBattle({ stageId: 'rock_grove', seed: 4 });
+    const bot = expert();
+    const rows = s.arena.solid!.rows;
+    while (s.outcome === 'running') {
+      step(s, bot.decide(s));
+      if (s.tick % 15) continue;
+      for (const x of s.units) if (!x.dead) expect(rows[Math.floor(x.y / u(1))]?.[Math.floor(x.x / u(1))], `unit ${x.id} t${s.tick}`).not.toBe('#');
     }
   }, 60000);
 });

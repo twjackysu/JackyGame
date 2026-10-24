@@ -3,6 +3,7 @@
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, PlayerDefinition, Shape, SkillHit, StatusApply, StatusId, Unit } from './types';
 import { STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import { clearLine, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
 export function nextRand(s: BattleState): number {
@@ -314,6 +315,27 @@ function moveToward(s: BattleState, x: Unit, tx: number, ty: number, stopAt: num
   moveDir(s, x, fx, fy, factor);
 }
 
+/**
+ * 追向目標（D-071）：沒有障礙物時＝moveToward（舊行為完全不變）；
+ * 有障礙物而且直線被擋 → 走 A* 路徑的下一個點（繞過石頭），到目標附近才停。
+ */
+function navToward(s: BattleState, x: Unit, tx: number, ty: number, stopAt: number, factor = 1): void {
+  const g = gridOf(s.arena);
+  if (!g || dist(x.x, x.y, tx, ty) <= stopAt) {
+    moveToward(s, x, tx, ty, stopAt, factor);
+    return;
+  }
+  const wp = nextWaypoint(g, x.x, x.y, tx, ty, Math.round(x.r * 0.8));
+  if (!wp || (wp[0] === tx && wp[1] === ty)) moveToward(s, x, tx, ty, stopAt, factor);
+  else moveToward(s, x, wp[0], wp[1], 0, factor);
+}
+
+/** 遠程（非衝鋒）攻擊需要視線；沒有障礙物時永遠 true */
+function hasSight(s: BattleState, a: Unit, b: Unit): boolean {
+  const g = gridOf(s.arena);
+  return !g || clearLine(g, a.x, a.y, b.x, b.y, 0);
+}
+
 function face(x: Unit, t: Unit): void {
   const [fx, fy] = norm(t.x - x.x, t.y - x.y);
   x.facingX = fx;
@@ -458,7 +480,7 @@ function updatePlayer(s: BattleState): void {
           moveDir(s, p, fx, fy, sk.moveFactor);
         } else {
           const t = currentTarget(s, p);
-          if (t) moveToward(s, p, t.x, t.y, p.r + t.r, sk.moveFactor);
+          if (t) navToward(s, p, t.x, t.y, p.r + t.r, sk.moveFactor);
         }
       }
       for (const h of sk.hits) if (h.atTick === k) resolveSkillHit(s, p, a, h, a.id, 'skill');
@@ -486,7 +508,7 @@ function updatePlayer(s: BattleState): void {
   const reach = pd.attackRange + p.r + t.r;
   const d = dist(p.x, p.y, t.x, t.y);
   if (d > reach) {
-    moveToward(s, p, t.x, t.y, reach - 10);
+    navToward(s, p, t.x, t.y, reach - 10);
     return;
   }
   face(p, t);
@@ -498,7 +520,9 @@ function updatePlayer(s: BattleState): void {
 
 // ---------------- 敵人 ----------------
 function pickAttack(s: BattleState, e: Unit, def: EnemyDefinition, d: number, target: Unit): AreaAttack | undefined {
-  const ok = def.attacks.filter((a) => (!a.phase2Only || e.phase === 2) && (e.ready[a.id] ?? 0) <= s.tick && d <= a.triggerRange + target.r);
+  const sight = hasSight(s, e, target);
+  // 隔著石頭不能射擊（衝鋒例外：隔石衝鋒會撞上石頭暈眩，是可利用的弱點）
+  const ok = def.attacks.filter((a) => (!a.phase2Only || e.phase === 2) && (e.ready[a.id] ?? 0) <= s.tick && d <= a.triggerRange + target.r && (sight || !!a.charge));
   if (ok.length === 0) return undefined;
   const total = ok.reduce((n, a) => n + a.weight, 0);
   let r = nextRand(s) * total;
@@ -604,7 +628,7 @@ function updateEnemy(s: BattleState, e: Unit): void {
     }
   }
   const closest = Math.min(...def.attacks.filter((x) => !x.phase2Only || e.phase === 2).map((x) => x.triggerRange));
-  moveToward(s, e, p.x, p.y, Math.max(e.r + p.r, closest * 0.85));
+  navToward(s, e, p.x, p.y, Math.max(e.r + p.r, closest * 0.85));
 }
 
 // ---------------- 主迴圈 ----------------
