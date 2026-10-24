@@ -71,6 +71,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 選單開著＝暫停 */
   private menu: Phaser.GameObjects.Container | null = null;
   private botName: string | null = null;
+  private lastWarnTick = -1;
 
   constructor() {
     super('RtBattle');
@@ -355,7 +356,17 @@ export class RtBattleScene extends Phaser.Scene {
           SFX.hitLight();
           sparks(this, this.sx(d.x), this.sy(d.y), 6, 'spark', 0xffffff, 260);
         }
-        if (toPlayer) this.cameras.main.shake(90, 0.004);
+        if (toPlayer) {
+          this.cameras.main.shake(90, 0.004);
+          // Android／部分瀏覽器支援震動；iOS Safari 不支援就略過
+          if (!this.bot && e.amount > (e.absorbed ?? 0)) {
+            try {
+              navigator.vibrate?.(e.amount >= d.maxHp * 0.12 ? 60 : 25);
+            } catch {
+              /* 不支援 */
+            }
+          }
+        }
       } else if (e.type === 'dodge') SFX.dodge();
       else if (e.type === 'block') {
         SFX.parry();
@@ -379,6 +390,14 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, '狼王暴怒！', '#ff7a5a', 52, 700);
       else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
       else if (e.type === 'cast') SFX.blip();
+      else if (e.type === 'telegraph') {
+        // 預告聲音提示（同一 tick 多隻只響一次）；Boss 低沉
+        if (this.lastWarnTick !== e.tick) {
+          this.lastWarnTick = e.tick;
+          const o = u(e.owner);
+          SFX.warn(!!(o && ENEMIES[o.defId]?.boss));
+        }
+      }
       else if (e.type === 'summon') {
         const b = u(e.id);
         if (b) shockRing(this, this.sx(b.x), this.sy(b.y), 0xb080ff, 140, 400, 5);

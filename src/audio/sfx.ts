@@ -183,6 +183,9 @@ export const SFX = {
     playSfx({ wave: 'square', freq: 180, freqEnd: 50, sustain: 0.02, release: 0.15, volume: 0.3 });
   },
   // ---- 05 §6 具名音效 ----
+  /** 敵人預告開始（即時戰鬥）：短促下降音；Boss 低沉、不可格擋更尖 */
+  warn: (heavy: boolean): void =>
+    playSfx(heavy ? { wave: 'sawtooth', freq: 220, freqEnd: 140, sustain: 0.06, release: 0.14, volume: 0.2, lowpass: 1400 } : { wave: 'square', freq: 740, freqEnd: 520, sustain: 0.02, release: 0.06, volume: 0.12 }),
   uiTap: (): void => playSfx({ wave: 'triangle', freq: 660, freqEnd: 990, sustain: 0.01, release: 0.06, volume: 0.18 }),
   uiCancel: (): void => playSfx({ wave: 'triangle', freq: 520, freqEnd: 260, sustain: 0.02, release: 0.12, volume: 0.2 }),
   hitLight: (): void => {
