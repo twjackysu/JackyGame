@@ -46,9 +46,11 @@ export function creditsLines(s: GameState): CreditLine[] {
     { text: '企劃・程式・劇本・美術・音樂', kind: 'body' },
     { text: 'Claude（自動開發迴圈）', kind: 'stat' },
     { text: '為 Jacky 打造', kind: 'body' },
+    { text: '主要角色立繪', kind: 'body' },
+    { text: 'Jacky（AI 繪圖）', kind: 'stat' },
     { text: '', kind: 'gap' },
     { text: '所有角色、劇情、卡牌與音樂皆為原創', kind: 'body' },
-    { text: '美術與音效全部由程式即時生成', kind: 'body' },
+    { text: '其餘美術與全部音效由程式即時生成', kind: 'body' },
     { text: '', kind: 'gap' },
     { text: '謝謝你，一路提著燈。', kind: 'head' },
   ];

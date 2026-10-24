@@ -7,7 +7,7 @@
 
 0. **【每輪開頭都做】檢查 Jacky 有沒有上傳手繪立繪**：`art-inbox/` 有圖或 GitHub 有標題含「立繪」的 Issue → `pip install "rembg[cpu]" --break-system-packages`、`node scripts/import-art.mjs`（流程見 D-036）；手繪會自動取代同名程式立繪。沒圖就照常往下做。
 1. **配角程式立繪與手繪主角的畫風落差**：主角群是 AI 厚塗，配角是賽璐珞程式繪。可做：配角立繪加一層柔光／顆粒（`ensurePortrait` 畫完後 soft-light 漸層＋邊緣暈影）讓質感接近；或在 FOR_JACKY 已請 Jacky 補 `npc_tia`／`npc_gwen`／`npc_bern`。
-2. **戰鬥背影對齊手繪配色**：手繪連恩是黑外套＋紅圍巾、伊歐白洋裝——`animeSprites.ts` 的連恩外套目前是海軍藍，可改成黑褐；其餘對照 `public/art` 檢查。
+2. **戰鬥背影對齊手繪配色**：連恩外套已改黑（第 7 輪）；其餘大致相符（瑟琳銀甲＋藏青披風、莉歐拉棕背心＋白襯衫、洛克深色＋灰毛領）；README `03-timing.jpg` 已重拍。
 3. **截通關存檔的「新的旅程」確認框**（三顆按鈕：二週目／覆蓋／取消；需要有 `ch5_complete` 的存檔，可用機器人通關後的頁面或在 console 設 flag 後 `session.save()`）。勝利畫面已確認（README 10-victory）。
 4. **README 截圖更新**（標題／戰鬥／羈絆／對話已在第 7 輪重拍）：燼牌已換成對局中段（新紋章，`screenshots/cards.mjs` 寫法：等 `canAct()` 後 `act(playsFor(i)[0])`）；可再加一張片尾統計（`getScene('Dialogue').rollCredits()`；直接呼叫沒有暗幕，要先加全螢幕黑色 rectangle depth 400，或讓機器人從 `?chapter=5` 跑到終幕再截）。燼牌紋章在小卡上偏小（左上點數會擋到），可微調 `drawEmblem` 半徑/位置。`node scripts/promo.mjs http://localhost:4180/ screenshots/promoN <名稱,...>` 可以只截指定幾張。
 5. **燼牌對局手感**：拖曳出牌若在 AI 回合結束 render 時按住會失效（極少見）。（收藏入牌組的勝率影響已模擬：+0～8%，見 D-031，不用調。）
