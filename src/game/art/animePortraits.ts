@@ -6,7 +6,7 @@ export const AW = 600;
 export const AH = 900;
 
 // ---------------------------------------------------------------- 共用：臉
-interface FaceStyle {
+export interface FaceStyle {
   skin: string; skinShadow: string; skinDeep: string; ink: string; blush: string; rimColor: string;
   /** 陰影在畫面哪一側（-1 左、1 右） */
   shadowSide: 1 | -1;
@@ -23,7 +23,7 @@ function facePath(cx: number, f: FaceStyle): Path2D {
   ]);
 }
 
-function drawNeckAndFace(c: C, cx: number, f: FaceStyle): Path2D {
+export function drawNeckAndFace(c: C, cx: number, f: FaceStyle): Path2D {
   // 脖子
   const nw = f.neck ?? 1;
   const neck = curve([[cx - 40 * nw, 380], [cx - 42 * nw, 470], [cx - 54 * nw, 520], [cx + 54 * nw, 520], [cx + 42 * nw, 470], [cx + 40 * nw, 380]]);
