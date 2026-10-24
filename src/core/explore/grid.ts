@@ -6,6 +6,7 @@ export const WALKABLE: Record<string, boolean> = {
   '.': true, // 草地
   ',': true, // 花草
   '=': true, // 石板路
+  ':': true, // 泥土小徑
   G: true, // 城門地面
   w: true, // 木地板
   T: false, // 樹

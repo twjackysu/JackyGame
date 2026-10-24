@@ -112,7 +112,8 @@ describe('entity logic (greylamp)', () => {
     expect(interact(s, a.id, byId('orphanage'))).toMatchObject({ kind: 'script', script: 'ch1', node: 'orphanage' });
     expect(interact(s, a.id, byId('gate'))).toMatchObject({ kind: 'say' });
     applyEffects(s, [{ flag: 'ch1_rourke_joined' }]);
-    expect(interact(s, a.id, byId('gate'))).toMatchObject({ kind: 'script', after: 'map' });
+    expect(interact(s, a.id, byId('gate'))).toMatchObject({ kind: 'script', node: 'town_gate' });
+    expect(byId('gate').to).toEqual({ area: 'mistwood', spawn: 'north' });
     const c = interact(s, a.id, byId('pond_chest'));
     expect(c.kind).toBe('loot');
     if (c.kind === 'loot') applyEffects(s, c.effects);
@@ -126,5 +127,37 @@ describe('entity logic (greylamp)', () => {
     const first = interact(s, a.id, g, 0);
     const last = interact(s, a.id, g, 0.999);
     expect(first).not.toEqual(last);
+  });
+});
+
+describe('mistwood', () => {
+  const a = AREAS['mistwood']!;
+  const byId = (id: string) => a.entities.find((e) => e.id === id)!;
+  it('objectives: caravan → lake → hunter; waiting hides the !', () => {
+    const s = newGame();
+    applyEffects(s, [{ flag: 'ch1_got_lantern' }, { flag: 'ch1_rourke_joined' }, { flag: 'ch1_left_town' }]);
+    expect(nextObjective(s, a)?.id).toBe('forest_edge');
+    applyEffects(s, [{ flag: 'ch1_caravan_done' }]);
+    expect(nextObjective(s, a)?.id).toBe('mist_lake');
+    applyEffects(s, [{ flag: 'ch1_io_joined' }]);
+    expect(nextObjective(s, a)?.id).toBe('hunter_hut');
+    applyEffects(s, [{ flag: 'bern_wait' }]);
+    expect(markerOf(s, a.id, byId('hunter_hut'))).toBe('chat');
+    expect(nextObjective(s, a)).toBeUndefined();
+    applyEffects(s, [{ flag: 'ch1_path_cleared' }]);
+    expect(nextObjective(s, a)?.id).toBe('hunter_hut');
+  });
+  it('enemies have valid encounters and no marker', async () => {
+    const { ENCOUNTERS } = await import('../src/data/combatants');
+    const s = newGame();
+    for (const e of a.entities.filter((x) => x.kind === 'enemy')) {
+      expect(ENCOUNTERS[e.battle!], e.id).toBeTruthy();
+      expect(markerOf(s, a.id, e)).toBe('none');
+    }
+  });
+  it('exits link back', () => {
+    expect(byId('north_exit').to).toEqual({ area: 'greylamp', spawn: 'gate' });
+    expect(AREAS['greylamp']!.spawns['gate']).toBeTruthy();
+    expect(byId('south_exit').to).toBe('map');
   });
 });

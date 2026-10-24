@@ -46,6 +46,7 @@ export const GREYLAMP: AreaDef = {
   region: 'ch1',
   name: '灰燈鎮',
   night: true,
+  mapNode: 'town_gate',
   rows: ROWS,
   buildings: [
     { x: 2, y: 2, w: 7, h: 4, roof: '#5a3a4a', wall: '#8a7060', sign: '孤兒院', lit: true, prop: 'prop_house_a' },
@@ -80,12 +81,12 @@ export const GREYLAMP: AreaDef = {
     // ── 鎮門：踩上去觸發 ──
     {
       id: 'gate', kind: 'gate', x: 10, y: 29, name: '鎮門', talk: { script: 'ch1', node: 'town_gate' },
-      requires: { flag: 'ch1_rourke_joined' }, done: 'ch1_left_town', after: 'map',
+      requires: { flag: 'ch1_rourke_joined' }, done: 'ch1_left_town', to: { area: 'mistwood', spawn: 'north' },
       lines: ['守衛：「一個人出鎮？森林裡的狼可不挑食。\n　　　先去酒館找個能打的同伴吧。」'],
     },
     // ── 鎮民（閒聊、提示）──
     {
-      id: 'guard', kind: 'npc', x: 12, y: 28, name: '守衛', look: { body: '#5a6a8a', hair: '#3a2a20' },
+      id: 'guard', kind: 'npc', x: 12, y: 28, name: '守衛', look: { body: '#5a6a8a', hair: '#3a2a20', art: 'walk_npc_guard' },
       lines: [
         '「掌燈人？這年頭還有人做這行啊。」',
         '「路燈一盞盞熄了，鎮長說沒錢添油。」',
@@ -93,7 +94,7 @@ export const GREYLAMP: AreaDef = {
       ],
     },
     {
-      id: 'lamplighter', kind: 'npc', x: 8, y: 13, name: '老燈伕', look: { body: '#6a5a40', hair: '#d8d8d8' }, wander: 1,
+      id: 'lamplighter', kind: 'npc', x: 8, y: 13, name: '老燈伕', look: { body: '#6a5a40', hair: '#d8d8d8', art: 'walk_npc_lamplighter' }, wander: 1,
       lines: [
         '「燈芯要剪平，火才會穩。這是我師父說的。」',
         '「廣場那四盞，是我年輕時親手掛上去的。」',
@@ -101,7 +102,7 @@ export const GREYLAMP: AreaDef = {
       ],
     },
     {
-      id: 'kid', kind: 'npc', x: 12, y: 10, name: '孤兒院的孩子', look: { body: '#c87a5a', hair: '#7a4a2a' }, wander: 2,
+      id: 'kid', kind: 'npc', x: 12, y: 10, name: '孤兒院的孩子', look: { body: '#c87a5a', hair: '#7a4a2a', art: 'walk_npc_kid' }, wander: 2,
       lines: [
         '「連恩哥哥回來了！瑪菈院長一直在等你喔。」',
         '「湖邊那棵樹後面，有亮亮的東西！」',
@@ -109,7 +110,7 @@ export const GREYLAMP: AreaDef = {
       ],
     },
     {
-      id: 'villager', kind: 'npc', x: 9, y: 22, name: '鎮民', look: { body: '#6a8a6a', hair: '#4a3a2a' }, wander: 2,
+      id: 'villager', kind: 'npc', x: 9, y: 22, name: '鎮民', look: { body: '#6a8a6a', hair: '#4a3a2a', art: 'walk_npc_villager' }, wander: 2,
       lines: [
         '「酒館的洛克又在贏錢了，誰都打不贏他。」',
         '「聽說燼牌打得好，在王都能當上貴族的座上賓呢。」',

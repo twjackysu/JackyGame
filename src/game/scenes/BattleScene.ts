@@ -38,6 +38,8 @@ export interface BattleSceneData {
   story?: boolean;
   /** 新手教學戰：星燼全滿、提示較多 */
   tutorial?: boolean;
+  /** story 戰結束後要喚醒的場景（預設 Dialogue；探索明雷 → 'Explore'） */
+  returnTo?: string;
 }
 
 type Mode = 'busy' | 'command' | 'panel' | 'timing' | 'defense' | 'end';
@@ -88,7 +90,7 @@ function eventTime(p: Phaser.Input.Pointer): number {
 
 export class BattleScene extends Phaser.Scene {
   private bs!: BattleState;
-  private data0: Required<Pick<BattleSceneData, 'encounter' | 'party' | 'chain'>> & { seed: number; story: boolean; tutorial: boolean } = {
+  private data0: Required<Pick<BattleSceneData, 'encounter' | 'party' | 'chain'>> & { seed: number; story: boolean; tutorial: boolean; returnTo?: string } = {
     encounter: 'forest_a', party: [], chain: [], seed: 1, story: false, tutorial: false,
   };
   private mode: Mode = 'busy';
@@ -145,6 +147,7 @@ export class BattleScene extends Phaser.Scene {
       seed: data.seed ?? ((Math.random() * 1e9) | 0),
       story: !!data.story,
       tutorial: !!data.tutorial,
+      returnTo: data.returnTo,
     };
     this.mode = 'busy';
     this.heroes = [];
@@ -1901,7 +1904,7 @@ export class BattleScene extends Phaser.Scene {
           if (win) f['stat_wins'] = n('stat_wins') + 1;
           session.save();
           this.scene.stop();
-          this.scene.wake('Dialogue', { outcome: win ? 'win' : 'lose' });
+          this.scene.wake(this.data0.returnTo ?? 'Dialogue', { outcome: win ? 'win' : 'lose' });
         } else if (win && !next) this.scene.start('Title');
         else {
           this.scene.restart({

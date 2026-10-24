@@ -17,6 +17,8 @@ import { ENDING_NAME } from '../credits';
 
 /** 第 1 章世界地圖上屬於灰燈鎮（可走區域）的地點 */
 const GREYLAMP_NODES = ['orphanage', 'tavern', 'general_store', 'town_gate'];
+/** 屬於霧角森林（可走區域）的地點 */
+const MISTWOOD_NODES = ['forest_edge', 'mist_lake', 'hunter_hut'];
 
 type NodeState = 'locked' | 'open' | 'done' | 'waiting';
 
@@ -313,8 +315,9 @@ export class MapScene extends Phaser.Scene {
     s.location = { region: id, node: loc };
     session.save();
     // 第 1 章鎮內地點：改成走進可自由探索的灰燈鎮，站在該建築門口（D-040）
-    if (id === 'ch1' && GREYLAMP_NODES.includes(loc)) {
-      fadeOutThen(this, 400, () => this.scene.start('Explore', { area: 'greylamp', spawn: loc }));
+    if (id === 'ch1' && (GREYLAMP_NODES.includes(loc) || MISTWOOD_NODES.includes(loc))) {
+      const area = GREYLAMP_NODES.includes(loc) ? 'greylamp' : 'mistwood';
+      fadeOutThen(this, 400, () => this.scene.start('Explore', { area, spawn: loc }));
       return;
     }
     fadeOutThen(this, 400, () => {

@@ -2,6 +2,18 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-041 2026-10-24 明雷戰鬥沿用 story 戰流程＋區域內暫時擊倒
+- 探索中碰到敵人 → `scene.sleep` 探索與 HUD，`scene.run('Battle', { story: true, returnTo: 'Explore' })`；BattleScene 結束時 `wake(returnTo)`。沿用 story 戰的經驗值、統計、不屈之燈，不另寫一套。
+- 打倒的敵人記在模組層 `DEFEATED`（不存檔）：從出口／世界地圖進入區域時重生，看完劇本或戰鬥回來則保留。敗北 → 回區域入口、敵人回原位，不 Game Over。
+- 敵人 4 格內追擊（頭上紅「！」），離家 8 格放棄；回來後 0.7 秒無敵避免連撞。背後偷襲／等級差逃跑（11-open-world §2.3）留到 E2 後段。
+
+## D-040 2026-10-24 第 1 章前半改走可走區域（灰燈鎮＋霧角森林）
+- 序章結束直接站在灰燈鎮（ExploreScene），不再先看節點地圖；世界地圖上灰燈鎮 4 個地點、森林 3 個地點（商隊、霧之湖、獵人小屋）點下去會走進對應區域、站在該地點門口。狼徑以後仍是節點地圖（下一輪轉換）。
+- 主線入口照舊用 ch1 劇本節點（`talk: { script, node }`），完成旗標決定頭上「！」；伯恩「等待中」用 `waiting` 條件隱藏「！」。劇本結束回到探索（`DialogueScene.returnTo`，也記在 flags `__return`，中途關 App 也回得去）。
+- 鎮門：主線（`town_gate`）跑完後回到鎮門，再踩一次就走進森林；森林北出口回鎮、南出口回世界地圖。
+- 理由：Jacky 要「打開遊戲就能走」；先讓第 1 章前半真正可走、機器人可通關，再逐章擴充，main 一直可玩。
+- Jacky 的本機 Agent 同時也匯入了同一批美術（commit 91a1eb5，rembg 品質較好），合併時保留他的圖檔、保留本輪的程式改動。
+
 ## D-039 2026-10-24 美術需求佇列 docs/ART_REQUESTS.md（Jacky 指示）
 - Jacky：之後需要產圖或優化美術（地圖背景、建築、道具、野獸、敵人…）都記在一個地方，他回國後請本機 Agent 用 GPT／Gemini 照表產圖；免費額度有限不要太多；精緻的用 GPT、普通的用 Gemini；留 prompt 給方向。
 - 做法：`docs/ART_REQUESTS.md` 是唯一佇列；總額度 GPT 8、Gemini 12；多物件用 sheet（`scripts/art-sheets.json` 定義切格與檔名）；遊戲不可依賴這些圖，先做程式備援。`import-art.mjs` 依前綴處理（bg 不去背、其餘去背縮圖）；`silhouettes.ts` 的 `make`/`heroCanvas`/`canvasArt` 遇到手繪同名材質會改用圖片尺寸。

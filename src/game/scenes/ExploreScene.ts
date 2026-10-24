@@ -11,6 +11,9 @@ import {
 } from '../../core/explore/grid';
 import { applyEffects } from '../../core/state/gameState';
 import { AREAS } from '../../data/areas';
+import { ENCOUNTERS } from '../../data/combatants';
+import type { BattleSceneData } from './BattleScene';
+import type { HeroId } from '../../core/battle/skills';
 import { generateCombatantArt } from '../art/silhouettes';
 import { TILE, drawAreaGround, drawChest, drawChibi, drawSignBoard } from '../art/exploreArt';
 import { UI_FONT, fadeOutThen, shockRing, sparks } from '../fx/feel';
@@ -44,6 +47,9 @@ interface Actor {
   moving: boolean;
 }
 
+/** 已打倒的明雷敵人（區域 → id）。從出口或世界地圖進入區域時清空＝重生；劇本／戰鬥回來則保留。 */
+const DEFEATED = new Map<string, Set<string>>();
+
 export class ExploreScene extends Phaser.Scene {
   area!: AreaDef;
   private grid!: Grid;
@@ -72,6 +78,8 @@ export class ExploreScene extends Phaser.Scene {
     const flags = session.state.flags;
     const id = data.area ?? (typeof flags['__ex_area'] === 'string' ? (flags['__ex_area'] as string) : 'greylamp');
     this.area = AREAS[id] ?? AREAS['greylamp']!;
+    if (data.area) DEFEATED.set(this.area.id, new Set());
+    this.chasing = new Set();
     this.grid = parseGrid(this.area.rows, this.area.buildings);
     this.followers = [];
     this.trail = [];
@@ -93,6 +101,17 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   private spawnAt: Pt = { x: 0, y: 0 };
+  private chasing = new Set<string>();
+
+  private defeated(): Set<string> {
+    let d = DEFEATED.get(this.area.id);
+    if (!d) DEFEATED.set(this.area.id, (d = new Set()));
+    return d;
+  }
+
+  private alive(a: Actor): boolean {
+    return a.e.kind !== 'enemy' || !this.defeated().has(a.e.id);
+  }
 
   create(): void {
     const s = session.state;
@@ -109,6 +128,7 @@ export class ExploreScene extends Phaser.Scene {
     // 實體
     for (const e of this.area.entities) {
       const a: Actor = { e, tx: e.x, ty: e.y, home: { x: e.x, y: e.y }, moving: false };
+      if (!this.alive(a)) continue;
       this.actors.push(a);
       this.buildActor(a);
     }
@@ -147,9 +167,13 @@ export class ExploreScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onMove(p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onUp(p));
     this.time.addEvent({ delay: 2200, loop: true, callback: () => this.wanderTick() });
+    this.time.addEvent({ delay: 420, loop: true, callback: () => this.enemyTick() });
+    this.events.off(Phaser.Scenes.Events.WAKE);
+    this.events.on(Phaser.Scenes.Events.WAKE, (_: unknown, d?: { outcome?: string }) => this.onBattleEnd(d?.outcome ?? 'win'));
 
     this.scene.launch('ExploreHud', { area: this.area.id });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off(Phaser.Scenes.Events.WAKE);
       this.scene.stop('ExploreHud');
       const w = window as unknown as { __explore?: unknown };
       if (w.__explore) delete w.__explore;
@@ -277,6 +301,9 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   private makeWalker(key: string, height: number): { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image } {
+    // 地圖用正面 Q 版（docs/ART_REQUESTS R-010：walk_<id>）有圖就用，沒有就用戰鬥背影圖
+    const walk = key.replace(/^hero_/, 'walk_');
+    if (this.textures.exists(walk)) key = walk;
     const c = this.add.container(0, 0);
     const sh = this.add.image(0, 0, 'ex_shadow').setScale(0.9);
     const img = this.add.image(0, 2, key).setOrigin(0.5, 1);
@@ -298,6 +325,12 @@ export class ExploreScene extends Phaser.Scene {
         w.c.setPosition(0, 0);
         c.add(w.c);
         a.img = w.img;
+      } else if (e.look?.art && this.textures.exists(e.look.art)) {
+        const sh = this.add.image(0, 0, 'ex_shadow').setScale(0.8);
+        const img = this.add.image(0, 6, e.look.art).setOrigin(0.5, 1);
+        img.setScale(76 / img.height);
+        c.add([sh, img]);
+        a.img = img;
       } else if (e.look) {
         const sh = this.add.image(0, 0, 'ex_shadow').setScale(0.8);
         const img = this.add.image(0, 6, `ex_npc_${e.look.body}_${e.look.hair}`).setOrigin(0.5, 1).setScale(0.78);
@@ -305,6 +338,21 @@ export class ExploreScene extends Phaser.Scene {
         a.img = img;
         this.tweens.add({ targets: img, scaleY: 0.8, duration: 900 + Math.random() * 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       }
+    } else if (e.kind === 'door' && !this.area.buildings.some((b) => e.x >= b.x && e.x < b.x + b.w && e.y >= b.y && e.y < b.y + b.h)) {
+      // 野外的劇情地點（湖畔等）：發光的光點
+      const gl = this.add.image(0, 0, 'ex_glow').setScale(0.7).setAlpha(0.55).setTint(0x9fe8ff).setBlendMode(Phaser.BlendModes.ADD);
+      const core = this.add.image(0, 0, 'ex_glow').setScale(0.18).setTint(0xdff8ff).setBlendMode(Phaser.BlendModes.ADD);
+      c.add([gl, core]);
+      this.tweens.add({ targets: gl, scale: 0.9, alpha: 0.3, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    } else if (e.kind === 'enemy') {
+      const eid = ENCOUNTERS[e.battle ?? '']?.[0] ?? 'mist_wolf';
+      const key = this.textures.exists(`enemy_${eid}`) ? `enemy_${eid}` : 'enemy_mist_wolf';
+      const sh = this.add.image(0, 0, 'ex_shadow').setScale(1.1);
+      const img = this.add.image(0, 10, key).setOrigin(0.5, 1);
+      img.setScale(70 / img.height);
+      c.add([sh, img]);
+      a.img = img;
+      this.tweens.add({ targets: img, y: 4, duration: 500 + Math.random() * 200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     } else if (e.kind === 'chest') {
       const open = !!session.state.flags[chestFlag(this.area.id, e.id)];
       if (this.textures.exists('prop_chest')) {
@@ -533,12 +581,13 @@ export class ExploreScene extends Phaser.Scene {
   /** 踩到城門 */
   private enterGate(a: Actor): void {
     const s = session.state;
-    if (a.e.done && s.flags[a.e.done]) {
-      // 已出過鎮：直接回世界地圖
-      this.leaveToMap();
+    const r = interact(s, this.area.id, a.e);
+    // 主線已完成（或本來就是單純出口）→ 前往下一個區域／世界地圖
+    if ((a.e.done && s.flags[a.e.done]) || (r.kind !== 'script' && a.e.to)) {
+      if (a.e.to === 'map' || !a.e.to) this.leaveToMap();
+      else this.gotoArea(a.e.to.area, a.e.to.spawn);
       return;
     }
-    const r = interact(s, this.area.id, a.e);
     if (r.kind === 'script') {
       this.runScript(r.script, r.node, r.after);
       return;
@@ -553,14 +602,26 @@ export class ExploreScene extends Phaser.Scene {
     }
   }
 
+  gotoArea(area: string, spawn: string): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    SFX.confirm();
+    const s = session.state;
+    s.flags['__ex_area'] = area;
+    delete s.flags['__ex_x'];
+    delete s.flags['__ex_y'];
+    session.setScriptPos('explore', area);
+    session.save();
+    fadeOutThen(this, 350, () => this.scene.start('Explore', { area, spawn }));
+  }
+
   leaveToMap(): void {
     if (this.leaving) return;
     this.leaving = true;
     SFX.confirm();
     const s = session.state;
-    s.flags['__ex_x'] = this.area.spawns['gate']?.x ?? this.area.spawns['default']!.x;
-    s.flags['__ex_y'] = this.area.spawns['gate']?.y ?? this.area.spawns['default']!.y;
-    s.location = { region: this.area.region, node: 'town_gate' };
+    this.savePos(false);
+    s.location = { region: this.area.region, node: this.area.mapNode ?? s.location.node };
     session.setScriptPos('map', this.area.region);
     session.save();
     fadeOutThen(this, 400, () => this.scene.start('Map'));
@@ -629,6 +690,16 @@ export class ExploreScene extends Phaser.Scene {
       } else f.img.y = 2;
       f.c.setDepth(f.c.y);
     });
+    // 明雷：碰到敵人 → 戰鬥
+    if (!this.busy && !this.leaving) {
+      for (const a of this.actors) {
+        if (a.e.kind !== 'enemy' || !a.obj || !this.alive(a)) continue;
+        if (Math.hypot(a.obj.x - this.player.x, a.obj.y - this.player.y) < 42) {
+          this.startBattle(a);
+          break;
+        }
+      }
+    }
     // 城門
     const pt = this.playerTile();
     const gate = this.actors.find((a) => a.e.kind === 'gate' && a.tx === pt.x && a.ty === pt.y)
@@ -650,7 +721,7 @@ export class ExploreScene extends Phaser.Scene {
     const pt = this.playerTile();
     for (const a of this.actors) {
       const r = a.e.wander ?? 0;
-      if (r <= 0 || a.moving || !a.obj || Math.random() < 0.5) continue;
+      if (a.e.kind === 'enemy' || r <= 0 || a.moving || !a.obj || Math.random() < 0.5) continue;
       if (this.bubble && this.bubble.x === a.obj.x) continue;
       const dirs: Pt[] = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
       const d = dirs[Math.floor(Math.random() * 4)]!;
@@ -674,6 +745,118 @@ export class ExploreScene extends Phaser.Scene {
     }
   }
 
+  // ------------------------------------------------------------ 明雷敵人
+  private enemyTick(): void {
+    if (this.busy || this.leaving) return;
+    const pt = this.playerTile();
+    const blockers = this.blockers();
+    for (const a of this.actors) {
+      if (a.e.kind !== 'enemy' || a.moving || !a.obj || !this.alive(a)) continue;
+      const d = Math.max(Math.abs(a.tx - pt.x), Math.abs(a.ty - pt.y));
+      let step: Pt | undefined;
+      const homeD = Math.max(Math.abs(a.tx - a.home.x), Math.abs(a.ty - a.home.y));
+      if (d <= 4 && homeD < 8) {
+        // 發現玩家：追
+        if (!this.chasing.has(a.e.id)) {
+          this.chasing.add(a.e.id);
+          const bang = this.add.text(0, -84, '！', {
+            fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: '#ff6a5a', stroke: '#000', strokeThickness: 6,
+          }).setOrigin(0.5);
+          a.obj.add(bang);
+          this.tweens.add({ targets: bang, y: -100, alpha: 0, duration: 700, delay: 300, onComplete: () => bang.destroy() });
+          SFX.blip();
+        }
+        blockers.delete(`${a.tx},${a.ty}`);
+        const p = findPath(this.grid, { x: a.tx, y: a.ty }, pt, blockers, 400);
+        step = p?.[0];
+      } else {
+        this.chasing.delete(a.e.id);
+        if (Math.random() < 0.35) {
+          const r = a.e.wander ?? 2;
+          const dirs: Pt[] = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+          const dd = dirs[Math.floor(Math.random() * 4)]!;
+          const n = { x: a.tx + dd.x, y: a.ty + dd.y };
+          if (Math.abs(n.x - a.home.x) <= r && Math.abs(n.y - a.home.y) <= r && walkable(this.grid, n.x, n.y, blockers)) step = n;
+        }
+      }
+      if (!step) continue;
+      if (this.path.some((p) => p.x === step!.x && p.y === step!.y) && !(step.x === pt.x && step.y === pt.y)) continue;
+      blockers.delete(`${a.tx},${a.ty}`);
+      blockers.add(`${step.x},${step.y}`);
+      if (step.x !== a.tx) a.img?.setFlipX(step.x > a.tx);
+      a.tx = step.x;
+      a.ty = step.y;
+      a.moving = true;
+      const chase = this.chasing.has(a.e.id);
+      this.tweens.add({
+        targets: a.obj, x: step.x * TILE + TILE / 2, y: step.y * TILE + TILE / 2, duration: chase ? 300 : 600, ease: 'Sine.easeInOut',
+        onUpdate: () => a.obj?.setDepth(a.obj.y),
+        onComplete: () => {
+          a.moving = false;
+        },
+      });
+    }
+  }
+
+  private battleWith?: Actor;
+
+  private startBattle(a: Actor): void {
+    this.busy = true;
+    this.path = [];
+    this.pending = undefined;
+    this.stick = null;
+    this.hud()?.hideStick();
+    this.battleWith = a;
+    this.savePos(true);
+    const s = session.state;
+    const party = s.party.slice(0, 3).map((m) => ({ id: m as HeroId, level: s.members[m]?.level ?? 1 }));
+    SFX.hitHeavy();
+    this.cameras.main.flash(220, 255, 255, 255);
+    this.cameras.main.shake(200, 0.01);
+    this.time.delayedCall(260, () => {
+      this.scene.sleep('ExploreHud');
+      this.scene.sleep();
+      this.scene.run('Battle', { encounter: a.e.battle ?? 'forest_a', party, story: true, returnTo: 'Explore' } satisfies BattleSceneData);
+    });
+  }
+
+  private onBattleEnd(outcome: string): void {
+    this.scene.wake('ExploreHud');
+    const a = this.battleWith;
+    this.battleWith = undefined;
+    this.cameras.main.fadeIn(300, 0, 0, 0);
+    const s = session.state;
+    if (a && outcome === 'win') {
+      this.defeated().add(a.e.id);
+      this.chasing.delete(a.e.id);
+      const g = a.e.gold ?? 0;
+      if (g > 0) applyEffects(s, [{ gold: g }]);
+      if (a.obj) {
+        sparks(this, a.obj.x, a.obj.y - 20, 20, 'ember', 0xffd27a, 240);
+        this.tweens.add({ targets: a.obj, alpha: 0, scale: 0.6, duration: 300, onComplete: () => a.obj?.destroy() });
+      }
+      this.actors = this.actors.filter((x) => x !== a);
+      this.hud()?.toast(g > 0 ? `擊退了魔物！　金幣 +${g}` : '擊退了魔物！', 1800);
+    } else {
+      // 敗北：退回區域入口，敵人回原位
+      if (a?.obj) {
+        a.tx = a.home.x;
+        a.ty = a.home.y;
+        a.obj.setPosition(a.home.x * TILE + TILE / 2, a.home.y * TILE + TILE / 2);
+      }
+      const sp = this.area.spawns['default']!;
+      this.player.setPosition(sp.x * TILE + TILE / 2, sp.y * TILE + TILE / 2);
+      this.followers.forEach((f) => f.c.setPosition(this.player.x, this.player.y));
+      for (let i = 0; i < this.trail.length; i++) this.trail[i] = { x: this.player.x, y: this.player.y };
+      this.hud()?.toast('被擊退了……先整頓一下再出發吧。', 2200);
+    }
+    session.save();
+    // 給一點無敵時間，避免一回來就又被同一群撞上
+    this.time.delayedCall(700, () => {
+      this.busy = false;
+    });
+  }
+
   // ------------------------------------------------------------ 工具
   playerTile(): Pt {
     return { x: Math.floor(this.player.x / TILE), y: Math.floor(this.player.y / TILE) };
@@ -684,7 +867,7 @@ export class ExploreScene extends Phaser.Scene {
     const b = new Set<string>();
     for (const a of this.actors) {
       if (a.e.kind === 'gate' || a.e.kind === 'door') continue;
-      if (!present(s, a.e)) continue;
+      if (!present(s, a.e) || !this.alive(a)) continue;
       b.add(`${a.tx},${a.ty}`);
     }
     return b;
@@ -722,6 +905,10 @@ export class ExploreScene extends Phaser.Scene {
         return !!a && !this.busy && !this.leaving && this.walkToActor(a);
       },
       tap: (x: number, y: number) => this.tapTile(x, y),
+      setFlags: (f: Record<string, boolean>) => {
+        Object.assign(session.state.flags, f);
+        this.refreshMarkers();
+      },
       busy: () => this.busy || this.leaving || this.path.length > 0,
     };
   }

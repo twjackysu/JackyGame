@@ -53,6 +53,15 @@ function road(c: CanvasRenderingContext2D, x: number, y: number, r: () => number
   }
 }
 
+function dirt(c: CanvasRenderingContext2D, x: number, y: number, r: () => number): void {
+  c.fillStyle = '#4a3a2a';
+  c.fillRect(x, y, TILE, TILE);
+  for (let i = 0; i < 10; i++) {
+    c.fillStyle = r() < 0.5 ? 'rgba(120,96,70,0.6)' : 'rgba(30,22,14,0.5)';
+    c.fillRect(x + r() * TILE, y + r() * TILE, 2 + r() * 4, 2 + r() * 3);
+  }
+}
+
 function water(c: CanvasRenderingContext2D, x: number, y: number, r: () => number): void {
   const g = c.createLinearGradient(x, y, x, y + TILE);
   g.addColorStop(0, '#1a3a5a');
@@ -208,6 +217,7 @@ export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid,
       const py = y * TILE;
       if (t === '=' || t === 'G' || t === 'L' || t === 'o') road(c, px, py, r);
       else if (t === '~') water(c, px, py, r);
+      else if (t === ':') dirt(c, px, py, r);
       else if (t === 'W') wall(c, px, py);
       else grass(c, px, py, r, t === ',');
     }
@@ -300,7 +310,7 @@ export function drawAreaGround(c: CanvasRenderingContext2D, a: AreaDef, g: Grid,
   for (const e of a.entities) {
     if (e.kind !== 'door') continue;
     const b = a.buildings.find((bb) => e.x >= bb.x && e.x < bb.x + bb.w && e.y >= bb.y && e.y < bb.y + bb.h);
-    if (!b?.prop || !hasArt(b.prop)) door(c, e.x, e.y);
+    if (b && (!b.prop || !hasArt(b.prop))) door(c, e.x, e.y);
   }
 }
 

@@ -14,7 +14,7 @@ export interface Building extends Rect {
   prop?: string;
 }
 
-export type EntityKind = 'npc' | 'door' | 'sign' | 'chest' | 'gate';
+export type EntityKind = 'npc' | 'door' | 'sign' | 'chest' | 'gate' | 'enemy';
 
 export interface AreaEntity {
   id: string;
@@ -24,7 +24,7 @@ export interface AreaEntity {
   /** 顯示名稱（頭上名牌／互動提示） */
   name?: string;
   /** 外觀：npc 的衣服顏色（CSS），或 hero id（'serin' 等）用手繪 Q 版圖 */
-  look?: { body: string; hair: string; hero?: string };
+  look?: { body: string; hair: string; hero?: string; art?: string };
   /** 互動 → 跑劇本節點 */
   talk?: { script: string; node: string };
   /** talk 的開放條件（不符合時只說 lines） */
@@ -47,6 +47,14 @@ export interface AreaEntity {
   when?: Condition;
   /** NPC 小範圍閒晃（格數） */
   wander?: number;
+  /** 主線「等待中」：成立時不顯示「！」（例：伯恩要你先清狼徑） */
+  waiting?: Condition;
+  /** 城門／出口：（主線完成後或沒有 talk 時）踩上去前往的區域；'map' = 世界地圖 */
+  to?: { area: string; spawn: string } | 'map';
+  /** 明雷敵人：碰到進入的遭遇 id（src/data/combatants.ts ENCOUNTERS） */
+  battle?: string;
+  /** 打倒明雷敵人的金幣 */
+  gold?: number;
 }
 
 export interface AreaDef {
@@ -60,6 +68,8 @@ export interface AreaDef {
   spawns: Record<string, Pt>;
   /** 夜晚：畫面加暗＋提燈光圈 */
   night?: boolean;
+  /** 從這個區域回世界地圖時，提燈標記站在哪個節點 */
+  mapNode?: string;
 }
 
 export type Marker = 'main' | 'side' | 'shop' | 'chat' | 'none';
@@ -80,9 +90,9 @@ export function talkOpen(s: GameState, e: AreaEntity): boolean {
 
 /** 頭上標記：主線「！」＞支線「？」＞商店「$」＞閒聊「…」 */
 export function markerOf(s: GameState, area: string, e: AreaEntity): Marker {
-  if (e.kind === 'chest') return 'none';
+  if (e.kind === 'chest' || e.kind === 'enemy') return 'none';
   const open = talkOpen(s, e);
-  if (open && e.done && !s.flags[e.done]) return e.side ? 'side' : 'main';
+  if (open && e.done && !s.flags[e.done]) return e.waiting && check(s, e.waiting) ? 'chat' : e.side ? 'side' : 'main';
   if (open && e.shop) return 'shop';
   if (open || (e.lines && e.lines.length > 0)) return e.kind === 'npc' ? 'chat' : 'none';
   void area;

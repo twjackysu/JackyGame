@@ -36,7 +36,7 @@
 
 ## 額度統計
 - GPT：已排 4／8
-- Gemini：已排 5／12
+- Gemini：已排 7／12
 
 ## 需求清單
 
@@ -115,4 +115,28 @@ A 3x2 grid of 6 chibi / SD fantasy monsters, front view, in this order:
 mist wolf (grey-blue fur fading into fog, violet eyes), thorn mushroom creature (red cap with thorns, angry face),
 shadow boar (black bristles, glowing ember tusks), rock beetle (stone shell with crystals),
 lantern wraith (ghost holding a broken mining lantern, teal flame), blast lizard (orange lizard with glowing volatile belly).
+```
+
+### R-010 ｜ Gemini ｜ P1 ｜ `sheet_party_walk.jpg`（3×2）｜ 狀態：待產
+- 用途：自由探索地圖上走路用的 Q 版小人（**正面**，玩家在地圖上一直看到；目前用戰鬥背影圖代替，看不到臉）。匯入成 `walk_lian` 等，ExploreScene 有圖就自動換。順序見 `sheet_party_walk`（最後一格是備用）。
+```
+A 3x2 grid of 6 chibi / SD (2 heads tall) fantasy RPG characters, full body, FRONT view facing the viewer, standing in a
+slight walking pose, cute but cool, in this order:
+1) boy with messy dark brown hair with amber highlights, dark long coat, red scarf, holding a small glowing brass lantern;
+2) knight girl with long dark violet high ponytail, silver-violet armor, sword at hip;
+3) ethereal girl with long glowing silver-white hair, white and pale blue dress, star hair ornament;
+4) cheerful girl with fluffy short copper-orange hair, brass goggles on head, alchemist apron with vials;
+5) rugged veteran mercenary in his 40s, grey-streaked dark hair, stubble, dark red cloak, halberd;
+6) friendly old lamplighter with white hair, brown coat, long lamp-lighting pole.
+Consistent character design across cells, same scale, same lighting.
+```
+
+### R-011 ｜ Gemini ｜ P2 ｜ `sheet_town_npcs.jpg`（3×2）｜ 狀態：待產
+- 用途：城鎮／森林的配角小人（地圖用，正面）。匯入成 `walk_npc_*`，有圖就取代程式畫的小人。順序見 `sheet_town_npcs`。
+```
+A 3x2 grid of 6 chibi / SD (2 heads tall) fantasy village NPCs, full body, FRONT view, in this order:
+1) town guard with blue-grey uniform, spear and small helmet; 2) little orphan boy with orange shirt and messy brown hair;
+3) village woman in green dress with basket; 4) traveling merchant with big backpack and brown cap;
+5) grizzled hunter with fur cloak and bow; 6) tavern keeper woman with apron and tray.
+Consistent scale and lighting.
 ```
