@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { createBattle, enemiesOf, playerOf, step } from '../../core/battle/rt/engine';
+import { createBattle, enemiesOf, isSolidAt, playerOf, step } from '../../core/battle/rt/engine';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
 import { CAMPFIRE_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
@@ -83,6 +83,8 @@ export class RtBattleScene extends Phaser.Scene {
   private lastWarnTick = -1;
   /** 玩家有沒有主動點過怪／按過技能（刷怪關 30 秒沒動作就提示） */
   private engaged = false;
+  /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
+  private mini: { x: number; y: number; w: number; h: number; s: number } | null = null;
   private idleHinted = false;
 
   constructor() {
@@ -134,6 +136,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     this.makeButtons();
+    this.makeMinimap();
     this.menu = null;
     // 右上角選單（手機上不用改網址就能換關、重來、看 Bot 示範）
     const mb = this.add.text(GAME_WIDTH - 44, 40, '☰', { fontFamily: UI_FONT, fontSize: '40px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49).setInteractive({ useHandCursor: true });
@@ -193,6 +196,16 @@ export class RtBattleScene extends Phaser.Scene {
         return;
       }
     }
+    // 點小地圖＝走到那裡（A* 尋路）
+    const m = this.mini;
+    if (m && !this.bot && p.x >= m.x && p.x <= m.x + m.w && p.y >= m.y && p.y <= m.y + m.h) {
+      const goal = this.freeNear(Math.round((p.x - m.x) / m.s), Math.round((p.y - m.y) / m.s));
+      if (goal) this.pending.push({ type: 'moveTo', x: goal[0], y: goal[1] });
+      this.restOnArrive = false;
+      SFX.uiTap();
+      return;
+    }
+    if (m && p.x >= m.x && p.x <= m.x + m.w && p.y >= m.y && p.y <= m.y + m.h) return;
     if (p.y > 980 && p.x < 360) {
       this.stick = { id: p.id, bx: p.x, by: p.y, dx: 0, dy: 0 };
       return;
@@ -962,10 +975,88 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
+  /** 小地圖：場地面積超過畫面約 2.5 倍才顯示；石頭與邊框烘成材質，單位點每幀畫在 ui 上 */
+  private makeMinimap(): void {
+    this.mini = null;
+    const a = this.s.arena;
+    const viewW = VIEW_UNITS_W;
+    const viewH = (VIEW_BOTTOM - VIEW_TOP) / this.k;
+    if (a.w * a.h < viewW * viewH * 2.5) return;
+    const s = Math.min(130 / a.w, 190 / a.h);
+    const w = Math.round(a.w * s);
+    const h = Math.round(a.h * s);
+    const x = 12;
+    const y = VIEW_TOP + 12;
+    const key = `rt_mini_${this.stageId}_${a.w}x${a.h}`;
+    if (!this.textures.exists(key)) {
+      const g = this.make.graphics({ x: 0, y: 0 }, false);
+      g.fillStyle(0x0b1410, 0.85).fillRect(0, 0, w + 4, h + 4);
+      g.fillStyle(0x1f3a26, 1).fillRect(2, 2, w, h);
+      if (a.solid) {
+        const c = a.solid.cell * s;
+        g.fillStyle(0x6c7378, 1);
+        a.solid.rows.forEach((row, cy) => {
+          for (let cx = 0; cx < row.length; cx++) if (row[cx] === '#') g.fillRect(2 + cx * c, 2 + cy * c, Math.max(1, c), Math.max(1, c));
+        });
+      }
+      g.lineStyle(2, 0x5a8a60, 1).strokeRect(1, 1, w + 2, h + 2);
+      g.generateTexture(key, w + 4, h + 4);
+      g.destroy();
+    }
+    this.add.image(x - 2, y - 2, key).setOrigin(0).setDepth(49).setAlpha(0.9);
+    this.mini = { x, y, w, h, s };
+  }
+
+  /** 小地圖點在石頭上時，找最近的空地（格中心，最多 3 格外） */
+  private freeNear(x: number, y: number): [number, number] | null {
+    const sol = this.s.arena.solid;
+    if (!sol || !isSolidAt(sol, x, y)) return [x, y];
+    const c = sol.cell;
+    const cx = Math.floor(x / c);
+    const cy = Math.floor(y / c);
+    let best: [number, number] | null = null;
+    let bd = Infinity;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const px = (cx + dx) * c + c / 2;
+      const py = (cy + dy) * c + c / 2;
+      if (px < 0 || py < 0 || px > this.s.arena.w || py > this.s.arena.h || isSolidAt(sol, px, py)) continue;
+      const d = Math.hypot(px - x, py - y);
+      if (d < bd) { bd = d; best = [px, py]; }
+    }
+    return best;
+  }
+
+  private drawMinimap(g: Phaser.GameObjects.Graphics): void {
+    const m = this.mini;
+    if (!m) return;
+    const s = this.s;
+    const now = this.time.now;
+    // 目前畫面範圍
+    const vx = (0 - this.ox) * m.s / this.k;
+    const vy = (VIEW_TOP - this.oy) * m.s / this.k;
+    const x0 = Math.max(0, vx);
+    const y0 = Math.max(0, vy);
+    const x1 = Math.min(m.w, vx + (GAME_WIDTH / this.k) * m.s);
+    const y1 = Math.min(m.h, vy + ((VIEW_BOTTOM - VIEW_TOP) / this.k) * m.s);
+    if (x1 > x0 && y1 > y0) g.lineStyle(1, 0xffffff, 0.45).strokeRect(m.x + x0, m.y + y0, x1 - x0, y1 - y0);
+    for (const c of STAGES[this.stageId]?.campfires ?? []) {
+      g.fillStyle(0xffa040, 0.6 + 0.4 * Math.sin(now / 200)).fillCircle(m.x + c.x * m.s, m.y + c.y * m.s, 4);
+    }
+    for (const e of enemiesOf(s)) {
+      const elite = e.tier === 'elite' || ENEMIES[e.defId]?.boss;
+      g.fillStyle(e.mode === 'combat' ? 0xff5a4a : elite ? 0xffa040 : 0xc06a6a, e.mode === 'dormant' ? 0.5 : 0.95).fillCircle(m.x + e.x * m.s, m.y + e.y * m.s, elite ? 3.5 : 2.2);
+    }
+    if (s.moveGoal) g.fillStyle(0x9fd8ff, 0.9).fillCircle(m.x + s.moveGoal.x * m.s, m.y + s.moveGoal.y * m.s, 2.5);
+    const p = playerOf(s);
+    g.fillStyle(0xffffff, 1).fillCircle(m.x + p.x * m.s, m.y + p.y * m.s, 3.5);
+    g.lineStyle(1.5, 0x9fd8ff, 0.5 + 0.5 * Math.sin(now / 250)).strokeCircle(m.x + p.x * m.s, m.y + p.y * m.s, 6);
+  }
+
   private drawUi(): void {
     const g = this.ui.clear();
     const s = this.s;
     const p = playerOf(s);
+    this.drawMinimap(g);
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
