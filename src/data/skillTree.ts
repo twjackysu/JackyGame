@@ -49,6 +49,10 @@ export interface TreeNode {
 
 /** Boss 首殺 +1 技能點（旗標 kill_<id> 由戰鬥掉落時設定） */
 export const BOSS_POINT_KILLS = ['boss_wolfking', 'boss_bellworm', 'boss_rourke_3', 'boss_valderan', 'boss_starfall'] as const;
+/** 舊存檔（掉落系統之前打過的 Boss 沒有 kill_ 旗標）→ 用章節完成旗標補算 */
+export const BOSS_POINT_CHAPTER: Record<(typeof BOSS_POINT_KILLS)[number], string> = {
+  boss_wolfking: 'ch1_complete', boss_bellworm: 'ch2_complete', boss_rourke_3: 'ch3_complete', boss_valderan: 'ch4_complete', boss_starfall: 'ch5_complete',
+};
 
 type Spec = [name: string, effect: TreeEffect, maxRank?: number];
 type BranchSpec = [title: string, a: Spec, b: Spec, c: Spec, d: Spec, e: Spec, u: Spec | { skill: string; name: string }];

@@ -69,6 +69,13 @@ describe('技能樹 v2 規則', () => {
     expect(treeEffect(s, 'lian').atkPct).toBe(9 + 3);
     expect(learnState(s, 'lian', 'serin_0a')).toBe('wrong');
   });
+  it('舊存檔：章節完成旗標補算 Boss 點數（不重複）', () => {
+    const s = newGame();
+    s.flags['ch1_complete'] = true;
+    s.flags['kill_boss_wolfking'] = true;
+    s.flags['ch2_complete'] = true;
+    expect(bossPoints(s)).toBe(2);
+  });
   it('v1 舊存檔的 id 自動退點', () => {
     const s = newGame();
     s.members.lian!.level = 5;

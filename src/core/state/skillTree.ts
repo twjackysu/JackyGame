@@ -1,5 +1,5 @@
 // 技能樹（純邏輯）。資料：src/data/skillTree.ts（v2：多等級節點、前置節點、分支點數門檻）。
-import { BOSS_POINT_KILLS, TREE, TREE_BY_ID, effectText, type TreeEffect, type TreeNode } from '../../data/skillTree';
+import { BOSS_POINT_CHAPTER, BOSS_POINT_KILLS, TREE, TREE_BY_ID, effectText, type TreeEffect, type TreeNode } from '../../data/skillTree';
 import type { GameState, MemberId } from './gameState';
 
 /** 已學的節點（同 id 重複 = 等級）；找不到的舊 id（v1）自動忽略 → 等於退點 */
@@ -13,7 +13,7 @@ export function rankOf(s: GameState, m: MemberId, id: string): number {
 
 /** Boss 首殺給的額外點數 */
 export function bossPoints(s: GameState): number {
-  return BOSS_POINT_KILLS.filter((b) => !!s.flags[`kill_${b}`]).length;
+  return BOSS_POINT_KILLS.filter((b) => !!s.flags[`kill_${b}`] || !!s.flags[BOSS_POINT_CHAPTER[b]]).length;
 }
 
 /** 技能點總數 = 等級 − 1 ＋ Boss 首殺 */
