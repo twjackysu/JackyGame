@@ -41,6 +41,11 @@ export interface BotSkill {
   safePull?: boolean;
   /** 有營火的地圖：沒在打的時候，藥水少於這個數就走回最近的營火休息補滿（undefined＝不回營火） */
   campfireBelowPotions?: number;
+  /**
+   * 地圖版：往這個點推進（例如 Boss 巢穴）。挑怪時只挑「不比自己離目標更遠」的待機怪（清路往前走），
+   * 前面沒有怪了才照原本規則挑；沒設＝原本行為（只挑最近／最安全的）。
+   */
+  advanceTo?: { x: number; y: number };
 }
 
 export const BOT_PROFILES: Record<'auto' | 'novice' | 'normal' | 'expert', BotSkill> = {
@@ -109,11 +114,16 @@ function segDist(px: number, py: number, ax: number, ay: number, bx: number, by:
   return dist(px, py, ax + t * vx, ay + t * vy);
 }
 
-export function safestPull(s: BattleState): U | undefined {
+export function safestPull(s: BattleState, advanceTo?: { x: number; y: number }): U | undefined {
   const p = playerOf(s);
   let best: U | undefined;
   let key: [number, number, number] | undefined;
-  for (const e of sleepingOf(s)) {
+  let pool = sleepingOf(s);
+  if (advanceTo) {
+    const ahead = pool.filter((e) => dist(e.x, e.y, advanceTo.x, advanceTo.y) <= dist(p.x, p.y, advanceTo.x, advanceTo.y) + 2 * UNIT);
+    if (ahead.length) pool = ahead;
+  }
+  for (const e of pool) {
     const r = pullRisk(s, e);
     const k: [number, number, number] = [r.extra, r.group, dist(e.x, e.y, p.x, p.y)];
     if (!key || k[0] < key[0] || (k[0] === key[0] && (k[1] < key[1] || (k[1] === key[1] && k[2] < key[2])))) {
@@ -153,7 +163,7 @@ export class PlayerBot implements BattleController {
       const want = this.prof.restUntilPct ?? 0;
       const tgt = s.units.find((e) => e.id === p.targetId);
       if (p.hp * 100 >= p.maxHp * want && (!tgt || tgt.dead || !sleeping(tgt))) {
-        const best = this.prof.safePull ? safestPull(s) : nearestSleeping(s);
+        const best = this.prof.safePull ? safestPull(s, this.prof.advanceTo) : nearestSleeping(s);
         if (best) return [{ type: 'target', id: best.id }];
       }
       if (p.hp * 100 < p.maxHp * want) return [{ type: 'stop' }];
