@@ -114,7 +114,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     ],
   },
   boss_bellworm: {
-    id: 'boss_bellworm', name: '鐘喉蠕蟲', level: 9, hp: 960, atk: 38, def: 13, spd: 9, breakMax: 110, weak: ['light', 'water'], resist: ['fire'],
+    id: 'boss_bellworm', name: '鐘喉蠕蟲', level: 9, hp: 1075, atk: 40, def: 13, spd: 9, breakMax: 110, weak: ['light', 'water'], resist: ['fire'],
     actionsPerRound: 2, xp: 300,
     attacks: [
       // 階段 1：鐘響節奏——連續 4 次白光，節拍與鐘聲同步
@@ -204,7 +204,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   },
   // 大司星 瓦爾德蘭（Lv 16）：階段 1 白紅交錯的星術；階段 2 星燼吞噬 + 反燈印（3 回合後引爆，引路之光淨化）
   boss_valderan: {
-    id: 'boss_valderan', name: '大司星 瓦爾德蘭', level: 16, hp: 1400, atk: 47, def: 20, spd: 12, breakMax: 140, weak: ['light'], resist: ['fire'],
+    id: 'boss_valderan', name: '大司星 瓦爾德蘭', level: 16, hp: 1680, atk: 51, def: 20, spd: 12, breakMax: 140, weak: ['light'], resist: ['fire'],
     actionsPerRound: 2, xp: 500,
     attacks: [
       { id: 'star_volley', name: '星術連發', telegraph: 'white', windUpMs: 650, mul: 0.4, hits: [0, 300, 700, 900], weight: 3 },
@@ -238,7 +238,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   },
   // 蝕星者第二段（D-029）：刪除之眼（每回合抹除全員 HP、保護核心）＋核心（HP ≤ 35% 觸發全員共鳴：十燈）
   boss_starfall_eye: {
-    id: 'boss_starfall_eye', name: '刪除之眼', level: 18, hp: 280, atk: 46, def: 12, spd: 15, breakMax: 40, weak: ['light', 'fire'], xp: 0,
+    id: 'boss_starfall_eye', name: '刪除之眼', level: 18, hp: 364, atk: 51, def: 12, spd: 15, breakMax: 40, weak: ['light', 'fire'], xp: 0,
     traits: ['erase'],
     attacks: [
       { id: 'erase_gaze', name: '刪除凝視', telegraph: 'white', windUpMs: 650, mul: 0.35, hits: [0, 300, 600], weight: 2 },
@@ -246,7 +246,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     ],
   },
   boss_starfall_core: {
-    id: 'boss_starfall_core', name: '蝕星者・核心', level: 18, hp: 750, atk: 52, def: 15, spd: 10, breakMax: 140, weak: ['light'], resist: ['phys'],
+    id: 'boss_starfall_core', name: '蝕星者・核心', level: 18, hp: 1013, atk: 58, def: 15, spd: 10, breakMax: 140, weak: ['light'], resist: ['phys'],
     xp: 0, traits: ['eyeShield', 'finale'],
     attacks: [
       { id: 'meteor', name: '墜星雨', telegraph: 'red', windUpMs: 650, mul: 1.2, weight: 2 },

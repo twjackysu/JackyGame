@@ -79,7 +79,9 @@ describe('反燈印（瓦爾德蘭階段 2）', () => {
   });
 
   it('模擬：會淨化的玩家明顯比不淨化的好', () => {
-    const party = [{ id: 'lian' as const, level: 16 }, { id: 'serin' as const, level: 16 }, { id: 'liora' as const, level: 16 }];
+    // 第 4 章商店等級的裝備（D-050：有了裝備／技能樹後 Boss 數值上調，模擬也帶裝備）
+    const gear = { atk: 12, def: 8, hp: 40 };
+    const party = [{ id: 'lian' as const, level: 16, bonus: gear }, { id: 'serin' as const, level: 16, bonus: gear }, { id: 'liora' as const, level: 16, bonus: gear }];
     const skill = { attack: { perfect: 0.3, good: 0.5 }, defense: 0.6 };
     let winC = 0, winN = 0, lostC = 0, lostN = 0;
     const N = 120;

@@ -185,7 +185,8 @@ describe('ch2 script', () => {
 describe('ch2 balance sim (boss_bellworm, Lv8–9 lian/serin/liora)', () => {
   const decent = { attack: { perfect: 0.5, good: 0.35 }, defense: 0.65 };
   const rate = (lv: number) => {
-    const party = (['lian', 'serin', 'liora'] as const).map((id) => ({ id, level: lv }));
+    // 第 2 章商店等級的裝備（D-050）
+    const party = (['lian', 'serin', 'liora'] as const).map((id) => ({ id, level: lv, bonus: { atk: 7, def: 5, hp: 20 } }));
     const N = 150;
     let w = 0;
     let maxRounds = 0;

@@ -11,9 +11,9 @@ import {
   totalLamps,
   type BattleState,
   type Command,
+  type CreateBattleOptions,
 } from './engine';
 import type { DefenseResult, Timing } from './formulas';
-import type { HeroId } from './skills';
 
 export interface SimSkill {
   attack: { perfect: number; good: number };
@@ -71,6 +71,13 @@ function policy(s: BattleState): Command {
   const doomed = cleansePolicy && s.heroes.some((h) => !h.downed && h.status.doomMark > 0 && h.status.doomMark <= 2);
   if (doomed && hero.id === 'lian' && usable.has('guiding_light')) return { type: 'skill', skillId: 'guiding_light' };
   if (doomed && hero.id === 'io' && usable.has('glimmer_song')) return { type: 'skill', skillId: 'glimmer_song' };
+  const living0 = s.enemies.filter((e) => e.hp > 0).length;
+  // 技能樹奧義（有學才會 usable）
+  if (hero.id === 'io' && usable.has('star_lullaby') && (s.heroes.some((h) => h.downed) || s.heroes.filter((h) => h.hp / h.maxHp < 0.5).length >= 2)) return { type: 'skill', skillId: 'star_lullaby' };
+  if (hero.id === 'lian' && usable.has('thousand_lamps') && totalLamps(s) <= 2 && (isBoss || living0 >= 2)) return { type: 'skill', skillId: 'thousand_lamps' };
+  if (hero.id === 'serin' && usable.has('dawn_flash') && biggest && biggest.e.hp > 200) return { type: 'skill', skillId: 'dawn_flash', target: biggest.i };
+  if (hero.id === 'rourke' && usable.has('all_in') && living0 >= 2 && hero.hp / hero.maxHp > 0.4) return { type: 'skill', skillId: 'all_in' };
+  if (hero.id === 'liora' && usable.has('chain_blast') && living0 >= 2) return { type: 'skill', skillId: 'chain_blast' };
   if (hero.id === 'lian') {
     const lamps = totalLamps(s);
     if (lamps >= 4 && usable.has('resonance')) return { type: 'skill', skillId: 'resonance' };
@@ -98,7 +105,7 @@ function policy(s: BattleState): Command {
 }
 
 export function simulateBattle(
-  party: { id: HeroId; level: number; hp?: number }[],
+  party: CreateBattleOptions['party'],
   encounterId: string,
   skill: SimSkill,
   seed: number,
