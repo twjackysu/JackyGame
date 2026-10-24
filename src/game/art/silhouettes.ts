@@ -2,7 +2,7 @@
 // 做法：先用邊緣光色描邊整個輪廓，再把深色本體往右下偏移填上，只留下左上側的亮邊 → 便宜的 rim light。
 import Phaser from 'phaser';
 import { AH, AW, drawIo, drawLian } from './animePortraits';
-import { drawBern, drawDorn, drawFarrow, drawGwen, drawLiora, drawRourke, drawSerin, drawTia, drawValderan } from './animeCompanions';
+import { drawBern, drawDorn, drawFarrow, drawGwen, drawHanna, drawLiora, drawMara, drawMiner, drawToby, drawRourke, drawSerin, drawTia, drawValderan } from './animeCompanions';
 import { backIo, backLian, backLiora, backRourke, backSerin } from './animeSprites';
 
 type P = [number, number];
@@ -42,7 +42,6 @@ function eye(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, co
   g.fillCircle(x * s, y * s, r * 0.45 * s);
 }
 
-const LAMP_RIM = 0xffb565;
 const ENEMY_FILL = 0x0d0a18;
 
 export interface ArtInfo {
@@ -357,106 +356,9 @@ export function generatePortraitArt(scene: Phaser.Scene): void {
   knight('npc_knight', 0x3a4a7a, 0x9fb0d8);
 
   // ---------------- 城鎮居民（通用立繪） ----------------
-  // 瑪拉：中年旅店老闆娘。頭頂髮髻 + 圍裙（胸兜 + 下擺），暖色燈光邊緣。
-  make(scene, 'npc_mara', 160, 235, (g, s) => {
-    const o = { fill: 0x1a1420, rim: LAMP_RIM };
-    // 髮髻
-    rimPoly(g, [[68, 10], [92, 10], [100, 24], [92, 38], [68, 38], [60, 24]], { fill: 0x2a1e26, rim: LAMP_RIM }, s);
-    // 盤起的頭髮
-    rimPoly(g, [[52, 40], [108, 40], [116, 76], [106, 102], [54, 102], [44, 76]], { fill: 0x2a1e26, rim: LAMP_RIM }, s);
-    // 身體（圓潤肩線）
-    rimPoly(g, [[50, 104], [110, 104], [132, 128], [142, 235], [18, 235], [28, 128]], o, s);
-    // 圍裙：胸兜 + 下擺
-    const apron = { fill: 0x2e2630, rim: 0xffd9a0, rimWidth: 2 };
-    rimPoly(g, [[62, 112], [98, 112], [104, 150], [56, 150]], apron, s);
-    rimPoly(g, [[46, 150], [114, 150], [122, 235], [38, 235]], apron, s);
-    // 圍裙腰帶
-    g.fillStyle(LAMP_RIM, 0.85);
-    g.fillRect(32 * s, 148 * s, 96 * s, 4 * s);
-    // 臉
-    rimPoly(g, [[64, 52], [96, 52], [100, 80], [80, 100], [60, 80]], { fill: 0x241c2a, rim: 0xffffff, rimWidth: 2 }, s);
-  });
 
-  // 漢娜：年長的孤兒院院長。略微駝背（頭較低）、大披肩、右手拄著拐杖，柔和米色邊緣。
-  make(scene, 'npc_hanna', 160, 235, (g, s) => {
-    const rim = 0xe8dcc8;
-    const o = { fill: 0x18161f, rim };
-    // 身體（窄肩、下垂）
-    rimPoly(g, [[52, 120], [108, 120], [124, 148], [130, 235], [30, 235], [36, 148]], o, s);
-    // 灰白短髮（淺色本體表現白髮）
-    rimPoly(g, [[56, 54], [104, 54], [112, 84], [104, 104], [56, 104], [48, 84]], { fill: 0x7e7888, rim: 0xffffff, offset: 1.5 }, s);
-    // 臉
-    rimPoly(g, [[64, 64], [96, 64], [98, 90], [80, 110], [62, 90]], { fill: 0x221e2a, rim: 0xffffff, rimWidth: 2 }, s);
-    // 披肩：寬三角垂墜
-    rimPoly(g, [[34, 112], [126, 112], [140, 152], [80, 200], [20, 152]], { fill: 0x2a2232, rim, rimWidth: 2.5 }, s);
-    // 披肩流蘇
-    g.fillStyle(rim, 0.7);
-    for (let i = 0; i < 6; i++) {
-      const x = 46 + i * 13;
-      const edgeY = 200 - Math.abs(x - 80) * 0.8; // 沿披肩下緣
-      g.fillRect(x * s, edgeY * s, 2 * s, 8 * s);
-    }
-    // 拐杖（右側）：杖身 + 彎把
-    g.lineStyle(5 * s, 0x2a2238, 1);
-    g.lineBetween(138 * s, 156 * s, 138 * s, 235 * s);
-    g.lineBetween(138 * s, 156 * s, 126 * s, 150 * s);
-    g.lineStyle(1.5 * s, rim, 0.9);
-    g.lineBetween(136 * s, 156 * s, 136 * s, 235 * s);
-    g.lineBetween(136 * s, 154 * s, 125 * s, 148 * s);
-    // 握杖的手
-    rimPoly(g, [[124, 146], [134, 146], [136, 158], [124, 158]], { fill: 0x221e2a, rim, rimWidth: 1.5, offset: 1 }, s);
-  });
 
-  // 托比：小男孩。身形矮小（頭頂約在 1/4 處）、亂翹的頭髮從歪戴的帽子下冒出、吊帶褲。
-  make(scene, 'npc_toby', 150, 230, (g, s) => {
-    const rim = 0xbfe6a0;
-    const o = { fill: 0x141a1c, rim };
-    // 身體（窄小）
-    rimPoly(g, [[52, 148], [98, 148], [114, 170], [118, 230], [32, 230], [36, 170]], o, s);
-    // 吊帶
-    g.lineStyle(3 * s, rim, 0.8);
-    g.lineBetween(58 * s, 152 * s, 62 * s, 230 * s);
-    g.lineBetween(92 * s, 152 * s, 88 * s, 230 * s);
-    // 亂翹的頭髮（兩側與後方的尖角）
-    rimPoly(g, [
-      [40, 92], [34, 80], [48, 84], [50, 72], [100, 72], [104, 84], [118, 80], [110, 96], [116, 108], [104, 112],
-      [106, 126], [94, 132], [56, 132], [44, 124], [46, 112], [32, 108],
-    ], { fill: 0x2a2018, rim }, s);
-    // 臉
-    rimPoly(g, [[58, 94], [92, 94], [96, 118], [75, 136], [56, 118]], { fill: 0x1e2426, rim: 0xffffff, rimWidth: 2 }, s);
-    // 帽子：帽頂 + 往左歪的帽簷
-    const cap = { fill: 0x24302a, rim, rimWidth: 2.5 };
-    rimPoly(g, [[52, 88], [56, 66], [76, 56], [96, 64], [102, 88]], cap, s);
-    rimPoly(g, [[24, 90], [102, 86], [102, 95], [30, 98]], cap, s);
-    // 額前翹起的一撮
-    rimPoly(g, [[66, 96], [72, 104], [78, 96], [84, 106], [88, 96]], { fill: 0x2a2018, rim, rimWidth: 1.5, offset: 1 }, s);
-  });
 
-  // 年輕礦工：安全帽＋頭燈、瘦削身形、背帶工作褲。
-  make(scene, 'npc_miner', 150, 230, (g, s) => {
-    const rim = 0xffc27a;
-    const o = { fill: 0x141218, rim };
-    rimPoly(g, [[44, 118], [106, 118], [124, 142], [130, 230], [20, 230], [26, 142]], o, s);
-    // 背帶
-    g.lineStyle(3 * s, rim, 0.75);
-    g.lineBetween(54 * s, 122 * s, 58 * s, 230 * s);
-    g.lineBetween(96 * s, 122 * s, 92 * s, 230 * s);
-    // 臉
-    rimPoly(g, [[54, 70], [96, 70], [100, 96], [75, 116], [50, 96]], { fill: 0x1e1c26, rim: 0xffffff, rimWidth: 2 }, s);
-    // 髮尾
-    rimPoly(g, [[48, 70], [54, 84], [48, 92]], { fill: 0x2a2018, rim, rimWidth: 1.5, offset: 1 }, s);
-    // 臉上的煤灰
-    g.fillStyle(0x0a080c, 0.7);
-    g.fillRect(84 * s, 96 * s, 8 * s, 3 * s);
-    // 安全帽
-    const hat = { fill: 0x3a301e, rim, rimWidth: 2.5 };
-    rimPoly(g, [[48, 74], [52, 50], [75, 40], [98, 50], [102, 74]], hat, s);
-    rimPoly(g, [[36, 76], [114, 76], [110, 83], [40, 83]], hat, s);
-    g.fillStyle(0xffd27a, 0.35);
-    g.fillCircle(75 * s, 58 * s, 13 * s);
-    g.fillStyle(0xfff0c0, 1);
-    g.fillCircle(75 * s, 58 * s, 5.5 * s);
-  }, { x: 75, y: 58, color: 0xffd27a, scale: 0.5 });
 
   generateCh3Portraits(scene);
   generateCh4Portraits(scene);
@@ -582,7 +484,7 @@ function strokeLine(c: Ctx, pts: P[], color: string, w: number): void {
 }
 
 /** 高解析動漫立繪（顯示尺寸與手繪立繪相同：約 600px 高）。 */
-export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern', 'npc_tia', 'npc_dorn', 'npc_farrow']);
+export const HD_PORTRAITS: ReadonlySet<string> = new Set(['portrait_lian', 'portrait_io', 'portrait_serin', 'portrait_liora', 'portrait_rourke', 'npc_valderan', 'npc_gwen', 'npc_bern', 'npc_tia', 'npc_dorn', 'npc_farrow', 'npc_mara', 'npc_hanna', 'npc_toby', 'npc_miner']);
 
 function hdPortrait(scene: Phaser.Scene, key: string, draw: (c: Ctx) => void): void {
   ART[key] = { key, w: AW, h: AH, footY: AH / 2 };
@@ -615,6 +517,10 @@ function generateHeroPortraits(scene: Phaser.Scene): void {
   hdPortrait(scene, 'npc_bern', drawBern);
   hdPortrait(scene, 'npc_dorn', drawDorn);
   hdPortrait(scene, 'npc_farrow', drawFarrow);
+  hdPortrait(scene, 'npc_mara', drawMara);
+  hdPortrait(scene, 'npc_hanna', drawHanna);
+  hdPortrait(scene, 'npc_toby', drawToby);
+  hdPortrait(scene, 'npc_miner', drawMiner);
 
 }
 
