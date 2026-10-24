@@ -375,6 +375,13 @@ describe('伏擊（caravan_ambushed）', () => {
   });
 });
 
+describe('先制（探索中從背後碰到敵人）', () => {
+  it('第 1 輪敵方不行動', () => {
+    const s = createBattle({ party: [{ id: 'lian', level: 4 }], enemies: ['mist_wolf', 'mist_wolf'], seed: 3, flags: { preemptive: true } }).state;
+    expect([s.actor, ...s.queue].every((r) => r?.side === 'hero')).toBe(true);
+  });
+});
+
 describe('爆燈瓶 blast_bottle', () => {
   it('對全體敵人造成火傷並消耗 1 個', () => {
     let s = createBattle({ party: [{ id: 'liora', level: 6 }], enemies: ['mist_wolf', 'mist_wolf'], seed: 5, items: { blast_bottle: 1 } }).state;

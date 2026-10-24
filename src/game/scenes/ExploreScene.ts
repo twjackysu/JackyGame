@@ -726,8 +726,11 @@ export class ExploreScene extends Phaser.Scene {
         moved = true;
       }
     }
+    if (moved) this.movedAt = this.time.now;
     // 走路彈跳
     if (moved) {
+      const last0 = this.trail[this.trail.length - 1]!;
+      if (Math.hypot(this.player.x - last0.x, this.player.y - last0.y) > 0.5) this.moveDir = { x: this.player.x - last0.x, y: this.player.y - last0.y };
       this.walkT += dt * 14;
       this.playerImg.y = 2 - Math.abs(Math.sin(this.walkT)) * 6;
       this.playerImg.angle = Math.sin(this.walkT) * 3;
@@ -820,7 +823,11 @@ export class ExploreScene extends Phaser.Scene {
       const d = Math.max(Math.abs(a.tx - pt.x), Math.abs(a.ty - pt.y));
       let step: Pt | undefined;
       const homeD = Math.max(Math.abs(a.tx - a.home.x), Math.abs(a.ty - a.home.y));
-      if (d <= 4 && homeD < 8) {
+      // 只看得到前方（圖預設面向左，flipX＝面向右）4 格，或身邊 2 格內；從背後摸過去可以先制
+      const facingRight = !!a.img?.flipX;
+      const inFront = facingRight ? pt.x >= a.tx : pt.x <= a.tx;
+      const notice = this.chasing.has(a.e.id) ? d <= 5 : d <= 2 || (d <= 4 && inFront);
+      if (notice && homeD < 8) {
         // 發現玩家：追
         if (!this.chasing.has(a.e.id)) {
           this.chasing.add(a.e.id);
@@ -864,6 +871,8 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   private battleWith?: Actor;
+  private moveDir: Pt = { x: 0, y: 0 };
+  private movedAt = 0;
 
   private startBattle(a: Actor): void {
     this.busy = true;
@@ -873,6 +882,14 @@ export class ExploreScene extends Phaser.Scene {
     this.hud()?.hideStick();
     this.battleWith = a;
     this.savePos(true);
+    // 先攻判定：沒被發現就碰到 → 先制；被追上（玩家沒在朝牠走）→ 敵方先攻
+    let ambush: 'player' | 'enemy' | undefined;
+    if (!this.chasing.has(a.e.id)) ambush = 'player';
+    else if (a.obj) {
+      const toward = this.moveDir.x * (a.obj.x - this.player.x) + this.moveDir.y * (a.obj.y - this.player.y) > 0;
+      const walking = this.time.now - this.movedAt < 250;
+      if (!(walking && toward)) ambush = 'enemy';
+    }
     const s = session.state;
     const party = s.party.slice(0, 3).map((m) => ({ id: m as HeroId, level: s.members[m]?.level ?? 1 }));
     SFX.hitHeavy();
@@ -881,7 +898,7 @@ export class ExploreScene extends Phaser.Scene {
     this.time.delayedCall(260, () => {
       this.scene.sleep('ExploreHud');
       this.scene.sleep();
-      this.scene.run('Battle', { encounter: a.e.battle ?? 'forest_a', party, story: true, returnTo: 'Explore' } satisfies BattleSceneData);
+      this.scene.run('Battle', { encounter: a.e.battle ?? 'forest_a', party, story: true, returnTo: 'Explore', ambush } satisfies BattleSceneData);
     });
   }
 

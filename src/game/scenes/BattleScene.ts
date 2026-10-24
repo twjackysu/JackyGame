@@ -40,6 +40,8 @@ export interface BattleSceneData {
   tutorial?: boolean;
   /** story 戰結束後要喚醒的場景（預設 Dialogue；探索明雷 → 'Explore'） */
   returnTo?: string;
+  /** 探索明雷：'player' = 從背後碰到（先制）；'enemy' = 被追上（敵方先攻） */
+  ambush?: 'player' | 'enemy';
 }
 
 type Mode = 'busy' | 'command' | 'panel' | 'timing' | 'defense' | 'end';
@@ -90,7 +92,7 @@ function eventTime(p: Phaser.Input.Pointer): number {
 
 export class BattleScene extends Phaser.Scene {
   private bs!: BattleState;
-  private data0: Required<Pick<BattleSceneData, 'encounter' | 'party' | 'chain'>> & { seed: number; story: boolean; tutorial: boolean; returnTo?: string } = {
+  private data0: Required<Pick<BattleSceneData, 'encounter' | 'party' | 'chain'>> & { seed: number; story: boolean; tutorial: boolean; returnTo?: string; ambush?: 'player' | 'enemy' } = {
     encounter: 'forest_a', party: [], chain: [], seed: 1, story: false, tutorial: false,
   };
   private mode: Mode = 'busy';
@@ -148,6 +150,7 @@ export class BattleScene extends Phaser.Scene {
       story: !!data.story,
       tutorial: !!data.tutorial,
       returnTo: data.returnTo,
+      ambush: data.ambush,
     };
     this.mode = 'busy';
     this.heroes = [];
@@ -180,7 +183,8 @@ export class BattleScene extends Phaser.Scene {
       } : { potion_s: 2, lamp_oil: 1, blast_bottle: 1 },
       flags: this.data0.story ? {
         tutorialEmber: this.data0.tutorial, guidingLight: !!session.state.flags['guidingLight'],
-        ambushed: this.data0.encounter === 'caravan' && !!session.state.flags['caravan_ambushed'],
+        ambushed: (this.data0.encounter === 'caravan' && !!session.state.flags['caravan_ambushed']) || this.data0.ambush === 'enemy',
+        preemptive: this.data0.ambush === 'player',
         retryBoost: this.retryCount(),
       } : { guidingLight: true },
     }).state;
@@ -213,6 +217,10 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(890).setAlpha(0);
 
     if (this.isWebGL) this.cameras.main.postFX.addVignette(0.5, 0.48, 0.92, 0.38);
+    // 被追上（ambush 'enemy'）沿用引擎的「伏擊！先手被奪」提示；先制另外顯示
+    if (this.data0.ambush === 'player') {
+      this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, 560, '先制攻擊！', '#7dffb0', 64, 900));
+    }
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onPointer('down', p));
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onPointer('move', p));

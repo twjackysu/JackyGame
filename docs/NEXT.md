@@ -11,10 +11,10 @@
 > 除錯：`?debug&scene=Explore&area=mistwood&spawn=north`；`window.__explore.{goto(id), tap(x,y), pos(), objective(), entities(), setFlags({...}), busy()}`。機器人在 Explore 場景會 `goto(objective)`，沒有目標就回世界地圖。
 
 A1. **E2 收尾：第 1 章探索手感**
-   - 明雷：背後偷襲（我方先攻）／被追上（敵方先攻）、等級差 ≥ 5 小怪逃跑（11-open-world §2.3）；BattleSceneData 加 `ambush: 'player' | 'enemy'`。
-   - 建築內部（酒館、雜貨店、孤兒院）目前是「門 → 直接跑劇本」；可以先不做室內地圖，改成門口出現店員／老闆 NPC 也行。
-   - 第 1 章各區域支線 2–3 個（11-open-world §2.2）：例如灰燈鎮老燈伕「點亮廣場四盞燈」小任務（用 `side: true` ＋旗標）、森林迷路小孩、燼牌路人對手（`talk` 接一段新的 ch1 劇本節點 → `event: cards`）。
-   - 狼徑的古燈塔目前是程式建築（沒有塔的 prop）；之後可在 ART_REQUESTS 加 `prop_lighthouse_ruin`（Gemini sheet 一格）。
+   - ✅ 先攻：沒被發現就碰到 → 先制（`preemptive`，敵方第 1 輪不動）；被追上 → 伏擊（沿用 `ambushed`）。敵人只看得到前方 4 格或身邊 2 格（D-041）。未做：等級差 ≥ 5 小怪逃跑。
+   - ✅ 支線 1：灰燈鎮「廣場的四盞燈」（老燈伕，ch1 `lamplighter*` 節點，`kind: 'lamp'` 實體）。**再做 1～2 個**：森林迷路小孩（找到後帶回鎮上）、燼牌路人對手（`talk` 接新 ch1 節點 → `event: cards`）。支線進度在 HUD 目標列（`ExploreHudScene.refreshGoal`，目前只認點燈，做新支線時改成資料化）。
+   - 建築內部（酒館、雜貨店、孤兒院）目前是「門 → 直接跑劇本」，先不做室內地圖。
+   - 古燈塔是程式建築；之後可在 ART_REQUESTS 加 `prop_lighthouse_ruin`。
 A2. **E3 商店與裝備**（11-open-world §2.4）：裝備資料表 `src/data/equipment.ts`（武器／防具／飾品，ATK/DEF/HP/SPD）、`MemberState.equipment` 生效於 BattleScene、商店買賣（賣價 50%）、探索選單 ☰（道具／裝備）。**道具與裝備圖示已經有了**：`public/art/item_*.webp`（28 張，名稱見 `scripts/art-sheets.json` 的 sheet_items／sheet_gear）。
 A3. **E6 第 2 章可走**：沉鐘礦坑（礦工營地＋礦坑隧道），照第 1 章的做法：`src/data/areas/<id>.ts` → `AREAS` → MapScene 節點路由 → 測試「每個世界地圖地點都在某區域」（目前只檢查 ch1，加到 ch2）→ 機器人 `?debug&chapter=2&scene=Map` 跑通。
 A4. E4 技能樹、E5 自由羈絆（營火聊天、送禮）。

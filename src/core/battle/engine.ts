@@ -93,8 +93,8 @@ export interface BattleState {
   rngState: number;
   lampAtk: number;
   items: Partial<Record<ItemId, number>>;
-  /** ambushed：被伏擊，第 1 輪我方不行動 */
-  flags: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; retryBoost?: number; finaleDone?: boolean };
+  /** ambushed：被伏擊，第 1 輪我方不行動；preemptive：先制（探索中從背後碰到），第 1 輪敵方不行動 */
+  flags: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; preemptive?: boolean; retryBoost?: number; finaleDone?: boolean };
   usedOnce: string[];
   /** 霧：判定窗口倍率 & 剩餘回合 */
   windowScale: number;
@@ -152,7 +152,7 @@ export interface CreateBattleOptions {
   enemies: string[];
   seed: number;
   /** retryBoost：劇情戰連敗次數（不屈之燈）→ 開場星燼 +N、敵方攻擊 −5%/次（上限 4 次） */
-  flags?: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; retryBoost?: number };
+  flags?: { tutorialEmber?: boolean; guidingLight?: boolean; ambushed?: boolean; preemptive?: boolean; retryBoost?: number };
   items?: Partial<Record<ItemId, number>>;
 }
 
@@ -361,7 +361,8 @@ function startRound(s: BattleState, ev: BattleEvent[]) {
   });
   entries.sort((a, b) => b.spd - a.spd || a.order - b.order);
   const ambush = s.round === 1 && !!s.flags.ambushed;
-  s.queue = entries.filter((e) => !(ambush && e.ref.side === 'hero')).map((e) => e.ref);
+  const preempt = s.round === 1 && !!s.flags.preemptive && !ambush;
+  s.queue = entries.filter((e) => !(ambush && e.ref.side === 'hero') && !(preempt && e.ref.side === 'enemy')).map((e) => e.ref);
 }
 
 function cleanseMarks(s: BattleState, ev: BattleEvent[]) {
