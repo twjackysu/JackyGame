@@ -120,6 +120,13 @@ export function makeMistwoodStage(): StageDefinition {
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
     bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13), respawnTicks: sec(60) },
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...MISTWOOD_ROWS] } },
+    // 隱藏寶箱（design/20 C2：靠近才淡淡出現「這個地方似乎有點熟悉……」）：都在路線旁的角落
+    chests: [
+      { id: 'entry_nook', x: c(3), y: c(91), loot: { dust: 6, gold: 40 } },
+      { id: 'den_cache', x: c(3), y: c(52), loot: { crystal: 1, gold: 60 } },
+      { id: 'deep_hollow', x: c(44), y: c(54), loot: { potion: 5, dust: 8 } },
+      { id: 'elite_corner', x: c(3), y: c(25), loot: { crystal: 2, gold: 100 } },
+    ],
     campfires: [{ id: 'south', x: c(24), y: c(89) }, { id: 'deep', x: c(36), y: c(49) }],
     zones: [
       { name: '狼王巢穴', hint: '霧角狼王的地盤・跑出巢穴牠會回去回滿', danger: true, x0: 0, y0: 0, x1: u(W), y1: u(24) },

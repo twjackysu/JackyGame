@@ -118,3 +118,29 @@ describe('Boss 再挑戰 bossZone.respawnTicks', () => {
     expect(s.events.some((e) => e.type === 'respawn' && e.group === 'boss')).toBe(true);
   });
 });
+
+describe('隱藏寶箱 chests', () => {
+  beforeAll(() => {
+    STAGES.mistwood = makeMistwoodStage();
+  });
+  afterAll(() => {
+    delete STAGES.mistwood;
+  });
+  it('走近自動打開一次、內容入帳、藥水不超過上限；validateStage 抓得到寶箱在樹上', () => {
+    const s = createBattle({ stageId: 'mistwood', seed: 1, potions: 18 });
+    const p = s.units[0]!;
+    const c = makeMistwoodStage().chests!.find((x) => x.id === 'deep_hollow')!;
+    p.x = c.x + 50;
+    p.y = c.y;
+    step(s, []);
+    expect(s.chestsOpened).toEqual(['deep_hollow']);
+    expect(s.potions).toBe(20);
+    expect(s.loot!.dust).toBe(8);
+    expect(s.enhance?.level).toBe(2); // 8 粉塵 → +2
+    step(s, []);
+    expect(s.events.filter((e) => e.type === 'chest').length).toBe(1);
+    const bad = makeMistwoodStage();
+    bad.chests = [{ id: 'x', x: 50, y: 50, loot: { gold: 1 } }];
+    expect(validateStage(bad).join()).toMatch(/寶箱 x 在石頭上/);
+  });
+});

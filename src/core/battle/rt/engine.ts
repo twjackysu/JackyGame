@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, LootId, PlayerDefinition, Shape, SkillHit, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, CAMPFIRE_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import { AGGRO_RULES, CAMPFIRE_RULES, CHEST_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -255,6 +255,25 @@ function processPickup(s: BattleState): void {
     if (it.kind === 'dust' || it.kind === 'crystal') lootEnhance(s, p);
     return false;
   });
+}
+
+/** 隱藏寶箱：走近自動打開（不用亂數）；藥水補到攜帶上限，其餘直接入帳 */
+function processChests(s: BattleState): void {
+  const list = STAGES[s.stageId]?.chests;
+  if (!list?.length || !s.loot) return;
+  const p = playerOf(s);
+  if (p.dead) return;
+  for (const c of list) {
+    if (s.chestsOpened?.includes(c.id) || dist(p.x, p.y, c.x, c.y) > CHEST_RULES.openUnits * UNIT) continue;
+    (s.chestsOpened ??= []).push(c.id);
+    for (const k of Object.keys(c.loot).sort() as LootId[]) {
+      const n = c.loot[k] ?? 0;
+      if (k === 'potion') s.potions = Math.min(playerDef().potion.carry, s.potions + n);
+      s.loot[k] = (s.loot[k] ?? 0) + n;
+    }
+    emit(s, { tick: s.tick, type: 'chest', chest: c.id, loot: { ...c.loot } });
+    lootEnhance(s, p);
+  }
 }
 
 /** 撿材料就變強（試玩，lootEnhance） */
@@ -1024,6 +1043,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   processRespawns(s);
   processBossRespawn(s);
   processPickup(s);
+  processChests(s);
   const p = playerOf(s);
   naturalRegen(s, p);
   if (p.dead && !reviveAtCampfire(s, p)) s.outcome = 'defeat';

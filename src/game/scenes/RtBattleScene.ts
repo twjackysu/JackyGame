@@ -6,7 +6,7 @@ import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { createBattle, enemiesOf, isSolidAt, playerOf, step } from '../../core/battle/rt/engine';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
-import { CAMPFIRE_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
+import { CAMPFIRE_RULES, CHEST_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
@@ -38,6 +38,9 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
 const HINT_KEY = 'jg_rt_hint_seen';
 const fx0 = (x: Unit): number => x.facingX / 1000;
 const fy0 = (x: Unit): number => x.facingY / 1000;
+
+/** 掉落物名稱（寶箱內容顯示用） */
+const LOOT_NAMES: Record<string, string> = Object.fromEntries([['gold', '金幣'], ['dust', '粉塵'], ['crystal', '結晶'], ['potion', '藥水']]);
 
 /** HUD 時間：一分鐘內顯示「12.3 秒」，之後「3:05」 */
 function clock(tick: number): string {
@@ -100,6 +103,8 @@ export class RtBattleScene extends Phaser.Scene {
   private goal: Phaser.GameObjects.Text | null = null;
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
   private zoneName: string | null = null;
+  /** 已經提示過「有點熟悉」的寶箱 */
+  private chestHinted = new Set<string>();
   /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
   private mini: { x: number; y: number; w: number; h: number; s: number } | null = null;
   private idleHinted = false;
@@ -139,6 +144,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.engaged = false;
     this.idleHinted = false;
     this.zoneName = null;
+    this.chestHinted = new Set();
     this.arrowLabels = [];
     const p0 = playerOf(this.s);
     this.camX = p0.x;
@@ -351,6 +357,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.draw();
     this.idleHint();
     this.zoneBanner();
+    this.chestHint();
     if (this.s.outcome !== 'running') this.finish();
   }
 
@@ -393,6 +400,20 @@ export class RtBattleScene extends Phaser.Scene {
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
     const sub = `${first ? '首次討伐！森林安靜了一點…' : '再次討伐！'}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
+  }
+
+  /** 隱藏寶箱附近第一次靠近：「這個地方似乎有點熟悉……」（design/20 C2，只提示不指路） */
+  private chestHint(): void {
+    const list = STAGES[this.stageId]?.chests;
+    if (!list?.length || this.bot) return;
+    const p = playerOf(this.s);
+    for (const c of list) {
+      if (this.chestHinted.has(c.id) || this.s.chestsOpened?.includes(c.id)) continue;
+      if (Math.hypot(c.x - p.x, c.y - p.y) > CHEST_RULES.hintUnits * UNIT) continue;
+      this.chestHinted.add(c.id);
+      const t = this.add.text(GAME_WIDTH / 2, 640, '這個地方似乎有點熟悉……', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: 'italic', color: '#d8c8ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+      this.tweens.add({ targets: t, alpha: 0.9, duration: 700, hold: 1800, yoyo: true, onComplete: () => t.destroy() });
+    }
   }
 
   /** 走進新地區 → 上方淡入淡出地區名稱（開場那一區也會顯示一次） */
@@ -669,6 +690,18 @@ export class RtBattleScene extends Phaser.Scene {
           bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]?.name ?? '精英'}出現了！`, '#ffa040', 40, 900);
           SFX.warn(true);
         }
+      } else if (e.type === 'chest') {
+        const c = STAGES[this.stageId]?.chests?.find((q) => q.id === e.chest);
+        const x = c ? this.sx(c.x) : GAME_WIDTH / 2;
+        const y = c ? this.sy(c.y) : 600;
+        SFX.perfect();
+        SFX.itemGet();
+        this.cameras.main.flash(120, 255, 230, 160);
+        shockRing(this, x, y, 0xffd27a, 160, 520, 7);
+        sparks(this, x, y - 20, 30, 'ember', 0xffe08a, 620);
+        const got = Object.entries(e.loot).map(([k, n]) => `${LOOT_NAMES[k] ?? k} ×${n}`).join('　');
+        bigText(this, GAME_WIDTH / 2, 390, '找到隱藏寶箱！', '#ffd27a', 46, 1000);
+        this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, 446, got, '#f4e6c0', 30, 1400));
       } else if (e.type === 'rest') {
         const p = playerOf(this.s);
         SFX.itemGet();
@@ -964,6 +997,22 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0xf0e0c0, 1).fillRect(ix - 4, iy - 17, 8, 10);
       }
       if ((now / 400 + it.id) % 3 < 0.3) g.fillStyle(0xffffff, 0.8).fillCircle(ix + 6, iy - 8, 2.5);
+    }
+    // 隱藏寶箱：遠處看不到，靠近（hintUnits 內）才慢慢浮現；打開後留下空箱
+    const pl0 = playerOf(s);
+    for (const c of STAGES[this.stageId]?.chests ?? []) {
+      const opened = !!s.chestsOpened?.includes(c.id);
+      const d = Math.hypot(c.x - pl0.x, c.y - pl0.y) / UNIT;
+      const a = opened ? 0.55 : Math.max(0, Math.min(1, (CHEST_RULES.hintUnits - d) / 2.5));
+      if (a <= 0) continue;
+      const cx = this.sx(c.x);
+      const cy = this.sy(c.y);
+      const k = this.k * 1.4;
+      g.fillStyle(0x000000, 0.35 * a).fillEllipse(cx, cy + 16 * k, 60 * k, 14 * k);
+      g.fillStyle(0x6a4020, a).fillRoundedRect(cx - 26 * k, cy - 8 * k, 52 * k, 26 * k, 4 * k);
+      g.fillStyle(opened ? 0x2a1a0e : 0x8a5a2a, a).fillRoundedRect(cx - 28 * k, cy - (opened ? 26 : 20) * k, 56 * k, 14 * k, 5 * k);
+      g.fillStyle(0xd8b050, a).fillRect(cx - 4 * k, cy - 10 * k, 8 * k, 10 * k);
+      if (!opened && (now / 500) % 2 < 0.25) g.fillStyle(0xfff0c0, a).fillCircle(cx + 18 * k, cy - 18 * k, 3 * k);
     }
     // 營火：安全範圍淡圈＋木柴＋跳動的火焰與光暈
     let fi = 0;

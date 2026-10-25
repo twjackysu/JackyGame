@@ -40,6 +40,13 @@ export function validateStage(def: StageDefinition): string[] {
   if (def.bossZone) needMap('bossZone');
   if (def.reviveAtCampfire && !def.campfires?.length) out.push('reviveAtCampfire 但沒有營火');
   for (const c of def.campfires ?? []) check(`營火 ${c.id}`, c.x, c.y);
+  if (def.chests?.length && !def.loot) out.push('chests 需要 loot');
+  const chestIds = new Set<string>();
+  for (const c of def.chests ?? []) {
+    if (chestIds.has(c.id)) out.push(`寶箱 id 重複：${c.id}`);
+    chestIds.add(c.id);
+    check(`寶箱 ${c.id}`, c.x, c.y);
+  }
   const ids = new Set<string>();
   for (const g of def.spawnGroups ?? []) {
     if (ids.has(g.id)) out.push(`重生點 id 重複：${g.id}`);

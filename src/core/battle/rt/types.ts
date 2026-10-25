@@ -246,6 +246,7 @@ export type BattleEvent =
   | { tick: number; type: 'damage'; src: number; dst: number; amount: number; crit: boolean; origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot'; skill: string; absorbed?: number }
   | { tick: number; type: 'death'; id: number }
   | { tick: number; type: 'respawn'; id: number; group: string }
+  | { tick: number; type: 'chest'; chest: string; loot: Partial<Record<LootId, number>> }
   | { tick: number; type: 'rest'; id: number; campfire: string }
   | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number }
   | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number }
@@ -321,6 +322,16 @@ export interface Campfire {
 }
 export const CAMPFIRE_RULES = { safeUnits: 4, restUnits: 1.8, reviveInvulnTicks: 3 * 30 } as const;
 
+/** 隱藏寶箱（design/20 C2「遊戲記憶」1）：走近 CHEST_RULES.openUnits 自動打開，內容直接入帳（需要 loot） */
+export interface Chest {
+  id: string;
+  x: number;
+  y: number;
+  loot: Partial<Record<LootId, number>>;
+}
+/** openUnits：打開距離；hintUnits：畫面開始淡淡顯示、提示「有點熟悉」的距離（核心不讀） */
+export const CHEST_RULES = { openUnits: 1.3, hintUnits: 6 } as const;
+
 /** 地面掉落（design/20 B5 的最小版本）：金幣、強化粉塵、強化結晶、HP 藥水 */
 export type LootId = 'gold' | 'dust' | 'crystal' | 'potion';
 export interface GroundItem {
@@ -365,6 +376,8 @@ export interface StageDefinition {
   lootEnhance?: { dustPerLevel: number; maxLevel: number; atkPctPerLevel: number };
   /** 刷怪關的壓力曲線：每過 1 分鐘，之後重生的怪 HP 與攻擊 +這麼多 %（每分鐘發一次 ramp 事件） */
   rampPctPerMin?: number;
+  /** 隱藏寶箱（需要 loot） */
+  chests?: Chest[];
   /** 營火（需要 mapAi） */
   campfires?: Campfire[];
   /** 倒下時在營火復活（不掉裝、不扣經驗；design/20 B4），不算失敗；沒設＝倒下就失敗 */
@@ -428,6 +441,8 @@ export interface BattleState {
   loot?: Partial<Record<LootId, number>>;
   /** 這場打倒過的 Boss（defId，首殺劇情旗標用） */
   bossKills?: string[];
+  /** 打開過的寶箱 id */
+  chestsOpened?: string[];
   /** 在營火復活的次數 */
   revives?: number;
   /** Boss 再挑戰（bossZone.respawnTicks）：倒下的固定 Boss 索引與最早可重生的 tick；玩家在巢穴外才生 */
