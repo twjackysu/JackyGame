@@ -39,7 +39,9 @@ export interface RtRecord {
   /** 營地懸賞（D-109；形狀由 rtBounty.cleanBounties 檢查） */
   bounty?: unknown;
   /** 強化花掉的材料（累計撿到 − 花掉 ＝ 手上有的；分解得到的粉塵記成負的花費） */
-  spent?: { dust?: number; crystal?: number };
+  spent?: { dust?: number; crystal?: number; coin?: number };
+  /** 營火行商的貨架（D-116；形狀由 rtShop.cleanShop 檢查） */
+  shop?: unknown;
 }
 
 /** 手上可以用的粉塵與結晶 */
@@ -51,7 +53,7 @@ export function walletOf(rec: RtRecord): { dust: number; crystal: number } {
 export function spend(rec: RtRecord, dust: number, crystal: number): RtRecord | null {
   const w = walletOf(rec);
   if (w.dust < dust || w.crystal < crystal) return null;
-  return { ...rec, spent: { dust: (rec.spent?.dust ?? 0) + dust, crystal: (rec.spent?.crystal ?? 0) + crystal } };
+  return { ...rec, spent: { ...rec.spent, dust: (rec.spent?.dust ?? 0) + dust, crystal: (rec.spent?.crystal ?? 0) + crystal } };
 }
 
 /** 讀出來的行囊一律檢查形狀（壞資料丟掉、最多 60 件、身上的部位要對） */

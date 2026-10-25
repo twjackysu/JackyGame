@@ -6,6 +6,7 @@ import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { activeHazards, createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
+import { openRtShopPanel } from '../ui/rtShopPanel';
 import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
@@ -621,12 +622,14 @@ export class RtBattleScene extends Phaser.Scene {
   }
   private gearTipShown = false;
   /** 營火旁的「行囊・強化」捷徑（D-093） */
+  private shopBtn: Phaser.GameObjects.Text | null = null;
   private fireBtn: Phaser.GameObjects.Text | null = null;
 
   private makeFireBtn(): void {
     this.fireBtn = null;
+    this.shopBtn = null;
     if (!this.tracked) return;
-    const b = this.add.text(GAME_WIDTH / 2, 960, '行囊・強化', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    const b = this.add.text(GAME_WIDTH / 2 - 95, 960, '行囊・強化', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
     b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
       if (this.menu || this.editing || this.ended) return;
@@ -635,6 +638,44 @@ export class RtBattleScene extends Phaser.Scene {
       this.openBag(false);
     });
     this.fireBtn = b;
+    // 營火行商（D-116）
+    const sb = this.add.text(GAME_WIDTH / 2 + 125, 960, '行商', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#9fe8a0' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    sb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      if (this.menu || this.editing || this.ended) return;
+      SFX.uiTap();
+      this.stick = null;
+      this.openShop();
+    });
+    this.shopBtn = sb;
+  }
+
+  private openShop(): void {
+    this.persist(); // 這場剛撿的金幣先算進錢包
+    this.menu?.destroy();
+    this.fireBtn?.setVisible(false);
+    this.shopBtn?.setVisible(false);
+    this.menu = openRtShopPanel(
+      this,
+      {
+        rec: () => loadRecord(this.stageId),
+        save: (r) => saveRecord(this.stageId, r),
+        bag: () => this.bagSt,
+        setBag: (st) => {
+          this.bagSt = st;
+          this.saveBag();
+          setGearBonus(this.s, bonusOf(st));
+          setSkillMods(this.s, this.allMods(st));
+        },
+        level: this.s.prog?.level ?? 1,
+        region: this.stageId,
+      },
+      () => {
+        this.menu?.destroy();
+        this.menu = null;
+        this.acc = 0;
+      },
+    );
   }
 
   private updateFireBtn(): void {
@@ -644,6 +685,7 @@ export class RtBattleScene extends Phaser.Scene {
     const near = !p.dead && (STAGES[this.stageId]?.campfires ?? []).some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
     const up = near && this.bagSt.bag.some((g) => isUpgrade(this.bagSt, g));
     b.setVisible(near && !this.menu).setText(up ? '行囊・強化 ▲' : '行囊・強化');
+    this.shopBtn?.setVisible(near && !this.menu);
   }
 
   private saveBag(): void {
@@ -654,6 +696,8 @@ export class RtBattleScene extends Phaser.Scene {
   private openBag(fromMenu = true): void {
     this.persist(); // 這場剛撿的材料先算進錢包
     this.menu?.destroy();
+    this.fireBtn?.setVisible(false);
+    this.shopBtn?.setVisible(false);
     this.menu = openRtBagPanel(
       this,
       this.bagSt,
@@ -1023,6 +1067,8 @@ export class RtBattleScene extends Phaser.Scene {
 
   private toggleMenu(): void {
     if (this.hint) this.dismissHint(); // 說明框不要壓在暫停選單上
+    this.fireBtn?.setVisible(false); // 營火按鈕不要從選單底下透出來（關掉後下一幀會再顯示）
+    this.shopBtn?.setVisible(false);
     if (this.menu) {
       this.menu.destroy();
       this.menu = null;
