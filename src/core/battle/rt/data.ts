@@ -161,6 +161,15 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'thorn_bite', shape: { type: 'sector', r: u(1.5), deg: 80 }, warningTicks: sec(0.65), recoverTicks: sec(0.5), damageMultiplier: 100, cooldownTicks: sec(2.2), triggerRange: u(1.3), blockable: true, status: { id: 'poison', ticks: sec(4), powerPct: 6 }, weight: 1 },
     ],
   },
+  // 夜棘首領（D-114）：深夜的山谷限定精英；撕咬帶毒、衝鋒更長，必掉結晶
+  night_thorn_alpha: {
+    id: 'night_thorn_alpha', name: '夜棘首領', hp: 1500, atk: 35, def: 12, speed: 3.9, radius: u(0.6), hitstunTicks: 2,
+    drops: { gold: [45, 70], items: [{ id: 'dust', chance: 100, count: [3, 5] }, { id: 'crystal', chance: 100 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'nta_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.6), recoverTicks: sec(0.35), damageMultiplier: 115, cooldownTicks: sec(2.0), triggerRange: u(1.6), blockable: true, status: { id: 'poison', ticks: sec(5), powerPct: 8 }, weight: 3 },
+      { id: 'nta_charge', shape: { type: 'line', len: u(6), width: u(1.3) }, warningTicks: sec(0.7), recoverTicks: sec(0.5), damageMultiplier: 145, cooldownTicks: sec(6), triggerRange: u(6), blockable: true, charge: { ticks: sec(0.4), wallStunTicks: sec(1.5) }, weight: 2 },
+    ],
+  },
   // 棘冠狼后（D-114）：荊棘谷的 Boss。狼王的近戰＋荊棘母樹的毒刺與根系；第二階段招喚棘背狼、加「荊棘綻放」大圈
   thorn_queen: {
     id: 'thorn_queen', name: '棘冠狼后', hp: 4600, atk: 33, def: 13, speed: 3.1, radius: u(0.9), hitstunTicks: 0,

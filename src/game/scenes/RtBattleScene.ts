@@ -53,6 +53,7 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   // 荊棘谷（D-114）：先用現有立繪染色，之後有圖再換（ART_REQUESTS）
   thorn_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0x9fe08a },
   thorn_queen: { key: 'enemy_boss_wolfking', h: 3.2, flip: false, tint: 0xb8f0a0 },
+  night_thorn_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xc890ff },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */

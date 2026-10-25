@@ -104,9 +104,10 @@ export function makeThornvaleStage(): StageDefinition {
       thorn_shooter: { chance: 7, ilvl: 5, rarity: [70, 26, 4] },
       alpha_wolf: { chance: 45, ilvl: 6, rarity: [35, 45, 20] },
       thorn_mother: { chance: 100, ilvl: 7, rarity: [0, 40, 60], count: 2 },
+      night_thorn_alpha: { chance: 100, ilvl: 7, rarity: [0, 50, 50] },
       thorn_queen: { chance: 100, ilvl: 7, rarity: [0, 30, 70], count: 2, firstRare: true },
     },
-    progression: { xp: { thorn_wolf: 9, thorn_shooter: 9, alpha_wolf: 35, thorn_mother: 140, thorn_queen: 260 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
+    progression: { xp: { thorn_wolf: 9, thorn_shooter: 9, alpha_wolf: 35, thorn_mother: 140, night_thorn_alpha: 80, thorn_queen: 260 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '沿著山谷往北，打倒棘冠狼后！\n棘背狼的咬傷會中毒・建議 Lv6 以上',
     enemies: [{ enemyId: 'thorn_queen', x: THORNVALE_QUEEN.x, y: THORNVALE_QUEEN.y, hpPct: 80, atkPct: 30 }],
@@ -150,6 +151,8 @@ export function makeThornvaleStage(): StageDefinition {
       { id: 'tv_mother', enemyId: 'thorn_mother', cx: c(8), cy: c(49), spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(240), tier: 'elite', hpPct: 40, atkPct: 20, aggroUnits: 5 },
       { id: 'tv_gallery_elite', enemyId: 'alpha_wolf', cx: c(25), cy: c(33), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(180), hpPct: 150, atkPct: 70, lootPct: 100, tier: 'elite' },
       { id: 'tv_gallery_pack', enemyId: 'thorn_wolf', cx: c(22), cy: c(37), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 60, atkPct: 30, lootPct: 80 },
+      // 夜棘首領：深夜限定，在荊棘坡上方遊蕩（一進深夜就看得到目標）
+      { id: 'tv_night_alpha', enemyId: 'night_thorn_alpha', cx: c(15), cy: c(61), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(150), tier: 'elite', lootPct: 100, nightOnly: true },
       { id: 'tv_gallery_shooters', enemyId: 'thorn_shooter', cx: c(31), cy: c(37), spawnRadius: u(1), maxAlive: 2, respawnTicks: sec(45), hpPct: 100, atkPct: 50, lootPct: 80 },
     ],
   };

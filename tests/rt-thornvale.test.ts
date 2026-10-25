@@ -172,3 +172,21 @@ describe('暫停選單「下一個目標」', () => {
     expect(nextGoal('thornvale', { bossKills: 1 }, 8, 1)).toContain('狼后暴怒');
   });
 });
+
+describe('深夜的山谷限定（D-114）', () => {
+  beforeAll(() => {
+    STAGES.thornvale = makeThornvaleStage();
+  });
+  afterAll(() => {
+    delete STAGES.thornvale;
+  });
+  it('夜棘首領只在深夜出現；Lv9 普通 Bot 打得倒', () => {
+    expect(createBattle({ stageId: 'thornvale', seed: 1 }).units.some((x) => x.defId === 'night_thorn_alpha')).toBe(false);
+    const s = createBattle({ stageId: 'thornvale', seed: 1, level: 9, bonus: { hp: 600, atk: 45, def: 25 }, night: true });
+    const a = s.units.find((x) => x.defId === 'night_thorn_alpha')!;
+    expect(a).toBeTruthy();
+    const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: { x: a.x, y: a.y } }, 'normal');
+    while (s.tick < sec(300) && !a.dead && s.outcome === 'running') step(s, bot.decide(s));
+    expect(a.dead).toBe(true);
+  }, 60000);
+});
