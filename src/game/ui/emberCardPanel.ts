@@ -122,6 +122,37 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     return t;
   };
 
+  // 牌桌（第 28 輪）：木板桌面＋四邊暗角（只畫一次）、桌子中央營火映過來的暖光（每幀閃）
+  const table = scene.add.graphics();
+  for (let y = -640, i = 0; y < 640; y += 58, i++) {
+    table.fillStyle(i % 2 ? 0x1e140b : 0x23170d, 1).fillRect(-GAME_WIDTH / 2, y, GAME_WIDTH, 58);
+    table.fillStyle(0x0c0704, 1).fillRect(-GAME_WIDTH / 2, y, GAME_WIDTH, 2);
+    // 木紋與節眼（固定位置，不用亂數）
+    const off = ((i * 197) % 520) - 260;
+    table.lineStyle(1, 0x2c1d10, 0.7).lineBetween(-GAME_WIDTH / 2, y + 20, off - 30, y + 22).lineBetween(off + 30, y + 36, GAME_WIDTH / 2, y + 34);
+    table.fillStyle(0x140c06, 0.9).fillEllipse(off, y + 29, 34, 12);
+    table.lineStyle(1, 0x2c1d10, 0.8).strokeEllipse(off, y + 29, 50, 20);
+  }
+  for (let k = 0; k < 14; k++) {
+    const b = 16 + k * 14;
+    table.fillStyle(0x000000, 0.07);
+    table.fillRect(-GAME_WIDTH / 2, -640, GAME_WIDTH, b).fillRect(-GAME_WIDTH / 2, 640 - b, GAME_WIDTH, b);
+    table.fillRect(-GAME_WIDTH / 2, -640, b * 0.6, 1280).fillRect(GAME_WIDTH / 2 - b * 0.6, -640, b * 0.6, 1280);
+  }
+  const glow = scene.add.graphics();
+  const drawGlow = (): void => {
+    const t = scene.time.now;
+    const f = 0.8 + 0.2 * Math.sin(t / 130) * Math.sin(t / 53);
+    glow.clear();
+    for (let k = 0; k < 5; k++) glow.fillStyle(0xff9a40, 0.035 * f).fillEllipse(0, -265, 760 - k * 120, 300 - k * 50);
+  };
+  scene.events.on('update', drawGlow);
+  root.once('destroy', () => {
+    scene.events.off('update', drawGlow);
+    table.destroy();
+    glow.destroy();
+  });
+
   const portrait = scene.add.graphics();
   const drawPortrait = (): void => {
     portrait.clear();
@@ -138,7 +169,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   const drawRow = (items: Phaser.GameObjects.GameObject[], game: CardGame, side: number, row: Row, y: number): void => {
     const S = game.sides[side]!;
     const weather = game.weather[row];
-    items.push(scene.add.rectangle(0, y, 680, 104, weather ? (row === 0 ? 0x1a2a3a : 0x2a2a30) : 0x14100a, 0.9).setStrokeStyle(2, side === 0 ? 0x8a6a3a : 0x5a4a6a, 0.8));
+    items.push(scene.add.rectangle(0, y, 680, 104, weather ? (row === 0 ? 0x1a2a3a : 0x2a2a30) : 0x0e0a06, 0.62).setStrokeStyle(2, side === 0 ? 0x8a6a3a : 0x5a4a6a, 0.8));
     items.push(scene.add.text(-330, y - 36, `${side === 0 ? '你的' : who.short}${ROW_NAME[row]}${weather ? (row === 0 ? '・霜寒' : '・濃霧') : ''}`, { fontFamily: UI_FONT, fontSize: '15px', color: weather ? '#9fd8ff' : '#a89880' }).setOrigin(0, 0.5));
     if (S.horn[row]) items.push(scene.add.text(-330, y + 10, '戰號×2', { fontFamily: UI_FONT, fontSize: '20px', color: '#ffd27a' }).setOrigin(0, 0.5));
     const n = S.rows[row].length;
@@ -168,9 +199,11 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
 
   function render(): void {
     root.remove(portrait);
+    root.remove(table);
+    root.remove(glow);
     root.removeAll(true);
     const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x080604, 1).setInteractive()];
-    items.push(portrait);
+    items.push(table, glow, portrait);
     items.push(scene.add.text(30, -600, '營火燼牌', { fontFamily: TITLE_FONT, fontSize: '42px', color: '#ffd27a' }).setOrigin(0.5));
     if (!g) {
       if (view === 'deck') deckView(items);
