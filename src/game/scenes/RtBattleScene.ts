@@ -169,6 +169,9 @@ export class RtBattleScene extends Phaser.Scene {
   private goalNext = '';
   /** 地面長出的荊棘（狼后／母樹的毒刺、根系環、綻放命中時；只是畫面） */
   private thornFx: { x: number; y: number; born: number; size: number; seed: number; wither?: number }[] = [];
+  /** 霜旋（D-121）在地上留下的冰晶與結霜圈（純畫面，世界座標） */
+  private frostG!: Phaser.GameObjects.Graphics;
+  private frostFx: { x: number; y: number; born: number; size: number; seed: number; ring?: number }[] = [];
   private thornPending: Telegraph[] = [];
   private bountyTxt: Phaser.GameObjects.Text | null = null;
   /** 還沒點的技能點（☰ 紅點用；升級與改動時更新） */
@@ -264,6 +267,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.ground = this.makeGround();
     this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, this.glowTexture()).setBlendMode(Phaser.BlendModes.ADD));
     this.g = this.add.graphics();
+    this.frostG = this.add.graphics().setDepth(9); // 霜旋的冰晶（在單位底下、地面之上）
     this.top = this.add.graphics().setDepth(45);
     this.ui = this.add.graphics().setDepth(50);
     // 頂部標題列（蓋在世界之上；底部漸層避免硬切）
@@ -292,7 +296,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.fireHinted = false;
     this.newbie = this.tracked && (loadRecord(this.stageId).runs ?? 0) <= 3;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
-    this.thornFx = []; this.thornPending = [];
+    this.thornFx = []; this.thornPending = []; this.frostFx = [];
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 95, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)', align: 'center', lineSpacing: 4 }).setPadding(12, 3, 12, 3).setOrigin(0.5, 0).setDepth(49) : null;
     this.makeButtons();
     this.makeMinimap();
@@ -1852,6 +1856,7 @@ export class RtBattleScene extends Phaser.Scene {
       // 變化二（D-121）：帶狀態的招式多一層顏色——霜旋寒氣、碎甲／斬月紅色碎光、影步紫色殘影
       const st = h.status?.id;
       if (st === 'freeze') {
+        this.spawnFrost(p.x, p.y, hs.type === 'circle' ? hs.r : UNIT * 2);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xbff4ff, (hs.type === 'circle' ? hs.r : UNIT * 2) * this.k * 1.15, 520, 10);
         sparks(this, this.sx(p.x), this.sy(p.y), 26, 'spark', 0xd8fbff, 700);
         this.cameras.main.flash(90, 190, 240, 255);
@@ -1860,6 +1865,7 @@ export class RtBattleScene extends Phaser.Scene {
         const fy = this.sy(p.y) + Math.sin(ang) * UNIT * 1.4 * this.k;
         sparks(this, fx, fy, sk.role === 'ult' ? 30 : 16, 'ember', 0xff6a4a, 560);
         if (sk.role === 'ult') {
+          if (hs.type === 'line') this.moonArc(p.x, p.y, ang, hs.len, hs.width);
           this.cameras.main.shake(220, 0.01);
           this.hitStop = Math.max(this.hitStop, 120);
         }
@@ -1995,6 +2001,72 @@ export class RtBattleScene extends Phaser.Scene {
     });
   }
 
+  /** 霜旋（D-121）：腳下一圈結霜＋十幾根冰晶，1.5 秒後融化（純畫面，Math.random） */
+  private spawnFrost(x: number, y: number, r: number): void {
+    const now = this.time.now;
+    this.frostFx.push({ x, y, born: now, size: r, seed: 0, ring: 1 });
+    for (let i = 0; i < 16; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = r * Math.sqrt(0.1 + Math.random() * 0.85);
+      this.frostFx.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, born: now + i * 10, size: 0.35 + Math.random() * 0.3, seed: Math.random() * 1000 });
+    }
+    if (this.frostFx.length > 90) this.frostFx.splice(0, this.frostFx.length - 90);
+  }
+
+  private drawFrost(g: Phaser.GameObjects.Graphics, now: number): void {
+    if (!this.frostFx.length) return;
+    const LIFE = 1500;
+    const k = this.k;
+    this.frostFx = this.frostFx.filter((f) => {
+      const age = now - f.born;
+      if (age < 0) return true;
+      if (age > LIFE + 400) return false;
+      const melt = Math.max(0, (age - LIFE) / 400);
+      const px = this.sx(f.x);
+      const py = this.sy(f.y);
+      if (f.ring) {
+        // 結霜圈：淡藍圓＋白色細邊，從中心擴開
+        const grow = Math.min(1, age / 200);
+        const R = f.size * k * grow;
+        g.fillStyle(0xbff4ff, 0.16 * (1 - melt)).fillEllipse(px, py, R * 2, R * 1.4);
+        g.lineStyle(2, 0xe8fcff, 0.45 * (1 - melt)).strokeEllipse(px, py, R * 2, R * 1.4);
+        return true;
+      }
+      // 冰晶：細長的菱形，長出來時一閃
+      const grow = Math.min(1, age / 120);
+      const h = UNIT * f.size * k * grow * (1 - 0.7 * melt);
+      const w = h * 0.28;
+      const lean = Math.sin(f.seed) * 0.35;
+      const tx = px + Math.sin(lean) * h;
+      const ty = py - Math.cos(lean) * h;
+      const al = 0.85 * (1 - melt);
+      g.fillStyle(0x7ad8f0, al).fillTriangle(px - w, py, px + w, py, tx, ty);
+      g.fillStyle(0xeafcff, al).fillTriangle(px - w * 0.2, py - 1, px + w * 0.4, py - 1, tx, ty);
+      if (age < 260) g.fillStyle(0xffffff, 0.8 * (1 - age / 260)).fillCircle(tx, ty, 2 + 4 * (1 - age / 260));
+      return true;
+    });
+  }
+
+  /** 破空斬月（D-121）：一道白金月牙沿著劍氣方向飛出去 */
+  private moonArc(x: number, y: number, ang: number, len: number, width: number): void {
+    const R = width * this.k * 1.3;
+    const g = this.add.graphics().setDepth(692).setBlendMode(Phaser.BlendModes.ADD);
+    g.fillStyle(0xfff2c0, 0.95).beginPath();
+    g.arc(0, 0, R, -1.25, 1.25, false);
+    g.arc(-R * 0.38, 0, R * 0.92, 1.1, -1.1, true);
+    g.closePath().fillPath();
+    g.fillStyle(0xffffff, 0.9).beginPath();
+    g.arc(0, 0, R * 0.96, -0.8, 0.8, false);
+    g.arc(-R * 0.2, 0, R * 0.9, 0.75, -0.75, true);
+    g.closePath().fillPath();
+    const px = this.sx(x);
+    const py = this.sy(y);
+    g.setPosition(px, py).setRotation(ang).setScale(0.6);
+    const L = len * this.k;
+    this.tweens.add({ targets: g, x: px + Math.cos(ang) * L, y: py + Math.sin(ang) * L, scale: 1.15, duration: 340, ease: 'Cubic.easeOut' });
+    this.tweens.add({ targets: g, alpha: 0, delay: 200, duration: 260, onComplete: () => g.destroy() });
+  }
+
   /** 裂地斬（D-112）：沿直線裂開的地面＋金色劍氣，從玩家往前一路炸開 */
   private groundSplit(x: number, y: number, ang: number, len: number, width: number): void {
     const px = this.sx(x);
@@ -2081,6 +2153,7 @@ export class RtBattleScene extends Phaser.Scene {
       im.setVisible(x < GAME_WIDTH && x + im.width > 0 && y < VIEW_BOTTOM && y + im.height > 0);
     }
     this.drawThorns(g, now);
+    this.drawFrost(this.frostG.clear(), now);
     // 地面掉落：金幣（金色閃光）、粉塵（藍點）、結晶（紫菱形）、藥水（紅瓶）；上下浮動
     for (const it of s.ground ?? []) {
       const ix = this.sx(it.x);
