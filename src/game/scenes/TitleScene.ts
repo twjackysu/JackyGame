@@ -290,6 +290,8 @@ export class TitleScene extends Phaser.Scene {
       }
       this.confirmNew();
     }]);
+    // 即時戰鬥大地圖（D-087，Jacky 10/25 同意整合森林地圖）：獨立紀錄，不碰主線存檔
+    items.push(['霧語森林・即時戰鬥', () => this.go(() => this.scene.start('RtBattle', { stage: 'mistwood', bot: '' }))]);
     items.push(['戰鬥演示', () => this.go(() => this.scene.start('Battle', {
       encounter: 'forest_a', chain: ['forest_b', 'shrine_boar', 'boss_wolfking'],
     }))]);

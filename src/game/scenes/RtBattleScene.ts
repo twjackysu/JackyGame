@@ -12,11 +12,13 @@ import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mistwood';
 import { GAME_WIDTH } from '../config';
+import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
+import { openRtControlsPanel } from '../ui/rtControlsPanel';
+import { EMPTY_SNAP, fmtSec, loadRecord, mergeRun, recordBoss, saveRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
 const STAGE_IDS = Object.keys(STAGES);
-const SKILL_KEYS = ['heavy_slash', 'whirlwind', 'charge', 'parry'] as const;
 /** 畫面橫向可見的世界格數 */
 const VIEW_UNITS_W = 1050;
 /** 世界可視區：標題列下方到畫面底（操作鍵疊在上面） */
@@ -65,7 +67,14 @@ export class RtBattleScene extends Phaser.Scene {
   private stick: { id: number; bx: number; by: number; dx: number; dy: number } | null = null;
   private btnText: Phaser.GameObjects.Text[] = [];
   private bot: PlayerBot | null = null;
-  private keys?: Record<string, Phaser.Input.Keyboard.Key>;
+  private keys?: Partial<Record<RtAction, Phaser.Input.Keyboard.Key>>;
+  /** 操作設定（D-088） */
+  private ctl: RtControls = loadControls();
+  /** 調整按鈕位置模式：拖曳＝移動、點兩個技能鍵＝交換 */
+  private editing: { drag: number | null; sx: number; sy: number; moved: boolean; pick: number | null; ui: Phaser.GameObjects.Container } | null = null;
+  /** 大地圖的獨立紀錄：上次寫進 localStorage 時的快照（D-087） */
+  private saved: RunSnap = EMPTY_SNAP;
+  private bossTimed = false;
   private ended = false;
   private hud!: Phaser.GameObjects.Text;
   /** 單位圖層（HP 條等疊在 sprite 上方） */
@@ -133,6 +142,28 @@ export class RtBattleScene extends Phaser.Scene {
 
   create(): void {
     this.s = createBattle({ stageId: this.stageId, seed: this.seed });
+    this.ctl = loadControls();
+    this.saved = EMPTY_SNAP;
+    this.bossTimed = false;
+    this.editing = null;
+    if (this.tracked) {
+      // 正式大地圖（D-087）：沒有時間限制（核心的 timeLimitTicks 只給模擬器用）；開過的寶箱下次是空箱
+      this.s.timeLimitTicks = 24 * 3600 * TICKS_PER_SEC;
+      const rec = loadRecord(this.stageId);
+      const valid = new Set((STAGES[this.stageId]?.chests ?? []).map((c) => c.id));
+      const opened = (rec.chests ?? []).filter((id) => valid.has(id));
+      if (opened.length) this.s.chestsOpened = [...opened];
+      this.saved = { ...EMPTY_SNAP, chests: [...opened] };
+      saveRecord(this.stageId, { ...rec, runs: (rec.runs ?? 0) + 1 });
+      const onHide = (): void => {
+        if (document.visibilityState === 'hidden') this.persist();
+      };
+      document.addEventListener('visibilitychange', onHide);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        this.persist();
+        document.removeEventListener('visibilitychange', onHide);
+      });
+    }
     this.acc = 0;
     this.evIdx = 0;
     this.ended = false;
@@ -166,7 +197,7 @@ export class RtBattleScene extends Phaser.Scene {
     const hdr = this.add.graphics().setDepth(48);
     hdr.fillStyle(0x0b1410, 0.94).fillRect(0, 0, GAME_WIDTH, VIEW_TOP);
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
-    this.add.text(GAME_WIDTH / 2, 40, `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
+    this.add.text(GAME_WIDTH / 2, 40, this.tracked || this.stageId === 'mistwood' ? STAGES[this.stageId]!.name : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
@@ -194,40 +225,55 @@ export class RtBattleScene extends Phaser.Scene {
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onDown(p));
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onMove(p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onUp(p));
-    const kb = this.input.keyboard;
-    if (kb) this.keys = kb.addKeys('W,A,S,D,ONE,TWO,THREE,FOUR,SPACE,R,Q') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.bindKeys();
     (window as unknown as { __rt?: unknown }).__rt = { state: () => this.s, result: () => summarize(this.s), send: (c: BattleCommand) => this.pending.push(c) };
   }
 
   // ---------- 輸入 ----------
-  private readonly JOY = { x: 150, y: 1150, r: 90 };
+  private get JOY(): { x: number; y: number; r: number } {
+    return { ...buttonPos(this.ctl, JOY_INDEX), r: Math.round(90 * this.ctl.scale) };
+  }
+  /** 0–3 技能欄、4 閃避、5 大招（劍刃風暴，MP 40）、6 藥水；位置與大小照操作設定（D-088） */
   private btnPos(i: number): { x: number; y: number } {
-    // 右下：四技能呈弧形，閃避在最右下
-    // 5＝大招（劍刃風暴，MP 40）、6＝藥水（D-071：試玩場景放上鍵位）
-    const P = [{ x: 470, y: 1190 }, { x: 470, y: 1080 }, { x: 570, y: 1010 }, { x: 660, y: 1075 }, { x: 640, y: 1185 }, { x: 570, y: 900 }, { x: 672, y: 948 }];
-    return P[i]!;
+    return buttonPos(this.ctl, i);
   }
   private btnR(i: number): number {
-    return i === 6 ? 40 : 50;
+    return buttonR(this.ctl, i);
+  }
+  private slotSkill(i: number): string {
+    return this.ctl.order[i]!;
+  }
+
+  /** 桌機快捷鍵（照操作設定綁定；改鍵後重綁） */
+  private bindKeys(): void {
+    const kb = this.input.keyboard;
+    if (!kb) return;
+    for (const k of Object.values(this.keys ?? {})) if (k) kb.removeKey(k);
+    const keys: Partial<Record<RtAction, Phaser.Input.Keyboard.Key>> = {};
+    for (const a of ACTIONS) if (this.ctl.keys[a]) keys[a] = kb.addKey(this.ctl.keys[a]);
+    this.keys = keys;
   }
 
   private makeButtons(): void {
-    const names = [...SKILL_KEYS.map((id) => SKILLS[id]!.name), '閃避', '大招', '藥水'];
+    for (const t of this.btnText) t.destroy();
+    const names = [...this.ctl.order.map((id) => SKILLS[id]!.name), '閃避', '大招', '藥水'];
+    const sc = this.ctl.scale;
     this.btnText = names.map((n, i) => {
       const { x, y } = this.btnPos(i);
-      return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: i === 4 ? '22px' : i === 6 ? '17px' : '20px', fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
+      return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((i === 4 ? 22 : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
     });
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
+    if (this.editing) return this.editDown(p);
     if (this.ended || this.menu) return;
     if (p.y < VIEW_TOP && p.x > GAME_WIDTH - 100) return; // 選單鍵
     if (this.hint) this.dismissHint();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < BTN_COUNT; i++) {
       const b = this.btnPos(i);
       if (Math.hypot(p.x - b.x, p.y - b.y) <= this.btnR(i) + 2) {
         if (i < 4 || i === 5) this.engaged = true;
-        if (i < 4) this.pending.push({ type: 'skill', id: SKILL_KEYS[i]! });
+        if (i < 4) this.pending.push({ type: 'skill', id: this.slotSkill(i) });
         else if (i === 4) this.pending.push({ type: 'dodge', dx: this.stick?.dx ?? 0, dy: this.stick?.dy ?? 0 });
         else if (i === 5) this.pending.push({ type: 'skill', id: 'blade_storm' });
         else this.pending.push({ type: 'potion' });
@@ -245,7 +291,7 @@ export class RtBattleScene extends Phaser.Scene {
       return;
     }
     if (m && p.x >= m.x && p.x <= m.x + m.w && p.y >= m.y && p.y <= m.y + m.h) return;
-    if (p.y > 980 && p.x < 360) {
+    if (inStickZone(this.ctl, p.x, p.y)) {
       this.stick = { id: p.id, bx: p.x, by: p.y, dx: 0, dy: 0 };
       return;
     }
@@ -284,6 +330,7 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   private onMove(p: Phaser.Input.Pointer): void {
+    if (this.editing) return this.editMove(p);
     if (!this.stick || p.id !== this.stick.id || !p.isDown) return;
     const dx = p.x - this.stick.bx;
     const dy = p.y - this.stick.by;
@@ -298,6 +345,7 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   private onUp(p: Phaser.Input.Pointer): void {
+    if (this.editing) return this.editUp();
     if (this.stick && p.id === this.stick.id) this.stick = null;
   }
 
@@ -309,19 +357,19 @@ export class RtBattleScene extends Phaser.Scene {
     let dy = this.stick?.dy ?? 0;
     const K = this.keys;
     if (K) {
-      const kx = (K.D?.isDown ? 1 : 0) - (K.A?.isDown ? 1 : 0);
-      const ky = (K.S?.isDown ? 1 : 0) - (K.W?.isDown ? 1 : 0);
+      const kx = (K.right?.isDown ? 1 : 0) - (K.left?.isDown ? 1 : 0);
+      const ky = (K.down?.isDown ? 1 : 0) - (K.up?.isDown ? 1 : 0);
       if (kx || ky) {
         dx = kx * 1000;
         dy = ky * 1000;
       }
-      const one = [K.ONE, K.TWO, K.THREE, K.FOUR];
+      const one = [K.slot1, K.slot2, K.slot3, K.slot4];
       one.forEach((key, i) => {
-        if (key && Phaser.Input.Keyboard.JustDown(key)) out.push({ type: 'skill', id: SKILL_KEYS[i]! });
+        if (key && Phaser.Input.Keyboard.JustDown(key)) out.push({ type: 'skill', id: this.slotSkill(i) });
       });
-      if (K.SPACE && Phaser.Input.Keyboard.JustDown(K.SPACE)) out.push({ type: 'dodge', dx, dy });
-      if (K.R && Phaser.Input.Keyboard.JustDown(K.R)) out.push({ type: 'skill', id: 'blade_storm' });
-      if (K.Q && Phaser.Input.Keyboard.JustDown(K.Q)) out.push({ type: 'potion' });
+      if (K.dodge && Phaser.Input.Keyboard.JustDown(K.dodge)) out.push({ type: 'dodge', dx, dy });
+      if (K.ult && Phaser.Input.Keyboard.JustDown(K.ult)) out.push({ type: 'skill', id: 'blade_storm' });
+      if (K.potion && Phaser.Input.Keyboard.JustDown(K.potion)) out.push({ type: 'potion' });
     }
     if (dx || dy) this.restOnArrive = false;
     if (this.restOnArrive) {
@@ -338,6 +386,10 @@ export class RtBattleScene extends Phaser.Scene {
 
   // ---------- 主迴圈 ----------
   update(_t: number, delta: number): void {
+    if (this.editing) {
+      this.draw();
+      return;
+    }
     if (this.ended || this.menu) return;
     const dt = Math.min(delta, 250);
     if (this.hitStop > 0) this.hitStop = Math.max(0, this.hitStop - dt);
@@ -365,7 +417,114 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneBanner();
     this.chestHint();
     this.streakHint();
+    if (this.s.tick % (10 * TICKS_PER_SEC) === 0) this.persist();
     if (this.s.outcome !== 'running') this.finish();
+  }
+
+  // ---------- 大地圖獨立紀錄（D-087） ----------
+  /** 這張地圖有沒有跨場紀錄（有 Boss 巢穴的刷怪大地圖） */
+  private get tracked(): boolean {
+    const st = STAGES[this.stageId];
+    return !!st?.bossZone && !!st.spawnGroups?.length && !this.bot;
+  }
+  private snap(): RunSnap {
+    const s = this.s;
+    return { kills: summarize(s).kills, coin: s.loot?.gold ?? 0, dust: s.loot?.dust ?? 0, crystal: s.loot?.crystal ?? 0, chests: [...(s.chestsOpened ?? [])], sec: s.tick / TICKS_PER_SEC };
+  }
+  /** 把這場新增的擊殺、材料、寶箱、時間寫進紀錄（每 10 秒、離開、結束時） */
+  private persist(): void {
+    if (!this.tracked || !this.s) return;
+    const now = this.snap();
+    saveRecord(this.stageId, mergeRun(loadRecord(this.stageId), this.saved, now));
+    this.saved = now;
+  }
+
+  // ---------- 調整按鈕位置（D-088） ----------
+  private hitButton(x: number, y: number): number {
+    for (let i = 0; i <= JOY_INDEX; i++) {
+      const b = this.btnPos(i);
+      const r = i === JOY_INDEX ? this.JOY.r : this.btnR(i);
+      if (Math.hypot(x - b.x, y - b.y) <= r + 6) return i;
+    }
+    return -1;
+  }
+  private startEdit(): void {
+    if (this.menu) {
+      this.menu.destroy();
+      this.menu = null;
+    }
+    this.stick = null;
+    const bg = this.add.rectangle(0, 0, GAME_WIDTH, 250, 0x000000, 0.8);
+    const t = this.add.text(0, -70, '調整按鈕位置', { fontFamily: TITLE_FONT, fontSize: '36px', color: '#ffd27a' }).setOrigin(0.5);
+    const h = this.add.text(0, -18, '拖曳按鈕或搖桿＝移動位置\n點一個技能鍵、再點另一個＝交換技能', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', align: 'center', lineSpacing: 6 }).setOrigin(0.5);
+    const mk = (x: number, label: string, fn: () => void, hi = false): Phaser.GameObjects.Text => {
+      const b = this.add.text(x, 70, label, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(22, 10, 22, 10).setInteractive({ useHandCursor: true });
+      b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+        ev.stopPropagation();
+        SFX.confirm();
+        fn();
+      });
+      return b;
+    };
+    const done = mk(130, '完成', () => this.endEdit(), true);
+    const reset = mk(-130, '恢復預設位置', () => {
+      this.ctl = { ...this.ctl, pos: {} };
+      saveControls(this.ctl);
+      this.makeButtons();
+    });
+    const ui = this.add.container(GAME_WIDTH / 2, 330, [bg, t, h, done, reset]).setDepth(96);
+    this.editing = { drag: null, sx: 0, sy: 0, moved: false, pick: null, ui };
+  }
+  private endEdit(): void {
+    if (!this.editing) return;
+    this.editing.ui.destroy();
+    this.editing = null;
+    saveControls(this.ctl);
+    this.acc = 0;
+    this.toggleMenu();
+  }
+  private editDown(p: Phaser.Input.Pointer): void {
+    const e = this.editing!;
+    if (p.y > 205 && p.y < 455) return; // 說明框（按鈕自己處理）
+    const i = this.hitButton(p.x, p.y);
+    e.drag = i >= 0 ? i : null;
+    e.sx = p.x;
+    e.sy = p.y;
+    e.moved = false;
+  }
+  private editMove(p: Phaser.Input.Pointer): void {
+    const e = this.editing!;
+    if (e.drag === null || !p.isDown) return;
+    if (!e.moved && Math.hypot(p.x - e.sx, p.y - e.sy) < 12) return;
+    e.moved = true;
+    e.pick = null;
+    this.ctl = { ...this.ctl, pos: { ...this.ctl.pos, [e.drag]: clampPos(p.x, p.y) } };
+    if (e.drag < BTN_COUNT) {
+      const b = this.btnPos(e.drag);
+      this.btnText[e.drag]?.setPosition(b.x, b.y);
+    }
+  }
+  private editUp(): void {
+    const e = this.editing!;
+    const i = e.drag;
+    e.drag = null;
+    if (i === null || e.moved || i > 3) {
+      if (e.moved) saveControls(this.ctl);
+      return;
+    }
+    // 點技能鍵：第一下選取、第二下交換
+    if (e.pick === null) {
+      e.pick = i;
+      SFX.uiTap();
+    } else {
+      if (e.pick !== i) {
+        this.ctl = swapSlots(this.ctl, e.pick, i);
+        saveControls(this.ctl);
+        this.makeButtons();
+        SFX.confirm();
+      }
+      e.pick = null;
+    }
   }
 
   private glowTexture(): string {
@@ -393,19 +552,21 @@ export class RtBattleScene extends Phaser.Scene {
     for (let i = 0; i < 3; i++) this.time.delayedCall(i * 180, () => shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 220 + i * 90, 600, 8));
     sparks(this, this.sx(p.x), this.sy(p.y), 40, 'ember', 0xffd27a, 700);
     let first = true;
-    try {
-      const key = `jg_rt_${this.stageId}`;
-      const rec = JSON.parse(localStorage.getItem(key) ?? '{}') as { bossKills?: number; firstAt?: number };
-      first = !rec.bossKills;
-      rec.bossKills = (rec.bossKills ?? 0) + 1;
-      rec.firstAt ??= Date.now();
-      localStorage.setItem(key, JSON.stringify(rec));
-    } catch {
-      /* 無痕模式 */
+    let best = false;
+    const sec = this.s.tick / TICKS_PER_SEC;
+    if (this.tracked) {
+      const r = recordBoss(loadRecord(this.stageId), this.bossTimed ? null : sec, Date.now());
+      saveRecord(this.stageId, r.rec);
+      first = r.first;
+      best = r.best;
+      this.persist();
     }
+    const timed = !this.bossTimed;
+    this.bossTimed = true;
     this.time.delayedCall(300, () => bigText(this, GAME_WIDTH / 2, 440, `${name} 討伐！`, '#ffd27a', 60, 1800));
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
-    const sub = `${first ? '首次討伐！森林安靜了一點…' : '再次討伐！'}\n${again}`;
+    const head = first ? '首次討伐！森林安靜了一點…' : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
+    const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
   }
 
@@ -523,6 +684,27 @@ export class RtBattleScene extends Phaser.Scene {
     this.oy = VIEW_TOP - topY * this.k;
   }
 
+  /** 離開森林前先把紀錄寫好 */
+  private leave(fn: () => void): void {
+    this.persist();
+    fn();
+  }
+
+  /** 暫停選單裡的「本次／累計」紀錄 */
+  private recordText(y: number): Phaser.GameObjects.Text {
+    const rec = loadRecord(this.stageId);
+    const now = this.snap();
+    const total = mergeRun(rec, this.saved, now);
+    const nChest = STAGES[this.stageId]?.chests?.length ?? 0;
+    const lines = [
+      `本次：擊殺 ${now.kills}・金幣 ${now.coin}・粉塵 ${now.dust}・結晶 ${now.crystal}`,
+      `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
+      `狼王討伐 ${rec.bossKills ?? 0} 次${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).length}/${nChest}`,
+      `進入森林 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
+    ];
+    return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
+  }
+
   private toggleMenu(): void {
     if (this.hint) this.dismissHint(); // 說明框不要壓在暫停選單上
     if (this.menu) {
@@ -544,11 +726,36 @@ export class RtBattleScene extends Phaser.Scene {
       items.push(t);
     };
     mk(-350, '繼續', () => this.toggleMenu(), true);
-    mk(-270, '重來', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' }));
-    items.push(this.add.text(0, -190, '換關卡', { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
-    STAGE_IDS.forEach((id, i) => mk(-130 + i * 76, `${id === this.stageId ? '▶ ' : ''}${STAGES[id]!.name}`, () => this.scene.restart({ stage: id, seed: this.seed + 1, bot: this.botName ?? '' })));
-    mk(-130 + STAGE_IDS.length * 76 + 20, this.botName ? '改成自己操作' : '看 Bot 示範（熟練）', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'expert' }));
-    mk(-130 + STAGE_IDS.length * 76 + 100, '回標題', () => this.scene.start('Title'));
+    const ctlBtn = (y: number) => mk(y, '操作設定', () => {
+      this.menu?.destroy();
+      this.menu = null;
+      this.menu = openRtControlsPanel(this, this.ctl, (c, edit) => {
+        this.ctl = c;
+        saveControls(c);
+        this.makeButtons();
+        this.bindKeys();
+        this.menu?.destroy();
+        this.menu = null;
+        if (edit) this.startEdit();
+        else this.toggleMenu();
+      });
+    });
+    if (this.tracked || STAGES[this.stageId]?.id === 'mistwood') {
+      // 正式大地圖（標題入口）：不列試玩關
+      ctlBtn(-260);
+      mk(-170, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
+      mk(-80, '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
+      mk(10, '回標題', () => this.leave(() => this.scene.start('Title')));
+      items.push(this.recordText(160));
+      this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(95);
+      return;
+    }
+    ctlBtn(-270);
+    mk(-190, '重來', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' }));
+    items.push(this.add.text(0, -120, '換關卡', { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
+    STAGE_IDS.forEach((id, i) => mk(-60 + i * 72, `${id === this.stageId ? '▶ ' : ''}${STAGES[id]!.name}`, () => this.scene.restart({ stage: id, seed: this.seed + 1, bot: this.botName ?? '' })));
+    mk(-60 + STAGE_IDS.length * 72 + 14, this.botName ? '改成自己操作' : '看 Bot 示範（熟練）', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'expert' }));
+    mk(-60 + STAGE_IDS.length * 72 + 90, '回標題', () => this.scene.start('Title'));
     this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(95);
   }
 
@@ -1335,16 +1542,18 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0xffd27a, 0.7).fillCircle(this.stick.bx + (this.stick.dx / 1000) * 50, this.stick.by + (this.stick.dy / 1000) * 50, 34);
     }
     // 技能鍵（冷卻遮罩）
-    const ids: string[] = [...SKILL_KEYS, 'dodge'];
+    const ids: string[] = [...this.ctl.order, 'dodge'];
     ids.forEach((id, i) => {
       const { x, y } = this.btnPos(i);
+      const R = this.btnR(i);
       const cd = id === 'dodge' ? SWORDSMAN.dodge.cooldownTicks : SKILLS[id]!.cooldownTicks;
       const left = Math.max(0, (p.ready[id] ?? 0) - s.tick);
-      g.fillStyle(i === 4 ? 0x2a4a6a : 0x3a2a14, 0.95).fillCircle(x, y, 50);
-      g.lineStyle(3, left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, 1).strokeCircle(x, y, 50);
+      g.fillStyle(i === 4 ? 0x2a4a6a : 0x3a2a14, 0.95).fillCircle(x, y, R);
+      g.lineStyle(3, left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, 1).strokeCircle(x, y, R);
+      if (this.editing?.pick === i) g.lineStyle(5, 0x7dffb0, 0.6 + 0.4 * Math.sin(this.time.now / 120)).strokeCircle(x, y, R + 8);
       if (left > 0) {
         g.fillStyle(0x000000, 0.6);
-        g.slice(x, y, 50, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / cd), false).fillPath();
+        g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / cd), false).fillPath();
       }
       this.btnText[i]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : i === 4 ? '閃避' : SKILLS[id]!.name);
     });
@@ -1353,17 +1562,18 @@ export class RtBattleScene extends Phaser.Scene {
       const ult = SKILLS.blade_storm!;
       const need = ult.mp ?? 40;
       const { x, y } = this.btnPos(5);
+      const R = this.btnR(5);
       const left = Math.max(0, (p.ready['blade_storm'] ?? 0) - s.tick);
       const ok = left === 0 && p.mp >= need;
       const now = this.time.now;
-      g.fillStyle(ok ? 0x5a1a3a : 0x2a1420, 0.95).fillCircle(x, y, 50);
-      g.lineStyle(5, 0x333344, 1).strokeCircle(x, y, 50);
+      g.fillStyle(ok ? 0x5a1a3a : 0x2a1420, 0.95).fillCircle(x, y, R);
+      g.lineStyle(5, 0x333344, 1).strokeCircle(x, y, R);
       g.lineStyle(5, ok ? 0xff7ad0 : 0xa0507a, 1);
-      g.beginPath().arc(x, y, 50, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p.mp / need), false).strokePath();
-      if (ok) g.lineStyle(3, 0xffd0f0, 0.4 + 0.4 * Math.sin(now / 120)).strokeCircle(x, y, 56 + 3 * Math.sin(now / 160));
+      g.beginPath().arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p.mp / need), false).strokePath();
+      if (ok) g.lineStyle(3, 0xffd0f0, 0.4 + 0.4 * Math.sin(now / 120)).strokeCircle(x, y, R + 6 + 3 * Math.sin(now / 160));
       if (left > 0) {
         g.fillStyle(0x000000, 0.6);
-        g.slice(x, y, 50, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / ult.cooldownTicks), false).fillPath();
+        g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / ult.cooldownTicks), false).fillPath();
       }
       this.btnText[5]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : ok ? '劍刃\n風暴' : `MP\n${p.mp}/${need}`);
       this.btnText[5]!.setColor(ok ? '#ffffff' : '#c890b0');
@@ -1371,14 +1581,15 @@ export class RtBattleScene extends Phaser.Scene {
     // 藥水：剩餘數量＋冷卻；血少於 40% 時閃爍提醒
     {
       const { x, y } = this.btnPos(6);
+      const R = this.btnR(6);
       const pt = SWORDSMAN.potion;
       const left = Math.max(0, (p.ready['potion'] ?? 0) - s.tick);
       const low = p.hp < p.maxHp * 0.4 && left === 0 && s.potions > 0;
-      g.fillStyle(0x3a1414, 0.95).fillCircle(x, y, 40);
-      g.lineStyle(3, left || !s.potions ? 0x555566 : low && Math.floor(this.time.now / 250) % 2 ? 0xffffff : 0xff6a6a, 1).strokeCircle(x, y, 40);
+      g.fillStyle(0x3a1414, 0.95).fillCircle(x, y, R);
+      g.lineStyle(3, left || !s.potions ? 0x555566 : low && Math.floor(this.time.now / 250) % 2 ? 0xffffff : 0xff6a6a, 1).strokeCircle(x, y, R);
       if (left > 0) {
         g.fillStyle(0x000000, 0.6);
-        g.slice(x, y, 40, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / pt.cooldownTicks), false).fillPath();
+        g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / pt.cooldownTicks), false).fillPath();
       }
       this.btnText[6]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(0)}` : `藥水\n×${s.potions}`);
     }
