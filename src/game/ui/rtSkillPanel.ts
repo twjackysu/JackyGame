@@ -62,6 +62,12 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
           SFX.confirm();
           change(r, v);
           render();
+          // 剛滿 5 級：提示可以切換變化（D-112）
+          if (alt && (r[t.id] ?? 0) >= SKILL_MAX_RANK) {
+            const tip = scene.add.text(0, y, `解鎖變化「${alt.variantName}」！點右邊切換`, { fontFamily: TITLE_FONT, fontSize: '34px', color: '#ffb6f0', stroke: '#2a0a20', strokeThickness: 6 }).setOrigin(0.5);
+            root.add(tip);
+            scene.tweens.add({ targets: tip, y: y - 50, alpha: 0, delay: 700, duration: 900, onComplete: () => tip.destroy() });
+          }
         }, can, 30, !can));
       }
     });
