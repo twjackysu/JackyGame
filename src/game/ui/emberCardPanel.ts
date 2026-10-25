@@ -76,6 +76,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   let prizeCard: string | undefined;
   /** 新牌展示演過了沒（render 會重畫很多次，只演一次） */
   let revealed = false;
+  /** 燼爆要演的牌（等 render 完再演，才不會被清掉） */
+  let burnPending: [number, Row, string][] | null = null;
   /** 剛出的那張牌（畫面上彈一下）：[side, row, 數量] */
   let fresh: [number, Row, number] | null = null;
   /** 這次的對手：預設是這張地圖的在地對手（沒有就莫托） */
@@ -473,7 +475,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       else if (pc.ability === 'scorch') {
         const burnt = g.lastBurn ?? [];
         lastLog = burnt.length ? `燼爆！燒掉了${burnt.map(([sd, , id]) => `${sd === 0 ? '你的' : who.short + '的'}「${CARDS[id]!.name}」`).join('、')}` : `${lastLog}——場上沒有能燒的牌`;
-        if (burnt.length) burnFx(burnt.length);
+        if (burnt.length) burnPending = burnt;
       }
       else if (pc.ability === 'frost' || pc.ability === 'fog') lastLog += `——雙方${pc.ability === 'frost' ? '前排' : '後排'}都變 1 點`;
       else if (pc.ability === 'horn') lastLog += '——一排點數 ×2';
@@ -492,6 +494,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     }
     finishIfOver();
     render();
+    if (burnPending) {
+      burnFx(burnPending);
+      burnPending = null;
+    }
     if (!g.over && g.turn === 1) aiTurn(wait);
   }
 
@@ -537,21 +543,32 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     onClose();
   }
 
-  /** 燼爆演出：橘色閃光＋震動＋從場中央往外噴的火星 */
-  function burnFx(n: number): void {
+  /** 燼爆演出：橘色閃光＋震動；被燒的牌在原本那一排的尾端燒成灰（變橘、放大、淡出、往上冒火星） */
+  function burnFx(burnt: [number, Row, string][]): void {
     scene.cameras.main.flash(180, 255, 140, 60);
     scene.cameras.main.shake(220, 0.008);
     SFX.cardMagic();
-    for (let i = 0; i < 14 + n * 6; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = 80 + Math.random() * 220;
-      const e = scene.add.circle(GAME_WIDTH / 2, 380, 4 + Math.random() * 6, Math.random() < 0.5 ? 0xff7a2a : 0xffd27a, 1).setDepth(995);
-      scene.tweens.add({ targets: e, x: GAME_WIDTH / 2 + Math.cos(a) * d, y: 380 + Math.sin(a) * d - 40, alpha: 0, scale: 0.3, duration: 500 + Math.random() * 400, ease: 'Cubic.easeOut', onComplete: () => e.destroy() });
-    }
+    const rowY = (side: number, row: Row): number => (side === 1 ? (row === 1 ? -440 : -330) : row === 0 ? -200 : -90);
+    const cx = GAME_WIDTH / 2;
+    burnt.forEach(([side, row, id], k) => {
+      const n = g?.sides[side]?.rows[row].length ?? 0;
+      const gap = Math.min(64, 480 / Math.max(1, n + 1));
+      const x = cx - 200 + (n + k) * gap;
+      const y = 640 + rowY(side, row) + 6;
+      const ghost = scene.add.container(x, y).setDepth(995);
+      ghost.add(scene.add.rectangle(0, 0, 56, 80, 0xff6a20, 1).setStrokeStyle(3, 0xffe0a0, 1));
+      ghost.add(scene.add.text(0, 0, CARDS[id]!.name.slice(0, 2), { fontFamily: UI_FONT, fontSize: '16px', color: '#2a0a00' }).setOrigin(0.5));
+      scene.tweens.add({ targets: ghost, scale: 1.35, alpha: 0, angle: (Math.random() - 0.5) * 20, duration: 750, ease: 'Cubic.easeIn', onComplete: () => ghost.destroy() });
+      for (let i = 0; i < 12; i++) {
+        const e = scene.add.circle(x + (Math.random() - 0.5) * 50, y + (Math.random() - 0.5) * 70, 3 + Math.random() * 5, Math.random() < 0.5 ? 0xff7a2a : 0xffd27a, 1).setDepth(996);
+        scene.tweens.add({ targets: e, y: e.y - 60 - Math.random() * 90, x: e.x + (Math.random() - 0.5) * 40, alpha: 0, scale: 0.3, duration: 600 + Math.random() * 500, ease: 'Cubic.easeOut', onComplete: () => e.destroy() });
+      }
+    });
   }
 
   render();
   root.setData('reveal', reveal); // 截圖／除錯用
+  root.setData('burn', burnFx);
   return root;
 }
 
