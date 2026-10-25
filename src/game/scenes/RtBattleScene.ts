@@ -1536,6 +1536,11 @@ export class RtBattleScene extends Phaser.Scene {
       const blink = prog > 0.8 && Math.floor(now / 70) % 2 === 0;
       g.lineStyle(t.blockable ? 4 : 6, t.blockable ? 0xffd27a : blink ? 0xffffff : col, 0.95);
       this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, g, false);
+      // 深夜：外框再畫一次在暈影上面（depth 45），遠處的預告也看得清楚（D-103）
+      if (s.night) {
+        top.lineStyle(3, t.blockable ? 0xffd27a : blink ? 0xffffff : col, 0.9);
+        this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, top, false);
+      }
     }
     // 單位
     const playerU = playerOf(s);
