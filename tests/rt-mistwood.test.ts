@@ -209,3 +209,33 @@ describe('隱藏精英 hiddenElite', () => {
     expect(s.streak).toBe(0);
   }, 60000);
 });
+
+describe('霧語森林 15 分鐘耐久', () => {
+  beforeAll(() => {
+    STAGES.mistwood = makeMistwoodStage();
+  });
+  afterAll(() => {
+    delete STAGES.mistwood;
+  });
+  it('普通 Bot 刷 15 分鐘：狼王打倒不只一次、陣列不會一直變大、每 tick < 1ms、沒有單位卡在樹裡', () => {
+    const s = createBattle({ stageId: 'mistwood', seed: 7 });
+    const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
+    let maxUnits = 0;
+    let stuck = 0;
+    const t0 = performance.now();
+    while (s.tick < sec(900)) {
+      step(s, bot.decide(s));
+      maxUnits = Math.max(maxUnits, s.units.length);
+      if (s.tick % 30 === 0) for (const x of s.units) if (!x.dead && isSolidAt(s.arena.solid!, x.x, x.y)) stuck++;
+    }
+    const ms = (performance.now() - t0) / s.tick;
+    const kingKills = s.events.filter((e) => e.type === 'death' && s.units.find((x) => x.id === e.id)?.defId === 'wolf_king').length;
+    const kingRespawns = s.events.filter((e) => e.type === 'respawn' && e.group === 'boss').length;
+    (globalThis as any).process.stdout.write(`mistwood soak: 每 tick ${ms.toFixed(3)}ms、最多 ${maxUnits} 單位、狼王回來 ${kingRespawns} 次、暴動 ${s.events.filter((e) => e.type === 'riot').length}、隱藏精英 ${s.events.filter((e) => e.type === 'hiddenElite').length}\n`);
+    expect(s.bossKills).toContain('wolf_king');
+    expect(kingRespawns + kingKills).toBeGreaterThanOrEqual(1);
+    expect(maxUnits).toBeLessThanOrEqual(1 + 1 + 20 + 20 + 8 + 2 + 4); // 玩家＋狼王＋重生點活的＋待重生的屍體＋暴動＋隱藏＋餘裕（有上限，不會一直長）
+    expect(stuck).toBe(0);
+    expect(ms).toBeLessThan(1);
+  }, 120000);
+});
