@@ -5,7 +5,7 @@ import { createBattle, isSolidAt, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { validateStage } from '../src/core/battle/rt/maps/validate';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
-import { sec } from '../src/core/battle/rt/types';
+import { sec, u } from '../src/core/battle/rt/types';
 
 describe('霧語森林', () => {
   beforeAll(() => {
@@ -72,4 +72,49 @@ describe('SpawnGroup.lootPct 區域獎勵', () => {
       expect(b[i]![1]).toBe(k === 'gold' || k === 'dust' ? Math.round(n * 2) : n);
     });
   }, 60000);
+});
+
+describe('Boss 再挑戰 bossZone.respawnTicks', () => {
+  beforeAll(() => {
+    STAGES.mistwood = makeMistwoodStage();
+  });
+  afterAll(() => {
+    delete STAGES.mistwood;
+  });
+  it('打倒後玩家在巢穴裡不重生；離開且過了 60 秒才回來（滿血、待機）', () => {
+    const s = createBattle({ stageId: 'mistwood', seed: 1 });
+    const king = s.units.find((x) => x.defId === 'wolf_king')!;
+    const p = s.units[0]!;
+    // 傳送到巢穴裡、直接把狼王打倒（只測重生規則）
+    p.x = king.x;
+    p.y = king.y + 600;
+    step(s, []);
+    king.hp = 1;
+    king.mode = 'combat';
+    const z = s.units.length;
+    let t = 0;
+    while (!king.dead && t++ < sec(20)) step(s, [{ type: 'target', id: king.id }]);
+    expect(king.dead).toBe(true);
+    expect(s.bossRespawn).toBeDefined();
+    const deadAt = s.tick;
+    // 留在巢穴：90 秒都不會回來
+    for (let i = 0; i < sec(90); i++) {
+      p.hp = p.maxHp;
+      p.x = king.homeX!;
+      p.y = king.homeY! + 600;
+      step(s, []);
+    }
+    expect(s.units.filter((x) => x.defId === 'wolf_king' && !x.dead).length).toBe(0);
+    // 走出巢穴（南營地）→ 下一個 tick 就回來
+    p.x = u(24);
+    p.y = u(90);
+    step(s, []);
+    const back = s.units.filter((x) => x.defId === 'wolf_king' && !x.dead);
+    expect(back.length).toBe(1);
+    expect(back[0]!.hp).toBe(back[0]!.maxHp);
+    expect(back[0]!.mode).toBe('idle');
+    expect(s.tick - deadAt).toBeGreaterThan(sec(60));
+    expect(s.units.length).toBeLessThanOrEqual(z + 1); // 舊屍體移除
+    expect(s.events.some((e) => e.type === 'respawn' && e.group === 'boss')).toBe(true);
+  });
 });

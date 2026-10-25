@@ -1,7 +1,7 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
-import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, LootId, PlayerDefinition, Shape, SkillHit, SpawnGroup, StatusApply, StatusId, Unit } from './types';
+import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, LootId, PlayerDefinition, Shape, SkillHit, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, CAMPFIRE_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
@@ -110,21 +110,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     nextAttackTick: 0, invulnUntil: -1, hitstunUntil: -1, hitstunImmuneUntil: -1, targetId: null, phase: 1,
     nextSummonTick: Number.MAX_SAFE_INTEGER, mp: Math.min(pd.mp, pd.mpStart),
   });
-  for (const e of stage.enemies) {
-    const def = ENEMIES[e.enemyId];
-    if (!def) throw new Error(`unknown enemy ${e.enemyId}`);
-    const m = makeEnemy(s, def, e.x, e.y);
-    if (e.hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + e.hpPct)) / 100);
-    if (e.atkPct) m.atk = Math.round((m.atk * (100 + e.atkPct)) / 100);
-    if (stage.mapAi) {
-      m.mode = 'idle';
-      m.tier = e.tier ?? (def.boss ? 'boss' : 'normal');
-      m.homeX = e.x;
-      m.homeY = e.y;
-      m.engagedTick = 0;
-    }
-    s.units.push(m);
-  }
+  stage.enemies.forEach((_, i) => s.units.push(makeFixed(s, stage, i)));
   for (const g of stage.spawnGroups ?? []) {
     // 開場：等角度排在半徑 60% 的圓上（不用亂數，方便擺關卡）；石頭上的會被推出去
     for (let k = 0; k < g.maxAlive; k++) {
@@ -134,6 +120,40 @@ export function createBattle(setup: BattleSetup): BattleState {
     }
   }
   return s;
+}
+
+function makeFixed(s: BattleState, stage: StageDefinition, idx: number): Unit {
+  const e = stage.enemies[idx]!;
+  const def = ENEMIES[e.enemyId];
+  if (!def) throw new Error(`unknown enemy ${e.enemyId}`);
+  const m = makeEnemy(s, def, e.x, e.y);
+  if (e.hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + e.hpPct)) / 100);
+  if (e.atkPct) m.atk = Math.round((m.atk * (100 + e.atkPct)) / 100);
+  if (stage.mapAi) {
+    m.mode = 'idle';
+    m.tier = e.tier ?? (def.boss ? 'boss' : 'normal');
+    m.homeX = e.x;
+    m.homeY = e.y;
+    m.engagedTick = s.tick;
+  }
+  if (stage.bossZone?.respawnTicks) m.fixedIdx = idx;
+  return m;
+}
+
+/** Boss 再挑戰：時間到而且玩家在巢穴外 → Boss 回到原位（新單位，舊屍體移除） */
+function processBossRespawn(s: BattleState): void {
+  const br = s.bossRespawn;
+  if (!br || s.tick < br.at) return;
+  const stage = STAGES[s.stageId]!;
+  const z = stage.bossZone!;
+  const p = playerOf(s);
+  if (dist(p.x, p.y, z.x, z.y) <= z.r) return;
+  s.bossRespawn = undefined;
+  const gone = s.units.findIndex((u) => u.dead && u.fixedIdx === br.idx);
+  if (gone >= 0) s.units.splice(gone, 1);
+  const m = makeFixed(s, stage, br.idx);
+  s.units.push(m);
+  emit(s, { tick: s.tick, type: 'respawn', id: m.id, group: 'boss' });
 }
 
 function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Unit {
@@ -378,6 +398,8 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     if (dst.groupId) queueRespawn(s, dst.groupId);
     if (s.ground && dst.side === 'enemy' && !dst.summonedBy) rollDrops(s, dst);
     if (dst.mode && ENEMIES[dst.defId]?.boss && !(s.bossKills ??= []).includes(dst.defId)) s.bossKills.push(dst.defId);
+    const rt = STAGES[s.stageId]?.bossZone?.respawnTicks;
+    if (rt && dst.fixedIdx !== undefined) s.bossRespawn = { idx: dst.fixedIdx, at: s.tick + rt };
   }
 }
 
@@ -1000,6 +1022,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   const rpm = STAGES[s.stageId]?.rampPctPerMin;
   if (rpm && s.tick % (60 * TICKS_PER_SEC) === 0) emit(s, { tick: s.tick, type: 'ramp', minute: s.tick / (60 * TICKS_PER_SEC), pct: rampPct(s) });
   processRespawns(s);
+  processBossRespawn(s);
   processPickup(s);
   const p = playerOf(s);
   naturalRegen(s, p);

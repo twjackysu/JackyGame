@@ -118,7 +118,7 @@ export function makeMistwoodStage(): StageDefinition {
     viewUnits: 1300,
     intro: '往北穿過森林，打倒霧角狼王！\n撿粉塵武器會變強・打不過就回營火',
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
-    bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13) },
+    bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13), respawnTicks: sec(60) },
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...MISTWOOD_ROWS] } },
     campfires: [{ id: 'south', x: c(24), y: c(89) }, { id: 'deep', x: c(36), y: c(49) }],
     zones: [

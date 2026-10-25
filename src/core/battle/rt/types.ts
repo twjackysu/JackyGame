@@ -202,6 +202,8 @@ export interface Unit {
   summonedBy?: number;
   /** 由哪個重生點生出來的（SpawnGroup，design/20 B1） */
   groupId?: string;
+  /** 固定敵人在 StageDefinition.enemies 的索引（Boss 再挑戰重生用） */
+  fixedIdx?: number;
   /** 進入戰鬥的 tick（同時追擊上限的排隊順序：先醒的先打） */
   aggroTick?: number;
   tier?: AggroTier;
@@ -351,8 +353,9 @@ export interface StageDefinition {
   /**
    * Boss 區域（需要 mapAi，design/21 §2）：玩家離開這個圓（世界座標）Boss 就脫戰回家，
    * 回到原位時整場重置（回滿、回第一階段、召喚物消失）。倒下在營火醒來也會重置。
+   * respawnTicks：Boss 被打倒後至少過這麼久、而且玩家在區域外，Boss 就回到巢穴（離開再進來可再挑戰；design/20 B2）。沒設＝不重生。
    */
-  bossZone?: { x: number; y: number; r: number };
+  bossZone?: { x: number; y: number; r: number; respawnTicks?: number };
   /** 開啟地面掉落與自動撿取（用獨立亂數，不影響戰鬥結果） */
   loot?: boolean;
   /**
@@ -427,6 +430,8 @@ export interface BattleState {
   bossKills?: string[];
   /** 在營火復活的次數 */
   revives?: number;
+  /** Boss 再挑戰（bossZone.respawnTicks）：倒下的固定 Boss 索引與最早可重生的 tick；玩家在巢穴外才生 */
+  bossRespawn?: { idx: number; at: number };
   /** 重生排程：重生點 id → 到期 tick（遞增排序） */
   respawnAt?: Record<string, number[]>;
 }

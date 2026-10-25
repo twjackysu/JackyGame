@@ -390,7 +390,8 @@ export class RtBattleScene extends Phaser.Scene {
       /* 無痕模式 */
     }
     this.time.delayedCall(300, () => bigText(this, GAME_WIDTH / 2, 440, `${name} 討伐！`, '#ffd27a', 60, 1800));
-    const sub = first ? '首次討伐！森林安靜了一點…\n可以繼續刷怪，或從 ☰ 離開' : '再次討伐！\n可以繼續刷怪，或從 ☰ 離開';
+    const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
+    const sub = `${first ? '首次討伐！森林安靜了一點…' : '再次討伐！'}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
   }
 
@@ -661,7 +662,10 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'respawn') {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 10, 'ember', 0x8a7aa8, 500);
-        if (d && d.tier === 'elite') {
+        if (d && e.group === 'boss') {
+          bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]?.name ?? 'Boss'}回到巢穴了・可以再挑戰`, '#ff8a7a', 34, 1400);
+          SFX.warn(true);
+        } else if (d && d.tier === 'elite') {
           bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]?.name ?? '精英'}出現了！`, '#ffa040', 40, 900);
           SFX.warn(true);
         }
@@ -1205,7 +1209,7 @@ export class RtBattleScene extends Phaser.Scene {
       const st = STAGES[this.stageId]!;
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
       const done = !!bossDef && (s.bossKills ?? []).includes(bossDef.id);
-      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐・繼續刷怪變強` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
+      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐・離開巢穴可再挑戰` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
