@@ -232,6 +232,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneName = null;
     this.chestHinted = new Set();
     this.bossMemo = false;
+    this.cameras.main.setZoom(1); // Boss 登場會推鏡頭；重開場景時歸位
     this.streakHinted = false;
     this.arrowLabels = [];
     const p0 = playerOf(this.s);
@@ -1221,7 +1222,8 @@ export class RtBattleScene extends Phaser.Scene {
         // 遊戲記憶（design/20 C2-2）：地圖上第一次遇到 Boss → 內心提示弱點（只提示，不加傷害）
         if (d && ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length && !this.bossMemo) {
           this.bossMemo = true;
-          this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, 600, '（記得……牠衝鋒撞到樹或石頭會暈！）', '#d8c8ff', 28, 2200));
+          this.bossIntro(d);
+          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, 600, '（記得……牠衝鋒撞到樹或石頭會暈！）', '#d8c8ff', 28, 2200));
         }
       } else if (e.type === 'leash') {
         const d = u(e.id);
@@ -1686,6 +1688,38 @@ export class RtBattleScene extends Phaser.Scene {
       // 星落一閃（D-112）：單發大招 → 天上落下一道光柱
       if (sk.role === 'ult' && sk.hits.length === 1) this.starfall(p.x, p.y, hs.type === 'circle' ? hs.r : UNIT * 3);
     });
+  }
+
+  /** Boss 登場（第 23 輪）：上下黑邊＋鏡頭微推＋名牌從左滑入，每場第一次交戰演一次 */
+  private bossIntro(d: Unit): void {
+    const def = ENEMIES[d.defId];
+    if (!def) return;
+    const tv = this.stageId === 'thornvale';
+    const col = d.fury ? '#ff7a5a' : tv ? '#c8ff8a' : '#d8ccff';
+    const sub = `${tv ? '荊棘谷之主' : '霧語森林之主'}${d.fury ? '・暴怒' : ''}${this.s.night ? '・深夜' : ''}`;
+    SFX.warn(true);
+    this.time.delayedCall(180, () => SFX.hitHeavy());
+    this.hitStop = Math.max(this.hitStop, 200);
+    const cam = this.cameras.main;
+    cam.shake(260, 0.006);
+    cam.zoomTo(1.08, 380, 'Cubic.easeOut');
+    this.time.delayedCall(1500, () => cam.zoomTo(1, 500, 'Cubic.easeOut'));
+    const H = 110;
+    const bars = [this.add.rectangle(GAME_WIDTH / 2, -H / 2, GAME_WIDTH + 120, H, 0x000000, 1), this.add.rectangle(GAME_WIDTH / 2, 1280 + H / 2, GAME_WIDTH + 120, H, 0x000000, 1)];
+    bars.forEach((b, i) => {
+      b.setDepth(880);
+      this.tweens.add({ targets: b, y: i ? 1280 - H / 2 : H / 2, duration: 300, ease: 'Cubic.easeOut', yoyo: true, hold: 1500, onComplete: () => b.destroy() });
+    });
+    const line = this.add.rectangle(-GAME_WIDTH / 2, 430, GAME_WIDTH * 0.9, 4, Phaser.Display.Color.HexStringToColor(col).color, 0.9).setDepth(881);
+    const name = this.add.text(-GAME_WIDTH / 2, 392, `${d.fury ? '暴怒的' : ''}${def.name}`, { fontFamily: TITLE_FONT, fontSize: '58px', color: col, stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(882);
+    const subT = this.add.text(GAME_WIDTH * 1.5, 466, sub, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#f4e6c0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(882);
+    [line, name].forEach((o) => this.tweens.add({ targets: o, x: GAME_WIDTH / 2, duration: 420, ease: 'Cubic.easeOut' }));
+    this.tweens.add({ targets: subT, x: GAME_WIDTH / 2, duration: 420, delay: 120, ease: 'Cubic.easeOut' });
+    this.tweens.add({ targets: [line, name, subT], alpha: 0, delay: 1800, duration: 400, onComplete: () => [line, name, subT].forEach((o) => o.destroy()) });
+    const bx = this.sx(d.x);
+    const by = this.sy(d.y);
+    shockRing(this, bx, by, Phaser.Display.Color.HexStringToColor(col).color, 220, 600, 8);
+    sparks(this, bx, by, 24, 'ember', Phaser.Display.Color.HexStringToColor(col).color, 700);
   }
 
   /** 命中的那一刻在預告範圍裡長出荊棘（狼后／母樹，第 23 輪；純畫面、用 Math.random 不影響戰鬥） */
