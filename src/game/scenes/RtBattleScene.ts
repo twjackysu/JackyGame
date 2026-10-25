@@ -173,6 +173,10 @@ export class RtBattleScene extends Phaser.Scene {
   private frostG!: Phaser.GameObjects.Graphics;
   private frostFx: { x: number; y: number; born: number; size: number; seed: number; ring?: number }[] = [];
   private thornPending: Telegraph[] = [];
+  /** 碎甲（D-121 演出收尾，第 26 輪）：每隻怪上一次看到的破甲結束 tick；變大＝剛被破甲 → 盾片碎裂 */
+  private breakSeen = new Map<number, number>();
+  /** 影步殘影（第 26 輪）：上一次留下分身的時間 */
+  private ghostAt = 0;
   private bountyTxt: Phaser.GameObjects.Text | null = null;
   /** 還沒點的技能點（☰ 紅點用；升級與改動時更新） */
   private ptsLeft = 0;
@@ -297,6 +301,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.newbie = this.tracked && (loadRecord(this.stageId).runs ?? 0) <= 3;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.thornFx = []; this.thornPending = []; this.frostFx = [];
+    this.breakSeen.clear(); this.ghostAt = 0;
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 95, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)', align: 'center', lineSpacing: 4 }).setPadding(12, 3, 12, 3).setOrigin(0.5, 0).setDepth(49) : null;
     this.makeButtons();
     this.makeMinimap();
@@ -1873,6 +1878,40 @@ export class RtBattleScene extends Phaser.Scene {
     });
   }
 
+  /** 碎甲斬命中（第 26 輪）：敵人身上迸出 6～9 片紅褐盾片，旋轉、往外飛、落地淡出（純畫面） */
+  private shatter(x: number, y: number, r: number): void {
+    const n = 6 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const g = this.add.graphics().setDepth(795);
+      const sz = (9 + Math.random() * 8) * Math.max(0.8, r / 40);
+      const col = i % 3 === 0 ? 0xffb09a : i % 3 === 1 ? 0xd04a32 : 0x8a2e1e;
+      g.fillStyle(col, 1).fillTriangle(-sz, -sz * 0.6, sz * 0.9, -sz * 0.3, -sz * 0.2, sz);
+      g.lineStyle(2, 0x2a0a00, 0.9).strokeTriangle(-sz, -sz * 0.6, sz * 0.9, -sz * 0.3, -sz * 0.2, sz);
+      g.setPosition(x, y).setRotation(Math.random() * Math.PI * 2);
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.5;
+      const d = r * (1.4 + Math.random() * 1.4);
+      const ex = x + Math.cos(a) * d;
+      const ey = y + Math.sin(a) * d * 0.55 + r * 0.8; // 往外飛、最後掉到腳邊
+      this.tweens.add({ targets: g, x: ex, duration: 520, ease: 'Cubic.easeOut' });
+      this.tweens.add({ targets: g, y: { from: y, to: ey }, duration: 520, ease: 'Back.easeIn' });
+      this.tweens.add({ targets: g, rotation: g.rotation + (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 4), duration: 520 });
+      this.tweens.add({ targets: g, alpha: 0, delay: 620, duration: 380, onComplete: () => g.destroy() });
+    }
+    shockRing(this, x, y, 0xff6a4a, r * 1.8, 260, 5);
+    floatNumber(this, x, y - r * 0.8, '破甲', { color: '#ff8a6a', size: 22 });
+  }
+
+  /** 影步（變化二）殘影（第 26 輪）：衝刺中每 45ms 在原地留一個紫色分身，0.35 秒淡出 */
+  private shadowGhost(p: Unit, sp: Phaser.GameObjects.Image, now: number): void {
+    const a = p.action;
+    if (!a || a.kind !== 'skill' || now - this.ghostAt < 45) return;
+    const sk = skillDef(this.s, a.id);
+    if (!sk?.dash || !sk.hits.some((h) => h.status?.id === 'weak')) return;
+    this.ghostAt = now;
+    const gh = this.add.image(sp.x, sp.y, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setDepth(sp.depth - 0.5).setTint(0x7a4aff).setAlpha(0.5);
+    this.tweens.add({ targets: gh, alpha: 0, scaleX: sp.scaleX * 1.08, duration: 350, ease: 'Cubic.easeOut', onComplete: () => gh.destroy() });
+  }
+
   /** Boss 登場（第 23 輪）：上下黑邊＋世界壓暗＋名牌從左滑入，每場第一次交戰演一次 */
   private bossIntro(d: Unit): void {
     const def = ENEMIES[d.defId];
@@ -2308,6 +2347,7 @@ export class RtBattleScene extends Phaser.Scene {
         else if (cfg.tint) sp.setTint(cfg.tint);
         else sp.clearTint();
         headY = sp.y - sp.displayHeight * 0.92;
+        if (isP) this.shadowGhost(x, sp, now);
       } else {
         g.fillStyle(isP ? (inv ? 0x9fd8ff : 0x4a8aff) : boss ? 0x8a3a6a : 0x6a6a7a, inv ? 0.6 : 1).fillCircle(px, py, r);
         g.lineStyle(3, 0xffffff, 0.9).lineBetween(px, py, px + (x.facingX / 1000) * r * 1.4, py + (x.facingY / 1000) * r * 1.4);
@@ -2351,7 +2391,13 @@ export class RtBattleScene extends Phaser.Scene {
           top.fillStyle(0xbff4ff, 0.28).fillEllipse(px, py - r * 0.4, r * 2.6, r * 2.2);
           top.lineStyle(2, 0xe8fcff, 0.85).strokeEllipse(px, py - r * 0.4, r * 2.6, r * 2.2);
         }
-        if (x.statuses.some((q) => q.id === 'break' && q.until > s.tick)) {
+        const brk = x.statuses.find((q) => q.id === 'break' && q.until > s.tick);
+        if (brk && brk.until > (this.breakSeen.get(x.id) ?? -1)) {
+          // 剛被破甲（或破甲被刷新）：身上迸出碎裂的盾片
+          if ((this.breakSeen.get(x.id) ?? -1) < s.tick) this.shatter(px, py - r * 0.5, r);
+          this.breakSeen.set(x.id, brk.until);
+        }
+        if (brk) {
           const bx = px - r - 4;
           const by = headY + 10;
           top.fillStyle(0xff5a3a, 1).fillTriangle(bx - 7, by - 7, bx + 7, by - 7, bx, by + 9);
