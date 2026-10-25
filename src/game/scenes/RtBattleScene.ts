@@ -690,6 +690,12 @@ export class RtBattleScene extends Phaser.Scene {
           bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]?.name ?? '精英'}出現了！`, '#ffa040', 40, 900);
           SFX.warn(true);
         }
+      } else if (e.type === 'riot') {
+        SFX.warn(true);
+        this.cameras.main.shake(260, 0.006);
+        bigText(this, GAME_WIDTH / 2, 420, e.elite ? '狼群暴動！首領也來了！' : '狼群暴動！', '#ff7a5a', 50, 1200);
+        this.time.delayedCall(700, () => bigText(this, GAME_WIDTH / 2, 490, `${e.count} 隻狼衝過來了・打倒掉落加倍`, '#ffd27a', 28, 1400));
+        shockRing(this, this.sx(e.x), this.sy(e.y), 0xff5a3a, 200, 700, 8);
       } else if (e.type === 'chest') {
         const c = STAGES[this.stageId]?.chests?.find((q) => q.id === e.chest);
         const x = c ? this.sx(c.x) : GAME_WIDTH / 2;

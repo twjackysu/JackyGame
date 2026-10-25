@@ -120,6 +120,8 @@ export function makeMistwoodStage(): StageDefinition {
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
     bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13), respawnTicks: sec(60) },
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...MISTWOOD_ROWS] } },
+    // 狼群暴動（design/20 B2）：5～8 分鐘一次、5～8 隻、25% 混狼群首領、掉落 +100%
+    riot: { everyTicks: [sec(300), sec(480)], count: [5, 8], enemyId: 'wolf', eliteId: 'alpha_wolf', eliteChance: 25, hpPct: 30, lootPct: 100 },
     // 隱藏寶箱（design/20 C2：靠近才淡淡出現「這個地方似乎有點熟悉……」）：都在路線旁的角落
     chests: [
       { id: 'entry_nook', x: c(3), y: c(91), loot: { dust: 6, gold: 40 } },

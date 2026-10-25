@@ -144,3 +144,41 @@ describe('隱藏寶箱 chests', () => {
     expect(validateStage(bad).join()).toMatch(/寶箱 x 在石頭上/);
   });
 });
+
+describe('狼群暴動 riot', () => {
+  beforeAll(() => {
+    STAGES.mistwood = makeMistwoodStage();
+  });
+  afterAll(() => {
+    delete STAGES.mistwood;
+  });
+  it('5～8 分鐘內冒出 5～8 隻醒著的狼；在營火旁不會發生；追丟會散去', () => {
+    const s = createBattle({ stageId: 'mistwood', seed: 3 });
+    const p = s.units[0]!;
+    // 站在營火旁 9 分鐘：不會暴動
+    for (let i = 0; i < sec(540); i++) step(s, []);
+    expect(s.events.some((e) => e.type === 'riot')).toBe(false);
+    // 走到森林入口（營火圈外）→ 5 秒內暴動
+    p.x = u(24);
+    p.y = u(82);
+    let riot: (typeof s.events)[number] | undefined;
+    for (let i = 0; i < sec(6) && !riot; i++) {
+      p.hp = p.maxHp;
+      step(s, []);
+      riot = s.events.find((e) => e.type === 'riot');
+    }
+    expect(riot).toBeDefined();
+    const mob = s.units.filter((x) => x.groupId === 'riot' && !x.dead);
+    expect(mob.length).toBeGreaterThanOrEqual(5);
+    expect(mob.length).toBeLessThanOrEqual(8);
+    expect(mob.every((x) => x.mode === 'combat')).toBe(true);
+    // 跑回營火、無敵等牠們追丟 → 散去
+    p.x = u(24) + 50;
+    p.y = u(90) + 50;
+    for (let i = 0; i < sec(60); i++) {
+      p.hp = p.maxHp;
+      step(s, []);
+    }
+    expect(s.units.filter((x) => x.groupId === 'riot' && !x.dead).length).toBe(0);
+  });
+});

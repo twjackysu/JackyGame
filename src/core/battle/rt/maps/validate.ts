@@ -40,6 +40,11 @@ export function validateStage(def: StageDefinition): string[] {
   if (def.bossZone) needMap('bossZone');
   if (def.reviveAtCampfire && !def.campfires?.length) out.push('reviveAtCampfire 但沒有營火');
   for (const c of def.campfires ?? []) check(`營火 ${c.id}`, c.x, c.y);
+  if (def.riot) {
+    needMap('riot');
+    if (!ENEMIES[def.riot.enemyId]) out.push(`riot 的 enemyId「${def.riot.enemyId}」不存在`);
+    if (def.riot.eliteId && !ENEMIES[def.riot.eliteId]) out.push(`riot 的 eliteId「${def.riot.eliteId}」不存在`);
+  }
   if (def.chests?.length && !def.loot) out.push('chests 需要 loot');
   const chestIds = new Set<string>();
   for (const c of def.chests ?? []) {

@@ -217,7 +217,8 @@ function processRespawns(s: BattleState): void {
 function rollDrops(s: BattleState, e: Unit): void {
   const d = ENEMIES[e.defId]?.drops;
   if (!d) return;
-  const bonus = e.groupId ? (STAGES[s.stageId]?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0) : 0;
+  const st = STAGES[s.stageId];
+  const bonus = !e.groupId ? 0 : e.groupId === RIOT_GROUP ? (st?.riot?.lootPct ?? 0) : (st?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0);
   const range = (r: [number, number]) => r[0] + Math.floor(lootRand(s) * (r[1] - r[0] + 1));
   const more = (n: number) => (bonus ? Math.round((n * (100 + bonus)) / 100) : n);
   const put = (kind: LootId, amount: number) => {
@@ -255,6 +256,66 @@ function processPickup(s: BattleState): void {
     if (it.kind === 'dust' || it.kind === 'crystal') lootEnhance(s, p);
     return false;
   });
+}
+
+/** 狼群暴動：排程、生成（醒著、直接追玩家）、追丟就散去 */
+const RIOT_GROUP = 'riot';
+function processRiot(s: BattleState): void {
+  const st = STAGES[s.stageId];
+  const r = st?.riot;
+  if (!r) return;
+  const roll = (a: [number, number]) => a[0] + Math.floor(nextRand(s) * (a[1] - a[0] + 1));
+  if (s.riotAt === undefined) s.riotAt = s.tick + roll(r.everyTicks);
+  const p = playerOf(s);
+  // 散去：追丟（返回／待機）的暴動怪直接移除（屍體留著，下次暴動前清掉）
+  if (s.tick % TICKS_PER_SEC === 0) {
+    s.units = s.units.filter((x) => {
+      if (x.groupId !== RIOT_GROUP || x.dead || x.mode === 'combat') return true;
+      if (p.targetId === x.id) p.targetId = null;
+      return false;
+    });
+  }
+  if (s.tick < s.riotAt) return;
+  const z = st.bossZone;
+  const busy = p.dead || inSafeZone(s, p) || (z && dist(p.x, p.y, z.x, z.y) <= z.r) || s.units.some((x) => x.groupId === RIOT_GROUP && !x.dead);
+  if (busy) {
+    s.riotAt = s.tick + 5 * TICKS_PER_SEC;
+    return;
+  }
+  // 位置：玩家周圍 10 單位、8 個方向（從亂數方向開始轉）找第一個不是障礙物、也不在營火圈內的點
+  const start = Math.floor(nextRand(s) * 8);
+  let at: { x: number; y: number } | null = null;
+  for (let k = 0; k < 8 && !at; k++) {
+    const a = ((start + k) / 8) * Math.PI * 2;
+    const x = p.x + Math.round(Math.cos(a) * 10 * UNIT);
+    const y = p.y + Math.round(Math.sin(a) * 10 * UNIT);
+    if (x < UNIT || y < UNIT || x > s.arena.w - UNIT || y > s.arena.h - UNIT) continue;
+    if (s.arena.solid && isSolidAt(s.arena.solid, x, y)) continue;
+    if (campfireNear(s, x, y, CAMPFIRE_RULES.safeUnits)) continue;
+    at = { x, y };
+  }
+  s.riotAt = s.tick + roll(r.everyTicks);
+  if (!at) return;
+  s.units = s.units.filter((x) => !(x.groupId === RIOT_GROUP && x.dead));
+  const n = roll(r.count);
+  const elite = !!r.eliteId && nextRand(s) * 100 < (r.eliteChance ?? 0);
+  for (let i = 0; i < n; i++) {
+    const def = ENEMIES[elite && i === 0 ? r.eliteId! : r.enemyId]!;
+    const a = (i / n) * Math.PI * 2;
+    const m = makeEnemy(s, def, at.x + Math.round(Math.cos(a) * 1.5 * UNIT), at.y + Math.round(Math.sin(a) * 1.5 * UNIT));
+    if (r.hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + r.hpPct)) / 100);
+    clampArena(s, m);
+    m.tier = elite && i === 0 ? 'elite' : 'normal';
+    m.homeX = m.x;
+    m.homeY = m.y;
+    m.groupId = RIOT_GROUP;
+    m.mode = 'combat';
+    m.engagedTick = s.tick;
+    m.aggroTick = s.tick;
+    m.nextAttackTick = s.tick + 2 * TICKS_PER_SEC; // 衝過來的路上不出手
+    s.units.push(m);
+  }
+  emit(s, { tick: s.tick, type: 'riot', count: n, elite, x: at.x, y: at.y });
 }
 
 /** 隱藏寶箱：走近自動打開（不用亂數）；藥水補到攜帶上限，其餘直接入帳 */
@@ -1042,6 +1103,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   if (rpm && s.tick % (60 * TICKS_PER_SEC) === 0) emit(s, { tick: s.tick, type: 'ramp', minute: s.tick / (60 * TICKS_PER_SEC), pct: rampPct(s) });
   processRespawns(s);
   processBossRespawn(s);
+  processRiot(s);
   processPickup(s);
   processChests(s);
   const p = playerOf(s);

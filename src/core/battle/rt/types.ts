@@ -246,6 +246,7 @@ export type BattleEvent =
   | { tick: number; type: 'damage'; src: number; dst: number; amount: number; crit: boolean; origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot'; skill: string; absorbed?: number }
   | { tick: number; type: 'death'; id: number }
   | { tick: number; type: 'respawn'; id: number; group: string }
+  | { tick: number; type: 'riot'; count: number; elite: boolean; x: number; y: number }
   | { tick: number; type: 'chest'; chest: string; loot: Partial<Record<LootId, number>> }
   | { tick: number; type: 'rest'; id: number; campfire: string }
   | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number }
@@ -376,6 +377,11 @@ export interface StageDefinition {
   lootEnhance?: { dustPerLevel: number; maxLevel: number; atkPctPerLevel: number };
   /** 刷怪關的壓力曲線：每過 1 分鐘，之後重生的怪 HP 與攻擊 +這麼多 %（每分鐘發一次 ramp 事件） */
   rampPctPerMin?: number;
+  /**
+   * 狼群暴動（design/20 B2 地圖事件，需要 mapAi）：每隔 everyTicks（範圍內隨機）在玩家周圍約 10 單位外冒出一群醒著的怪，
+   * eliteChance% 機率混一隻精英；掉落 +lootPct%；追丟了就散去（不留在地圖上）。玩家在營火或 Boss 區域內時延後。
+   */
+  riot?: { everyTicks: [number, number]; count: [number, number]; enemyId: string; eliteId?: string; eliteChance?: number; hpPct?: number; lootPct?: number };
   /** 隱藏寶箱（需要 loot） */
   chests?: Chest[];
   /** 營火（需要 mapAi） */
@@ -441,6 +447,8 @@ export interface BattleState {
   loot?: Partial<Record<LootId, number>>;
   /** 這場打倒過的 Boss（defId，首殺劇情旗標用） */
   bossKills?: string[];
+  /** 下一次狼群暴動的 tick（riot；第一個 tick 排定） */
+  riotAt?: number;
   /** 打開過的寶箱 id */
   chestsOpened?: string[];
   /** 在營火復活的次數 */
