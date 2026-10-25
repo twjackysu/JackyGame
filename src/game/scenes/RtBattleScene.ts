@@ -214,7 +214,7 @@ export class RtBattleScene extends Phaser.Scene {
     hdr.fillStyle(0x0b1410, 0.94).fillRect(0, 0, GAME_WIDTH, VIEW_TOP);
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
     // 深夜（D-103）：整個畫面壓暗、偏藍
-    if (this.s.night) this.add.rectangle(GAME_WIDTH / 2, 640, GAME_WIDTH, 1280, 0x081038, 0.38).setDepth(42).setBlendMode(Phaser.BlendModes.MULTIPLY);
+    this.nightShade = this.s.night ? this.add.image(GAME_WIDTH / 2, 640, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
     this.add.text(GAME_WIDTH / 2, 40, this.tracked || this.stageId === 'mistwood' ? `${STAGES[this.stageId]!.name}${this.s.night ? '・深夜' : ''}` : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
@@ -658,6 +658,26 @@ export class RtBattleScene extends Phaser.Scene {
       }
       e.pick = null;
     }
+  }
+
+  /** 深夜：主角身邊亮、越遠越暗的藍黑色暈影（中心透明） */
+  private nightShade: Phaser.GameObjects.Image | null = null;
+  private nightTexture(): string {
+    const key = 'rt_night_shade';
+    if (this.textures.exists(key)) return key;
+    const tex = this.textures.createCanvas(key, 512, 512);
+    if (!tex) return key;
+    const ctx = tex.getContext();
+    const gr = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+    gr.addColorStop(0, 'rgba(6,10,36,0)');
+    gr.addColorStop(0.1, 'rgba(6,10,36,0.04)');
+    gr.addColorStop(0.28, 'rgba(6,10,36,0.4)');
+    gr.addColorStop(0.5, 'rgba(6,10,36,0.58)');
+    gr.addColorStop(1, 'rgba(6,10,36,0.66)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, 512, 512);
+    tex.refresh();
+    return key;
   }
 
   private glowTexture(): string {
@@ -1423,6 +1443,10 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   private draw(): void {
+    if (this.nightShade) {
+      const pl = playerOf(this.s);
+      this.nightShade.setPosition(this.sx(pl.x), this.sy(pl.y));
+    }
     const g = this.g.clear();
     const top = this.top.clear();
     const s = this.s;
