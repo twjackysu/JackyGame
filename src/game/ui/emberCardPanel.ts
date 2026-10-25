@@ -112,6 +112,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   let who: Opponent = here.filter((o) => !o.secret).slice(-1)[0] ?? here[0]!;
   /** 大廳／牌組一覽 */
   let view: 'lobby' | 'deck' = 'lobby';
+  /** 組牌畫面最後點的那張（底下顯示說明） */
+  let deckPeek: string | undefined;
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24, off = false): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: off ? '#8a8070' : hi ? '#1a0f08' : '#ffffff', backgroundColor: off ? '#2a2218' : hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9);
@@ -380,6 +382,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       const bg = scene.add.rectangle(x, y, 88, 120, col.fill, off ? 0.35 : 1).setStrokeStyle(3, off ? 0x4a4038 : cut ? 0x8a7a6a : col.edge, 1);
       bg.setInteractive({ useHandCursor: true }).on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
         ev.stopPropagation();
+        deckPeek = id;
         const s2 = stats();
         if (off) {
           const k = s2.off.indexOf(id);
@@ -408,7 +411,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     });
     const rows = Math.ceil(owned.length / cols);
     const ty = -440 + rows * 132 + 10;
-    items.push(scene.add.text(0, ty, `帶上 ${using} 張（${DECK_MIN}～${DECK_MAX} 張；超過時「超額」的最弱單位不會上場）\n另外每場都會多一張「晴空」`, { fontFamily: UI_FONT, fontSize: '19px', color: using > DECK_MAX ? '#ff9a8a' : '#ffe08a', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0));
+    items.push(scene.add.text(0, ty, `帶上 ${using} 張（${DECK_MIN}～${DECK_MAX} 張；超過時「超額」的最弱單位不會上場）\n另外每場都會多一張「晴空」${deckPeek ? `\n\n${CARDS[deckPeek]!.name}${CARDS[deckPeek]!.power ? `（${CARDS[deckPeek]!.power} 點・${CARDS[deckPeek]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[deckPeek]!.desc ? `：${CARDS[deckPeek]!.desc}` : ''}` : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: using > DECK_MAX ? '#ff9a8a' : '#ffe08a', align: 'center', lineSpacing: 6, wordWrap: { width: 660, useAdvancedWrap: true } }).setOrigin(0.5, 0));
     items.push(btn(-130, 500, '全部帶上', () => {
       const s2 = stats();
       s2.off = [];
