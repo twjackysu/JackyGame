@@ -143,7 +143,7 @@ function fight(seed: number, level: number, bonus: { hp: number; atk: number; de
 }
 
 describe('P5 配裝比較（Lv8、同一批裝備）', () => {
-  it('三種配裝都打得倒狼王；暴怒版明顯更難但刷過的角色打得過', () => {
+  it('三種配裝都打得倒狼王；暴怒版明顯更難但刷過的角色打得過', async () => {
     const { items, level } = farm(Number((globalThis as any).process.env.FARM_MIN ?? 60));
     const rows: string[] = [`刷 ${(globalThis as any).process.env.FARM_MIN ?? 60} 分鐘：Lv${level}、${items.length} 件（稀有 ${items.filter((g) => g.rarity === 3).length}）`];
     for (const b of BUILDS) {
@@ -156,6 +156,15 @@ describe('P5 配裝比較（Lv8、同一批裝備）', () => {
       const nov = [1, 2].map((sd) => fight(sd, level, bonus, mods, true, 'novice'));
       rows.push(`${b.name}：加成 ${JSON.stringify(bonus)} 特效 ${JSON.stringify(mods)}\n   普通 Bot：狼王 ${f(normal)}｜暴怒 ${f(fury)}｜新手 Bot 暴怒 ${f(nov)}`);
       for (const x of normal) expect(x.killed).toBe(true);
+      for (const x of fury) expect(x.killed).toBe(true);
+    }
+    // 技能點（D-110）：Lv8 的 7 點兩種點法，疊在「全攻擊」配裝上比暴怒版
+    const { mergeMods, rankMods } = await import('../src/game/rtSkills');
+    const g0 = pick(BUILDS[0]!, items);
+    for (const [name, ranks] of [['重斬5＋風暴2', { heavy_slash: 5, blade_storm: 2 }], ['衝鋒5＋格擋2', { charge: 5, parry: 2 }]] as const) {
+      const mods = mergeMods(gearSkillMods(g0), rankMods(ranks));
+      const fury = [1, 2].map((sd) => fight(sd, level, gearBonus(g0, SWORDSMAN.hp, SWORDSMAN.atk), mods, true));
+      rows.push(`全攻擊＋技能點 ${name}：暴怒 ${fury.map((x) => (x.killed ? `${x.fight}s/倒${x.downs}/藥${x.pots}` : '未打倒')).join('、')}`);
       for (const x of fury) expect(x.killed).toBe(true);
     }
     out(`\n[P5 配裝]\n${rows.join('\n')}\n`);
