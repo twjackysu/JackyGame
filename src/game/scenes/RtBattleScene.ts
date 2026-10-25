@@ -148,6 +148,11 @@ export class RtBattleScene extends Phaser.Scene {
   private goalDone = false;
   /** HUD 的金幣＝錢包（上次存檔時）＋這場還沒存的（D-116 行商之後金幣是能花的錢） */
   private coinBase = -1;
+  private leftFire = false;
+  private tipBusy = false;
+  private fireHinted = false;
+  /** 前 3 次進大地圖才顯示的引導 */
+  private newbie = false;
   private dustBase = 0;
   private goalAt = 0;
   private goalNext = '';
@@ -271,6 +276,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.ptsLeft = this.tracked ? this.skillPointsLeft() : 0;
     this.goalDone = false; this.goalAt = 0; this.goalNext = '';
     this.coinBase = this.tracked ? coinOf(loadRecord(this.stageId)) : -1;
+    this.leftFire = false;
+    this.fireHinted = false;
+    this.newbie = this.tracked && (loadRecord(this.stageId).runs ?? 0) <= 3;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.thornFx = []; this.thornPending = [];
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 95, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)', align: 'center', lineSpacing: 4 }).setPadding(12, 3, 12, 3).setOrigin(0.5, 0).setDepth(49) : null;
@@ -703,6 +711,12 @@ export class RtBattleScene extends Phaser.Scene {
     const up = near && this.bagSt.bag.some((g) => isUpgrade(this.bagSt, g));
     b.setVisible(near && !this.menu).setText(up ? '行囊・強化 ▲' : '行囊・強化');
     this.shopBtn?.setVisible(near && !this.menu);
+    // 新手引導（第 23 輪）：前幾次進地圖、第一次離開營火又回來時說明營火能做什麼（開場就在營火旁，所以等「回來」才提示）
+    if (!near) this.leftFire = true;
+    else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie) {
+      this.fireHinted = true;
+      bigText(this, GAME_WIDTH / 2, 600, '回到營火：點火堆＝休息回滿・補藥水\n「行囊・強化」換裝／強化　「行商」用金幣買賣', '#ffe0a0', 26, 2600);
+    }
   }
 
   private saveBag(): void {
@@ -1178,6 +1192,20 @@ export class RtBattleScene extends Phaser.Scene {
     this.time.delayedCall(6000, () => this.dismissHint());
   }
 
+  /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
+  private tipOnce(key: string, text: string, color: string): void {
+    if (this.hint || this.tipBusy) return;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch {
+      return;
+    }
+    this.tipBusy = true;
+    this.time.delayedCall(2200, () => (this.tipBusy = false));
+    bigText(this, GAME_WIDTH / 2, 700, text, color, 30, 1600);
+  }
+
   private dismissHint(): void {
     const h = this.hint;
     if (!h) return;
@@ -1319,6 +1347,12 @@ export class RtBattleScene extends Phaser.Scene {
           this.lastWarnTick = e.tick;
           const o = u(e.owner);
           SFX.warn(!!(o && ENEMIES[o.defId]?.boss));
+        }
+        // 新手引導（第 23 輪）：第一次看到敵人預告、第一次看到可格擋的黃框，各提示一次（每台裝置一次）
+        if (!this.bot) {
+          const tg0 = this.s.telegraphs.find((t) => t.ownerId === e.owner && t.attackId === e.attack);
+          if (tg0?.blockable) this.tipOnce('jg_tip_block', '黃框＝可以格擋！敵人打到前按「格擋反擊」', '#ffe08a');
+          else this.tipOnce('jg_tip_tele', '紅色範圍填滿就命中——走出去！', '#ff9a8a');
         }
         // 地面荊棘（第 23 輪）：記下預告，命中那一刻在範圍裡長出荊棘
         if (THORN_ATTACKS.has(e.attack)) {
