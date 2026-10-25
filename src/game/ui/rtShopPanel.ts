@@ -22,6 +22,8 @@ export interface ShopCtx {
   setBag: (st: BagState) => void;
   level: number;
   region: string;
+  /** 營火燼牌（D-127）：有給才出現「燼牌」分頁按鈕 */
+  onCards?: () => void;
 }
 
 export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () => void): Phaser.GameObjects.Container {
@@ -92,11 +94,13 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     items.push(portrait);
     items.push(scene.add.text(0, -538, `旅商莫托：${line}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0' }).setOrigin(0.5));
     items.push(scene.add.text(0, -500, `金幣 ${coinOf(rec)}　粉塵 ${w.dust}　結晶 ${w.crystal}　背包 ${st.bag.length}/${BAG_MAX}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
-    items.push(btn(-110, -448, '買', () => {
+    const tx = ctx.onCards ? 200 : 110;
+    items.push(btn(-tx, -448, '買', () => {
       tab = 'buy';
       render();
     }, tab === 'buy', 26));
-    items.push(btn(110, -448, '賣', () => {
+    if (ctx.onCards) items.push(btn(200, -448, '燼牌', () => ctx.onCards?.(), false, 26));
+    items.push(btn(ctx.onCards ? 0 : 110, -448, '賣', () => {
       tab = 'sell';
       page = 0;
       render();

@@ -7,7 +7,8 @@ import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerOf,
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
-import { coinOf } from '../rtShop';
+import { coinOf, spendCoin } from '../rtShop';
+import { openEmberCardPanel } from '../ui/emberCardPanel';
 import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
@@ -768,12 +769,31 @@ export class RtBattleScene extends Phaser.Scene {
         },
         level: this.s.prog?.level ?? 1,
         region: this.stageId,
+        onCards: () => this.openCards(),
       },
       () => {
         this.menu?.destroy();
         this.menu = null;
         this.acc = 0;
       },
+    );
+  }
+
+  /** 營火燼牌（D-127）：從行商面板進來，離開回到行商 */
+  private openCards(): void {
+    this.menu?.destroy();
+    this.menu = openEmberCardPanel(
+      this,
+      {
+        coin: () => coinOf(loadRecord(this.stageId)),
+        pay: (n) => {
+          const r = spendCoin(loadRecord(this.stageId), n);
+          if (!r) return;
+          saveRecord(this.stageId, r);
+          this.coinBase = coinOf(r);
+        },
+      },
+      () => this.openShop(),
     );
   }
 
