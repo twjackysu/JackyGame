@@ -334,6 +334,8 @@ export interface SpawnGroup {
   atkPct?: number;
   /** 區域獎勵：這組怪掉的金幣與粉塵數量 +這麼多 %（不多抽亂數，掉不掉照舊）。沒設＝0 */
   lootPct?: number;
+  /** 只在深夜出現（StageDefinition.night，D-104） */
+  nightOnly?: boolean;
 }
 /** 營火（design/20 B4）：怪不追進安全範圍（追進來就脫戰回家）、休息回滿、死亡在最後休息的營火復活 */
 export interface Campfire {

@@ -133,6 +133,7 @@ export function createBattle(setup: BattleSetup): BattleState {
   if (setup.night && stage.night) s.night = true;
   stage.enemies.forEach((_, i) => s.units.push(makeFixed(s, stage, i)));
   for (const g of stage.spawnGroups ?? []) {
+    if (g.nightOnly && !s.night) continue;
     // 開場：等角度排在半徑 60% 的圓上（不用亂數，方便擺關卡）；石頭上的會被推出去
     for (let k = 0; k < g.maxAlive; k++) {
       const a = (k / g.maxAlive) * Math.PI * 2;

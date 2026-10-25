@@ -122,9 +122,10 @@ export function makeMistwoodStage(): StageDefinition {
       wolf: { chance: 5, ilvl: 2, rarity: [80, 18, 2] },
       thorn_shooter: { chance: 6, ilvl: 3, rarity: [75, 22, 3] },
       alpha_wolf: { chance: 40, ilvl: 4, rarity: [40, 45, 15] },
+      shade_wolf: { chance: 100, ilvl: 5, rarity: [0, 50, 50] },
       wolf_king: { chance: 100, ilvl: 4, rarity: [0, 40, 60], count: 2, firstRare: true },
     },
-    progression: { xp: { wolf: 5, wolf_pup: 3, thorn_shooter: 6, alpha_wolf: 25, wolf_king: 150 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
+    progression: { xp: { wolf: 5, wolf_pup: 3, thorn_shooter: 6, alpha_wolf: 25, shade_wolf: 60, wolf_king: 150 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '往北穿過森林，打倒霧角狼王！\n撿到裝備去行囊換上・營火旁可以強化',
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
@@ -160,6 +161,8 @@ export function makeMistwoodStage(): StageDefinition {
       { id: 'deep_wolves', enemyId: 'wolf', cx: c(38), cy: c(66), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 50, atkPct: 25, lootPct: 60 },
       { id: 'deep_shooters', enemyId: 'thorn_shooter', cx: c(37), cy: c(58), spawnRadius: u(2), maxAlive: 2, respawnTicks: sec(45), hpPct: 50, atkPct: 25, lootPct: 60 },
       { id: 'elite', enemyId: 'alpha_wolf', cx: c(24), cy: c(36), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(180), hpPct: 100, atkPct: 50, lootPct: 100, tier: 'elite' },
+      // 霧影狼（D-104）：只在深夜出現，在森林入口東側遊蕩（離南營地不遠，深夜一進來就看得到目標）
+      { id: 'night_shade', enemyId: 'shade_wolf', cx: c(40), cy: c(80), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(150), tier: 'elite', lootPct: 100, nightOnly: true },
       { id: 'elite_pack', enemyId: 'wolf', cx: c(21), cy: c(33), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 100, atkPct: 50, lootPct: 100 },
     ],
   };

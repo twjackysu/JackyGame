@@ -127,6 +127,9 @@ describe('深夜的森林（D-103）', () => {
     expect(hp(night, 'entry')).toBe(Math.round((hp(day, 'entry') * (100 + nt.hpPct)) / 100));
     expect(king(night)!.maxHp).toBe(king(day)!.maxHp);
     expect(createBattle({ stageId: 'wolf_king', seed: 1, night: true }).night).toBeUndefined();
+    // 霧影狼（D-104）只在深夜
+    expect(day.units.some((u) => u.defId === 'shade_wolf')).toBe(false);
+    expect(night.units.filter((u) => u.defId === 'shade_wolf' && u.tier === 'elite').length).toBe(1);
     // Lv8＋一般裝備的普通 Bot：深夜也能從南營地打到狼王
     const s = createBattle({ stageId: 'mistwood', seed: 2, night: true, level: 8, bonus: { hp: 450, atk: 40, def: 25 } });
     const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');

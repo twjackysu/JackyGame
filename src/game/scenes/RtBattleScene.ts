@@ -39,6 +39,7 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true },
   wolf_pup: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0xc8e0ff },
   alpha_wolf: { key: 'enemy_mist_wolf', h: 2.8, flip: true, tint: 0xffb080 },
+  shade_wolf: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xa88aff },
   thorn_shooter: { key: 'enemy_thorn_shroom', h: 2.9, flip: false },
   wolf_king: { key: 'enemy_boss_wolfking', h: 3.0, flip: false },
 };

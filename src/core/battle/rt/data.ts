@@ -92,6 +92,15 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'alpha_charge', shape: { type: 'line', len: u(4.5), width: u(1.2) }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 140, cooldownTicks: sec(8), triggerRange: u(4.5), blockable: true, charge: { ticks: sec(0.35), wallStunTicks: sec(1.5) }, weight: 1 },
     ],
   },
+  // 霧影狼（D-104）：只在深夜出現的精英；比首領快、咬得更兇，掉落必有結晶
+  shade_wolf: {
+    id: 'shade_wolf', name: '霧影狼', hp: 1300, atk: 34, def: 11, speed: 4.0, radius: u(0.6), hitstunTicks: 2,
+    drops: { gold: [40, 60], items: [{ id: 'dust', chance: 100, count: [3, 5] }, { id: 'crystal', chance: 100 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'shade_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.6), recoverTicks: sec(0.35), damageMultiplier: 115, cooldownTicks: sec(2.0), triggerRange: u(1.6), blockable: true, weight: 3 },
+      { id: 'shade_charge', shape: { type: 'line', len: u(5.5), width: u(1.3) }, warningTicks: sec(0.7), recoverTicks: sec(0.5), damageMultiplier: 140, cooldownTicks: sec(6), triggerRange: u(5.5), blockable: true, charge: { ticks: sec(0.35), wallStunTicks: sec(1.5) }, weight: 2 },
+    ],
+  },
   wolf_king: {
     id: 'wolf_king', name: '霧角狼王', hp: 4200, atk: 31, def: 12, speed: 3.0, radius: u(0.9), hitstunTicks: 0,
     drops: { gold: [80, 120], items: [{ id: 'dust', chance: 100, count: [4, 6] }, { id: 'crystal', chance: 100 }] },
