@@ -1096,6 +1096,14 @@ function updatePlayer(s: BattleState): void {
           if (t) navToward(s, p, t.x, t.y, p.r + t.r, sk.moveFactor);
         }
       }
+      if (sk.aimTicks && k < sk.aimTicks) {
+        const t = currentTarget(s, p);
+        if (t) {
+          face(p, t);
+          a.dirX = p.facingX;
+          a.dirY = p.facingY;
+        }
+      }
       for (const h of sk.hits) if (h.atTick === k) resolveSkillHit(s, p, a, h, a.id, 'skill');
     } else if (a.kind === 'attack') {
       // 手動移動可以取消普攻後搖（命中前取消就沒打到）

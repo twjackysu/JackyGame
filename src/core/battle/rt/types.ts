@@ -79,6 +79,8 @@ export interface SkillDefinition {
   hits: SkillHit[];
   /** 位移：在 [fromTick, fromTick+ticks) 之間沿施放方向前進 distance（不穿牆） */
   dash?: { fromTick: number; ticks: number; distance: number };
+  /** 蓄力瞄準（第 26 輪）：施放後前 aimTicks 內每 tick 轉向目前目標（之後鎖定方向）；直線大招用 */
+  aimTicks?: number;
   /** 格擋：施放後 [0, windowTicks] 內被「可格擋」攻擊命中 → 傷害 −reducePct% 並立即打出 counter */
   block?: { windowTicks: number; reducePct: number; counter: SkillHit };
   /** 大招才耗 MP（D-063） */

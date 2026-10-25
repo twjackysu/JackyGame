@@ -109,10 +109,10 @@ export const SKILL_VARIANTS_B: Record<string, SkillDefinition & { variantName: s
     hits: [],
     block: { windowTicks: 9, reducePct: 100, counter: { atTick: 0, shape: { type: 'line', len: u(6), width: u(1.2) }, mult: 420 } },
   },
-  // 破空斬月：0.7s 蓄力、前方 8 格寬劍氣 720%＋破甲 8 秒
+  // 破空斬月：0.7s 蓄力、前方 8 格長劍氣 720%＋破甲 8 秒（第 26 輪：蓄力前 0.5 秒自動對準目標）
   blade_storm: {
-    id: 'blade_storm', name: '破空斬月', variantName: '破空斬月', desc: '蓄力 0.7 秒，前方 8 格寬劍氣 720%＋破甲 8 秒',
-    cooldownTicks: sec(45), castTicks: sec(0.7), moveFactor: 0, role: 'ult', useRange: u(4), mp: 40,
+    id: 'blade_storm', name: '破空斬月', variantName: '破空斬月', desc: '蓄力 0.7 秒（前 0.5 秒自動對準目標），前方 8 格劍氣 720%＋破甲 8 秒',
+    cooldownTicks: sec(45), castTicks: sec(0.7), moveFactor: 0, role: 'ult', useRange: u(4), mp: 40, aimTicks: sec(0.5), // 蓄力前 0.5 秒跟著目標轉（第 26 輪），最後 0.2 秒鎖定
     hits: [{ atTick: sec(0.7) - 1, shape: { type: 'line', len: u(8), width: u(1.8) }, mult: 720, status: { id: 'break', ticks: sec(8) } }],
   },
 };

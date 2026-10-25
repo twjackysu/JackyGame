@@ -217,7 +217,12 @@ export class PlayerBot implements BattleController {
     const ult = skillDef(s, 'blade_storm')!;
     const ultNear = es.filter((e) => dist(p.x, p.y, e.x, e.y) <= (ult.useRange ?? 0) + e.r);
     const bossNear = ultNear.some((e) => e.maxHp >= 2000);
-    if (this.prof.ult && ready('blade_storm') && p.mp >= (ult.mp ?? 0) && (ultNear.length >= 3 || bossNear)) out.push({ type: 'skill', id: 'blade_storm' });
+    if (this.prof.ult && ready('blade_storm') && p.mp >= (ult.mp ?? 0) && (ultNear.length >= 3 || bossNear)) {
+      // 直線大招（破空斬月，D-121）：施放時面向「目前目標」，先把目標換成 Boss 再放（第 26 輪；圓形大招不受影響）
+      const boss = ultNear.find((e) => e.maxHp >= 2000);
+      if (boss && boss.id !== p.targetId && ult.hits[0]?.shape.type === 'line') out.push({ type: 'target', id: boss.id });
+      out.push({ type: 'skill', id: 'blade_storm' });
+    }
     else if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
     else if (d <= (skillDef(s, 'heavy_slash')!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
     else if (d > 250 && d <= (skillDef(s, 'charge')!.useRange ?? 0) && ready('charge')) out.push({ type: 'skill', id: 'charge' });

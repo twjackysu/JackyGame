@@ -1912,6 +1912,29 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: gh, alpha: 0, scaleX: sp.scaleX * 1.08, duration: 350, ease: 'Cubic.easeOut', onComplete: () => gh.destroy() });
   }
 
+  /** 直線大招蓄力中的瞄準線（破空斬月，第 26 輪）：前段跟著目標轉（淡金），鎖定後變白並閃爍，打出去前看得到範圍 */
+  private drawUltAim(g: Phaser.GameObjects.Graphics, p: Unit, now: number): void {
+    const a = p.action;
+    if (!a || a.kind !== 'skill') return;
+    const sk = skillDef(this.s, a.id);
+    const h = sk?.hits[0];
+    if (!sk?.aimTicks || !h) return;
+    const k = this.s.tick - a.start;
+    if (k > h.atTick) return;
+    const hs = skillShape(this.s, a.id, h.shape);
+    if (hs.type !== 'line') return;
+    const ang = Math.atan2(a.dirY, a.dirX);
+    const c = Math.cos(ang);
+    const sn = Math.sin(ang);
+    const locked = k >= sk.aimTicks;
+    const prog = Math.min(1, k / h.atTick);
+    const corner = (f: number, side: number) => ({ x: this.sx(p.x + c * hs.len * f - sn * side * hs.width / 2), y: this.sy(p.y + sn * hs.len * f + c * side * hs.width / 2) });
+    const col = locked ? 0xffffff : 0xffe7a0;
+    g.fillStyle(col, locked ? 0.1 + 0.12 * (Math.floor(now / 70) % 2) : 0.08).fillPoints([corner(0, -1), corner(1, -1), corner(1, 1), corner(0, 1)], true);
+    g.fillStyle(col, locked ? 0.3 : 0.18).fillPoints([corner(0, -1), corner(prog, -1), corner(prog, 1), corner(0, 1)], true);
+    g.lineStyle(2, col, locked ? 0.9 : 0.55).strokePoints([corner(0, -1), corner(1, -1), corner(1, 1), corner(0, 1)], true);
+  }
+
   /** Boss 登場（第 23 輪）：上下黑邊＋世界壓暗＋名牌從左滑入，每場第一次交戰演一次 */
   private bossIntro(d: Unit): void {
     const def = ENEMIES[d.defId];
@@ -2347,7 +2370,10 @@ export class RtBattleScene extends Phaser.Scene {
         else if (cfg.tint) sp.setTint(cfg.tint);
         else sp.clearTint();
         headY = sp.y - sp.displayHeight * 0.92;
-        if (isP) this.shadowGhost(x, sp, now);
+        if (isP) {
+          this.shadowGhost(x, sp, now);
+          this.drawUltAim(g, x, now);
+        }
       } else {
         g.fillStyle(isP ? (inv ? 0x9fd8ff : 0x4a8aff) : boss ? 0x8a3a6a : 0x6a6a7a, inv ? 0.6 : 1).fillCircle(px, py, r);
         g.lineStyle(3, 0xffffff, 0.9).lineBetween(px, py, px + (x.facingX / 1000) * r * 1.4, py + (x.facingY / 1000) * r * 1.4);

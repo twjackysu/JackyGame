@@ -159,4 +159,33 @@ describe('技能第二種變化（D-121）', () => {
       expect(got).toBe(true);
     });
   }
+
+  it('破空斬月蓄力前 0.5 秒跟著目標轉、最後 0.2 秒鎖定（第 26 輪）', () => {
+    const hitAfter = (moveAt: number): boolean => {
+      const s = createBattle({ stageId: 'mistwood', seed: 1, skillVariants: ['blade_storm:b'] });
+      step(s, []);
+      const p = s.units[0]!;
+      const e = s.units.find((x) => x.side === 'enemy' && !x.dead && x.defId === 'wolf')!;
+      for (const o of s.units) if (o !== p && o !== e) o.dead = true;
+      p.x = e.x;
+      p.y = e.y + u(3);
+      p.mp = 100;
+      p.targetId = e.id;
+      const ex = e.x;
+      const ey = e.y;
+      step(s, [{ type: 'skill', id: 'blade_storm' }]);
+      let hit = false;
+      for (let i = 0; i < sec(0.9); i++) {
+        // 狼在蓄力中橫移到旁邊 2.5 格（每 tick 釘住位置，不讓 AI 自己走）
+        if (s.tick - p.action!.start >= moveAt || !p.action) { e.x = ex + u(2.5); e.y = ey; } else { e.x = ex; e.y = ey; }
+        const n = s.events.length;
+        step(s, []);
+        for (let j = n; j < s.events.length; j++) { const v = s.events[j]!; if (v.type === 'damage' && v.dst === e.id && v.skill === 'blade_storm') hit = true; }
+        if (!p.action) break;
+      }
+      return hit;
+    };
+    expect(hitAfter(sec(0.2))).toBe(true); // 早移動：跟著轉，打得到
+    expect(hitAfter(sec(0.6))).toBe(false); // 鎖定後才移動：閃得掉
+  });
 });
