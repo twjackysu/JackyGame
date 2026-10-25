@@ -3,12 +3,9 @@ import { fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
 import { playMusic } from '../../audio/music';
-import { session } from '../session';
-import { endingsSeen, newGamePlus } from '../../core/state/gameState';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { ensurePortrait, generatePortraitArt } from '../art/silhouettes';
 
 const TITLE_FONT =
   '"Noto Serif TC", "Noto Serif CJK TC", "Source Han Serif TC", "PingFang TC", "Songti TC", "Microsoft JhengHei", serif';
@@ -25,7 +22,6 @@ export class TitleScene extends Phaser.Scene {
   private busy = false;
   private prompt?: Phaser.GameObjects.Text;
   private menu?: Phaser.GameObjects.Container;
-  private heroes: Phaser.GameObjects.Image[] = [];
 
   constructor() {
     super('Title');
@@ -101,24 +97,6 @@ export class TitleScene extends Phaser.Scene {
       blendMode: Phaser.BlendModes.ADD,
       advance: 6000,
     });
-
-    // 主視覺：連恩與伊歐（動漫風立繪，從兩側滑入）
-    generatePortraitArt(this);
-    this.heroes = [];
-    for (const [key, x, y, sc, from, delay] of (keyart ? [] : [
-      ['portrait_io', 520, GAME_HEIGHT - 10, 620, 80, 900],
-      ['portrait_lian', 200, GAME_HEIGHT + 30, 700, -80, 1100],
-    ]) as [string, number, number, number, number, number][]) {
-      if (!ensurePortrait(this, key)) continue;
-      const img = this.add.image(x, y, key).setOrigin(0.5, 1);
-      img.setScale(sc / img.height); // sc＝目標高度（手繪圖與程式立繪尺寸不同）
-      this.heroes.push(img);
-      if (!skipIntro) {
-        img.setAlpha(0).setX(x + from);
-        this.tweens.add({ targets: img, alpha: 1, x, duration: 1400, delay, ease: 'Cubic.easeOut' });
-      }
-      this.tweens.add({ targets: img, y: y - 6, duration: 2600 + delay, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    }
 
     // Title.
     const title = this.add
@@ -226,13 +204,6 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setAlpha(0.8);
-    // 已看過的結局（二週目動機）
-    const seen = session.hasSave() ? endingsSeen(session.load()) : 0;
-    if (seen > 0) {
-      this.add.text(cx, GAME_HEIGHT - 84, `✦ 結局 ${seen}/3`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' })
-        .setOrigin(0.5).setAlpha(0.85);
-    }
-
     // Camera: vignette + fade in.
     const cam = this.cameras.main;
     if (isWebGL && cam.postFX) {
@@ -277,25 +248,9 @@ export class TitleScene extends Phaser.Scene {
       this.tweens.add({ targets: this.prompt, alpha: 0, duration: 200 });
     }
     const cx = GAME_WIDTH / 2;
-    // 立繪往兩側讓位、變暗，不擋選單
-    this.heroes.forEach((h, i) => {
-      this.tweens.add({ targets: h, x: i === 0 ? GAME_WIDTH + 10 - 80 : -10 + 80, alpha: 0.45, duration: 400, ease: 'Cubic.Out' });
-    });
     const items: [string, () => void][] = [];
-    if (session.hasSave()) items.push(['繼續旅程', () => this.go(() => this.continueGame())]);
-    items.push(['新的旅程', () => {
-      if (!session.hasSave()) {
-        this.go(() => this.startNew(false));
-        return;
-      }
-      this.confirmNew();
-    }]);
-    // 即時戰鬥大地圖（D-087，Jacky 10/25 同意整合森林地圖）：獨立紀錄，不碰主線存檔
-    items.push(['霧語森林・即時戰鬥', () => this.go(() => this.scene.start('RtBattle', { stage: 'mistwood', bot: '' }))]);
-    items.push(['戰鬥演示', () => this.go(() => this.scene.start('Battle', {
-      encounter: 'forest_a', chain: ['forest_b', 'shrine_boar', 'boss_wolfking'],
-    }))]);
-    items.push(['燼牌演示', () => this.go(() => this.scene.start('Cards', { match: 'demo' }))]);
+    // 唯一的玩法：霧語森林（即時戰鬥大地圖；舊主線已移除，D-097）
+    items.push(['進入霧語森林', () => this.go(() => this.scene.start('RtBattle', { stage: 'mistwood', bot: '' }))]);
     items.push(['設定', () => {
       if (this.busy) return;
       this.busy = true;
@@ -320,73 +275,6 @@ export class TitleScene extends Phaser.Scene {
       });
       menu.add(c);
     });
-  }
-
-  private startNew(plus: boolean): void {
-    const prev = plus ? session.load() : null;
-    session.newGame();
-    if (prev) {
-      session.replace(newGamePlus(prev));
-      session.save();
-    }
-    this.scene.start('Dialogue', { script: 'ch0' });
-  }
-
-  /** 已有存檔時的「新的旅程」確認；通關存檔另外提供二週目（D-035）。 */
-  private confirmNew(): void {
-    if (this.busy) return;
-    this.busy = true;
-    const prev = session.load();
-    const cleared = !!prev?.flags['ch5_complete'];
-    const ui = this.add.container(0, 0).setDepth(900);
-    const dim = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75).setInteractive();
-    const h = cleared ? 520 : 400;
-    const top = GAME_HEIGHT / 2 - h / 2;
-    const g = this.add.graphics();
-    g.fillStyle(0x0a0d1a, 0.97).fillRoundedRect(60, top, GAME_WIDTH - 120, h, 24);
-    g.lineStyle(2, 0xffd27a, 0.8).strokeRoundedRect(60, top, GAME_WIDTH - 120, h, 24);
-    const msg = cleared
-      ? '你已經走完一次旅程。\n二週目會保留等級、金錢與燼牌收藏，\n可以試試不同的選擇與結局。'
-      : '開始新的旅程會覆蓋目前的存檔。';
-    const t = this.add.text(GAME_WIDTH / 2, top + 100, msg, {
-      fontFamily: UI_FONT, fontSize: '26px', color: '#ffe9c4', align: 'center', lineSpacing: 10,
-    }).setOrigin(0.5);
-    ui.add([dim, g, t]);
-    const close = (): void => {
-      ui.destroy();
-      this.busy = false;
-    };
-    const buttons: [string, number, () => void][] = [];
-    if (cleared) buttons.push(['二週目 ✦', 0xffd27a, () => { ui.destroy(); this.busy = false; this.go(() => this.startNew(true)); }]);
-    buttons.push(['覆蓋並重新開始', cleared ? 0x9fb0d8 : 0xffd27a, () => { ui.destroy(); this.busy = false; this.go(() => this.startNew(false)); }]);
-    buttons.push(['取消', 0x5a6380, close]);
-    buttons.forEach(([label, col, fn], i) => {
-      const y = top + (cleared ? 230 : 200) + i * 96;
-      const c = this.add.container(GAME_WIDTH / 2, y);
-      const bg = this.add.graphics();
-      bg.fillStyle(0x14182c, 1).fillRoundedRect(-220, -38, 440, 76, 18);
-      bg.lineStyle(2, col, 1).strokeRoundedRect(-220, -38, 440, 76, 18);
-      const tx = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: '30px', color: '#ffffff' }).setOrigin(0.5);
-      c.add([bg, tx]).setSize(440, 76).setInteractive({ useHandCursor: true });
-      c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
-        ev.stopPropagation();
-        SFX.confirm();
-        fn();
-      });
-      ui.add(c);
-    });
-  }
-
-  private continueGame(): void {
-    const s = session.load();
-    const pos = s ? session.scriptPos() : null;
-    if (pos?.script === 'map') this.scene.start('Map');
-    else if (pos?.script === 'explore') this.scene.start('Explore', { area: pos.node });
-    else if (pos) this.scene.start('Dialogue', { script: pos.script, node: pos.node });
-    else {
-      session.newGame();
-      this.scene.start('Dialogue', { script: 'ch0' });
-    }
   }
 
   private go(fn: () => void): void {

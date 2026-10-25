@@ -16,7 +16,6 @@
     "test": "vitest run",
     "icons": "node scripts/gen-icons.mjs",
     "screenshot": "node scripts/screenshot.mjs",
-    "playthrough": "node scripts/playthrough.mjs",
     "sim:rt": "RT_REPORT=1 vitest run tests/rt-report.test.ts"
   },
   "dependencies": {

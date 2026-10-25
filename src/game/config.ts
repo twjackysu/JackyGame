@@ -1,12 +1,6 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
-import { BattleScene } from './scenes/BattleScene';
-import { DialogueScene } from './scenes/DialogueScene';
-import { MapScene } from './scenes/MapScene';
-import { CardScene } from './scenes/CardScene';
-import { ExploreScene } from './scenes/ExploreScene';
-import { ExploreHudScene } from './scenes/ExploreHudScene';
 import { RtBattleScene } from './scenes/RtBattleScene';
 
 /** Portrait 9:16 design resolution. Everything is laid out in these units. */
@@ -41,6 +35,6 @@ export function createGameConfig(parent: string | HTMLElement): Phaser.Types.Cor
     input: {
       activePointers: 3,
     },
-    scene: [BootScene, TitleScene, BattleScene, DialogueScene, MapScene, CardScene, ExploreScene, ExploreHudScene, RtBattleScene],
+    scene: [BootScene, TitleScene, RtBattleScene],
   };
 }

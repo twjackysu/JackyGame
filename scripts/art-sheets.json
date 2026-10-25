@@ -1,9 +1,1 @@
-{
-  "sheet_town_props": {"cols": 3, "rows": 2, "names": ["prop_house_a", "prop_house_b", "prop_tavern", "prop_shop", "prop_well", "prop_lamppost"]},
-  "sheet_forest_props": {"cols": 3, "rows": 2, "names": ["prop_tree_a", "prop_tree_b", "prop_rock", "prop_bush", "prop_chest", "prop_signpost"]},
-  "sheet_items": {"cols": 4, "rows": 4, "names": ["item_potion_s", "item_potion_m", "item_lamp_oil", "item_blast_bottle", "item_herb", "item_ether", "item_key", "item_gift_flower", "item_gift_book", "item_gift_gear", "item_gift_ribbon", "item_gift_wine", "item_card_pack", "item_star_ember", "item_map", "item_coin_pouch"]},
-  "sheet_gear": {"cols": 4, "rows": 3, "names": ["item_lantern_1", "item_lantern_2", "item_sword_1", "item_sword_2", "item_halberd_1", "item_staff_1", "item_armor_cloth", "item_armor_leather", "item_armor_plate", "item_ring_1", "item_amulet_1", "item_charm_1"]},
-  "sheet_forest_enemies": {"cols": 3, "rows": 2, "names": ["enemy_mist_wolf", "enemy_thorn_shroom", "enemy_umbra_boar", "enemy_rock_beetle", "enemy_lamp_wraith", "enemy_blast_lizard"]},
-  "sheet_party_walk": {"cols": 3, "rows": 2, "names": ["walk_lian", "walk_serin", "walk_io", "walk_liora", "walk_rourke", "walk_npc_lamplighter"]},
-  "sheet_town_npcs": {"cols": 3, "rows": 2, "names": ["walk_npc_guard", "walk_npc_kid", "walk_npc_villager", "walk_npc_merchant", "walk_npc_hunter", "walk_npc_hanna"]}
-}
+{}

@@ -8,17 +8,9 @@ import { getSettings, updateSettings, type Settings } from '../settings';
 type Row = { label: string; desc: string; value: (s: Settings) => string; toggle: (s: Settings) => Partial<Settings> };
 
 const ROWS: Row[] = [
-  {
-    label: '自動時機', desc: '攻擊固定 GOOD、防守固定成功（不用按時機）',
-    value: (s) => (s.autoTiming ? '開' : '關'), toggle: (s) => ({ autoTiming: !s.autoTiming }),
-  },
   { label: '背景音樂', desc: '', value: (s) => (s.bgm ? '開' : '關'), toggle: (s) => ({ bgm: !s.bgm }) },
   { label: '音效', desc: '', value: (s) => (s.sfx ? '開' : '關'), toggle: (s) => ({ sfx: !s.sfx }) },
   { label: '省電畫質', desc: '粒子減量、關閉光暈濾鏡（手機發燙或卡頓時開）', value: (s) => (s.lowFx ? '開' : '關'), toggle: (s) => ({ lowFx: !s.lowFx }) },
-  {
-    label: '文字速度', desc: '', value: (s) => (s.textSpeed === 'fast' ? '快' : '普通'),
-    toggle: (s) => ({ textSpeed: s.textSpeed === 'fast' ? 'normal' : 'fast' }),
-  },
 ];
 
 /** 開啟設定面板；關閉時 resolve。 */

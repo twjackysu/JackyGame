@@ -41,19 +41,8 @@
 ## 需求清單（待產）
 （目前沒有）
 
-## 已完成（已匯入 `public/art/`，prompt 見 git 歷史）
-| 編號 | 工具 | 檔名 | 用在 |
-|---|---|---|---|
-| （第一批） | ChatGPT／Gemini | `hero_*`、`portrait_*`、`npc_valderan`（連恩、伊歐、瑟琳、莉歐拉、洛克、瓦爾德蘭的半身立繪＋Q 版戰鬥圖） | 主要角色立繪；即時戰鬥的主角用 `hero_lian`。原本的產圖說明 `ART_PROMPTS.md` 已刪除（D-096），prompt 見 git 歷史 |
-| R-001 | GPT | `enemy_boss_wolfking` | 霧角狼王（即時戰鬥與舊主線都在用） |
-| R-002 | GPT | `enemy_boss_bellworm` | 舊主線第 2 章 Boss |
-| R-003 | GPT | `enemy_boss_starfall` | 舊主線最終 Boss |
-| R-004 | GPT | `bg_title_keyart` | 標題主視覺 |
-| R-005 | Gemini | `sheet_items` → `item_*` | 舊主線道具與送禮圖示 |
-| R-006 | Gemini | `sheet_gear` → `item_*` | 舊主線裝備圖示 |
-| R-007 | Gemini | `sheet_town_props` → `prop_*` | 舊主線灰燈鎮物件 |
-| R-008 | Gemini | `sheet_forest_props` → `prop_*` | 舊主線森林物件 |
-| R-009 | Gemini | `sheet_forest_enemies` → `enemy_*` | 野狼、荊棘菇（即時戰鬥在用）與舊主線小怪 |
+## 已完成
+- R-001～R-009 與第一批角色立繪都已產過（prompt 見 git 歷史）。舊主線刪除後（D-097），遊戲只用到其中 5 張：`bg_title_keyart`（R-004）、`enemy_boss_wolfking`（R-001）、`enemy_mist_wolf`、`enemy_thorn_shroom`（R-009）、`hero_lian`（第一批 Q 版）；其餘已從 `public/art/` 刪除。
 
 ## 已取消
 - R-010 `sheet_party_walk`（隊伍正面走路小人）、R-011 `sheet_town_npcs`（鎮民走路小人）：只給舊主線的自由探索（ExploreScene）用；10/24 改成即時戰鬥後舊主線不再加功能（D-065、D-087），所以取消，不佔額度。程式備援（戰鬥背影圖、程式小人）照舊。
