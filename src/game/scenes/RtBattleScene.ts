@@ -103,6 +103,8 @@ export class RtBattleScene extends Phaser.Scene {
   private goal: Phaser.GameObjects.Text | null = null;
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
   private zoneName: string | null = null;
+  /** 這場已經提示過 Boss 弱點 */
+  private bossMemo = false;
   /** 已經提示過「有點熟悉」的寶箱 */
   private chestHinted = new Set<string>();
   /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
@@ -145,6 +147,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.idleHinted = false;
     this.zoneName = null;
     this.chestHinted = new Set();
+    this.bossMemo = false;
     this.arrowLabels = [];
     const p0 = playerOf(this.s);
     this.camX = p0.x;
@@ -607,6 +610,11 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'aggro') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '!', { color: '#ff5a5a', size: 40 });
+        // 遊戲記憶（design/20 C2-2）：地圖上第一次遇到 Boss → 內心提示弱點（只提示，不加傷害）
+        if (d && ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length && !this.bossMemo) {
+          this.bossMemo = true;
+          this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, 600, '（記得……牠衝鋒撞到樹或石頭會暈！）', '#d8c8ff', 28, 2200));
+        }
       } else if (e.type === 'leash') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '脫戰', { color: '#c8d0f0', size: 22 });
@@ -1080,7 +1088,7 @@ export class RtBattleScene extends Phaser.Scene {
         const ky = kOn ? ((sp.getData('ky') as number) ?? 0) : 0;
         // 玩家普攻／施放時往前踏一點
         const lunge = isP && x.action && (x.action.kind === 'attack' || x.action.kind === 'skill') ? Math.min(1, (s.tick - x.action.start) / 6) * r * 0.25 : 0;
-        sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - bob + ky + (fy0(x) * lunge)).setDepth(10 + pos.y / 100);
+        sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - bob + ky + (fy0(x) * lunge)).setDepth(10 + Math.min(30, (pos.y / Math.max(1, s.arena.h)) * 30)); // 大地圖也不會蓋過 HUD／選單（深度 45 以上）
         if (sp.scaleY !== 0 && !this.tweens.isTweening(sp)) sp.setScale(base * squash, base / squash);
         if (cfg.flip && x.facingX !== 0) sp.setFlipX(x.facingX < 0);
         // 脫戰返回中半透明（打不到）；待機的怪稍暗
