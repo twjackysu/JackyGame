@@ -470,6 +470,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   // ---------- 大地圖獨立紀錄（D-087） ----------
   /** 這張地圖有沒有跨場紀錄（有 Boss 巢穴的刷怪大地圖） */
+  private hazardHinted = false;
   private get tracked(): boolean {
     const st = STAGES[this.stageId];
     return !!st?.bossZone && !!st.spawnGroups?.length && !this.bot;
@@ -559,7 +560,7 @@ export class RtBattleScene extends Phaser.Scene {
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
     const p = playerOf(this.s);
-    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night });
+    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId });
     // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理
     const r = addWithAutoSalvage(this.bagSt, g);
     if (!r) {
@@ -1224,6 +1225,14 @@ export class RtBattleScene extends Phaser.Scene {
           SFX.warn(!!(o && ENEMIES[o.defId]?.boss));
         }
       }
+      else if (e.type === 'hazard') {
+        const p = u(e.id);
+        if (p) sparks(this, this.sx(p.x), this.sy(p.y), 6, 'ember', 0x9adf5a, 500);
+        if (!this.hazardHinted) {
+          this.hazardHinted = true;
+          bigText(this, GAME_WIDTH / 2, 470, '毒沼！站在裡面會一直中毒\n快走出去', '#a8f08a', 34, 1400);
+        }
+      }
       else if (e.type === 'summon') {
         const b = u(e.id);
         if (b) shockRing(this, this.sx(b.x), this.sy(b.y), 0xb080ff, 140, 400, 5);
@@ -1402,6 +1411,23 @@ export class RtBattleScene extends Phaser.Scene {
         if (grass) {
           g.lineStyle(2, P.grass, 0.8);
           for (let j = -2; j <= 2; j++) g.lineBetween(x + j * 4, y, x + j * 6, y - 10 - grass[j + 2]!);
+        }
+      }
+      // 毒沼（D-114）：暗綠泥水＋亮綠泡泡＋深色邊（畫在格線下面）
+      for (const h of STAGES[this.stageId]?.hazards ?? []) {
+        const hx = h.x * k;
+        const hy = h.y * k;
+        const hr2 = h.r * k;
+        if (hx + hr2 < bx0 - 40 || hx - hr2 > bx1 + 40 || hy + hr2 < by0 - 40 || hy - hr2 > by1 + 40) continue;
+        g.fillStyle(0x0e1608, 0.9).fillEllipse(hx, hy + hr2 * 0.06, hr2 * 2.15, hr2 * 1.95);
+        g.fillStyle(0x2c4418, 0.95).fillEllipse(hx, hy, hr2 * 2, hr2 * 1.8);
+        g.fillStyle(0x46682a, 0.8).fillEllipse(hx - hr2 * 0.15, hy - hr2 * 0.12, hr2 * 1.3, hr2 * 1.05);
+        let bs = Math.round(h.x * 7 + h.y * 13);
+        const br = () => ((bs = (bs * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+        for (let b = 0; b < 9; b++) {
+          const ang = br() * Math.PI * 2;
+          const rr = Math.sqrt(br()) * hr2 * 0.75;
+          g.fillStyle(0x9adf5a, 0.35 + br() * 0.35).fillCircle(hx + Math.cos(ang) * rr, hy + Math.sin(ang) * rr * 0.9, 3 + br() * 7);
         }
       }
       g.lineStyle(1, P.grid, 1);

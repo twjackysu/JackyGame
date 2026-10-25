@@ -121,11 +121,18 @@ export function makeThornvaleStage(): StageDefinition {
       { id: 'tv_marsh_edge', x: c(42), y: c(44), loot: { potion: 5, dust: 10 } },
       { id: 'tv_gallery_west', x: c(15), y: c(24), loot: { crystal: 2, dust: 6, gold: 120 } },
     ],
+    // 毒沼（D-114）：站在裡面每秒疊一層中毒；東邊寶箱就泡在毒沼裡（拿了快走）
+    hazards: [
+      { x: c(41), y: c(51), r: u(1.6), pct: 1.2 },
+      { x: c(42), y: c(43), r: u(1.6), pct: 1.2 },
+      { x: c(33), y: c(52), r: u(1.4), pct: 1.2 },
+      { x: c(31), y: c(49), r: u(1.2), pct: 1.2 },
+    ],
     campfires: [{ id: 'tv_south', x: c(24), y: c(73) }, { id: 'tv_mid', x: c(37), y: c(46) }],
     zones: [
       { name: '女王庭園', hint: '棘冠狼后的地盤・小心地上的根系', danger: true, x0: 0, y0: 0, x1: u(W), y1: u(23) },
       { name: '棘刺迴廊', hint: '危險：狼群首領與射手守著', danger: true, x0: 0, y0: u(23), x1: u(W), y1: u(41) },
-      { name: '毒沼', hint: '營火在東邊・往北是迴廊', x0: u(22), y0: u(41), x1: u(W), y1: u(56) },
+      { name: '毒沼', hint: '綠色毒沼會讓人中毒・營火在沼地中央', x0: u(22), y0: u(41), x1: u(W), y1: u(56) },
       { name: '母樹空地', hint: '荊棘母樹在這裡生根・掉的裝備很好', danger: true, x0: 0, y0: u(41), x1: u(22), y1: u(56) },
       { name: '荊棘坡', hint: '棘背狼成群・咬傷會中毒', x0: 0, y0: u(56), x1: u(W), y1: u(69) },
       { name: '谷口營地', hint: '往北走・點營火可以休息', x0: 0, y0: u(69), x1: u(W), y1: u(H) },

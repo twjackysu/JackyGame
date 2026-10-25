@@ -86,5 +86,12 @@ export function validateStage(def: StageDefinition): string[] {
     const inZone = (x: number, y: number): boolean => def.zones!.some((z) => x >= z.x0 && x < z.x1 && y >= z.y0 && y < z.y1);
     if (!inZone(def.player.x, def.player.y)) out.push('玩家起點不在任何地區內');
   }
+  // 地形危害（D-114）：中心走得到、不蓋到營火休息圈與玩家起點
+  (def.hazards ?? []).forEach((h, i) => {
+    check(`危害 #${i}`, h.x, h.y);
+    if (h.r <= 0 || h.pct <= 0) out.push(`危害 #${i} 的半徑或傷害不是正數`);
+    for (const c of def.campfires ?? []) if (Math.hypot(c.x - h.x, c.y - h.y) < h.r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`危害 #${i} 太靠近營火 ${c.id}`);
+    if (Math.hypot(def.player.x - h.x, def.player.y - h.y) < h.r + 2 * UNIT) out.push(`危害 #${i} 太靠近玩家起點`);
+  });
   return out;
 }

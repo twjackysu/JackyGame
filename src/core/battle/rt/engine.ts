@@ -595,6 +595,19 @@ export function addStatus(s: BattleState, x: Unit, st: StatusApply, src?: Unit):
   } else x.statuses.push({ id, until, stacks: 1, value: power, srcId: src?.id ?? 0, next: s.tick + TICKS_PER_SEC });
 }
 
+/** 地形危害（D-114）：每秒檢查一次，玩家在毒沼裡就疊一層中毒（不看防禦、無敵時不疊） */
+function processHazards(s: BattleState): void {
+  const hz = STAGES[s.stageId]?.hazards;
+  if (!hz?.length || s.tick % TICKS_PER_SEC !== 0) return;
+  const p = playerOf(s);
+  if (p.dead || p.invulnUntil >= s.tick) return;
+  const h = hz.find((z) => dist(p.x, p.y, z.x, z.y) <= z.r);
+  if (!h) return;
+  const dmg = Math.max(1, Math.round((p.maxHp * h.pct) / 100));
+  addStatus(s, p, { id: 'poison', ticks: 3 * TICKS_PER_SEC, powerPct: 100 }, { ...p, atk: dmg, id: p.id });
+  emit(s, { tick: s.tick, type: 'hazard', id: p.id });
+}
+
 /** 持續傷害（每 30 ticks；不吃暴擊與加算池、不觸發其他效果） */
 function tickDots(s: BattleState, x: Unit): void {
   for (const st of x.statuses) {
@@ -1383,6 +1396,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   processHiddenElite(s);
   processPickup(s);
   processChests(s);
+  processHazards(s);
   const p = playerOf(s);
   naturalRegen(s, p);
   if (p.dead && !reviveAtCampfire(s, p)) s.outcome = 'defeat';

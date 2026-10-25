@@ -61,3 +61,48 @@ describe('荊棘谷和霧語森林共用進度（rtRecord LINKED_MAPS）', () =>
     expect(sp.own).toEqual({ bossKills: 2, chests: ['tv_camp_nook', 'tv_marsh_edge'] });
   });
 });
+
+describe('荊棘谷裝備名稱（D-114）', () => {
+  it('同種子數值完全相同，只有稀有的「霧語」換成「荊冠」', async () => {
+    const { genGear } = await import('../src/core/battle/rt/gear');
+    for (let seed = 1; seed < 40; seed++) {
+      const a = genGear(seed, 3, 7);
+      const b = genGear(seed, 3, 7, { region: 'thornvale' });
+      expect({ ...b, name: '' }).toEqual({ ...a, name: '' });
+      expect(a.name.endsWith('・霧語')).toBe(true);
+      expect(b.name.endsWith('・荊冠')).toBe(true);
+    }
+  });
+});
+
+describe('毒沼 hazards（D-114）', () => {
+  beforeAll(() => {
+    STAGES.thornvale = makeThornvaleStage();
+  });
+  afterAll(() => {
+    delete STAGES.thornvale;
+  });
+  it('站在毒沼裡每秒疊一層中毒（最多 5 層）並扣血；離開就不再疊；怪物不受影響', () => {
+    const s = createBattle({ stageId: 'thornvale', seed: 1, level: 6 });
+    const h = STAGES.thornvale!.hazards![0]!;
+    const p = s.units[0]!;
+    p.x = h.x;
+    p.y = h.y;
+    const hp0 = p.hp;
+    for (let i = 0; i < sec(6); i++) {
+      p.x = h.x;
+      p.y = h.y;
+      step(s, []);
+    }
+    const st = p.statuses.find((q) => q.id === 'poison');
+    expect(st?.stacks).toBe(5);
+    expect(p.hp).toBeLessThan(hp0);
+    expect(s.events.filter((e) => e.type === 'hazard').length).toBe(6);
+    p.x = STAGES.thornvale!.player.x;
+    p.y = STAGES.thornvale!.player.y;
+    const n = s.events.filter((e) => e.type === 'hazard').length;
+    for (let i = 0; i < sec(5); i++) step(s, []);
+    expect(s.events.filter((e) => e.type === 'hazard').length).toBe(n);
+    expect(p.statuses.find((q) => q.id === 'poison')).toBeUndefined();
+  });
+});

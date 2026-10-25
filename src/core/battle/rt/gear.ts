@@ -151,7 +151,10 @@ function affixValue(stat: AffixStat, L: number, t: number): number {
 }
 
 /** 由種子產生一件裝備（同種子同結果） */
-export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean }): RtGear {
+/** 地區名稱標記（D-114）：荊棘谷掉的精良／稀有名字改成「荊芒／荊冠」，數值與亂數完全一樣 */
+const REGION_TAG: Record<string, [string, string]> = { mistwood: ['薄霧', '霧語'], thornvale: ['荊芒', '荊冠'] };
+
+export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string }): RtGear {
   const R = rng(seed);
   for (let i = 0; i < 3; i++) R();
   const L = Math.max(1, Math.min(12, Math.floor(ilvl)));
@@ -176,7 +179,8 @@ export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { nig
   }
   const names = NAMES[slot];
   const baseName = names[Math.min(names.length - 1, Math.floor((L - 1) / 2))]!;
-  const name = rarity === 1 ? baseName : rarity === 2 ? `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}${special ? '・薄霧' : ''}` : `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}・霧語`;
+  const tag = REGION_TAG[opts?.region ?? 'mistwood'] ?? REGION_TAG.mistwood!;
+  const name = rarity === 1 ? baseName : rarity === 2 ? `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}${special ? `・${tag[0]}` : ''}` : `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}・${tag[1]}`;
   const g: RtGear = { uid: (seed >>> 0).toString(36) + L.toString(36) + rarity, slot, rarity, ilvl: L, name, base, affixes };
   if (special) g.special = special;
   // 深夜的稀有（D-108）：多一條詞綴、名字改「夜燼」；亂數接在最後抽，白天的結果不變

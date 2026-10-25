@@ -304,6 +304,7 @@ export type BattleEvent =
   | { tick: number; type: 'cast'; id: number; skill: string }
   | { tick: number; type: 'phase2'; id: number }
   | { tick: number; type: 'summon'; id: number; count: number }
+  | { tick: number; type: 'hazard'; id: number }
   | { tick: number; type: 'wallStun'; id: number }
   | { tick: number; type: 'blink'; id: number; fromX: number; fromY: number }
   | { tick: number; type: 'potion'; id: number; heal: number; left: number }
@@ -476,6 +477,8 @@ export interface StageDefinition {
   intro?: string;
   /** 畫面設定（核心不讀）：地區（世界座標矩形）；玩家走進新地區時畫面顯示地區名稱 */
   zones?: StageZone[];
+  /** 地形危害（荊棘谷毒沼，D-114）：玩家站在圓內每秒疊一層中毒（每層每秒 maxHp × pct%、持續 3 秒）；怪物不受影響 */
+  hazards?: { x: number; y: number; r: number; pct: number }[];
 }
 
 export interface StageZone {
