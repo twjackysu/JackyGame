@@ -367,8 +367,8 @@ export function aiMove(g: CardGame, side: number, who: Opponent = OPPONENTS[0]!)
 export const CARD_REWARDS: readonly string[] = OPPONENTS[0]!.rewards;
 const ALL_REWARDS: readonly string[] = OPPONENTS.flatMap((o) => o.rewards);
 
-/** 你的牌組＝基本牌組＋贏來的牌（未知 id、超過可贏張數的會被丟掉） */
-export function deckWith(won: readonly string[]): string[] {
+/** 手上所有的牌＝基本牌組＋贏來的牌（未知 id、超過可贏張數的會被丟掉） */
+export function ownedCards(won: readonly string[]): string[] {
   const left = [...ALL_REWARDS];
   const out: string[] = [];
   for (const id of won) {
@@ -377,7 +377,24 @@ export function deckWith(won: readonly string[]): string[] {
     left.splice(i, 1);
     out.push(id);
   }
-  return trimDeck([...PLAYER_DECK, ...out]);
+  return [...PLAYER_DECK, ...out];
+}
+
+/** 牌組下限（D-130 自己組牌）：開場要抽 10 張，再留一點變化 */
+export const DECK_MIN = 12;
+
+/**
+ * 你的牌組：手上所有的牌拿掉「留在箱子裡」的（off，可重複 id），超過 18 張自動拿掉最弱的。
+ * off 拿太多（少於 12 張）時忽略 off，避免壞存檔讓牌組太小。
+ */
+export function deckWith(won: readonly string[], off: readonly string[] = []): string[] {
+  const all = ownedCards(won);
+  const d = [...all];
+  for (const id of off) {
+    const i = d.lastIndexOf(id);
+    if (i >= 0) d.splice(i, 1);
+  }
+  return trimDeck(d.length >= DECK_MIN ? d : all);
 }
 
 /** 牌組上限（D-129）：贏來的牌太多會稀釋手牌，超過就自動拿掉最弱的單位（同袍算整組、特殊牌／傳奇／斥候不拿） */

@@ -175,3 +175,20 @@ describe('營火燼牌', () => {
     expect(full).toBeLessThan(190);
   });
 });
+
+describe('燼牌自己組牌（D-130）', () => {
+  it('留在箱子裡的牌不帶；少於 12 張忽略；超過 18 張自動拿掉最弱', async () => {
+    const { ownedCards, DECK_MIN, OPPONENTS: O } = await import('../src/core/cards/emberCards');
+    const won = O.flatMap((o) => o.rewards);
+    expect(ownedCards(won).length).toBe(PLAYER_DECK.length + won.length);
+    const d = deckWith([], ['militia', 'frost']);
+    expect(d.length).toBe(PLAYER_DECK.length - 2);
+    expect(d.filter((x) => x === 'militia').length).toBe(2);
+    expect(d.includes('frost')).toBe(false);
+    const tooFew = deckWith([], PLAYER_DECK.slice(0, 5));
+    expect(tooFew.length).toBe(PLAYER_DECK.length);
+    expect(DECK_MIN).toBe(12);
+    // 全拿再拿掉 6 張單位：28 - 6 = 22 → 修到 18
+    expect(deckWith(won, ['wolfhunter', 'shieldman']).length).toBe(DECK_MAX);
+  });
+});

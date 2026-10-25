@@ -2,7 +2,7 @@
 // 全螢幕面板：上半是莫托的後排／前排、中間天候、下半是你的前排／後排與手牌。點一張牌看說明、再點一次（或按「出牌」）打出。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { aiMove, applyMove, CARDS, cardPower, deckWith, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
+import { aiMove, applyMove, CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
@@ -25,6 +25,8 @@ interface Stats {
   cards: string[];
   /** 各對手的戰績（D-129） */
   by: Record<string, { played: number; won: number }>;
+  /** 留在箱子裡、不帶上場的牌（D-130，可重複 id） */
+  off: string[];
 }
 function stats(): Stats {
   try {
@@ -34,9 +36,10 @@ function stats(): Stats {
       const b = v.by?.[o.id];
       by[o.id] = { played: b?.played ?? 0, won: b?.won ?? 0 };
     }
-    return { played: v.played ?? 0, won: v.won ?? 0, cards: Array.isArray(v.cards) ? v.cards.filter((x): x is string => typeof x === 'string' && !!CARDS[x]) : [], by };
+    const ids = (a: unknown): string[] => (Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string' && !!CARDS[x]) : []);
+    return { played: v.played ?? 0, won: v.won ?? 0, cards: ids(v.cards), by, off: ids(v.off) };
   } catch {
-    return { played: 0, won: 0, cards: [], by: {} };
+    return { played: 0, won: 0, cards: [], by: {}, off: [] };
   }
 }
 function bump(s: Stats, id: string, won: boolean): void {
@@ -78,6 +81,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   /** 這次的對手：預設是這張地圖的在地對手（沒有就莫托） */
   const here = opponentsAt(ctx.map);
   let who: Opponent = here[here.length - 1]!;
+  /** 大廳／牌組一覽 */
+  let view: 'lobby' | 'deck' = 'lobby';
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24, off = false): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: off ? '#8a8070' : hi ? '#1a0f08' : '#ffffff', backgroundColor: off ? '#2a2218' : hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9);
@@ -141,7 +146,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     items.push(portrait);
     items.push(scene.add.text(30, -600, '營火燼牌', { fontFamily: TITLE_FONT, fontSize: '42px', color: '#ffd27a' }).setOrigin(0.5));
     if (!g) {
-      lobby(items);
+      if (view === 'deck') deckView(items);
+      else lobby(items);
       root.add(items);
       return;
     }
@@ -243,12 +249,95 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     items.push(scene.add.text(0, -235, rules.join('\n'), { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', lineSpacing: 6 }).setOrigin(0.5));
     const nx = nextReward(st.cards, who);
     const stake = who.stake;
-    items.push(scene.add.text(0, -50, `你的牌組 ${deckWith(st.cards).length + 1} 張${st.cards.length ? `（贏來 ${st.cards.length} 張；超過 18 張會自動拿掉最弱的）` : ''}\n${nx ? `下注贏了，${who.short}會把「${CARDS[nx]!.name}」給你` : `${who.short}的牌你全都贏到了！`}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0', align: 'center', lineSpacing: 6, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
+    items.push(scene.add.text(0, -50, `你的牌組 ${deckWith(st.cards, st.off).length + 1} 張（含晴空）${st.cards.length ? `・贏來的牌 ${st.cards.length} 張` : ''}\n${nx ? `下注贏了，${who.short}會把「${CARDS[nx]!.name}」給你` : `${who.short}的牌你全都贏到了！`}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0', align: 'center', lineSpacing: 6, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
     items.push(scene.add.text(0, 10, `戰績 ${st.won} 勝 / ${st.played} 場　手上金幣 ${ctx.coin()}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
     const can = ctx.coin() >= stake;
     items.push(btn(0, 90, can ? `下注 ${stake} 金開局（贏了拿 ${stake * 2}）` : `金幣不夠下注（${stake}）`, () => start(true), true, 26, !can));
     items.push(btn(0, 180, '練習一局（不賭）', () => start(false), false, 24));
+    items.push(btn(0, 290, `我的牌組（帶 ${deckWith(st.cards, st.off).length} 張）`, () => {
+      view = 'deck';
+      render();
+    }, false, 24));
     items.push(btn(0, 500, '回行商', () => onClose(), false, 26));
+  }
+
+  /** 自己組牌（D-130）：點一張牌切換「帶上／留在箱子裡」，至少 12 張，超過 18 張自動拿掉最弱的 */
+  function deckView(items: Phaser.GameObjects.GameObject[]): void {
+    const st = stats();
+    const owned = ownedCards(st.cards)
+      .map((id, i) => ({ id, i }))
+      .sort((a, b) => {
+        const A = CARDS[a.id]!;
+        const B = CARDS[b.id]!;
+        return (A.row ?? 2) - (B.row ?? 2) || B.power - A.power || a.id.localeCompare(b.id) || a.i - b.i;
+      });
+    const offLeft = [...st.off];
+    const marks = owned.map(({ id }) => {
+      const k = offLeft.indexOf(id);
+      if (k >= 0) offLeft.splice(k, 1);
+      return k >= 0;
+    });
+    const using = marks.filter((m) => !m).length;
+    const final = deckWith(st.cards, st.off);
+    // 會被自動拿掉的：帶上的牌裡多出來的那幾張（同 id 從後面算）
+    const finalLeft = [...final];
+    const trimmed = owned.map(({ id }, i) => {
+      if (marks[i]) return false;
+      const k = finalLeft.indexOf(id);
+      if (k >= 0) finalLeft.splice(k, 1);
+      return k < 0;
+    });
+    items.push(scene.add.text(30, -545, '點一張牌：帶上場 ⇄ 留在箱子裡', { fontFamily: UI_FONT, fontSize: '20px', color: '#e8c8a0' }).setOrigin(0.5));
+    const cols = 7;
+    owned.forEach(({ id }, i) => {
+      const x = ((i % cols) - (cols - 1) / 2) * 98;
+      const y = -440 + Math.floor(i / cols) * 132;
+      const c = CARDS[id]!;
+      const col = cardColor(id);
+      const off = marks[i]!;
+      const cut = trimmed[i]!;
+      const bg = scene.add.rectangle(x, y, 88, 120, col.fill, off ? 0.35 : 1).setStrokeStyle(3, off ? 0x4a4038 : cut ? 0x8a7a6a : col.edge, 1);
+      bg.setInteractive({ useHandCursor: true }).on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+        ev.stopPropagation();
+        const s2 = stats();
+        if (off) {
+          const k = s2.off.indexOf(id);
+          if (k >= 0) s2.off.splice(k, 1);
+        } else {
+          if (using <= DECK_MIN) {
+            SFX.uiTap();
+            bigText(scene, GAME_WIDTH / 2, 640, `至少要帶 ${DECK_MIN} 張`, '#ff9a8a', 34, 700).setDepth(990);
+            return;
+          }
+          s2.off.push(id);
+        }
+        SFX.cardPlace();
+        saveStats(s2);
+        render();
+      });
+      items.push(bg);
+      const a = off ? 0.4 : 1;
+      if (c.power) items.push(scene.add.text(x - 28, y - 42, `${c.power}`, { fontFamily: TITLE_FONT, fontSize: '22px', color: '#ffffff', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setAlpha(a));
+      items.push(scene.add.text(x + 30, y - 44, c.row === undefined ? '特' : c.row === 0 ? '前' : '後', { fontFamily: UI_FONT, fontSize: '14px', color: hexOf(col.edge) }).setOrigin(0.5).setAlpha(a));
+      const tag = c.ability === 'bond' ? '同袍' : c.ability === 'scout' ? '斥候' : c.ability === 'hero' ? '傳奇' : c.ability === 'scorch' ? '燼爆' : '';
+      if (tag && !off && !cut) items.push(scene.add.text(x, y - 4, tag, { fontFamily: UI_FONT, fontSize: '14px', color: '#ffd27a' }).setOrigin(0.5).setAlpha(a));
+      items.push(scene.add.text(x, y + 32, c.name, { fontFamily: UI_FONT, fontSize: '15px', color: '#f0e6d8', align: 'center', wordWrap: { width: 80, useAdvancedWrap: true } }).setOrigin(0.5).setAlpha(a));
+      if (off) items.push(scene.add.text(x, y + 6, '箱子', { fontFamily: UI_FONT, fontSize: '16px', fontStyle: '700', color: '#a89880', backgroundColor: '#1a140e' }).setOrigin(0.5).setPadding(4, 2, 4, 2));
+      else if (cut) items.push(scene.add.text(x, y + 6, '超額', { fontFamily: UI_FONT, fontSize: '14px', color: '#ff9a8a', backgroundColor: '#1a140e' }).setOrigin(0.5).setPadding(4, 2, 4, 2));
+    });
+    const rows = Math.ceil(owned.length / cols);
+    const ty = -440 + rows * 132 + 10;
+    items.push(scene.add.text(0, ty, `帶上 ${using} 張（${DECK_MIN}～${DECK_MAX} 張；超過時「超額」的最弱單位不會上場）\n另外每場都會多一張「晴空」`, { fontFamily: UI_FONT, fontSize: '19px', color: using > DECK_MAX ? '#ff9a8a' : '#ffe08a', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0));
+    items.push(btn(-130, 500, '全部帶上', () => {
+      const s2 = stats();
+      s2.off = [];
+      saveStats(s2);
+      render();
+    }, false, 22));
+    items.push(btn(120, 500, '完成', () => {
+      view = 'lobby';
+      render();
+    }, true, 26));
   }
 
   function result(items: Phaser.GameObjects.GameObject[], game: CardGame): void {
@@ -335,7 +424,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       ctx.pay(who.stake);
       staked = who.stake;
     } else staked = 0;
-    g = newCardGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, [deckWith(stats().cards), who.deck], who.short);
+    g = newCardGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, [deckWith(stats().cards, stats().off), who.deck], who.short);
     prizeCard = undefined;
     revealed = false;
     sel = -1;
