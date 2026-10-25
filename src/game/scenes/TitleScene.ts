@@ -251,8 +251,11 @@ export class TitleScene extends Phaser.Scene {
     }
     const cx = GAME_WIDTH / 2;
     const items: [string, () => void][] = [];
+    const fresh = new Set<number>(); // 第一次看到開放的地圖按鈕（第 27 輪）：金色脈動＋「NEW」
+
     // 大地圖（D-097／D-114／D-124）：第一張一開始就開；之後每張要先打倒前一張的 Boss 一次。等級、行囊、技能點共用
     WORLD_MAPS.forEach((m, i) => {
+      if (mapOpen(m.id) && i > 0 && !seenMap(m.id)) fresh.add(items.length);
       if (mapOpen(m.id)) items.push([`${i ? '前往' : '進入'}${m.name}`, () => this.go(() => this.scene.start('RtBattle', { stage: m.id, bot: '' }))]);
       else items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
     });
@@ -279,6 +282,30 @@ export class TitleScene extends Phaser.Scene {
         fn();
       });
       menu.add(c);
+      if (fresh.has(i)) this.unlockPulse(c, 100 + i * 80 + 320);
+    });
+    WORLD_MAPS.forEach((m) => {
+      if (mapOpen(m.id)) markMapSeen(m.id);
+    });
+  }
+
+  /** 新開放的地圖按鈕：金色光框脈動三下、右上角「NEW」、一圈金色火星 */
+  private unlockPulse(c: Phaser.GameObjects.Container, delay: number): void {
+    const glow = this.add.graphics();
+    glow.lineStyle(6, 0xffd27a, 1).strokeRoundedRect(-206, -48, 412, 96, 24);
+    glow.setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    const tag = this.add.text(176, -42, 'NEW', { fontFamily: UI_FONT, fontSize: '22px', color: '#1a1206', backgroundColor: '#ffd27a' }).setPadding(10, 2, 10, 2).setOrigin(0.5).setAngle(8).setScale(0);
+    c.add([glow, tag]);
+    this.tweens.add({ targets: glow, alpha: { from: 0, to: 1 }, scaleX: { from: 1, to: 1.06 }, scaleY: { from: 1, to: 1.12 }, yoyo: true, repeat: 2, delay, duration: 360, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: tag, scale: 1, delay: delay + 200, duration: 320, ease: 'Back.easeOut' });
+    this.time.delayedCall(delay, () => {
+      if (!c.active) return;
+      SFX.confirm();
+      for (let k = 0; k < 18; k++) {
+        const a = (k / 18) * Math.PI * 2;
+        const dot = this.add.circle(c.x + Math.cos(a) * 190, c.y - 10 + Math.sin(a) * 40, 4, 0xffe0a0).setBlendMode(Phaser.BlendModes.ADD).setDepth(50);
+        this.tweens.add({ targets: dot, x: dot.x + Math.cos(a) * 60, y: dot.y + Math.sin(a) * 40 - 20, alpha: 0, scale: 0.3, duration: 700, ease: 'Cubic.easeOut', onComplete: () => dot.destroy() });
+      }
     });
   }
 
@@ -382,5 +409,21 @@ export class TitleScene extends Phaser.Scene {
       container.add(shard);
     }
     return container;
+  }
+}
+
+/** 新開放地圖按鈕看過了沒（每台裝置一次；localStorage 不能用時當作看過，不重複演出） */
+function seenMap(id: string): boolean {
+  try {
+    return localStorage.getItem(`jg_map_seen_${id}`) === '1';
+  } catch {
+    return true;
+  }
+}
+function markMapSeen(id: string): void {
+  try {
+    localStorage.setItem(`jg_map_seen_${id}`, '1');
+  } catch {
+    /* 無痕模式等：略過 */
   }
 }

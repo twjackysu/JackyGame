@@ -305,7 +305,7 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
   },
   // 熔核巡者（深夜限定、巡邏，D-125 第 26 輪）：在熔渣坡繞圈；撕咬、長衝鋒、近身「熔核爆裂」（不能格擋）
   magma_stalker: {
-    id: 'magma_stalker', name: '熔核巡者', hp: 1900, atk: 37, def: 14, speed: 3.8, radius: u(0.62), hitstunTicks: 2,
+    id: 'magma_stalker', name: '熔核巡者', hp: 2600, atk: 37, def: 14, speed: 3.8, radius: u(0.62), hitstunTicks: 2,
     drops: { gold: [55, 80], items: [{ id: 'dust', chance: 100, count: [3, 5] }, { id: 'crystal', chance: 100 }, { id: 'potion', chance: 60 }] },
     attacks: [
       { id: 'magma_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.6), recoverTicks: sec(0.35), damageMultiplier: 115, cooldownTicks: sec(2.1), triggerRange: u(1.6), blockable: true, weight: 3 },

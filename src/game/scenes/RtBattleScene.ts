@@ -219,6 +219,8 @@ export class RtBattleScene extends Phaser.Scene {
     const b = (data.bot !== undefined ? data.bot : q.get('bot')) as keyof typeof BOT_PROFILES | null;
     this.bot = b && BOT_PROFILES[b] ? new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: b === 'auto' ? undefined : 35, ...(wm ? { campfireBelowPotions: 8, advanceTo: wm.bossAt } : {}) }, b) : null;
     this.botName = this.bot ? b : null;
+    this.ventHit.clear();
+    this.ventKills = 0;
   }
 
   create(): void {
@@ -549,10 +551,27 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.s.outcome !== 'running') this.finish();
   }
 
+  /** 怪被噴發口燒死（第 27 輪）：橘色「燒死了！」＋火星往上竄；這趟第 1、3、6、10… 隻再出一行大字（連燒計數） */
+  private ventKill(x: number, y: number): void {
+    this.ventKills++;
+    const n = this.ventKills;
+    const vx = this.sx(x);
+    const vy = this.sy(y);
+    floatNumber(this, vx, vy - 56, n > 1 ? `燒死了！×${n}` : '燒死了！', { color: '#ffb050', size: 34 });
+    sparks(this, vx, vy - 10, 16, 'ember', 0xffc060, 760);
+    sparks(this, vx, vy - 30, 8, 'spark', 0xfff0b0, 900);
+    if (this.bot) return;
+    if (n === 1) bigText(this, GAME_WIDTH / 2, 430, '引進噴口燒掉了！', '#ffc070', 36, 900);
+    else if ([3, 6, 10, 15, 20, 30, 50].includes(n)) bigText(this, GAME_WIDTH / 2, 430, `噴口已燒死 ${n} 隻！`, '#ffc070', 36, 900);
+  }
+
   // ---------- 大地圖獨立紀錄（D-087） ----------
   /** 這張地圖有沒有跨場紀錄（有 Boss 巢穴的刷怪大地圖） */
   private hazardHinted = false;
   private ventHinted = false;
+  /** 噴發口燒死的回饋（第 27 輪）：被噴發口打到的怪 id → tick；這趟燒死幾隻 */
+  private ventHit = new Map<number, number>();
+  private ventKills = 0;
   private bloomHinted = false;
   /** 這張地圖的 Boss 與地形稱呼（D-114）：霧語森林＝狼王／森林、荊棘谷＝狼后／山谷 */
   private get bw(): string {
@@ -1332,6 +1351,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (e.type === 'damage') {
         const d = u(e.dst);
         if (!d) continue;
+        if (e.skill === 'vent' && d.side === 'enemy') this.ventHit.set(d.id, e.tick);
         const toPlayer = d.side === 'player';
         if (e.origin !== 'dot') this.flashUntil.set(d.id, this.time.now + 70);
         // 命中停頓：暴擊／反擊／技能較長，普攻短一點；被打不停頓（避免拖慢閃避判斷）
@@ -1421,6 +1441,8 @@ export class RtBattleScene extends Phaser.Scene {
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
           this.killSprite(d.id);
           this.bountyKill(d.defId);
+          if (this.ventHit.get(d.id) === e.tick) this.ventKill(d.x, d.y);
+          this.ventHit.delete(d.id);
           if (d.defId === 'thorn_queen' || d.defId === 'thorn_mother') this.thornWither(d.x, d.y, d.defId === 'thorn_queen');
           if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(`${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]!.name}`, !!d.fury);
           else if (d.defId === 'thorn_mother') {
@@ -1434,6 +1456,12 @@ export class RtBattleScene extends Phaser.Scene {
             shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 180, 480, 8);
             sparks(this, this.sx(d.x), this.sy(d.y), 22, 'ember', 0xffa07a, 600);
             bigText(this, GAME_WIDTH / 2, 470, '荊棘巡獵者 倒下了！', '#ffb07a', 44, 900);
+          } else if (d.defId === 'magma_stalker' || d.defId === 'obsidian_alpha') {
+            // 熔核巡者／黑曜首領倒下：熔岩衝擊環＋火星＋大字
+            this.cameras.main.shake(180, 0.006);
+            shockRing(this, this.sx(d.x), this.sy(d.y), 0xff6a2a, 190, 500, 9);
+            sparks(this, this.sx(d.x), this.sy(d.y), 24, 'ember', 0xffa050, 640);
+            bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]!.name} 倒下了！`, '#ffa868', 44, 900);
           } else if (d.defId === 'mist_warden') {
             // 迷霧巡守倒下（D-120）：青色霧環＋霧粒散開
             this.cameras.main.shake(160, 0.005);
