@@ -287,11 +287,14 @@ function rollDrops(s: BattleState, e: Unit): void {
   if (gd) {
     const hpPct = e.groupId ? (st?.spawnGroups?.find((g) => g.id === e.groupId)?.hpPct ?? (e.groupId === HIDDEN_GROUP ? 100 : 0)) : e.fixedIdx !== undefined ? (st?.enemies[e.fixedIdx]?.hpPct ?? 0) : 0;
     const fury = e.fury ? st?.bossZone?.fury : undefined;
-    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0);
+    // 隱藏精英（D-100）：物品等級再 +2、稀有權重 ×2
+    const hidden = e.groupId === HIDDEN_GROUP;
+    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0) + (hidden ? 2 : 0);
     const first = !!gd.firstRare && !(s.bossKills ?? []).includes(e.defId);
     for (let k = 0; k < (fury?.count ?? gd.count ?? 1); k++) {
       if (lootRand(s) * 100 >= (gd.chance * (100 + bonus)) / 100) continue;
-      const w = fury?.rarity ?? gd.rarity;
+      const w0 = fury?.rarity ?? gd.rarity;
+      const w: [number, number, number] = hidden ? [w0[0], w0[1], w0[2] * 2] : w0;
       const t = lootRand(s) * (w[0] + w[1] + w[2]);
       put('gear', ilvl, first && k === 0 ? 3 : t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3);
     }

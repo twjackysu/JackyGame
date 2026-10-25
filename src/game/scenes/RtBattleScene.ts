@@ -7,6 +7,7 @@ import { createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { addWithAutoSalvage } from '../rtBag';
+import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
@@ -483,6 +484,10 @@ export class RtBattleScene extends Phaser.Scene {
       if (r.salvaged.uid === g.uid) return;
     }
     const col = `#${RARITY_COLOR[rarity].toString(16).padStart(6, '0')}`;
+    // 撿到的裝備圖示從主角頭上飄起來（D-101）
+    const icon = this.add.container(this.sx(p.x), this.sy(p.y) - 70, gearIcon(this, 0, 0, g.slot, rarity, rarity >= 3 ? 64 : 48)).setDepth(70);
+    this.tweens.add({ targets: icon, y: icon.y - 90, duration: 900, ease: 'Cubic.Out' });
+    this.tweens.add({ targets: icon, alpha: 0, delay: 700, duration: 400, onComplete: () => icon.destroy(true) });
     if (rarity >= 3) {
       SFX.perfect();
       bigText(this, GAME_WIDTH / 2, 560, `稀有裝備！\n${g.name}`, col, 44, 1200);

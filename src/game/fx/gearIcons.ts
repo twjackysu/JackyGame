@@ -85,7 +85,10 @@ export function gearIcon(scene: Phaser.Scene, x: number, y: number, slot: GearSl
   const col = rarity ? RARITY_COLOR[rarity] : 0x666677;
   if (rarity >= 2) {
     const glow = scene.add.circle(x, y, size * 0.55, col, rarity === 3 ? 0.35 : 0.2);
-    if (rarity === 3) scene.tweens.add({ targets: glow, alpha: 0.12, scale: 1.12, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    if (rarity === 3) {
+      const tw = scene.tweens.add({ targets: glow, alpha: 0.12, scale: 1.12, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      glow.once(Phaser.GameObjects.Events.DESTROY, () => tw.remove());
+    }
     out.push(glow);
   }
   const img = scene.add.image(x, y, gearIconKey(scene, slot)).setDisplaySize(size, size).setTint(col);
