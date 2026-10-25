@@ -27,11 +27,12 @@ describe('大地圖登記表', () => {
     for (const m of WORLD_MAPS) if (m.next) expect(worldMap(m.next)).toBeTruthy();
   });
 
-  it('下一個目標的文字跟第 22 輪一樣（換成登記表沒有變）', () => {
+  it('下一個目標的文字跟第 22 輪一樣（換成登記表沒有變；第 26 輪荊棘谷多了「前往燼紅裂谷」）', () => {
     expect(nextGoal('mistwood', {}, 1, 0)).toBe('往北穿過森林，打倒霧角狼王');
     expect(nextGoal('mistwood', { bossKills: 1 }, 1, 0)).toBe('前往荊棘谷，打倒棘冠狼后');
     expect(nextGoal('thornvale', {}, 1, 0)).toBe('沿著山谷往北，打倒棘冠狼后');
-    expect(nextGoal('thornvale', { bossKills: 1 }, 1, 0)).toContain('開啟狼后暴怒');
-    expect(nextGoal('thornvale', { bossKills: 9, furyKills: 1, fury: true }, 20, 0)).toBe('刷深夜的山谷、把裝備強化到 +10、挑戰最快討伐');
+    expect(nextGoal('thornvale', { bossKills: 1 }, 1, 0)).toBe('前往燼紅裂谷，打倒燼心岩王');
+    expect(nextGoal('thornvale', { bossKills: 1 }, 1, 1)).toContain('開啟狼后暴怒');
+    expect(nextGoal('thornvale', { bossKills: 9, furyKills: 1, fury: true }, 20, 1)).toBe('刷深夜的山谷、把裝備強化到 +10、挑戰最快討伐');
   });
 });

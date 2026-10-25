@@ -2,6 +2,7 @@
 // 畫面與紀錄不再到處寫 `stageId === 'thornvale'`；之後加第三張地圖只要在這裡多一筆（加上地圖本身與敵人資料）。
 import { makeMistwoodStage, MISTWOOD_KING } from '../core/battle/rt/maps/mistwood';
 import { makeThornvaleStage, THORNVALE_QUEEN } from '../core/battle/rt/maps/thornvale';
+import { EMBERRIFT_COLOSSUS, makeEmberriftStage } from '../core/battle/rt/maps/emberrift';
 import type { StageDefinition } from '../core/battle/rt/types';
 
 /** 地面分塊與小地圖的配色 */
@@ -40,8 +41,8 @@ export interface WorldMap {
   /** 建議等級（開放提示用） */
   recLevel?: number;
   palette: MapPalette;
-  /** 石頭格的畫法：森林（樹冠）、荊棘（荊棘叢＋紅漿果） */
-  decor: 'forest' | 'thorn';
+  /** 石頭格的畫法：森林（樹冠）、荊棘（荊棘叢＋紅漿果）、燼岩（玄武岩＋熔岩裂紋） */
+  decor: 'forest' | 'thorn' | 'ember';
 }
 
 export const WORLD_MAPS: readonly WorldMap[] = [
@@ -56,8 +57,15 @@ export const WORLD_MAPS: readonly WorldMap[] = [
     id: 'thornvale', name: '荊棘谷', make: makeThornvaleStage, bossAt: THORNVALE_QUEEN,
     boss: '棘冠狼后', bw: '狼后', mw: '山谷', lord: '荊棘谷之主', color: '#c8ff8a',
     firstKill: '首次討伐！山谷的荊棘枯萎了一些…', phase2: ['狼后怒放・荊棘綻放！', '#c8ff8a'], blink: ['狼后鑽進荊棘——小心背後！', '#c8ff8a'], blinkFx: [0x9adf5a, 0x6ac04a, 0xc8ff8a],
-    firstGoal: '沿著山谷往北，打倒棘冠狼后', recLevel: 6,
+    firstGoal: '沿著山谷往北，打倒棘冠狼后', next: 'emberrift', recLevel: 6,
     palette: { ground: 0x2a1d19, spotA: 0x31221c, spotB: 0x241814, grass: 0x6a5232, grid: 0x382720, under: 0x160b10, crownA: 0x3a1828, crownB: 0x45202f, crownHi: 0x6a2c3e, crownTop: 0x9a4a55, edge: 0x8a5a48, mini: 0x3a2a22, miniSolid: 0x5a2838 }, decor: 'thorn',
+  },
+  {
+    id: 'emberrift', name: '燼紅裂谷', make: makeEmberriftStage, bossAt: EMBERRIFT_COLOSSUS,
+    boss: '燼心岩王', bw: '岩王', mw: '裂谷', lord: '燼紅裂谷之主', color: '#ffb36a',
+    firstKill: '首次討伐！裂谷的熔岩暗了下來…', phase2: ['岩王的熔心沸騰了！', '#ff8a3a'], blink: ['岩王沉入熔岩——小心背後！', '#ffb36a'], blinkFx: [0xff9a4a, 0xff6a2a, 0xffd08a],
+    firstGoal: '穿過裂谷往北，打倒燼心岩王', recLevel: 10,
+    palette: { ground: 0x1d1715, spotA: 0x241c19, spotB: 0x171210, grass: 0x5a3a24, grid: 0x2a201c, under: 0x0d0909, crownA: 0x2a2422, crownB: 0x332b28, crownHi: 0x463c38, crownTop: 0x6a5a52, edge: 0x8a4a2a, mini: 0x2e2420, miniSolid: 0x6a3a22 }, decor: 'ember',
   },
 ];
 

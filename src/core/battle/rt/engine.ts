@@ -1,7 +1,7 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ENEMIES, SKILL_VARIANTS, SKILL_VARIANTS_B, SKILLS, SWORDSMAN, STAGES, variantB } from './data';
-import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StatusApply, StatusId, Unit } from './types';
+import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
@@ -620,6 +620,29 @@ function processHazards(s: BattleState): void {
   const dmg = Math.max(1, Math.round((p.maxHp * h.pct) / 100));
   addStatus(s, p, { id: 'poison', ticks: 3 * TICKS_PER_SEC, powerPct: 100 }, { ...p, atk: dmg, id: p.id });
   emit(s, { tick: s.tick, type: 'hazard', id: p.id });
+}
+
+/** 噴發口（D-125）：距離下一次噴發還有幾 tick（0＝這個 tick 噴發）；畫面預告也用這個 */
+export function ventLeft(tick: number, v: StageVent, night?: boolean): number {
+  const per = night && v.nightEveryTicks ? v.nightEveryTicks : v.everyTicks;
+  const t = (tick + (v.offsetTicks ?? 0)) % per;
+  return t === 0 ? 0 : per - t;
+}
+
+function processVents(s: BattleState): void {
+  const vs = STAGES[s.stageId]?.vents;
+  if (!vs?.length || s.tick === 0) return;
+  const p = playerOf(s);
+  vs.forEach((v, idx) => {
+    if (ventLeft(s.tick, v, s.night) !== 0) return;
+    emit(s, { tick: s.tick, type: 'vent', idx, x: v.x, y: v.y, r: v.r });
+    for (const x of s.units) {
+      if (x.dead || dist(x.x, x.y, v.x, v.y) > v.r + x.r * 0.5) continue;
+      if (x.side === 'player' && x.invulnUntil >= s.tick) continue;
+      if (x.side === 'enemy' && (ENEMIES[x.defId]?.boss || (x.mode !== undefined && x.mode !== 'combat'))) continue; // 只燒追著你的怪（引怪踩噴口），待機的不會被燒光
+      applyHp(s, p, x, Math.max(1, Math.round((x.maxHp * v.pct) / 100)), false, 'dot', 'vent');
+    }
+  });
 }
 
 /** 持續傷害（每 30 ticks；不吃暴擊與加算池、不觸發其他效果） */
@@ -1455,6 +1478,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   processPickup(s);
   processChests(s);
   processHazards(s);
+  processVents(s);
   const p = playerOf(s);
   naturalRegen(s, p);
   if (p.dead && !reviveAtCampfire(s, p)) s.outcome = 'defeat';

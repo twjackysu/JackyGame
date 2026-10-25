@@ -283,6 +283,20 @@ export interface StageHazard {
   nightOnly?: boolean;
 }
 
+/** 噴發口（第三張地圖，D-125）：每 everyTicks 噴發一次、噴發前 warnTicks 地上預告；圈內的玩家受 maxHp × pct% 傷害（閃避無敵可躲），
+ *  追著你的一般怪也會被燒（maxHp × pct%，算玩家擊殺）、Boss 與待機的怪不受影響。時間只看 tick，不存狀態。 */
+export interface StageVent {
+  x: number;
+  y: number;
+  r: number;
+  everyTicks: number;
+  warnTicks: number;
+  offsetTicks?: number;
+  pct: number;
+  /** 深夜時的週期（更頻繁） */
+  nightEveryTicks?: number;
+}
+
 export interface Telegraph {
   ownerId: number;
   attackId: string;
@@ -323,6 +337,7 @@ export type BattleEvent =
   | { tick: number; type: 'phase2'; id: number }
   | { tick: number; type: 'summon'; id: number; count: number }
   | { tick: number; type: 'hazard'; id: number }
+  | { tick: number; type: 'vent'; idx: number; x: number; y: number; r: number }
   | { tick: number; type: 'wallStun'; id: number }
   | { tick: number; type: 'blink'; id: number; fromX: number; fromY: number }
   | { tick: number; type: 'potion'; id: number; heal: number; left: number }
@@ -500,6 +515,8 @@ export interface StageDefinition {
   /** 地形危害（荊棘谷毒沼，D-114）：玩家站在圓內每秒疊一層中毒（每層每秒 maxHp × pct%、持續 3 秒）；怪物不受影響。
    *  深夜（D-115）：`nightR` 取代半徑（毒沼擴散）、`nightOnly` 只在深夜出現 */
   hazards?: StageHazard[];
+  /** 噴發口（D-125） */
+  vents?: StageVent[];
 }
 
 export interface StageZone {

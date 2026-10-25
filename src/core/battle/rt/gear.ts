@@ -152,7 +152,7 @@ function affixValue(stat: AffixStat, L: number, t: number): number {
 
 /** 由種子產生一件裝備（同種子同結果） */
 /** 地區名稱標記（D-114）：荊棘谷掉的精良／稀有名字改成「荊芒／荊冠」，數值與亂數完全一樣 */
-const REGION_TAG: Record<string, [string, string]> = { mistwood: ['薄霧', '霧語'], thornvale: ['荊芒', '荊冠'] };
+const REGION_TAG: Record<string, [string, string]> = { mistwood: ['薄霧', '霧語'], thornvale: ['荊芒', '荊冠'], emberrift: ['燼紋', '燼心'] };
 
 export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string; slot?: GearSlot }): RtGear {
   const R = rng(seed);

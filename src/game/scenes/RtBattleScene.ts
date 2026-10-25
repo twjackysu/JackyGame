@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
+import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
@@ -66,12 +66,18 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   night_thorn_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xc890ff },
   thorn_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff8a5c },
   mist_warden: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x7ae8d8 },
+  // 燼紅裂谷（D-125）：史萊姆與岩王是程式美術（fx/emberArt.ts），其他先用現有立繪染色
+  slag_slime: { key: 'enemy_slag_slime', h: 2.2, flip: false },
+  ember_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0xffa070 },
+  ember_shroom: { key: 'enemy_thorn_shroom', h: 2.9, flip: false, tint: 0xffb080 },
+  obsidian_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x9a8aa8 },
+  ember_colossus: { key: 'enemy_ember_colossus', h: 3.0, flip: true },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
 /** 巡邏怪的仇恨圈／視線顏色（D-117） */
 const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0 };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
-const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼', wolf_king: '狼王／狼后' };
+const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼／燼鬃狼', wolf_king: '狼王／狼后／岩王' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
 const fy0 = (x: Unit): number => x.facingY / 1000;
 
@@ -539,6 +545,7 @@ export class RtBattleScene extends Phaser.Scene {
   // ---------- 大地圖獨立紀錄（D-087） ----------
   /** 這張地圖有沒有跨場紀錄（有 Boss 巢穴的刷怪大地圖） */
   private hazardHinted = false;
+  private ventHinted = false;
   private bloomHinted = false;
   /** 這張地圖的 Boss 與地形稱呼（D-114）：霧語森林＝狼王／森林、荊棘谷＝狼后／山谷 */
   private get bw(): string {
@@ -1509,6 +1516,28 @@ export class RtBattleScene extends Phaser.Scene {
           bigText(this, GAME_WIDTH / 2, 470, '毒沼！站在裡面會一直中毒\n快走出去', '#a8f08a', 34, 1400);
         }
       }
+      else if (e.type === 'vent') {
+        // 噴發（D-125）：火柱粒子＋衝擊環；離玩家近才震畫面、出聲
+        const vx = this.sx(e.x);
+        const vy = this.sy(e.y);
+        const pl = playerOf(this.s);
+        const near = Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 8;
+        if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) {
+          sparks(this, vx, vy, 22, 'ember', 0xff8a3a, 620);
+          sparks(this, vx, vy - 20, 10, 'spark', 0xffe0a0, 820);
+          shockRing(this, vx, vy, 0xff7a2a, e.r * this.k * 1.25, 380, 8);
+          const col = this.add.rectangle(vx, vy, e.r * this.k * 0.9, e.r * this.k * 3.2, 0xffa040, 0.55).setOrigin(0.5, 1).setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+          this.tweens.add({ targets: col, scaleX: 0.2, alpha: 0, duration: 420, ease: 'Cubic.easeIn', onComplete: () => col.destroy() });
+        }
+        if (near) {
+          this.cameras.main.shake(110, 0.004);
+          SFX.hitHeavy();
+        }
+        if (!this.ventHinted && near && !this.bot) {
+          this.ventHinted = true;
+          bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
+        }
+      }
       else if (e.type === 'summon') {
         const b = u(e.id);
         if (b) shockRing(this, this.sx(b.x), this.sy(b.y), 0xb080ff, 140, 400, 5);
@@ -1667,6 +1696,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖色調（D-114）：荊棘谷是紅褐色乾土＋紫紅荊棘叢，其他沿用森林綠
     const wmp = worldMap(this.stageId) ?? WORLD_MAPS[0]!;
     const tv = wmp.decor === 'thorn';
+    const ember = wmp.decor === 'ember';
     const P = wmp.palette;
     const paint = (g: Phaser.GameObjects.Graphics, bx0: number, by0: number, bx1: number, by1: number): void => {
       g.fillStyle(P.ground, 1).fillRect(0, 0, W, H);
@@ -1704,6 +1734,18 @@ export class RtBattleScene extends Phaser.Scene {
           const rr = Math.sqrt(br()) * hr2 * 0.75;
           g.fillStyle(0x9adf5a, 0.35 + br() * 0.35).fillCircle(hx + Math.cos(ang) * rr, hy + Math.sin(ang) * rr * 0.9, 3 + br() * 7);
         }
+      }
+      // 噴發口（D-125）：焦黑火山口＋暗紅熔岩芯（噴發預告另外每幀畫）
+      for (const v of STAGES[this.stageId]?.vents ?? []) {
+        const vx = v.x * k;
+        const vy = v.y * k;
+        const vr = v.r * k;
+        if (vx + vr < bx0 - 40 || vx - vr > bx1 + 40 || vy + vr < by0 - 40 || vy - vr > by1 + 40) continue;
+        g.fillStyle(0x0a0606, 0.9).fillEllipse(vx, vy, vr * 2.2, vr * 1.9);
+        g.fillStyle(0x3a1a10, 1).fillEllipse(vx, vy, vr * 1.5, vr * 1.25);
+        g.fillStyle(0x8a2a10, 0.9).fillEllipse(vx, vy, vr * 0.8, vr * 0.6);
+        g.fillStyle(0xff7a2a, 0.7).fillEllipse(vx, vy, vr * 0.36, vr * 0.26);
+        g.lineStyle(2, 0x5a2a18, 0.8).strokeEllipse(vx, vy, vr * 2.0, vr * 1.7);
       }
       g.lineStyle(1, P.grid, 1);
       for (let x = 0; x <= a.w; x += 100) g.lineBetween(x * k, 0, x * k, H);
@@ -1756,9 +1798,30 @@ export class RtBattleScene extends Phaser.Scene {
               }
               if (hr(cx, cy, 15) < 0.25) g.fillStyle(0xff4a5a, 0.9).fillCircle(x + c / 2 + ox + r * 0.25, y + c / 2 + oy + r * 0.1, r * 0.12);
             }
+            if (ember && hr(cx, cy, 20) < 0.4) {
+              // 燼岩（D-125）：玄武岩上發光的熔岩裂紋（外層暗橘、內層亮黃）
+              const ang = hr(cx, cy, 21) * Math.PI;
+              const x0 = x + c / 2 + ox - Math.cos(ang) * r * 0.7;
+              const y0 = y + c / 2 + oy - Math.sin(ang) * r * 0.7;
+              const xm = x + c / 2 + ox + (hr(cx, cy, 22) - 0.5) * r * 0.5;
+              const ym = y + c / 2 + oy + (hr(cx, cy, 23) - 0.5) * r * 0.5;
+              const x1 = x + c / 2 + ox + Math.cos(ang) * r * 0.7;
+              const y1 = y + c / 2 + oy + Math.sin(ang) * r * 0.7;
+              g.lineStyle(5, 0xc8401a, 0.55).lineBetween(x0, y0, xm, ym).lineBetween(xm, ym, x1, y1);
+              g.lineStyle(2, 0xffb04a, 0.9).lineBetween(x0, y0, xm, ym).lineBetween(xm, ym, x1, y1);
+            }
             continue;
           }
           const j = hr(cx, cy, 5) * 0.12;
+          if (ember) {
+            // 燼岩的零星岩柱：黑色玄武岩＋一道熔岩裂紋（不長青苔）
+            g.fillStyle(0x050303, 0.6).fillEllipse(x + c * 0.55, y + c * 0.8, c * 1.05, c * 0.4);
+            g.fillStyle(0x221c1a, 1).fillRoundedRect(x + c * (0.06 + j), y + c * 0.04, c * (0.88 - j), c * 0.88, c * 0.2);
+            g.fillStyle(0x3a302c, 1).fillRoundedRect(x + c * (0.14 + j), y + c * 0.08, c * (0.6 - j), c * 0.4, c * 0.16);
+            g.lineStyle(4, 0xc8401a, 0.6).lineBetween(x + c * 0.3, y + c * 0.3, x + c * 0.55, y + c * 0.75);
+            g.lineStyle(2, 0xffb04a, 0.95).lineBetween(x + c * 0.3, y + c * 0.3, x + c * 0.55, y + c * 0.75);
+            continue;
+          }
           g.fillStyle(0x050a07, 0.55).fillEllipse(x + c * 0.55, y + c * 0.78, c * 1.05, c * 0.42);
           g.fillStyle(0x4a4f52, 1).fillRoundedRect(x + c * (0.04 + j), y + c * 0.06, c * (0.92 - j), c * 0.86, c * 0.28);
           g.fillStyle(0x6c7378, 1).fillRoundedRect(x + c * (0.12 + j), y + c * 0.1, c * (0.7 - j), c * 0.46, c * 0.22);
@@ -1884,6 +1947,27 @@ export class RtBattleScene extends Phaser.Scene {
         }
       } else if (st === 'weak') sparks(this, this.sx(p.x), this.sy(p.y), 8, 'ember', 0xb08aff, 360);
     });
+  }
+
+  /** 噴發口預告（D-125）：平常熔岩芯微微發光；噴發前 warnTicks 圈內越來越亮、外圈收縮 */
+  private drawVents(g: Phaser.GameObjects.Graphics, now: number): void {
+    const vs = STAGES[this.stageId]?.vents;
+    if (!vs?.length) return;
+    const pl = playerOf(this.s);
+    for (const v of vs) {
+      if (Math.abs(v.x - pl.x) > UNIT * 12 || Math.abs(v.y - pl.y) > UNIT * 16) continue;
+      const vx = this.sx(v.x);
+      const vy = this.sy(v.y);
+      const vr = v.r * this.k;
+      const left = ventLeft(this.s.tick, v, this.s.night);
+      g.fillStyle(0xff7a2a, 0.12 + 0.06 * Math.sin(now / 300 + v.x)).fillEllipse(vx, vy, vr * 1.1, vr * 0.9);
+      if (left > v.warnTicks) continue;
+      const t = 1 - left / v.warnTicks; // 0 → 1
+      g.fillStyle(0xff5a1a, 0.12 + 0.3 * t).fillCircle(vx, vy, vr);
+      g.fillStyle(0xffc04a, 0.1 + 0.35 * t * t).fillCircle(vx, vy, vr * (0.3 + 0.5 * t));
+      g.lineStyle(3, 0xffd08a, 0.5 + 0.5 * t).strokeCircle(vx, vy, vr);
+      g.lineStyle(2, 0xffe0b0, 0.8).strokeCircle(vx, vy, vr * (1.6 - 0.6 * t));
+    }
   }
 
   /** 碎甲斬命中（第 26 輪）：敵人身上迸出 6～9 片紅褐盾片，旋轉、往外飛、落地淡出（純畫面） */
@@ -2224,6 +2308,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.drawThorns(g, now);
     this.drawFrost(this.frostG.clear(), now);
+    this.drawVents(this.frostG, now);
     // 地面掉落：金幣（金色閃光）、粉塵（藍點）、結晶（紫菱形）、藥水（紅瓶）；上下浮動
     for (const it of s.ground ?? []) {
       const ix = this.sx(it.x);

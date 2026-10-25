@@ -98,5 +98,12 @@ export function validateStage(def: StageDefinition): string[] {
     for (const c of def.campfires ?? []) if (Math.hypot(c.x - h.x, c.y - h.y) < r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`危害 #${i} 太靠近營火 ${c.id}`);
     if (Math.hypot(def.player.x - h.x, def.player.y - h.y) < r + 2 * UNIT) out.push(`危害 #${i} 太靠近玩家起點`);
   });
+  // 噴發口（D-125）：中心走得到、預告比週期短、不蓋到營火休息圈與玩家起點
+  (def.vents ?? []).forEach((v, i) => {
+    check(`噴發口 #${i}`, v.x, v.y);
+    if (v.r <= 0 || v.pct <= 0 || v.warnTicks <= 0 || v.warnTicks >= Math.min(v.everyTicks, v.nightEveryTicks ?? v.everyTicks)) out.push(`噴發口 #${i} 的半徑／傷害／預告時間不合理`);
+    for (const c of def.campfires ?? []) if (Math.hypot(c.x - v.x, c.y - v.y) < v.r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`噴發口 #${i} 太靠近營火 ${c.id}`);
+    if (Math.hypot(def.player.x - v.x, def.player.y - v.y) < v.r + 2 * UNIT) out.push(`噴發口 #${i} 太靠近玩家起點`);
+  });
   return out;
 }

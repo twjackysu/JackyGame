@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { makeEmberColossus, makeSlagSlime } from '../fx/emberArt';
 import { HAND_ART } from '../../data/handArt';
 
 /**
@@ -21,6 +22,8 @@ export class BootScene extends Phaser.Scene {
     this.makeGlowDot('glow', 256, [0xffd9a0, 0xff9a4a, 0x8a3cff], 0.55);
     this.makeStar('star', 4);
     this.makeShard('shard', 18, 48);
+    makeSlagSlime(this);
+    makeEmberColossus(this);
     // 除錯入口：?debug&scene=RtBattle&stage=mistwood（試玩小關卡 stage=wolf_king 等）
     const q = new URLSearchParams(window.location.search);
     if (q.get('scene') === 'RtBattle') this.scene.start('RtBattle');

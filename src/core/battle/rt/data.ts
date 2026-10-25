@@ -266,6 +266,57 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
     ],
     boss: { phase2AtPct: 50, phase2CooldownPct: 85, summon: { enemyId: 'thorn_wolf', count: 2, everyTicks: sec(14) } },
   },
+  // ---- 燼紅裂谷（D-125）：熔渣史萊姆、燼鬃狼、燼芯菇、黑曜首領、Boss 燼心岩王 ----
+  // 熔渣史萊姆：慢、肉、會跳過來壓（短衝）＋原地濺射（不能格擋的小圓，要走開）
+  slag_slime: {
+    id: 'slag_slime', name: '熔渣史萊姆', hp: 520, atk: 30, def: 12, speed: 2.5, radius: u(0.5), hitstunTicks: 5,
+    drops: { gold: [5, 9], items: [{ id: 'dust', chance: 45 }] },
+    attacks: [
+      { id: 'slime_splash', shape: { type: 'circle', r: u(1.7) }, warningTicks: sec(0.9), recoverTicks: sec(0.6), damageMultiplier: 110, cooldownTicks: sec(3.2), triggerRange: u(1.3), blockable: false, weight: 2 },
+      { id: 'slime_hop', shape: { type: 'line', len: u(3.5), width: u(1.3) }, warningTicks: sec(0.8), recoverTicks: sec(0.7), damageMultiplier: 120, cooldownTicks: sec(6), triggerRange: u(3.5), blockable: true, charge: { ticks: sec(0.4), wallStunTicks: sec(1.2) }, weight: 1 },
+    ],
+  },
+  // 燼鬃狼：比棘背狼快、咬兩下（第二下預告短）
+  ember_wolf: {
+    id: 'ember_wolf', name: '燼鬃狼', hp: 400, atk: 31, def: 9, speed: 3.6, radius: u(0.42), hitstunTicks: 4,
+    drops: { gold: [4, 8], items: [{ id: 'dust', chance: 35 }] },
+    attacks: [
+      { id: 'ember_bite', shape: { type: 'sector', r: u(1.5), deg: 80 }, warningTicks: sec(0.65), recoverTicks: sec(0.3), damageMultiplier: 95, cooldownTicks: sec(2.6), triggerRange: u(1.3), blockable: true, weight: 1, followUp: 'ember_bite2', followAlways: true },
+      { id: 'ember_bite2', shape: { type: 'sector', r: u(1.6), deg: 90 }, warningTicks: sec(0.45), recoverTicks: sec(0.6), damageMultiplier: 90, cooldownTicks: 0, triggerRange: u(1.6), blockable: true, weight: 0 },
+    ],
+  },
+  // 燼芯菇：射出熔岩彈（直線、較寬、沒有中毒）
+  ember_shroom: {
+    id: 'ember_shroom', name: '燼芯菇', hp: 240, atk: 27, def: 5, speed: 2.6, radius: u(0.4), hitstunTicks: 5,
+    drops: { gold: [5, 9], items: [{ id: 'dust', chance: 40 }, { id: 'potion', chance: 12 }] },
+    attacks: [
+      { id: 'ember_shot', shape: { type: 'line', len: u(7), width: u(1.0) }, warningTicks: sec(0.85), recoverTicks: sec(0.6), damageMultiplier: 110, cooldownTicks: sec(3.2), triggerRange: u(6), blockable: true, weight: 1 },
+    ],
+  },
+  // 黑曜首領（精英）：撕咬＋長衝鋒＋落地震擊
+  obsidian_alpha: {
+    id: 'obsidian_alpha', name: '黑曜首領', hp: 1700, atk: 35, def: 14, speed: 3.7, radius: u(0.6), hitstunTicks: 2,
+    drops: { gold: [30, 45], items: [{ id: 'dust', chance: 100, count: [3, 4] }, { id: 'crystal', chance: 50 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'obs_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.65), recoverTicks: sec(0.4), damageMultiplier: 115, cooldownTicks: sec(2.4), triggerRange: u(1.6), blockable: true, weight: 3 },
+      { id: 'obs_charge', shape: { type: 'line', len: u(6), width: u(1.3) }, warningTicks: sec(0.8), recoverTicks: sec(0.4), damageMultiplier: 140, cooldownTicks: sec(8), triggerRange: u(6), blockable: true, charge: { ticks: sec(0.4), wallStunTicks: sec(1.6) }, weight: 2, followUp: 'obs_slam', followAlways: true },
+      { id: 'obs_slam', shape: { type: 'circle', r: u(2.2) }, warningTicks: sec(0.6), recoverTicks: sec(0.7), damageMultiplier: 120, cooldownTicks: 0, triggerRange: u(3), blockable: false, weight: 0 },
+    ],
+  },
+  // 燼心岩王（Boss）：慢、重。拳擊（扇形）、熔岩裂地（長直線）、重踏（自身圓）；第二階段加震波環＋招喚熔渣史萊姆。
+  ember_colossus: {
+    id: 'ember_colossus', name: '燼心岩王', hp: 5400, atk: 35, def: 15, speed: 2.6, radius: u(1.05), hitstunTicks: 0,
+    drops: { gold: [140, 200], items: [{ id: 'dust', chance: 100, count: [6, 9] }, { id: 'crystal', chance: 100, count: [1, 2] }] },
+    attacks: [
+      { id: 'colossus_fist', shape: { type: 'sector', r: u(2.6), deg: 90 }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 120, cooldownTicks: sec(3.2), triggerRange: u(2.3), blockable: true, weight: 3 },
+      { id: 'colossus_fissure', shape: { type: 'line', len: u(10), width: u(1.4) }, warningTicks: sec(1.0), recoverTicks: sec(0.6), damageMultiplier: 150, cooldownTicks: sec(7), triggerRange: u(9), blockable: true, weight: 2, followUp: 'colossus_fissure2' },
+      { id: 'colossus_stomp', shape: { type: 'circle', r: u(3.0) }, warningTicks: sec(1.2), recoverTicks: sec(0.8), damageMultiplier: 160, cooldownTicks: sec(9), triggerRange: u(2.6), blockable: false, weight: 2 },
+      { id: 'colossus_quake', shape: { type: 'ring', rIn: u(2.2), rOut: u(5.0) }, warningTicks: sec(1.2), recoverTicks: sec(0.7), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(4.5), blockable: false, phase2Only: true, weight: 2 },
+      // 暴怒版限定：裂地之後再補一道（預告短）
+      { id: 'colossus_fissure2', shape: { type: 'line', len: u(10), width: u(1.4) }, warningTicks: sec(0.6), recoverTicks: sec(0.7), damageMultiplier: 130, cooldownTicks: 0, triggerRange: u(10), blockable: true, weight: 0, furyOnly: true },
+    ],
+    boss: { phase2AtPct: 50, phase2CooldownPct: 85, summon: { enemyId: 'slag_slime', count: 2, everyTicks: sec(16) } },
+  },
   wolf_king: {
     id: 'wolf_king', name: '霧角狼王', hp: 4200, atk: 31, def: 12, speed: 3.0, radius: u(0.9), hitstunTicks: 0,
     drops: { gold: [80, 120], items: [{ id: 'dust', chance: 100, count: [4, 6] }, { id: 'crystal', chance: 100 }] },
