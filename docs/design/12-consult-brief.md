@@ -1,3 +1,5 @@
+> ⚠️ **已過時（第 18 輪標記，D-089）**：對外請教的題目整理，結論已寫進 14～16 與 DECISIONS；只供參考。 目前該看哪幾份見 [`README.md`](README.md)。
+
 # 12 向 ChatGPT 請益用的專案簡報
 
 > 每次請益 ChatGPT 時貼這份（或精簡版）當背景。回覆整理在 `13-chatgpt-ideas.md`，採用與否由 Jacky 決定。

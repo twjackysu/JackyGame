@@ -1,70 +1,59 @@
 # 星燼回響 Echoes of Starfall
 
-> 前世是冷門手遊的全成就玩家，轉生成開場就被騎士團遠征隊丟在遺跡裡的「掌燈人」——只有他知道，這個被當成提燈雜役的職業是全遊戲最強的隱藏職業。
+> 前世是冷門手遊的全成就玩家，轉生進那款遊戲的世界——他記得森林裡哪裡藏著寶箱、狼王撞上岩壁會暈、連續打倒幾群狼就會引出首領。
 
 原創冒險 RPG，手機單機（iOS / Android / PWA），**完全離線**、直式單手操作。
 
-🚧 **開發中**（2026-10-23 開工，11/05 成果發表）。主線已可從序章一路玩到終章三結局。進度見 [`docs/PROGRESS.md`](docs/PROGRESS.md)，計畫見 [`docs/PLAN.md`](docs/PLAN.md)。
+🚧 **開發中**（2026-10-23 開工，11/05 成果發表）。進度見 [`docs/PROGRESS.md`](docs/PROGRESS.md)，計畫見 [`docs/PLAN.md`](docs/PLAN.md)。
 
-> 🧭 **10/24 起改版方向**：自由走動探索的經典 RPG（點擊移動、NPC 觸發劇情、商店裝備、技能搭配、自由戀愛線），見 [`docs/design/11-open-world.md`](docs/design/11-open-world.md)。
+## 兩種玩法
+### ⚔️ 霧語森林・即時戰鬥（新方向，標題第二個按鈕）
+- **一整張可以自由走的森林**（48×96 格、六個地區），整張地圖就是一場即時戰鬥：走過去、狼看到你就醒、直接開打，沒有切換戰鬥畫面，也沒有時間限制。
+- **簡單但吃技巧**：左下搖桿或點地面移動，放開就自動追擊＋普攻；右下重斬、旋風斬、衝鋒、格擋反擊、閃避，打出傷害集滿 MP 放大招「劍刃風暴」。敵人出手前地上會出現紅色範圍，**由內往外填滿就命中**；黃框的攻擊可以格擋反擊。
+- **越深越兇、也掉得越多**：南營地 → 森林入口 → 狼群巢穴／森林深處 → 精英狼群 → **霧角狼王**（兩階段、衝鋒撞岩壁會暈）。狼王打倒後離開巢穴會回來，可以一直挑戰、刷最快紀錄。
+- **營火**：怪不追進火堆旁；點營火休息回滿、補藥水；倒下會在營火醒來。
+- **遊戲記憶**：靠近隱藏寶箱會浮現「這個地方似乎有點熟悉……」；不倒下連殺 12 隻會引出隱藏首領；偶爾會有狼群暴動。
+- **獨立紀錄**：累計擊殺、撿到的金幣與材料、開過的寶箱、狼王討伐次數與最快時間。
+- **操作自訂**：拖曳調整每顆按鈕與搖桿的位置、交換技能欄、左手模式、按鈕大小、桌機改鍵（☰ → 操作設定）。
+- 下一步：森林裡掉裝備、經驗值與等級、強化（P4 刷寶）。
+
+### 📖 星燼回響主線（第一版：回合制＋自由探索，可從序章玩到三結局）
+- 自由走動的城鎮與野外（灰燈鎮、霧角森林、沉鐘礦坑、王都、墜星裂谷）、明雷戰鬥、商店與裝備、技能樹、稀有／神級掉落、強化 +10 與詞綴。
+- 回合制＋時機輸入戰鬥（點擊格擋、滑動閃避、長按引路之光）、四位同伴的羈絆與約會、酒館卡牌小遊戲「燼牌」、三種結局與片尾旅程統計。
+- 10/24 Jacky 決定改成即時動作戰鬥後，這一版**保留可玩、不再加新功能**。
 
 ## 畫面
 
-| 標題 | 章節地圖 | 時機光環 |
+| 霧語森林（即時戰鬥大地圖） | 即時戰鬥：霧角狼王 | 預告＋格擋反擊 |
 |:-:|:-:|:-:|
-| ![標題](docs/screenshots/01-title.jpg) | ![地圖](docs/screenshots/02-map.jpg) | ![時機](docs/screenshots/03-timing.jpg) |
-| **五燈共鳴** | **Boss：星空舞台** | **終局：全員共鳴** |
-| ![共鳴](docs/screenshots/04-resonance.jpg) | ![星空舞台](docs/screenshots/05-starstage.jpg) | ![全員共鳴](docs/screenshots/06-finale.jpg) |
-| **燼牌（卡牌小遊戲）** | **同伴羈絆** | **劇情對話** |
-| ![燼牌](docs/screenshots/07-cards.jpg) | ![羈絆](docs/screenshots/08-bonds.jpg) | ![對話](docs/screenshots/09-dialogue.jpg) |
-| **勝利與戰績** | **自由探索：灰燈鎮** | **自由探索：霧角森林（明雷）** |
-| ![勝利](docs/screenshots/10-victory.jpg) | ![灰燈鎮](docs/screenshots/11-town.jpg) | ![霧角森林](docs/screenshots/12-forest.jpg) |
-| **Boss：霧角狼王** | **商店：買賣與直接換裝** | **行囊：裝備比較** |
-| ![霧角狼王](docs/screenshots/13-wolfking.jpg) | ![商店](docs/screenshots/14-shop.jpg) | ![行囊](docs/screenshots/16-bag.jpg) |
-| **自由探索：沉鐘礦坑** | **技能樹（前置＋門檻＋奧義）** | **寶物收藏（稀有／神級掉落）** |
-| ![沉鐘礦坑](docs/screenshots/15-mine.jpg) | ![技能樹](docs/screenshots/17-skilltree.jpg) | ![收藏](docs/screenshots/18-codex.jpg) |
-| **強化 +6（成功率、祝福、費用一目了然）** | **一鍵分解（兩段確認）** | **刷到的詞綴與比較** |
-| ![強化](docs/screenshots/19-enhance.jpg) | ![分解](docs/screenshots/20-salvage.jpg) | ![詞綴](docs/screenshots/21-affix.jpg) |
-| **新：即時戰鬥試玩（預告＋格擋反擊）** | **即時戰鬥：霧角狼王** | **新：碎石林道（繞石尋路、拉怪、大招／藥水）** |
-| ![即時戰鬥](docs/screenshots/22-realtime.jpg) | ![即時戰鬥・狼王](docs/screenshots/23-realtime-boss.jpg) | ![碎石林道](docs/screenshots/24-rock-grove.jpg) |
-| **新：營火空地（怪會重生、營火休息與復活）** | **新：霧語森林 48×96（開發中）** | |
-| ![營火空地](docs/screenshots/25-camp-clearing.jpg) | ![霧語森林](docs/screenshots/26-mistwood.jpg) | |
+| ![霧語森林](docs/screenshots/26-mistwood.jpg) | ![即時戰鬥・狼王](docs/screenshots/23-realtime-boss.jpg) | ![即時戰鬥](docs/screenshots/22-realtime.jpg) |
+| **營火（怪不追進來、休息與復活）** | **繞石尋路、拉怪、大招與藥水** | **標題** |
+| ![營火空地](docs/screenshots/25-camp-clearing.jpg) | ![碎石林道](docs/screenshots/24-rock-grove.jpg) | ![標題](docs/screenshots/01-title.jpg) |
 
-> 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。圖片：主要角色立繪、Q 版戰鬥圖、標題主視覺、Boss、小怪、地圖物件與道具圖示由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單見 `docs/ART_REQUESTS.md`）；地面圖塊、裝飾物件、光影、粒子、配角立繪等仍是程式繪製（`src/game/art/`），每張 AI 圖都有程式備援。
+<details><summary>主線第一版（回合制）的畫面</summary>
 
+| | | |
+|:-:|:-:|:-:|
+| ![時機](docs/screenshots/03-timing.jpg) | ![共鳴](docs/screenshots/04-resonance.jpg) | ![星空舞台](docs/screenshots/05-starstage.jpg) |
+| ![全員共鳴](docs/screenshots/06-finale.jpg) | ![燼牌](docs/screenshots/07-cards.jpg) | ![羈絆](docs/screenshots/08-bonds.jpg) |
+| ![對話](docs/screenshots/09-dialogue.jpg) | ![灰燈鎮](docs/screenshots/11-town.jpg) | ![霧角森林](docs/screenshots/12-forest.jpg) |
+| ![商店](docs/screenshots/14-shop.jpg) | ![技能樹](docs/screenshots/17-skilltree.jpg) | ![強化](docs/screenshots/19-enhance.jpg) |
 
-## 目前可以玩到（2026-10-24）
-- 標題 →「新的旅程」：序章對話（屬性檢定、攻略筆記選項、星形骰）→ 教學戰（燈印 + 共鳴）→ 第 1 章節點地圖 → 各地點劇情、戰鬥、燼牌對局、雜貨店 → 狼王 Boss → 章節結算。自動存檔，「繼續旅程」可接續。
-- **第 2 章「沉鐘」**：瑟琳、莉歐拉加入，礦坑地圖、「告訴瑟琳未來」分歧、鐘喉蠕蟲 Boss（四連鐘響、吞噬星燼）、隊伍編成。
-- **第 3 章「星冠」**：王都、燼牌大賽三連戰、洛克的背叛與「攻略筆記燃燒」、鐘塔屋頂的說服決鬥。同伴技能與連攜技（燈下斬、燈火雷管）。
-- **第 4 章「星核」與終章「燈火」**：研究院地下、伊歐的真相、大司星瓦爾德蘭（階段 2「星空舞台」：反燈印倒數引爆，要用引路之光淨化）；墜星裂谷、心之約定、蝕星者兩段戰（吞噬記憶封印技能 → 刪除之眼 → 「全員共鳴」十燈引爆），三種結局、後日談與片尾旅程統計。
-- **自由探索（全部章節）**：灰燈鎮、霧角森林、狼徑・古燈塔、礦工營地、沉鐘礦坑、王都・星冠城、星術研究院地下、墜星裂谷都能自由走，同伴會在路上冒一句話；明雷戰鬥（背後偷襲先制、等級差太大小怪會逃）、寶箱、支線（廣場四盞燈、霧菇與紅頭巾、流浪牌手）。
-- **商店與裝備**：22 件商店裝備（角色限定）、商店買賣（賣價半價）、行囊選單換裝、戰鬥吃裝備數值。
-- **稀有／神級掉落**：16 件稀有（藍光）＋5 件神級（金光，帶「疾影」「不滅」「先燃」等特效）買不到，只能打怪低機率掉落、Boss 首殺必掉、或找到走近才現形的隱藏寶箱；勝利時卡片翻開＋光柱演出，行囊「收藏」頁顯示還缺哪件、從哪裡掉。
-- **技能樹**：每人兩條分支 × 6 節點的樹，多等級節點、前置節點與「此分支要先投入幾點」的門檻；最深處是 5 個新主動技能（千燈共鳴、破曉一閃、梭哈、星之搖籃曲、連鎖大爆破）。升級和 Boss 首殺給點數，營火旁免費重置。
-- **強化、分解與詞綴（刷寶長尾）**：每件裝備獨立，可強化到 +10（+5 以內必成，之後有成功率與「祝福」保底，畫面直接寫失敗後果）；打怪掉材料、Boss 掉結晶；用不到的裝備一鍵分解成材料；刷到的稀有／神級裝備帶隨機詞綴（ATK +8%、HP +31…），勝利卡片當場亮出來。
-- **營火羈絆與約會**：在營火找同伴聊天（話題隨好感解鎖）、送禮（每人喜好不同）；好感夠高時城鎮裡會出現頭上「♥」的同伴，觸發約會事件。
-- 「戰鬥演示」：森林 ×2 → 野豬 → 霧角狼王連戰；「燼牌演示」：直接開一局燼牌。
+</details>
 
-## 賣點（設計目標）
-- **簡單但吃技巧的戰鬥**：回合制 + 時機輸入（點擊格擋、滑動閃避、長按引路之光），完美判定有打擊停頓、慢動作與光爆。
-- **「廢職業」的隱藏玩法**：在敵人身上佈下燈印，一口氣共鳴引爆。
-- **攻略知識 = 遊戲機制**：用前世記憶直接通過檢定，但會讓世界偏離劇本，情報逐漸失準。
-- **同伴羈絆**：4 位同伴各有個人劇情與羈絆事件（全年齡）。
-- **燼牌**：三夜制的酒館卡牌小遊戲，可收集、組牌。
-- **選擇與後果**：屬性檢定、聲望、延遲回收的選擇、多結局。
+> 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。圖片：主要角色立繪、Q 版戰鬥圖、標題主視覺、Boss、小怪、地圖物件與道具圖示由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單見 `docs/ART_REQUESTS.md`）；地面、樹林、光影、粒子、配角立繪等是程式繪製，每張 AI 圖都有程式備援。
 
 ## 怎麼玩
-- **即時戰鬥試玩（開發中）**：https://twjackysu.github.io/JackyGame/?debug&scene=RtBattle&stage=wolf_king （左下搖桿或點地面移動、右下技能＋閃避＋大招＋藥水；`stage=forest_entry`／`wolf_den`／`forest_deep`／`elite_pack`／`rock_grove`／`camp_clearing`，右上 ☰ 也能換關）
-- **霧語森林大地圖（開發中）**：https://twjackysu.github.io/JackyGame/?debug&scene=RtBattle&stage=mistwood （南營地出發往北：森林入口→狼群巢穴／森林深處→精英狼群→霧角狼王；隱藏寶箱、狼群暴動、狼王可再挑戰）
 - **PWA（任何手機瀏覽器）**：https://twjackysu.github.io/JackyGame/ 
   - iOS Safari：分享 → 加入主畫面；Android Chrome：選單 → 安裝應用程式。之後可離線遊玩。
+  - 標題「霧語森林・即時戰鬥」進新玩法；「新的旅程」是主線第一版。
 - **Android APK**：[Releases → latest](https://github.com/twjackysu/JackyGame/releases/tag/latest) 下載 `jackygame-debug.apk`，允許「安裝未知來源應用程式」後安裝。
 - **iOS（原生，需 Mac）**：
   1. 安裝 Xcode、Node 22+。
   2. `npm ci && npm run build && npx cap sync ios && npx cap open ios`
   3. Xcode → Signing & Capabilities → Team 選你的（免費）Apple ID，Bundle ID 若衝突就改一個。
   4. 接上 iPhone，按 ▶︎ 執行。iPhone 上到「設定 → 一般 → VPN 與裝置管理」信任開發者。免費帳號簽署 7 天有效。
+- 開發用試玩小關卡：`?debug&scene=RtBattle&stage=wolf_king`（`forest_entry`／`wolf_den`／`forest_deep`／`elite_pack`／`rock_grove`／`camp_clearing`，☰ 可換關；加 `&bot=expert` 看 Bot 自己打）。
 
 ## 開發日誌
 | 輪次 | 台北時間 | 重點 |

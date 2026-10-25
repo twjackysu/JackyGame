@@ -1,117 +1,40 @@
 # 下一步（依優先順序，最上面先做）
 
-> ✅ **第 17 輪（10/25 08:12–08:50）**：Jacky 仍沒回。**D-085**：霧語森林接成正式關卡 `rt/maps/mistwood.ts`，**只開除錯網址** `?debug&scene=RtBattle&stage=mistwood`（`&bot=normal` 看 Bot 打到狼王）。另做：狼王再挑戰（`bossZone.respawnTicks`）、狼群暴動（`riot`）、隱藏寶箱（`chests`）、隱藏精英（`hiddenElite`）、深處掉落加成（`lootPct`）、HUD 目標列、討伐演出＋首殺紀錄、Boss 弱點內心提示、☰ 回標題、大地圖單位深度修正；**D-086** 修好擊退卡進樹林。550 項測試；舊七關＋測試大地圖 72 場 stateHash 不變。
-> ⏰ **D-083：標題畫面入口仍等到 10/26 12:00（台北）**。期限前不要加標題按鈕、不要放進 ☰ 換關清單（`STAGE_IDS`）。
-> 除錯入口：`stage=mistwood`（正式草圖）、`stage=test_world`（測試大地圖）。
+> 第 18 輪（10/25 10:12）整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> **現在的方向**：單人即時動作戰鬥＋霧語森林大地圖（D-062／063／065／087）。主規格 `docs/design/20-swordsman-and-map.md`，實作順序 §B8：P1 核心 ✅、P2 地圖 ✅、P3 Boss ✅ → **P4 刷寶（現在）** → P5 長期驗證。設計文件索引：`docs/design/README.md`。
+> 舊主線（回合制＋自由探索，序章到三結局）**保留可玩、不再加功能**；不要刪它的程式。
 
 ## 每輪開頭先看
-- **Jacky 有沒有回試玩問題**（GitHub Issue、FOR_JACKY 或 NEXT 被他改過、`git log --format=%an | sort | uniq -c` 看有沒有非 Claude 的 commit）。有回覆 → 照他的答案先改；他選了 design/21 其他方案就照他的（霧語森林可整個拿掉，D-085）。
-- **現在台北時間是否已過 10/26 12:00** → 過了就做下面「期限到了」。還沒過 → 做「期限前」清單。
-- 看 CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。
+1. Jacky 有沒有回覆：`docs/FOR_JACKY.md` 的「回覆」、GitHub Issue、`git log --format='%an %s' -15` 看有沒有他的 commit。有就照他的答案先改。
+2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
+3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。
 
-## 期限到了（10/26 12:00 後，或 Jacky 同意 ⭐）
-1. **標題畫面入口**：`TitleScene` 加「即時戰鬥原型・霧語森林」按鈕 → `this.scene.start('RtBattle', { stage: 'mistwood' })`（`RtBattleScene.init` 已會在 `stage=mistwood` 時註冊關卡，不需要 `?debug`）。按鈕放在既有按鈕下面、樣式一致；舊主線按鈕不動。
-2. **獨立存檔**：現在只有 `jg_rt_mistwood = {bossKills, firstAt}`（`RtBattleScene.bossSlain`）。補：累計擊殺、累計撿到的金幣／粉塵／結晶、找到的寶箱（跨場保留：已開過的寶箱下次不再出現或改成空箱）、最佳討伐時間；結束畫面顯示「本次／累計」。**不要**碰主線 `session` 存檔（P4 才接）。
-3. 結束條件：現在 `timeLimitTicks` 60 分鐘到了會跳超時畫面 → 改成畫面層不顯示「超時」（或給 24 小時）；☰「回標題」已有。
-4. README 成果頁：「即時戰鬥・霧語森林」正式段落＋截圖（`docs/screenshots/26-mistwood.jpg` 已有）。
+## P4 刷寶（Jacky：「等級、裝備、強化提升後，同一隻狼王應該越打越快」）
+全部做在霧語森林（`maps/mistwood.ts`）＋獨立紀錄（`src/game/rtRecord.ts`，`localStorage jg_rt_mistwood`）。**不碰主線 `session` 存檔**。核心改動一律 opt-in（沒設＝不變），改完跑「舊關卡雜湊比對」。
+1. **經驗值與等級**（最先做，最快有感）：怪物 `xp` 欄位（野狼 5、小狼 3、射手 6、首領 25、狼王 120 之類）、`StageDefinition.progression` 開啟；升級曲線約 Lv1→10 要 2～3 小時、每級 HP +6%、攻擊 +5%；**升級要在這一場裡立刻生效**（核心事件 `levelUp`，改玩家單位的 maxHp／atk，HP 同比例補）。等級與經驗存進紀錄，下次進來帶著（`createBattle` 已收 `setup.player`，可在畫面層把等級換算進 `PlayerDefinition`）。畫面：HUD 等級＋經驗條、升級金光演出。
+2. **裝備掉落**：6 格（武器、頭、身、手、飾品 ×2）；稀有度 普通／精良（藍）／稀有（金）；精英、暴動、Boss 機率較高（design/20 C3 表）。地上掉落物用既有 `loot` 機制擴充成 `item` 類（獨立亂數，不影響戰鬥）；稀有以上有光柱。可重用 `src/server/` 的詞綴與強化邏輯（`enhancement.ts`、`loot.ts`），但存在獨立紀錄裡。
+3. **背包與比較**：☰ 加「行囊」：清單、點一件看詳情與「換上後的數值差」、換裝立刻生效（重建玩家數值）、賣掉／分解成粉塵。背包上限 60。
+4. **強化**：在營火旁用粉塵／結晶強化裝備（沿用 D-058 成功率表）；現在「撿粉塵武器 +1～+5」（`lootEnhance`，D-082）在霧語森林改成真的強化後就關掉。
+5. **驗收**：Bot 也要會自動換裝（取總分高的）；模擬「新手裝 vs 刷 30 分鐘後的裝」打狼王時間，目標明顯變快（例如 5 分 → 2～3 分）。數字寫進 PROGRESS。
 
-## 期限前可以做（不加入口、不改舊七關的規則與數值；核心改動一律 opt-in＋72 場雜湊比對）
-1. ~~隱藏精英~~：第 17 輪完成（`hiddenElite`，連殺 12 隻；Bot 幾乎每場都引出 1～3 次——若真人覺得太常出現，把 `streak` 調到 15～20）。
-2. **新手難度觀察**：加了隱藏精英後新手 Bot 6 場 411～767 秒、最多倒 5 次；普通 301～408 秒、熟練 203～481 秒（第 17 輪最後一版）。若真人回報太難，先降狼王 `hpPct`（100 → 70）。
-3. ~~效能~~：第 17 輪 `tests/rt-mistwood.test.ts` 15 分鐘耐久：每 tick 0.015～0.036ms、最多 51 單位（含待重生屍體）、狼王回來 3 次。
-4. **小地圖**：目前只畫石頭、營火、怪；可加「已開寶箱」小點（未開的不畫，保持「探索」感）與狼王巢穴的骷髏圖示。
-5. 數值觀察（不急，等裝備）：舊四關一般戰普攻占比 12～29%（低於目標 35～45%）。
-6. 技能鍵長按說明（Jacky 說看不懂再做）。
+## 其他（P4 空檔再做）
+- 小地圖：已開寶箱小點、狼王巢穴骷髏圖示。
+- 暫停選單打開時，把還在畫面上的開場大字收掉（無頭截圖會疊；真機 2.6 秒就消失，不急）。
+- 操作設定後續：搖桿要不要「跟著手指」或固定、按鈕透明度（等 Jacky 回覆）。
+- 新手難度：第 17 輪新手 Bot 打到狼王 411～767 秒、最多倒 5 次；若真人回報太難，先降狼王 `hpPct`（100 → 70）。
+- 隱藏精英若真人覺得太常出現，把 `hiddenElite.streak` 從 12 調到 15～20。
+- 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- `npm run build`（含 tsc，**commit 前一定要跑**，第 15 輪漏跑推了一次紅燈）、`npx vitest run`（目前 539 項）、`RUNS=60 npm run sim:rt`（刷怪關會略過）。
-- 場景檔裡不要寫出 `{ gold: …}`／`.gold +=` 之類的字樣：`tests/game-api.test.ts` 會掃描 `src/game/**` 防止繞過 GameApi 改資產（第 15 輪踩過）。
-- 刷怪耐久數據：`RT_SOAK_OUT=/tmp/claude-0/soak.json npx vitest run tests/rt-world-soak.test.ts`。
-- 舊關卡雜湊比對：寫一個暫時的 vitest 把 `Object.keys(STAGES)` × 種子 1–3 × normal／expert 的 `stateHash` 寫進檔案，`git stash -- src` 前後各跑一次 diff（第 15 輪的做法）。
-- 截圖：`npx vite preview --port 4173` 後用 Playwright 開 `?debug&scene=RtBattle&stage=wolf_king&bot=expert`（`window.__rt.state()` 可讀狀態）。**無頭瀏覽器不在焦點，Phaser 會把 delta 夾到 16.7ms，所以模擬只跑約 4 ticks/秒、FPS 約 8，這是測試環境限制，舊版一樣**；比較效能時拿舊版當基準。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run`（目前 561 項）。
+- 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
+- **舊關卡雜湊比對**（核心改動必做）：寫暫時的 vitest，把 `Object.keys(STAGES)`＋霧語森林／測試大地圖 × 種子 1–3 × novice／normal／expert 的 `stateHash` 寫進檔案，`git stash -- src` 前後各跑一次 diff。
+- `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。
+- 截圖：`npx vite preview --port 4173`（背景用 `setsid`），Playwright 腳本放 `screenshots/`（gitignored），`executablePath: '/opt/pw-browsers/chromium'`，網址加 `?debug` 才有 `window.__game`；即時戰鬥 `window.__rt.state()`。第 18 輪的 `screenshots/r18.mjs` 示範從標題點按鈕進森林、開 ☰、操作設定、拖曳按鈕。**無頭瀏覽器 Phaser 時間很慢（約 4 ticks/秒）**，長演出只能截到開頭；效能比較拿舊版當基準。
+- 背景程式一律 `setsid`；不要 `pkill -f`（會殺到自己的 shell），用 PID。
+- 舊主線通關機器人（只有動到舊主線才需要跑）：`npx vite build --outDir /tmp/claude-0/bot/dist --emptyOutDir`、`(setsid python3 -m http.server 4180 -d /tmp/claude-0/bot/dist > /dev/null 2>&1 &)`、`(setsid env GOAL=ch5_complete EXPECT_AFTER=Map WORKAROUNDS=0 node scripts/playthrough.mjs "http://localhost:4180/?debug" /tmp/claude-0/bot/full 25 > log 2>&1 &)`，約 18～20 分鐘。
+- vitest 裡 `console.log` 可能被吞，用 `(globalThis as any).process.stdout.write(...)`。`npm ci` 前設 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`。tsconfig 開了 `noUncheckedIndexedAccess`／`noUnusedLocals`／`noUnusedParameters`。
+- Phaser：場景重啟不會清 `this.events` 自訂監聽器（註冊前先 `off` 或用 `once`）；相機 `zoomTo/pan` 的 ease 只認 `'Cubic.easeOut'` 這種名稱。
 
----
-## 以下為較早的指示（保留參考；與 D-063／D-065 衝突的以 D-065 為準）
-
-> 🧭 **D-065（Jacky 10/24 拍板 design/20）**：劍士技能組、森林單一地圖、死亡與回復規則已定；**劇情降為次要，可玩性優先**，不要再投入劇情改寫、遊戲記憶機制或結局。P1／P2 完成後的下一批（P3 森林地圖整合）請照 design/20 §B8 的順序，一次做一個 Phase 並停下來等 Jacky 試玩。大招 MP 來源、格擋窗口等實作註記見 D-065。
->
-> 🎯 **第一優先（D-063，Jacky 10/24 拍板單人即時戰鬥）**：做 design/19 §8 的 **P1 純 TS 戰鬥核心＋P2 無畫面模擬器**，單人（不做同伴 AI、戀愛線、同伴技能）。範圍：`src/core/battle/` 新引擎（30 ticks/秒、連續座標、圓形碰撞、seeded PRNG、事件固定排序、整數座標、`stateHash`）、普攻與攻速、技能冷卻、**只有大招耗 MP**、閃避、敵人範圍預告（圓／扇形／直線／環形）、仇恨、狀態（秒計）、傷害公式沿用 design/18 §1.5（加算池 +150%）、劍士技能組暫用 design/20 §A6 的四技能（重斬、旋風斬、衝鋒、格擋反擊）＋閃避（資料驅動，`SkillDefinition{cooldownTicks, castTicks, targeting, effects[]}`，禁止 switch(skillId)；冷卻從施放開始計；待 Jacky 拍板可能調整）、敵人與霧角狼王資料、`BattleController` 與 Auto／基礎 Bot、批量模擬與 `MetricsCollector`。驗收：同場戰鬥跑 1,000 次結果一致。**不接 Phaser、不碰探索地圖整合、不刪舊戰鬥與同伴／戀愛程式。** 做完停下來，等 Jacky 決定探索地圖整合方式與 P3 畫面。
->
-> ⛔ **D-062（10/24 晚，覆蓋下面「新戰鬥原型」一條）**：Jacky 改成**即時動作戰鬥**（RO／天堂式），回合制作廢。**不要實作回合制引擎、五指令、回合預告。** 即時戰鬥規格見 `docs/design/19-realtime-combat.md`（D-063 已採用，同伴與戀愛部分作廢）；除上一條 P1／P2 外，請只做下面的長尾基礎（強化／分解 UI、材料掉落、三層裝備 UI 等）與測試打磨。design/18 的公式、屬性、職業、技能、名詞表仍有效。
->
-> 🎯 **第一優先（D-061，Jacky 10/24 拍板 design/18）：新戰鬥原型**。讀 `docs/design/18-combat-class-world-v2.md` §1、§2.2、§4，做：①新戰鬥引擎（HP/MP 回合制、預告鎖定、5 指令、傷害公式與加算池、狀態、速度順序，純 TS 放 `src/core/battle/`，不依賴 Phaser）②資料表（技能／狀態／敵人／敵人 AI／戰鬥配置，BattleState 與定義表分離）③9 個原型技能＋森林狼王等敵人④模擬器（design/18 §1.12 指標）與單元測試⑤5 場教學戰（連恩劍士＋瑟琳＋莉歐拉）。舊時機戰鬥可並存到新戰鬥驗收後再移除；存檔版本遞增。**不做**：伊歐、洛克、其他主角職業、技能樹、重鑄與詞綴效果、故事改寫、名詞全面改字、美術新單。原型出數據與可玩版後停下來等 Jacky 試玩。
->
-> 🛑 **方向重定位（D-060，Jacky 10/24 晚，最優先閱讀）**：Jacky 決定**玩家自選職業、戰鬥系統整個重寫、全部美術重做、專有名詞全部換淺白詞**（細節與影響表見 `docs/design/17-repositioning.md`）。新設計（design/18）還沒出來，所以：
-> - **暫停（不要做）**：戰鬥規則與敵人技能的改動、技能樹、**下面第 9 項的 2.7 三流派與 design/15 的星燼核心／傳說／神級／套裝內容**、第 8 項的故事修訂（design/16 §11）、玩家可見名詞的零散改字、`ART_REQUESTS.md` 新單。
-> - **可以繼續做**：與職業無關的長尾基礎——第 3 項強化／分解 UI、第 4 項材料來源、第 5 項三層裝備 UI、第 6 項帶詞綴的裝備（只接 `stat` 類詞綴；`effect` 類先不接戰鬥）、第 7 項詞綴對齊（**詞綴名稱與效果文字避免使用 燈印／共鳴／星燼 等舊名詞**；效果框架 `effects.ts` 保留）。
-> - 做完上述後若新設計仍未出現，就做打磨、測試與文件，**不要自己決定新職業或新戰鬥規則**。
-
-> 📖 **故事修訂（D-055，優先度次於上一條的階段 1）**：Jacky 已採用「星燼＝記憶殘響」與「戀愛選擇／世界結局分開判定」。工作範圍與驗收見 `docs/design/16-story-upgrade.md` §11（只動文字與結局判定，不改系統）。design/16 其他項目、design/15 技能樹與裝備的方向已拍板（D-056、D-057），但**要等 14 的階段 1 與 2.1 完成後才做**，不要提前動。
-
-> 🧭 **最高優先（D-053／D-054，design/14）**：階段 1 地基 ✅（第 11 輪，D-059）；階段 2 大半 ✅（2.1 效果框架、2.2 6 格資料＋欄位 UI、2.3 詞綴與保底、2.4 強化（D-058 校準）、2.5／2.6 重鑄與分解的邏輯＋API）。**影響玩家資產的程式一律寫在 `src/server/` 並經 `gameApi`**（`src/game/session.ts` 的 `gameApi`、`opId(kind)`；`tests/game-api.test.ts` 會擋場景直接改 `inventory/gear/gold/equipment`）。design/15 的方向已由 D-056、D-057 拍板（數值待模擬校準）；design/16 只有 D-055 兩件拍板（見上一條故事修訂）。
->
-> **第 12 輪（10/24 22:12）已完成 3～6**：強化／分解／上鎖 UI、主線材料掉落（RULES_VERSION 3）、三層裝備 UI、掉落帶 `stat` 詞綴（見 D-064）。
->
-> **長尾打磨（優先度低於最上面 🎯 D-063 的 P1／P2 即時戰鬥核心；P1／P2 做完等 Jacky 時再做）：**
-> 1. **金幣經濟檢查**：第 12 輪機器人整場金幣常在 50～160，強化 +1～+5 一件要 235 金，買裝備與強化互搶。第 12 輪自動強化的機器人整場只強化 8 次、粉塵剩 55（金幣常在 50～80）——確定金幣是瓶頸；若一週目幾乎強化不到，考慮小怪金幣 +20%，或讓 Boss 多給一點金（RULES_VERSION +1）。
-> 2. **商店出售選單**顯示實例差異：現在以模板分組、賣出時自動挑「強化最低→詞綴最少」的那件；若同模板有多件不同詞綴，玩家看不出賣的是哪件 → 出售清單改實例層級（同行囊候選的分組方式），上鎖的顯示 🔒 不能賣。
-> 3. **強化入口補強**：只能從「行囊 → 裝備 → 點欄位」進入；可在營火／商店加「強化」捷徑、行囊 🎒 在「材料夠強化」時亮點。
-> 4. 掉落卡片：詞綴已顯示；神級特效說明會往下讓位（`dy`）。真機上確認三張卡＋詞綴不擠。
-> 5. **不要做**：NEXT 原第 7 項（詞綴對齊 D-057）——D-057 已被 D-060 作廢（D-064）；`effect` 類詞綴、技能樹、職業、故事與名詞改字、美術新單，都等 design/18／19 的原型過關。
-
-
-
-> **10/24 13:20 插單**：Jacky 又上傳 6 張 Q 版戰鬥圖，已匯入成 `hero_<id>`（我方背影）與 `enemy_boss_valderan`（Boss）；`scripts/import-art.mjs` 支援 `<id>_battle.png` 與 `npc_<名稱>.png`。
-> **第 7 輪（10/24 12:12）**：Jacky 上傳了 6 張 AI 立繪（連恩、伊歐、瑟琳、莉歐拉、洛克、瓦爾德蘭，`public/art/`）；其他有台詞的配角改為動漫風程式立繪（D-037；`src/game/art/animeKit.ts`、`animePortraits.ts`、`animeCompanions.ts`、`animeSprites.ts`）。預覽工具見下方「工具」。
-> **設計已定稿（D-013）**。序章～終章全部可以玩到結局（三結局＋片尾統計），Boss 都有特殊機制（第 5 輪）；第 6 輪補了 README 截圖、新手引導、省電畫質、二週目。進度大幅超前 PLAN：接下來是**打磨、平衡檢查、成果發表素材**。LocationScene 暫不做（D-033）。
-> 場景：`src/game/scenes/{Title,Dialogue,Map,Battle,Card}Scene.ts`；全域狀態 `src/game/session.ts`；劇本 `src/data/dialogue/ch0–ch5.ts`；章節地圖 `src/data/maps.ts`（`currentChapter`、`waiting`）；敵人/遭遇 `src/data/combatants.ts`（`phase2` 字卡、`mark`/`seal`、traits `erase`/`eyeShield`/`finale`）；羈絆 `src/data/bonds.ts` + `src/game/ui/bondPanel.ts`；片尾 `src/game/credits.ts`；燼牌 `src/data/cards.ts` + CardScene `OPPONENTS`；美術 `src/game/art/{silhouettes,backdrops,mapArt}.ts`；音樂 `src/audio/music.ts`（`chapterTrack`）。
-> 除錯入口：`?debug&chapter=2|3|4|5&scene=Map`（建立前一章已完成的新存檔，會覆蓋本機存檔；`&join=serin,liora` 額外加同伴）、`?debug&scene=Battle&enc=boss_starfall_2&party=lian,serin,io&lv=17`、`?scene=Dialogue&script=ch3&node=academy`、`?scene=Cards&match=tourney_dealer`。
-
-> 🎨 **美術需求**：需要 AI 圖時只寫進 `docs/ART_REQUESTS.md`（總額度 GPT 8／Gemini 12，目前排 GPT 4、Gemini 7），一律先做程式備援。R-001～R-009 已到貨並匯入（第 8 輪；Jacky 本機 Agent 也同時匯入，保留他 rembg 版的圖）。R-010（隊伍正面走路小人 `walk_*`）、R-011（鎮民 `walk_npc_*`）待產，ExploreScene 有圖會自動換。
-> ⭐ **方向（D-038）：自由探索 RPG。** 讀 `docs/design/11-open-world.md`。**第 1 章已全部可走**（第 8 輪）：`src/data/areas/{greylamp,mistwood,wolfpath}.ts`；引擎 `src/game/scenes/ExploreScene.ts`＋`ExploreHudScene.ts`；純邏輯 `src/core/explore/{grid,area}.ts`（測試 `tests/explore.test.ts`）。序章後直接站在灰燈鎮；世界地圖上第 1 章所有地點都會走進對應區域（MapScene `GREYLAMP_/MISTWOOD_/WOLFPATH_NODES`）。
-> 除錯：`?debug&scene=Explore&area=mistwood&spawn=north`；`window.__explore.{goto(id), tap(x,y), pos(), objective(), entities(), setFlags({...}), busy()}`。機器人在 Explore 場景會 `goto(objective)`，沒有目標就回世界地圖。
-
-> ⭐ **第 9 輪（10/24 16:11）完成**：E3 商店與裝備、E4 技能樹 v1、E5 營火羈絆 v1、第 2 章（`minecamp`＋`mine`）與第 3 章（`capital`）可走、第 1 章支線 ×2、等級差逃跑。相關檔案：`src/data/{equipment,skillTree,sideQuests}.ts`、`src/data/dialogue/camp.ts`、`src/core/state/{equip,skillTree}.ts`、`src/game/ui/{shopPanel,bagPanel,gearUi}.ts`、`src/data/areas/{minecamp,mine,capital}.ts`。
-
-> ⭐ **第 10 輪（10/24 18:12）完成 Jacky 17:30 的指示（D-049）**：稀有／神級掉落（`src/data/drops.ts`、`equipment.ts` 的 `rarity`/`perk`/`source`、engine `Perk`、BattleScene `showDrops`、行囊「收藏」頁）、技能樹 v2（`src/data/skillTree.ts` 版型 A→B/C→D→E→U、`src/core/state/skillTree.ts` 的 `rankOf/missingText/branchPoints/resetCost/treeSkills`、5 個 `tree: true` 主動技能、bagPanel 樹狀圖）；Boss 數值上調（D-050）；地圖裝飾物件＋隱藏寶箱（D-052）；城鎮約會 ×4（D-051，`src/data/dialogue/dates.ts`）；機器人自動配裝點技能（`src/core/state/autoBuild.ts`）。
-
-A0. **機器人**：第 10 輪 autobuild（自動配裝點技能）從新遊戲全程通關 1076 秒；Boss 上調後第 4 章→結局 487 秒。做完任何改動後，背景跑一次從新遊戲到 `ch5_complete`（約 20 分鐘）。
-A1. **掉落／技能樹打磨**：①掉落卡片已可點畫面加速；真機上再確認節奏；②（已做：第一次掉裝備會提示去行囊換）；③（已做：技能樹兩段式點選）；④主動技能在戰鬥中的專屬演出（現在共用技能字卡＋閃光；千燈共鳴可加五盞燈依序飛入、梭哈可加硬幣翻轉）；⑤（已做：收藏頁未取得顯示圖示剪影）。
-A2. **E5 第二版剩下的**：羈絆事件（`bonds.ts` 的 `bond_*`）目前仍綁在劇情節點；可把一部分改成「好感門檻＋到地點」（和約會同一套 `date`/`when`）；同伴閒聊泡泡已依好感加親近台詞（`BANTER_CLOSE`，好感 ≥ 50）。
-A3. **地圖品質（E6 收尾）**：裝飾物件已加（`props`），但地形仍是「長方形房間＋走廊」：加彎道、寬窄變化；王都夜市可再加攤位（噴水池已換成真的噴泉）；`引路之光` 謎題（11-open-world §2.1）還沒做。
-A4. **商店依章節進貨**（`ShopDef.stock` 加 `requires`），王都商店後期多幾件；普通裝備的小特效（星燼提燈「開場燈印 +1」等）可改用 `perk` 機制做弱化版。
-A5. 第 1 章探索小項：建築內部仍是「門 → 直接跑劇本」；古燈塔是程式建築（可在 ART_REQUESTS 加 `prop_lighthouse_ruin`）。
-
-0. **【每輪開頭都做】檢查 Jacky 有沒有上傳手繪立繪**：`art-inbox/` 有圖或 GitHub 有標題含「立繪」的 Issue → `pip install "rembg[cpu]" --break-system-packages`、`node scripts/import-art.mjs`（流程見 D-036）；手繪會自動取代同名程式立繪。沒圖就照常往下做。
-1. **配角程式立繪與手繪主角的畫風落差**：主角群是 AI 厚塗，配角是賽璐珞程式繪。可做：配角立繪加一層柔光／顆粒（`ensurePortrait` 畫完後 soft-light 漸層＋邊緣暈影）讓質感接近；或在 FOR_JACKY 已請 Jacky 補 `npc_tia`／`npc_gwen`／`npc_bern`。
-2. **戰鬥圖已換成 Jacky 的 Q 版手繪**（程式背影 `animeSprites.ts` 只剩備援）：README 戰鬥截圖要重拍；檢查多段攻擊／死亡（灰化 tint）／PERFECT 演出在手繪圖上是否正常；敵人仍是程式剪影，Boss 瓦爾德蘭是 Q 版正面，跟其他敵人畫風有落差——可考慮請 Jacky 補 Boss（狼王、鐘喉蠕蟲、洛克、蝕星者）Q 版正面圖（檔名 `enemy_boss_wolfking.png` 等，需先在 import-art 加對應）。
-3. **截通關存檔的「新的旅程」確認框**（三顆按鈕：二週目／覆蓋／取消；需要有 `ch5_complete` 的存檔，可用機器人通關後的頁面或在 console 設 flag 後 `session.save()`）。勝利畫面已確認（README 10-victory）。
-4. **README 截圖更新**（標題／戰鬥／羈絆／對話已在第 7 輪重拍）：燼牌已換成對局中段（新紋章，`screenshots/cards.mjs` 寫法：等 `canAct()` 後 `act(playsFor(i)[0])`）；可再加一張片尾統計（`getScene('Dialogue').rollCredits()`；直接呼叫沒有暗幕，要先加全螢幕黑色 rectangle depth 400，或讓機器人從 `?chapter=5` 跑到終幕再截）。燼牌紋章在小卡上偏小（左上點數會擋到），可微調 `drawEmblem` 半徑/位置。`node scripts/promo.mjs http://localhost:4180/ screenshots/promoN <名稱,...>` 可以只截指定幾張。
-5. **燼牌對局手感**：拖曳出牌若在 AI 回合結束 render 時按住會失效（極少見）。（收藏入牌組的勝率影響已模擬：+0～8%，見 D-031，不用調。）
-6. **全員共鳴演出節奏**：fxFinale 約 3 秒，真機前無法確認；可加「點擊加速」。
-7. **羈絆事件覆蓋率檢查**：每位同伴羈絆事件（`src/data/bonds.ts`）在劇情中是否都能觸發；機器人跑一次蒐集 `bond_*` 旗標。
-8. **蝕星者第二段回合數約 12–13**；真機若仍偏長再降。
-9. **效能**（新增：立繪是執行時 canvas 繪製，DialogueScene／Title 建立時一次畫 ~20 張 600×900，低階機可能卡一下 → 可改成第一次用到才畫）：在 swiftshader 下量各場景 draw call／粒子數，找最重的場景（多半是 Battle 的 preFX glow）；省電畫質已可手動/自動開。
-
-## 已知技術待辦 / 調整
-- 狼王模擬新手勝率 94%；鐘喉蠕蟲新手偏低（D-021，已有不屈之燈 D-024 補償）；瓦爾德蘭新手會淨化 58%（不屈之燈補償）。
-- 第 6 輪全程機器人：第 2 章「翻倒的礦車」力量檢定失敗會重複挑戰（機器人警告但會繼續），不是 bug。
-- `weakRevealed` 只是顯示用狀態，傷害公式不讀。
-- headless 約 1fps，Phaser 的場景時間跑得比真實時間慢：截演出要等 10–20 秒。
-- 燼牌 AI：實測不弱（D-030），不用調。
-- CI（含 Playwright 煙霧測試）、Pages、Android APK 第 5 輪全綠（CI 約 3–7 分鐘）。
-
-## 工具與注意事項
-- **立繪預覽**（不用開遊戲）：寫 `/tmp/.../entry.ts` import `drawXxx` 畫到 600×900 canvas → `npx vite build -c <lib config：formats iife>` → Playwright 開本機 html 截圖（Playwright 腳本要放在 repo 內 `screenshots/` 才找得到套件）。第 7 輪的做法見 PROGRESS。
-- 立繪座標系：600×900，臉中心 x=300、眼睛 y≈305、下巴 y=432、肩線 y≈500；`drawNeckAndFace(c, 300, FaceStyle)` 畫脖子/耳朵/臉/陰影/腮紅，五官另外畫。對話顯示時 900→600px（0.667 倍），canvas y>735 會被對話框蓋住。
-- **機器人會自動配裝點技能**（`window.__auto(area)`，`src/core/state/autoBuild.ts`；`AUTOBUILD=0` 關閉）。兩個機器人可以同時跑：各自 build 到不同 outDir、不同 port。
-- **機器人**：`npx vite build --outDir /tmp/claude-0/bot/dist --emptyOutDir`、`(setsid python3 -m http.server 4180 -d /tmp/claude-0/bot/dist > /dev/null 2>&1 &)`、`(setsid env GOAL=ch5_complete EXPECT_AFTER=Map WORKAROUNDS=0 node scripts/playthrough.mjs "http://localhost:4180/?debug&chapter=5&scene=Map" /tmp/claude-0/bot/ch5 25 > log 2>&1 &)`。從新遊戲（`?debug` 不加 chapter）到結局約 18–20 分鐘；單章約 3–4 分鐘。達成目標後最多等 90 秒（片尾字幕約 30 秒）。
-- **背景程式一律用 `setsid`**，否則 Bash 呼叫結束或被殺時 server 會一起死。**不要 `pkill -f`**（會殺到自己的 shell，exit 144）；用 PID。
-- 成果發表截圖：`scripts/promo.mjs`（9:16 視窗；標題要加 `skipIntro`，否則 headless 下淡入太慢整張偏暗）。
-- 截圖：一次性 Playwright 腳本放 `screenshots/`（gitignored），`executablePath: '/opt/pw-browsers/chromium'`，網址要加 `?debug` 才有 `window.__game`。可直接呼叫場景私有方法（例：`getScene('Battle').starStage()`、`playOne({type:'finale',enemy:1,lamps:10})`、`getScene('Dialogue').rollCredits()`；地圖 ♥：找 `children.list` 中 text==='♥' 的物件 `emit('pointerdown')`）。長腳本用 `setsid timeout N node x.mjs &` 再 sleep 輪詢，避免 Bash 逾時把它殺掉。
-- 模擬數值：vitest 裡 `console.log` 可能被吞，用 `(globalThis as any).process.stdout.write(...)`。
-- `npm ci` 前設 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`。tsconfig 開了 `noUncheckedIndexedAccess` / `noUnusedLocals` / `noUnusedParameters`。
-- Phaser 相機 `zoomTo/pan` 的 ease 只認 EaseMap 名稱（`'Cubic.easeOut'`），不像 tween 會轉換 `'Cubic.Out'`（有測試）。
-- 對話選項容器 `ui.list` 前 N 個必須對應選項（機器人依賴），額外 UI 要加在後面。
-- Phaser 場景重啟不會清 `this.events` 自訂監聽器 → 註冊前先 `off`。
-- 子代理（Agent 工具）會阻塞到完成；先把自己的工作做完或同一則訊息平行派多個。
+## 美術
+- 需要 AI 圖只寫進 `docs/ART_REQUESTS.md`（遵守額度上限），一律先做程式備援。P4 的裝備圖示先用程式畫（形狀＋稀有度外框）。

@@ -1,3 +1,5 @@
+> ⚠️ **已過時（第 18 輪標記，D-089）**：技術選型（Vite、Phaser 3、PWA、Capacitor）仍有效；戰鬥架構以 19 與 `src/core/battle/rt/README.md` 為準。 目前該看哪幾份見 [`README.md`](README.md)。
+
 # 06 技術架構
 
 ## 1. 技術選型（已實作骨架）
