@@ -1,6 +1,6 @@
 // 營火燼牌（D-127）：規則與 AI。
 import { describe, expect, it } from 'vitest';
-import { aiMove, applyMove, CARDS, cardPower, legalMoves, MERCHANT_DECK, newCardGame, PLAYER_DECK, rowScore, totalScore, type CardGame } from '../src/core/cards/emberCards';
+import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, deckWith, legalMoves, MERCHANT_DECK, newCardGame, nextReward, PLAYER_DECK, rowScore, totalScore, type CardGame } from '../src/core/cards/emberCards';
 
 function bare(): CardGame {
   const g = newCardGame(1);
@@ -13,8 +13,8 @@ function bare(): CardGame {
   return g;
 }
 
-function playOut(seed: number): CardGame {
-  const g = newCardGame(seed);
+function playOut(seed: number, deck: readonly string[] = PLAYER_DECK): CardGame {
+  const g = newCardGame(seed, [deck, MERCHANT_DECK]);
   let n = 0;
   while (!g.over && n++ < 200) {
     const s = g.turn;
@@ -93,5 +93,21 @@ describe('營火燼牌', () => {
     g.sides[0].hand = ['mage'];
     expect(aiMove(g, 0)).toEqual({ type: 'pass' });
     expect(totalScore(g, 0)).toBe(8);
+  });
+
+  it('下注贏來的牌：依序給、不重複、拿完就沒有；牌組會變強但不會無敵', () => {
+    expect(nextReward([])).toBe(CARD_REWARDS[0]);
+    expect(nextReward(['mage'])).toBe(CARD_REWARDS[1]);
+    expect(nextReward([...CARD_REWARDS])).toBeUndefined();
+    expect(deckWith(['mage', 'bogus']).length).toBe(PLAYER_DECK.length + 1);
+    let base = 0;
+    let full = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      if (playOut(seed).winner === 0) base++;
+      if (playOut(seed, deckWith(CARD_REWARDS)).winner === 0) full++;
+    }
+    (globalThis as any).process.stdout.write(`[燼牌] 玩家牌組勝場：基本 ${base}／全部贏到 ${full}（200 場）\n`);
+    expect(full).toBeGreaterThanOrEqual(base - 10);
+    expect(full).toBeLessThan(190);
   });
 });

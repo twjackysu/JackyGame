@@ -277,5 +277,23 @@ export function aiMove(g: CardGame, side: number): Move {
   return pool[0]!.m;
 }
 
+/** 下注贏了依序拿到莫托的一張牌（加進你的牌組；全部拿完就只拿金幣） */
+export const CARD_REWARDS: readonly string[] = ['mage', 'owl', 'ballista', 'horn', 'hero_seer'];
+
+/** 你的牌組＝基本牌組＋贏來的牌（未知 id 會被丟掉） */
+export function deckWith(won: readonly string[]): string[] {
+  return [...PLAYER_DECK, ...won.filter((id) => CARD_REWARDS.includes(id))];
+}
+
+/** 下一張可以贏到的牌（沒有了回 undefined） */
+export function nextReward(won: readonly string[]): string | undefined {
+  const left = [...CARD_REWARDS];
+  for (const id of won) {
+    const i = left.indexOf(id);
+    if (i >= 0) left.splice(i, 1);
+  }
+  return left[0];
+}
+
 /** 下注與獎金：贏了拿回賭注 ×2，平手退回 */
 export const CARD_STAKE = 40;

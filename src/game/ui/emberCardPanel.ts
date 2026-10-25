@@ -2,7 +2,7 @@
 // 全螢幕面板：上半是莫托的後排／前排、中間天候、下半是你的前排／後排與手牌。點一張牌看說明、再點一次（或按「出牌」）打出。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { aiMove, applyMove, CARD_STAKE, CARDS, cardPower, legalMoves, newCardGame, rowScore, totalScore, type CardGame, type Row } from '../../core/cards/emberCards';
+import { aiMove, applyMove, CARD_STAKE, CARDS, cardPower, deckWith, legalMoves, MERCHANT_DECK, newCardGame, nextReward, rowScore, totalScore, type CardGame, type Row } from '../../core/cards/emberCards';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
 import { drawMerchant } from '../fx/merchant';
@@ -15,15 +15,21 @@ export interface CardCtx {
 
 const ROW_NAME = ['前排', '後排'];
 const KEY = 'jg_cards';
-function stats(): { played: number; won: number } {
+interface Stats {
+  played: number;
+  won: number;
+  /** 下注贏來的莫托的牌 */
+  cards: string[];
+}
+function stats(): Stats {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? '{}') as { played?: number; won?: number };
-    return { played: v.played ?? 0, won: v.won ?? 0 };
+    const v = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Stats>;
+    return { played: v.played ?? 0, won: v.won ?? 0, cards: Array.isArray(v.cards) ? v.cards.filter((x): x is string => typeof x === 'string' && !!CARDS[x]) : [] };
   } catch {
-    return { played: 0, won: 0 };
+    return { played: 0, won: 0, cards: [] };
   }
 }
-function saveStats(s: { played: number; won: number }): void {
+function saveStats(s: Stats): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch {
@@ -45,6 +51,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   let sel = -1;
   let busy = false;
   let lastLog = '';
+  /** 這場下注贏到的牌 */
+  let prizeCard: string | undefined;
   /** 剛出的那張牌（畫面上彈一下）：[side, row, 數量] */
   let fresh: [number, Row, number] | null = null;
 
@@ -179,7 +187,9 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       '霜寒／濃霧：雙方前排／後排都變 1 點　晴空：解除',
     ];
     items.push(scene.add.text(0, -270, rules.join('\n'), { fontFamily: UI_FONT, fontSize: '21px', color: '#e8dcc8', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
-    items.push(scene.add.text(0, 0, `戰績 ${st.won} 勝 / ${st.played} 場　手上金幣 ${ctx.coin()}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
+    const nx = nextReward(st.cards);
+    items.push(scene.add.text(0, -50, `你的牌組 ${deckWith(st.cards).length + 1} 張${st.cards.length ? `（贏來的：${st.cards.map((id) => CARDS[id]!.name).join('、')}）` : ''}\n${nx ? `下注贏了，莫托會把「${CARDS[nx]!.name}」給你` : '莫托的牌你全都贏到了！'}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0', align: 'center', lineSpacing: 6, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
+    items.push(scene.add.text(0, 10, `戰績 ${st.won} 勝 / ${st.played} 場　手上金幣 ${ctx.coin()}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
     const can = ctx.coin() >= CARD_STAKE;
     items.push(btn(0, 90, can ? `下注 ${CARD_STAKE} 金開局（贏了拿 ${CARD_STAKE * 2}）` : `金幣不夠下注（${CARD_STAKE}）`, () => start(true), true, 26, !can));
     items.push(btn(0, 180, '練習一局（不賭）', () => start(false), false, 24));
@@ -189,8 +199,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   function result(items: Phaser.GameObjects.GameObject[], game: CardGame): void {
     const w = game.winner;
     const msg = w === 0 ? '你贏了！' : w === 1 ? '莫托贏了' : '平手';
-    const line = w === 0 ? '「哈，下次我可不會手下留情。」' : w === 1 ? '「承讓承讓，金幣我就收下了。」' : '「勢均力敵，再來？」';
-    const prize = staked ? (w === 0 ? `＋${staked * 2} 金` : w === -1 ? `退回 ${staked} 金` : `輸掉 ${staked} 金`) : '練習局';
+    const line = prizeCard ? '「這張牌歸你了……好好用它。」' : w === 0 ? '「哈，下次我可不會手下留情。」' : w === 1 ? '「承讓承讓，金幣我就收下了。」' : '「勢均力敵，再來？」';
+    const prize = (staked ? (w === 0 ? `＋${staked * 2} 金` : w === -1 ? `退回 ${staked} 金` : `輸掉 ${staked} 金`) : '練習局') + (prizeCard ? `　＋新牌「${CARDS[prizeCard]!.name}」` : '');
     items.push(scene.add.text(0, 120, msg, { fontFamily: TITLE_FONT, fontSize: '64px', color: w === 0 ? '#ffd27a' : w === 1 ? '#ff9a8a' : '#c8d0f0', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5));
     items.push(scene.add.text(0, 200, `${game.results.map((r, i) => `第 ${i + 1} 局 ${r === 0 ? '勝' : r === 1 ? '負' : '平'}`).join('　')}\n${prize}\n莫托：${line}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
     items.push(btn(-120, 470, '再來一局', () => {
@@ -206,7 +216,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       ctx.pay(CARD_STAKE);
       staked = CARD_STAKE;
     } else staked = 0;
-    g = newCardGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
+    g = newCardGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, [deckWith(stats().cards), MERCHANT_DECK]);
+    prizeCard = undefined;
     sel = -1;
     lastLog = g.turn === 0 ? '擲硬幣：你先手' : '擲硬幣：莫托先手';
     fresh = null;
@@ -220,6 +231,13 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     st.played++;
     if (g.winner === 0) st.won++;
     saveStats(st);
+    if (staked && g.winner === 0) {
+      prizeCard = nextReward(st.cards);
+      if (prizeCard) {
+        st.cards.push(prizeCard);
+        saveStats(st);
+      }
+    }
     if (staked) {
       if (g.winner === 0) ctx.pay(-staked * 2);
       else if (g.winner === -1) ctx.pay(-staked);
