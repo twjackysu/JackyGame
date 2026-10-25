@@ -12,7 +12,7 @@ export class BootScene extends Phaser.Scene {
     super('Boot');
   }
 
-  /** 手繪立繪（docs/ART_PROMPTS.md → art-inbox → scripts/import-art.mjs）：有就先載入，程式立繪會自動跳過同名材質 */
+  /** 手繪立繪（art-inbox → scripts/import-art.mjs → public/art）：有就先載入，程式立繪會自動跳過同名材質 */
   preload(): void {
     for (const key of HAND_ART) this.load.image(key, `art/${key}.webp`);
     this.load.on('loaderror', (f: Phaser.Loader.File) => console.warn(`hand art missing: ${f.key}`));

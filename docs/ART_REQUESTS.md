@@ -1,7 +1,6 @@
 # 美術需求清單（給 Jacky 回國後的本機 Agent 用 GPT／Gemini 產圖）
 
 > **這是唯一的美術需求佇列。** 開發迴圈需要 AI 繪圖時，只在這裡新增項目，不要另開檔案。Jacky 的本機 Agent 會照這份清單產圖。
-> 已完成的角色立繪與 Q 版戰鬥圖紀錄在 `docs/ART_PROMPTS.md`。
 > **目前沒有待產的項目**（10/25 第 18 輪整理，D-095）：Jacky 回國前不用產任何圖。之後開發迴圈若真的需要新圖，才在「需求清單」新增。
 
 ## 規則（開發迴圈必讀）
@@ -45,6 +44,7 @@
 ## 已完成（已匯入 `public/art/`，prompt 見 git 歷史）
 | 編號 | 工具 | 檔名 | 用在 |
 |---|---|---|---|
+| （第一批） | ChatGPT／Gemini | `hero_*`、`portrait_*`、`npc_valderan`（連恩、伊歐、瑟琳、莉歐拉、洛克、瓦爾德蘭的半身立繪＋Q 版戰鬥圖） | 主要角色立繪；即時戰鬥的主角用 `hero_lian`。原本的產圖說明 `ART_PROMPTS.md` 已刪除（D-096），prompt 見 git 歷史 |
 | R-001 | GPT | `enemy_boss_wolfking` | 霧角狼王（即時戰鬥與舊主線都在用） |
 | R-002 | GPT | `enemy_boss_bellworm` | 舊主線第 2 章 Boss |
 | R-003 | GPT | `enemy_boss_starfall` | 舊主線最終 Boss |
