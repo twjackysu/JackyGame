@@ -111,6 +111,11 @@ export const MISTWOOD_ROWS: readonly string[] = [
 /** 狼王位置（Bot advanceTo 與畫面 Boss 方向箭頭共用） */
 export const MISTWOOD_KING = { x: c(24), y: c(10) };
 
+/** 霧影狼（深夜限定）的巡邏路線：南林東側繞一圈（離南營火 7 格以上） */
+export const SHADE_PATROL: readonly { x: number; y: number }[] = [
+  [40, 80], [42, 90], [32, 91], [30, 84],
+].map(([x, y]) => ({ x: c(x!), y: c(y!) }));
+
 export function makeMistwoodStage(): StageDefinition {
   return {
     id: 'mistwood', name: '霧語森林', timeLimitTicks: sec(60 * 60), player: { x: c(24), y: c(92) },
@@ -167,7 +172,8 @@ export function makeMistwoodStage(): StageDefinition {
       { id: 'deep_shooters', enemyId: 'thorn_shooter', cx: c(37), cy: c(58), spawnRadius: u(2), maxAlive: 2, respawnTicks: sec(45), hpPct: 50, atkPct: 25, lootPct: 60 },
       { id: 'elite', enemyId: 'alpha_wolf', cx: c(24), cy: c(36), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(180), hpPct: 100, atkPct: 50, lootPct: 100, tier: 'elite' },
       // 霧影狼（D-104）：只在深夜出現，在森林入口東側遊蕩（離南營地不遠，深夜一進來就看得到目標）
-      { id: 'night_shade', enemyId: 'shade_wolf', cx: c(40), cy: c(80), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(150), tier: 'elite', lootPct: 100, nightOnly: true },
+      // 霧影狼在南林東側巡邏（D-117：深夜的森林有東西在走動）
+      { id: 'night_shade', enemyId: 'shade_wolf', cx: c(40), cy: c(80), spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(150), tier: 'elite', lootPct: 100, nightOnly: true, aggroUnits: 6, patrol: SHADE_PATROL },
       // 荊棘母樹（D-107）：精英狼群區東側、不會動；4 分鐘重生，必掉兩件精良以上
       { id: 'thorn_mother', enemyId: 'thorn_mother', cx: c(41), cy: c(40), spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(240), tier: 'elite', aggroUnits: 5 },
       { id: 'elite_pack', enemyId: 'wolf', cx: c(21), cy: c(33), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 100, atkPct: 50, lootPct: 100 },
