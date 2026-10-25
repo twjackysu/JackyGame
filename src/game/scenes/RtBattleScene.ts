@@ -150,6 +150,7 @@ export class RtBattleScene extends Phaser.Scene {
   private coinBase = -1;
   private leftFire = false;
   private tipBusy = false;
+  private tipsDone = new Set<string>();
   private fireHinted = false;
   /** 前 3 次進大地圖才顯示的引導 */
   private newbie = false;
@@ -605,6 +606,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 撿到裝備：用種子產生數值、放進行囊、立刻存檔；稀有以上大字 */
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
+    this.time.delayedCall(900, () => this.tipOnce('jg_tip_gear', '撿到裝備了！☰「行囊」或營火旁可以換上', '#9fe8a0'));
     const p = playerOf(this.s);
     const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId });
     // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理
@@ -1185,8 +1187,9 @@ export class RtBattleScene extends Phaser.Scene {
     } catch {
       /* 無痕模式 */
     }
-    const lines = ['左下拖曳：走位（放開＝自動追擊＋普攻）', '紅色範圍＝敵人要打這裡，填滿就命中', '黃框＝可以「格擋反擊」　右下：技能／閃避', '點地面＝走過去　點敵人＝鎖定　粉紅環滿＝大招'];
-    const bg = this.add.rectangle(0, 0, 620, 210, 0x000000, 0.72).setStrokeStyle(2, 0xffd27a, 0.8);
+    // 第 23 輪縮成兩行：紅框、黃框、大招、裝備改成第一次遇到時才提示（tipOnce）
+    const lines = ['左下拖曳走路・放開＝自動追擊＋普攻', '點怪物開打・右下：技能與閃避'];
+    const bg = this.add.rectangle(0, 0, 600, 112, 0x000000, 0.72).setStrokeStyle(2, 0xffd27a, 0.8);
     const t = this.add.text(0, 0, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
     this.hint = this.add.container(GAME_WIDTH / 2, 300, [bg, t]).setDepth(70);
     this.time.delayedCall(6000, () => this.dismissHint());
@@ -1194,7 +1197,8 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
   private tipOnce(key: string, text: string, color: string): void {
-    if (this.hint || this.tipBusy) return;
+    if (this.tipsDone.has(key) || this.hint || this.tipBusy) return;
+    this.tipsDone.add(key); // 記在記憶體：大招提示每幀都會呼叫，不要每幀讀 localStorage
     try {
       if (localStorage.getItem(key)) return;
       localStorage.setItem(key, '1');
@@ -2443,6 +2447,7 @@ export class RtBattleScene extends Phaser.Scene {
       const R = this.btnR(5);
       const left = Math.max(0, (p.ready['blade_storm'] ?? 0) - s.tick);
       const ok = left === 0 && p.mp >= need;
+      if (ok && !this.bot && !this.menu) this.tipOnce('jg_tip_ult', '大招充滿了！按右下粉紅色「劍刃風暴」', '#ff9ae0');
       const now = this.time.now;
       g.fillStyle(ok ? 0x5a1a3a : 0x2a1420, 0.95).fillCircle(x, y, R);
       g.lineStyle(5, 0x333344, 1).strokeCircle(x, y, R);
