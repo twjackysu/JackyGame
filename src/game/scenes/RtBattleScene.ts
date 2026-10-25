@@ -126,6 +126,8 @@ export class RtBattleScene extends Phaser.Scene {
   /** 大地圖目標列（沒有就 null） */
   private goal: Phaser.GameObjects.Text | null = null;
   private bountyTxt: Phaser.GameObjects.Text | null = null;
+  /** 還沒點的技能點（☰ 紅點用；升級與改動時更新） */
+  private ptsLeft = 0;
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
   private zoneName: string | null = null;
   /** 這場已經提示過隱藏精英 */
@@ -230,6 +232,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
     this.refreshBounty();
+    this.ptsLeft = this.tracked ? this.skillPointsLeft() : 0;
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 110, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)' }).setPadding(12, 3, 12, 3).setOrigin(0.5).setDepth(49) : null;
     this.makeButtons();
     this.makeMinimap();
@@ -498,6 +501,7 @@ export class RtBattleScene extends Phaser.Scene {
       (r) => {
         saveRecord(this.stageId, { ...loadRecord(this.stageId), skills: r });
         setSkillMods(this.s, this.allMods(this.bagSt));
+        this.ptsLeft = this.skillPointsLeft();
       },
       () => {
         this.menu?.destroy();
@@ -1214,6 +1218,7 @@ export class RtBattleScene extends Phaser.Scene {
         floatNumber(this, this.sx(p.x) + 40, this.sy(p.y) - 70, L[0], { color: L[1], size: e.kind === 'gold' ? 22 : 24 });
         if (e.kind !== 'gold') SFX.itemGet();
       } else if (e.type === 'levelUp') {
+        if (this.tracked) this.ptsLeft = this.skillPointsLeft();
         // 升級（D-090）：金色光柱＋大字＋數值浮字，立刻存檔
         const p = playerOf(this.s);
         if (this.tracked && e.level === FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury && (loadRecord(this.stageId).bossKills ?? 0) < FURY_UNLOCK.kills) this.furyUnlockedToast();
@@ -1921,7 +1926,7 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(s);
     this.drawMinimap(g);
     // ☰ 上的小紅點：行囊裡有比身上好的裝備（D-093）
-    if (this.tracked && this.bagSt.bag.some((x) => isUpgrade(this.bagSt, x))) {
+    if (this.tracked && (this.ptsLeft > 0 || this.bagSt.bag.some((x) => isUpgrade(this.bagSt, x)))) {
       g.fillStyle(0xff4a4a, 1).fillCircle(GAME_WIDTH - 22, 22, 9);
       g.lineStyle(2, 0xffffff, 0.9).strokeCircle(GAME_WIDTH - 22, 22, 9);
     }
