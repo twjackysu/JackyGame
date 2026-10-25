@@ -8,6 +8,7 @@ import { walletOf, type RtRecord } from '../rtRecord';
 import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, coinOf, rerollShop, sellPrice, shopStock, spendCoin } from '../rtShop';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
+import { drawMerchant } from '../fx/merchant';
 
 const PER_PAGE = 7;
 const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
@@ -64,13 +65,27 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     scene.cameras.main.flash(120, 255, 220, 120);
   };
 
+  // 標題左邊的旅商（程式美術，每幀重畫：燈火、眨眼）；render() 會 removeAll，所以每次重新放回去
+  const portrait = scene.add.graphics();
+  const drawPortrait = (): void => {
+    portrait.clear();
+    drawMerchant(portrait, -268, -498, 112, scene.time.now);
+  };
+  scene.events.on('update', drawPortrait);
+  root.once('destroy', () => {
+    scene.events.off('update', drawPortrait);
+    portrait.destroy();
+  });
+
   function render(): void {
+    root.remove(portrait); // 旅商不跟著銷毀，等一下放回去
     root.removeAll(true);
     const rec = ctx.rec();
     const st = ctx.bag();
     const w = walletOf(rec);
     const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x080604, 0.95).setInteractive()];
     items.push(scene.add.text(0, -585, '營火行商', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
+    items.push(portrait);
     items.push(scene.add.text(0, -538, `旅商莫托：${line}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0' }).setOrigin(0.5));
     items.push(scene.add.text(0, -500, `金幣 ${coinOf(rec)}　粉塵 ${w.dust}　結晶 ${w.crystal}　背包 ${st.bag.length}/${BAG_MAX}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
     items.push(btn(-110, -448, '買', () => {

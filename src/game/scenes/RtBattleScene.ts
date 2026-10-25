@@ -38,6 +38,7 @@ import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, thornvaleOpen, nextGoal, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
+import { drawMerchant } from '../fx/merchant';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
 const STAGE_IDS = Object.keys(STAGES);
@@ -2095,6 +2096,8 @@ export class RtBattleScene extends Phaser.Scene {
         const fh = (46 - i * 12 + f * 6) * k;
         g.fillStyle(i === 0 ? 0xff6a20 : i === 1 ? 0xffa83a : 0xfff0a0, 0.95).fillEllipse(cx + f * 3 * k, cy - fh / 2, (36 - i * 10) * k, fh);
       }
+      // 營火旁的旅商（D-116 行商，有存檔的大地圖才有）
+      if (this.tracked) drawMerchant(g, cx + 95 * k, cy + 10 * k, 120 * k, now + fi * 1300);
     }
     // 預告：淡底＋由內往外填滿的進度＋外框（紫＝附狀態、黃框＝可格擋、粗紅＝不可格擋）
     for (const t of s.telegraphs) {
