@@ -122,6 +122,9 @@ export function makeThornvaleStage(): StageDefinition {
       { id: 'tv_mother_nook', x: c(5), y: c(50), loot: { crystal: 2, gold: 90 } },
       { id: 'tv_marsh_edge', x: c(42), y: c(44), loot: { potion: 5, dust: 10 } },
       { id: 'tv_gallery_west', x: c(15), y: c(24), loot: { crystal: 2, dust: 6, gold: 120 } },
+      // 夜光寶箱（深夜的山谷限定，每次進深夜補滿）
+      { id: 'tv_night_mother', x: c(6), y: c(47), loot: { crystal: 2, potion: 3, gold: 90 }, nightOnly: true },
+      { id: 'tv_night_gallery', x: c(38), y: c(39), loot: { crystal: 2, dust: 8, gold: 120 }, nightOnly: true },
     ],
     // 毒沼（D-114）：站在裡面每秒疊一層中毒；東邊寶箱就泡在毒沼裡（拿了快走）
     hazards: [

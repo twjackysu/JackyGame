@@ -471,6 +471,7 @@ export class RtBattleScene extends Phaser.Scene {
   // ---------- 大地圖獨立紀錄（D-087） ----------
   /** 這張地圖有沒有跨場紀錄（有 Boss 巢穴的刷怪大地圖） */
   private hazardHinted = false;
+  private bloomHinted = false;
   /** 這張地圖的 Boss 與地形稱呼（D-114）：霧語森林＝狼王／森林、荊棘谷＝狼后／山谷 */
   private get bw(): string {
     return this.stageId === 'thornvale' ? '狼后' : '狼王';
@@ -1233,6 +1234,18 @@ export class RtBattleScene extends Phaser.Scene {
           this.lastWarnTick = e.tick;
           const o = u(e.owner);
           SFX.warn(!!(o && ENEMIES[o.defId]?.boss));
+        }
+        // 荊棘綻放（D-114）：狼后腳下冒出綠色孢子＋第一次提示跑出圈外
+        if (e.attack === 'queen_bloom') {
+          const o = u(e.owner);
+          if (o) {
+            shockRing(this, this.sx(o.x), this.sy(o.y), 0x8adf4a, 3.2 * 100 * this.k, 900, 6);
+            sparks(this, this.sx(o.x), this.sy(o.y), 26, 'ember', 0xc8ff8a, 900);
+          }
+          if (!this.bloomHinted) {
+            this.bloomHinted = true;
+            bigText(this, GAME_WIDTH / 2, 520, '荊棘綻放——跑出圈外！', '#c8ff8a', 40, 900);
+          }
         }
       }
       else if (e.type === 'hazard') {
