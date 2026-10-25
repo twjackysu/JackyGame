@@ -2,7 +2,8 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SWORDSMAN } from '../../core/battle/rt/data';
-import { ENH_MAX, GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, enhanceCost, gearLines, gearScore, gearTitle, salvageDust, type RtGear } from '../../core/battle/rt/gear';
+import { ENH_MAX, GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, enhanceCost, gearLines, gearScore, gearTitle, salvageDust, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
+import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, unequip, type BagState } from '../rtBag';
 
 export { BAG_MAX, bonusOf, isUpgrade, type BagState } from '../rtBag';
@@ -11,6 +12,8 @@ import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 
 const PER_PAGE = 8;
+/** 身上格子比較窄：名字太長就截掉 */
+const short = (s: string): string => (s.length > 7 ? `${s.slice(0, 6)}…` : s);
 const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 
 /**
@@ -40,7 +43,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     });
     return t;
   };
-  const cell = (x: number, y: number, w: number, h: number, g: RtGear | undefined, label: string, fn: () => void, mark = ''): Phaser.GameObjects.GameObject[] => {
+  const cell = (x: number, y: number, w: number, h: number, g: RtGear | undefined, label: string, fn: () => void, mark = '', slot?: GearSlot): Phaser.GameObjects.GameObject[] => {
     const col = g ? RARITY_COLOR[g.rarity] : 0x555566;
     const bg = scene.add.rectangle(x, y, w, h, 0x1a140c, 0.95).setStrokeStyle(g && g.rarity > 1 ? 3 : 2, col, g ? 0.95 : 0.5).setInteractive({ useHandCursor: true });
     bg.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
@@ -48,8 +51,10 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
       SFX.uiTap();
       fn();
     });
-    const t = scene.add.text(x - w / 2 + 14, y, label, { fontFamily: UI_FONT, fontSize: '21px', color: g ? hex(col) : '#777788' }).setOrigin(0, 0.5);
-    const out: Phaser.GameObjects.GameObject[] = [bg, t];
+    const sl = g?.slot ?? slot;
+    const icon = sl ? gearIcon(scene, x - w / 2 + 8 + h * 0.4, y, sl, g ? g.rarity : 0, h * 0.78) : [];
+    const t = scene.add.text(x - w / 2 + 14 + (sl ? h * 0.8 : 0), y, label, { fontFamily: UI_FONT, fontSize: '21px', color: g ? hex(col) : '#777788' }).setOrigin(0, 0.5);
+    const out: Phaser.GameObjects.GameObject[] = [bg, ...icon, t];
     if (mark) out.push(scene.add.text(x + w / 2 - 14, y, mark, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#7dffb0' }).setOrigin(1, 0.5));
     return out;
   };
@@ -68,20 +73,20 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     // 身上 6 格（3×2）
     GEAR_SLOTS.forEach((slot, i) => {
       const x = -230 + (i % 3) * 230;
-      const y = -460 + Math.floor(i / 3) * 74;
+      const y = -466 + Math.floor(i / 3) * 72;
       const g = st.equip[slot];
-      items.push(...cell(x, y, 220, 64, g, g ? gearTitle(g) : `${SLOT_NAME[slot]}（空）`, () => {
+      items.push(...cell(x, y, 220, 64, g, g ? short(gearTitle(g)) : `${SLOT_NAME[slot]}（空）`, () => {
         if (g) {
           detail = g;
           render();
         }
-      }));
+      }, '', slot));
     });
     // 背包清單
     const pages = Math.max(1, Math.ceil(st.bag.length / PER_PAGE));
     page = Math.min(page, pages - 1);
     const w = ctx?.wallet();
-    items.push(scene.add.text(0, -352, `背包 ${st.bag.length}/${BAG_MAX}　▲＝比身上的好${w ? `　粉塵 ${w.dust}・結晶 ${w.crystal}` : ''}`, { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));
+    items.push(scene.add.text(0, -338, `背包 ${st.bag.length}/${BAG_MAX}　▲＝比身上的好${w ? `　粉塵 ${w.dust}・結晶 ${w.crystal}` : ''}`, { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));
     const list = st.bag.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
     if (!list.length) items.push(scene.add.text(0, -150, '還沒有裝備\n打倒怪物有機會掉落；首領常掉、狼王必掉', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
     list.forEach((g, i) => {
@@ -120,6 +125,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     const col = RARITY_COLOR[g.rarity];
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.5).setInteractive()];
     out.push(scene.add.rectangle(0, -60, 600, 560, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
+    out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -300, gearTitle(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -255, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}${worn ? '・裝備中' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     out.push(scene.add.text(0, -170, gearLines(g).join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5, 0.5));
