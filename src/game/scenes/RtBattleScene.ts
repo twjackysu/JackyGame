@@ -229,6 +229,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
     const stG = STAGES[this.stageId];
+    if (this.s.night && this.tracked && STAGES[this.stageId]?.chests?.some((c) => c.nightOnly)) {
+      this.time.delayedCall(3200, () => bigText(this, GAME_WIDTH / 2, 600, '深夜：遠處的藍色光柱是夜光寶箱\n（每次進深夜都會補滿）', '#bfe0ff', 30, 2200));
+    }
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
     this.refreshBounty();
@@ -1629,7 +1632,7 @@ export class RtBattleScene extends Phaser.Scene {
       const k = this.k * 1.5;
       g.lineStyle(2, 0xffb060, 0.18).strokeCircle(cx, cy, CAMPFIRE_RULES.safeUnits * UNIT * this.k);
       const gl = this.glows[fi++];
-      if (gl) gl.setPosition(cx, cy - 10 * k).setScale((300 * k * (1 + 0.06 * Math.sin(now / 130))) / 128).setAlpha(0.85 + 0.15 * Math.sin(now / 170));
+      if (gl) gl.setPosition(cx, cy - 10 * k).setScale(((s.night ? 400 : 300) * k * (1 + 0.06 * Math.sin(now / 130))) / 128).setAlpha(0.85 + 0.15 * Math.sin(now / 170));
       g.fillStyle(0x3a2412, 1).fillRoundedRect(cx - 40 * k, cy + 4 * k, 80 * k, 14 * k, 6 * k);
       g.fillStyle(0x4a2e16, 1).fillRoundedRect(cx - 34 * k, cy - 4 * k, 68 * k, 13 * k, 6 * k);
       for (let i = 0; i < 3; i++) {
