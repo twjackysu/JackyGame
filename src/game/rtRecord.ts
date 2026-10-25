@@ -172,9 +172,29 @@ export function saveRecord(stage: string, rec: RtRecord): void {
   writeRaw(stage, sp.own);
 }
 
+/**
+ * 暫停選單的「下一個目標」（第 22 輪）：依進度給一句話。rec＝這張地圖的紀錄（共用地圖已 join），
+ * otherKills＝另一張地圖的 Boss 討伐次數（霧語森林看荊棘谷、荊棘谷看霧語森林）。
+ */
+export function nextGoal(stage: string, rec: RtRecord, level: number, otherKills: number): string {
+  const tv = stage === 'thornvale';
+  const boss = tv ? '棘冠狼后' : '霧角狼王';
+  const bw = tv ? '狼后' : '狼王';
+  if (!(rec.bossKills ?? 0)) return tv ? '沿著山谷往北，打倒棘冠狼后' : '往北穿過森林，打倒霧角狼王';
+  if (!tv && !otherKills) return '前往荊棘谷，打倒棘冠狼后';
+  if (!furyUnlocked(rec, level)) return `升到 Lv${FURY_UNLOCK.level} 或討伐 ${boss} ${FURY_UNLOCK.kills} 次，開啟${bw}暴怒`;
+  if (!(rec.furyKills ?? 0)) return `☰ 開啟「${bw}暴怒」並打倒牠（解鎖深夜的${tv ? '山谷' : '森林'}）`;
+  return `刷深夜的${tv ? '山谷' : '森林'}、把裝備強化到 +10、挑戰最快討伐`;
+}
+
 /** 荊棘谷開放條件（D-114）：霧語森林的狼王打倒過一次 */
 export function thornvaleOpen(): boolean {
   return (readRaw('mistwood').bossKills ?? 0) >= 1;
+}
+
+/** 某張地圖自己的 Boss 討伐次數（不經過共用合併） */
+export function bossKillsOf(stage: string): number {
+  return readRaw(stage).bossKills ?? 0;
 }
 
 /** 秒數 → 「4 分 05 秒」 */

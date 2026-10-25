@@ -159,3 +159,16 @@ describe('荊棘谷耐久（D-114）', () => {
     expect(kills).toBeGreaterThan(30);
   }, 180000);
 });
+
+describe('暫停選單「下一個目標」', () => {
+  it('依進度：狼王 → 荊棘谷 → 暴怒解鎖 → 打倒暴怒 → 深夜', async () => {
+    const { nextGoal } = await import('../src/game/rtRecord');
+    expect(nextGoal('mistwood', {}, 1, 0)).toContain('霧角狼王');
+    expect(nextGoal('mistwood', { bossKills: 1 }, 4, 0)).toContain('前往荊棘谷');
+    expect(nextGoal('mistwood', { bossKills: 1 }, 4, 1)).toContain('Lv8');
+    expect(nextGoal('mistwood', { bossKills: 1 }, 8, 1)).toContain('狼王暴怒');
+    expect(nextGoal('mistwood', { bossKills: 3, furyKills: 1 }, 8, 1)).toContain('深夜的森林');
+    expect(nextGoal('thornvale', {}, 6, 1)).toContain('棘冠狼后');
+    expect(nextGoal('thornvale', { bossKills: 1 }, 8, 1)).toContain('狼后暴怒');
+  });
+});
