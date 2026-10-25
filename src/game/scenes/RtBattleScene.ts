@@ -1195,7 +1195,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.cameras.main.shake(160, 0.006);
           shockRing(this, this.sx(p.x), this.sy(p.y), 0xff7ad0, 260, 520, 10);
           sparks(this, this.sx(p.x), this.sy(p.y), 26, 'ember', 0xff9ae0, 520);
-          bigText(this, GAME_WIDTH / 2, 460, '劍刃風暴！', '#ff9ae0', 54, 700);
+          bigText(this, GAME_WIDTH / 2, 460, `${skillDef(this.s, 'blade_storm')!.name}！`, '#ff9ae0', 54, 700);
         } else SFX.blip();
       }
       else if (e.type === 'telegraph') {
@@ -1520,8 +1520,54 @@ export class RtBattleScene extends Phaser.Scene {
       else if (hs.type === 'sector') {
         this.slash(p.x, p.y, ang, hs.r, hs.deg + 30, big ? 0xffd05a : 0x9fd8ff, big ? 10 : 7);
         if (big) this.cameras.main.shake(80, 0.004);
+      } else if (hs.type === 'line') {
+        this.groundSplit(p.x, p.y, ang, hs.len, hs.width);
       }
+      // 星落一閃（D-112）：單發大招 → 天上落下一道光柱
+      if (sk.role === 'ult' && sk.hits.length === 1) this.starfall(p.x, p.y, hs.type === 'circle' ? hs.r : UNIT * 3);
     });
+  }
+
+  /** 裂地斬（D-112）：沿直線裂開的地面＋金色劍氣，從玩家往前一路炸開 */
+  private groundSplit(x: number, y: number, ang: number, len: number, width: number): void {
+    const px = this.sx(x);
+    const py = this.sy(y);
+    const L = len * this.k;
+    const W = width * this.k;
+    const cx = Math.cos(ang);
+    const cy = Math.sin(ang);
+    const g = this.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+    // 劍氣：從窄到寬的楔形
+    g.fillStyle(0xffd05a, 0.55).fillTriangle(px - cy * W * 0.15, py + cx * W * 0.15, px + cy * W * 0.15, py - cx * W * 0.15, px + cx * L, py + cy * L);
+    g.fillStyle(0xfff4d0, 0.85).fillTriangle(px - cy * W * 0.05, py + cx * W * 0.05, px + cy * W * 0.05, py - cx * W * 0.05, px + cx * L * 0.95, py + cy * L * 0.95);
+    // 地面裂痕：沿線左右抖動的折線
+    g.lineStyle(3, 0xffa040, 0.9).beginPath().moveTo(px, py);
+    for (let i = 1; i <= 8; i++) {
+      const d = (L * i) / 8;
+      const off = (i % 2 ? 1 : -1) * W * 0.25 * (0.5 + ((i * 37) % 10) / 20);
+      g.lineTo(px + cx * d - cy * off, py + cy * d + cx * off);
+    }
+    g.strokePath();
+    this.tweens.add({ targets: g, alpha: 0, duration: 380, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
+    for (let i = 1; i <= 4; i++) {
+      const d = (L * i) / 4;
+      this.time.delayedCall(i * 35, () => sparks(this, px + cx * d, py + cy * d, 6, 'spark', 0xffd05a, 320));
+    }
+    this.cameras.main.shake(120, 0.006);
+  }
+
+  /** 星落一閃（D-112）：天上落下的光柱＋落地衝擊環 */
+  private starfall(x: number, y: number, r: number): void {
+    const px = this.sx(x);
+    const py = this.sy(y);
+    const g = this.add.graphics().setDepth(695).setBlendMode(Phaser.BlendModes.ADD);
+    const H = 900;
+    g.fillStyle(0xff7ad0, 0.35).fillRect(px - 46, py - H, 92, H);
+    g.fillStyle(0xffe0f6, 0.8).fillRect(px - 14, py - H, 28, H);
+    this.tweens.add({ targets: g, alpha: 0, duration: 420, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
+    shockRing(this, px, py, 0xff7ad0, r * this.k * 1.3, 520, 14);
+    sparks(this, px, py, 28, 'spark', 0xffd0f0, 620);
+    this.cameras.main.flash(120, 255, 200, 240);
   }
 
   private killSprite(id: number): void {
@@ -2020,7 +2066,7 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / ult.cooldownTicks), false).fillPath();
       }
-      this.btnText[5]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : ok ? '劍刃\n風暴' : `MP\n${p.mp}/${need}`);
+      this.btnText[5]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : ok ? skillDef(s, 'blade_storm')!.name.replace(/^(..)/, '$1\n') : `MP\n${p.mp}/${need}`);
       this.btnText[5]!.setColor(ok ? '#ffffff' : '#c890b0');
     }
     // 藥水：剩餘數量＋冷卻；血少於 40% 時閃爍提醒
