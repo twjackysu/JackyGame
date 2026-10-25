@@ -26,7 +26,7 @@ import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyKill, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
-import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, thornvaleOpen, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -945,7 +945,7 @@ export class RtBattleScene extends Phaser.Scene {
     const lines = [
       `本次：擊殺 ${now.kills}・金幣 ${now.coin}・粉塵 ${now.dust}・結晶 ${now.crystal}`,
       `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
-      `狼王討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
+      `${this.stageId === 'thornvale' ? '狼后' : '狼王'}討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
       `進入森林 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
       `懸賞完成 ${cleanBounties(rec.bounty).done} 張（小地圖下方，完成自動領粉塵／結晶）`,
     ];
@@ -1042,7 +1042,7 @@ export class RtBattleScene extends Phaser.Scene {
       }
       ctlBtn(-190);
       mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
-      mk(-30, '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
+      mk(-30, this.stageId === 'thornvale' ? '重新進入山谷' : '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
       let y = 50;
       if (this.tracked && STAGES[this.stageId]?.bossZone?.fury) {
         this.furyButton(mk, items, y);
@@ -1050,6 +1050,12 @@ export class RtBattleScene extends Phaser.Scene {
       }
       if (this.tracked && STAGES[this.stageId]?.night) {
         this.nightButton(mk, items, y);
+        y += 80;
+      }
+      // 兩張地圖之間直接移動（D-114）：等級、行囊共用，只是換地圖
+      const other = this.stageId === 'thornvale' ? 'mistwood' : this.stageId === 'mistwood' && thornvaleOpen() ? 'thornvale' : null;
+      if (other && !this.botName) {
+        mk(y, other === 'thornvale' ? '前往荊棘谷' : '回霧語森林', () => this.leave(() => this.scene.start('RtBattle', { stage: other, bot: '' })));
         y += 80;
       }
       mk(y, '回標題', () => this.leave(() => this.scene.start('Title')));
@@ -1178,7 +1184,7 @@ export class RtBattleScene extends Phaser.Scene {
             bigText(this, GAME_WIDTH / 2, 470, '荊棘母樹 倒下了！', '#9aff8a', 46, 900);
           }
         }
-      } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, '狼王暴怒！', '#ff7a5a', 52, 700);
+      } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, this.stageId === 'thornvale' ? '狼后怒放・荊棘綻放！' : '狼王暴怒！', this.stageId === 'thornvale' ? '#c8ff8a' : '#ff7a5a', 52, 700);
       else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
       else if (e.type === 'blink') {
         // 暴怒狼王霧中瞬移（D-105）：原地與落點各冒一團霧、不做插值滑動
