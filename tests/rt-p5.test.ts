@@ -65,7 +65,7 @@ describe('暴怒狼王專屬招式（D-105）', () => {
         if (fury) setBossFury(s, true);
         const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
         let lastChargeEnd = -99;
-        while (!(s.bossKills ?? []).length && s.tick < sec(900)) {
+        while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(900)) {
           const n = s.events.length;
           step(s, bot.decide(s));
           for (let i = n; i < s.events.length; i++) {
@@ -128,7 +128,7 @@ function fight(seed: number, level: number, bonus: { hp: number; atk: number; de
   const bot = new PlayerBot({ ...BOT_PROFILES[prof], ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, prof);
   let engaged = -1;
   let revAt = 0;
-  while (!(s.bossKills ?? []).length && s.tick < sec(1200)) {
+  while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(1200)) {
     step(s, bot.decide(s));
     if (engaged < 0 && s.units.some((u) => u.defId === 'wolf_king' && !u.dead && u.mode === 'combat')) {
       engaged = s.tick;
@@ -136,6 +136,7 @@ function fight(seed: number, level: number, bonus: { hp: number; atk: number; de
     }
   }
   const killed = (s.bossKills ?? []).length > 0;
+  if (!killed) out(`[fight] seed ${seed} ${prof} fury=${fury} outcome=${s.outcome} tick=${s.tick}\n`);
   const p = s.units[0]!;
   const taken = s.events.filter((e) => e.type === 'damage' && e.dst === p.id && e.tick >= engaged).reduce((n, e) => n + (e.type === 'damage' ? e.amount : 0), 0);
   const pots = s.events.filter((e) => e.type === 'potion' && e.tick >= engaged).length;
@@ -187,7 +188,7 @@ describe('深夜的森林（D-103）', () => {
     // Lv8＋一般裝備的普通 Bot：深夜也能從南營地打到狼王
     const s = createBattle({ stageId: 'mistwood', seed: 2, night: true, level: 8, bonus: { hp: 450, atk: 40, def: 25 } });
     const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
-    while (!(s.bossKills ?? []).length && s.tick < sec(900)) step(s, bot.decide(s));
+    while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(900)) step(s, bot.decide(s));
     const ilvls = (s.gearGot ?? []).map((g) => g.ilvl);
     out(`\n[深夜] Lv8 普通 Bot：狼王 ${Math.round(s.tick / 30)} 秒、營火醒來 ${s.revives ?? 0} 次、撿 ${ilvls.length} 件（物品等級 ${Math.min(...ilvls)}～${Math.max(...ilvls)}）\n`);
     expect(s.bossKills ?? []).toContain('wolf_king');
