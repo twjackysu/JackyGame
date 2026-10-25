@@ -99,8 +99,14 @@ export interface AreaAttack {
   status?: StatusApply;
   /** 只有第二階段才用 */
   phase2Only?: boolean;
-  /** 權重（同時可用時挑選） */
+  /** 權重（同時可用時挑選）；0 ＝ 只當 followUp 接招用 */
   weight: number;
+  /** 只有暴怒版 Boss 會用（D-105） */
+  furyOnly?: boolean;
+  /** 暴怒版：這招結束（沒撞牆）後立刻接這招，重新朝玩家瞄準（D-105） */
+  followUp?: string;
+  /** 霧中瞬移：預告開始前先閃到玩家背後 behind 距離處，再朝玩家出招（D-105） */
+  blink?: { behind: number };
 }
 
 export interface EnemyDefinition {
@@ -284,6 +290,7 @@ export type BattleEvent =
   | { tick: number; type: 'phase2'; id: number }
   | { tick: number; type: 'summon'; id: number; count: number }
   | { tick: number; type: 'wallStun'; id: number }
+  | { tick: number; type: 'blink'; id: number; fromX: number; fromY: number }
   | { tick: number; type: 'potion'; id: number; heal: number; left: number }
   /** 地圖怪（D-072）：發現玩家進入戰鬥／脫戰返回／回到原位回滿 */
   | { tick: number; type: 'aggro'; id: number }

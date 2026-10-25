@@ -43,3 +43,4 @@ xcuserdata/
 
 # screenshots
 /screenshots/
+tests/zz-hash.test.ts

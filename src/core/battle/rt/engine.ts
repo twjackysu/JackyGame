@@ -1170,7 +1170,7 @@ function updateDormancy(s: BattleState, e: Unit, p: Unit): void {
 function pickAttack(s: BattleState, e: Unit, def: EnemyDefinition, d: number, target: Unit): AreaAttack | undefined {
   const sight = hasSight(s, e, target);
   // 隔著石頭不能射擊（衝鋒例外：隔石衝鋒會撞上石頭暈眩，是可利用的弱點）
-  const ok = def.attacks.filter((a) => (!a.phase2Only || e.phase === 2) && (e.ready[a.id] ?? 0) <= s.tick && d <= a.triggerRange + target.r && (sight || !!a.charge));
+  const ok = def.attacks.filter((a) => a.weight > 0 && (!a.furyOnly || !!e.fury) && (!a.phase2Only || e.phase === 2) && (e.ready[a.id] ?? 0) <= s.tick && d <= a.triggerRange + target.r && (sight || !!a.charge));
   if (ok.length === 0) return undefined;
   const total = ok.reduce((n, a) => n + a.weight, 0);
   let r = nextRand(s) * total;
@@ -1198,6 +1198,31 @@ function enemyHit(s: BattleState, e: Unit, atk: AreaAttack, p: Unit): void {
   }
   dealDamage(s, e, p, atk.damageMultiplier, 'enemy', atk.id);
   if (atk.status && !p.dead && p.invulnUntil < s.tick) addStatus(s, p, atk.status, e);
+}
+
+function startEnemyAttack(s: BattleState, e: Unit, def: EnemyDefinition, atk: AreaAttack, p: Unit): void {
+  if (atk.blink) {
+    // 霧中瞬移（D-105）：閃到玩家背後（玩家面向的反方向）；落點是樹就留在原地
+    const fromX = e.x;
+    const fromY = e.y;
+    const nx = p.x - Math.round((p.facingX / DIR) * atk.blink.behind);
+    const ny = p.y - Math.round((p.facingY / DIR) * atk.blink.behind);
+    const solid = s.arena.solid;
+    if (!solid || !isSolidAt(solid, nx, ny)) {
+      e.x = nx;
+      e.y = ny;
+      clampArena(s, e);
+      emit(s, { tick: s.tick, type: 'blink', id: e.id, fromX, fromY });
+    }
+  }
+  face(e, p);
+  let cd = e.phase === 2 && def.boss ? Math.round((atk.cooldownTicks * def.boss.phase2CooldownPct) / 100) : atk.cooldownTicks;
+  if (e.fury) cd = Math.round((cd * (100 - (STAGES[s.stageId]?.bossZone?.fury?.cdPct ?? 0))) / 100);
+  e.ready[atk.id] = s.tick + cd;
+  e.nextAttackTick = s.tick + atk.warningTicks + atk.recoverTicks + (atk.charge?.ticks ?? 0);
+  e.action = { kind: 'enemyAttack', id: atk.id, start: s.tick, end: s.tick + atk.warningTicks + atk.recoverTicks, dirX: e.facingX, dirY: e.facingY, ox: e.x, oy: e.y, hitIds: [] };
+  s.telegraphs.push({ ownerId: e.id, attackId: atk.id, shape: atk.shape, ox: e.x, oy: e.y, dirX: e.facingX, dirY: e.facingY, hitTick: s.tick + atk.warningTicks, startTick: s.tick, blockable: atk.blockable });
+  emit(s, { tick: s.tick, type: 'telegraph', owner: e.id, attack: atk.id });
 }
 
 function updateEnemy(s: BattleState, e: Unit): void {
@@ -1267,7 +1292,12 @@ function updateEnemy(s: BattleState, e: Unit): void {
         }
       }
     }
-    if (e.action && s.tick >= e.action.end) e.action = null;
+    if (e.action && s.tick >= e.action.end) {
+      e.action = null;
+      // 暴怒版接招（D-105）：例如衝完立刻回頭再衝一次
+      const next = e.fury && atk.followUp && !p.dead ? def.attacks.find((x) => x.id === atk.followUp) : undefined;
+      if (next) startEnemyAttack(s, e, def, next, p);
+    }
     return;
   }
   if (s.tick < e.hitstunUntil || p.dead) return;
@@ -1276,18 +1306,11 @@ function updateEnemy(s: BattleState, e: Unit): void {
   if ((s.tick + e.id) % 6 === 0 && s.tick >= e.nextAttackTick) {
     const atk = pickAttack(s, e, def, d, p);
     if (atk) {
-      face(e, p);
-      let cd = e.phase === 2 && def.boss ? Math.round((atk.cooldownTicks * def.boss.phase2CooldownPct) / 100) : atk.cooldownTicks;
-      if (e.fury) cd = Math.round((cd * (100 - (STAGES[s.stageId]?.bossZone?.fury?.cdPct ?? 0))) / 100);
-      e.ready[atk.id] = s.tick + cd;
-      e.nextAttackTick = s.tick + atk.warningTicks + atk.recoverTicks + (atk.charge?.ticks ?? 0);
-      e.action = { kind: 'enemyAttack', id: atk.id, start: s.tick, end: s.tick + atk.warningTicks + atk.recoverTicks, dirX: e.facingX, dirY: e.facingY, ox: e.x, oy: e.y, hitIds: [] };
-      s.telegraphs.push({ ownerId: e.id, attackId: atk.id, shape: atk.shape, ox: e.x, oy: e.y, dirX: e.facingX, dirY: e.facingY, hitTick: s.tick + atk.warningTicks, startTick: s.tick, blockable: atk.blockable });
-      emit(s, { tick: s.tick, type: 'telegraph', owner: e.id, attack: atk.id });
+      startEnemyAttack(s, e, def, atk, p);
       return;
     }
   }
-  const closest = Math.min(...def.attacks.filter((x) => !x.phase2Only || e.phase === 2).map((x) => x.triggerRange));
+  const closest = Math.min(...def.attacks.filter((x) => x.weight > 0 && !x.furyOnly && (!x.phase2Only || e.phase === 2)).map((x) => x.triggerRange));
   navToward(s, e, p.x, p.y, Math.max(e.r + p.r, closest * 0.85));
 }
 

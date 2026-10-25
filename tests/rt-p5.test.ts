@@ -54,6 +54,51 @@ describe('暴怒狼王（D-099）', () => {
   });
 });
 
+describe('暴怒狼王專屬招式（D-105）', () => {
+  it('暴怒版會霧中瞬移到背後撕咬、衝鋒後回頭再衝；一般版從不出這兩招', () => {
+    for (const fury of [false, true]) {
+      const used = new Set<string>();
+      let blinks = 0;
+      let chained = 0;
+      for (const seed of [1, 2, 3]) {
+        const s = createBattle({ stageId: 'mistwood', seed, level: 8, bonus: { hp: 600, atk: 40, def: 25 } });
+        if (fury) setBossFury(s, true);
+        const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
+        let lastChargeEnd = -99;
+        while (!(s.bossKills ?? []).length && s.tick < sec(900)) {
+          const n = s.events.length;
+          step(s, bot.decide(s));
+          for (let i = n; i < s.events.length; i++) {
+            const e = s.events[i]!;
+            if (e.type === 'telegraph') {
+              used.add(e.attack);
+              if (e.attack === 'king_charge2' && s.tick - lastChargeEnd <= 1) chained++;
+            }
+            if (e.type === 'blink') {
+              blinks++;
+              // 落點在玩家附近（背後 2.2 格內，加上被夾在場地內的誤差）
+              const k = s.units.find((x) => x.id === e.id)!;
+              const p = s.units[0]!;
+              expect(Math.hypot(k.x - p.x, k.y - p.y)).toBeLessThan(2.6 * 100);
+            }
+          }
+          const k = king(s);
+          if (k?.action?.id === 'king_charge') lastChargeEnd = k.action.end;
+        }
+      }
+      out(`[D-105] fury=${fury}：瞬移 ${blinks}、接衝 ${chained}、招式 ${[...used].filter((x) => x.startsWith('king')).join(',')}\n`);
+      if (fury) {
+        expect(blinks).toBeGreaterThan(0);
+        expect(used.has('king_mist_rend')).toBe(true);
+        expect(used.has('king_charge2')).toBe(true);
+      } else {
+        expect(blinks).toBe(0);
+        expect(used.has('king_mist_rend') || used.has('king_charge2')).toBe(false);
+      }
+    }
+  }, 120000);
+});
+
 /** 普通 Bot 在霧語森林實際刷 minutes 分鐘撿到的裝備（含狼王掉落），每件強化 +3（營火材料夠用的程度） */
 function farm(minutes: number): { items: RtGear[]; level: number } {
   const s = createBattle({ stageId: 'mistwood', seed: 11 });

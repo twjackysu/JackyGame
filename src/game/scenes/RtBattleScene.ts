@@ -112,6 +112,7 @@ export class RtBattleScene extends Phaser.Scene {
   private menu: Phaser.GameObjects.Container | null = null;
   private botName: string | null = null;
   private lastWarnTick = -1;
+  private blinkHinted = false;
   /** 玩家有沒有主動點過怪／按過技能（刷怪關 30 秒沒動作就提示） */
   private engaged = false;
   /** 精英／Boss 邊緣箭頭的距離字（物件池） */
@@ -1078,6 +1079,23 @@ export class RtBattleScene extends Phaser.Scene {
         }
       } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, '狼王暴怒！', '#ff7a5a', 52, 700);
       else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
+      else if (e.type === 'blink') {
+        // 暴怒狼王霧中瞬移（D-105）：原地與落點各冒一團霧、不做插值滑動
+        const b = u(e.id);
+        this.prev.delete(e.id);
+        SFX.dodge();
+        sparks(this, this.sx(e.fromX), this.sy(e.fromY), 16, 'ember', 0xb9a8ff, 520);
+        shockRing(this, this.sx(e.fromX), this.sy(e.fromY), 0x9a8cff, 90, 360, 6);
+        if (b) {
+          sparks(this, this.sx(b.x), this.sy(b.y), 20, 'ember', 0xd8ccff, 560);
+          shockRing(this, this.sx(b.x), this.sy(b.y), 0xff6a6a, 120, 420, 8);
+        }
+        this.cameras.main.shake(120, 0.004);
+        if (!this.blinkHinted) {
+          this.blinkHinted = true;
+          bigText(this, GAME_WIDTH / 2, 520, '狼王遁入霧中——小心背後！', '#c9b8ff', 38, 900);
+        }
+      }
       else if (e.type === 'cast') {
         if (SKILLS[e.skill]?.role === 'ult') {
           // 大招：閃光＋金粉環＋大字（D-071 放上試玩鍵位）

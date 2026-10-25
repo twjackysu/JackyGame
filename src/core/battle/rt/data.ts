@@ -108,7 +108,10 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       // P1：爪擊（小扇形、快）、扇形撕咬、直線衝鋒；P2 加環形震波
       { id: 'king_claw', shape: { type: 'sector', r: u(2.2), deg: 70 }, warningTicks: sec(0.7), recoverTicks: sec(0.4), damageMultiplier: 110, cooldownTicks: sec(3.2), triggerRange: u(2.0), blockable: true, weight: 3 },
       { id: 'king_bite', shape: { type: 'sector', r: u(3.2), deg: 110 }, warningTicks: sec(1.0), recoverTicks: sec(0.6), damageMultiplier: 170, cooldownTicks: sec(6), triggerRange: u(3.0), blockable: true, weight: 2 },
-      { id: 'king_charge', shape: { type: 'line', len: u(7), width: u(1.6) }, warningTicks: sec(0.9), recoverTicks: sec(0.5), damageMultiplier: 160, cooldownTicks: sec(9), triggerRange: u(7), blockable: true, charge: { ticks: sec(0.5), wallStunTicks: sec(2) }, weight: 2 },
+      { id: 'king_charge', shape: { type: 'line', len: u(7), width: u(1.6) }, warningTicks: sec(0.9), recoverTicks: sec(0.5), damageMultiplier: 160, cooldownTicks: sec(9), triggerRange: u(7), blockable: true, charge: { ticks: sec(0.5), wallStunTicks: sec(2) }, weight: 2, followUp: 'king_charge2' },
+      // 暴怒版限定（D-105）：衝完回頭再衝一次（預告較短）；霧中瞬移到背後撕咬
+      { id: 'king_charge2', shape: { type: 'line', len: u(7), width: u(1.6) }, warningTicks: sec(0.6), recoverTicks: sec(0.7), damageMultiplier: 140, cooldownTicks: 0, triggerRange: u(7), blockable: true, charge: { ticks: sec(0.5), wallStunTicks: sec(2) }, weight: 0, furyOnly: true },
+      { id: 'king_mist_rend', shape: { type: 'sector', r: u(2.6), deg: 120 }, warningTicks: sec(0.9), recoverTicks: sec(0.7), damageMultiplier: 150, cooldownTicks: sec(11), triggerRange: u(6), blockable: true, blink: { behind: u(2.2) }, weight: 2, furyOnly: true },
       { id: 'king_quake', shape: { type: 'ring', rIn: u(2.0), rOut: u(4.5) }, warningTicks: sec(1.2), recoverTicks: sec(0.6), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(4), blockable: false, phase2Only: true, weight: 2 },
     ],
     boss: { phase2AtPct: 50, phase2CooldownPct: 87, summon: { enemyId: 'wolf_pup', count: 2, everyTicks: sec(12) } },
