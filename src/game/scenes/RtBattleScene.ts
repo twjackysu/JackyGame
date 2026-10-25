@@ -1325,6 +1325,12 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'aggro') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '!', { color: '#ff5a5a', size: 40 });
+        // 巡邏的精英發現你（D-117）：橘色衝擊環＋警告音＋「被發現了！」
+        if (d?.patrol && !this.bot) {
+          shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 60, 260, 5);
+          SFX.warn(false);
+          floatNumber(this, this.sx(d.x), this.sy(d.y) - 130, '被發現了！', { color: '#ffb07a', size: 30 });
+        }
         if (d?.affix) this.time.delayedCall(250, () => floatNumber(this, this.sx(d.x), this.sy(d.y) - 90, `${ELITE_AFFIXES[d.affix!].name}！`, { color: `#${AFFIX_COLOR[d.affix!].toString(16).padStart(6, '0')}`, size: 32 }));
         // 遊戲記憶（design/20 C2-2）：地圖上第一次遇到 Boss → 內心提示弱點（只提示，不加傷害）
         if (d && ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length && !this.bossMemo) {
