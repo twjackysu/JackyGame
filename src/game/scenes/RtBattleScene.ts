@@ -82,7 +82,7 @@ const HINT_KEY = 'jg_rt_hint_seen';
 /** 巡邏怪的仇恨圈／視線顏色（D-117） */
 const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0, magma_stalker: 0xff5a2a };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
-const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼／燼鬃狼', wolf_king: '狼王／狼后／岩王' };
+const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼／燼鬃狼', wolf_king: '狼王／狼后／岩王', thorn_shooter: '荊棘射手／燼芯菇', alpha_wolf: '首領級精英' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
 const fy0 = (x: Unit): number => x.facingY / 1000;
 
