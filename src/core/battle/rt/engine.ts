@@ -1,7 +1,7 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
-import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, LootId, PlayerDefinition, Shape, SkillHit, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
+import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillHit, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, CAMPFIRE_RULES, CHEST_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
@@ -236,21 +236,34 @@ function rollDrops(s: BattleState, e: Unit): void {
   const bonus = !e.groupId ? 0 : e.groupId === RIOT_GROUP ? (st?.riot?.lootPct ?? 0) : e.groupId === HIDDEN_GROUP ? (st?.hiddenElite?.lootPct ?? 0) : (st?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0);
   const range = (r: [number, number]) => r[0] + Math.floor(lootRand(s) * (r[1] - r[0] + 1));
   const more = (n: number) => (bonus ? Math.round((n * (100 + bonus)) / 100) : n);
-  const put = (kind: LootId, amount: number) => {
+  const put = (kind: LootId, amount: number, rarity?: 1 | 2 | 3) => {
     if (amount <= 0) return;
     const a = lootRand(s) * Math.PI * 2;
     const r = (0.3 + lootRand(s) * 0.5) * UNIT;
-    const it = { id: (s.lootSeq = (s.lootSeq ?? 0) + 1), kind, amount, x: e.x + Math.round(Math.cos(a) * r), y: e.y + Math.round(Math.sin(a) * r), tick: s.tick };
+    const it: GroundItem = { id: (s.lootSeq = (s.lootSeq ?? 0) + 1), kind, amount, x: e.x + Math.round(Math.cos(a) * r), y: e.y + Math.round(Math.sin(a) * r), tick: s.tick };
+    if (rarity) it.rarity = rarity;
     it.x = Math.min(s.arena.w - 20, Math.max(20, it.x));
     it.y = Math.min(s.arena.h - 20, Math.max(20, it.y));
     s.ground!.push(it);
-    emit(s, { tick: s.tick, type: 'drop', item: it.id, kind, amount });
+    emit(s, { tick: s.tick, type: 'drop', item: it.id, kind, amount, ...(rarity ? { rarity } : {}) });
   };
   put('gold', more(range(d.gold)));
   for (const i of d.items ?? []) {
     if (lootRand(s) * 100 >= i.chance) continue;
     const n = i.count ? range(i.count) : 1;
     put(i.id, i.id === 'dust' ? more(n) : n);
+  }
+  // 裝備（D-091）：只有設了 gearDrops 的關卡才多抽（舊關卡掉落亂數序列不變）
+  const gd = st?.gearDrops?.[e.defId];
+  if (gd) {
+    const hpPct = e.groupId ? (st?.spawnGroups?.find((g) => g.id === e.groupId)?.hpPct ?? (e.groupId === HIDDEN_GROUP ? 100 : 0)) : e.fixedIdx !== undefined ? (st?.enemies[e.fixedIdx]?.hpPct ?? 0) : 0;
+    const ilvl = gd.ilvl + Math.floor(hpPct / 25);
+    for (let k = 0; k < (gd.count ?? 1); k++) {
+      if (lootRand(s) * 100 >= (gd.chance * (100 + bonus)) / 100) continue;
+      const w = gd.rarity;
+      const t = lootRand(s) * (w[0] + w[1] + w[2]);
+      put('gear', ilvl, t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3);
+    }
   }
 }
 
@@ -265,6 +278,12 @@ function processPickup(s: BattleState): void {
     if (it.kind === 'potion') {
       if (s.potions >= carry) return true;
       s.potions = Math.min(carry, s.potions + it.amount);
+    }
+    if (it.kind === 'gear') {
+      (s.gearGot ??= []).push({ id: it.id, rarity: it.rarity ?? 1, ilvl: it.amount });
+      s.loot!.gear = (s.loot!.gear ?? 0) + 1;
+      emit(s, { tick: s.tick, type: 'pickup', item: it.id, kind: it.kind, amount: it.amount, rarity: it.rarity ?? 1 });
+      return false;
     }
     s.loot![it.kind] = (s.loot![it.kind] ?? 0) + it.amount;
     emit(s, { tick: s.tick, type: 'pickup', item: it.id, kind: it.kind, amount: it.amount });
@@ -416,6 +435,23 @@ function applyLevel(s: BattleState, p: Unit): void {
   p.maxHp = Math.round((s.prog.baseHp * (100 + rule.hpPctPerLevel * (s.prog.level - 1))) / 100);
   if (!p.dead) p.hp = Math.min(p.maxHp, p.hp + Math.max(0, p.maxHp - before));
   recomputeAtk(s, p);
+}
+
+/**
+ * 戰鬥中換裝（D-091）：把裝備加成換成新的（相對於角色定義的基礎值），等級與強化加成照常疊上。
+ * HP 比例維持不變。需要 progression（有 prog 才知道基礎值）。
+ */
+export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; def: number }): void {
+  if (!s.prog) return;
+  const p = s.units[0]!;
+  const pd = playerDef();
+  const ratio = p.maxHp > 0 ? p.hp / p.maxHp : 1;
+  s.prog.baseHp = pd.hp + bonus.hp;
+  s.prog.baseAtk = pd.atk + bonus.atk;
+  if (s.enhance) s.enhance.baseAtk = s.prog.baseAtk;
+  p.def = pd.def + bonus.def;
+  applyLevel(s, p);
+  if (!p.dead) p.hp = Math.max(1, Math.min(p.maxHp, Math.round(p.maxHp * ratio)));
 }
 
 /** 打倒怪物得經驗；滿了就升級（一次可能連升） */

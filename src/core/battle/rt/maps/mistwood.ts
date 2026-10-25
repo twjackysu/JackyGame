@@ -116,6 +116,14 @@ export function makeMistwoodStage(): StageDefinition {
     id: 'mistwood', name: '霧語森林', timeLimitTicks: sec(60 * 60), player: { x: c(24), y: c(92) },
     mapAi: true, reviveAtCampfire: true, loot: true, lootEnhance: { dustPerLevel: 4, maxLevel: 5, atkPctPerLevel: 8 },
     // 經驗值與等級（D-090）：Lv2 約 10 隻狼、Lv10 累計約 1 萬經驗（2～3 小時）
+    // 裝備掉落（D-091）：小怪偶爾、首領常常、狼王必掉兩件（精良以上）
+    gearDrops: {
+      wolf_pup: { chance: 3, ilvl: 1, rarity: [85, 14, 1] },
+      wolf: { chance: 5, ilvl: 2, rarity: [80, 18, 2] },
+      thorn_shooter: { chance: 6, ilvl: 3, rarity: [75, 22, 3] },
+      alpha_wolf: { chance: 40, ilvl: 4, rarity: [40, 45, 15] },
+      wolf_king: { chance: 100, ilvl: 4, rarity: [0, 40, 60], count: 2 },
+    },
     progression: { xp: { wolf: 5, wolf_pup: 3, thorn_shooter: 6, alpha_wolf: 25, wolf_king: 150 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '往北穿過森林，打倒霧角狼王！\n撿粉塵武器會變強・打不過就回營火',

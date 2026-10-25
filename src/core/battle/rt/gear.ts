@@ -1,0 +1,157 @@
+// 即時戰鬥的裝備（P4-2，D-091）：純資料與純函式，不依賴 Phaser。
+// 掉落「有沒有、什麼稀有度、物品等級」由核心決定（獨立掉落亂數，不影響戰鬥）；撿到後用 (種子) 產生實際裝備。
+
+export type GearSlot = 'weapon' | 'head' | 'body' | 'hands' | 'ring' | 'amulet';
+export const GEAR_SLOTS: GearSlot[] = ['weapon', 'head', 'body', 'hands', 'ring', 'amulet'];
+export const SLOT_NAME: Record<GearSlot, string> = { weapon: '武器', head: '頭盔', body: '鎧甲', hands: '護手', ring: '戒指', amulet: '項鍊' };
+
+export type Rarity = 1 | 2 | 3;
+export const RARITY_NAME: Record<Rarity, string> = { 1: '普通', 2: '精良', 3: '稀有' };
+export const RARITY_COLOR: Record<Rarity, number> = { 1: 0xd8d8d8, 2: 0x6ab0ff, 3: 0xffc040 };
+
+export type AffixStat = 'atk' | 'hp' | 'def' | 'atkPct' | 'hpPct';
+export const AFFIX_NAME: Record<AffixStat, string> = { atk: '攻擊', hp: 'HP', def: '防禦', atkPct: '攻擊', hpPct: 'HP' };
+const AFFIX_PREFIX: Record<AffixStat, string> = { atk: '鋒利的', hp: '厚實的', def: '堅固的', atkPct: '嗜血的', hpPct: '強韌的' };
+
+export interface RtGear {
+  uid: string;
+  slot: GearSlot;
+  rarity: Rarity;
+  /** 物品等級：越深的地區、越強的怪越高 */
+  ilvl: number;
+  name: string;
+  base: { atk?: number; hp?: number; def?: number };
+  affixes: { stat: AffixStat; value: number }[];
+}
+
+export interface GearStats {
+  atk: number;
+  hp: number;
+  def: number;
+  atkPct: number;
+  hpPct: number;
+}
+
+/** 各部位不同等級段的名稱（ilvl 1–2、3–4、5–6、7+） */
+const NAMES: Record<GearSlot, string[]> = {
+  weapon: ['鐵劍', '狼牙劍', '霧鋼劍', '王牙大劍'],
+  head: ['皮帽', '狼皮兜帽', '霧鋼頭盔', '王冠盔'],
+  body: ['皮甲', '狼皮甲', '霧鋼鎧', '王鬃重鎧'],
+  hands: ['皮手套', '狼爪護手', '霧鋼護手', '王爪臂鎧'],
+  ring: ['銅戒', '狼牙戒', '霧晶戒', '王眼戒'],
+  amulet: ['木項鍊', '狼牙項鍊', '霧晶項鍊', '王心項鍊'],
+};
+
+/** xorshift32（與核心同款；只在這裡用，不碰戰鬥亂數） */
+function rng(seed: number): () => number {
+  let x = seed >>> 0 || 0x9e3779b9;
+  return () => {
+    x ^= x << 13;
+    x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    x >>>= 0;
+    return x / 4294967296;
+  };
+}
+
+const MULT: Record<Rarity, number> = { 1: 1, 2: 1.25, 3: 1.5 };
+
+/** 底數值：部位決定吃哪些屬性 */
+function baseOf(slot: GearSlot, L: number, m: number): RtGear['base'] {
+  const r = (n: number) => Math.max(1, Math.round(n * m));
+  switch (slot) {
+    case 'weapon':
+      return { atk: r(2 + 1.2 * L) };
+    case 'body':
+      return { hp: r(30 + 15 * L), def: r(1 + 0.6 * L) };
+    case 'head':
+      return { hp: r(20 + 10 * L), def: r(1 + 0.3 * L) };
+    case 'hands':
+      return { atk: r(1 + 0.5 * L), def: r(1 + 0.3 * L) };
+    case 'ring':
+      return { atk: r(1 + 0.5 * L) };
+    case 'amulet':
+      return { hp: r(15 + 8 * L) };
+  }
+}
+
+function affixValue(stat: AffixStat, L: number, t: number): number {
+  switch (stat) {
+    case 'atk':
+      return Math.round(1 + L * (0.3 + 0.4 * t));
+    case 'hp':
+      return Math.round(8 + L * (4 + 5 * t));
+    case 'def':
+      return Math.round(1 + L * (0.2 + 0.3 * t));
+    case 'atkPct':
+      return Math.round(2 + 2 * t + L * 0.3);
+    case 'hpPct':
+      return Math.round(3 + 3 * t + L * 0.3);
+  }
+}
+
+/** 由種子產生一件裝備（同種子同結果） */
+export function genGear(seed: number, rarity: Rarity, ilvl: number): RtGear {
+  const R = rng(seed);
+  for (let i = 0; i < 3; i++) R();
+  const L = Math.max(1, Math.min(12, Math.floor(ilvl)));
+  const slot = GEAR_SLOTS[Math.floor(R() * GEAR_SLOTS.length)]!;
+  const base = baseOf(slot, L, MULT[rarity]);
+  const pool: AffixStat[] = ['atk', 'hp', 'def', 'atkPct', 'hpPct'];
+  const affixes: RtGear['affixes'] = [];
+  for (let i = 0; i < rarity - 1; i++) {
+    const k = Math.floor(R() * pool.length);
+    const stat = pool.splice(k, 1)[0]!;
+    affixes.push({ stat, value: affixValue(stat, L, R()) });
+  }
+  const names = NAMES[slot];
+  const baseName = names[Math.min(names.length - 1, Math.floor((L - 1) / 2))]!;
+  const name = rarity === 1 ? baseName : rarity === 2 ? `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}` : `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}・霧語`;
+  return { uid: (seed >>> 0).toString(36) + L.toString(36) + rarity, slot, rarity, ilvl: L, name, base, affixes };
+}
+
+export function gearStats(items: (RtGear | undefined | null)[]): GearStats {
+  const s: GearStats = { atk: 0, hp: 0, def: 0, atkPct: 0, hpPct: 0 };
+  for (const g of items) {
+    if (!g) continue;
+    s.atk += g.base.atk ?? 0;
+    s.hp += g.base.hp ?? 0;
+    s.def += g.base.def ?? 0;
+    for (const a of g.affixes) s[a.stat] += a.value;
+  }
+  return s;
+}
+
+/** 裝備換算成核心的平加成（百分比以角色基礎數值換算） */
+export function gearBonus(items: (RtGear | undefined | null)[], baseHp: number, baseAtk: number): { hp: number; atk: number; def: number } {
+  const s = gearStats(items);
+  return {
+    hp: s.hp + Math.round(((baseHp + s.hp) * s.hpPct) / 100),
+    atk: s.atk + Math.round(((baseAtk + s.atk) * s.atkPct) / 100),
+    def: s.def,
+  };
+}
+
+/** 比較用的分數（攻擊最重要；給 Bot 自動換裝與「推薦」標記） */
+export function gearScore(g: RtGear | undefined | null, baseHp: number, baseAtk: number): number {
+  if (!g) return 0;
+  const b = gearBonus([g], baseHp, baseAtk);
+  return b.atk * 4 + b.hp * 0.25 + b.def * 3;
+}
+
+/** 一行數值說明（「攻擊 +12・HP +80」） */
+export function gearLines(g: RtGear): string[] {
+  const out: string[] = [];
+  if (g.base.atk) out.push(`攻擊 +${g.base.atk}`);
+  if (g.base.hp) out.push(`HP +${g.base.hp}`);
+  if (g.base.def) out.push(`防禦 +${g.base.def}`);
+  for (const a of g.affixes) out.push(`✦ ${AFFIX_NAME[a.stat]} +${a.value}${a.stat.endsWith('Pct') ? '%' : ''}`);
+  return out;
+}
+
+/** 讀檔時檢查一件裝備的形狀（壞資料丟掉） */
+export function isGear(x: unknown): x is RtGear {
+  const g = x as RtGear;
+  return !!g && typeof g.uid === 'string' && GEAR_SLOTS.includes(g.slot) && [1, 2, 3].includes(g.rarity) && typeof g.name === 'string' && !!g.base && Array.isArray(g.affixes);
+}

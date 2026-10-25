@@ -250,8 +250,8 @@ export type BattleEvent =
   | { tick: number; type: 'riot'; count: number; elite: boolean; x: number; y: number }
   | { tick: number; type: 'chest'; chest: string; loot: Partial<Record<LootId, number>> }
   | { tick: number; type: 'rest'; id: number; campfire: string }
-  | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number }
-  | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number }
+  | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number; rarity?: 1 | 2 | 3 }
+  | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number; rarity?: 1 | 2 | 3 }
   | { tick: number; type: 'enhance'; level: number; atk: number }
   | { tick: number; type: 'levelUp'; level: number; maxHp: number; atk: number }
   | { tick: number; type: 'ramp'; minute: number; pct: number }
@@ -336,7 +336,7 @@ export interface Chest {
 export const CHEST_RULES = { openUnits: 1.3, hintUnits: 6 } as const;
 
 /** 地面掉落（design/20 B5 的最小版本）：金幣、強化粉塵、強化結晶、HP 藥水 */
-export type LootId = 'gold' | 'dust' | 'crystal' | 'potion';
+export type LootId = 'gold' | 'dust' | 'crystal' | 'potion' | 'gear';
 export interface GroundItem {
   id: number;
   kind: LootId;
@@ -345,6 +345,8 @@ export interface GroundItem {
   y: number;
   /** 掉下來的 tick（0.3 秒後才能撿，看得到掉落） */
   tick: number;
+  /** 裝備（kind 'gear'）：稀有度；amount＝物品等級 */
+  rarity?: 1 | 2 | 3;
 }
 /** 自動撿取半徑 2.5 單位（design/20 B5）；地上放 120 秒消失 */
 export const LOOT_RULES = { pickupUnits: 2.5, pickupDelayTicks: 9, expireTicks: 120 * 30 } as const;
@@ -382,6 +384,11 @@ export interface StageDefinition {
    * 升級立刻生效：最大 HP、攻擊各 +每級 %（HP 同時補上增加的量）。等級與經驗由 BattleSetup 帶入、畫面層存檔。
    */
   progression?: { xp: Record<string, number>; maxLevel: number; hpPctPerLevel: number; atkPctPerLevel: number };
+  /**
+   * 裝備掉落（P4-2，D-091；需要 loot）：怪物 id → 機率 %（乘上掉落加成）、物品等級（重生點每 +25% HP 再 +1）、
+   * 稀有度權重 [普通, 精良, 稀有]、掉幾次。撿到記在 `BattleState.gearGot`，實際數值由 `gear.ts` 用種子產生。
+   */
+  gearDrops?: Record<string, { chance: number; ilvl: number; rarity: [number, number, number]; count?: number }>;
   /** 刷怪關的壓力曲線：每過 1 分鐘，之後重生的怪 HP 與攻擊 +這麼多 %（每分鐘發一次 ramp 事件） */
   rampPctPerMin?: number;
   /**
@@ -457,6 +464,8 @@ export interface BattleState {
   prog?: { level: number; xp: number; baseHp: number; baseAtk: number };
   /** 這場的武器強化等級（lootEnhance）與強化前的攻擊力 */
   enhance?: { level: number; baseAtk: number };
+  /** 這場撿到的裝備（掉落物 id、稀有度、物品等級）；畫面層用種子產生實際數值 */
+  gearGot?: { id: number; rarity: 1 | 2 | 3; ilvl: number }[];
   /** 這場撿到的東西 */
   loot?: Partial<Record<LootId, number>>;
   /** 這場打倒過的 Boss（defId，首殺劇情旗標用） */

@@ -1,5 +1,6 @@
 // 即時戰鬥大地圖的獨立紀錄（D-087）：跨場累計，只存在 localStorage `jg_rt_<stage>`，不碰主線 session 存檔。
 // 純資料函式放這裡（有測試），讀寫 localStorage 的包一層 try/catch（無痕模式）。
+import { GEAR_SLOTS, isGear, type GearSlot, type RtGear } from '../core/battle/rt/gear';
 
 export interface RtRecord {
   /** 狼王討伐總次數 */
@@ -23,6 +24,20 @@ export interface RtRecord {
   /** 等級與目前經驗（D-090；下次進森林帶著） */
   level?: number;
   xp?: number;
+  /** 行囊與身上裝備（D-091） */
+  bag?: RtGear[];
+  equip?: Partial<Record<GearSlot, RtGear>>;
+}
+
+/** 讀出來的行囊一律檢查形狀（壞資料丟掉、最多 60 件、身上的部位要對） */
+export function cleanBag(rec: RtRecord): { bag: RtGear[]; equip: Partial<Record<GearSlot, RtGear>> } {
+  const bag = (Array.isArray(rec.bag) ? rec.bag : []).filter(isGear).slice(0, 60);
+  const equip: Partial<Record<GearSlot, RtGear>> = {};
+  for (const slot of GEAR_SLOTS) {
+    const g = rec.equip?.[slot];
+    if (isGear(g) && g.slot === slot) equip[slot] = g;
+  }
+  return { bag, equip };
 }
 
 /** 一場的累計快照（從開場到現在） */

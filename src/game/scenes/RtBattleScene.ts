@@ -3,7 +3,9 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { createBattle, enemiesOf, isSolidAt, playerOf, step, xpToNext } from '../../core/battle/rt/engine';
+import { createBattle, enemiesOf, isSolidAt, playerOf, setGearBonus, step, xpToNext } from '../../core/battle/rt/engine';
+import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
+import { BAG_MAX, bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
 import { CAMPFIRE_RULES, CHEST_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
@@ -14,7 +16,7 @@ import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mist
 import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
-import { EMPTY_SNAP, fmtSec, loadRecord, mergeRun, recordBoss, saveRecord, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, cleanBag, fmtSec, loadRecord, mergeRun, recordBoss, saveRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -75,6 +77,10 @@ export class RtBattleScene extends Phaser.Scene {
   /** 大地圖的獨立紀錄：上次寫進 localStorage 時的快照（D-087） */
   private saved: RunSnap = EMPTY_SNAP;
   private bossTimed = false;
+  /** 行囊與身上裝備（D-091；只有正式大地圖） */
+  private bagSt: BagState = { bag: [], equip: {} };
+  /** 這場產生裝備用的種子鹽 */
+  private runSalt = 1;
   private ended = false;
   private hud!: Phaser.GameObjects.Text;
   /** 單位圖層（HP 條等疊在 sprite 上方） */
@@ -142,7 +148,9 @@ export class RtBattleScene extends Phaser.Scene {
 
   create(): void {
     const rec0 = this.tracked ? loadRecord(this.stageId) : {};
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp });
+    this.bagSt = this.tracked ? cleanBag(rec0) : { bag: [], equip: {} };
+    this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked ? bonusOf(this.bagSt) : undefined });
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -443,6 +451,60 @@ export class RtBattleScene extends Phaser.Scene {
     }
     saveRecord(this.stageId, rec);
     this.saved = now;
+  }
+
+  // ---------- 裝備（D-091） ----------
+  /** 撿到裝備：用種子產生數值、放進行囊、立刻存檔；稀有以上大字 */
+  private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
+    if (!this.tracked) return;
+    const p = playerOf(this.s);
+    if (this.bagSt.bag.length >= BAG_MAX) {
+      floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, '行囊滿了！（☰ → 行囊整理）', { color: '#ff9a8a', size: 24 });
+      return;
+    }
+    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl);
+    this.bagSt = { ...this.bagSt, bag: [g, ...this.bagSt.bag] };
+    this.saveBag();
+    const col = `#${RARITY_COLOR[rarity].toString(16).padStart(6, '0')}`;
+    if (rarity >= 3) {
+      SFX.perfect();
+      bigText(this, GAME_WIDTH / 2, 560, `稀有裝備！\n${g.name}`, col, 44, 1200);
+    } else {
+      SFX.confirm();
+      floatNumber(this, this.sx(p.x), this.sy(p.y) - 120, g.name, { color: col, size: rarity === 2 ? 28 : 24 });
+    }
+    if (!this.gearTipShown) {
+      this.gearTipShown = true;
+      this.time.delayedCall(900, () => bigText(this, GAME_WIDTH / 2, 640, '撿到裝備了！☰ → 行囊 可以換上', '#9fd8ff', 30, 1800));
+    }
+  }
+  private gearTipShown = false;
+
+  private saveBag(): void {
+    const rec = loadRecord(this.stageId);
+    saveRecord(this.stageId, { ...rec, bag: this.bagSt.bag, equip: this.bagSt.equip });
+  }
+
+  private openBag(): void {
+    this.menu?.destroy();
+    this.menu = openRtBagPanel(
+      this,
+      this.bagSt,
+      () => {
+        const p = playerOf(this.s);
+        return `${this.s.prog ? `Lv ${this.s.prog.level}　` : ''}攻擊 ${p.atk}　HP ${p.maxHp}　防禦 ${p.def}`;
+      },
+      (st) => {
+        this.bagSt = st;
+        this.saveBag();
+        setGearBonus(this.s, bonusOf(st));
+      },
+      () => {
+        this.menu?.destroy();
+        this.menu = null;
+        this.toggleMenu();
+      },
+    );
   }
 
   // ---------- 調整按鈕位置（D-088） ----------
@@ -749,11 +811,15 @@ export class RtBattleScene extends Phaser.Scene {
     });
     if (this.tracked || STAGES[this.stageId]?.id === 'mistwood') {
       // 正式大地圖（標題入口）：不列試玩關
-      ctlBtn(-260);
-      mk(-170, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
-      mk(-80, '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
-      mk(10, '回標題', () => this.leave(() => this.scene.start('Title')));
-      items.push(this.recordText(160));
+      if (this.tracked) {
+        const up = this.bagSt.bag.filter((g) => isUpgrade(this.bagSt, g)).length;
+        mk(-270, `行囊（${this.bagSt.bag.length}）${up ? `　▲${up}` : ''}`, () => this.openBag(), up > 0);
+      }
+      ctlBtn(-190);
+      mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
+      mk(-30, '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
+      mk(50, '回標題', () => this.leave(() => this.scene.start('Title')));
+      items.push(this.recordText(130));
       this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
       return;
     }
@@ -898,6 +964,8 @@ export class RtBattleScene extends Phaser.Scene {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 8, 'ember', 0x8a7aa8, 400);
         this.killSprite(e.id);
+      } else if (e.type === 'pickup' && e.kind === 'gear') {
+        this.gotGear(e.item, e.rarity ?? 1, e.amount);
       } else if (e.type === 'pickup') {
         const p = playerOf(this.s);
         // 只是畫面上的字（這些東西是試玩場景的戰利品統計，不是主線玩家資產）
@@ -1248,6 +1316,17 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0xfff0a0, 1).fillCircle(ix - 4, iy - 4, 4);
       } else if (it.kind === 'dust') {
         g.fillStyle(0x7ac8ff, 0.9).fillCircle(ix, iy, 8).fillCircle(ix + 11, iy + 4, 6).fillCircle(ix - 10, iy + 5, 6);
+      } else if (it.kind === 'gear') {
+        // 裝備：稀有度顏色的劍形圖示；精良以上有光柱（design/20 B5）
+        const col = RARITY_COLOR[it.rarity ?? 1];
+        if ((it.rarity ?? 1) >= 2) {
+          const a = (it.rarity === 3 ? 0.35 : 0.22) + 0.1 * Math.sin(now / 200 + it.id);
+          g.fillStyle(col, a).fillRect(ix - 7, iy - 150, 14, 150);
+          g.fillStyle(col, a * 0.5).fillRect(ix - 16, iy - 120, 32, 120);
+        }
+        g.fillStyle(0x000000, 0.5).fillCircle(ix, iy - 4, 17);
+        g.lineStyle(3, col, 1).strokeCircle(ix, iy - 4, 17);
+        g.fillStyle(col, 1).fillRect(ix - 2, iy - 17, 4, 18).fillRect(ix - 8, iy + 0, 16, 3);
       } else if (it.kind === 'crystal') {
         g.fillStyle(0xc080ff, 1).fillTriangle(ix, iy - 20, ix - 13, iy, ix + 13, iy).fillTriangle(ix, iy + 14, ix - 13, iy, ix + 13, iy);
         g.lineStyle(2, 0xffffff, 0.7).lineBetween(ix - 4, iy - 10, ix, iy - 17);
