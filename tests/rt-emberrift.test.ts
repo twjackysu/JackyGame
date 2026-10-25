@@ -94,4 +94,30 @@ describe('燼紅裂谷', () => {
       expect(inSolid).toBe(0);
     }, 180000);
   }
+
+  it('深夜的裂谷刷 10 分鐘：怪物數量有上限、沒有卡進岩壁、一直有怪可打、噴發口有燒到怪', () => {
+    const s = createBattle({ stageId: 'emberrift', seed: 3, level: 11, bonus: { hp: 450, atk: 35, def: 20 }, night: true });
+    const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: EMBERRIFT_COLOSSUS, huntStationary: true }, 'normal');
+    let maxUnits = 0;
+    let inSolid = 0;
+    let kills = 0;
+    let vents = 0;
+    while (s.tick < sec(600) && s.outcome === 'running') {
+      const n = s.events.length;
+      step(s, bot.decide(s));
+      for (let i = n; i < s.events.length; i++) {
+        const e = s.events[i]!;
+        if (e.type === 'death' && e.id !== s.units[0]!.id) kills++;
+        if (e.type === 'vent') vents++;
+      }
+      maxUnits = Math.max(maxUnits, s.units.filter((x) => !x.dead).length);
+      for (const x of s.units) if (!x.dead && isSolidAt(s.arena.solid!, x.x, x.y)) inSolid++;
+    }
+    (globalThis as any).process.stdout.write(`emberrift 深夜 10 分鐘：擊殺 ${kills}、單位上限 ${maxUnits}、噴發 ${vents}、營火醒來 ${s.revives ?? 0}\n`);
+    expect(s.outcome).toBe('running');
+    expect(inSolid).toBe(0);
+    expect(maxUnits).toBeLessThanOrEqual(32);
+    expect(kills).toBeGreaterThan(30);
+    expect(vents).toBeGreaterThan(100);
+  }, 180000);
 });
