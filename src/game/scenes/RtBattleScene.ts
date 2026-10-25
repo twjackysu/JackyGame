@@ -68,6 +68,8 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   thorn_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff8a5c },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
+/** 巡邏怪的仇恨圈／視線顏色（D-117） */
+const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
 const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼', wolf_king: '狼王／狼后' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
@@ -155,7 +157,8 @@ export class RtBattleScene extends Phaser.Scene {
   private tipBusy = false;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
   private paws: { x: number; y: number; a: number; t: number; side: number }[] = [];
-  private pawLast = { x: 0, y: 0, side: 1 };
+  /** 每隻巡邏怪上一個腳印的位置（unit id → 位置） */
+  private pawLast = new Map<number, { x: number; y: number; side: number }>();
   private tipsDone = new Set<string>();
   private fireHinted = false;
   /** 前 3 次進大地圖才顯示的引導 */
@@ -306,6 +309,7 @@ export class RtBattleScene extends Phaser.Scene {
     const st0 = STAGES[this.stageId];
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.paws = [];
+    this.pawLast.clear();
     if (st0?.intro || st0?.spawnGroups?.length) {
       // 開場大字 0.4 秒出現、約 3.4 秒消失，提示（y 700）等它走了再出
       this.tipBusy = true;
@@ -1208,40 +1212,29 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /**
-   * 荊棘巡獵者（D-117）：巡邏中畫出仇恨範圍（淡橘圈）＋面向的視線扇形，讓玩家看得出「牠往哪走、離多近會被發現」；
+   * 巡邏的精英（D-117：荊棘巡獵者、深夜的霧影狼）：巡邏中畫出仇恨範圍（淡圈）＋面向的視線扇形，讓玩家看得出「牠往哪走、離多近會被發現」；
    * 走過的地方留下會淡掉的腳印。第一次靠近時提示一次。純畫面，不碰戰鬥狀態。
    */
-  private drawStalker(g: Phaser.GameObjects.Graphics, x: Unit, pos: { x: number; y: number }, px: number, py: number, now: number, p: Unit): void {
+  private drawPatroller(g: Phaser.GameObjects.Graphics, x: Unit, pos: { x: number; y: number }, px: number, py: number, now: number, p: Unit): void {
     const patrolling = x.mode === 'idle' || x.mode === 'returning';
+    const col = PATROL_COLOR[x.defId] ?? 0xff8a5c;
     // 腳印：每走 0.8 格左右交替留一個
-    const moved = Math.hypot(pos.x - this.pawLast.x, pos.y - this.pawLast.y);
+    let last = this.pawLast.get(x.id);
+    if (!last) this.pawLast.set(x.id, (last = { x: pos.x, y: pos.y, side: 1 }));
+    const moved = Math.hypot(pos.x - last.x, pos.y - last.y);
     if (moved > UNIT * 0.8) {
       if (moved < UNIT * 3) {
-        const side = -this.pawLast.side;
-        const a = Math.atan2(pos.y - this.pawLast.y, pos.x - this.pawLast.x);
-        this.paws.push({ x: pos.x, y: pos.y, a, t: now, side });
-        if (this.paws.length > 24) this.paws.shift();
-        this.pawLast.side = side;
+        last.side = -last.side;
+        this.paws.push({ x: pos.x, y: pos.y, a: Math.atan2(pos.y - last.y, pos.x - last.x), t: now, side: last.side });
+        if (this.paws.length > 40) this.paws.shift();
       }
-      this.pawLast.x = pos.x;
-      this.pawLast.y = pos.y;
-    }
-    this.paws = this.paws.filter((w) => now - w.t < 5000);
-    for (const w of this.paws) {
-      const al = 0.45 * (1 - (now - w.t) / 5000);
-      const wx = this.sx(w.x + Math.cos(w.a + Math.PI / 2) * w.side * UNIT * 0.18);
-      const wy = this.sy(w.y + Math.sin(w.a + Math.PI / 2) * w.side * UNIT * 0.18);
-      const s0 = UNIT * 0.09 * this.k;
-      g.fillStyle(0x3a1a12, al).fillEllipse(wx, wy, s0 * 2.2, s0 * 1.6);
-      for (let k = -1; k <= 1; k++) {
-        const ta = w.a + k * 0.5;
-        g.fillCircle(wx + Math.cos(ta) * s0 * 1.7, wy + Math.sin(ta) * s0 * 1.7, s0 * 0.55);
-      }
+      last.x = pos.x;
+      last.y = pos.y;
     }
     if (!patrolling) return;
     const R = aggroUnitsOf(x) * UNIT * this.k;
     const pulse = 0.5 + 0.5 * Math.sin(now / 350);
-    g.lineStyle(2, 0xff8a5c, 0.18 + 0.1 * pulse).strokeCircle(px, py, R);
+    g.lineStyle(2, col, 0.18 + 0.1 * pulse).strokeCircle(px, py, R);
     // 視線扇形（往面向方向）
     const fa = Math.atan2(x.facingY, x.facingX);
     const pts = [{ x: px, y: py }];
@@ -1249,8 +1242,25 @@ export class RtBattleScene extends Phaser.Scene {
       const an = fa - 0.55 + (k / 10) * 1.1;
       pts.push({ x: px + Math.cos(an) * R, y: py + Math.sin(an) * R });
     }
-    g.fillStyle(0xff8a5c, 0.1 + 0.06 * pulse).fillPoints(pts, true);
-    if (!this.bot && !p.dead && Math.hypot(p.x - x.x, p.y - x.y) < UNIT * 10) this.tipOnce('jg_tip_stalker', '荊棘巡獵者在巡邏——別走進橘色範圍，或正面迎戰', '#ffb07a');
+    g.fillStyle(col, 0.1 + 0.06 * pulse).fillPoints(pts, true);
+    if (!this.bot && !p.dead && Math.hypot(p.x - x.x, p.y - x.y) < UNIT * 10) this.tipOnce('jg_tip_stalker', `${ENEMIES[x.defId]?.name ?? ''}在巡邏——別走進牠的範圍，或正面迎戰`, '#ffb07a');
+  }
+
+  /** 巡邏怪的腳印（所有巡邏怪共用一個陣列，每幀畫一次） */
+  private drawPaws(g: Phaser.GameObjects.Graphics, now: number): void {
+    if (!this.paws.length) return;
+    if (now - this.paws[0]!.t >= 5000) this.paws = this.paws.filter((w) => now - w.t < 5000);
+    const s0 = UNIT * 0.09 * this.k;
+    for (const w of this.paws) {
+      const al = 0.45 * (1 - (now - w.t) / 5000);
+      const wx = this.sx(w.x + Math.cos(w.a + Math.PI / 2) * w.side * UNIT * 0.18);
+      const wy = this.sy(w.y + Math.sin(w.a + Math.PI / 2) * w.side * UNIT * 0.18);
+      g.fillStyle(0x3a1a12, al).fillEllipse(wx, wy, s0 * 2.2, s0 * 1.6);
+      for (let k = -1; k <= 1; k++) {
+        const ta = w.a + k * 0.5;
+        g.fillCircle(wx + Math.cos(ta) * s0 * 1.7, wy + Math.sin(ta) * s0 * 1.7, s0 * 0.55);
+      }
+    }
   }
 
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
@@ -2131,6 +2141,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, top, false);
       }
     }
+    this.drawPaws(g, now);
     // 單位
     const playerU = playerOf(s);
     for (const x of s.units) {
@@ -2162,7 +2173,7 @@ export class RtBattleScene extends Phaser.Scene {
           g.fillStyle(k % 2 ? 0x2f5a2a : 0x3f7a34, 1).fillTriangle(cx0 - nx, cy0 - ny, cx0 + nx, cy0 + ny, tx, ty);
         }
       }
-      if (x.defId === 'thorn_stalker') this.drawStalker(g, x, pos, px, py, now, playerU);
+      if (x.patrol) this.drawPatroller(g, x, pos, px, py, now, playerU);
       let headY = py - r;
       if (sp) {
         const cfg = SPRITE[isP ? 'swordsman' : x.defId]!;
