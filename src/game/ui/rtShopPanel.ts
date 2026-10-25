@@ -5,7 +5,7 @@ import { RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, gearTitle, type RtGear
 import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, type BagState } from '../rtBag';
 import { walletOf, type RtRecord } from '../rtRecord';
-import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, coinOf, rerollShop, sellPrice, shopStock, spendCoin } from '../rtShop';
+import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, coinOf, isDeal, stockPrice, rerollShop, sellPrice, shopStock, spendCoin } from '../rtShop';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { drawMerchant } from '../fx/merchant';
@@ -110,11 +110,21 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     items.push(scene.add.text(0, -392, `今天的裝備（物品等級 ${stock[0]?.ilvl ?? '-'}・每次進地圖換一批）`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0' }).setOrigin(0.5));
     if (!stock.length) items.push(scene.add.text(0, -250, '全部賣光了！\n換一批，或下次進地圖再來', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center' }).setOrigin(0.5));
     stock.forEach((g, i) => {
-      const p = buyPrice(g);
-      items.push(...row(-335 + i * 84, 74, g, `【${SLOT_NAME[g.slot]}】${gearTitle(g)}`, `${p} 金`, coin >= p ? '#ffe08a' : '#ff8a7a', () => {
+      const p = stockPrice(rec, g);
+      const deal = isDeal(rec, g);
+      const y = -335 + i * 84;
+      items.push(...row(y, 74, g, `【${SLOT_NAME[g.slot]}】${gearTitle(g)}`, `${p} 金`, coin >= p ? (deal ? '#7dffb0' : '#ffe08a') : '#ff8a7a', () => {
         detail = { g, buy: true };
         render();
       }, isUpgrade(st, g) ? '▲ ' : ''));
+      if (deal) {
+        // 今日特價：右上角紅色小標＋原價劃線
+        const tag = scene.add.text(300, y - 30, '特價', { fontFamily: UI_FONT, fontSize: '16px', fontStyle: '700', color: '#ffffff', backgroundColor: '#d0402a' }).setOrigin(1, 0.5).setPadding(8, 2, 8, 2);
+        const was = scene.add.text(222, y + 22, `${buyPrice(g)}`, { fontFamily: UI_FONT, fontSize: '15px', color: '#a89880' }).setOrigin(1, 0.5);
+        const strike = scene.add.rectangle(222 - was.width / 2, y + 22, was.width + 4, 2, 0xa89880).setOrigin(0.5);
+        items.push(tag, was, strike);
+        scene.tweens.add({ targets: tag, scale: { from: 1, to: 1.12 }, yoyo: true, repeat: -1, duration: 600, ease: 'Sine.easeInOut' });
+      }
     });
     items.push(scene.add.text(0, 6, '材料', { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));
     SHOP_GOODS.forEach((it, i) => {
@@ -204,7 +214,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       render();
     };
     if (buy) {
-      const p = buyPrice(g);
+      const p = stockPrice(ctx.rec(), g);
       const coin = coinOf(ctx.rec());
       const full = st.bag.length >= BAG_MAX;
       const ok = coin >= p && !full;

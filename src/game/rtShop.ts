@@ -74,6 +74,23 @@ export function shopStock(rec: RtRecord, level: number, region: string): RtGear[
   }).filter((g) => !sh.sold.includes(g.uid));
 }
 
+/** 今日特價（第 24 輪）：每批貨固定一件打 75 折（看批號決定是哪一格，同一批重開面板一樣） */
+export const DEAL_PCT = 75;
+export function dealIndex(rec: RtRecord): number {
+  let x = Math.imul(shopBatch(rec).batch + 1, 2654435761) >>> 0;
+  x = (x ^ (x >>> 16)) >>> 0; // 低位元幾乎不變（批號是 100 的倍數），先把高位元混下來
+  return x % 4;
+}
+/** 是不是這批的特價品（貨架 uid 結尾就是格子編號） */
+export function isDeal(rec: RtRecord, g: RtGear): boolean {
+  return g.uid.startsWith('s') && g.uid.endsWith(String(dealIndex(rec)));
+}
+/** 貨架上這件的實際售價（特價打折） */
+export function stockPrice(rec: RtRecord, g: RtGear): number {
+  const p = buyPrice(g);
+  return isDeal(rec, g) ? Math.round((p * DEAL_PCT) / 100) : p;
+}
+
 /** 付費換一批 */
 export function rerollShop(rec: RtRecord): RtRecord | null {
   const r = spendCoin(rec, SHOP_REROLL);
@@ -84,7 +101,7 @@ export function rerollShop(rec: RtRecord): RtRecord | null {
 
 /** 買下貨架上的一件（標成已售出）；錢不夠回 null。行囊滿不滿由呼叫端先檢查 */
 export function buyGear(rec: RtRecord, g: RtGear): RtRecord | null {
-  const r = spendCoin(rec, buyPrice(g));
+  const r = spendCoin(rec, stockPrice(rec, g));
   if (!r) return null;
   const sh = shopBatch(rec);
   return { ...r, shop: { batch: sh.batch, sold: [...sh.sold, g.uid] } };

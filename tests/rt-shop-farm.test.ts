@@ -6,7 +6,7 @@ import { GEAR_SLOTS, gearBonus, gearScore, genGear, type GearSlot, type RtGear }
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec } from '../src/core/battle/rt/types';
-import { buyPrice, shopStock } from '../src/game/rtShop';
+import { buyPrice, shopStock, stockPrice } from '../src/game/rtShop';
 
 const out = (s: string) => (globalThis as unknown as { process: { stdout: { write: (x: string) => void } } }).process.stdout.write(s);
 const mkBot = () => new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
@@ -48,11 +48,12 @@ it('刷 30 分鐘的金幣拿去行商買裝備 → 狼王更快', () => {
   const shopped: Partial<Record<GearSlot, RtGear>> = { ...best };
   let bought = 0;
   for (let run = 1; run <= 3; run++) {
-    const stock = shopStock({ runs: run }, lv, 'mistwood').filter((g) => sc(g) > sc(shopped[g.slot]) && buyPrice(g) <= coin);
+    const rr = { runs: run };
+    const stock = shopStock(rr, lv, 'mistwood').filter((g) => sc(g) > sc(shopped[g.slot]) && stockPrice(rr, g) <= coin);
     stock.sort((a, b) => sc(b) - sc(shopped[b.slot]) - (sc(a) - sc(shopped[a.slot])));
     for (const g of stock) {
-      if (buyPrice(g) > coin || sc(g) <= sc(shopped[g.slot])) continue;
-      coin -= buyPrice(g);
+      if (stockPrice(rr, g) > coin || sc(g) <= sc(shopped[g.slot])) continue;
+      coin -= stockPrice(rr, g);
       shopped[g.slot] = g;
       bought++;
     }
