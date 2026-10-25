@@ -40,7 +40,10 @@ export const SPECIAL_KINDS: Record<string, SpecialKind[]> = {
   blade_storm: ['cd', 'dmg', 'area'],
 };
 
-/** 特效數值範圍（t∈[0,1)） */
+/** 精良裝備帶（減半）技能特效的機率（%，D-106） */
+export const PRO_SPECIAL_PCT = 35;
+
+/** 特效數值範圍（t∈[0,1)；精良減半） */
 function specialValue(kind: SpecialKind, t: number): number {
   switch (kind) {
     case 'cd':
@@ -159,18 +162,19 @@ export function genGear(seed: number, rarity: Rarity, ilvl: number): RtGear {
     const stat = pool.splice(k, 1)[0]!;
     affixes.push({ stat, value: affixValue(stat, L, R()) });
   }
-  // 稀有：多一條技能特效（只在稀有多抽亂數，普通／精良的結果不變）
+  // 稀有：必有一條技能特效；精良：PRO_SPECIAL_PCT% 機率有一條、數值減半（D-106；普通的結果不變）
   let special: RtGear['special'];
-  if (rarity === 3) {
+  if (rarity === 3 || (rarity === 2 && R() * 100 < PRO_SPECIAL_PCT)) {
     const ids = Object.keys(SPECIAL_SKILLS);
     const skill = ids[Math.floor(R() * ids.length)]!;
     const kinds = SPECIAL_KINDS[skill] ?? ['cd', 'dmg'];
     const kind = kinds[Math.floor(R() * kinds.length)]!;
-    special = { skill, kind, value: specialValue(kind, R()) };
+    const v = specialValue(kind, R());
+    special = { skill, kind, value: rarity === 3 ? v : Math.max(1, Math.round(v / 2)) };
   }
   const names = NAMES[slot];
   const baseName = names[Math.min(names.length - 1, Math.floor((L - 1) / 2))]!;
-  const name = rarity === 1 ? baseName : rarity === 2 ? `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}` : `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}・霧語`;
+  const name = rarity === 1 ? baseName : rarity === 2 ? `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}${special ? '・薄霧' : ''}` : `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}・霧語`;
   const g: RtGear = { uid: (seed >>> 0).toString(36) + L.toString(36) + rarity, slot, rarity, ilvl: L, name, base, affixes };
   if (special) g.special = special;
   return g;
@@ -203,7 +207,7 @@ export function gearBonus(items: (RtGear | undefined | null)[], baseHp: number, 
 export function gearScore(g: RtGear | undefined | null, baseHp: number, baseAtk: number): number {
   if (!g) return 0;
   const b = gearBonus([g], baseHp, baseAtk);
-  return b.atk * 4 + b.hp * 0.25 + b.def * 3 + (g.special ? 25 : 0);
+  return b.atk * 4 + b.hp * 0.25 + b.def * 3 + (g.special ? (g.rarity === 3 ? 25 : 12) : 0);
 }
 
 /** 一行數值說明（「攻擊 +12・HP +80」） */

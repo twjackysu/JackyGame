@@ -159,7 +159,7 @@ describe('稀有裝備的技能特效（D-094）', () => {
   afterAll(() => {
     delete STAGES.mistwood;
   });
-  it('只有稀有有特效；合計冷卻最多 −40%；冷卻與傷害真的生效', async () => {
+  it('稀有一定有特效；合計冷卻最多 −40%；冷卻與傷害真的生效', async () => {
     const { gearSkillMods, specialText } = await import('../src/core/battle/rt/gear');
     const { setSkillMods } = await import('../src/core/battle/rt/engine');
     expect(genGear(5, 2, 4).special).toBeUndefined();
@@ -179,6 +179,31 @@ describe('稀有裝備的技能特效（D-094）', () => {
     expect(rb - b.tick).toBeLessThan(ra - a.tick);
     setSkillMods(b, {});
     expect(b.skillMods).toBeUndefined();
+  });
+});
+
+describe('精良也可能帶特效（D-106）', () => {
+  it('普通從不帶；精良約 35% 帶、數值是稀有的一半左右、名字加「・薄霧」；精良的部位與詞綴和以前相同', async () => {
+    const { PRO_SPECIAL_PCT } = await import('../src/core/battle/rt/gear');
+    let pro = 0;
+    let withSp = 0;
+    let maxV = 0;
+    for (let seed = 1; seed <= 2000; seed++) {
+      expect(genGear(seed, 1, 6).special).toBeUndefined();
+      const g = genGear(seed, 2, 6);
+      pro++;
+      if (g.special) {
+        withSp++;
+        expect(g.name.endsWith('・薄霧')).toBe(true);
+        if (g.special.kind === 'cd') maxV = Math.max(maxV, g.special.value);
+        expect(g.special.value).toBeGreaterThanOrEqual(1);
+      } else expect(g.name.includes('薄霧')).toBe(false);
+      expect(g.affixes.length).toBe(1);
+    }
+    const pct = (withSp / pro) * 100;
+    expect(Math.abs(pct - PRO_SPECIAL_PCT)).toBeLessThan(5);
+    // 稀有冷卻 8～15% → 精良 4～8%
+    expect(maxV).toBeLessThanOrEqual(8);
   });
 });
 
