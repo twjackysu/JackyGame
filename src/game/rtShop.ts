@@ -37,9 +37,10 @@ export const SHOP_REROLL = 40;
 /** 貨架上的裝備稀有度（3 件精良＋1 件稀有） */
 const STOCK_RARITY: Rarity[] = [2, 2, 2, 3];
 
-/** 行商的物品等級：比等級低一點（最好的裝備還是要打 Boss），1～10 */
+/** 行商的物品等級＝等級＋1（1～11）。第 23 輪實測：Lv6 時狼王掉的已是物品等級 8～10，Lv−1 的貨完全沒人買；
+ *  ＋1 讓貨架能補弱的格子、換技能特效，但普通狼王（8）與暴怒（11）掉的仍然一樣或更好 */
 export function shopIlvl(level: number): number {
-  return Math.max(1, Math.min(10, level - 1));
+  return Math.max(1, Math.min(11, level + 1));
 }
 
 /** 行商的貨架狀態（存在紀錄裡；形狀不對就重來） */

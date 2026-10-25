@@ -1037,7 +1037,7 @@ export class RtBattleScene extends Phaser.Scene {
       `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
       `${this.stageId === 'thornvale' ? '狼后' : '狼王'}討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
       `進入森林 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
-      `懸賞完成 ${cleanBounties(rec.bounty).done} 張`,
+      `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${coinOf(rec)}（營火行商）`,
     ];
     if (this.stageId === 'mistwood' || this.stageId === 'thornvale') lines.unshift(`▶ 下一個目標：${nextGoal(this.stageId, rec, this.s.prog?.level ?? 1, bossKillsOf(this.stageId === 'thornvale' ? 'mistwood' : 'thornvale'))}`);
     if (this.s.prog) lines.unshift(`Lv ${this.s.prog.level}・經驗 ${this.s.prog.xp}/${xpToNext(this.s.prog.level)}`);

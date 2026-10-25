@@ -193,17 +193,22 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       const coin = coinOf(ctx.rec());
       const full = st.bag.length >= BAG_MAX;
       const ok = coin >= p && !full;
-      out.push(btn(-130, 140, full ? '背包滿了' : coin >= p ? `購買（${p} 金）` : `金幣不夠（${p}）`, () => {
+      const doBuy = (wear: boolean) => {
         const r = buyGear(ctx.rec(), g);
         if (!r || ctx.bag().bag.length >= BAG_MAX) return;
         ctx.save(r);
         const cur = ctx.bag();
-        ctx.setBag({ ...cur, bag: [{ ...g, uid: `${g.uid}b${Date.now().toString(36)}` }, ...cur.bag] });
+        const mine: RtGear = { ...g, uid: `${g.uid}b${Date.now().toString(36)}` };
+        const next: BagState = { ...cur, bag: [mine, ...cur.bag] };
+        ctx.setBag(wear ? equipWith(next, mine) : next);
         coinFx();
-        toast(`買下 ${g.name}！到行囊換上`, hex(col));
+        toast(wear ? `換上 ${g.name}！` : `買下 ${g.name}！到行囊換上`, hex(col));
         back();
-      }, ok, 24, !ok));
-      out.push(btn(150, 140, '返回', back));
+      };
+      const up = isUpgrade(st, g);
+      out.push(btn(up ? -170 : -130, 140, full ? '背包滿了' : coin >= p ? `購買（${p} 金）` : `金幣不夠（${p}）`, () => doBuy(false), ok && !up, 24, !ok));
+      if (up && ok) out.push(btn(60, 140, '買下並換上', () => doBuy(true), true, 24));
+      out.push(btn(up && ok ? 230 : 150, 140, '返回', back));
     } else {
       out.push(btn(-130, 140, `賣出（+${sellPrice(g)} 金）`, () => {
         const r = spendCoin(ctx.rec(), -sellPrice(g));
