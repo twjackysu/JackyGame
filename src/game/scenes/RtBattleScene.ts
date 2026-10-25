@@ -1511,6 +1511,12 @@ export class RtBattleScene extends Phaser.Scene {
           g.lineStyle(4 - Math.abs(j), 0x9fd8ff, 0.8).lineBetween(px - Math.sin(ang) * j * 14, py + Math.cos(ang) * j * 14, px - Math.cos(ang) * L - Math.sin(ang) * j * 14, py - Math.sin(ang) * L + Math.cos(ang) * j * 14);
         }
         this.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
+        // 流星衝（D-112）：衝到底的落地爆炸（非 oncePerTarget 的圓）
+        if (hs.type === 'circle' && !h.oncePerTarget) {
+          shockRing(this, this.sx(p.x), this.sy(p.y), 0x9fd8ff, hs.r * this.k * 1.2, 380, 10);
+          sparks(this, this.sx(p.x), this.sy(p.y), 18, 'spark', 0xd8f0ff, 520);
+          this.cameras.main.shake(140, 0.007);
+        }
       } else if (hs.type === 'circle') {
         const ult = sk.role === 'ult';
         this.spin(p.x, p.y, hs.r, big ? 0xffd05a : ult ? 0xff7ad0 : 0x9fd8ff, (this.time.now / 90) % (Math.PI * 2));
@@ -1819,6 +1825,11 @@ export class RtBattleScene extends Phaser.Scene {
       // 玩家施放中：畫技能範圍
       if (isP && x.action?.kind === 'skill') {
         const sk = skillDef(this.s, x.action.id);
+        // 不動架勢（D-112）：完全不受傷的長窗口格擋 → 窗口內身上金色護罩
+        if (sk?.block && sk.block.reducePct >= 100 && s.tick - x.action.start <= sk.block.windowTicks) {
+          top.lineStyle(4, 0xffd27a, 0.6 + 0.3 * Math.sin(now / 60)).strokeCircle(px, py - r * 0.6, r * 1.9);
+          top.fillStyle(0xffd27a, 0.12).fillCircle(px, py - r * 0.6, r * 1.9);
+        }
         // 龍捲（D-112）：施放中可以全速移動的旋轉技能 → 腳下往上收窄的旋風
         if (sk && sk.role === 'aoe' && sk.moveFactor >= 1) {
           const k0 = s.tick - x.action.start;
