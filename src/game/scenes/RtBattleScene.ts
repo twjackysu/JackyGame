@@ -10,6 +10,7 @@ import { CAMPFIRE_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types'
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
+import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mistwood';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
@@ -102,10 +103,12 @@ export class RtBattleScene extends Phaser.Scene {
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
     // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
     if (this.stageId === 'test_world' && q.has('debug') && !STAGES.test_world) STAGES.test_world = makeTestWorldStage();
+    // 霧語森林（D-085）：目前只有除錯入口；標題入口等 D-083
+    if (this.stageId === 'mistwood' && !STAGES.mistwood) STAGES.mistwood = makeMistwoodStage();
     if (!STAGES[this.stageId]) this.stageId = 'forest_entry';
     this.seed = data.seed ?? Number(q.get('seed') ?? 1);
     const b = (data.bot !== undefined ? data.bot : q.get('bot')) as keyof typeof BOT_PROFILES | null;
-    this.bot = b && BOT_PROFILES[b] ? new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: b === 'auto' ? undefined : 35 }, b) : null;
+    this.bot = b && BOT_PROFILES[b] ? new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: b === 'auto' ? undefined : 35, ...(this.stageId === 'mistwood' ? { campfireBelowPotions: 8, advanceTo: MISTWOOD_KING } : {}) }, b) : null;
     this.botName = this.bot ? b : null;
   }
 
@@ -157,8 +160,10 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.botName) this.add.text(44, 40, '觀戰', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff', backgroundColor: '#1a2a3a' }).setPadding(8, 4, 8, 4).setOrigin(0.5).setDepth(49);
     if (!this.bot) this.showHint();
     // 刷怪關的開場說明（怪會重生、營火是安全區）
-    if (STAGES[this.stageId]?.spawnGroups?.length) {
-      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）', '#ffd27a', 30, 2600));
+    const st0 = STAGES[this.stageId];
+    if (st0?.intro || st0?.spawnGroups?.length) {
+      const intro = st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）';
+      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, intro, '#ffd27a', 30, 2600));
     }
     this.input.addPointer(2);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onDown(p));
@@ -352,6 +357,30 @@ export class RtBattleScene extends Phaser.Scene {
     return key;
   }
 
+  /** 地圖上的 Boss 倒下（刷怪地圖不會因此結束）：金色閃光＋討伐大字＋首殺紀錄（獨立 localStorage，不碰主線存檔） */
+  private bossSlain(name: string): void {
+    SFX.perfect();
+    this.cameras.main.flash(260, 255, 220, 140);
+    this.cameras.main.shake(320, 0.01);
+    const p = playerOf(this.s);
+    for (let i = 0; i < 3; i++) this.time.delayedCall(i * 180, () => shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 220 + i * 90, 600, 8));
+    sparks(this, this.sx(p.x), this.sy(p.y), 40, 'ember', 0xffd27a, 700);
+    let first = true;
+    try {
+      const key = `jg_rt_${this.stageId}`;
+      const rec = JSON.parse(localStorage.getItem(key) ?? '{}') as { bossKills?: number; firstAt?: number };
+      first = !rec.bossKills;
+      rec.bossKills = (rec.bossKills ?? 0) + 1;
+      rec.firstAt ??= Date.now();
+      localStorage.setItem(key, JSON.stringify(rec));
+    } catch {
+      /* 無痕模式 */
+    }
+    this.time.delayedCall(300, () => bigText(this, GAME_WIDTH / 2, 440, `${name} 討伐！`, '#ffd27a', 60, 1800));
+    const sub = first ? '首次討伐！森林安靜了一點…\n可以繼續刷怪，或從 ☰ 離開' : '再次討伐！\n可以繼續刷怪，或從 ☰ 離開';
+    this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
+  }
+
   /** 走進新地區 → 上方淡入淡出地區名稱（開場那一區也會顯示一次） */
   private zoneBanner(): void {
     const zs = STAGES[this.stageId]?.zones;
@@ -362,6 +391,10 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneName = z.name;
     const t = this.add.text(GAME_WIDTH / 2, 190, `— ${z.name} —`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#f4e6c0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(66).setAlpha(0);
     this.tweens.add({ targets: t, alpha: 1, y: 180, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
+    if (!z.hint) return;
+    const h = this.add.text(GAME_WIDTH / 2, 240, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    this.tweens.add({ targets: h, alpha: 1, y: 232, duration: 500, delay: 250, ease: 'Cubic.Out', hold: 1900, yoyo: true, onComplete: () => h.destroy() });
+    if (z.danger && !this.bot) SFX.uiTap();
   }
 
   /** 地圖怪關卡：開場 30 秒都沒點怪也沒按技能 → 提示「點狼開打」並在最近的怪身上打光圈 */
@@ -563,6 +596,7 @@ export class RtBattleScene extends Phaser.Scene {
           sparks(this, this.sx(d.x), this.sy(d.y), 18, 'spark', 0xffd27a, 420);
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
           this.killSprite(d.id);
+          if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(ENEMIES[d.defId]!.name);
         }
       } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, '狼王暴怒！', '#ff7a5a', 52, 700);
       else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);

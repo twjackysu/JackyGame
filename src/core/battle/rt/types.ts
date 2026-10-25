@@ -372,12 +372,17 @@ export interface StageDefinition {
   timeLimitTicks: number;
   /** 畫面設定（核心不讀）：畫面橫向看得到幾個世界單位；沒設＝1050（約 10.5 格，D-067） */
   viewUnits?: number;
+  /** 畫面設定（核心不讀）：開場大字說明；沒設＝刷怪關用預設的「怪物會重生…」 */
+  intro?: string;
   /** 畫面設定（核心不讀）：地區（世界座標矩形）；玩家走進新地區時畫面顯示地區名稱 */
   zones?: StageZone[];
 }
 
 export interface StageZone {
   name: string;
+  /** 畫面設定：地區名稱下方的小字提示（例如「危險：狼群首領出沒」）；danger＝用紅色 */
+  hint?: string;
+  danger?: boolean;
   x0: number;
   y0: number;
   x1: number;
