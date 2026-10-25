@@ -1,6 +1,6 @@
 // 營火燼牌（D-127）：規則與 AI。
 import { describe, expect, it } from 'vitest';
-import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, deckWith, legalMoves, MERCHANT_DECK, newCardGame, nextReward, PLAYER_DECK, rowScore, totalScore, type CardGame } from '../src/core/cards/emberCards';
+import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, DECK_MAX, deckWith, legalMoves, MERCHANT_DECK, newCardGame, nextReward, OPPONENTS, opponentsAt, PLAYER_DECK, rowScore, scorchTargets, totalScore, type CardGame, type Opponent } from '../src/core/cards/emberCards';
 
 function bare(): CardGame {
   const g = newCardGame(1);
@@ -13,12 +13,12 @@ function bare(): CardGame {
   return g;
 }
 
-function playOut(seed: number, deck: readonly string[] = PLAYER_DECK): CardGame {
-  const g = newCardGame(seed, [deck, MERCHANT_DECK]);
+function playOut(seed: number, deck: readonly string[] = PLAYER_DECK, who: Opponent = OPPONENTS[0]!): CardGame {
+  const g = newCardGame(seed, [deck, who.deck], who.short);
   let n = 0;
   while (!g.over && n++ < 200) {
     const s = g.turn;
-    expect(applyMove(g, s, aiMove(g, s))).toBe(true);
+    expect(applyMove(g, s, aiMove(g, s, s === 1 ? who : OPPONENTS[0]))).toBe(true);
   }
   return g;
 }
@@ -70,6 +70,67 @@ describe('營火燼牌', () => {
     expect(legalMoves(g, 0).some((m) => m.type === 'play' && m.card === 0)).toBe(false);
   });
 
+  it('戰號不能吹在空排（第 28 輪）；有牌就自動挑加最多的一排', () => {
+    const g = bare();
+    g.sides[0].hand = ['horn', 'bear'];
+    expect(legalMoves(g, 0).some((m) => m.type === 'play' && m.card === 0)).toBe(false);
+    expect(applyMove(g, 0, { type: 'play', card: 0 })).toBe(false);
+    g.sides[0].rows[0] = ['hero_blade']; // 傳奇不吃戰號 → 還是不能吹
+    expect(legalMoves(g, 0).some((m) => m.type === 'play' && m.card === 0)).toBe(false);
+    g.sides[0].rows[1] = ['mage'];
+    expect(applyMove(g, 0, { type: 'play', card: 0 })).toBe(true);
+    expect(g.sides[0].horn).toEqual([false, true]);
+  });
+
+  it('燼爆：燒掉場上點數最高的非傳奇單位（雙方、同分一起）', () => {
+    const g = bare();
+    g.sides[0].rows[0] = ['bear', 'hero_colossus'];
+    g.sides[1].rows[0] = ['golem'];
+    g.sides[1].rows[1] = ['bear', 'mage'];
+    g.sides[0].hand = ['scorch', 'slinger'];
+    expect(scorchTargets(g).map((x) => x[2])).toEqual(['golem']);
+    g.sides[0].horn[0] = true; // 熊 8×2＝16 變最高
+    expect(scorchTargets(g)).toEqual([[0, 0, 'bear']]);
+    g.sides[0].horn[0] = false;
+    g.sides[1].rows[0] = [];
+    expect(applyMove(g, 0, { type: 'play', card: 0 })).toBe(true);
+    expect(g.sides[0].rows[0]).toEqual(['hero_colossus']);
+    expect(g.sides[1].rows[1]).toEqual(['mage']);
+    expect(g.lastBurn?.length).toBe(2);
+  });
+
+  it('三位對手：牌組都存在、獎勵牌不重複、各在自己的地圖；難度依序變高，贏來的牌讓你變強', () => {
+    const seen = new Set<string>();
+    for (const o of OPPONENTS) {
+      for (const id of [...o.deck, ...o.rewards]) expect(CARDS[id]).toBeDefined();
+      for (const id of new Set(o.rewards)) {
+        expect(seen.has(id)).toBe(false);
+        seen.add(id);
+      }
+    }
+    expect(opponentsAt('mistwood').map((o) => o.id)).toEqual(['merchant']);
+    expect(opponentsAt('thornvale').map((o) => o.id)).toEqual(['merchant', 'vela']);
+    expect(opponentsAt('emberrift').map((o) => o.id)).toEqual(['merchant', 'goran']);
+    const all = OPPONENTS.flatMap((o) => o.rewards);
+    expect(deckWith(all).length).toBe(DECK_MAX);
+    const rate = (deck: string[], who: Opponent): number => {
+      let w = 0;
+      for (let seed = 1; seed <= 150; seed++) if (playOut(seed, deck, who).winner === 0) w++;
+      return w;
+    };
+    const [m, v, gr] = OPPONENTS.map((o) => rate(deckWith([]), o)) as [number, number, number];
+    const v5 = rate(deckWith(CARD_REWARDS), OPPONENTS[1]!);
+    const gAll = rate(deckWith(all), OPPONENTS[2]!);
+    (globalThis as any).process.stdout.write(`[燼牌] 基本牌組勝場（150 場）：莫托 ${m}、薇菈 ${v}、葛倫 ${gr}；拿齊莫托的牌打薇菈 ${v5}；全拿打葛倫 ${gAll}\n`);
+    expect(m).toBeGreaterThan(v);
+    expect(m).toBeGreaterThan(gr);
+    expect(v).toBeGreaterThan(15);
+    expect(gr).toBeGreaterThan(15);
+    expect(v5).toBeGreaterThan(v + 20);
+    expect(gAll).toBeGreaterThan(gr + 20);
+    expect(gAll).toBeLessThan(145);
+  });
+
   it('AI 對 AI 打 200 場：每場都在 3 局內結束、雙方都贏得到、沒有卡住', () => {
     let w0 = 0;
     let w1 = 0;
@@ -100,6 +161,9 @@ describe('營火燼牌', () => {
     expect(nextReward(['mage'])).toBe(CARD_REWARDS[1]);
     expect(nextReward([...CARD_REWARDS])).toBeUndefined();
     expect(deckWith(['mage', 'bogus']).length).toBe(PLAYER_DECK.length + 1);
+    expect(nextReward([], OPPONENTS[1])).toBe('thornhound');
+    expect(nextReward(['thornhound'], OPPONENTS[1])).toBe('thornhound');
+    expect(nextReward(['thornhound', 'thornhound'], OPPONENTS[1])).toBe('briar_archer');
     let base = 0;
     let full = 0;
     for (let seed = 1; seed <= 200; seed++) {

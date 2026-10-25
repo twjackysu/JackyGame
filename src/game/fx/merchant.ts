@@ -62,3 +62,66 @@ export function drawMerchant(g: Phaser.GameObjects.Graphics, x: number, y: numbe
   }
   return { lx, ly };
 }
+
+/**
+ * 燼牌的另外兩位對手（D-129，程式美術，和莫托同一套畫法：腳底在 (x, y)、高 h）。
+ * - 薇菈（荊棘谷）：綠色短披肩、紅褐長髮、背著藥草籃，身邊一隻趴著的棘背獵犬。
+ * - 葛倫（燼紅裂谷）：光頭大鬍子、皮圍裙、肩上扛鍛造錘，圍裙上的燼紋會發亮。
+ */
+export function drawCardRival(g: Phaser.GameObjects.Graphics, id: string, x: number, y: number, h: number, now: number): void {
+  const s = h / 100;
+  const breath = Math.sin(now / 700) * 1.2 * s;
+  g.fillStyle(0x000000, 0.35).fillEllipse(x, y, 66 * s, 15 * s);
+  if (id === 'vela') {
+    // 趴著的獵犬（左腳邊）
+    const tail = Math.sin(now / 260) * 4 * s;
+    g.fillStyle(0x4a3226, 1).fillEllipse(x - 34 * s, y - 7 * s, 34 * s, 13 * s);
+    g.fillCircle(x - 50 * s, y - 11 * s, 7 * s);
+    g.fillStyle(0x7a2a3a, 1).fillTriangle(x - 40 * s, y - 13 * s, x - 34 * s, y - 22 * s, x - 30 * s, y - 13 * s);
+    g.fillTriangle(x - 30 * s, y - 13 * s, x - 25 * s, y - 20 * s, x - 22 * s, y - 12 * s);
+    g.lineStyle(2.5 * s, 0x4a3226, 1).lineBetween(x - 18 * s, y - 8 * s, x - 10 * s, y - 14 * s + tail);
+    g.fillStyle(0xc8ff8a, 1).fillCircle(x - 52 * s, y - 12 * s, 1.4 * s);
+    // 藥草籃（背後）
+    g.fillStyle(0x8a6a3a, 1).fillRoundedRect(x + 4 * s, y - 72 * s + breath, 26 * s, 30 * s, 5 * s);
+    g.fillStyle(0x6ac04a, 1).fillCircle(x + 10 * s, y - 74 * s + breath, 6 * s).fillCircle(x + 22 * s, y - 76 * s + breath, 7 * s);
+    g.fillStyle(0xd85a7a, 1).fillCircle(x + 16 * s, y - 80 * s + breath, 3 * s);
+    // 長裙＋披肩
+    g.fillStyle(0x5a3a2a, 1).fillPoints([{ x: x - 10 * s, y: y - 58 * s + breath }, { x: x + 10 * s, y: y - 58 * s + breath }, { x: x + 18 * s, y: y - 2 * s }, { x: x - 18 * s, y: y - 2 * s }], true);
+    g.fillStyle(0x3a6a3a, 1).fillPoints([{ x: x - 16 * s, y: y - 62 * s + breath }, { x: x + 16 * s, y: y - 62 * s + breath }, { x: x + 20 * s, y: y - 40 * s + breath }, { x: x - 20 * s, y: y - 40 * s + breath }], true);
+    g.fillStyle(0xc8ff8a, 1).fillCircle(x, y - 58 * s + breath, 2.4 * s);
+    // 頭：長髮＋臉＋眼睛
+    g.fillStyle(0x8a3a24, 1).fillEllipse(x, y - 70 * s + breath, 28 * s, 30 * s);
+    g.fillRect(x - 13 * s, y - 70 * s + breath, 26 * s, 18 * s);
+    g.fillStyle(0xf0c8a0, 1).fillEllipse(x, y - 72 * s + breath, 18 * s, 20 * s);
+    g.fillStyle(0x8a3a24, 1).fillEllipse(x - 3 * s, y - 81 * s + breath, 20 * s, 8 * s);
+    if (now % 3800 >= 140) {
+      g.fillStyle(0x2a4a2a, 1).fillCircle(x - 4 * s, y - 72 * s + breath, 1.7 * s);
+      g.fillCircle(x + 4 * s, y - 72 * s + breath, 1.7 * s);
+    }
+    g.fillStyle(0xd8706a, 0.5).fillCircle(x - 6 * s, y - 68 * s + breath, 2 * s).fillCircle(x + 6 * s, y - 68 * s + breath, 2 * s);
+  } else {
+    // 葛倫：粗壯的身體＋皮圍裙
+    g.fillStyle(0x6a4a3a, 1).fillRoundedRect(x - 22 * s, y - 62 * s + breath, 44 * s, 60 * s, 10 * s);
+    g.fillStyle(0x3a2418, 1).fillRoundedRect(x - 16 * s, y - 52 * s + breath, 32 * s, 50 * s, 6 * s);
+    const glow = 0.55 + 0.45 * Math.sin(now / 380);
+    g.lineStyle(2 * s, 0xff8a3a, glow).lineBetween(x - 8 * s, y - 40 * s + breath, x + 2 * s, y - 30 * s + breath).lineBetween(x + 2 * s, y - 30 * s + breath, x - 4 * s, y - 18 * s + breath);
+    // 手臂
+    g.fillStyle(0xd8a080, 1).fillCircle(x - 24 * s, y - 40 * s + breath, 7 * s).fillCircle(x + 24 * s, y - 52 * s + breath, 7 * s);
+    // 肩上的錘子
+    g.lineStyle(4 * s, 0x5a3a20, 1).lineBetween(x + 24 * s, y - 50 * s + breath, x + 8 * s, y - 92 * s + breath);
+    g.fillStyle(0x50505a, 1).fillRoundedRect(x - 4 * s, y - 104 * s + breath, 26 * s, 14 * s, 3 * s);
+    g.fillStyle(0xff9a4a, 0.5 * glow).fillRect(x - 4 * s, y - 92 * s + breath, 26 * s, 2 * s);
+    // 光頭＋大鬍子
+    g.fillStyle(0xd8a080, 1).fillCircle(x, y - 74 * s + breath, 13 * s);
+    g.fillStyle(0xffe0c0, 0.5).fillCircle(x - 4 * s, y - 82 * s + breath, 4 * s);
+    g.fillStyle(0x8a4a2a, 1).fillPoints([{ x: x - 12 * s, y: y - 72 * s + breath }, { x: x + 12 * s, y: y - 72 * s + breath }, { x: x + 6 * s, y: y - 54 * s + breath }, { x: x - 6 * s, y: y - 54 * s + breath }], true);
+    g.fillStyle(0x2a1a10, 1).fillRect(x - 8 * s, y - 78 * s + breath, 5 * s, 2 * s).fillRect(x + 3 * s, y - 78 * s + breath, 5 * s, 2 * s);
+    if (now % 4600 >= 140) {
+      g.fillStyle(0x1a1008, 1).fillCircle(x - 5 * s, y - 75 * s + breath, 1.6 * s);
+      g.fillCircle(x + 5 * s, y - 75 * s + breath, 1.6 * s);
+    }
+    // 偶爾冒出的火星
+    const t = (now % 1800) / 1800;
+    g.fillStyle(0xffb060, 1 - t).fillCircle(x + 10 * s + Math.sin(now / 200) * 3 * s, y - 96 * s - t * 20 * s, 1.8 * s);
+  }
+}

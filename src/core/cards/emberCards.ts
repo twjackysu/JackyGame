@@ -4,11 +4,13 @@
 // - 輪流出一張牌到自己的「前排（近戰）」或「後排（遠程）」；放棄後這一局不能再出，對手可以繼續出。
 // - 雙方都放棄 → 比總點數，高的贏這一局（平手雙方都算贏）；先贏兩局的人贏整場。
 // - 能力：同袍（同排同名牌，每張點數 × 同名張數）、斥候（放到對手那邊、自己抽 2 張）、戰號（這排點數 ×2）、
-//   霜寒（雙方前排每張變 1）、濃霧（雙方後排每張變 1）、晴空（清掉天候）、傳奇（不受天候與戰號影響）。
+//   霜寒（雙方前排每張變 1）、濃霧（雙方後排每張變 1）、晴空（清掉天候）、傳奇（不受天候與戰號影響）、
+//   燼爆（第 28 輪：燒掉場上點數最高的非傳奇單位，雙方都算，同分一起燒）。
+// 第 28 輪（D-129）：三位對手（莫托／荊棘谷的薇菈／裂谷的葛倫），各有牌組、出牌個性與可以贏到的牌。
 import { mulberry32, type Rng } from '../rng';
 
 export type Row = 0 | 1; // 0＝前排（近戰），1＝後排（遠程）
-export type Ability = 'bond' | 'scout' | 'horn' | 'frost' | 'fog' | 'clear' | 'hero';
+export type Ability = 'bond' | 'scout' | 'horn' | 'frost' | 'fog' | 'clear' | 'hero' | 'scorch';
 
 export interface CardDef {
   id: string;
@@ -38,6 +40,17 @@ export const CARDS: Readonly<Record<string, CardDef>> = {
   frost: { id: 'frost', name: '霜寒', power: 0, ability: 'frost', desc: '天候：雙方前排每張都變 1 點' },
   fog: { id: 'fog', name: '濃霧', power: 0, ability: 'fog', desc: '天候：雙方後排每張都變 1 點' },
   clear: { id: 'clear', name: '晴空', power: 0, ability: 'clear', desc: '清掉所有天候' },
+  // 第 28 輪：荊棘谷（薇菈）
+  thornhound: { id: 'thornhound', name: '棘背獵犬', power: 2, row: 0, ability: 'bond', desc: '同袍：同排每多一張，點數倍增' },
+  herbalist: { id: 'herbalist', name: '采藥人', power: 4, row: 1 },
+  briar_archer: { id: 'briar_archer', name: '荊棘射手', power: 6, row: 1 },
+  hero_queen: { id: 'hero_queen', name: '棘冠狼后', power: 11, row: 0, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
+  // 第 28 輪：燼紅裂谷（葛倫）
+  slime: { id: 'slime', name: '熔渣史萊姆', power: 2, row: 0, ability: 'bond', desc: '同袍：同排每多一張，點數倍增' },
+  golem: { id: 'golem', name: '熔岩魔像', power: 9, row: 0 },
+  forgehand: { id: 'forgehand', name: '鍛爐學徒', power: 4, row: 1 },
+  scorch: { id: 'scorch', name: '燼爆', power: 0, ability: 'scorch', desc: '燼爆：燒掉場上點數最高的單位（雙方都算、傳奇除外）' },
+  hero_colossus: { id: 'hero_colossus', name: '燼心岩王', power: 12, row: 0, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
 };
 
 /** 玩家的牌組（15 張） */
@@ -45,6 +58,47 @@ export const PLAYER_DECK: readonly string[] = ['militia', 'militia', 'militia', 
 /** 莫托的牌組（15 張，偏後排＋濃霧） */
 export const MERCHANT_DECK: readonly string[] = ['archer', 'archer', 'archer', 'slinger', 'slinger', 'mage', 'mage', 'ballista', 'wolfhunter', 'shieldman', 'sellsword', 'owl', 'hero_seer', 'horn', 'fog'];
 const CLEAR_EXTRA = 'clear';
+
+/** 對手（D-129）：牌組、在哪張地圖的營火、出牌個性、下注金額與可以贏到的牌 */
+export interface Opponent {
+  id: string;
+  name: string;
+  /** 短稱（紀錄、畫面用） */
+  short: string;
+  /** 對手所在地圖（莫托跟著你走，每張地圖都在） */
+  map?: string;
+  deck: readonly string[];
+  stake: number;
+  /** 下注贏了依序拿到的牌（各對手之間不重複） */
+  rewards: readonly string[];
+  /** 個性：第一局領先多少就放棄省牌；第一局落後多少就提早放棄（0＝不會） */
+  bankAt: number;
+  bailAt: number;
+  hello: string;
+  win: string;
+  lose: string;
+  blurb: string;
+}
+
+export const OPPONENTS: readonly Opponent[] = [
+  {
+    id: 'merchant', name: '旅商莫托', short: '莫托', deck: MERCHANT_DECK, stake: 40, rewards: ['mage', 'owl', 'ballista', 'horn', 'hero_seer'], bankAt: 10, bailAt: 14,
+    hello: '「坐下來歇歇腿，玩一把？」', win: '「承讓承讓，金幣我就收下了。」', lose: '「哈，下次我可不會手下留情。」', blurb: '偏後排與濃霧，打法穩健',
+  },
+  {
+    id: 'vela', name: '采藥人薇菈', short: '薇菈', map: 'thornvale', stake: 80, rewards: ['thornhound', 'thornhound', 'briar_archer', 'hero_queen'], bankAt: 8, bailAt: 10,
+    deck: ['thornhound', 'thornhound', 'thornhound', 'herbalist', 'herbalist', 'briar_archer', 'wolfhunter', 'sellsword', 'herbalist', 'slinger', 'scout', 'owl', 'hero_queen', 'frost', 'horn'],
+    hello: '「荊棘谷的獵犬可是成群結隊的，小心點。」', win: '「獵犬們，今晚加菜。」', lose: '「……你比狼后還難纏。」', blurb: '同袍獵犬群＋霜寒，很會提早收手',
+  },
+  {
+    id: 'goran', name: '鍛爐老兵葛倫', short: '葛倫', map: 'emberrift', stake: 120, rewards: ['golem', 'scorch', 'forgehand', 'hero_colossus'], bankAt: 10, bailAt: 12,
+    deck: ['slime', 'slime', 'slime', 'golem', 'golem', 'forgehand', 'sellsword', 'bear', 'mage', 'ballista', 'forgehand', 'owl', 'scorch', 'hero_colossus', 'horn'],
+    hello: '「火候到了就出手——燼爆可不挑人。」', win: '「燒得乾乾淨淨。」', lose: '「好，好！這把火你接住了。」', blurb: '大塊頭＋燼爆，從不退讓',
+  },
+];
+export const opponent = (id: string): Opponent => OPPONENTS.find((o) => o.id === id) ?? OPPONENTS[0]!;
+/** 這張地圖的營火有哪些對手（莫托到處都在） */
+export const opponentsAt = (map: string): Opponent[] => OPPONENTS.filter((o) => !o.map || o.map === map);
 
 export interface Side {
   deck: string[];
@@ -68,6 +122,35 @@ export interface CardGame {
   winner?: number;
   log: string[];
   rng: Rng;
+  /** 對手的稱呼（紀錄用） */
+  oppName?: string;
+  /** 最近一次燼爆燒掉的牌：[side, row, id]（畫面演出用） */
+  lastBurn?: [number, Row, string][];
+}
+
+/** 燼爆要燒的牌：場上點數最高（> 0）的非傳奇單位，同分一起 */
+export function scorchTargets(g: CardGame): [number, Row, string][] {
+  let max = 0;
+  const all: [number, Row, string, number][] = [];
+  for (const side of [0, 1])
+    for (const row of [0, 1] as const)
+      for (const id of g.sides[side]!.rows[row]) {
+        if (CARDS[id]!.ability === 'hero') continue;
+        const p = cardPower(g, side, row, id);
+        all.push([side, row, id, p]);
+        if (p > max) max = p;
+      }
+  return max > 0 ? all.filter((x) => x[3] === max).map(([a, b, c]) => [a, b, c]) : [];
+}
+
+function scorch(g: CardGame): [number, Row, string][] {
+  const t = scorchTargets(g);
+  for (const [side, row, id] of t) {
+    const R = g.sides[side]!.rows[row];
+    const i = R.lastIndexOf(id);
+    if (i >= 0) R.splice(i, 1);
+  }
+  return t;
 }
 
 export type Move = { type: 'play'; card: number } | { type: 'pass' };
@@ -85,11 +168,11 @@ function newSide(rng: Rng, deck: readonly string[]): Side {
   return { deck: d.slice(10), hand: d.slice(0, 10), rows: [[], []], horn: [false, false], passed: false, wins: 0 };
 }
 
-export function newCardGame(seed: number, decks: [readonly string[], readonly string[]] = [PLAYER_DECK, MERCHANT_DECK]): CardGame {
+export function newCardGame(seed: number, decks: [readonly string[], readonly string[]] = [PLAYER_DECK, MERCHANT_DECK], oppName = '莫托'): CardGame {
   const rng = mulberry32(seed);
   const sides: [Side, Side] = [newSide(rng, decks[0]), newSide(rng, decks[1])];
   // 先手：擲硬幣
-  return { sides, weather: [false, false], turn: rng() < 0.5 ? 0 : 1, round: 1, results: [], over: false, log: [], rng };
+  return { sides, weather: [false, false], turn: rng() < 0.5 ? 0 : 1, round: 1, results: [], over: false, log: [], rng, oppName };
 }
 
 /** 某一排的點數（含天候、戰號、同袍） */
@@ -115,7 +198,7 @@ export function totalScore(g: CardGame, side: number): number {
   return rowScore(g, side, 0) + rowScore(g, side, 1);
 }
 
-/** 戰號放哪一排（對自己最有利；沒有可放的排回 -1） */
+/** 戰號放哪一排（對自己最有利；兩排都沒有能加倍的牌回 -1，第 28 輪起不能吹在空排） */
 export function hornRow(g: CardGame, side: number): Row | -1 {
   const S = g.sides[side]!;
   let best: Row | -1 = -1;
@@ -126,7 +209,7 @@ export function hornRow(g: CardGame, side: number): Row | -1 {
     S.horn[r] = true;
     const g1 = rowScore(g, side, r);
     S.horn[r] = false;
-    if (g1 - g0 > gain) {
+    if (g1 - g0 > gain && g1 > g0) {
       gain = g1 - g0;
       best = r;
     }
@@ -134,7 +217,7 @@ export function hornRow(g: CardGame, side: number): Row | -1 {
   return best;
 }
 
-/** 合法的出牌（手牌索引）；戰號在兩排都有時不能出 */
+/** 合法的出牌（手牌索引）；戰號沒有能加倍的牌時不能出 */
 export function legalMoves(g: CardGame, side: number): Move[] {
   if (g.over || g.turn !== side || g.sides[side]!.passed) return [];
   const S = g.sides[side]!;
@@ -154,7 +237,7 @@ export function applyMove(g: CardGame, side: number, m: Move): boolean {
   const O = g.sides[1 - side]!;
   if (m.type === 'pass') {
     S.passed = true;
-    g.log.push(`${side === 0 ? '你' : '莫托'}放棄了這一局`);
+    g.log.push(`${side === 0 ? '你' : (g.oppName ?? '莫托')}放棄了這一局`);
   } else {
     const id = S.hand[m.card];
     if (!id) return false;
@@ -166,12 +249,13 @@ export function applyMove(g: CardGame, side: number, m: Move): boolean {
     } else if (c.ability === 'frost') g.weather[0] = true;
     else if (c.ability === 'fog') g.weather[1] = true;
     else if (c.ability === 'clear') g.weather = [false, false];
+    else if (c.ability === 'scorch') g.lastBurn = scorch(g);
     else if (c.ability === 'scout') {
       O.rows[c.row!].push(id);
       for (let k = 0; k < 2 && S.deck.length; k++) S.hand.push(S.deck.shift()!);
     } else S.rows[c.row!].push(id);
     S.hand.splice(m.card, 1);
-    g.log.push(`${side === 0 ? '你' : '莫托'}出了「${c.name}」`);
+    g.log.push(`${side === 0 ? '你' : (g.oppName ?? '莫托')}出了「${c.name}」`);
     if (!S.hand.length) S.passed = true; // 手牌出完＝自動放棄
   }
   advance(g, side);
@@ -200,7 +284,7 @@ function endRound(g: CardGame): void {
     g.sides[0].wins++;
     g.sides[1].wins++;
   } else g.sides[w]!.wins++;
-  g.log.push(`第 ${g.round} 局 ${s0}：${s1}，${w === 0 ? '你贏了' : w === 1 ? '莫托贏了' : '平手'}`);
+  g.log.push(`第 ${g.round} 局 ${s0}：${s1}，${w === 0 ? '你贏了' : w === 1 ? `${g.oppName ?? '莫托'}贏了` : '平手'}`);
   const [a, b] = g.sides;
   if (a.wins >= 2 || b.wins >= 2 || g.round >= 3) {
     g.over = true;
@@ -249,7 +333,7 @@ export function cloneGame(g: CardGame): CardGame {
  *   否則出分差變化最大的牌（第一、二局在變化差不多時挑點數小的）。
  * - 這一局輸了就輸整場時不會提早放棄。
  */
-export function aiMove(g: CardGame, side: number): Move {
+export function aiMove(g: CardGame, side: number, who: Opponent = OPPONENTS[0]!): Move {
   const moves = legalMoves(g, side).filter((m): m is { type: 'play'; card: number } => m.type === 'play');
   if (!moves.length) return { type: 'pass' };
   const me = g.sides[side]!;
@@ -267,7 +351,9 @@ export function aiMove(g: CardGame, side: number): Move {
   }
   const scout = scored.find((x) => CARDS[x.id]!.ability === 'scout' && me.deck.length > 0);
   if (scout && g.round < 3) return scout.m;
-  if (!mustWin && lead >= 10 && me.hand.length >= op.hand.length && g.round === 1) return { type: 'pass' };
+  if (!mustWin && lead >= who.bankAt && me.hand.length >= op.hand.length && g.round === 1) return { type: 'pass' };
+  // 第一局落後太多、對手已經砸了不少牌 → 收手省牌（D-129；莫托以前從不這樣做）
+  if (who.bailAt && g.round === 1 && lead <= -who.bailAt && me.hand.length > op.hand.length) return { type: 'pass' };
   if (me.wins >= 1 && lead >= 6 && me.hand.length >= op.hand.length) return { type: 'pass' };
   const useful = scored.filter((x) => x.d > 0);
   if (!useful.length) return { type: 'pass' };
@@ -278,16 +364,51 @@ export function aiMove(g: CardGame, side: number): Move {
 }
 
 /** 下注贏了依序拿到莫托的一張牌（加進你的牌組；全部拿完就只拿金幣） */
-export const CARD_REWARDS: readonly string[] = ['mage', 'owl', 'ballista', 'horn', 'hero_seer'];
+export const CARD_REWARDS: readonly string[] = OPPONENTS[0]!.rewards;
+const ALL_REWARDS: readonly string[] = OPPONENTS.flatMap((o) => o.rewards);
 
-/** 你的牌組＝基本牌組＋贏來的牌（未知 id 會被丟掉） */
+/** 你的牌組＝基本牌組＋贏來的牌（未知 id、超過可贏張數的會被丟掉） */
 export function deckWith(won: readonly string[]): string[] {
-  return [...PLAYER_DECK, ...won.filter((id) => CARD_REWARDS.includes(id))];
+  const left = [...ALL_REWARDS];
+  const out: string[] = [];
+  for (const id of won) {
+    const i = left.indexOf(id);
+    if (i < 0) continue;
+    left.splice(i, 1);
+    out.push(id);
+  }
+  return trimDeck([...PLAYER_DECK, ...out]);
 }
 
-/** 下一張可以贏到的牌（沒有了回 undefined） */
-export function nextReward(won: readonly string[]): string | undefined {
-  const left = [...CARD_REWARDS];
+/** 牌組上限（D-129）：贏來的牌太多會稀釋手牌，超過就自動拿掉最弱的單位（同袍算整組、特殊牌／傳奇／斥候不拿） */
+export const DECK_MAX = 18;
+function cardValue(deck: readonly string[], id: string): number {
+  const c = CARDS[id]!;
+  return c.ability === 'bond' ? c.power * deck.filter((x) => x === id).length : c.power;
+}
+export function trimDeck(deck: string[]): string[] {
+  const d = [...deck];
+  while (d.length > DECK_MAX) {
+    let worst = -1;
+    let wv = Infinity;
+    d.forEach((id, i) => {
+      const c = CARDS[id]!;
+      if (c.row === undefined || c.ability === 'hero' || c.ability === 'scout') return;
+      const v = cardValue(d, id);
+      if (v < wv) {
+        wv = v;
+        worst = i;
+      }
+    });
+    if (worst < 0) break;
+    d.splice(worst, 1);
+  }
+  return d;
+}
+
+/** 下一張可以從這位對手贏到的牌（沒有了回 undefined；預設莫托） */
+export function nextReward(won: readonly string[], who: Opponent = OPPONENTS[0]!): string | undefined {
+  const left = [...who.rewards];
   for (const id of won) {
     const i = left.indexOf(id);
     if (i >= 0) left.splice(i, 1);
