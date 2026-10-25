@@ -78,6 +78,48 @@ export const SKILL_VARIANTS: Record<string, SkillDefinition & { variantName: str
   },
 };
 
+/**
+ * 技能第二種變化（D-121，第 25 輪）：滿 5 級後「原招 → 變化 → 變化二 → 原招」輪流切換。
+ * 存檔／BattleState 裡寫成 `${id}:b`（和第一種變化的 `${id}` 互斥），沒選的人結果完全不變。
+ */
+export const SKILL_VARIANTS_B: Record<string, SkillDefinition & { variantName: string; desc: string }> = {
+  // 碎甲斬：前方扇形 190%＋破甲 6 秒（之後受到的傷害更容易爆擊）；冷卻 6s
+  heavy_slash: {
+    id: 'heavy_slash', name: '碎甲斬', variantName: '碎甲斬', desc: '前方大扇形 190%，打中的敵人「破甲」6 秒（更容易被爆擊）；冷卻 6 秒',
+    cooldownTicks: sec(6), castTicks: sec(0.5), moveFactor: 0, role: 'single', useRange: u(1.8),
+    hits: [{ atTick: sec(0.5) - 1, shape: { type: 'sector', r: u(2.1), deg: 130 }, mult: 190, status: { id: 'break', ticks: sec(6) } }],
+  },
+  // 霜旋：一圈寒氣 140%＋冰凍 1.5 秒（Boss 改成減速）；冷卻 11s
+  whirlwind: {
+    id: 'whirlwind', name: '霜旋', variantName: '霜旋', desc: '轉一圈寒氣（範圍 2.6）140%，小怪冰凍 1.5 秒、Boss 減速；冷卻 11 秒',
+    cooldownTicks: sec(11), castTicks: sec(0.6), moveFactor: 0, role: 'aoe', useRange: u(2.4),
+    hits: [{ atTick: sec(0.6) - 1, shape: { type: 'circle', r: u(2.6) }, mult: 140, status: { id: 'freeze', ticks: sec(1.5) } }],
+  },
+  // 影步：短衝 3 格、路上 150%＋虛弱 4 秒（敵人傷害 −20%）；冷卻 4s
+  charge: {
+    id: 'charge', name: '影步', variantName: '影步', desc: '快速短衝 3 格、路上 150%，打中的敵人「虛弱」4 秒（傷害 −20%）；冷卻 4 秒',
+    cooldownTicks: sec(4), castTicks: sec(0.3), moveFactor: 0, role: 'gap', useRange: u(3.5),
+    dash: { fromTick: 0, ticks: sec(0.2), distance: u(3) },
+    hits: [0, 3].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 150, oncePerTarget: true, status: { id: 'weak' as const, ticks: sec(4) } })),
+  },
+  // 迴光一閃：窗口只有 0.3 秒、完全不受傷，反擊一道 6 格直線 420%；冷卻 7s
+  parry: {
+    id: 'parry', name: '迴光一閃', variantName: '迴光一閃', desc: '格擋窗口只有 0.3 秒（看準再按）、擋下完全不受傷，反擊 6 格直線 420%；冷卻 7 秒',
+    cooldownTicks: sec(7), castTicks: sec(0.6), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 9, reducePct: 100, counter: { atTick: 0, shape: { type: 'line', len: u(6), width: u(1.2) }, mult: 420 } },
+  },
+  // 破空斬月：0.7s 蓄力、前方 8 格寬劍氣 720%＋破甲 8 秒
+  blade_storm: {
+    id: 'blade_storm', name: '破空斬月', variantName: '破空斬月', desc: '蓄力 0.7 秒，前方 8 格寬劍氣 720%＋破甲 8 秒',
+    cooldownTicks: sec(45), castTicks: sec(0.7), moveFactor: 0, role: 'ult', useRange: u(4), mp: 40,
+    hits: [{ atTick: sec(0.7) - 1, shape: { type: 'line', len: u(8), width: u(1.8) }, mult: 720, status: { id: 'break', ticks: sec(8) } }],
+  },
+};
+
+/** 第二種變化在存檔裡的寫法 */
+export const variantB = (id: string): string => `${id}:b`;
+
 export const SWORDSMAN: PlayerDefinition = {
   id: 'swordsman',
   hp: 620,

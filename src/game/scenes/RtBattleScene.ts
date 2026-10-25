@@ -1836,7 +1836,22 @@ export class RtBattleScene extends Phaser.Scene {
         this.groundSplit(p.x, p.y, ang, hs.len, hs.width);
       }
       // 星落一閃（D-112）：單發大招 → 天上落下一道光柱
-      if (sk.role === 'ult' && sk.hits.length === 1) this.starfall(p.x, p.y, hs.type === 'circle' ? hs.r : UNIT * 3);
+      if (sk.role === 'ult' && sk.hits.length === 1 && hs.type !== 'line') this.starfall(p.x, p.y, hs.type === 'circle' ? hs.r : UNIT * 3);
+      // 變化二（D-121）：帶狀態的招式多一層顏色——霜旋寒氣、碎甲／斬月紅色碎光、影步紫色殘影
+      const st = h.status?.id;
+      if (st === 'freeze') {
+        shockRing(this, this.sx(p.x), this.sy(p.y), 0xbff4ff, (hs.type === 'circle' ? hs.r : UNIT * 2) * this.k * 1.15, 520, 10);
+        sparks(this, this.sx(p.x), this.sy(p.y), 26, 'spark', 0xd8fbff, 700);
+        this.cameras.main.flash(90, 190, 240, 255);
+      } else if (st === 'break' && big) {
+        const fx = this.sx(p.x) + Math.cos(ang) * UNIT * 1.4 * this.k;
+        const fy = this.sy(p.y) + Math.sin(ang) * UNIT * 1.4 * this.k;
+        sparks(this, fx, fy, sk.role === 'ult' ? 30 : 16, 'ember', 0xff6a4a, 560);
+        if (sk.role === 'ult') {
+          this.cameras.main.shake(220, 0.01);
+          this.hitStop = Math.max(this.hitStop, 120);
+        }
+      } else if (st === 'weak') sparks(this, this.sx(p.x), this.sy(p.y), 8, 'ember', 0xb08aff, 360);
     });
   }
 
@@ -2245,6 +2260,25 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       if (x.statuses.some((q) => q.id === 'poison' && q.until > s.tick)) top.fillStyle(0xb060ff, 1).fillCircle(px + r, headY + 10, 7);
+      // 變化二的狀態（D-121）：冰凍＝淡藍冰殼、破甲＝紅色裂盾、虛弱＝灰紫向下箭頭
+      if (!isP) {
+        if (x.statuses.some((q) => q.id === 'freeze' && q.until > s.tick)) {
+          top.fillStyle(0xbff4ff, 0.28).fillEllipse(px, py - r * 0.4, r * 2.6, r * 2.2);
+          top.lineStyle(2, 0xe8fcff, 0.85).strokeEllipse(px, py - r * 0.4, r * 2.6, r * 2.2);
+        }
+        if (x.statuses.some((q) => q.id === 'break' && q.until > s.tick)) {
+          const bx = px - r - 4;
+          const by = headY + 10;
+          top.fillStyle(0xff5a3a, 1).fillTriangle(bx - 7, by - 7, bx + 7, by - 7, bx, by + 9);
+          top.lineStyle(2, 0x2a0a00, 1).lineBetween(bx - 2, by - 7, bx + 2, by + 1);
+        }
+        if (x.statuses.some((q) => q.id === 'weak' && q.until > s.tick)) {
+          const wx = px + r + 4;
+          const wy = headY - 6;
+          top.fillStyle(0xb08aff, 1).fillTriangle(wx - 6, wy, wx + 6, wy, wx, wy + 9);
+          top.fillRect(wx - 2, wy - 7, 4, 7);
+        }
+      }
       // HP 條（Boss 用畫面上方大條）
       if (!boss) {
         const w = Math.max(56, r * 2.4);

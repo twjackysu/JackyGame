@@ -1,11 +1,11 @@
 // 技能變化（D-112）：技能滿 5 級可以切換成另一種招式（同一顆按鈕、同一個 id）。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SKILL_VARIANTS, SKILLS, STAGES } from '../src/core/battle/rt/data';
+import { SKILL_VARIANTS, SKILL_VARIANTS_B, SKILLS, STAGES } from '../src/core/battle/rt/data';
 import { blockWindow, createBattle, dashDistance, setBossFury, setSkillVariants, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec, u } from '../src/core/battle/rt/types';
-import { SKILL_TREE, cleanVariants, rankMods, toggleVariant, type SkillRanks } from '../src/game/rtSkills';
+import { SKILL_TREE, cleanVariants, rankMods, toggleVariant, variantIndex, type SkillRanks } from '../src/game/rtSkills';
 
 const out = (s: string) => (globalThis as unknown as { process: { stdout: { write: (x: string) => void } } }).process.stdout.write(s);
 
@@ -33,7 +33,10 @@ describe('技能變化（D-112）', () => {
     expect(toggleVariant([], 'dragon', r)).toBeNull();
     const v = toggleVariant([], 'heavy_slash', r)!;
     expect(v).toEqual(['heavy_slash']);
-    expect(toggleVariant(v, 'heavy_slash', r)).toEqual([]);
+    // D-121：原招 → 變化 → 變化二 → 原招
+    const vb = toggleVariant(v, 'heavy_slash', r)!;
+    expect(vb).toEqual(['heavy_slash:b']);
+    expect(toggleVariant(vb, 'heavy_slash', r)).toEqual([]);
     expect(cleanVariants(['heavy_slash', 'charge', 'dragon', 3, 'heavy_slash'], r)).toEqual(['heavy_slash']);
     expect(cleanVariants(['heavy_slash'], {})).toEqual([]);
     expect(cleanVariants('x', r)).toEqual([]);
@@ -93,6 +96,10 @@ describe('技能變化（D-112）', () => {
       ['裂地斬＋龍捲', { heavy_slash: 5, whirlwind: 5 }, ['heavy_slash', 'whirlwind']],
       ['流星衝＋不動架勢', { charge: 5, parry: 5 }, ['charge', 'parry']],
       ['星落一閃＋裂地斬', { blade_storm: 5, heavy_slash: 5 }, ['blade_storm', 'heavy_slash']],
+      // D-121 變化二
+      ['碎甲斬＋霜旋', { heavy_slash: 5, whirlwind: 5 }, ['heavy_slash:b', 'whirlwind:b']],
+      ['影步＋迴光一閃', { charge: 5, parry: 5 }, ['charge:b', 'parry:b']],
+      ['破空斬月＋碎甲斬', { blade_storm: 5, heavy_slash: 5 }, ['blade_storm:b', 'heavy_slash:b']],
     ] as const) {
       const res = [1, 2].map((seed) => {
         const s = createBattle({ stageId: 'mistwood', seed, level: 11, bonus, skillMods: rankMods(ranks), skillVariants: [...vars] });
@@ -110,4 +117,46 @@ describe('技能變化（D-112）', () => {
     }
     out(`\n[技能變化 暴怒狼王 Lv11]\n${rows.join('\n')}\n`);
   }, 300000);
+});
+
+describe('技能第二種變化（D-121）', () => {
+  it('五個技能都有變化二、名字和原招／變化都不同；存檔寫成 id:b、同一技能只留一種', () => {
+    for (const t of SKILL_TREE) {
+      const b = SKILL_VARIANTS_B[t.id]!;
+      expect(b.id).toBe(t.id);
+      expect(new Set([b.name, SKILL_VARIANTS[t.id]!.name, SKILLS[t.id]!.name]).size).toBe(3);
+      expect(b.desc.length).toBeGreaterThan(10);
+    }
+    const r: SkillRanks = { heavy_slash: 5, whirlwind: 5, charge: 3 };
+    expect(cleanVariants(['heavy_slash:b', 'heavy_slash', 'whirlwind:b', 'charge:b', 'x:b'], r)).toEqual(['heavy_slash:b', 'whirlwind:b']);
+    expect(variantIndex(['heavy_slash:b'], 'heavy_slash')).toBe(2);
+    const s = createBattle({ stageId: 'mistwood', seed: 1, skillVariants: ['heavy_slash:b', 'parry:b', 'nope:b'] });
+    expect(s.skillVariants).toEqual(['heavy_slash:b', 'parry:b']);
+    expect(skillDef(s, 'heavy_slash')!.name).toBe('碎甲斬');
+    expect(skillDef(s, 'parry')!.name).toBe('迴光一閃');
+    expect(blockWindow(s, 'parry')).toBe(9);
+    expect(skillDef(s, 'charge')!.name).toBe('衝鋒');
+  });
+
+  for (const [id, status] of [['heavy_slash', 'break'], ['whirlwind', 'freeze'], ['charge', 'weak']] as const) {
+    it(`${SKILL_VARIANTS_B[id]!.name}：打中的狼身上有 ${status}`, () => {
+      const s = createBattle({ stageId: 'mistwood', seed: 1, skillVariants: [`${id}:b`] });
+      step(s, []);
+      const p = s.units[0]!;
+      const e = s.units.find((x) => x.side === 'enemy' && !x.dead && x.defId === 'wolf')!;
+      for (const o of s.units) if (o !== p && o !== e) o.dead = true;
+      p.x = e.x;
+      p.y = e.y + u(1.2);
+      p.targetId = e.id;
+      p.facingX = 0;
+      p.facingY = -1000;
+      step(s, [{ type: 'skill', id }]);
+      let got = false;
+      for (let i = 0; i < sec(0.8) && !got; i++) {
+        step(s, []);
+        got = e.statuses.some((x) => x.id === status);
+      }
+      expect(got).toBe(true);
+    });
+  }
 });

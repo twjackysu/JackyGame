@@ -1,6 +1,6 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
-import { AFFIX_ATTACKS, ENEMIES, SKILL_VARIANTS, SKILLS, SWORDSMAN, STAGES } from './data';
+import { AFFIX_ATTACKS, ENEMIES, SKILL_VARIANTS, SKILL_VARIANTS_B, SKILLS, SWORDSMAN, STAGES, variantB } from './data';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
@@ -531,12 +531,16 @@ export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; d
 /** 戰鬥中換裝時更新技能修正（D-094） */
 /** 這場戰鬥實際用的技能定義（有選技能變化就用變化版，D-112） */
 export function skillDef(s: BattleState, id: string): SkillDefinition | undefined {
-  return (s.skillVariants?.includes(id) ? SKILL_VARIANTS[id] : undefined) ?? SKILLS[id];
+  const v = s.skillVariants;
+  if (!v) return SKILLS[id];
+  if (v.includes(id)) return SKILL_VARIANTS[id] ?? SKILLS[id];
+  if (v.includes(variantB(id))) return SKILL_VARIANTS_B[id] ?? SKILLS[id]; // 第二種變化（D-121）
+  return SKILLS[id];
 }
 
 /** 換技能變化；正在施放的技能照舊打完（下一次施放才換） */
 export function setSkillVariants(s: BattleState, ids: readonly string[]): void {
-  const v = ids.filter((id) => SKILL_VARIANTS[id]).sort();
+  const v = ids.filter((id) => SKILL_VARIANTS[id] || (id.endsWith(':b') && SKILL_VARIANTS_B[id.slice(0, -2)])).sort();
   if (v.length) s.skillVariants = v;
   else delete s.skillVariants;
 }

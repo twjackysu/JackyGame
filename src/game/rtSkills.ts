@@ -1,6 +1,6 @@
 // 技能點（D-110）：每升一級得 1 點，自由點在五個技能上（每個最多 5 級），隨時免費重置。
 // 純資料函式（有測試）；存在霧語森林獨立紀錄 `RtRecord.skills`。效果用核心既有的 SkillMod（和裝備特效相加、照上限截斷）。
-import { SKILL_VARIANTS } from '../core/battle/rt/data';
+import { SKILL_VARIANTS, SKILL_VARIANTS_B, variantB } from '../core/battle/rt/data';
 import { SKILL_MOD_CAPS, type SkillMod } from '../core/battle/rt/types';
 
 export const SKILL_MAX_RANK = 5;
@@ -43,16 +43,37 @@ export function addRank(r: SkillRanks, id: string, level: number): SkillRanks | 
   return { ...r, [id]: (r[id] ?? 0) + 1 };
 }
 
-/** 技能變化（D-112）：只留「有變化版、而且這個技能滿 5 級」的 id；重置或退點後自動失效 */
+/** 存檔裡的變化 id → 技能 id（`heavy_slash:b` → `heavy_slash`） */
+const baseOfVariant = (x: string): string => (x.endsWith(':b') ? x.slice(0, -2) : x);
+
+/** 技能變化（D-112／D-121）：只留「有這個變化版、而且這個技能滿 5 級」的 id；同一個技能只留一種；重置或退點後自動失效 */
 export function cleanVariants(raw: unknown, r: SkillRanks): string[] {
   if (!Array.isArray(raw)) return [];
-  return [...new Set(raw.filter((id): id is string => typeof id === 'string' && !!SKILL_VARIANTS[id] && (r[id] ?? 0) >= SKILL_MAX_RANK))].sort();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of raw) {
+    if (typeof id !== 'string') continue;
+    const base = baseOfVariant(id);
+    const ok = id.endsWith(':b') ? !!SKILL_VARIANTS_B[base] : !!SKILL_VARIANTS[id];
+    if (!ok || (r[base] ?? 0) < SKILL_MAX_RANK || seen.has(base)) continue;
+    seen.add(base);
+    out.push(id);
+  }
+  return out.sort();
 }
 
-/** 切換一個技能的變化；還沒滿級就回 null */
+/** 這個技能現在選的是哪一種：0＝原招、1＝變化、2＝變化二 */
+export function variantIndex(v: readonly string[], id: string): 0 | 1 | 2 {
+  return v.includes(id) ? 1 : v.includes(variantB(id)) ? 2 : 0;
+}
+
+/** 切換一個技能的變化（原招 → 變化 → 變化二 → 原招；沒有變化二就在兩種之間切）；還沒滿級就回 null */
 export function toggleVariant(v: readonly string[], id: string, r: SkillRanks): string[] | null {
   if (!SKILL_VARIANTS[id] || (r[id] ?? 0) < SKILL_MAX_RANK) return null;
-  return v.includes(id) ? v.filter((x) => x !== id) : [...v, id].sort();
+  const i = variantIndex(v, id);
+  const rest = v.filter((x) => x !== id && x !== variantB(id));
+  const next = i === 0 ? id : i === 1 && SKILL_VARIANTS_B[id] ? variantB(id) : null;
+  return (next ? [...rest, next] : rest).sort();
 }
 
 export function rankMods(r: SkillRanks): Record<string, SkillMod> {
