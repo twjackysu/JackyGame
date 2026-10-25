@@ -63,7 +63,11 @@ it('刷 30 分鐘的金幣拿去行商買裝備 → 狼王更快', () => {
   const f0 = [1, 2, 3].map((sd) => kingFight(sd, lv, b0));
   const f1 = [1, 2, 3].map((sd) => kingFight(sd, lv, b1));
   out(`\n[shop] 30 分鐘 Lv${lv}、金幣 ${coin0}、買 ${bought} 件（剩 ${coin}）、加成 ${JSON.stringify(b0)} → ${JSON.stringify(b1)}\n[shop] 狼王交戰秒：只用掉落 ${f0.join('/')}・加上行商 ${f1.join('/')}\n`);
-  expect(bought).toBeGreaterThan(0);
+  // 行商是補洞：三批貨裡沒有任何一件比刷到的好時，沒東西可買是正常的（第 25 輪加了迷霧巡守，種子 11 刷出 5 格稀有 ilvl 8＋精良 ilvl 11 胸甲）
+  const upgrades = [1, 2, 3].flatMap((r) => shopStock({ runs: r }, lv, 'mistwood')).filter((g) => sc(g) > sc(best[g.slot])).length;
+  out(`[shop] 貨架上比掉落好的：${upgrades} 件\n`);
+  const allCovered = upgrades === 0;
+  if (!allCovered) expect(bought).toBeGreaterThan(0);
   expect(b1.atk + b1.hp / 10).toBeGreaterThanOrEqual(b0.atk + b0.hp / 10);
   // 行商不能取代刷寶：加成提升不超過 2 倍
   expect(b1.atk).toBeLessThanOrEqual(Math.max(10, b0.atk * 2));

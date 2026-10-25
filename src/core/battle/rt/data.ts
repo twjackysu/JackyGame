@@ -160,6 +160,17 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'shade_charge', shape: { type: 'line', len: u(5.5), width: u(1.3) }, warningTicks: sec(0.7), recoverTicks: sec(0.5), damageMultiplier: 140, cooldownTicks: sec(6), triggerRange: u(5.5), blockable: true, charge: { ticks: sec(0.35), wallStunTicks: sec(1.5) }, weight: 2 },
     ],
   },
+  // 迷霧巡守（D-120）：霧語森林白天就在精英狼群區西側巡邏的世界精英（守著西北角寶箱）；
+  // 撕咬、短衝、「霧隱突襲」（霧中消失、從背後撲出來；可以格擋，聽到聲音就轉身）
+  mist_warden: {
+    id: 'mist_warden', name: '迷霧巡守', hp: 1050, atk: 26, def: 10, speed: 3.6, radius: u(0.58), hitstunTicks: 2,
+    drops: { gold: [30, 50], items: [{ id: 'dust', chance: 100, count: [2, 4] }, { id: 'crystal', chance: 50 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'warden_bite', shape: { type: 'sector', r: u(1.8), deg: 100 }, warningTicks: sec(0.65), recoverTicks: sec(0.4), damageMultiplier: 110, cooldownTicks: sec(2.2), triggerRange: u(1.5), blockable: true, weight: 3 },
+      { id: 'warden_dash', shape: { type: 'line', len: u(5), width: u(1.2) }, warningTicks: sec(0.75), recoverTicks: sec(0.5), damageMultiplier: 130, cooldownTicks: sec(7), triggerRange: u(5), blockable: true, charge: { ticks: sec(0.35), wallStunTicks: sec(1.5) }, weight: 2 },
+      { id: 'warden_ambush', shape: { type: 'sector', r: u(2.3), deg: 120 }, warningTicks: sec(0.95), recoverTicks: sec(0.7), damageMultiplier: 130, cooldownTicks: sec(12), triggerRange: u(5), blockable: true, blink: { behind: u(2.0) }, weight: 2 },
+    ],
+  },
   // 荊棘母樹（D-107）：不會動的世界精英；遠處直線毒刺、貼身大扇形橫掃、中距離根系環（環內貼著樹是安全的）
   thorn_mother: {
     id: 'thorn_mother', name: '荊棘母樹', hp: 4200, atk: 34, def: 10, speed: 0, radius: u(1.0), hitstunTicks: 0,

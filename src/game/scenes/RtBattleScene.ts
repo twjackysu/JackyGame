@@ -66,10 +66,11 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   thorn_queen: { key: 'enemy_boss_wolfking', h: 3.2, flip: false, tint: 0xb8f0a0 },
   night_thorn_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xc890ff },
   thorn_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff8a5c },
+  mist_warden: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x7ae8d8 },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
 /** 巡邏怪的仇恨圈／視線顏色（D-117） */
-const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff };
+const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0 };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
 const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼', wolf_king: '狼王／狼后' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
@@ -140,7 +141,7 @@ export class RtBattleScene extends Phaser.Scene {
   private menu: Phaser.GameObjects.Container | null = null;
   private botName: string | null = null;
   private lastWarnTick = -1;
-  private blinkHinted = false;
+  private blinkHinted = new Set<string>();
   /** 玩家有沒有主動點過怪／按過技能（刷怪關 30 秒沒動作就提示） */
   private engaged = false;
   /** 精英／Boss 邊緣箭頭的距離字（物件池） */
@@ -251,7 +252,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneName = null;
     this.chestHinted = new Set();
     this.bossMemo = false;
-    this.cameras.main.setZoom(1); // Boss 登場會推鏡頭；重開場景時歸位
+    this.cameras.main.setZoom(1); // 保險：舊版 Boss 登場會推鏡頭
+    this.blinkHinted = new Set(); // 場景重開不會重跑欄位初始值
     this.streakHinted = false;
     this.arrowLabels = [];
     const p0 = playerOf(this.s);
@@ -1388,6 +1390,12 @@ export class RtBattleScene extends Phaser.Scene {
             shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 180, 480, 8);
             sparks(this, this.sx(d.x), this.sy(d.y), 22, 'ember', 0xffa07a, 600);
             bigText(this, GAME_WIDTH / 2, 470, '荊棘巡獵者 倒下了！', '#ffb07a', 44, 900);
+          } else if (d.defId === 'mist_warden') {
+            // 迷霧巡守倒下（D-120）：青色霧環＋霧粒散開
+            this.cameras.main.shake(160, 0.005);
+            shockRing(this, this.sx(d.x), this.sy(d.y), 0x6ae8d0, 180, 480, 8);
+            sparks(this, this.sx(d.x), this.sy(d.y), 22, 'ember', 0xbaf8ee, 620);
+            bigText(this, GAME_WIDTH / 2, 470, '迷霧巡守 倒下了！', '#9af0e0', 44, 900);
           }
         }
       } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, this.stageId === 'thornvale' ? '狼后怒放・荊棘綻放！' : '狼王暴怒！', this.stageId === 'thornvale' ? '#c8ff8a' : '#ff7a5a', 52, 700);
@@ -1399,6 +1407,7 @@ export class RtBattleScene extends Phaser.Scene {
         SFX.dodge();
         // 荊棘谷的狼后（D-114）：鑽進地底、從背後的荊棘裡冒出來（綠色）
         const tvq = this.stageId === 'thornvale';
+        const wd = b?.defId === 'mist_warden';
         sparks(this, this.sx(e.fromX), this.sy(e.fromY), 16, 'ember', tvq ? 0x9adf5a : 0xb9a8ff, 520);
         shockRing(this, this.sx(e.fromX), this.sy(e.fromY), tvq ? 0x6ac04a : 0x9a8cff, 90, 360, 6);
         if (b) {
@@ -1406,9 +1415,9 @@ export class RtBattleScene extends Phaser.Scene {
           shockRing(this, this.sx(b.x), this.sy(b.y), 0xff6a6a, 120, 420, 8);
         }
         this.cameras.main.shake(120, 0.004);
-        if (!this.blinkHinted) {
-          this.blinkHinted = true;
-          bigText(this, GAME_WIDTH / 2, 520, this.stageId === 'thornvale' ? '狼后鑽進荊棘——小心背後！' : '狼王遁入霧中——小心背後！', this.stageId === 'thornvale' ? '#c8ff8a' : '#c9b8ff', 38, 900);
+        if (b && !this.blinkHinted.has(b.defId)) {
+          this.blinkHinted.add(b.defId);
+          bigText(this, GAME_WIDTH / 2, 520, wd ? '巡守隱入霧中——小心背後！' : this.stageId === 'thornvale' ? '狼后鑽進荊棘——小心背後！' : '狼王遁入霧中——小心背後！', wd ? '#9af0e0' : this.stageId === 'thornvale' ? '#c8ff8a' : '#c9b8ff', 38, 900);
         }
       }
       else if (e.type === 'cast') {
@@ -1831,7 +1840,7 @@ export class RtBattleScene extends Phaser.Scene {
     });
   }
 
-  /** Boss 登場（第 23 輪）：上下黑邊＋鏡頭微推＋名牌從左滑入，每場第一次交戰演一次 */
+  /** Boss 登場（第 23 輪）：上下黑邊＋世界壓暗＋名牌從左滑入，每場第一次交戰演一次 */
   private bossIntro(d: Unit): void {
     const def = ENEMIES[d.defId];
     if (!def) return;
@@ -1843,8 +1852,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.hitStop = Math.max(this.hitStop, 200);
     const cam = this.cameras.main;
     cam.shake(260, 0.006);
-    cam.zoomTo(1.08, 380, 'Cubic.easeOut');
-    this.time.delayedCall(1500, () => cam.zoomTo(1, 500, 'Cubic.easeOut'));
+    // 第 25 輪：不再推鏡頭（整個場景只有一台相機，HUD 會一起放大）；改成世界壓暗一下，HUD（depth ≥ 48）不受影響
+    const dim = this.add.rectangle(GAME_WIDTH / 2, 640, GAME_WIDTH + 40, 1320, 0x000000, 0).setDepth(47);
+    this.tweens.add({ targets: dim, fillAlpha: 0.38, duration: 300, ease: 'Cubic.easeOut', yoyo: true, hold: 1300, onComplete: () => dim.destroy() });
     const H = 110;
     const bars = [this.add.rectangle(GAME_WIDTH / 2, -H / 2, GAME_WIDTH + 120, H, 0x000000, 1), this.add.rectangle(GAME_WIDTH / 2, 1280 + H / 2, GAME_WIDTH + 120, H, 0x000000, 1)];
     bars.forEach((b, i) => {
