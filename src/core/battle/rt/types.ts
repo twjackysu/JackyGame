@@ -27,6 +27,15 @@ export interface SkillMod {
   distPct?: number;
 }
 
+/** 精英詞綴（D-113）：迅捷＝移動 +35%、堅韌＝HP +70%、狂暴＝招式冷卻 −30%；帶詞綴的精英掉落物品等級 +1 */
+export type EliteAffix = 'swift' | 'tough' | 'frenzy';
+export const ELITE_AFFIXES: Record<EliteAffix, { name: string; speedPct?: number; hpPct?: number; cdPct?: number }> = {
+  swift: { name: '迅捷', speedPct: 35 },
+  tough: { name: '堅韌', hpPct: 70 },
+  frenzy: { name: '狂暴', cdPct: 30 },
+};
+export const ELITE_AFFIX_IDS: readonly EliteAffix[] = ['swift', 'tough', 'frenzy'];
+
 export const SKILL_MOD_CAPS = { cdPct: 40, areaPct: 50, blockTicks: 6, distPct: 50 } as const;
 
 export type StatusId = 'break' | 'slow' | 'stun' | 'atkUp' | 'burn' | 'poison' | 'freeze' | 'weak' | 'shield';
@@ -226,6 +235,8 @@ export interface Unit {
   fixedIdx?: number;
   /** 暴怒版 Boss（bossZone.fury，D-099） */
   fury?: boolean;
+  /** 精英詞綴（D-113） */
+  affix?: EliteAffix;
   /** 進入戰鬥的 tick（同時追擊上限的排隊順序：先醒的先打） */
   aggroTick?: number;
   tier?: AggroTier;
@@ -444,6 +455,8 @@ export interface StageDefinition {
    * 隱藏精英（design/20 C2-3「知道出現條件就能主動觸發」）：不倒下連續打倒 streak 隻普通怪 → 附近冒出一隻醒著的精英
    * （hpPct 加成、掉落 +lootPct%）；打倒或倒下後重新計數。玩家在營火或 Boss 區域內時等出來再生。
    */
+  /** 精英詞綴（D-113）：tier elite、會移動的地圖精英出生時有 chancePct% 機率帶一個詞綴（用掉落亂數抽） */
+  eliteAffixes?: { chancePct: number };
   hiddenElite?: { streak: number; enemyId: string; hpPct?: number; atkPct?: number; lootPct?: number };
   /** 隱藏寶箱（需要 loot） */
   chests?: Chest[];

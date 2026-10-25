@@ -1,8 +1,8 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILL_VARIANTS, SKILLS, SWORDSMAN, STAGES } from './data';
-import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
+import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -222,6 +222,7 @@ function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Un
   m.mode = 'idle';
   m.tier = g.tier ?? (def.boss ? 'boss' : 'normal');
   if (g.aggroUnits !== undefined) m.aggroUnits = g.aggroUnits;
+  if (m.tier === 'elite') rollAffix(s, m);
   m.homeX = m.x;
   m.homeY = m.y;
   m.engagedTick = s.tick;
@@ -299,7 +300,7 @@ function rollDrops(s: BattleState, e: Unit): void {
     const fury = e.fury ? st?.bossZone?.fury : undefined;
     // 隱藏精英（D-100）：物品等級再 +2、稀有權重 ×2
     const hidden = e.groupId === HIDDEN_GROUP;
-    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0) + (hidden ? 2 : 0) + (nt?.ilvlPlus ?? 0);
+    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0) + (hidden ? 2 : 0) + (nt?.ilvlPlus ?? 0) + (e.affix ? 1 : 0);
     const first = !!gd.firstRare && !(s.bossKills ?? []).includes(e.defId);
     for (let k = 0; k < (fury?.count ?? gd.count ?? 1); k++) {
       if (lootRand(s) * 100 >= (gd.chance * (100 + bonus)) / 100) continue;
@@ -353,6 +354,22 @@ function ringSpot(s: BattleState, p: Unit, units: number): { x: number; y: numbe
 
 /** 隱藏精英：連殺到門檻就在附近冒出來（醒著）；打倒後重新計數 */
 const HIDDEN_GROUP = 'hidden';
+
+/** 精英詞綴（D-113）：只有設了 eliteAffixes 的關卡、會移動的精英才抽（用掉落亂數，不動戰鬥亂數） */
+function rollAffix(s: BattleState, m: Unit): void {
+  const ea = STAGES[s.stageId]?.eliteAffixes;
+  if (!ea || s.lootRng === undefined || (ENEMIES[m.defId]?.speed ?? 0) <= 0) return;
+  lootRand(s); // 相近種子的第一個值很接近：先丟一個打散
+  if (lootRand(s) * 100 >= ea.chancePct) return;
+  applyAffix(m, ELITE_AFFIX_IDS[Math.floor(lootRand(s) * ELITE_AFFIX_IDS.length)]!);
+}
+
+export function applyAffix(m: Unit, a: EliteAffix): void {
+  const d = ELITE_AFFIXES[a];
+  m.affix = a;
+  if (d.hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + d.hpPct)) / 100);
+  if (d.speedPct) m.speedPerTick = Math.round((m.speedPerTick * (100 + d.speedPct)) / 100);
+}
 function processHiddenElite(s: BattleState): void {
   const st = STAGES[s.stageId];
   const h = st?.hiddenElite;
@@ -370,6 +387,7 @@ function processHiddenElite(s: BattleState): void {
   if (h.atkPct) m.atk = Math.round((m.atk * (100 + h.atkPct)) / 100);
   clampArena(s, m);
   m.tier = 'elite';
+  rollAffix(s, m);
   m.homeX = m.x;
   m.homeY = m.y;
   m.groupId = HIDDEN_GROUP;
@@ -1236,6 +1254,7 @@ function startEnemyAttack(s: BattleState, e: Unit, def: EnemyDefinition, atk: Ar
   face(e, p);
   let cd = e.phase === 2 && def.boss ? Math.round((atk.cooldownTicks * def.boss.phase2CooldownPct) / 100) : atk.cooldownTicks;
   if (e.fury) cd = Math.round((cd * (100 - (STAGES[s.stageId]?.bossZone?.fury?.cdPct ?? 0))) / 100);
+  if (e.affix) cd = Math.round((cd * (100 - (ELITE_AFFIXES[e.affix].cdPct ?? 0))) / 100);
   e.ready[atk.id] = s.tick + cd;
   e.nextAttackTick = s.tick + atk.warningTicks + atk.recoverTicks + (atk.charge?.ticks ?? 0);
   e.action = { kind: 'enemyAttack', id: atk.id, start: s.tick, end: s.tick + atk.warningTicks + atk.recoverTicks, dirX: e.facingX, dirY: e.facingY, ox: e.x, oy: e.y, hitIds: [] };

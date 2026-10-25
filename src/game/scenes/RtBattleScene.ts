@@ -11,7 +11,10 @@ import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
-import { CAMPFIRE_RULES, CHEST_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
+import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, type EliteAffix } from '../../core/battle/rt/types';
+
+/** 精英詞綴顏色（D-113）：迅捷青、堅韌綠、狂暴紅 */
+const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf6a, frenzy: 0xff5a4a };
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
@@ -1125,6 +1128,7 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'aggro') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '!', { color: '#ff5a5a', size: 40 });
+        if (d?.affix) this.time.delayedCall(250, () => floatNumber(this, this.sx(d.x), this.sy(d.y) - 90, `${ELITE_AFFIXES[d.affix!].name}！`, { color: `#${AFFIX_COLOR[d.affix!].toString(16).padStart(6, '0')}`, size: 32 }));
         // 遊戲記憶（design/20 C2-2）：地圖上第一次遇到 Boss → 內心提示弱點（只提示，不加傷害）
         if (d && ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length && !this.bossMemo) {
           this.bossMemo = true;
@@ -1766,6 +1770,25 @@ export class RtBattleScene extends Phaser.Scene {
       } else {
         g.fillStyle(isP ? (inv ? 0x9fd8ff : 0x4a8aff) : boss ? 0x8a3a6a : 0x6a6a7a, inv ? 0.6 : 1).fillCircle(px, py, r);
         g.lineStyle(3, 0xffffff, 0.9).lineBetween(px, py, px + (x.facingX / 1000) * r * 1.4, py + (x.facingY / 1000) * r * 1.4);
+      }
+      // 精英詞綴（D-113）：腳下雙圈（顏色＝詞綴），外圈慢慢轉
+      if (x.affix && !x.dead) {
+        const col = AFFIX_COLOR[x.affix];
+        g.lineStyle(3, col, 0.9).strokeEllipse(px, py + r * 0.2, r * 2.6, r * 1.1);
+        const rot = now / 400;
+        g.lineStyle(4, col, 0.75);
+        for (let q = 0; q < 4; q++) {
+          const a0 = rot + (q * Math.PI) / 2;
+          g.beginPath();
+          for (let k = 0; k <= 6; k++) {
+            const an = a0 + (k / 6) * 0.9;
+            const ex = px + Math.cos(an) * r * 1.65;
+            const ey = py + r * 0.2 + Math.sin(an) * r * 0.7;
+            if (k === 0) g.moveTo(ex, ey);
+            else g.lineTo(ex, ey);
+          }
+          g.strokePath();
+        }
       }
       // 面向小箭頭（腳下）
       const fx = x.facingX / 1000;

@@ -235,7 +235,9 @@ describe('霧語森林 15 分鐘耐久', () => {
     (globalThis as any).process.stdout.write(`mistwood soak: 每 tick ${ms.toFixed(3)}ms、最多 ${maxUnits} 單位、狼王回來 ${kingRespawns} 次、暴動 ${s.events.filter((e) => e.type === 'riot').length}、隱藏精英 ${s.events.filter((e) => e.type === 'hiddenElite').length}\n`);
     expect(s.bossKills).toContain('wolf_king');
     expect(kingRespawns + kingKills).toBeGreaterThanOrEqual(1);
-    expect(maxUnits).toBeLessThanOrEqual(1 + 1 + 20 + 20 + 8 + 2 + 4); // 玩家＋狼王＋重生點活的＋待重生的屍體＋暴動＋隱藏＋餘裕（有上限，不會一直長）
+    // 玩家＋狼王＋重生點活的＋待重生的屍體＋暴動＋隱藏＋餘裕（有上限，不會一直長）；重生點上限從地圖算（D-107 加了母樹後原本寫死的 20 剛好頂到）
+    const groupCap = (STAGES.mistwood!.spawnGroups ?? []).reduce((n, g) => n + g.maxAlive, 0);
+    expect(maxUnits).toBeLessThanOrEqual(1 + 1 + groupCap * 2 + 8 + 2 + 4);
     expect(stuck).toBe(0);
     expect(ms).toBeLessThan(1);
   }, 120000);
