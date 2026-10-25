@@ -17,7 +17,7 @@
 
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～10 題）。
-2. **變化二的專屬演出**（第 25 輪疑慮②）：霜旋目前是寒氣環＋閃光、破空斬月是裂地斬的劍氣＋紅光。可以做：霜旋地面結霜（像 `thornFx` 一樣的純畫面陣列，1.5 秒融化）、破空斬月畫一道很寬的白金弧光（`groundSplit` 加寬＋月牙形）、碎甲斬命中時敵人身上碎裂的盾片粒子。都在 `RtBattleScene` 的技能 fx（搜尋「變化二（D-121）」）。
+2. **變化二演出收尾**：霜旋（結霜＋冰晶）、破空斬月（月牙）第 25 輪已做；還缺碎甲斬命中時敵人身上碎裂的盾片粒子、影步的殘影分身（照 `drawPaws` 的做法存幾個位置淡出）。在 `RtBattleScene` 搜尋「變化二（D-121）」。
 3. **Bot 會用變化二**（選做）：破空斬月是直線，Bot 對 Boss 用起來比星落一閃差（100～133 vs 91～96 秒）；可在 `sim.ts` 讓 ult 是直線時先轉向目標再放。
 4. **巡守／巡獵者數值**（等真人回饋）：巡守太硬 → `mist_warden` HP 1050→900 或 `aggroUnits` 4→3；巡獵者 HP 1400→1200。
 5. **validateStage 抓巡邏路線的窄縫**（第 25 輪踩到）：沿相鄰巡邏點的直線每 0.25 格取樣，檢查 `pushOutSolid` 半徑 0.6 能不能過（或直接在驗證裡跑 `navToward` 模擬一圈）。
@@ -36,6 +36,7 @@
 - **舊關卡雜湊比對**（核心改動必做；`tests/zz-hash.test.ts` 不在 git，新 session 要照範本重寫）：第 24 輪起含荊棘谷共 90 場（荊棘谷用 `level: 6`＋`advanceTo: THORNVALE_QUEEN`、300 秒）；第 19 輪的範本在 PROGRESS 第 19 輪；寫暫時的 vitest（檔名 `tests/zz-*.test.ts`，已 gitignore；第 21 輪的 `zz-hash` 範本見 PROGRESS 第 19 輪），把 `Object.keys(STAGES)`＋霧語森林／測試大地圖 × 種子 1–3 × novice／normal／expert 的 `stateHash` 寫進檔案（共 81 場），`git stash push -- <改過的核心檔>` 前後各跑一次 diff。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。
 - 截圖：`npx vite preview --port 4173`（背景用 `setsid`），Playwright 腳本放 `screenshots/`（gitignored），`executablePath: '/opt/pw-browsers/chromium'`，網址加 `?debug` 才有 `window.__game`；即時戰鬥 `window.__rt.state()`。第 18 輪的 `screenshots/r18.mjs` 示範從標題點按鈕進森林、開 ☰、操作設定、拖曳按鈕。**無頭瀏覽器 Phaser 時間很慢（約 4 ticks/秒）**，長演出只能截到開頭；效能比較拿舊版當基準。
+- 短命特效（冰晶 1.9 秒、荊棘）在無頭瀏覽器截不到：包住畫圖函式、每幀把 `born` 拉回來（第 25 輪 `screenshots/r25e.mjs`）。
 - 無頭瀏覽器不要用 `scene.update()` 快轉（會讓 Playwright 逾時）；要截演出就在頁面裡直接呼叫場景方法（例：`sc.spawnThorns({...})`、`sc.bossIntro(q)`、`sc.openShop()`），存檔用 `localStorage.setItem('jg_rt_mistwood', ...)` 後 reload。第 23 輪腳本 `screenshots/r23*.mjs`（gitignored）。
 - 背景程式一律 `setsid`；不要 `pkill -f`／`pgrep -f ... | kill`（會殺到自己的 shell，第 22 輪又踩到），啟動時 `echo $! > pidfile` 再用 PID 殺。
 - vitest 裡 `console.log` 可能被吞，用 `(globalThis as any).process.stdout.write(...)`。`npm ci` 前設 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`。tsconfig 開了 `noUncheckedIndexedAccess`／`noUnusedLocals`／`noUnusedParameters`。
