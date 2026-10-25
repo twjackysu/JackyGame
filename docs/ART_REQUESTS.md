@@ -2,6 +2,7 @@
 
 > **這是唯一的美術需求佇列。** 開發迴圈需要 AI 繪圖時，只在這裡新增項目，不要另開檔案。Jacky 的本機 Agent 會照這份清單產圖。
 > 已完成的角色立繪與 Q 版戰鬥圖紀錄在 `docs/ART_PROMPTS.md`。
+> **目前沒有待產的項目**（10/25 第 18 輪整理，D-095）：Jacky 回國前不用產任何圖。之後開發迴圈若真的需要新圖，才在「需求清單」新增。
 
 ## 規則（開發迴圈必讀）
 1. **額度有限，總量上限：GPT 8 張、Gemini 12 張（整個專案）。** 目前已排定的數量寫在下方「額度統計」，新增前先確認不會超過。
@@ -34,109 +35,25 @@
 - **地圖物件、道具（sheet 用）**：
   `Style: polished fantasy RPG game asset sheet, top-down 3/4 view (classic JRPG perspective) for map objects / front view for item icons, painterly anime style, soft lighting, each object centered in its own equal grid cell with generous empty margin, objects do not touch or overlap cell borders, solid pure green #00FF00 background, no grid lines, no text, no watermark.`
 
-## 額度統計
-- GPT：已排 4／8
-- Gemini：已排 7／12
+## 額度統計（已用的照算）
+- GPT：已用 4／8（剩 4）
+- Gemini：已用 5／12（剩 7）
 
-## 需求清單
+## 需求清單（待產）
+（目前沒有）
 
-### R-001 ｜ GPT ｜ P1 ｜ `enemy_boss_wolfking.png` ｜ 狀態：已上傳 2026-10-24
-- 用途：第 1 章 Boss「霧角狼王」戰鬥圖（正面，Q 版，跟現有我方 Q 版圖同畫風）。要接上 `import-art.mjs` 的 `enemy_` → `enemy_boss_wolfking` 材質。
-```
-Chibi / SD style (2.5 heads tall) giant mist wolf king boss, front 3/4 view, huge pale antlers like a stag that glow faint violet,
-dark grey-blue fur dissolving into mist at the edges, glowing violet eyes, snarling, mist swirling around its paws,
-menacing but stylish.
-```
+## 已完成（已匯入 `public/art/`，prompt 見 git 歷史）
+| 編號 | 工具 | 檔名 | 用在 |
+|---|---|---|---|
+| R-001 | GPT | `enemy_boss_wolfking` | 霧角狼王（即時戰鬥與舊主線都在用） |
+| R-002 | GPT | `enemy_boss_bellworm` | 舊主線第 2 章 Boss |
+| R-003 | GPT | `enemy_boss_starfall` | 舊主線最終 Boss |
+| R-004 | GPT | `bg_title_keyart` | 標題主視覺 |
+| R-005 | Gemini | `sheet_items` → `item_*` | 舊主線道具與送禮圖示 |
+| R-006 | Gemini | `sheet_gear` → `item_*` | 舊主線裝備圖示 |
+| R-007 | Gemini | `sheet_town_props` → `prop_*` | 舊主線灰燈鎮物件 |
+| R-008 | Gemini | `sheet_forest_props` → `prop_*` | 舊主線森林物件 |
+| R-009 | Gemini | `sheet_forest_enemies` → `enemy_*` | 野狼、荊棘菇（即時戰鬥在用）與舊主線小怪 |
 
-### R-002 ｜ GPT ｜ P1 ｜ `enemy_boss_bellworm.png` ｜ 狀態：已上傳 2026-10-24
-- 用途：第 2 章 Boss「鐘喉蠕蟲」（礦坑）。
-```
-Chibi / SD style giant armored mine worm boss rising from rubble, its mouth is shaped like a cracked bronze bell with glowing
-amber light inside, rocky segmented carapace with embedded crystals and old mining lanterns, dust and sparks, front view.
-```
-
-### R-003 ｜ GPT ｜ P1 ｜ `enemy_boss_starfall.png` ｜ 狀態：已上傳 2026-10-24
-- 用途：最終 Boss「蝕星者」本體（第一段＋核心共用）。
-```
-Chibi / SD style cosmic final boss "the Eclipsar": a floating black sun-like core with a cracked violet slit eye in the center,
-surrounded by orbiting shards of fallen stars and dark tendrils of starlight, ominous purple and gold glow, front view,
-awe-inspiring and beautiful.
-```
-
-### R-004 ｜ GPT ｜ P2 ｜ `bg_title_keyart.png` ｜ 狀態：已上傳 2026-10-24
-- 用途：標題畫面主視覺（直式 9:16，1080×1920 左右，**不去背**）。連恩舉著提燈、伊歐在身旁，背景是墜星的夜空與遠方城堡。標題字由遊戲程式疊上去，**圖上不要有字**，上方 1/3 留給標題。
-```
-Vertical 9:16 key visual for an anime fantasy RPG title screen. A handsome 16-year-old boy with messy dark brown hair, amber eyes,
-long black coat and red scarf, holding up a glowing ornate brass lantern; beside him a gentle silver-haired girl in a flowing
-white-and-blue dress with glowing motes. They stand on a cliff at night, looking at a sky full of falling stars over a distant
-castle city. Upper third of the image is open night sky for a logo. Cinematic warm lantern light vs cool starlight.
-No text. High-quality anime gacha game art, painterly.
-```
-
-### R-005 ｜ Gemini ｜ P1 ｜ `sheet_items.jpg`（4×4 共 16 格）｜ 狀態：已上傳 2026-10-24
-- 用途：道具／送禮物品圖示（商店、背包、送禮）。格子順序見 `scripts/art-sheets.json` 的 `sheet_items`。
-```
-A 4x4 grid of 16 fantasy RPG item icons, front view, in this order (left to right, top to bottom):
-small red healing potion, large red healing potion, small flask of golden lamp oil, round glass bomb bottle with fuse,
-bundle of green healing herbs, blue mana ether vial, ornate brass key, bouquet of white wildflowers,
-old leather-bound book, small brass clockwork gear toy, silk ribbon with star charm, bottle of red wine,
-pack of tarot-like playing cards, glowing orange star-ember crystal, rolled parchment map, leather coin pouch.
-```
-
-### R-006 ｜ Gemini ｜ P1 ｜ `sheet_gear.jpg`（4×3 共 12 格）｜ 狀態：已上傳 2026-10-24
-- 用途：裝備圖示（商店、裝備欄）。順序見 `art-sheets.json` 的 `sheet_gear`。
-```
-A 4x3 grid of 12 fantasy RPG equipment icons, front view, in this order:
-simple brass lantern, ornate star-engraved lantern, plain steel longsword, silver knight longsword with blue gem,
-heavy halberd, alchemist staff with glowing orange bulb, cloth traveler's tunic, brown leather armor,
-silver plate armor with star crest, silver ring with violet gem, golden amulet with sun emblem, small lucky charm with bell.
-```
-
-### R-007 ｜ Gemini ｜ P1 ｜ `sheet_town_props.jpg`（3×2）｜ 狀態：已上傳 2026-10-24
-- 用途：灰燈鎮地圖物件（探索場景 E1／E2）。順序見 `sheet_town_props`。
-```
-A 3x2 grid of 6 medieval fantasy town map objects for a top-down JRPG, in this order:
-small stone cottage with red tiled roof, timber-framed two-story house, tavern with hanging sign and warm windows,
-general store with awning and crates, stone well with wooden roof, iron street lamp post with glowing lantern.
-```
-
-### R-008 ｜ Gemini ｜ P2 ｜ `sheet_forest_props.jpg`（3×2）｜ 狀態：已上傳 2026-10-24
-- 用途：霧語森林、礦坑周邊地圖物件。順序見 `sheet_forest_props`。
-```
-A 3x2 grid of 6 fantasy forest map objects for a top-down JRPG, in this order:
-tall dark pine tree, round leafy oak tree, mossy boulder, bush with small glowing blue flowers,
-wooden treasure chest with brass trim, wooden signpost with two arrows.
-```
-
-### R-009 ｜ Gemini ｜ P2 ｜ `sheet_forest_enemies.jpg`（3×2）｜ 狀態：已上傳 2026-10-24
-- 用途：第 1、2 章小怪（戰鬥＋地圖明雷縮小用）。順序見 `sheet_forest_enemies`。
-```
-A 3x2 grid of 6 chibi / SD fantasy monsters, front view, in this order:
-mist wolf (grey-blue fur fading into fog, violet eyes), thorn mushroom creature (red cap with thorns, angry face),
-shadow boar (black bristles, glowing ember tusks), rock beetle (stone shell with crystals),
-lantern wraith (ghost holding a broken mining lantern, teal flame), blast lizard (orange lizard with glowing volatile belly).
-```
-
-### R-010 ｜ Gemini ｜ P1 ｜ `sheet_party_walk.jpg`（3×2）｜ 狀態：待產
-- 用途：自由探索地圖上走路用的 Q 版小人（**正面**，玩家在地圖上一直看到；目前用戰鬥背影圖代替，看不到臉）。匯入成 `walk_lian` 等，ExploreScene 有圖就自動換。順序見 `sheet_party_walk`（最後一格是備用）。
-```
-A 3x2 grid of 6 chibi / SD (2 heads tall) fantasy RPG characters, full body, FRONT view facing the viewer, standing in a
-slight walking pose, cute but cool, in this order:
-1) boy with messy dark brown hair with amber highlights, dark long coat, red scarf, holding a small glowing brass lantern;
-2) knight girl with long dark violet high ponytail, silver-violet armor, sword at hip;
-3) ethereal girl with long glowing silver-white hair, white and pale blue dress, star hair ornament;
-4) cheerful girl with fluffy short copper-orange hair, brass goggles on head, alchemist apron with vials;
-5) rugged veteran mercenary in his 40s, grey-streaked dark hair, stubble, dark red cloak, halberd;
-6) friendly old lamplighter with white hair, brown coat, long lamp-lighting pole.
-Consistent character design across cells, same scale, same lighting.
-```
-
-### R-011 ｜ Gemini ｜ P2 ｜ `sheet_town_npcs.jpg`（3×2）｜ 狀態：待產
-- 用途：城鎮／森林的配角小人（地圖用，正面）。匯入成 `walk_npc_*`，有圖就取代程式畫的小人。順序見 `sheet_town_npcs`。
-```
-A 3x2 grid of 6 chibi / SD (2 heads tall) fantasy village NPCs, full body, FRONT view, in this order:
-1) town guard with blue-grey uniform, spear and small helmet; 2) little orphan boy with orange shirt and messy brown hair;
-3) village woman in green dress with basket; 4) traveling merchant with big backpack and brown cap;
-5) grizzled hunter with fur cloak and bow; 6) tavern keeper woman with apron and tray.
-Consistent scale and lighting.
-```
+## 已取消
+- R-010 `sheet_party_walk`（隊伍正面走路小人）、R-011 `sheet_town_npcs`（鎮民走路小人）：只給舊主線的自由探索（ExploreScene）用；10/24 改成即時戰鬥後舊主線不再加功能（D-065、D-087），所以取消，不佔額度。程式備援（戰鬥背影圖、程式小人）照舊。

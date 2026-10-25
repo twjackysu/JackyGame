@@ -405,7 +405,7 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   private makeWalker(key: string, height: number): { c: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image } {
-    // 地圖用正面 Q 版（docs/ART_REQUESTS R-010：walk_<id>）有圖就用，沒有就用戰鬥背影圖
+    // 地圖用正面 Q 版 walk_<id> 有圖就用（R-010 已取消，D-095），沒有就用戰鬥背影圖
     const walk = key.replace(/^hero_/, 'walk_');
     if (this.textures.exists(walk)) key = walk;
     const c = this.add.container(0, 0);

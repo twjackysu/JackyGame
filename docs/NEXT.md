@@ -42,4 +42,4 @@
 - Phaser：場景重啟不會清 `this.events` 自訂監聽器（註冊前先 `off` 或用 `once`）；相機 `zoomTo/pan` 的 ease 只認 `'Cubic.easeOut'` 這種名稱。
 
 ## 美術
-- 需要 AI 圖只寫進 `docs/ART_REQUESTS.md`（遵守額度上限），一律先做程式備援。P4 的裝備圖示先用程式畫（形狀＋稀有度外框）。
+- 需要 AI 圖只寫進 `docs/ART_REQUESTS.md`（遵守額度上限：GPT 剩 4、Gemini 剩 7），一律先做程式備援；目前沒有待產項目（D-095）。完成或作廢的項目移到「已完成／已取消」，不要留在待產。
