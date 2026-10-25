@@ -433,7 +433,7 @@ function processChests(s: BattleState): void {
   const p = playerOf(s);
   if (p.dead) return;
   for (const c of list) {
-    if (s.chestsOpened?.includes(c.id) || dist(p.x, p.y, c.x, c.y) > CHEST_RULES.openUnits * UNIT) continue;
+    if ((c.nightOnly && !s.night) || s.chestsOpened?.includes(c.id) || dist(p.x, p.y, c.x, c.y) > CHEST_RULES.openUnits * UNIT) continue;
     (s.chestsOpened ??= []).push(c.id);
     for (const k of Object.keys(c.loot).sort() as LootId[]) {
       const n = c.loot[k] ?? 0;

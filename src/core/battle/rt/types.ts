@@ -358,6 +358,8 @@ export interface Chest {
   x: number;
   y: number;
   loot: Partial<Record<LootId, number>>;
+  /** 夜光寶箱（D-108）：只在深夜打得開；畫面不存「開過」，每次進深夜都是滿的 */
+  nightOnly?: boolean;
 }
 /** openUnits：打開距離；hintUnits：畫面開始淡淡顯示、提示「有點熟悉」的距離（核心不讀） */
 export const CHEST_RULES = { openUnits: 1.3, hintUnits: 6 } as const;

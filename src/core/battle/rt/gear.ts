@@ -28,6 +28,8 @@ export interface RtGear {
   enh?: number;
   /** 稀有裝備的技能特效（D-094、D-098）：冷卻 −%、傷害 +%、範圍 +%、格擋窗口 +ticks、衝鋒距離 +% */
   special?: { skill: string; kind: SpecialKind; value: number };
+  /** 深夜掉的稀有（D-108）：三條詞綴、名字「夜燼・…」 */
+  night?: boolean;
 }
 
 export type SpecialKind = 'cd' | 'dmg' | 'area' | 'block' | 'dist';
@@ -149,7 +151,7 @@ function affixValue(stat: AffixStat, L: number, t: number): number {
 }
 
 /** 由種子產生一件裝備（同種子同結果） */
-export function genGear(seed: number, rarity: Rarity, ilvl: number): RtGear {
+export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean }): RtGear {
   const R = rng(seed);
   for (let i = 0; i < 3; i++) R();
   const L = Math.max(1, Math.min(12, Math.floor(ilvl)));
@@ -177,6 +179,14 @@ export function genGear(seed: number, rarity: Rarity, ilvl: number): RtGear {
   const name = rarity === 1 ? baseName : rarity === 2 ? `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}${special ? '・薄霧' : ''}` : `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}・霧語`;
   const g: RtGear = { uid: (seed >>> 0).toString(36) + L.toString(36) + rarity, slot, rarity, ilvl: L, name, base, affixes };
   if (special) g.special = special;
+  // 深夜的稀有（D-108）：多一條詞綴、名字改「夜燼」；亂數接在最後抽，白天的結果不變
+  if (opts?.night && rarity === 3) {
+    const k = Math.floor(R() * pool.length);
+    const stat = pool.splice(k, 1)[0]!;
+    affixes.push({ stat, value: affixValue(stat, L, R()) });
+    g.name = `夜燼・${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}`;
+    g.night = true;
+  }
   return g;
 }
 

@@ -278,3 +278,23 @@ describe('強化讓特效變強（D-102）', () => {
     expect(gearLines({ ...g, enh: 7 }).some((l) => l.includes('範圍 +25%') && l.includes('強化加成'))).toBe(true);
   });
 });
+
+describe('深夜的稀有（D-108）', () => {
+  it('三條詞綴、名字「夜燼・」；底數值、部位、特效和白天同種子相同；普通／精良不受影響', () => {
+    for (let seed = 1; seed <= 300; seed++) {
+      const d = genGear(seed, 3, 8);
+      const n = genGear(seed, 3, 8, { night: true });
+      expect(n.night).toBe(true);
+      expect(n.name.startsWith('夜燼・')).toBe(true);
+      expect(n.affixes.length).toBe(3);
+      expect(n.affixes.slice(0, 2)).toEqual(d.affixes);
+      expect(new Set(n.affixes.map((a) => a.stat)).size).toBe(3);
+      expect(n.base).toEqual(d.base);
+      expect(n.slot).toBe(d.slot);
+      expect(n.special).toEqual(d.special);
+      expect(isGear(n)).toBe(true);
+      expect(gearScore(n, SWORDSMAN.hp, SWORDSMAN.atk)).toBeGreaterThan(gearScore(d, SWORDSMAN.hp, SWORDSMAN.atk));
+      for (const r of [1, 2] as const) expect(genGear(seed, r, 8, { night: true })).toEqual(genGear(seed, r, 8));
+    }
+  });
+});

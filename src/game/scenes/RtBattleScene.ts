@@ -167,7 +167,7 @@ export class RtBattleScene extends Phaser.Scene {
       // 正式大地圖（D-087）：沒有時間限制（核心的 timeLimitTicks 只給模擬器用）；開過的寶箱下次是空箱
       this.s.timeLimitTicks = 24 * 3600 * TICKS_PER_SEC;
       const rec = loadRecord(this.stageId);
-      const valid = new Set((STAGES[this.stageId]?.chests ?? []).map((c) => c.id));
+      const valid = new Set((STAGES[this.stageId]?.chests ?? []).filter((c) => !c.nightOnly).map((c) => c.id));
       const opened = (rec.chests ?? []).filter((id) => valid.has(id));
       if (opened.length) this.s.chestsOpened = [...opened];
       // 暴怒狼王（D-099）：上次選了而且已解鎖 → 這次進森林的狼王就是暴怒版
@@ -473,7 +473,7 @@ export class RtBattleScene extends Phaser.Scene {
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
     const p = playerOf(this.s);
-    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl);
+    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night });
     // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理
     const r = addWithAutoSalvage(this.bagSt, g);
     if (!r) {
@@ -495,7 +495,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: icon, alpha: 0, delay: 700, duration: 400, onComplete: () => icon.destroy(true) });
     if (rarity >= 3) {
       SFX.perfect();
-      bigText(this, GAME_WIDTH / 2, 560, `稀有裝備！\n${g.name}`, col, 44, 1200);
+      bigText(this, GAME_WIDTH / 2, 560, `${g.night ? '深夜的稀有！' : '稀有裝備！'}\n${g.name}`, g.night ? '#b8a8ff' : col, 44, 1200);
     } else {
       SFX.confirm();
       floatNumber(this, this.sx(p.x), this.sy(p.y) - 120, g.name, { color: col, size: rarity === 2 ? 28 : 24 });
@@ -742,7 +742,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (!list?.length || this.bot) return;
     const p = playerOf(this.s);
     for (const c of list) {
-      if (this.chestHinted.has(c.id) || this.s.chestsOpened?.includes(c.id)) continue;
+      if (c.nightOnly || this.chestHinted.has(c.id) || this.s.chestsOpened?.includes(c.id)) continue;
       if (Math.hypot(c.x - p.x, c.y - p.y) > CHEST_RULES.hintUnits * UNIT) continue;
       this.chestHinted.add(c.id);
       const t = this.add.text(GAME_WIDTH / 2, 640, '這個地方似乎有點熟悉……', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: 'italic', color: '#d8c8ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(66).setAlpha(0);
@@ -853,11 +853,12 @@ export class RtBattleScene extends Phaser.Scene {
     const rec = loadRecord(this.stageId);
     const now = this.snap();
     const total = mergeRun(rec, this.saved, now);
-    const nChest = STAGES[this.stageId]?.chests?.length ?? 0;
+    const dayChests = new Set((STAGES[this.stageId]?.chests ?? []).filter((c) => !c.nightOnly).map((c) => c.id));
+    const nChest = dayChests.size;
     const lines = [
       `本次：擊殺 ${now.kills}・金幣 ${now.coin}・粉塵 ${now.dust}・結晶 ${now.crystal}`,
       `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
-      `狼王討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).length}/${nChest}`,
+      `狼王討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
       `進入森林 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
     ];
     if (this.s.prog) lines.unshift(`Lv ${this.s.prog.level}・經驗 ${this.s.prog.xp}/${xpToNext(this.s.prog.level)}`);
@@ -1202,7 +1203,7 @@ export class RtBattleScene extends Phaser.Scene {
         shockRing(this, x, y, 0xffd27a, 160, 520, 7);
         sparks(this, x, y - 20, 30, 'ember', 0xffe08a, 620);
         const got = Object.entries(e.loot).map(([k, n]) => `${LOOT_NAMES[k] ?? k} ×${n}`).join('　');
-        bigText(this, GAME_WIDTH / 2, 390, '找到隱藏寶箱！', '#ffd27a', 46, 1000);
+        bigText(this, GAME_WIDTH / 2, 390, c?.nightOnly ? '夜光寶箱！' : '找到隱藏寶箱！', c?.nightOnly ? '#bfe0ff' : '#ffd27a', 46, 1000);
         this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, 446, got, '#f4e6c0', 30, 1400));
       } else if (e.type === 'rest') {
         const p = playerOf(this.s);
@@ -1519,13 +1520,25 @@ export class RtBattleScene extends Phaser.Scene {
     // 隱藏寶箱：遠處看不到，靠近（hintUnits 內）才慢慢浮現；打開後留下空箱
     const pl0 = playerOf(s);
     for (const c of STAGES[this.stageId]?.chests ?? []) {
+      if (c.nightOnly && !s.night) continue;
       const opened = !!s.chestsOpened?.includes(c.id);
       const d = Math.hypot(c.x - pl0.x, c.y - pl0.y) / UNIT;
-      const a = opened ? 0.55 : Math.max(0, Math.min(1, (CHEST_RULES.hintUnits - d) / 2.5));
+      const a = opened ? 0.55 : c.nightOnly ? 1 : Math.max(0, Math.min(1, (CHEST_RULES.hintUnits - d) / 2.5));
       if (a <= 0) continue;
       const cx = this.sx(c.x);
       const cy = this.sy(c.y);
       const k = this.k * 1.4;
+      if (c.nightOnly && !opened) {
+        // 夜光寶箱：畫在暈影上面的藍色光柱＋光圈（遠處也看得到，D-108）
+        const pulse = 0.5 + 0.5 * Math.sin(now / 260);
+        top.fillStyle(0x7ab8ff, 0.12 + 0.08 * pulse).fillEllipse(cx, cy + 6 * k, 120 * k, 40 * k);
+        top.fillStyle(0x9fd0ff, 0.1 + 0.06 * pulse).fillRect(cx - 10 * k, cy - 140 * k, 20 * k, 140 * k);
+        top.lineStyle(2, 0xbfe0ff, 0.5 + 0.4 * pulse).strokeEllipse(cx, cy + 6 * k, 80 * k, 26 * k);
+        top.fillStyle(0x34508a, 1).fillRoundedRect(cx - 26 * k, cy - 8 * k, 52 * k, 26 * k, 4 * k);
+        top.fillStyle(0x5a86d0, 1).fillRoundedRect(cx - 28 * k, cy - 20 * k, 56 * k, 14 * k, 5 * k);
+        top.fillStyle(0xe8f4ff, 1).fillRect(cx - 4 * k, cy - 10 * k, 8 * k, 10 * k);
+        continue;
+      }
       g.fillStyle(0x000000, 0.35 * a).fillEllipse(cx, cy + 16 * k, 60 * k, 14 * k);
       g.fillStyle(0x6a4020, a).fillRoundedRect(cx - 26 * k, cy - 8 * k, 52 * k, 26 * k, 4 * k);
       g.fillStyle(opened ? 0x2a1a0e : 0x8a5a2a, a).fillRoundedRect(cx - 28 * k, cy - (opened ? 26 : 20) * k, 56 * k, 14 * k, 5 * k);
@@ -1798,6 +1811,11 @@ export class RtBattleScene extends Phaser.Scene {
     }
     // 開過的寶箱：灰色小方塊（沒開的不畫，留給玩家自己找）
     for (const c of STAGES[this.stageId]?.chests ?? []) {
+      // 夜光寶箱（D-108）：深夜時在小地圖上閃藍光
+      if (c.nightOnly) {
+        if (s.night && !(s.chestsOpened ?? []).includes(c.id)) g.fillStyle(0x9fd0ff, 0.6 + 0.4 * Math.sin(now / 200)).fillRect(m.x + c.x * m.s - 3, m.y + c.y * m.s - 3, 6, 6);
+        continue;
+      }
       if ((s.chestsOpened ?? []).includes(c.id)) g.fillStyle(0x8a8070, 0.8).fillRect(m.x + c.x * m.s - 2, m.y + c.y * m.s - 2, 4, 4);
     }
     for (const e of enemiesOf(s)) {

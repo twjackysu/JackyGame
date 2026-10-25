@@ -145,6 +145,9 @@ export function makeMistwoodStage(): StageDefinition {
       { id: 'den_cache', x: c(3), y: c(52), loot: { crystal: 1, gold: 60 } },
       { id: 'deep_hollow', x: c(44), y: c(54), loot: { potion: 5, dust: 8 } },
       { id: 'elite_corner', x: c(3), y: c(25), loot: { crystal: 2, gold: 100 } },
+      // 夜光寶箱（D-108）：只在深夜出現、遠處就看得到；每次進深夜都會補滿
+      { id: 'night_glow_w', x: c(6), y: c(78), loot: { crystal: 1, potion: 3, gold: 60 }, nightOnly: true },
+      { id: 'night_glow_n', x: c(42), y: c(28), loot: { crystal: 2, dust: 6, gold: 90 }, nightOnly: true },
     ],
     campfires: [{ id: 'south', x: c(24), y: c(89) }, { id: 'deep', x: c(36), y: c(49) }],
     zones: [
