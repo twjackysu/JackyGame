@@ -242,6 +242,9 @@ export interface Unit {
   tier?: AggroTier;
   /** 仇恨半徑（單位）另外指定，蓋過 AGGRO_RULES[tier].aggro（例：不會動的荊棘母樹縮小，避免路過就被拉住） */
   aggroUnits?: number;
+  /** 巡邏路徑（D-117）：待機時沿著這些點來回走（家跟著移動）；undefined＝原地待機 */
+  patrol?: readonly { x: number; y: number }[];
+  patrolIdx?: number;
   homeX?: number;
   homeY?: number;
   /** 最後一次「在仇恨範圍內或有交手」的 tick */
@@ -370,6 +373,8 @@ export interface SpawnGroup {
   lootPct?: number;
   /** 只在深夜出現（StageDefinition.night，D-104） */
   nightOnly?: boolean;
+  /** 巡邏路徑（D-117，像素座標）：生出來的怪待機時依序走到每個點、走完從頭開始；發現玩家照常追擊，脫戰回到離開路徑的地方再繼續 */
+  patrol?: readonly { x: number; y: number }[];
 }
 /** 營火（design/20 B4）：怪不追進安全範圍（追進來就脫戰回家）、休息回滿、死亡在最後休息的營火復活 */
 export interface Campfire {

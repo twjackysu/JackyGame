@@ -62,6 +62,10 @@ export function validateStage(def: StageDefinition): string[] {
     ids.add(g.id);
     if (!ENEMIES[g.enemyId]) out.push(`重生點 ${g.id} 的 enemyId「${g.enemyId}」不存在`);
     check(`重生點 ${g.id}`, g.cx, g.cy);
+    (g.patrol ?? []).forEach((pt, i) => {
+      check(`重生點 ${g.id} 巡邏點 #${i}`, pt.x, pt.y);
+      for (const c of def.campfires ?? []) if (Math.hypot(pt.x - c.x, pt.y - c.y) < CAMPFIRE_RULES.safeUnits * UNIT + UNIT) out.push(`重生點 ${g.id} 巡邏點 #${i} 太靠近營火 ${c.id}`);
+    });
     for (const c of def.campfires ?? []) {
       if (Math.hypot(g.cx - c.x, g.cy - c.y) < CAMPFIRE_RULES.safeUnits * UNIT + g.spawnRadius) out.push(`重生點 ${g.id} 和營火 ${c.id} 的安全圈重疊`);
     }

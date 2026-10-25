@@ -230,6 +230,10 @@ function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Un
   m.mode = 'idle';
   m.tier = g.tier ?? (def.boss ? 'boss' : 'normal');
   if (g.aggroUnits !== undefined) m.aggroUnits = g.aggroUnits;
+  if (g.patrol?.length) {
+    m.patrol = g.patrol;
+    m.patrolIdx = 0;
+  }
   if (m.tier === 'elite') rollAffix(s, m);
   m.homeX = m.x;
   m.homeY = m.y;
@@ -1152,6 +1156,7 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
   const hy = e.homeY ?? e.y;
   if (e.mode === 'idle') {
     if (!p.dead && (s.tick + e.id) % 6 === 0 && !inSafeZone(s, p) && dist(e.x, e.y, p.x, p.y) <= aggroR * UNIT + p.r && hasSight(s, e, p)) aggro(s, e);
+    if (e.mode === 'idle' && e.patrol) patrolStep(s, e);
     return e.mode === 'idle';
   }
   if (e.mode === 'returning') {
@@ -1167,6 +1172,14 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
   // Boss 區域：玩家跑出去 → Boss 回家（回到原位時整場重置）
   const zone = STAGES[s.stageId]?.bossZone;
   if (zone && ENEMIES[e.defId]?.boss && !e.action && dist(p.x, p.y, zone.x, zone.y) > zone.r) {
+    e.mode = 'returning';
+    e.statuses = [];
+    s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== e.id);
+    emit(s, { tick: s.tick, type: 'leash', id: e.id });
+    return true;
+  }
+  // 巡邏怪不進 Boss 地盤（D-117）：玩家跑進 Boss 區域就放棄（避免巡獵者和 Boss 一起夾擊）
+  if (zone && e.patrol && !e.action && dist(p.x, p.y, zone.x, zone.y) <= zone.r) {
     e.mode = 'returning';
     e.statuses = [];
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== e.id);
@@ -1192,6 +1205,21 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
     return true;
   }
   return false;
+}
+
+/** 巡邏（D-117）：慢走到下一個點，到了換下一個；家跟著走（脫戰回到離開路徑的地方） */
+const PATROL = { factor: 0.5, arriveUnits: 0.4 };
+function patrolStep(s: BattleState, e: Unit): void {
+  const path = e.patrol!;
+  let i = (e.patrolIdx ?? 0) % path.length;
+  if (dist(e.x, e.y, path[i]!.x, path[i]!.y) <= PATROL.arriveUnits * UNIT) {
+    i = (i + 1) % path.length;
+    e.patrolIdx = i;
+  }
+  const wp = path[i]!;
+  navToward(s, e, wp.x, wp.y, 0, PATROL.factor);
+  e.homeX = e.x;
+  e.homeY = e.y;
 }
 
 /** Boss 整場重置（design/20 B1）：回第一階段、冷卻與召喚計時歸零、召喚物消失 */

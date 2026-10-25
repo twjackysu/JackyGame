@@ -94,6 +94,11 @@ export const THORNVALE_ROWS: readonly string[] = [
 /** 棘冠狼后位置（Bot advanceTo 與畫面 Boss 方向箭頭共用） */
 export const THORNVALE_QUEEN = { x: c(24), y: c(10) };
 
+/** 荊棘巡獵者的巡邏路線（格座標 → 像素）：迴廊西側繞圈（西北角 → 庭園路口西邊 → 迴廊中段西邊），不進迴廊東側的首領與狼群 */
+export const STALKER_PATROL: readonly { x: number; y: number }[] = [
+  [15, 28], [19, 26], [21, 29], [17, 31],
+].map(([x, y]) => ({ x: c(x!), y: c(y!) }));
+
 export function makeThornvaleStage(): StageDefinition {
   return {
     id: 'thornvale', name: '荊棘谷', timeLimitTicks: sec(60 * 60), player: { x: c(24), y: c(77) },
@@ -105,9 +110,10 @@ export function makeThornvaleStage(): StageDefinition {
       alpha_wolf: { chance: 45, ilvl: 6, rarity: [35, 45, 20] },
       thorn_mother: { chance: 100, ilvl: 7, rarity: [0, 40, 60], count: 2 },
       night_thorn_alpha: { chance: 100, ilvl: 7, rarity: [0, 50, 50] },
+      thorn_stalker: { chance: 100, ilvl: 7, rarity: [0, 55, 45] },
       thorn_queen: { chance: 100, ilvl: 7, rarity: [0, 30, 70], count: 2, firstRare: true },
     },
-    progression: { xp: { thorn_wolf: 9, thorn_shooter: 9, alpha_wolf: 35, thorn_mother: 140, night_thorn_alpha: 80, thorn_queen: 260 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
+    progression: { xp: { thorn_wolf: 9, thorn_shooter: 9, alpha_wolf: 35, thorn_mother: 140, night_thorn_alpha: 80, thorn_stalker: 90, thorn_queen: 260 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '沿著山谷往北，打倒棘冠狼后！\n棘背狼的咬傷會中毒・建議 Lv6 以上',
     enemies: [{ enemyId: 'thorn_queen', x: THORNVALE_QUEEN.x, y: THORNVALE_QUEEN.y, hpPct: 80, atkPct: 30 }],
@@ -140,7 +146,7 @@ export function makeThornvaleStage(): StageDefinition {
     campfires: [{ id: 'tv_south', x: c(24), y: c(73) }, { id: 'tv_mid', x: c(37), y: c(46) }],
     zones: [
       { name: '女王庭園', hint: '棘冠狼后的地盤・小心地上的根系', danger: true, x0: 0, y0: 0, x1: u(W), y1: u(23) },
-      { name: '棘刺迴廊', hint: '危險：狼群首領與射手守著', danger: true, x0: 0, y0: u(23), x1: u(W), y1: u(41) },
+      { name: '棘刺迴廊', hint: '危險：狼群首領與射手守著・西側有巡獵者巡邏', danger: true, x0: 0, y0: u(23), x1: u(W), y1: u(41) },
       { name: '毒沼', hint: '綠色毒沼會讓人中毒・營火在沼地中央', x0: u(22), y0: u(41), x1: u(W), y1: u(56) },
       { name: '母樹空地', hint: '荊棘母樹在這裡生根・掉的裝備很好', danger: true, x0: 0, y0: u(41), x1: u(22), y1: u(56) },
       { name: '荊棘坡', hint: '棘背狼成群・咬傷會中毒', x0: 0, y0: u(56), x1: u(W), y1: u(69) },
@@ -156,6 +162,8 @@ export function makeThornvaleStage(): StageDefinition {
       { id: 'tv_gallery_pack', enemyId: 'thorn_wolf', cx: c(22), cy: c(37), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 60, atkPct: 30, lootPct: 80 },
       // 夜棘首領：深夜限定，在荊棘坡上方遊蕩（一進深夜就看得到目標）
       { id: 'tv_night_alpha', enemyId: 'night_thorn_alpha', cx: c(15), cy: c(61), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(150), tier: 'elite', lootPct: 100, nightOnly: true },
+      // 荊棘巡獵者（D-117）：在迴廊上方（往女王庭園的路上）來回巡邏；會走到你面前，也可以等牠走開再過
+      { id: 'tv_stalker', enemyId: 'thorn_stalker', cx: STALKER_PATROL[0]!.x, cy: STALKER_PATROL[0]!.y, spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(200), tier: 'elite', lootPct: 100, aggroUnits: 5, patrol: STALKER_PATROL },
       { id: 'tv_gallery_shooters', enemyId: 'thorn_shooter', cx: c(31), cy: c(37), spawnRadius: u(1), maxAlive: 2, respawnTicks: sec(45), hpPct: 100, atkPct: 50, lootPct: 80 },
     ],
   };

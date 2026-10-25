@@ -123,7 +123,8 @@ export function safestPull(s: BattleState, advanceTo?: { x: number; y: number },
   let pool = sleepingOf(s);
   if (advanceTo && !huntStationary) {
     // 不會動的世界精英（荊棘母樹，speed 0）追不上來：不是目的地本身就不去拉（D-111）
-    pool = pool.filter((e) => (ENEMIES[e.defId]?.speed ?? 1) > 0 || dist(e.x, e.y, advanceTo.x, advanceTo.y) <= 3 * UNIT);
+    // 巡邏的世界精英（荊棘巡獵者，D-117）也不特地去拉：真人會等牠走開；碰上了照打
+    pool = pool.filter((e) => ((ENEMIES[e.defId]?.speed ?? 1) > 0 && !e.patrol) || dist(e.x, e.y, advanceTo.x, advanceTo.y) <= 3 * UNIT);
   }
   if (advanceTo) {
     const ahead = pool.filter((e) => dist(e.x, e.y, advanceTo.x, advanceTo.y) <= dist(p.x, p.y, advanceTo.x, advanceTo.y) + 2 * UNIT);

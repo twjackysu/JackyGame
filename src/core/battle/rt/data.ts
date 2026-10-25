@@ -170,6 +170,16 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'nta_charge', shape: { type: 'line', len: u(6), width: u(1.3) }, warningTicks: sec(0.7), recoverTicks: sec(0.5), damageMultiplier: 145, cooldownTicks: sec(6), triggerRange: u(6), blockable: true, charge: { ticks: sec(0.4), wallStunTicks: sec(1.5) }, weight: 2 },
     ],
   },
+  // 荊棘巡獵者（D-117）：會在棘刺迴廊上方來回巡邏的世界精英；撕咬帶毒、長衝鋒、近身「荊棘迴旋」（不能格擋，往外跑）
+  thorn_stalker: {
+    id: 'thorn_stalker', name: '荊棘巡獵者', hp: 1400, atk: 31, def: 12, speed: 3.7, radius: u(0.62), hitstunTicks: 2,
+    drops: { gold: [50, 80], items: [{ id: 'dust', chance: 100, count: [3, 5] }, { id: 'crystal', chance: 100 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'stalker_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.65), recoverTicks: sec(0.4), damageMultiplier: 115, cooldownTicks: sec(2.2), triggerRange: u(1.6), blockable: true, status: { id: 'poison', ticks: sec(5), powerPct: 8 }, weight: 3 },
+      { id: 'stalker_pounce', shape: { type: 'line', len: u(6.5), width: u(1.3) }, warningTicks: sec(0.75), recoverTicks: sec(0.5), damageMultiplier: 145, cooldownTicks: sec(7), triggerRange: u(6.5), blockable: true, charge: { ticks: sec(0.4), wallStunTicks: sec(1.6) }, weight: 2 },
+      { id: 'stalker_whirl', shape: { type: 'circle', r: u(2.4) }, warningTicks: sec(0.95), recoverTicks: sec(0.6), damageMultiplier: 135, cooldownTicks: sec(9), triggerRange: u(2.0), blockable: false, status: { id: 'poison', ticks: sec(5), powerPct: 8 }, weight: 2 },
+    ],
+  },
   // 棘冠狼后（D-114）：荊棘谷的 Boss。狼王的近戰＋荊棘母樹的毒刺與根系；第二階段招喚棘背狼、加「荊棘綻放」大圈
   thorn_queen: {
     id: 'thorn_queen', name: '棘冠狼后', hp: 4600, atk: 33, def: 13, speed: 3.1, radius: u(0.9), hitstunTicks: 0,

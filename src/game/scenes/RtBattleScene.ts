@@ -13,7 +13,7 @@ import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Telegraph, Unit } from '../../core/battle/rt/types';
-import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, type EliteAffix } from '../../core/battle/rt/types';
+import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, aggroUnitsOf, type EliteAffix } from '../../core/battle/rt/types';
 
 /** 精英詞綴顏色（D-113）：迅捷青、堅韌綠、狂暴紅 */
 /** 命中時會在地上長出荊棘的招式（第 23 輪） */
@@ -64,6 +64,7 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   thorn_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0x9fe08a },
   thorn_queen: { key: 'enemy_boss_wolfking', h: 3.2, flip: false, tint: 0xb8f0a0 },
   night_thorn_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xc890ff },
+  thorn_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff8a5c },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
@@ -149,7 +150,11 @@ export class RtBattleScene extends Phaser.Scene {
   /** HUD 的金幣＝錢包（上次存檔時）＋這場還沒存的（D-116 行商之後金幣是能花的錢） */
   private coinBase = -1;
   private leftFire = false;
+  /** true＝先不跳一次性提示：開場大字（y 760）還在、或上一個提示還沒消失（用場景時鐘，和 bigText 補間同步） */
   private tipBusy = false;
+  /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
+  private paws: { x: number; y: number; a: number; t: number; side: number }[] = [];
+  private pawLast = { x: 0, y: 0, side: 1 };
   private tipsDone = new Set<string>();
   private fireHinted = false;
   /** 前 3 次進大地圖才顯示的引導 */
@@ -298,7 +303,13 @@ export class RtBattleScene extends Phaser.Scene {
     if (!this.bot) this.showHint();
     // 刷怪關的開場說明（怪會重生、營火是安全區）
     const st0 = STAGES[this.stageId];
+    this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
+    this.paws = [];
     if (st0?.intro || st0?.spawnGroups?.length) {
+      // 開場大字 0.4 秒出現、約 3.4 秒消失，提示（y 700）等它走了再出
+      this.tipBusy = true;
+      this.time.delayedCall(3800, () => (this.tipBusy = false));
+
       const intro = st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）';
       this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, intro, '#ffd27a', 30, 2600));
     }
@@ -1195,6 +1206,52 @@ export class RtBattleScene extends Phaser.Scene {
     this.time.delayedCall(6000, () => this.dismissHint());
   }
 
+  /**
+   * 荊棘巡獵者（D-117）：巡邏中畫出仇恨範圍（淡橘圈）＋面向的視線扇形，讓玩家看得出「牠往哪走、離多近會被發現」；
+   * 走過的地方留下會淡掉的腳印。第一次靠近時提示一次。純畫面，不碰戰鬥狀態。
+   */
+  private drawStalker(g: Phaser.GameObjects.Graphics, x: Unit, pos: { x: number; y: number }, px: number, py: number, now: number, p: Unit): void {
+    const patrolling = x.mode === 'idle' || x.mode === 'returning';
+    // 腳印：每走 0.8 格左右交替留一個
+    const moved = Math.hypot(pos.x - this.pawLast.x, pos.y - this.pawLast.y);
+    if (moved > UNIT * 0.8) {
+      if (moved < UNIT * 3) {
+        const side = -this.pawLast.side;
+        const a = Math.atan2(pos.y - this.pawLast.y, pos.x - this.pawLast.x);
+        this.paws.push({ x: pos.x, y: pos.y, a, t: now, side });
+        if (this.paws.length > 24) this.paws.shift();
+        this.pawLast.side = side;
+      }
+      this.pawLast.x = pos.x;
+      this.pawLast.y = pos.y;
+    }
+    this.paws = this.paws.filter((w) => now - w.t < 5000);
+    for (const w of this.paws) {
+      const al = 0.45 * (1 - (now - w.t) / 5000);
+      const wx = this.sx(w.x + Math.cos(w.a + Math.PI / 2) * w.side * UNIT * 0.18);
+      const wy = this.sy(w.y + Math.sin(w.a + Math.PI / 2) * w.side * UNIT * 0.18);
+      const s0 = UNIT * 0.09 * this.k;
+      g.fillStyle(0x3a1a12, al).fillEllipse(wx, wy, s0 * 2.2, s0 * 1.6);
+      for (let k = -1; k <= 1; k++) {
+        const ta = w.a + k * 0.5;
+        g.fillCircle(wx + Math.cos(ta) * s0 * 1.7, wy + Math.sin(ta) * s0 * 1.7, s0 * 0.55);
+      }
+    }
+    if (!patrolling) return;
+    const R = aggroUnitsOf(x) * UNIT * this.k;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 350);
+    g.lineStyle(2, 0xff8a5c, 0.18 + 0.1 * pulse).strokeCircle(px, py, R);
+    // 視線扇形（往面向方向）
+    const fa = Math.atan2(x.facingY, x.facingX);
+    const pts = [{ x: px, y: py }];
+    for (let k = 0; k <= 10; k++) {
+      const an = fa - 0.55 + (k / 10) * 1.1;
+      pts.push({ x: px + Math.cos(an) * R, y: py + Math.sin(an) * R });
+    }
+    g.fillStyle(0xff8a5c, 0.1 + 0.06 * pulse).fillPoints(pts, true);
+    if (!this.bot && !p.dead && Math.hypot(p.x - x.x, p.y - x.y) < UNIT * 10) this.tipOnce('jg_tip_stalker', '荊棘巡獵者在巡邏——別走進橘色範圍，或正面迎戰', '#ffb07a');
+  }
+
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
   private tipOnce(key: string, text: string, color: string): void {
     if (this.tipsDone.has(key) || this.hint || this.tipBusy) return;
@@ -1309,6 +1366,11 @@ export class RtBattleScene extends Phaser.Scene {
             shockRing(this, this.sx(d.x), this.sy(d.y), 0x6aff7a, 220, 560, 10);
             sparks(this, this.sx(d.x), this.sy(d.y), 26, 'ember', 0x9aff7a, 700);
             bigText(this, GAME_WIDTH / 2, 470, '荊棘母樹 倒下了！', '#9aff8a', 46, 900);
+          } else if (d.defId === 'thorn_stalker') {
+            this.cameras.main.shake(180, 0.006);
+            shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 180, 480, 8);
+            sparks(this, this.sx(d.x), this.sy(d.y), 22, 'ember', 0xffa07a, 600);
+            bigText(this, GAME_WIDTH / 2, 470, '荊棘巡獵者 倒下了！', '#ffb07a', 44, 900);
           }
         }
       } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, this.stageId === 'thornvale' ? '狼后怒放・荊棘綻放！' : '狼王暴怒！', this.stageId === 'thornvale' ? '#c8ff8a' : '#ff7a5a', 52, 700);
@@ -2084,6 +2146,7 @@ export class RtBattleScene extends Phaser.Scene {
           g.fillStyle(k % 2 ? 0x2f5a2a : 0x3f7a34, 1).fillTriangle(cx0 - nx, cy0 - ny, cx0 + nx, cy0 + ny, tx, ty);
         }
       }
+      if (x.defId === 'thorn_stalker') this.drawStalker(g, x, pos, px, py, now, playerU);
       let headY = py - r;
       if (sp) {
         const cfg = SPRITE[isP ? 'swordsman' : x.defId]!;
@@ -2336,6 +2399,15 @@ export class RtBattleScene extends Phaser.Scene {
         const ty = m.y + e.y * m.s;
         g.fillStyle(e.mode === 'combat' ? 0xff5a4a : 0x6aff7a, 0.95).fillTriangle(tx, ty - 6, tx - 5, ty + 3, tx + 5, ty + 3);
         g.fillStyle(0x8a6a40, 1).fillRect(tx - 1, ty + 3, 2, 3);
+        continue;
+      }
+      if (e.patrol) {
+        // 巡邏的世界精英（D-117）：橘色箭頭，指向牠正在走的方向
+        const tx = m.x + e.x * m.s;
+        const ty = m.y + e.y * m.s;
+        const a = Math.atan2(e.facingY, e.facingX);
+        const pt = (an: number, rr: number) => ({ x: tx + Math.cos(a + an) * rr, y: ty + Math.sin(a + an) * rr });
+        g.fillStyle(e.mode === 'combat' ? 0xff5a4a : 0xff8a5c, e.mode === 'dormant' ? 0.6 : 1).fillPoints([pt(0, 6), pt(2.5, 4.5), pt(Math.PI, 2), pt(-2.5, 4.5)], true);
         continue;
       }
       g.fillStyle(e.mode === 'combat' ? 0xff5a4a : e.affix ? AFFIX_COLOR[e.affix] : elite ? 0xffa040 : 0xc06a6a, e.mode === 'dormant' ? 0.5 : 0.95).fillCircle(m.x + e.x * m.s, m.y + e.y * m.s, elite ? 3.5 : 2.2);
