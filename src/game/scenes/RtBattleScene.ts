@@ -41,6 +41,8 @@ import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
+import { Ambient } from '../fx/ambient';
+import { getSettings } from '../settings';
 import { drawMerchant } from '../fx/merchant';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -292,6 +294,9 @@ export class RtBattleScene extends Phaser.Scene {
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
     // 深夜（D-103）：整個畫面壓暗、偏藍
     this.nightShade = this.s.night ? this.add.image(GAME_WIDTH / 2, 640, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
+    // 環境粒子（第 27 輪）：大地圖才有；光塵／螢火蟲、花瓣孢子、火星灰燼
+    const amb = worldMap(this.stageId);
+    this.ambient = amb ? new Ambient(this, amb.decor, getSettings().lowFx, !!this.s.night, { x: 0, y: VIEW_TOP, w: GAME_WIDTH, h: VIEW_BOTTOM - VIEW_TOP }) : null;
     this.add.text(GAME_WIDTH / 2, 40, this.tracked || worldMap(this.stageId) ? `${STAGES[this.stageId]!.name}${this.s.night ? '・深夜' : ''}` : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
@@ -541,6 +546,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.acc > STEP_MS * 6) this.acc = 0;
     this.playEvents();
     this.updateCamera(Math.min(1, dt / 120));
+    this.ambient?.update(dt, this.ox, this.oy);
     this.draw();
     this.idleHint();
     this.zoneBanner();
@@ -569,6 +575,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 這張地圖有沒有跨場紀錄（有 Boss 巢穴的刷怪大地圖） */
   private hazardHinted = false;
   private ventHinted = false;
+  private ambient: Ambient | null = null;
   /** 噴發口燒死的回饋（第 27 輪）：被噴發口打到的怪 id → tick；這趟燒死幾隻 */
   private ventHit = new Map<number, number>();
   private ventKills = 0;
