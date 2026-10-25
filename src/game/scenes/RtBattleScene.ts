@@ -1362,10 +1362,22 @@ export class RtBattleScene extends Phaser.Scene {
         this.hitStop = Math.max(this.hitStop, 110);
         const p = playerOf(this.s);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0x7dffb0, 90, 300, 6);
-        const cs0 = SKILLS.parry?.block?.counter.shape;
+        // 反擊的形狀跟著選的變化走（第 25 輪修：以前一律畫原招的扇形）
+        const pd = skillDef(this.s, 'parry');
+        const cs0 = pd?.block?.counter.shape;
         const cs = cs0 && skillShape(this.s, 'parry', cs0);
-        if (cs?.type === 'sector') this.slash(p.x, p.y, Math.atan2(p.facingY, p.facingX), cs.r, cs.deg + 30, 0x7dffb0, 10);
-        bigText(this, this.sx(p.x), this.sy(p.y) - 80, '格擋！', '#7dffb0', 40, 300);
+        const ang = Math.atan2(p.facingY, p.facingX);
+        if (cs?.type === 'sector') this.slash(p.x, p.y, ang, cs.r, cs.deg + 30, 0x7dffb0, 10);
+        else if (cs?.type === 'circle') {
+          this.spin(p.x, p.y, cs.r, 0xffd27a, (this.time.now / 90) % (Math.PI * 2));
+          shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, cs.r * this.k * 1.1, 380, 8);
+        } else if (cs?.type === 'line') {
+          // 迴光一閃（D-121）：擋下的瞬間一道白金劍氣直射出去
+          this.groundSplit(p.x, p.y, ang, cs.len, cs.width);
+          this.cameras.main.flash(110, 255, 250, 220);
+          this.hitStop = Math.max(this.hitStop, 160);
+        }
+        bigText(this, this.sx(p.x), this.sy(p.y) - 80, cs?.type === 'line' ? `${pd!.name}！` : '格擋！', cs?.type === 'line' ? '#fff2c0' : '#7dffb0', 40, 300);
       } else if (e.type === 'dodged') {
         const p = playerOf(this.s);
         floatNumber(this, this.sx(p.x), this.sy(p.y) - 40, 'MISS', { color: '#9fd8ff', size: 26 });
@@ -1810,7 +1822,7 @@ export class RtBattleScene extends Phaser.Scene {
         const px = this.sx(p.x);
         const py = this.sy(p.y);
         for (let j = -1; j <= 1; j++) {
-          g.lineStyle(4 - Math.abs(j), 0x9fd8ff, 0.8).lineBetween(px - Math.sin(ang) * j * 14, py + Math.cos(ang) * j * 14, px - Math.cos(ang) * L - Math.sin(ang) * j * 14, py - Math.sin(ang) * L + Math.cos(ang) * j * 14);
+          g.lineStyle(4 - Math.abs(j), h.status?.id === 'weak' ? 0xc0a0ff : 0x9fd8ff, 0.8).lineBetween(px - Math.sin(ang) * j * 14, py + Math.cos(ang) * j * 14, px - Math.cos(ang) * L - Math.sin(ang) * j * 14, py - Math.sin(ang) * L + Math.cos(ang) * j * 14);
         }
         this.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
         // 流星衝（D-112）：衝到底的落地爆炸（非 oncePerTarget 的圓）
