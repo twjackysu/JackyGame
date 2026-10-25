@@ -91,13 +91,18 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       const x = -230 + 30 + i * gap;
       const col = cardColor(id);
       const pop = fresh && fresh[0] === side && fresh[1] === row && i === n - 1 && fresh[2] === n;
-      const face = scene.add.rectangle(x, y + 6, 56, 80, col.fill, 1).setStrokeStyle(pop ? 4 : 2, pop ? 0xffffff : col.edge, 1);
-      items.push(face);
-      if (pop) scene.tweens.add({ targets: face, scale: { from: 1.6, to: 1 }, duration: 260, ease: 'Back.Out' });
+      const card = scene.add.container(x, y);
+      card.add(scene.add.rectangle(0, 6, 56, 80, col.fill, 1).setStrokeStyle(pop ? 4 : 2, pop ? 0xffffff : col.edge, 1));
       const p = cardPower(game, side, row, id);
       const base = CARDS[id]!.power;
-      items.push(scene.add.text(x, y - 10, `${p}`, { fontFamily: TITLE_FONT, fontSize: '28px', color: p > base ? '#7dffb0' : p < base ? '#ff8a7a' : '#ffffff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5));
-      items.push(scene.add.text(x, y + 30, CARDS[id]!.name.slice(0, 2), { fontFamily: UI_FONT, fontSize: '14px', color: '#e8dcc8' }).setOrigin(0.5));
+      card.add(scene.add.text(0, -10, `${p}`, { fontFamily: TITLE_FONT, fontSize: '28px', color: p > base ? '#7dffb0' : p < base ? '#ff8a7a' : '#ffffff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5));
+      card.add(scene.add.text(0, 30, CARDS[id]!.name.slice(0, 2), { fontFamily: UI_FONT, fontSize: '14px', color: '#e8dcc8' }).setOrigin(0.5));
+      items.push(card);
+      if (pop) {
+        // 莫托的牌從上方（他的手）飛進來；你的牌從下方手牌區彈上來
+        const fromTop = lastLog.startsWith('莫托');
+        scene.tweens.add({ targets: card, x: { from: fromTop ? 0 : x, to: x }, y: { from: fromTop ? -600 : 140, to: y }, scale: { from: 1.5, to: 1 }, angle: { from: fromTop ? -12 : 6, to: 0 }, duration: 320, ease: 'Cubic.Out' });
+      }
     });
     items.push(scene.add.circle(300, y + 6, 30, 0x0a0806, 1).setStrokeStyle(3, 0xffd27a, 0.9));
     items.push(scene.add.text(300, y + 6, `${rowScore(game, side, row)}`, { fontFamily: TITLE_FONT, fontSize: '28px', color: '#ffe08a' }).setOrigin(0.5));
