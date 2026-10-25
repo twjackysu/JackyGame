@@ -315,7 +315,13 @@ export class RtBattleScene extends Phaser.Scene {
       this.toggleMenu();
     });
     if (this.botName) this.add.text(44, 40, '觀戰', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff', backgroundColor: '#1a2a3a' }).setPadding(8, 4, 8, 4).setOrigin(0.5).setDepth(49);
-    if (!this.bot) this.showHint();
+    // 第 26 輪：開場一次只出一件事——有開場大字時，操作說明框等大字消失（3.6 秒）再出，不再五段文字疊在一起
+    const st00 = STAGES[this.stageId];
+    this.hint = null; // 場景重開時上一場的說明框已被銷毀
+    if (!this.bot) {
+      if (st00?.intro || st00?.spawnGroups?.length) this.time.delayedCall(3600, () => this.showHint());
+      else this.showHint();
+    }
     // 刷怪關的開場說明（怪會重生、營火是安全區）
     const st0 = STAGES[this.stageId];
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
@@ -2684,7 +2690,7 @@ export class RtBattleScene extends Phaser.Scene {
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
     const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < SWORDSMAN.potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
-    this.calmText.setVisible(calm).setText(calm ? restTip || (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
+    this.calmText.setVisible(calm && !this.tipBusy && !this.hint).setText(calm ? restTip || (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // Boss 大血條（畫面上方）
     // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss && (!STAGES[this.stageId]?.mapAi || e.mode === 'combat'));
