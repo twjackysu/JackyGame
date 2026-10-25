@@ -11,6 +11,7 @@
 - **D-102**：強化 +7／+10 讓稀有特效 ×1.25／×1.5（格擋 +1／+2 ticks）。
 - **D-103 深夜的森林**：打倒暴怒狼王後解鎖，☰ 切換（重新進入）；重生點的怪 HP +60%、攻擊 +40%、掉落 +50%、裝備物品等級 +2；畫面壓暗偏藍。Lv8 普通 Bot 深夜 125 秒打到狼王、0 倒。畫面改成主角身邊亮、越遠越暗的暈影。
 - **D-104 霧影狼**：深夜限定精英（紫色霧狼、比首領快、必掉結晶與裝備），在森林入口東側；Lv8 普通 Bot 深夜順路打掉牠再打狼王 204 秒、0 倒。
+- 深夜時敵人預告外框另畫在暈影上面；README 截圖更新（行囊圖示、深夜霧影狼 30、暴怒開關 31）。
 - 暫停選單打開時收掉畫面上的大字（開場說明不再疊在選單上）；暫停選單紀錄顯示暴怒討伐次數。
 
 **驗證**：每次提交前 build＋`npx vitest run`（118 → **127 項**；新增 `tests/rt-p5.test.ts`，`rt-gear` 加參數型特效與自動分解、`rt-controls` 加暴怒紀錄）。**核心改了三次（SkillMod、暴怒、隱藏精英掉落），每次都跑舊七關＋測試大地圖＋霧語森林 × 3 種子 × 3 Bot 共 80 場 stateHash，和本輪開頭相同**（範本：`tests/zz-hash.test.ts` 不進 git——`STAGES.mistwood = makeMistwoodStage(); STAGES.test_world = makeTestWorldStage();`，每關 × 種子 1–3 × novice／normal／expert，`PlayerBot({...BOT_PROFILES[b], ult: true, potionAtPct: 35, 霧語森林再加 advanceTo: MISTWOOD_KING, campfireBelowPotions: 8})`，跑到結束或 400 秒（test_world 120、mistwood 300），寫 `id seed bot tick stateHash` 到 `HASH_OUT` 檔，`git stash push -- src` 前後各跑一次 diff）。Playwright（390×844）：暴怒版進森林就是紅色狼王（maxHp 21000）、暫停選單開關、行囊圖示與詳情卡、地上稀有裝備的邊緣提示、撿裝備，皆無頁面錯誤。
