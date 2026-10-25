@@ -7,7 +7,7 @@
 ## 每輪開頭先看
 1. Jacky 有沒有回覆：`docs/FOR_JACKY.md` 的「回覆」、GitHub Issue、`git log --format='%an %s' -15` 看有沒有他的 commit。有就照他的答案先改。
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
-3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。
+3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑；第 23 輪最後的程式 commit 531d8f3 因此沒跑 CI，Pages／APK 已用 workflow_dispatch 補跑，CI 會在下一個程式 push 跑到）。
 
 ## 現況（第 23 輪）
 - 霧語森林：P4 刷寶＋P5＋技能變化＋精英詞綴 ✅。荊棘谷 ✅（D-114／115）。
