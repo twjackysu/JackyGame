@@ -1,0 +1,43 @@
+// 營地懸賞（D-109）：純資料函式。
+import { describe, expect, it } from 'vitest';
+import { ENEMIES } from '../src/core/battle/rt/data';
+import { BOUNTY_POOL, BOUNTY_SLOTS, bountyKill, cleanBounties, makeBounty } from '../src/game/rtBounty';
+
+describe('營地懸賞（D-109）', () => {
+  it('同編號同結果；池子裡的目標都是存在的敵人；數量在範圍內', () => {
+    for (const p of BOUNTY_POOL) expect(ENEMIES[p.target]).toBeDefined();
+    for (let n = 0; n < 200; n++) {
+      const a = makeBounty(n);
+      expect(makeBounty(n)).toEqual(a);
+      const p = BOUNTY_POOL.find((q) => q.target === a.target)!;
+      expect(a.need).toBeGreaterThanOrEqual(p.need[0]);
+      expect(a.need).toBeLessThanOrEqual(p.need[1]);
+    }
+  });
+
+  it('沒有存檔 → 三張不重複的目標；壞資料丟掉後補滿', () => {
+    const st = cleanBounties(undefined);
+    expect(st.list.length).toBe(BOUNTY_SLOTS);
+    expect(new Set(st.list.map((b) => b.target)).size).toBe(BOUNTY_SLOTS);
+    const bad = cleanBounties({ list: [{ n: 'x' }, { ...st.list[0], target: 'dragon' }, st.list[1]], next: -3, done: 'a' });
+    expect(bad.list.length).toBe(BOUNTY_SLOTS);
+    expect(bad.list[0]).toEqual(st.list[1]);
+    expect(bad.done).toBe(0);
+    expect(bad.next).toBeGreaterThan(st.list[1]!.n);
+  });
+
+  it('打倒對應的怪 +1；完成就移除、補新的、done +1；不相關的怪不動', () => {
+    let st = cleanBounties({ list: [{ n: 0, target: 'wolf', need: 2, got: 0, reward: { dust: 6, crystal: 0 } }], next: 1, done: 0 });
+    expect(bountyKill(st, 'dragon').st).toBe(st);
+    let r = bountyKill(st, 'wolf');
+    expect(r.completed).toEqual([]);
+    st = r.st;
+    expect(st.list.find((b) => b.n === 0)!.got).toBe(1);
+    r = bountyKill(st, 'wolf');
+    expect(r.completed.length).toBe(1);
+    expect(r.completed[0]!.reward.dust).toBe(6);
+    expect(r.st.done).toBe(1);
+    expect(r.st.list.length).toBe(BOUNTY_SLOTS);
+    expect(r.st.list.some((b) => b.n === 0)).toBe(false);
+  });
+});

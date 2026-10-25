@@ -19,7 +19,8 @@ import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mist
 import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
-import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, walletOf, type RunSnap } from '../rtRecord';
+import { bountyKill, cleanBounties } from '../rtBounty';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -122,6 +123,7 @@ export class RtBattleScene extends Phaser.Scene {
   private glows: Phaser.GameObjects.Image[] = [];
   /** 大地圖目標列（沒有就 null） */
   private goal: Phaser.GameObjects.Text | null = null;
+  private bountyTxt: Phaser.GameObjects.Text | null = null;
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
   private zoneName: string | null = null;
   /** 這場已經提示過隱藏精英 */
@@ -223,6 +225,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
     const stG = STAGES[this.stageId];
+    // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
+    this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
+    this.refreshBounty();
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 110, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)' }).setPadding(12, 3, 12, 3).setOrigin(0.5).setDepth(49) : null;
     this.makeButtons();
     this.makeMinimap();
@@ -466,6 +471,34 @@ export class RtBattleScene extends Phaser.Scene {
     }
     saveRecord(this.stageId, rec);
     this.saved = now;
+  }
+
+  // ---------- 營地懸賞（D-109） ----------
+  private refreshBounty(): void {
+    if (!this.bountyTxt) return;
+    const st = cleanBounties(loadRecord(this.stageId).bounty);
+    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${ENEMIES[b.target]?.name ?? b.target} ${b.got}/${b.need}`)].join('\n'));
+  }
+
+  private bountyKill(defId: string): void {
+    if (!this.tracked) return;
+    const rec = loadRecord(this.stageId);
+    const st = cleanBounties(rec.bounty);
+    const r = bountyKill(st, defId);
+    if (r.st === st) return;
+    let out: RtRecord = { ...rec, bounty: r.st };
+    r.completed.forEach((b, i) => {
+      out = spend(out, -b.reward.dust, -b.reward.crystal) ?? out;
+      const name = ENEMIES[b.target]?.name ?? b.target;
+      const got = [b.reward.dust ? `粉塵 +${b.reward.dust}` : '', b.reward.crystal ? `結晶 +${b.reward.crystal}` : ''].filter(Boolean).join('・');
+      this.time.delayedCall(600 + i * 1400, () => {
+        SFX.itemGet();
+        bigText(this, GAME_WIDTH / 2, 430, `懸賞完成！${name} ×${b.need}\n${got}`, '#ffe08a', 36, 1200);
+      });
+    });
+    saveRecord(this.stageId, out);
+    this.refreshBounty();
+    if (r.completed.length && this.bountyTxt) this.tweens.add({ targets: this.bountyTxt, scale: 1.12, duration: 160, yoyo: true });
   }
 
   // ---------- 裝備（D-091） ----------
@@ -860,6 +893,7 @@ export class RtBattleScene extends Phaser.Scene {
       `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
       `狼王討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
       `進入森林 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
+      `懸賞完成 ${cleanBounties(rec.bounty).done} 張（小地圖下方，完成自動領粉塵／結晶）`,
     ];
     if (this.s.prog) lines.unshift(`Lv ${this.s.prog.level}・經驗 ${this.s.prog.xp}/${xpToNext(this.s.prog.level)}`);
     return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
@@ -1077,6 +1111,7 @@ export class RtBattleScene extends Phaser.Scene {
           sparks(this, this.sx(d.x), this.sy(d.y), 18, 'spark', 0xffd27a, 420);
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
           this.killSprite(d.id);
+          this.bountyKill(d.defId);
           if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(`${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]!.name}`, !!d.fury);
           else if (d.defId === 'thorn_mother') {
             // 荊棘母樹倒下（D-107）：綠色衝擊波＋葉片＋大字

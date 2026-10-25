@@ -32,6 +32,8 @@ export interface RtRecord {
   furyKills?: number;
   /** 深夜模式（D-103）：打倒暴怒狼王一次後解鎖 */
   night?: boolean;
+  /** 營地懸賞（D-109；形狀由 rtBounty.cleanBounties 檢查） */
+  bounty?: unknown;
   /** 強化花掉的材料（累計撿到 − 花掉 ＝ 手上有的；分解得到的粉塵記成負的花費） */
   spent?: { dust?: number; crystal?: number };
 }
