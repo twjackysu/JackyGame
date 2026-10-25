@@ -23,10 +23,12 @@
 | 霧語森林 | 霧角狼王 | 預告＋格擋反擊 |
 |:-:|:-:|:-:|
 | ![霧語森林](docs/screenshots/26-mistwood.jpg) | ![狼王](docs/screenshots/23-realtime-boss.jpg) | ![即時戰鬥](docs/screenshots/22-realtime.jpg) |
-| **行囊（裝備比較、▲ 比較好）** | **等級提升** | **操作設定（改鍵、左手、按鈕位置）** |
+| **行囊（裝備圖示、▲ 比較好）** | **等級提升** | **操作設定（改鍵、左手、按鈕位置）** |
 | ![行囊](docs/screenshots/27-rt-bag.jpg) | ![升級](docs/screenshots/28-rt-levelup.jpg) | ![操作設定](docs/screenshots/29-rt-controls.jpg) |
 | **營火（怪不追進來、休息與復活）** | **繞石尋路、拉怪、大招與藥水** | **標題** |
 | ![營火](docs/screenshots/25-camp-clearing.jpg) | ![碎石林道](docs/screenshots/24-rock-grove.jpg) | ![標題](docs/screenshots/01-title.jpg) |
+| **深夜的森林＋霧影狼** | **狼王暴怒開關（☰）** | |
+| ![深夜](docs/screenshots/30-rt-night.jpg) | ![暴怒](docs/screenshots/31-rt-fury.jpg) | |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面是程式繪製，每張 AI 圖都有程式備援。
 
