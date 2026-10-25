@@ -214,3 +214,30 @@ describe('參數型技能特效（D-098）', () => {
     expect([...kinds].sort()).toEqual(['area', 'block', 'cd', 'dist', 'dmg']);
   });
 });
+
+describe('行囊滿了自動分解（D-100）', () => {
+  it('分解最差的普通裝；▲ 與強化過的不動；沒有普通裝就回 null', async () => {
+    const { addWithAutoSalvage, BAG_MAX } = await import('../src/game/rtBag');
+    const weak = { ...genGear(1, 1, 1), uid: 'weak', slot: 'ring' as const, base: { atk: 1 } };
+    const fill: RtGear[] = [];
+    for (let i = 0; fill.length < BAG_MAX - 1; i++) fill.push({ ...genGear(1000 + i, 2, 6), uid: `f${i}` });
+    const equip = { ring: { ...genGear(9, 3, 8), uid: 'eq', slot: 'ring' as const } };
+    const st = { bag: [...fill, weak], equip };
+    // 新撿到精良 → 分解 weak
+    const got = { ...genGear(77, 2, 6), uid: 'new' };
+    const r = addWithAutoSalvage(st, got)!;
+    expect(r.salvaged!.uid).toBe('weak');
+    expect(r.st.bag.length).toBe(BAG_MAX);
+    expect(r.st.bag[0]!.uid).toBe('new');
+    expect(r.dust).toBeGreaterThan(0);
+    // 強化過的普通裝不分解；全是精良 → 新撿的普通裝自己被分解
+    const st2 = { bag: [...fill, { ...weak, enh: 2 }], equip };
+    const c = { ...genGear(5, 1, 1), uid: 'c' };
+    const r2 = addWithAutoSalvage(st2, { ...c, slot: 'ring' as const, base: { atk: 1 } })!;
+    expect(r2.salvaged!.uid).toBe('c');
+    expect(r2.st.bag).toBe(st2.bag);
+    expect(addWithAutoSalvage(st2, got)).toBeNull();
+    // 沒滿：直接放
+    expect(addWithAutoSalvage({ bag: [], equip: {} }, got)!.salvaged).toBeNull();
+  });
+});

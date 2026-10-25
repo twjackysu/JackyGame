@@ -5,7 +5,8 @@ import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
-import { BAG_MAX, bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
+import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
+import { addWithAutoSalvage } from '../rtBag';
 import { skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
@@ -466,13 +467,21 @@ export class RtBattleScene extends Phaser.Scene {
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
     const p = playerOf(this.s);
-    if (this.bagSt.bag.length >= BAG_MAX) {
+    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl);
+    // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理
+    const r = addWithAutoSalvage(this.bagSt, g);
+    if (!r) {
       floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, '行囊滿了！（☰ → 行囊整理）', { color: '#ff9a8a', size: 24 });
       return;
     }
-    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl);
-    this.bagSt = { ...this.bagSt, bag: [g, ...this.bagSt.bag] };
+    this.bagSt = r.st;
     this.saveBag();
+    if (r.salvaged) {
+      const w = spend(loadRecord(this.stageId), -r.dust, 0);
+      if (w) saveRecord(this.stageId, w);
+      floatNumber(this, this.sx(p.x), this.sy(p.y) - 150, `行囊滿・自動分解 ${r.salvaged.name} +${r.dust} 粉塵`, { color: '#c8c0a8', size: 20 });
+      if (r.salvaged.uid === g.uid) return;
+    }
     const col = `#${RARITY_COLOR[rarity].toString(16).padStart(6, '0')}`;
     if (rarity >= 3) {
       SFX.perfect();
@@ -1582,6 +1591,19 @@ export class RtBattleScene extends Phaser.Scene {
       }
     }
     for (let i = li; i < this.arrowLabels.length; i++) this.arrowLabels[i]!.setVisible(false);
+    // 畫面外地上的精良以上裝備（D-100）：邊緣閃爍菱形（稀有度顏色），提醒回去撿
+    for (const it of s.ground ?? []) {
+      if (it.kind !== 'gear' || (it.rarity ?? 1) < 2) continue;
+      const px = this.sx(it.x);
+      const py = this.sy(it.y);
+      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960) continue;
+      const cx = Math.max(24, Math.min(GAME_WIDTH - 24, px));
+      const cy = Math.max(VIEW_TOP + 24, Math.min(950, py));
+      const r = 11 + 2 * Math.sin(now / 140);
+      g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 0.3).fillCircle(cx, cy, r + 8);
+      g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 1).fillPoints([{ x: cx, y: cy - r }, { x: cx + r * 0.7, y: cy }, { x: cx, y: cy + r }, { x: cx - r * 0.7, y: cy }], true);
+      g.lineStyle(2, 0xffffff, 0.8).strokePoints([{ x: cx, y: cy - r }, { x: cx + r * 0.7, y: cy }, { x: cx, y: cy + r }, { x: cx - r * 0.7, y: cy }], true);
+    }
   }
 
   /** 小地圖：場地面積超過畫面約 2.5 倍才顯示；石頭與邊框烘成材質，單位點每幀畫在 ui 上 */
@@ -1651,9 +1673,30 @@ export class RtBattleScene extends Phaser.Scene {
     for (const c of STAGES[this.stageId]?.campfires ?? []) {
       g.fillStyle(0xffa040, 0.6 + 0.4 * Math.sin(now / 200)).fillCircle(m.x + c.x * m.s, m.y + c.y * m.s, 4);
     }
+    // Boss 巢穴：骷髏記號（圓＋叉），暴怒版是紅色
+    const bz = STAGES[this.stageId]?.bossZone;
+    if (bz) {
+      const bx = m.x + bz.x * m.s;
+      const by = m.y + bz.y * m.s;
+      const col = s.bossFury ? 0xff5040 : 0xe8dcc0;
+      g.lineStyle(1.5, col, 0.9).strokeCircle(bx, by, 6);
+      g.lineBetween(bx - 3, by - 3, bx + 3, by + 3).lineBetween(bx - 3, by + 3, bx + 3, by - 3);
+    }
+    // 開過的寶箱：灰色小方塊（沒開的不畫，留給玩家自己找）
+    for (const c of STAGES[this.stageId]?.chests ?? []) {
+      if ((s.chestsOpened ?? []).includes(c.id)) g.fillStyle(0x8a8070, 0.8).fillRect(m.x + c.x * m.s - 2, m.y + c.y * m.s - 2, 4, 4);
+    }
     for (const e of enemiesOf(s)) {
       const elite = e.tier === 'elite' || ENEMIES[e.defId]?.boss;
       g.fillStyle(e.mode === 'combat' ? 0xff5a4a : elite ? 0xffa040 : 0xc06a6a, e.mode === 'dormant' ? 0.5 : 0.95).fillCircle(m.x + e.x * m.s, m.y + e.y * m.s, elite ? 3.5 : 2.2);
+    }
+    // 地上的精良以上裝備（D-100）：稀有度顏色的閃爍菱形，免得錯過
+    for (const it of s.ground ?? []) {
+      if (it.kind !== 'gear' || (it.rarity ?? 1) < 2) continue;
+      const gx = m.x + it.x * m.s;
+      const gy = m.y + it.y * m.s;
+      const r = 3 + Math.sin(now / 150) * 1.2;
+      g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 1).fillPoints([{ x: gx, y: gy - r - 1 }, { x: gx + r, y: gy }, { x: gx, y: gy + r + 1 }, { x: gx - r, y: gy }], true);
     }
     if (s.moveGoal) g.fillStyle(0x9fd8ff, 0.9).fillCircle(m.x + s.moveGoal.x * m.s, m.y + s.moveGoal.y * m.s, 2.5);
     const p = playerOf(s);
