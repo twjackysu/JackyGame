@@ -103,6 +103,8 @@ export class RtBattleScene extends Phaser.Scene {
   private goal: Phaser.GameObjects.Text | null = null;
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
   private zoneName: string | null = null;
+  /** 這場已經提示過隱藏精英 */
+  private streakHinted = false;
   /** 這場已經提示過 Boss 弱點 */
   private bossMemo = false;
   /** 已經提示過「有點熟悉」的寶箱 */
@@ -148,6 +150,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneName = null;
     this.chestHinted = new Set();
     this.bossMemo = false;
+    this.streakHinted = false;
     this.arrowLabels = [];
     const p0 = playerOf(this.s);
     this.camX = p0.x;
@@ -361,6 +364,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.idleHint();
     this.zoneBanner();
     this.chestHint();
+    this.streakHint();
     if (this.s.outcome !== 'running') this.finish();
   }
 
@@ -403,6 +407,14 @@ export class RtBattleScene extends Phaser.Scene {
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
     const sub = `${first ? '首次討伐！森林安靜了一點…' : '再次討伐！'}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
+  }
+
+  /** 隱藏精英的「遊戲記憶」提示：第一次連殺到門檻的 2/3 時出現一次 */
+  private streakHint(): void {
+    const h = STAGES[this.stageId]?.hiddenElite;
+    if (!h || this.streakHinted || this.bot || (this.s.streak ?? 0) < Math.ceil((h.streak * 2) / 3)) return;
+    this.streakHinted = true;
+    bigText(this, GAME_WIDTH / 2, 600, '（記得……不倒下一直打下去，首領會被引出來……）', '#d8c8ff', 26, 2200);
   }
 
   /** 隱藏寶箱附近第一次靠近：「這個地方似乎有點熟悉……」（design/20 C2，只提示不指路） */
@@ -698,6 +710,13 @@ export class RtBattleScene extends Phaser.Scene {
           bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]?.name ?? '精英'}出現了！`, '#ffa040', 40, 900);
           SFX.warn(true);
         }
+      } else if (e.type === 'hiddenElite') {
+        const d = u(e.id);
+        SFX.warn(true);
+        this.cameras.main.shake(220, 0.006);
+        bigText(this, GAME_WIDTH / 2, 420, `隱藏的${ENEMIES[d?.defId ?? '']?.name ?? '首領'}現身！`, '#ffa040', 46, 1200);
+        this.time.delayedCall(700, () => bigText(this, GAME_WIDTH / 2, 490, '比一般的強很多・掉落三倍', '#ffd27a', 28, 1400));
+        if (d) shockRing(this, this.sx(d.x), this.sy(d.y), 0xffa040, 180, 650, 8);
       } else if (e.type === 'riot') {
         SFX.warn(true);
         this.cameras.main.shake(260, 0.006);

@@ -246,6 +246,7 @@ export type BattleEvent =
   | { tick: number; type: 'damage'; src: number; dst: number; amount: number; crit: boolean; origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot'; skill: string; absorbed?: number }
   | { tick: number; type: 'death'; id: number }
   | { tick: number; type: 'respawn'; id: number; group: string }
+  | { tick: number; type: 'hiddenElite'; id: number }
   | { tick: number; type: 'riot'; count: number; elite: boolean; x: number; y: number }
   | { tick: number; type: 'chest'; chest: string; loot: Partial<Record<LootId, number>> }
   | { tick: number; type: 'rest'; id: number; campfire: string }
@@ -382,6 +383,11 @@ export interface StageDefinition {
    * eliteChance% 機率混一隻精英；掉落 +lootPct%；追丟了就散去（不留在地圖上）。玩家在營火或 Boss 區域內時延後。
    */
   riot?: { everyTicks: [number, number]; count: [number, number]; enemyId: string; eliteId?: string; eliteChance?: number; hpPct?: number; lootPct?: number };
+  /**
+   * 隱藏精英（design/20 C2-3「知道出現條件就能主動觸發」）：不倒下連續打倒 streak 隻普通怪 → 附近冒出一隻醒著的精英
+   * （hpPct 加成、掉落 +lootPct%）；打倒或倒下後重新計數。玩家在營火或 Boss 區域內時等出來再生。
+   */
+  hiddenElite?: { streak: number; enemyId: string; hpPct?: number; atkPct?: number; lootPct?: number };
   /** 隱藏寶箱（需要 loot） */
   chests?: Chest[];
   /** 營火（需要 mapAi） */
@@ -447,6 +453,8 @@ export interface BattleState {
   loot?: Partial<Record<LootId, number>>;
   /** 這場打倒過的 Boss（defId，首殺劇情旗標用） */
   bossKills?: string[];
+  /** 隱藏精英的連殺計數（hiddenElite） */
+  streak?: number;
   /** 下一次狼群暴動的 tick（riot；第一個 tick 排定） */
   riotAt?: number;
   /** 打開過的寶箱 id */

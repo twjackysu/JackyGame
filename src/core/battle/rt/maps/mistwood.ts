@@ -122,6 +122,8 @@ export function makeMistwoodStage(): StageDefinition {
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...MISTWOOD_ROWS] } },
     // 狼群暴動（design/20 B2）：5～8 分鐘一次、5～8 隻、25% 混狼群首領、掉落 +100%
     riot: { everyTicks: [sec(300), sec(480)], count: [5, 8], enemyId: 'wolf', eliteId: 'alpha_wolf', eliteChance: 25, hpPct: 30, lootPct: 100 },
+    // 隱藏精英（design/20 C2-3）：不倒下連續打倒 12 隻（約三群）普通怪 → 附近冒出強化首領，掉落 +200%
+    hiddenElite: { streak: 12, enemyId: 'alpha_wolf', hpPct: 150, atkPct: 50, lootPct: 200 },
     // 隱藏寶箱（design/20 C2：靠近才淡淡出現「這個地方似乎有點熟悉……」）：都在路線旁的角落
     chests: [
       { id: 'entry_nook', x: c(3), y: c(91), loot: { dust: 6, gold: 40 } },

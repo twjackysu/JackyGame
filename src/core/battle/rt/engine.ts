@@ -218,7 +218,7 @@ function rollDrops(s: BattleState, e: Unit): void {
   const d = ENEMIES[e.defId]?.drops;
   if (!d) return;
   const st = STAGES[s.stageId];
-  const bonus = !e.groupId ? 0 : e.groupId === RIOT_GROUP ? (st?.riot?.lootPct ?? 0) : (st?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0);
+  const bonus = !e.groupId ? 0 : e.groupId === RIOT_GROUP ? (st?.riot?.lootPct ?? 0) : e.groupId === HIDDEN_GROUP ? (st?.hiddenElite?.lootPct ?? 0) : (st?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0);
   const range = (r: [number, number]) => r[0] + Math.floor(lootRand(s) * (r[1] - r[0] + 1));
   const more = (n: number) => (bonus ? Math.round((n * (100 + bonus)) / 100) : n);
   const put = (kind: LootId, amount: number) => {
@@ -258,6 +258,51 @@ function processPickup(s: BattleState): void {
   });
 }
 
+/** 玩家周圍 units 單位、8 個方向（從亂數方向開始轉）找第一個不是障礙物、也不在營火圈內的點 */
+function ringSpot(s: BattleState, p: Unit, units: number): { x: number; y: number } | null {
+  const start = Math.floor(nextRand(s) * 8);
+  for (let k = 0; k < 8; k++) {
+    const a = ((start + k) / 8) * Math.PI * 2;
+    const x = p.x + Math.round(Math.cos(a) * units * UNIT);
+    const y = p.y + Math.round(Math.sin(a) * units * UNIT);
+    if (x < UNIT || y < UNIT || x > s.arena.w - UNIT || y > s.arena.h - UNIT) continue;
+    if (s.arena.solid && isSolidAt(s.arena.solid, x, y)) continue;
+    if (campfireNear(s, x, y, CAMPFIRE_RULES.safeUnits)) continue;
+    return { x, y };
+  }
+  return null;
+}
+
+/** 隱藏精英：連殺到門檻就在附近冒出來（醒著）；打倒後重新計數 */
+const HIDDEN_GROUP = 'hidden';
+function processHiddenElite(s: BattleState): void {
+  const st = STAGES[s.stageId];
+  const h = st?.hiddenElite;
+  if (!h || (s.streak ?? 0) < h.streak) return;
+  if (s.units.some((x) => x.groupId === HIDDEN_GROUP && !x.dead)) return;
+  const p = playerOf(s);
+  const z = st.bossZone;
+  if (p.dead || inSafeZone(s, p) || (z && dist(p.x, p.y, z.x, z.y) <= z.r) || s.tick % TICKS_PER_SEC !== 0) return;
+  const at = ringSpot(s, p, 7);
+  if (!at) return;
+  s.streak = 0;
+  s.units = s.units.filter((x) => !(x.groupId === HIDDEN_GROUP && x.dead));
+  const m = makeEnemy(s, ENEMIES[h.enemyId]!, at.x, at.y);
+  if (h.hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + h.hpPct)) / 100);
+  if (h.atkPct) m.atk = Math.round((m.atk * (100 + h.atkPct)) / 100);
+  clampArena(s, m);
+  m.tier = 'elite';
+  m.homeX = m.x;
+  m.homeY = m.y;
+  m.groupId = HIDDEN_GROUP;
+  m.mode = 'combat';
+  m.engagedTick = s.tick;
+  m.aggroTick = s.tick;
+  m.nextAttackTick = s.tick + 2 * TICKS_PER_SEC;
+  s.units.push(m);
+  emit(s, { tick: s.tick, type: 'hiddenElite', id: m.id });
+}
+
 /** 狼群暴動：排程、生成（醒著、直接追玩家）、追丟就散去 */
 const RIOT_GROUP = 'riot';
 function processRiot(s: BattleState): void {
@@ -282,18 +327,7 @@ function processRiot(s: BattleState): void {
     s.riotAt = s.tick + 5 * TICKS_PER_SEC;
     return;
   }
-  // 位置：玩家周圍 10 單位、8 個方向（從亂數方向開始轉）找第一個不是障礙物、也不在營火圈內的點
-  const start = Math.floor(nextRand(s) * 8);
-  let at: { x: number; y: number } | null = null;
-  for (let k = 0; k < 8 && !at; k++) {
-    const a = ((start + k) / 8) * Math.PI * 2;
-    const x = p.x + Math.round(Math.cos(a) * 10 * UNIT);
-    const y = p.y + Math.round(Math.sin(a) * 10 * UNIT);
-    if (x < UNIT || y < UNIT || x > s.arena.w - UNIT || y > s.arena.h - UNIT) continue;
-    if (s.arena.solid && isSolidAt(s.arena.solid, x, y)) continue;
-    if (campfireNear(s, x, y, CAMPFIRE_RULES.safeUnits)) continue;
-    at = { x, y };
-  }
+  const at = ringSpot(s, p, 10);
   s.riotAt = s.tick + roll(r.everyTicks);
   if (!at) return;
   s.units = s.units.filter((x) => !(x.groupId === RIOT_GROUP && x.dead));
@@ -476,6 +510,7 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== dst.id);
     emit(s, { tick: s.tick, type: 'death', id: dst.id });
     if (dst.groupId) queueRespawn(s, dst.groupId);
+    if (dst.side === 'enemy' && STAGES[s.stageId]?.hiddenElite && dst.tier === 'normal' && !dst.summonedBy) s.streak = (s.streak ?? 0) + 1;
     if (s.ground && dst.side === 'enemy' && !dst.summonedBy) rollDrops(s, dst);
     if (dst.mode && ENEMIES[dst.defId]?.boss && !(s.bossKills ??= []).includes(dst.defId)) s.bossKills.push(dst.defId);
     const rt = STAGES[s.stageId]?.bossZone?.respawnTicks;
@@ -744,6 +779,7 @@ function reviveAtCampfire(s: BattleState, p: Unit): boolean {
   p.invulnUntil = s.tick + CAMPFIRE_RULES.reviveInvulnTicks;
   s.moveGoal = null;
   s.revives = (s.revives ?? 0) + 1;
+  if (s.streak) s.streak = 0;
   for (const e of s.units) {
     if (e.side !== 'enemy' || e.dead || e.mode !== 'combat') continue;
     e.mode = 'returning';
@@ -1104,6 +1140,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   processRespawns(s);
   processBossRespawn(s);
   processRiot(s);
+  processHiddenElite(s);
   processPickup(s);
   processChests(s);
   const p = playerOf(s);

@@ -45,6 +45,10 @@ export function validateStage(def: StageDefinition): string[] {
     if (!ENEMIES[def.riot.enemyId]) out.push(`riot 的 enemyId「${def.riot.enemyId}」不存在`);
     if (def.riot.eliteId && !ENEMIES[def.riot.eliteId]) out.push(`riot 的 eliteId「${def.riot.eliteId}」不存在`);
   }
+  if (def.hiddenElite) {
+    needMap('hiddenElite');
+    if (!ENEMIES[def.hiddenElite.enemyId]) out.push(`hiddenElite 的 enemyId「${def.hiddenElite.enemyId}」不存在`);
+  }
   if (def.chests?.length && !def.loot) out.push('chests 需要 loot');
   const chestIds = new Set<string>();
   for (const c of def.chests ?? []) {

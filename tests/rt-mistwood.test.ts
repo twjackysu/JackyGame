@@ -182,3 +182,30 @@ describe('狼群暴動 riot', () => {
     expect(s.units.filter((x) => x.groupId === 'riot' && !x.dead).length).toBe(0);
   });
 });
+
+describe('隱藏精英 hiddenElite', () => {
+  beforeAll(() => {
+    STAGES.mistwood = makeMistwoodStage();
+  });
+  afterAll(() => {
+    delete STAGES.mistwood;
+  });
+  it('不倒下連殺 12 隻普通怪 → 附近冒出醒著的強化首領；倒下會重新計數', () => {
+    const s = createBattle({ stageId: 'mistwood', seed: 2 });
+    const bot = new PlayerBot({ ...BOT_PROFILES.expert, ult: true, potionAtPct: 50, campfireBelowPotions: 8 }, 'expert');
+    let ev: (typeof s.events)[number] | undefined;
+    let maxStreak = 0;
+    while (!ev && s.tick < sec(600)) {
+      step(s, bot.decide(s));
+      maxStreak = Math.max(maxStreak, s.streak ?? 0);
+      ev = s.events.find((e) => e.type === 'hiddenElite');
+    }
+    expect(ev).toBeDefined();
+    expect(maxStreak).toBeGreaterThanOrEqual(12);
+    const m = s.units.find((x) => x.groupId === 'hidden')!;
+    expect(m.tier).toBe('elite');
+    expect(m.mode).toBe('combat');
+    expect(m.maxHp).toBeGreaterThan(s.units.find((x) => x.defId === 'alpha_wolf' && x.groupId === 'elite')!.maxHp); // +150% 比精英區 +100% 耐打
+    expect(s.streak).toBe(0);
+  }, 60000);
+});
