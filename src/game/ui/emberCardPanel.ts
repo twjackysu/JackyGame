@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { aiMove, applyMove, CARD_STAKE, CARDS, cardPower, legalMoves, newCardGame, rowScore, totalScore, type CardGame, type Row } from '../../core/cards/emberCards';
 import { GAME_WIDTH } from '../config';
-import { TITLE_FONT, UI_FONT } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
 import { drawMerchant } from '../fx/merchant';
 
 export interface CardCtx {
@@ -45,6 +45,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   let sel = -1;
   let busy = false;
   let lastLog = '';
+  /** 剛出的那張牌（畫面上彈一下）：[side, row, 數量] */
+  let fresh: [number, Row, number] | null = null;
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24, off = false): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: off ? '#8a8070' : hi ? '#1a0f08' : '#ffffff', backgroundColor: off ? '#2a2218' : hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9);
@@ -80,7 +82,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     S.rows[row].forEach((id, i) => {
       const x = -230 + 30 + i * gap;
       const col = cardColor(id);
-      items.push(scene.add.rectangle(x, y + 6, 56, 80, col.fill, 1).setStrokeStyle(2, col.edge, 1));
+      const pop = fresh && fresh[0] === side && fresh[1] === row && i === n - 1 && fresh[2] === n;
+      const face = scene.add.rectangle(x, y + 6, 56, 80, col.fill, 1).setStrokeStyle(pop ? 4 : 2, pop ? 0xffffff : col.edge, 1);
+      items.push(face);
+      if (pop) scene.tweens.add({ targets: face, scale: { from: 1.6, to: 1 }, duration: 260, ease: 'Back.Out' });
       const p = cardPower(game, side, row, id);
       const base = CARDS[id]!.power;
       items.push(scene.add.text(x, y - 10, `${p}`, { fontFamily: TITLE_FONT, fontSize: '28px', color: p > base ? '#7dffb0' : p < base ? '#ff8a7a' : '#ffffff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5));
@@ -204,8 +209,9 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     g = newCardGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
     sel = -1;
     lastLog = g.turn === 0 ? '擲硬幣：你先手' : '擲硬幣：莫托先手';
+    fresh = null;
     render();
-    if (g.turn === 1) aiTurn();
+    if (g.turn === 1) aiTurn(1000);
   }
 
   function finishIfOver(): void {
@@ -224,41 +230,60 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     }
   }
 
-  function after(): void {
+  /** 記下剛出的牌在哪一排（出牌前後比對各排張數） */
+  function snap(game: CardGame): number[] {
+    return game.sides.flatMap((S) => [S.rows[0].length, S.rows[1].length]);
+  }
+  function after(before: number[], rounds: number): void {
     if (!g) return;
     lastLog = g.log[g.log.length - 1] ?? '';
-    // 一局結束：多停一下讓玩家看分數
+    const now = snap(g);
+    const k = now.findIndex((v, i) => v > before[i]!);
+    fresh = k >= 0 && g.results.length === rounds ? [Math.floor(k / 2), (k % 2) as Row, now[k]!] : null;
+    let wait = 700;
+    if (g.results.length > rounds) {
+      // 一局結束：大字＋多停一下
+      const r = g.results[g.results.length - 1]!;
+      const t = bigText(scene, GAME_WIDTH / 2, 560, r === 0 ? `第 ${rounds + 1} 局　你贏了！` : r === 1 ? `第 ${rounds + 1} 局　莫托贏了` : `第 ${rounds + 1} 局　平手`, r === 0 ? '#ffd27a' : r === 1 ? '#ff9a8a' : '#c8d0f0', 46, 1100);
+      t.setDepth(990);
+      if (r === 0) SFX.itemGet();
+      wait = 1700;
+    }
     finishIfOver();
     render();
-    if (!g.over && g.turn === 1) aiTurn();
+    if (!g.over && g.turn === 1) aiTurn(wait);
   }
 
   function play(i: number): void {
     if (!g || busy || g.turn !== 0 || i < 0) return;
-    const round = g.round;
+    const before = snap(g);
+    const rounds = g.results.length;
     if (!applyMove(g, 0, { type: 'play', card: i })) return;
     sel = -1;
     SFX.hitHeavy();
     scene.cameras.main.shake(80, 0.003);
-    if (g.round !== round && !g.over) lastLog = g.log[g.log.length - 1] ?? '';
-    after();
+    after(before, rounds);
   }
 
   function pass(): void {
     if (!g || busy || g.turn !== 0) return;
+    const before = snap(g);
+    const rounds = g.results.length;
     applyMove(g, 0, { type: 'pass' });
     sel = -1;
-    after();
+    after(before, rounds);
   }
 
-  function aiTurn(): void {
+  function aiTurn(wait = 700): void {
     busy = true;
     render();
-    scene.time.delayedCall(700, () => {
+    scene.time.delayedCall(wait, () => {
       busy = false;
       if (!g || g.over || g.turn !== 1 || !root.active) return;
+      const before = snap(g);
+      const rounds = g.results.length;
       applyMove(g, 1, aiMove(g, 1));
-      after();
+      after(before, rounds);
     });
   }
 
