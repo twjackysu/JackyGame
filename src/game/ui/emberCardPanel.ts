@@ -225,7 +225,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       items.push(scene.add.text(x, y + 44, c.name, { fontFamily: UI_FONT, fontSize: '17px', color: '#f0e6d8', align: 'center', wordWrap: { width: 92, useAdvancedWrap: true } }).setOrigin(0.5));
     });
     const sc = sel >= 0 ? me.hand[sel] : undefined;
-    const info = sc ? `${CARDS[sc]!.name}${CARDS[sc]!.power ? `（${CARDS[sc]!.power} 點・${CARDS[sc]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[sc]!.desc ? `：${CARDS[sc]!.desc}` : ''}` : myTurn ? '點一張牌看說明，再點一次打出' : '';
+    const info = sc ? `${CARDS[sc]!.name}${CARDS[sc]!.power ? `（${CARDS[sc]!.power} 點・${CARDS[sc]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[sc]!.desc ? `：${CARDS[sc]!.desc}` : ''}` : myTurn ? (coach(game) ?? '點一張牌看說明，再點一次打出') : '';
     items.push(scene.add.text(0, 420, info, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
     const canPlay = myTurn && sel >= 0 && legalMoves(game, 0).some((m) => m.type === 'play' && m.card === sel);
     if (sc && myTurn && !canPlay && CARDS[sc]!.ability === 'horn') {
@@ -286,6 +286,24 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       render();
     }, false, 24));
     items.push(btn(0, 500, ctx.closeLabel ?? '回行商', () => onClose(), false, 26));
+  }
+
+  /**
+   * 新手教練（前 3 場）：輪到你時，在說明列提示「什麼時候該收手」——燼牌最難懂的就是放棄。
+   * 只看局面、不改規則；回 undefined 就顯示一般說明。
+   */
+  function coach(game: CardGame): string | undefined {
+    if (stats().played >= 3) return undefined;
+    const me = game.sides[0];
+    const op = game.sides[1];
+    const lead = totalScore(game, 0) - totalScore(game, 1);
+    const n = who.short;
+    if (op.passed && lead > 0) return `提示：${n}放棄了，你已經領先——現在放棄就贏下這局，還省下手牌`;
+    if (op.passed && lead <= 0) return `提示：${n}放棄了：出「剛好超過」的小牌就好，別浪費大牌`;
+    if (game.round === 1 && lead <= -12 && me.hand.length >= op.hand.length) return `提示：落後太多？放棄這一局，把好牌留到後兩局（${n}已經多花了牌）`;
+    if (game.round === 1 && me.hand.length <= 5) return '提示：第一局就快把牌打光了——三局兩勝，留點牌給後面';
+    if (me.wins >= 1 && game.round >= 2) return '提示：你已經贏一局：再贏這局就拿下整場';
+    return undefined;
   }
 
   /** 自己組牌（D-130）：點一張牌切換「帶上／留在箱子裡」，至少 12 張，超過 18 張自動拿掉最弱的 */
