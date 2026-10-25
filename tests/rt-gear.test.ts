@@ -151,3 +151,33 @@ describe('強化與錢包（D-092）', () => {
     expect(walletOf(spend(r1, -5, 0)!)).toEqual({ dust: 13, crystal: 0 });
   });
 });
+
+describe('稀有裝備的技能特效（D-094）', () => {
+  beforeAll(() => {
+    STAGES.mistwood = makeMistwoodStage();
+  });
+  afterAll(() => {
+    delete STAGES.mistwood;
+  });
+  it('只有稀有有特效；合計冷卻最多 −40%；冷卻與傷害真的生效', async () => {
+    const { gearSkillMods, specialText } = await import('../src/core/battle/rt/gear');
+    const { setSkillMods } = await import('../src/core/battle/rt/engine');
+    expect(genGear(5, 2, 4).special).toBeUndefined();
+    const r = genGear(5, 3, 4);
+    expect(r.special).toBeDefined();
+    expect(gearLines(r).some((l) => l.startsWith('★'))).toBe(true);
+    expect(specialText({ skill: 'heavy_slash', kind: 'cd', value: 10 })).toBe('★ 重斬冷卻 −10%');
+    const mk = (v: number): RtGear => ({ ...r, special: { skill: 'heavy_slash', kind: 'cd', value: v } });
+    expect(gearSkillMods([mk(30), mk(30)])).toEqual({ heavy_slash: { cdPct: 40 } });
+    // 冷卻：重斬 −40% → ready 提早
+    const a = createBattle({ stageId: 'mistwood', seed: 1 });
+    const b = createBattle({ stageId: 'mistwood', seed: 1, skillMods: { heavy_slash: { cdPct: 40 } } });
+    step(a, [{ type: 'skill', id: 'heavy_slash' }]);
+    step(b, [{ type: 'skill', id: 'heavy_slash' }]);
+    const ra = a.units[0]!.ready.heavy_slash!;
+    const rb = b.units[0]!.ready.heavy_slash!;
+    expect(rb - b.tick).toBeLessThan(ra - a.tick);
+    setSkillMods(b, {});
+    expect(b.skillMods).toBeUndefined();
+  });
+});

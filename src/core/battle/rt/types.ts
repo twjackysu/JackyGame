@@ -460,6 +460,8 @@ export interface BattleState {
   ground?: GroundItem[];
   /** 掉落物流水號 */
   lootSeq?: number;
+  /** 裝備帶來的技能修正（D-094）：技能 id → 冷卻 −%、傷害 +%；沒有＝不變 */
+  skillMods?: Record<string, { cdPct?: number; dmgPct?: number }>;
   /** 等級與經驗（progression）；base＝等級與強化加成前的數值 */
   prog?: { level: number; xp: number; baseHp: number; baseAtk: number };
   /** 這場的武器強化等級（lootEnhance）與強化前的攻擊力 */

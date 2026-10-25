@@ -83,6 +83,8 @@ export interface BattleSetup {
   bonus?: { hp?: number; atk?: number; def?: number; critRate?: number };
   /** 攜帶的藥水數（預設 PlayerDefinition.potion.carry；之後由背包提供） */
   potions?: number;
+  /** 裝備的技能修正（D-094） */
+  skillMods?: Record<string, { cdPct?: number; dmgPct?: number }>;
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
   level?: number;
   xp?: number;
@@ -118,6 +120,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     nextAttackTick: 0, invulnUntil: -1, hitstunUntil: -1, hitstunImmuneUntil: -1, targetId: null, phase: 1,
     nextSummonTick: Number.MAX_SAFE_INTEGER, mp: Math.min(pd.mp, pd.mpStart),
   });
+  if (setup.skillMods && Object.keys(setup.skillMods).length) s.skillMods = setup.skillMods;
   if (stage.progression) {
     const p = s.units[0]!;
     const lv = Math.max(1, Math.min(stage.progression.maxLevel, Math.floor(setup.level ?? 1)));
@@ -455,6 +458,12 @@ export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; d
   if (!p.dead) p.hp = Math.max(1, Math.min(p.maxHp, Math.round(p.maxHp * ratio)));
 }
 
+/** 戰鬥中換裝時更新技能修正（D-094） */
+export function setSkillMods(s: BattleState, mods: Record<string, { cdPct?: number; dmgPct?: number }>): void {
+  if (Object.keys(mods).length) s.skillMods = mods;
+  else delete s.skillMods;
+}
+
 /** 打倒怪物得經驗；滿了就升級（一次可能連升） */
 function gainXp(s: BattleState, dst: Unit): void {
   const st = STAGES[s.stageId];
@@ -790,7 +799,8 @@ function startSkill(s: BattleState, p: Unit, id: string): boolean {
   if (p.action && p.action.kind !== 'attack') return false; // 同時只能一個主動技能
   const t = currentTarget(s, p);
   if (t) face(p, t);
-  p.ready[id] = s.tick + sk.cooldownTicks; // 冷卻從施放開始計
+  const cdPct = Math.min(40, Math.max(0, s.skillMods?.[id]?.cdPct ?? 0));
+  p.ready[id] = s.tick + (cdPct ? Math.round((sk.cooldownTicks * (100 - cdPct)) / 100) : sk.cooldownTicks); // 冷卻從施放開始計
   if (sk.mp) p.mp -= sk.mp;
   p.action = { kind: 'skill', id, start: s.tick, end: s.tick + sk.castTicks, dirX: p.facingX, dirY: p.facingY, ox: p.x, oy: p.y, hitIds: [], targetId: t?.id };
   emit(s, { tick: s.tick, type: 'cast', id: p.id, skill: id });
@@ -911,7 +921,8 @@ function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillI
     if (h.oncePerTarget && a.hitIds?.includes(e.id)) continue;
     if (!inShape(h.shape, p.x, p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
     a.hitIds?.push(e.id);
-    dealDamage(s, p, e, h.mult, origin, skillId);
+    const dmgPct = s.skillMods?.[skillId]?.dmgPct ?? 0;
+    dealDamage(s, p, e, dmgPct ? Math.round((h.mult * (100 + dmgPct)) / 100) : h.mult, origin, skillId);
     if (h.status && !e.dead) addStatus(s, e, h.status, p);
   }
 }

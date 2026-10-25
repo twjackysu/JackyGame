@@ -24,7 +24,12 @@ export interface RtGear {
   affixes: { stat: AffixStat; value: number }[];
   /** 強化等級（營火旁強化，D-092）；每級底數值 +10% */
   enh?: number;
+  /** 稀有裝備的技能特效（D-094）：某個技能冷卻 −% 或傷害 +% */
+  special?: { skill: string; kind: 'cd' | 'dmg'; value: number };
 }
+
+/** 可以出現在特效上的技能（名稱只給顯示用） */
+export const SPECIAL_SKILLS: Record<string, string> = { heavy_slash: '重斬', whirlwind: '旋風斬', charge: '衝鋒', parry: '格擋反擊', blade_storm: '劍刃風暴' };
 
 export const ENH_MAX = 10;
 /** 強化 +N → +N+1 的費用與成功率（+1～+5 必成；之後逐級下降；失敗只扣材料，不會掉級） */
@@ -126,10 +131,21 @@ export function genGear(seed: number, rarity: Rarity, ilvl: number): RtGear {
     const stat = pool.splice(k, 1)[0]!;
     affixes.push({ stat, value: affixValue(stat, L, R()) });
   }
+  // 稀有：多一條技能特效（只在稀有多抽亂數，普通／精良的結果不變）
+  let special: RtGear['special'];
+  if (rarity === 3) {
+    const ids = Object.keys(SPECIAL_SKILLS);
+    const skill = ids[Math.floor(R() * ids.length)]!;
+    const kind = R() < 0.5 ? 'cd' : 'dmg';
+    const t = R();
+    special = { skill, kind, value: kind === 'cd' ? Math.round(8 + 7 * t) : Math.round(12 + 13 * t) };
+  }
   const names = NAMES[slot];
   const baseName = names[Math.min(names.length - 1, Math.floor((L - 1) / 2))]!;
   const name = rarity === 1 ? baseName : rarity === 2 ? `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}` : `${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}・霧語`;
-  return { uid: (seed >>> 0).toString(36) + L.toString(36) + rarity, slot, rarity, ilvl: L, name, base, affixes };
+  const g: RtGear = { uid: (seed >>> 0).toString(36) + L.toString(36) + rarity, slot, rarity, ilvl: L, name, base, affixes };
+  if (special) g.special = special;
+  return g;
 }
 
 export function gearStats(items: (RtGear | undefined | null)[]): GearStats {
@@ -159,7 +175,7 @@ export function gearBonus(items: (RtGear | undefined | null)[], baseHp: number, 
 export function gearScore(g: RtGear | undefined | null, baseHp: number, baseAtk: number): number {
   if (!g) return 0;
   const b = gearBonus([g], baseHp, baseAtk);
-  return b.atk * 4 + b.hp * 0.25 + b.def * 3;
+  return b.atk * 4 + b.hp * 0.25 + b.def * 3 + (g.special ? 25 : 0);
 }
 
 /** 一行數值說明（「攻擊 +12・HP +80」） */
@@ -170,6 +186,25 @@ export function gearLines(g: RtGear): string[] {
   if (g.base.hp) out.push(`HP +${Math.round(g.base.hp * m)}`);
   if (g.base.def) out.push(`防禦 +${Math.round(g.base.def * m)}`);
   for (const a of g.affixes) out.push(`✦ ${AFFIX_NAME[a.stat]} +${a.value}${a.stat.endsWith('Pct') ? '%' : ''}`);
+  if (g.special) out.push(specialText(g.special));
+  return out;
+}
+
+export function specialText(sp: NonNullable<RtGear['special']>): string {
+  const n = SPECIAL_SKILLS[sp.skill] ?? sp.skill;
+  return sp.kind === 'cd' ? `★ ${n}冷卻 −${sp.value}%` : `★ ${n}傷害 +${sp.value}%`;
+}
+
+/** 身上裝備的技能修正合計（冷卻最多 −40%，引擎也會夾） */
+export function gearSkillMods(items: (RtGear | undefined | null)[]): Record<string, { cdPct?: number; dmgPct?: number }> {
+  const out: Record<string, { cdPct?: number; dmgPct?: number }> = {};
+  for (const g of items) {
+    const sp = g?.special;
+    if (!sp) continue;
+    const m = (out[sp.skill] ??= {});
+    if (sp.kind === 'cd') m.cdPct = Math.min(40, (m.cdPct ?? 0) + sp.value);
+    else m.dmgPct = (m.dmgPct ?? 0) + sp.value;
+  }
   return out;
 }
 

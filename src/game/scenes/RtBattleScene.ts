@@ -3,9 +3,10 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { createBattle, enemiesOf, isSolidAt, playerOf, setGearBonus, step, xpToNext } from '../../core/battle/rt/engine';
+import { createBattle, enemiesOf, isSolidAt, playerOf, setGearBonus, setSkillMods, step, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { BAG_MAX, bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
+import { skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
 import { CAMPFIRE_RULES, CHEST_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
@@ -152,7 +153,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked || big ? skillModsOf(this.bagSt) : undefined });
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -529,6 +530,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.bagSt = st;
         this.saveBag();
         setGearBonus(this.s, bonusOf(st));
+        setSkillMods(this.s, skillModsOf(st));
       },
       () => {
         this.menu?.destroy();
