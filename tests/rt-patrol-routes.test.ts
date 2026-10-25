@@ -6,9 +6,10 @@ import { STAGES } from '../src/core/battle/rt/data';
 import { createBattle, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
 import { makeThornvaleStage } from '../src/core/battle/rt/maps/thornvale';
+import { makeEmberriftStage } from '../src/core/battle/rt/maps/emberrift';
 import { aggroUnitsOf, sec, UNIT, type StageDefinition } from '../src/core/battle/rt/types';
 
-const MAPS: Record<string, () => StageDefinition> = { mistwood: makeMistwoodStage, thornvale: makeThornvaleStage };
+const MAPS: Record<string, () => StageDefinition> = { mistwood: makeMistwoodStage, thornvale: makeThornvaleStage, emberrift: makeEmberriftStage };
 
 describe('巡邏路線走得完', () => {
   beforeAll(() => {
@@ -21,7 +22,7 @@ describe('巡邏路線走得完', () => {
   const cases: [string, string, boolean][] = [];
   for (const [id, mk] of Object.entries(MAPS)) for (const g of mk().spawnGroups ?? []) if (g.patrol?.length) cases.push([id, g.id, !!g.nightOnly]);
 
-  it('至少有三條巡邏路線（巡獵者、霧影狼、巡守）', () => expect(cases.length).toBeGreaterThanOrEqual(3));
+  it('至少有四條巡邏路線（巡獵者、霧影狼、巡守、熔核巡者）', () => expect(cases.length).toBeGreaterThanOrEqual(4));
 
   it.each(cases)('%s／%s', (stageId, gid, night) => {
     const s = createBattle({ stageId, seed: 1, night });

@@ -19,7 +19,7 @@ import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, aggroU
 /** 命中時會在地上長出荊棘的招式（第 23 輪） */
 const THORN_ATTACKS = new Set(['queen_lance', 'queen_lance2', 'queen_roots', 'queen_bloom', 'mother_lance', 'mother_roots']);
 /** 燼心岩王與黑曜首領（D-125）：命中那一刻地上裂出熔岩（走 thornPending，命中時改呼叫 spawnLava） */
-const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash']);
+const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge']);
 
 function lerpColor(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t);
@@ -74,10 +74,11 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   ember_shroom: { key: 'enemy_thorn_shroom', h: 2.9, flip: false, tint: 0xffb080 },
   obsidian_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x9a8aa8 },
   ember_colossus: { key: 'enemy_ember_colossus', h: 3.0, flip: true },
+  magma_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff6a3a },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
 /** 巡邏怪的仇恨圈／視線顏色（D-117） */
-const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0 };
+const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0, magma_stalker: 0xff5a2a };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
 const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼／燼鬃狼', wolf_king: '狼王／狼后／岩王' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
@@ -296,6 +297,8 @@ export class RtBattleScene extends Phaser.Scene {
       this.time.delayedCall(3200, () => bigText(this, GAME_WIDTH / 2, 600, '深夜：遠處的藍色光柱是夜光寶箱\n（每次進深夜都會補滿）', '#bfe0ff', 30, 2200));
       // 深夜的山谷（D-115）：毒沼擴散＋多兩灘
       if (STAGES[this.stageId]?.hazards?.some((h) => h.nightOnly || h.nightR)) this.time.delayedCall(5600, () => bigText(this, GAME_WIDTH / 2, 600, '深夜的毒沼擴散了\n荊棘坡與迴廊也冒出新的毒沼', '#a8f08a', 30, 2200));
+      // 深夜的裂谷（D-125）：噴發口更頻繁＋熔核巡者
+      if (STAGES[this.stageId]?.vents?.some((v) => v.nightEveryTicks)) this.time.delayedCall(5600, () => bigText(this, GAME_WIDTH / 2, 600, '深夜的熔岩口噴得更頻繁\n熔渣坡有「熔核巡者」在巡邏', '#ffb36a', 30, 2200));
     }
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;

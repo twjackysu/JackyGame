@@ -28,7 +28,7 @@ export const BOUNTY_POOL: readonly { target: string; need: [number, number]; rew
 
 export const BOUNTY_SLOTS = 3;
 
-const BOUNTY_ALIAS: Readonly<Record<string, string>> = { thorn_wolf: 'wolf', thorn_queen: 'wolf_king', thorn_stalker: 'alpha_wolf', mist_warden: 'alpha_wolf', ember_wolf: 'wolf', ember_shroom: 'thorn_shooter', obsidian_alpha: 'alpha_wolf', ember_colossus: 'wolf_king' };
+const BOUNTY_ALIAS: Readonly<Record<string, string>> = { thorn_wolf: 'wolf', thorn_queen: 'wolf_king', thorn_stalker: 'alpha_wolf', mist_warden: 'alpha_wolf', ember_wolf: 'wolf', ember_shroom: 'thorn_shooter', obsidian_alpha: 'alpha_wolf', magma_stalker: 'alpha_wolf', ember_colossus: 'wolf_king' };
 
 function hash(n: number): number {
   let x = (Math.imul(n + 1, 2654435761) ^ 0x5bd1e995) >>> 0;

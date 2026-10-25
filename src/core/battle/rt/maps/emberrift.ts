@@ -112,6 +112,11 @@ export const EMBERRIFT_VENTS: readonly StageVent[] = [
   vent(24, 17, 1.6, 9, 6, 10),
 ];
 
+/** 熔核巡者（深夜限定）的巡邏路線：熔渣坡繞一圈（岔路口上方左右兩端 → 坡道上段） */
+export const MAGMA_PATROL: readonly { x: number; y: number }[] = [
+  [16, 56], [33, 56], [27, 60], [21, 60],
+].map(([x, y]) => ({ x: c(x!), y: c(y!) }));
+
 export function makeEmberriftStage(): StageDefinition {
   return {
     id: 'emberrift', name: '燼紅裂谷', timeLimitTicks: sec(60 * 60), player: { x: c(24), y: c(80) },
@@ -122,9 +127,10 @@ export function makeEmberriftStage(): StageDefinition {
       ember_wolf: { chance: 6, ilvl: 7, rarity: [72, 24, 4] },
       ember_shroom: { chance: 7, ilvl: 8, rarity: [68, 27, 5] },
       obsidian_alpha: { chance: 100, ilvl: 10, rarity: [0, 50, 50] },
+      magma_stalker: { chance: 100, ilvl: 10, rarity: [0, 40, 60] },
       ember_colossus: { chance: 100, ilvl: 10, rarity: [0, 25, 75], count: 2, firstRare: true },
     },
-    progression: { xp: { slag_slime: 14, ember_wolf: 13, ember_shroom: 13, obsidian_alpha: 120, ember_colossus: 360 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
+    progression: { xp: { slag_slime: 14, ember_wolf: 13, ember_shroom: 13, obsidian_alpha: 120, magma_stalker: 140, ember_colossus: 360 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '穿過裂谷往北，打倒燼心岩王！\n地上發亮的熔岩口會噴發・建議 Lv10 以上',
     enemies: [{ enemyId: 'ember_colossus', x: EMBERRIFT_COLOSSUS.x, y: EMBERRIFT_COLOSSUS.y, hpPct: 80, atkPct: 30 }],
@@ -160,6 +166,8 @@ export function makeEmberriftStage(): StageDefinition {
       { id: 'er_hall_slimes', enemyId: 'slag_slime', cx: c(37), cy: c(54), spawnRadius: u(1.5), maxAlive: 3, respawnTicks: sec(30), hpPct: 20, atkPct: 10, lootPct: 30 },
       { id: 'er_hall_alpha', enemyId: 'obsidian_alpha', cx: c(39), cy: c(44), spawnRadius: u(0.5), maxAlive: 1, respawnTicks: sec(180), tier: 'elite', lootPct: 100, aggroUnits: 5 },
       { id: 'er_hall_shrooms', enemyId: 'ember_shroom', cx: c(37), cy: c(36), spawnRadius: u(1), maxAlive: 2, respawnTicks: sec(45), hpPct: 50, atkPct: 25, lootPct: 50 },
+      // 熔核巡者（深夜限定）：在熔渣坡巡邏，一進深夜就看得到目標
+      { id: 'er_night_magma', enemyId: 'magma_stalker', cx: MAGMA_PATROL[0]!.x, cy: MAGMA_PATROL[0]!.y, spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(180), tier: 'elite', lootPct: 100, nightOnly: true, aggroUnits: 5, patrol: MAGMA_PATROL },
       { id: 'er_stair_pack', enemyId: 'ember_wolf', cx: c(23), cy: c(25), spawnRadius: u(1.5), maxAlive: 3, respawnTicks: sec(30), hpPct: 60, atkPct: 30, lootPct: 80 },
     ],
   };

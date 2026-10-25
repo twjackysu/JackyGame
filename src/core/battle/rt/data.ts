@@ -303,9 +303,19 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'obs_slam', shape: { type: 'circle', r: u(2.2) }, warningTicks: sec(0.6), recoverTicks: sec(0.7), damageMultiplier: 120, cooldownTicks: 0, triggerRange: u(3), blockable: false, weight: 0 },
     ],
   },
+  // 熔核巡者（深夜限定、巡邏，D-125 第 26 輪）：在熔渣坡繞圈；撕咬、長衝鋒、近身「熔核爆裂」（不能格擋）
+  magma_stalker: {
+    id: 'magma_stalker', name: '熔核巡者', hp: 1900, atk: 37, def: 14, speed: 3.8, radius: u(0.62), hitstunTicks: 2,
+    drops: { gold: [55, 80], items: [{ id: 'dust', chance: 100, count: [3, 5] }, { id: 'crystal', chance: 100 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'magma_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.6), recoverTicks: sec(0.35), damageMultiplier: 115, cooldownTicks: sec(2.1), triggerRange: u(1.6), blockable: true, weight: 3 },
+      { id: 'magma_charge', shape: { type: 'line', len: u(6.5), width: u(1.3) }, warningTicks: sec(0.75), recoverTicks: sec(0.5), damageMultiplier: 145, cooldownTicks: sec(7), triggerRange: u(6.5), blockable: true, charge: { ticks: sec(0.4), wallStunTicks: sec(1.6) }, weight: 2 },
+      { id: 'magma_burst', shape: { type: 'circle', r: u(2.4) }, warningTicks: sec(0.9), recoverTicks: sec(0.8), damageMultiplier: 140, cooldownTicks: sec(9), triggerRange: u(2.0), blockable: false, weight: 2 },
+    ],
+  },
   // 燼心岩王（Boss）：慢、重。拳擊（扇形）、熔岩裂地（長直線）、重踏（自身圓）；第二階段加震波環＋招喚熔渣史萊姆。
   ember_colossus: {
-    id: 'ember_colossus', name: '燼心岩王', hp: 5400, atk: 35, def: 15, speed: 2.6, radius: u(1.05), hitstunTicks: 0,
+    id: 'ember_colossus', name: '燼心岩王', hp: 6000, atk: 35, def: 15, speed: 2.6, radius: u(1.05), hitstunTicks: 0,
     drops: { gold: [140, 200], items: [{ id: 'dust', chance: 100, count: [6, 9] }, { id: 'crystal', chance: 100, count: [1, 2] }] },
     attacks: [
       { id: 'colossus_fist', shape: { type: 'sector', r: u(2.6), deg: 90 }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 120, cooldownTicks: sec(3.2), triggerRange: u(2.3), blockable: true, weight: 3 },
