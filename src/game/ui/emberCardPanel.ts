@@ -2,7 +2,7 @@
 // 全螢幕面板：上半是莫托的後排／前排、中間天候、下半是你的前排／後排與手牌。點一張牌看說明、再點一次（或按「出牌」）打出。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { aiMove, applyMove, CARDS, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
+import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
@@ -44,6 +44,12 @@ function stats(): Stats {
     return { played: 0, won: 0, cards: [], by: {}, off: [] };
   }
 }
+/** ☰ 紀錄用：燼牌戰績與收集 */
+export function cardSummary(): { won: number; played: number; have: number; total: number } {
+  const st = stats();
+  return { won: st.won, played: st.played, have: ownedCards(st.cards).length - PLAYER_DECK.length, total: ALL_REWARDS.length };
+}
+
 /** 寶箱裡的燼牌（D-131）：還沒拿過就加進收藏，回傳有沒有新拿到 */
 export function grantCard(id: string): boolean {
   if (!CARDS[id]) return false;

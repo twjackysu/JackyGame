@@ -372,7 +372,8 @@ export function aiMove(g: CardGame, side: number, who: Opponent = OPPONENTS[0]!)
 
 /** 下注贏了依序拿到莫托的一張牌（加進你的牌組；全部拿完就只拿金幣） */
 export const CARD_REWARDS: readonly string[] = OPPONENTS[0]!.rewards;
-const ALL_REWARDS: readonly string[] = [...OPPONENTS.flatMap((o) => o.rewards), ...Object.values(CHEST_CARDS)];
+/** 可以收集的牌（對手獎勵＋寶箱），重複的算多張 */
+export const ALL_REWARDS: readonly string[] = [...OPPONENTS.flatMap((o) => o.rewards), ...Object.values(CHEST_CARDS)];
 
 /** 手上所有的牌＝基本牌組＋贏來的牌（未知 id、超過可贏張數的會被丟掉） */
 export function ownedCards(won: readonly string[]): string[] {
