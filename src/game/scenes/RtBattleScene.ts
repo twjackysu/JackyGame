@@ -404,6 +404,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.ended || this.menu) return;
     if (p.y < VIEW_TOP && p.x > GAME_WIDTH - 100) return; // 選單鍵
     if (this.fireBtn?.visible && this.fireBtn.getBounds().contains(p.x, p.y)) return; // 營火捷徑
+    if (this.cardBtn?.visible && this.cardBtn.getBounds().contains(p.x, p.y)) return;
     if (this.hint) this.dismissHint();
     for (let i = 0; i < BTN_COUNT; i++) {
       const b = this.btnPos(i);
@@ -728,6 +729,7 @@ export class RtBattleScene extends Phaser.Scene {
   private makeFireBtn(): void {
     this.fireBtn = null;
     this.shopBtn = null;
+    this.cardBtn = null;
     if (!this.tracked) return;
     const b = this.add.text(GAME_WIDTH / 2 - 95, 960, '行囊・強化', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
     b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
@@ -748,13 +750,26 @@ export class RtBattleScene extends Phaser.Scene {
       this.openShop();
     });
     this.shopBtn = sb;
+    // 燼牌捷徑（D-129）：營火旁直接找人打牌（在地對手坐在營火另一邊）
+    const cb = this.add.text(88, 960, '燼牌', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffb36a' }).setOrigin(0.5).setPadding(16, 10, 16, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    cb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      if (this.menu || this.editing || this.ended) return;
+      SFX.uiTap();
+      this.stick = null;
+      this.persist();
+      this.openCards(true);
+    });
+    this.cardBtn = cb;
   }
+  private cardBtn: Phaser.GameObjects.Text | null = null;
 
   private openShop(): void {
     this.persist(); // 這場剛撿的金幣先算進錢包
     this.menu?.destroy();
     this.fireBtn?.setVisible(false);
     this.shopBtn?.setVisible(false);
+    this.cardBtn?.setVisible(false);
     this.menu = openRtShopPanel(
       this,
       {
@@ -783,15 +798,19 @@ export class RtBattleScene extends Phaser.Scene {
     );
   }
 
-  /** 營火燼牌（D-127）：從行商面板進來，離開回到行商 */
-  private openCards(): void {
+  /** 營火燼牌（D-127）：從行商面板進來，離開回到行商；從營火「燼牌」捷徑進來就直接關掉 */
+  private openCards(fromFire = false): void {
     this.menu?.destroy();
+    this.fireBtn?.setVisible(false);
+    this.shopBtn?.setVisible(false);
+    this.cardBtn?.setVisible(false);
     // 以前就開過的寶箱補發燼牌（D-131）
     syncChestCards(WORLD_MAPS.flatMap((m) => loadRecord(m.id).chests ?? []));
     this.menu = openEmberCardPanel(
       this,
       {
         map: this.stageId,
+        closeLabel: fromFire ? '回營火' : undefined,
         coin: () => coinOf(loadRecord(this.stageId)),
         pay: (n) => {
           const r = spendCoin(loadRecord(this.stageId), n);
@@ -800,7 +819,12 @@ export class RtBattleScene extends Phaser.Scene {
           this.coinBase = coinOf(r);
         },
       },
-      () => this.openShop(),
+      () => {
+        if (!fromFire) return this.openShop();
+        this.menu?.destroy();
+        this.menu = null;
+        this.acc = 0;
+      },
     );
   }
 
@@ -812,6 +836,7 @@ export class RtBattleScene extends Phaser.Scene {
     const up = near && this.bagSt.bag.some((g) => isUpgrade(this.bagSt, g));
     b.setVisible(near && !this.menu).setText(up ? '行囊・強化 ▲' : '行囊・強化');
     this.shopBtn?.setVisible(near && !this.menu);
+    this.cardBtn?.setVisible(near && !this.menu);
     // 新手引導（第 23 輪）：前幾次進地圖、第一次離開營火又回來時說明營火能做什麼（開場就在營火旁，所以等「回來」才提示）
     if (!near) this.leftFire = true;
     else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie) {
@@ -830,6 +855,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu?.destroy();
     this.fireBtn?.setVisible(false);
     this.shopBtn?.setVisible(false);
+    this.cardBtn?.setVisible(false);
     this.menu = openRtBagPanel(
       this,
       this.bagSt,
@@ -1203,6 +1229,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.hint) this.dismissHint(); // 說明框不要壓在暫停選單上
     this.fireBtn?.setVisible(false); // 營火按鈕不要從選單底下透出來（關掉後下一幀會再顯示）
     this.shopBtn?.setVisible(false);
+    this.cardBtn?.setVisible(false);
     if (this.menu) {
       this.menu.destroy();
       this.menu = null;

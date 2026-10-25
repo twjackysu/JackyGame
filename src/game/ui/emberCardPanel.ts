@@ -11,6 +11,8 @@ import { drawCardRival, drawMerchant } from '../fx/merchant';
 export interface CardCtx {
   /** 現在在哪張地圖的營火（決定有哪些對手，D-129） */
   map: string;
+  /** 離開按鈕的字（預設「回行商」） */
+  closeLabel?: string;
   coin: () => number;
   /** 付錢（正數）或收錢（負數） */
   pay: (n: number) => void;
@@ -277,7 +279,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       view = 'deck';
       render();
     }, false, 24));
-    items.push(btn(0, 500, '回行商', () => onClose(), false, 26));
+    items.push(btn(0, 500, ctx.closeLabel ?? '回行商', () => onClose(), false, 26));
   }
 
   /** 自己組牌（D-130）：點一張牌切換「帶上／留在箱子裡」，至少 12 張，超過 18 張自動拿掉最弱的 */
@@ -370,7 +372,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       g = null;
       render();
     }, true, 26));
-    items.push(btn(120, 470, '回行商', () => onClose(), false, 26));
+    items.push(btn(120, 470, ctx.closeLabel ?? '回行商', () => onClose(), false, 26));
     if (prizeCard && !revealed) {
       revealed = true;
       scene.time.delayedCall(450, () => {
