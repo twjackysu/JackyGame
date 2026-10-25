@@ -255,6 +255,16 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   function after(before: number[], rounds: number): void {
     if (!g) return;
     lastLog = g.log[g.log.length - 1] ?? '';
+    // 出牌音效與斥候說明（看最後一張被打出的牌）
+    const played = /「(.+)」/.exec(lastLog)?.[1];
+    const pc = played ? Object.values(CARDS).find((c) => c.name === played) : undefined;
+    if (pc && g.results.length === rounds) {
+      if (pc.row === undefined) SFX.cardMagic();
+      else SFX.cardPlace();
+      if (pc.ability === 'scout') lastLog = lastLog.startsWith('你') ? `你把「${pc.name}」送到莫托那邊，抽了 2 張` : `莫托把「${pc.name}」送到你這邊，他抽了 2 張`;
+      else if (pc.ability === 'frost' || pc.ability === 'fog') lastLog += `——雙方${pc.ability === 'frost' ? '前排' : '後排'}都變 1 點`;
+      else if (pc.ability === 'horn') lastLog += '——一排點數 ×2';
+    }
     const now = snap(g);
     const k = now.findIndex((v, i) => v > before[i]!);
     fresh = k >= 0 && g.results.length === rounds ? [Math.floor(k / 2), (k % 2) as Row, now[k]!] : null;
@@ -278,7 +288,6 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     const rounds = g.results.length;
     if (!applyMove(g, 0, { type: 'play', card: i })) return;
     sel = -1;
-    SFX.hitHeavy();
     scene.cameras.main.shake(80, 0.003);
     after(before, rounds);
   }

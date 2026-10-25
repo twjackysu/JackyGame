@@ -187,6 +187,16 @@ export const SFX = {
   warn: (heavy: boolean): void =>
     playSfx(heavy ? { wave: 'sawtooth', freq: 220, freqEnd: 140, sustain: 0.06, release: 0.14, volume: 0.2, lowpass: 1400 } : { wave: 'square', freq: 740, freqEnd: 520, sustain: 0.02, release: 0.06, volume: 0.12 }),
   uiTap: (): void => playSfx({ wave: 'triangle', freq: 660, freqEnd: 990, sustain: 0.01, release: 0.06, volume: 0.18 }),
+  /** 燼牌放到桌上：短促的紙牌拍桌聲＋木頭低音 */
+  cardPlace: (): void => {
+    playSfx({ wave: 'noise', freq: 2600, freqEnd: 900, sustain: 0.005, release: 0.06, volume: 0.32, lowpass: 5200 });
+    playSfx({ wave: 'sine', freq: 190, freqEnd: 110, sustain: 0.01, release: 0.09, volume: 0.28 });
+  },
+  /** 燼牌天候／戰號：上揚的和弦 */
+  cardMagic: (): void => {
+    playSfx({ wave: 'triangle', freq: 523, freqEnd: 784, sustain: 0.05, release: 0.3, volume: 0.22 });
+    playSfx({ wave: 'sine', freq: 784, freqEnd: 1047, sustain: 0.04, release: 0.35, volume: 0.18, delay: 0.06 });
+  },
   uiCancel: (): void => playSfx({ wave: 'triangle', freq: 520, freqEnd: 260, sustain: 0.02, release: 0.12, volume: 0.2 }),
   hitLight: (): void => {
     playSfx({ wave: 'noise', freq: 1400, freqEnd: 300, sustain: 0.01, release: 0.1, volume: 0.35, lowpass: 3200 });
