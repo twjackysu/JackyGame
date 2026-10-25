@@ -147,10 +147,12 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   create(): void {
-    const rec0 = this.tracked ? loadRecord(this.stageId) : {};
-    this.bagSt = this.tracked ? cleanBag(rec0) : { bag: [], equip: {} };
+    // Bot 示範也帶著玩家的等級與裝備（只讀、不存）
+    const big = !!STAGES[this.stageId]?.bossZone && !!STAGES[this.stageId]?.spawnGroups?.length && this.stageId === 'mistwood';
+    const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
+    this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked ? bonusOf(this.bagSt) : undefined });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined });
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -1631,6 +1633,11 @@ export class RtBattleScene extends Phaser.Scene {
     const s = this.s;
     const p = playerOf(s);
     this.drawMinimap(g);
+    // ☰ 上的小紅點：行囊裡有比身上好的裝備（D-093）
+    if (this.tracked && this.bagSt.bag.some((x) => isUpgrade(this.bagSt, x))) {
+      g.fillStyle(0xff4a4a, 1).fillCircle(GAME_WIDTH - 22, 22, 9);
+      g.lineStyle(2, 0xffffff, 0.9).strokeCircle(GAME_WIDTH - 22, 22, 9);
+    }
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
