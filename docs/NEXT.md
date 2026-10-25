@@ -1,27 +1,27 @@
 # 下一步（依優先順序，最上面先做）
 
-> ✅ **第 16 輪（10/25 06:12–06:50）**：Jacky 仍沒回（沒有 Issue）。只做與 design/21 Q1～Q4 無關的準備（D-084）：**地面分塊烘焙**（順便修好地面一直偏 8px）、**成片障礙畫成樹林**、**小地圖（點了就走過去）**、地區名稱橫幅（`zones`）、每關鏡頭寬（`viewUnits`）、營火光暈材質、精英／Boss 箭頭距離、Boss 血條交戰才顯示；刷怪關 30 秒沒動作提示、營火醒來黑幕淡入；**`validateStage`** 關卡檢查；**design/22 霧語森林 48×96 草稿**（ASCII 版面＋重生點表，validateStage 0 問題，普通 Bot 10 分鐘 58 殺且打倒狼王）。539 項測試。
-> ⏰ **D-083：等 Jacky 回覆到 10/26 12:00（台北）**。期限到了還沒回 → 照 ⭐ 開工霧語森林（下面「期限到了」那段），只當新的獨立入口。
-> 除錯入口：`?debug&scene=RtBattle&stage=test_world`（48×96 測試大地圖，有小地圖、地區、13 格鏡頭；不在選單）。
+> ✅ **第 17 輪（10/25 08:12–08:45）**：Jacky 仍沒回。**D-085**：霧語森林接成正式關卡 `rt/maps/mistwood.ts`，**只開除錯網址** `?debug&scene=RtBattle&stage=mistwood`（`&bot=normal` 看 Bot 打到狼王）。另做：狼王再挑戰（`bossZone.respawnTicks`）、狼群暴動（`riot`）、隱藏寶箱（`chests`）、深處掉落加成（`lootPct`）、HUD 目標列、討伐演出＋首殺紀錄、Boss 弱點內心提示、☰ 回標題、大地圖單位深度修正；**D-086** 修好擊退卡進樹林。548 項測試；舊七關＋測試大地圖 72 場 stateHash 不變。
+> ⏰ **D-083：標題畫面入口仍等到 10/26 12:00（台北）**。期限前不要加標題按鈕、不要放進 ☰ 換關清單（`STAGE_IDS`）。
+> 除錯入口：`stage=mistwood`（正式草圖）、`stage=test_world`（測試大地圖）。
 
 ## 每輪開頭先看
-- **Jacky 有沒有回試玩問題**（GitHub Issue、FOR_JACKY 或 NEXT 被他改過、`git log --author=Jacky`）。有回覆 → 照他的答案先改手感，再開工霧語森林（沒對 Q1～Q4 表態就照 ⭐）。
-- **現在台北時間是否已過 10/26 12:00** → 過了就開工（D-083）。還沒過且沒回覆 → 做「等待期間」清單。
+- **Jacky 有沒有回試玩問題**（GitHub Issue、FOR_JACKY 或 NEXT 被他改過、`git log --format=%an | sort | uniq -c` 看有沒有非 Claude 的 commit）。有回覆 → 照他的答案先改；他選了 design/21 其他方案就照他的（霧語森林可整個拿掉，D-085）。
+- **現在台北時間是否已過 10/26 12:00** → 過了就做下面「期限到了」。還沒過 → 做「期限前」清單。
 - 看 CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。
 
-## 開工霧語森林（Jacky 回覆或 D-083 期限到）
-1. 新檔 `src/core/battle/rt/maps/mistwood.ts`：貼 `docs/design/22-mistwood-draft.md` 的 ASCII（或 `python3 scripts/gen-mistwood-draft.py` 產生的 `/tmp/claude-0/mw/mw.json`），重生點照表（格中心＝`u(x) + 50`）、狼王 `enemies` ＋ `bossZone`、兩個營火、`reviveAtCampfire`、`loot`、`zones`（六區）、`viewUnits: 1300`。加進 `tests/rt-stage-validate.test.ts`（必須 0 問題）。**不要**放進 `STAGES` 的試玩選單迴圈以外會影響舊關卡雜湊的地方（舊七關 stateHash 要不變）。
-2. 入口：標題畫面加「即時戰鬥原型・霧語森林」按鈕 → `RtBattle` 場景 `stage=mistwood`（或新 `ForestScene` 繼承 `RtBattleScene`；畫面層的大地圖功能第 16 輪都已在 `RtBattleScene`）。不限時（`timeLimitTicks` 給很大），右上 ☰ 加「回標題」。獨立存檔（localStorage 新 key：首殺、累計擊殺、撿到的東西）——先只存這些，裝備／強化接主線存檔等 P4。
-3. 地圖版 Bot：第 16 輪已加 `advanceTo`（`tests/rt-advance.test.ts`）。開工時寫「新遊戲→打倒狼王」的模擬測試（三種 Bot 都設 `advanceTo` 狼王位置）。草稿地圖現在 3 分鐘就打完狼王（design/22），區域難度第 16 輪已有 `SpawnGroup.hpPct／atkPct` 與 `enemies[].hpPct／atkPct`，**照 design/22 第二張表的數字**（狼王 +100%／+30%：新手約 10 分鐘倒 2～3 次、普通／熟練 4～5 分鐘）；`bossZone` 要 13 格。
-4. 地圖手感：地區入口提示（例如精英區「危險：狼群首領出沒」）、狼王巢穴入口的「Boss 方向」箭頭、首殺狼王的勝利演出＋「離開巢穴可再挑戰」。
-5. 「好玩嗎？」檢查：截圖每區、看 Bot 路線，深處要有更好的掉落（精英／狼王掉結晶）。
+## 期限到了（10/26 12:00 後，或 Jacky 同意 ⭐）
+1. **標題畫面入口**：`TitleScene` 加「即時戰鬥原型・霧語森林」按鈕 → `this.scene.start('RtBattle', { stage: 'mistwood' })`（`RtBattleScene.init` 已會在 `stage=mistwood` 時註冊關卡，不需要 `?debug`）。按鈕放在既有按鈕下面、樣式一致；舊主線按鈕不動。
+2. **獨立存檔**：現在只有 `jg_rt_mistwood = {bossKills, firstAt}`（`RtBattleScene.bossSlain`）。補：累計擊殺、累計撿到的金幣／粉塵／結晶、找到的寶箱（跨場保留：已開過的寶箱下次不再出現或改成空箱）、最佳討伐時間；結束畫面顯示「本次／累計」。**不要**碰主線 `session` 存檔（P4 才接）。
+3. 結束條件：現在 `timeLimitTicks` 60 分鐘到了會跳超時畫面 → 改成畫面層不顯示「超時」（或給 24 小時）；☰「回標題」已有。
+4. README 成果頁：「即時戰鬥・霧語森林」正式段落＋截圖（`docs/screenshots/26-mistwood.jpg` 已有）。
 
-## 等待期間可以做（核心 opt-in、不改舊七關的規則與數值）
-1. ~~營火空地手感（30 秒提示、營火醒來黑幕淡入）~~、~~營火光暈材質~~：第 16 輪完成。
-2. ~~地圖版 Bot 往北推進~~（`advanceTo`）、~~`SpawnGroup` 區域難度~~（`hpPct／atkPct`）：第 16 輪完成。`enemies[].hpPct／atkPct` 也完成。
-3. **數值觀察（不急，等裝備）**：舊四關一般戰普攻占比 12～29%（低於目標 35～45%）。
-4. **試玩場景小項**：技能鍵長按說明（Jacky 說看不懂再做）。
-5. **README 成果頁**：即時戰鬥介紹段落，等地圖接上後補完整章節。
+## 期限前可以做（不加入口、不改舊七關的規則與數值；核心改動一律 opt-in＋72 場雜湊比對）
+1. **隱藏精英**（design/20 C2-3）：「連續擊敗三群野狼」（例如不倒地連殺 12 隻普通狼）→ 在附近冒出一隻強化的精英（可先用 `alpha_wolf` ＋ hpPct，`tier: 'elite'`，掉落 +200%）；畫面「（記得……連續打倒三群狼，首領會出來！）」只在第一次接近條件時提示。可做成 `StageDefinition.hiddenElite?: {streak, enemyId, hpPct, lootPct}`，寫法參考 `processRiot`。
+2. **新手難度觀察**：新手 Bot 18 場裡 285～791 秒、最多倒 4 次（第 17 輪表）；種子 3 曾 15 分鐘沒打完（暴動前的版本）。若真人回報太難，先降狼王 `hpPct`（100 → 70）。
+3. **效能**：霧語森林全圖約 25 隻＋暴動 8 隻；寫一個 vitest 量 10 分鐘每 tick 平均／最大毫秒（參考 `tests/rt-world-soak.test.ts`），超過 0.5ms 再查。
+4. **小地圖**：目前只畫石頭、營火、怪；可加「已開寶箱」小點（未開的不畫，保持「探索」感）與狼王巢穴的骷髏圖示。
+5. 數值觀察（不急，等裝備）：舊四關一般戰普攻占比 12～29%（低於目標 35～45%）。
+6. 技能鍵長按說明（Jacky 說看不懂再做）。
 
 ## 驗證小抄
 - `npm run build`（含 tsc，**commit 前一定要跑**，第 15 輪漏跑推了一次紅燈）、`npx vitest run`（目前 539 項）、`RUNS=60 npm run sim:rt`（刷怪關會略過）。

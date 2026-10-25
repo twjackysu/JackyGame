@@ -27,8 +27,8 @@
 | ![強化](docs/screenshots/19-enhance.jpg) | ![分解](docs/screenshots/20-salvage.jpg) | ![詞綴](docs/screenshots/21-affix.jpg) |
 | **新：即時戰鬥試玩（預告＋格擋反擊）** | **即時戰鬥：霧角狼王** | **新：碎石林道（繞石尋路、拉怪、大招／藥水）** |
 | ![即時戰鬥](docs/screenshots/22-realtime.jpg) | ![即時戰鬥・狼王](docs/screenshots/23-realtime-boss.jpg) | ![碎石林道](docs/screenshots/24-rock-grove.jpg) |
-| **新：營火空地（怪會重生、營火休息與復活）** | | |
-| ![營火空地](docs/screenshots/25-camp-clearing.jpg) | | |
+| **新：營火空地（怪會重生、營火休息與復活）** | **新：霧語森林 48×96（開發中）** | |
+| ![營火空地](docs/screenshots/25-camp-clearing.jpg) | ![霧語森林](docs/screenshots/26-mistwood.jpg) | |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。圖片：主要角色立繪、Q 版戰鬥圖、標題主視覺、Boss、小怪、地圖物件與道具圖示由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單見 `docs/ART_REQUESTS.md`）；地面圖塊、裝飾物件、光影、粒子、配角立繪等仍是程式繪製（`src/game/art/`），每張 AI 圖都有程式備援。
 
@@ -55,7 +55,8 @@
 - **選擇與後果**：屬性檢定、聲望、延遲回收的選擇、多結局。
 
 ## 怎麼玩
-- **即時戰鬥試玩（開發中）**：https://twjackysu.github.io/JackyGame/?debug&scene=RtBattle&stage=wolf_king （左下搖桿或點地面移動、右下技能＋閃避＋大招＋藥水；`stage=forest_entry`／`wolf_den`／`forest_deep`／`elite_pack`／`rock_grove`，右上 ☰ 也能換關）
+- **即時戰鬥試玩（開發中）**：https://twjackysu.github.io/JackyGame/?debug&scene=RtBattle&stage=wolf_king （左下搖桿或點地面移動、右下技能＋閃避＋大招＋藥水；`stage=forest_entry`／`wolf_den`／`forest_deep`／`elite_pack`／`rock_grove`／`camp_clearing`，右上 ☰ 也能換關）
+- **霧語森林大地圖（開發中）**：https://twjackysu.github.io/JackyGame/?debug&scene=RtBattle&stage=mistwood （南營地出發往北：森林入口→狼群巢穴／森林深處→精英狼群→霧角狼王；隱藏寶箱、狼群暴動、狼王可再挑戰）
 - **PWA（任何手機瀏覽器）**：https://twjackysu.github.io/JackyGame/ 
   - iOS Safari：分享 → 加入主畫面；Android Chrome：選單 → 安裝應用程式。之後可離線遊玩。
 - **Android APK**：[Releases → latest](https://github.com/twjackysu/JackyGame/releases/tag/latest) 下載 `jackygame-debug.apk`，允許「安裝未知來源應用程式」後安裝。
@@ -84,8 +85,9 @@
 | 14 | 10/25 02:11 | **即時戰鬥往地圖化前進**：格子 A* 尋路與視線（狼會繞石頭、射手隔石不射、隔石衝鋒會撞暈）、**點地移動**、地圖怪「看到才醒、同伴連鎖、追太遠回家回滿」、脫戰自然恢復、流場讓大地圖追擊快 100 倍；新試玩關**碎石林道**；試玩鍵位加上**大招劍刃風暴**（MP 環＋演出）與**藥水** |
 | 15 | 10/25 04:11 | **刷怪循環的骨架**：怪物**重生點**、**營火**（怪不追進來、休息回滿補藥水、倒下在營火醒來）、同時追擊上限 8 與遠處怪物沉睡（大地圖 200 隻怪每 tick < 0.5ms）、Bot 學會「一次只拉一組」、Boss 跑出巢穴會重置、**地上會掉金幣與強化材料**（走近自動撿，撿越多武器越強）；新試玩關**營火空地**（5 分鐘能打倒幾隻？）、點地移動路徑預覽；CI 截圖逾時修正 |
 | 16 | 10/25 06:12 | **大地圖的畫面準備**：地面分塊烘焙（修好地面偏 8px）、成片障礙自動畫成**樹林**、**小地圖**（點了就走過去）、地區名稱橫幅、精英／Boss 距離箭頭；關卡資料檢查 `validateStage`；**霧語森林 48×96 版面草稿**（design/22） |
+| 17 | 10/25 08:12 | **霧語森林接成真的大地圖**（除錯入口）：48×96 六個地區、七個重生點（越深越強、掉得越多）、兩個營火、**狼王打倒後離開巢穴會回來可再挑戰**、**狼群暴動**事件、四個**隱藏寶箱**（靠近才浮現「這個地方似乎有點熟悉……」）、HUD 目標列與討伐演出；修好被擊退卡進樹林的問題 |
 
-**統計**（2026-10-25 第 16 輪）：執行 16 輪、約 270 個 commit、539 項自動測試、TypeScript 約 2.95 萬行、62 張 AI 美術圖、0 個音訊素材檔。
+**統計**（2026-10-25 第 17 輪）：執行 17 輪、約 280 個 commit、548 項自動測試、TypeScript 約 2.95 萬行、62 張 AI 美術圖、0 個音訊素材檔。
 
 ## 開發
 ```bash

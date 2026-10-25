@@ -24,3 +24,9 @@
 - **點地移動**（D-071）：`{ type: "moveTo", x, y }`；搖桿 `move` 或 `target` 取消，`stop` 不取消；點石頭或走不到無效；最多 10 秒。
 - **地圖怪**（D-072）：`StageDefinition.mapAi` 開啟後敵人待機（`mode: idle`），進仇恨半徑＋看得到、或被打到才進戰鬥，3 單位內同伴連鎖；超過最大追擊或脫戰等待就 `returning`（不吃傷害），回原位回滿。參數 `AGGRO_RULES`（design/20 B1）。目前只有第六關「碎石林道」開啟。
 - **自然恢復**（D-073）：`regen`（預設＝`mapAi`）關卡，5 秒沒受傷沒出手且沒有戰鬥中的怪 → 每秒 2%。地圖怪關卡的自動追擊只找戰鬥中的怪（待機的要點它）。Bot `restUntilPct` 休息到指定血量才拉下一組。
+- **霧語森林**（D-085，`maps/mistwood.ts`，除錯入口 `stage=mistwood`，不在 `STAGES` 內，用到時才註冊）：48×96、六地區、七重生點、兩營火、狼王。這張圖用到的核心 opt-in：
+  - `bossZone.respawnTicks`：固定 Boss 倒下後至少過這麼久、玩家在區域外就回到原位（`processBossRespawn`，事件 `respawn` group `boss`）。
+  - `riot`：狼群暴動（`processRiot`，事件 `riot`）；暴動怪 `groupId: 'riot'`、醒著直接追、追丟就移除；營火圈或 Boss 區域內延後 5 秒。
+  - `chests`：隱藏寶箱，走近 `CHEST_RULES.openUnits` 自動打開（不用亂數，事件 `chest`，`s.chestsOpened`）；畫面在 `hintUnits` 內才淡入。
+  - `SpawnGroup.lootPct`／`riot.lootPct`：金幣與粉塵數量加成（不多抽掉落亂數）。
+  - `pushOutSolid` 修正（D-086）：圓心在障礙格內只往鄰格空地推。
