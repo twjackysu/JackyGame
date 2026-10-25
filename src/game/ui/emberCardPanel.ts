@@ -106,8 +106,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   /** 剛出的那張牌（畫面上彈一下）：[side, row, 數量] */
   let fresh: [number, Row, number] | null = null;
   /** 這次的對手：預設是這張地圖的在地對手（沒有就莫托） */
-  const here = opponentsAt(ctx.map);
-  let who: Opponent = here[here.length - 1]!;
+  // 隱藏對手伊妲（D-132）：莫托、薇菈、葛倫都贏過一次才出現（每個營火都在）
+  const secretOpen = (): boolean => OPPONENTS.filter((o) => !o.secret).every((o) => (stats().by[o.id]?.won ?? 0) >= 1);
+  let here = opponentsAt(ctx.map, secretOpen());
+  let who: Opponent = here.filter((o) => !o.secret).slice(-1)[0] ?? here[0]!;
   /** 大廳／牌組一覽 */
   let view: 'lobby' | 'deck' = 'lobby';
 
@@ -275,13 +277,14 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     const st = stats();
     items.push(scene.add.text(30, -545, `${who.short}：${who.hello}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', wordWrap: { width: 520, useAdvancedWrap: true } }).setOrigin(0.5));
     // 對手：三個頁籤；不在這張地圖的對手顯示去哪裡找（D-129）
+    here = opponentsAt(ctx.map, secretOpen());
     OPPONENTS.forEach((o, i) => {
-      const x = (i - 1) * 220;
+      const x = (i - (OPPONENTS.length - 1) / 2) * 172;
       const ok = here.includes(o);
       const on = o === who;
       const b = st.by[o.id];
       const t = scene.add
-        .text(x, -470, `${o.short}${b?.won ? `  ${b.won}勝` : ''}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: on ? '#1a0f08' : ok ? '#ffffff' : '#7a7064', backgroundColor: on ? '#ffd27a' : ok ? '#3a2a14' : '#1e1810', align: 'center' })
+        .text(x, -470, `${o.secret && !ok ? '？？？' : o.short}${b?.won ? `  ${b.won}勝` : ''}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: on ? '#1a0f08' : ok ? '#ffffff' : '#7a7064', backgroundColor: on ? '#ffd27a' : ok ? '#3a2a14' : '#1e1810', align: 'center' })
         .setOrigin(0.5)
         .setPadding(16, 8, 16, 8);
       if (ok && !on)
@@ -292,7 +295,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
           render();
         });
       items.push(t);
-      items.push(scene.add.text(x, -428, ok ? o.blurb : `在${worldMap(o.map ?? '')?.name ?? '別的地圖'}的營火`, { fontFamily: UI_FONT, fontSize: '14px', color: ok ? '#a89880' : '#6a6054', align: 'center', wordWrap: { width: 210, useAdvancedWrap: true } }).setOrigin(0.5, 0));
+      items.push(scene.add.text(x, -428, ok ? o.blurb : o.secret ? '三位都贏過一次後出現' : `在${worldMap(o.map ?? '')?.name ?? '別的地圖'}的營火`, { fontFamily: UI_FONT, fontSize: '14px', color: ok ? '#a89880' : '#6a6054', align: 'center', wordWrap: { width: 164, useAdvancedWrap: true } }).setOrigin(0.5, 0));
     });
     const rules = [
       '三局兩勝。雙方各抽 10 張牌，整場不補牌。',
@@ -514,9 +517,18 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
 
   function finishIfOver(): void {
     if (!g?.over) return;
+    const wasOpen = secretOpen();
     const st = stats();
     bump(st, who.id, g.winner === 0);
     saveStats(st);
+    if (!wasOpen && secretOpen()) {
+      // 三家都贏過一次：隱藏對手出現（D-132）
+      scene.time.delayedCall(1600, () => {
+        if (!root.active) return;
+        bigText(scene, GAME_WIDTH / 2, 520, '有人在營火邊翻開了一本書……\n隱藏對手「伊妲」出現了', '#c8a0ff', 34, 2400).setDepth(990);
+        SFX.cardMagic();
+      });
+    }
     if (staked && g.winner === 0) {
       prizeCard = nextReward(st.cards, who);
       if (prizeCard) {

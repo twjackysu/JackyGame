@@ -111,14 +111,15 @@ describe('營火燼牌', () => {
     expect(opponentsAt('mistwood').map((o) => o.id)).toEqual(['merchant']);
     expect(opponentsAt('thornvale').map((o) => o.id)).toEqual(['merchant', 'vela']);
     expect(opponentsAt('emberrift').map((o) => o.id)).toEqual(['merchant', 'goran']);
-    const all = OPPONENTS.flatMap((o) => o.rewards);
+    expect(opponentsAt('emberrift', true).map((o) => o.id)).toEqual(['merchant', 'goran', 'ida']);
+    const all = OPPONENTS.slice(0, 3).flatMap((o) => o.rewards);
     expect(deckWith(all).length).toBe(DECK_MAX);
     const rate = (deck: string[], who: Opponent): number => {
       let w = 0;
       for (let seed = 1; seed <= 150; seed++) if (playOut(seed, deck, who).winner === 0) w++;
       return w;
     };
-    const [m, v, gr] = OPPONENTS.map((o) => rate(deckWith([]), o)) as [number, number, number];
+    const [m, v, gr, ida] = OPPONENTS.map((o) => rate(deckWith([]), o)) as [number, number, number, number];
     const v5 = rate(deckWith(CARD_REWARDS), OPPONENTS[1]!);
     const gAll = rate(deckWith(all), OPPONENTS[2]!);
     (globalThis as any).process.stdout.write(`[燼牌] 基本牌組勝場（150 場）：莫托 ${m}、薇菈 ${v}、葛倫 ${gr}；拿齊莫托的牌打薇菈 ${v5}；全拿打葛倫 ${gAll}\n`);
@@ -129,6 +130,11 @@ describe('營火燼牌', () => {
     expect(v5).toBeGreaterThan(v + 20);
     expect(gAll).toBeGreaterThan(gr + 20);
     expect(gAll).toBeLessThan(145);
+    // 隱藏對手伊妲（D-132）：基本牌組很難贏，拿齊三家的牌大約五五波
+    const idaAll = rate(deckWith(OPPONENTS.slice(0, 3).flatMap((o) => o.rewards)), OPPONENTS[3]!);
+    (globalThis as any).process.stdout.write(`[燼牌] 伊妲：基本 ${ida}、拿齊三家 ${idaAll}（150 場）\n`);
+    expect(ida).toBeLessThan(gr);
+    expect(idaAll).toBeGreaterThan(ida + 30);
   });
 
   it('AI 對 AI 打 200 場：每場都在 3 局內結束、雙方都贏得到、沒有卡住', () => {

@@ -54,6 +54,7 @@ export const CARDS: Readonly<Record<string, CardDef>> = {
   // 第 28 輪（D-131）：只能在大地圖的寶箱裡找到的牌
   mist_warden: { id: 'mist_warden', name: '迷霧巡守', power: 7, row: 0 },
   thorn_stalker: { id: 'thorn_stalker', name: '荊棘巡獵者', power: 8, row: 0 },
+  hero_echo: { id: 'hero_echo', name: '回響之燼', power: 13, row: 1, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
   hero_obsidian: { id: 'hero_obsidian', name: '黑曜首領', power: 9, row: 0, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
 };
 
@@ -74,6 +75,8 @@ export interface Opponent {
   short: string;
   /** 對手所在地圖（莫托跟著你走，每張地圖都在） */
   map?: string;
+  /** 隱藏對手（D-132）：三位都贏過一次才會出現在每個營火 */
+  secret?: boolean;
   deck: readonly string[];
   stake: number;
   /** 下注贏了依序拿到的牌（各對手之間不重複） */
@@ -102,10 +105,15 @@ export const OPPONENTS: readonly Opponent[] = [
     deck: ['slime', 'slime', 'slime', 'golem', 'golem', 'forgehand', 'sellsword', 'bear', 'mage', 'ballista', 'forgehand', 'owl', 'scorch', 'hero_colossus', 'horn'],
     hello: '「火候到了就出手——燼爆可不挑人。」', win: '「燒得乾乾淨淨。」', lose: '「好，好！這把火你接住了。」', blurb: '大塊頭＋燼爆，從不退讓',
   },
+  {
+    id: 'ida', name: '燼火說書人伊妲', short: '伊妲', secret: true, stake: 200, rewards: ['hero_echo'], bankAt: 9, bailAt: 10,
+    deck: ['thornhound', 'thornhound', 'thornhound', 'golem', 'golem', 'ballista', 'ballista', 'mage', 'briar_archer', 'scout', 'owl', 'hero_seer', 'scorch', 'horn', 'fog'],
+    hello: '「三家都贏過了？聽我說最後一個故事吧。」', win: '「故事還沒講完呢，再來？」', lose: '「……回響之燼，就交給你了。」', blurb: '三家之長，最後的對手',
+  },
 ];
 export const opponent = (id: string): Opponent => OPPONENTS.find((o) => o.id === id) ?? OPPONENTS[0]!;
 /** 這張地圖的營火有哪些對手（莫托到處都在） */
-export const opponentsAt = (map: string): Opponent[] => OPPONENTS.filter((o) => !o.map || o.map === map);
+export const opponentsAt = (map: string, secret = false): Opponent[] => OPPONENTS.filter((o) => (o.secret ? secret : !o.map || o.map === map));
 
 export interface Side {
   deck: string[];

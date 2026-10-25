@@ -67,6 +67,7 @@ export function drawMerchant(g: Phaser.GameObjects.Graphics, x: number, y: numbe
  * 燼牌的另外兩位對手（D-129，程式美術，和莫托同一套畫法：腳底在 (x, y)、高 h）。
  * - 薇菈（荊棘谷）：綠色短披肩、紅褐長髮、背著藥草籃，身邊一隻趴著的棘背獵犬。
  * - 葛倫（燼紅裂谷）：光頭大鬍子、皮圍裙、肩上扛鍛造錘，圍裙上的燼紋會發亮。
+ * - 伊妲（隱藏對手）：深紫長袍、銀白長髮、發光的書、繞著星燼。
  */
 export function drawCardRival(g: Phaser.GameObjects.Graphics, id: string, x: number, y: number, h: number, now: number): void {
   const s = h / 100;
@@ -99,6 +100,29 @@ export function drawCardRival(g: Phaser.GameObjects.Graphics, id: string, x: num
       g.fillCircle(x + 4 * s, y - 72 * s + breath, 1.7 * s);
     }
     g.fillStyle(0xd8706a, 0.5).fillCircle(x - 6 * s, y - 68 * s + breath, 2 * s).fillCircle(x + 6 * s, y - 68 * s + breath, 2 * s);
+  } else if (id === 'ida') {
+    // 伊妲（D-132，隱藏對手）：深紫長袍、銀白長髮、手上攤開一本發光的書，身邊繞著幾點星燼
+    const sway = Math.sin(now / 900) * 2 * s;
+    g.fillStyle(0x2a1a44, 1).fillPoints([{ x: x - 11 * s, y: y - 62 * s + breath }, { x: x + 11 * s, y: y - 62 * s + breath }, { x: x + 24 * s + sway, y: y - 2 * s }, { x: x - 24 * s + sway, y: y - 2 * s }], true);
+    g.lineStyle(2 * s, 0xc8a0ff, 0.7).lineBetween(x - 24 * s + sway, y - 3 * s, x + 24 * s + sway, y - 3 * s);
+    g.fillStyle(0xe0d8f0, 1).fillEllipse(x, y - 72 * s + breath, 26 * s, 30 * s);
+    g.fillRect(x - 13 * s, y - 72 * s + breath, 26 * s, 26 * s);
+    g.fillStyle(0xf0dcc8, 1).fillEllipse(x, y - 73 * s + breath, 17 * s, 19 * s);
+    if (now % 5200 >= 140) {
+      g.fillStyle(0x6a4ac8, 1).fillCircle(x - 4 * s, y - 73 * s + breath, 1.7 * s);
+      g.fillCircle(x + 4 * s, y - 73 * s + breath, 1.7 * s);
+    }
+    g.fillStyle(0xffd27a, 1).fillCircle(x, y - 86 * s + breath, 2.4 * s);
+    // 書：兩頁、內頁發光
+    const bl = 0.6 + 0.4 * Math.sin(now / 420);
+    g.fillStyle(0xffe6a0, 0.25 * bl).fillCircle(x, y - 40 * s + breath, 22 * s);
+    g.fillStyle(0x5a3a20, 1).fillRect(x - 17 * s, y - 46 * s + breath, 34 * s, 14 * s);
+    g.fillStyle(0xfff4d8, 1).fillRect(x - 15 * s, y - 48 * s + breath, 14 * s, 12 * s).fillRect(x + 1 * s, y - 48 * s + breath, 14 * s, 12 * s);
+    // 繞著她的星燼
+    for (let k = 0; k < 4; k++) {
+      const a = now / 1600 + (k * Math.PI) / 2;
+      g.fillStyle(k % 2 ? 0xffd27a : 0xc8a0ff, 0.85).fillCircle(x + Math.cos(a) * 30 * s, y - 60 * s + Math.sin(a) * 12 * s + breath, 2 * s);
+    }
   } else {
     // 葛倫：粗壯的身體＋皮圍裙
     g.fillStyle(0x6a4a3a, 1).fillRoundedRect(x - 22 * s, y - 62 * s + breath, 44 * s, 60 * s, 10 * s);
