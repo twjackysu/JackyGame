@@ -105,6 +105,26 @@ describe('毒沼 hazards（D-114）', () => {
     expect(s.events.filter((e) => e.type === 'hazard').length).toBe(n);
     expect(p.statuses.find((q) => q.id === 'poison')).toBeUndefined();
   });
+  it('深夜的山谷（D-115）：毒沼擴散到 nightR、深夜限定毒沼只在深夜出現；白天不受影響', () => {
+    const hits = (night: boolean, x: number, y: number): number => {
+      const s = createBattle({ stageId: 'thornvale', seed: 1, level: 9, night });
+      const p = s.units[0]!;
+      for (let i = 0; i < sec(3); i++) {
+        p.x = x;
+        p.y = y;
+        step(s, []);
+      }
+      return s.events.filter((e) => e.type === 'hazard').length;
+    };
+    const hz = STAGES.thornvale!.hazards!;
+    const grow = hz.find((h) => h.nightR)!;
+    const edge = grow.x + (grow.r + grow.nightR!) / 2;
+    expect(hits(false, edge, grow.y)).toBe(0);
+    expect(hits(true, edge, grow.y)).toBeGreaterThan(0);
+    const only = hz.find((h) => h.nightOnly)!;
+    expect(hits(false, only.x, only.y)).toBe(0);
+    expect(hits(true, only.x, only.y)).toBeGreaterThan(0);
+  });
 });
 
 describe('暴怒狼后（D-114）', () => {

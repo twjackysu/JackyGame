@@ -89,9 +89,10 @@ export function validateStage(def: StageDefinition): string[] {
   // 地形危害（D-114）：中心走得到、不蓋到營火休息圈與玩家起點
   (def.hazards ?? []).forEach((h, i) => {
     check(`危害 #${i}`, h.x, h.y);
-    if (h.r <= 0 || h.pct <= 0) out.push(`危害 #${i} 的半徑或傷害不是正數`);
-    for (const c of def.campfires ?? []) if (Math.hypot(c.x - h.x, c.y - h.y) < h.r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`危害 #${i} 太靠近營火 ${c.id}`);
-    if (Math.hypot(def.player.x - h.x, def.player.y - h.y) < h.r + 2 * UNIT) out.push(`危害 #${i} 太靠近玩家起點`);
+    if (h.r <= 0 || h.pct <= 0 || (h.nightR !== undefined && h.nightR < h.r)) out.push(`危害 #${i} 的半徑或傷害不是正數（或深夜半徑比白天小）`);
+    const r = Math.max(h.r, h.nightR ?? 0);
+    for (const c of def.campfires ?? []) if (Math.hypot(c.x - h.x, c.y - h.y) < r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`危害 #${i} 太靠近營火 ${c.id}`);
+    if (Math.hypot(def.player.x - h.x, def.player.y - h.y) < r + 2 * UNIT) out.push(`危害 #${i} 太靠近玩家起點`);
   });
   return out;
 }

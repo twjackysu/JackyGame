@@ -1,7 +1,7 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILL_VARIANTS, SKILLS, SWORDSMAN, STAGES } from './data';
-import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
+import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
@@ -596,9 +596,15 @@ export function addStatus(s: BattleState, x: Unit, st: StatusApply, src?: Unit):
 }
 
 /** 地形危害（D-114）：每秒檢查一次，玩家在毒沼裡就疊一層中毒（不看防禦、無敵時不疊） */
+/** 這一場實際生效的地形危害（深夜擴散／深夜限定，D-115）；畫面也用這個畫 */
+export function activeHazards(s: Pick<BattleState, 'stageId' | 'night'>): StageHazard[] {
+  const hz = STAGES[s.stageId]?.hazards ?? [];
+  return hz.filter((h) => !h.nightOnly || s.night).map((h) => (s.night && h.nightR ? { ...h, r: h.nightR } : h));
+}
+
 function processHazards(s: BattleState): void {
-  const hz = STAGES[s.stageId]?.hazards;
-  if (!hz?.length || s.tick % TICKS_PER_SEC !== 0) return;
+  if (!STAGES[s.stageId]?.hazards?.length || s.tick % TICKS_PER_SEC !== 0) return;
+  const hz = activeHazards(s);
   const p = playerOf(s);
   if (p.dead || p.invulnUntil >= s.tick) return;
   const h = hz.find((z) => dist(p.x, p.y, z.x, z.y) <= z.r);

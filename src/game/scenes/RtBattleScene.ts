@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
+import { activeHazards, createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { addWithAutoSalvage } from '../rtBag';
@@ -256,6 +256,8 @@ export class RtBattleScene extends Phaser.Scene {
     const stG = STAGES[this.stageId];
     if (this.s.night && this.tracked && STAGES[this.stageId]?.chests?.some((c) => c.nightOnly)) {
       this.time.delayedCall(3200, () => bigText(this, GAME_WIDTH / 2, 600, '深夜：遠處的藍色光柱是夜光寶箱\n（每次進深夜都會補滿）', '#bfe0ff', 30, 2200));
+      // 深夜的山谷（D-115）：毒沼擴散＋多兩灘
+      if (STAGES[this.stageId]?.hazards?.some((h) => h.nightOnly || h.nightR)) this.time.delayedCall(5600, () => bigText(this, GAME_WIDTH / 2, 600, '深夜的毒沼擴散了\n荊棘坡與迴廊也冒出新的毒沼', '#a8f08a', 30, 2200));
     }
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
@@ -1460,7 +1462,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       // 毒沼（D-114）：暗綠泥水＋亮綠泡泡＋深色邊（畫在格線下面）
-      for (const h of STAGES[this.stageId]?.hazards ?? []) {
+      for (const h of activeHazards(this.s)) {
         const hx = h.x * k;
         const hy = h.y * k;
         const hr2 = h.r * k;
@@ -2129,7 +2131,7 @@ export class RtBattleScene extends Phaser.Scene {
         });
       }
       // 毒沼（D-114）：小地圖上的亮綠點
-      for (const hz of STAGES[this.stageId]?.hazards ?? []) g.fillStyle(0x8adf4a, 0.9).fillCircle(2 + hz.x * s, 2 + hz.y * s, Math.max(2, hz.r * s));
+      for (const hz of activeHazards(this.s)) g.fillStyle(0x8adf4a, 0.9).fillCircle(2 + hz.x * s, 2 + hz.y * s, Math.max(2, hz.r * s));
       g.lineStyle(2, 0x5a8a60, 1).strokeRect(1, 1, w + 2, h + 2);
       g.generateTexture(key, w + 4, h + 4);
       g.destroy();

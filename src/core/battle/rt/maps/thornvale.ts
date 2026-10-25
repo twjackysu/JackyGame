@@ -128,11 +128,14 @@ export function makeThornvaleStage(): StageDefinition {
       { id: 'tv_night_gallery', x: c(38), y: c(39), loot: { crystal: 2, dust: 8, gold: 120 }, nightOnly: true },
     ],
     // 毒沼（D-114）：站在裡面每秒疊一層中毒；東邊寶箱就泡在毒沼裡（拿了快走）
+    // 深夜的山谷（D-115）：毒沼擴散（nightR），荊棘坡與棘刺迴廊各多一灘（路旁，可以繞）
     hazards: [
-      { x: c(41), y: c(51), r: u(1.6), pct: 1.2 },
-      { x: c(42), y: c(43), r: u(1.6), pct: 1.2 },
-      { x: c(33), y: c(52), r: u(1.4), pct: 1.2 },
-      { x: c(31), y: c(49), r: u(1.2), pct: 1.2 },
+      { x: c(41), y: c(51), r: u(1.6), pct: 1.2, nightR: u(2.1) },
+      { x: c(42), y: c(43), r: u(1.6), pct: 1.2, nightR: u(1.8) },
+      { x: c(33), y: c(52), r: u(1.4), pct: 1.2, nightR: u(1.8) },
+      { x: c(31), y: c(49), r: u(1.2), pct: 1.2, nightR: u(1.6) },
+      { x: c(11), y: c(65), r: u(1.2), pct: 1.5, nightOnly: true },
+      { x: c(27), y: c(33), r: u(1.4), pct: 1.5, nightOnly: true },
     ],
     campfires: [{ id: 'tv_south', x: c(24), y: c(73) }, { id: 'tv_mid', x: c(37), y: c(46) }],
     zones: [

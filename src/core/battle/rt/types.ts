@@ -265,6 +265,15 @@ export const aggroUnitsOf = (u: { tier?: AggroTier; aggroUnits?: number }): numb
  */
 export const MAP_AI_LIMITS = { maxChasers: 8, dormantUnits: 24, queueHoldUnits: 6, dormantCheckEvery: 10 } as const;
 
+export interface StageHazard {
+  x: number;
+  y: number;
+  r: number;
+  pct: number;
+  nightR?: number;
+  nightOnly?: boolean;
+}
+
 export interface Telegraph {
   ownerId: number;
   attackId: string;
@@ -477,8 +486,9 @@ export interface StageDefinition {
   intro?: string;
   /** 畫面設定（核心不讀）：地區（世界座標矩形）；玩家走進新地區時畫面顯示地區名稱 */
   zones?: StageZone[];
-  /** 地形危害（荊棘谷毒沼，D-114）：玩家站在圓內每秒疊一層中毒（每層每秒 maxHp × pct%、持續 3 秒）；怪物不受影響 */
-  hazards?: { x: number; y: number; r: number; pct: number }[];
+  /** 地形危害（荊棘谷毒沼，D-114）：玩家站在圓內每秒疊一層中毒（每層每秒 maxHp × pct%、持續 3 秒）；怪物不受影響。
+   *  深夜（D-115）：`nightR` 取代半徑（毒沼擴散）、`nightOnly` 只在深夜出現 */
+  hazards?: StageHazard[];
 }
 
 export interface StageZone {
