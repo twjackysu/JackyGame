@@ -6,7 +6,8 @@ import { GEAR_SLOTS, gearBonus, gearScore, genGear, type GearSlot, type RtGear }
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec } from '../src/core/battle/rt/types';
-import { buyPrice, shopStock, stockPrice } from '../src/game/rtShop';
+import { buyPrice, shopIlvl, shopStock, stockPrice, withPick } from '../src/game/rtShop';
+import { weakestSlot } from '../src/game/rtBag';
 
 const out = (s: string) => (globalThis as unknown as { process: { stdout: { write: (x: string) => void } } }).process.stdout.write(s);
 const mkBot = () => new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
@@ -48,7 +49,8 @@ it('刷 30 分鐘的金幣拿去行商買裝備 → 狼王更快', () => {
   const shopped: Partial<Record<GearSlot, RtGear>> = { ...best };
   let bought = 0;
   for (let run = 1; run <= 3; run++) {
-    const rr = { runs: run };
+    // 和畫面一樣：這批第一次打開時看身上最弱的部位「為你挑選」（第 25 輪）
+    const rr = withPick({ runs: run }, weakestSlot({ bag: [], equip: shopped }, shopIlvl(lv)));
     const stock = shopStock(rr, lv, 'mistwood').filter((g) => sc(g) > sc(shopped[g.slot]) && stockPrice(rr, g) <= coin);
     stock.sort((a, b) => sc(b) - sc(shopped[b.slot]) - (sc(a) - sc(shopped[a.slot])));
     for (const g of stock) {
@@ -64,7 +66,7 @@ it('刷 30 分鐘的金幣拿去行商買裝備 → 狼王更快', () => {
   const f1 = [1, 2, 3].map((sd) => kingFight(sd, lv, b1));
   out(`\n[shop] 30 分鐘 Lv${lv}、金幣 ${coin0}、買 ${bought} 件（剩 ${coin}）、加成 ${JSON.stringify(b0)} → ${JSON.stringify(b1)}\n[shop] 狼王交戰秒：只用掉落 ${f0.join('/')}・加上行商 ${f1.join('/')}\n`);
   // 行商是補洞：三批貨裡沒有任何一件比刷到的好時，沒東西可買是正常的（第 25 輪加了迷霧巡守，種子 11 刷出 5 格稀有 ilvl 8＋精良 ilvl 11 胸甲）
-  const upgrades = [1, 2, 3].flatMap((r) => shopStock({ runs: r }, lv, 'mistwood')).filter((g) => sc(g) > sc(best[g.slot])).length;
+  const upgrades = [1, 2, 3].flatMap((r) => shopStock(withPick({ runs: r }, weakestSlot({ bag: [], equip: best }, shopIlvl(lv))), lv, 'mistwood')).filter((g) => sc(g) > sc(best[g.slot])).length;
   out(`[shop] 貨架上比掉落好的：${upgrades} 件\n`);
   const allCovered = upgrades === 0;
   if (!allCovered) expect(bought).toBeGreaterThan(0);

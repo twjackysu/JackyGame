@@ -1,7 +1,7 @@
 // 即時戰鬥行囊的純資料函式（D-091；有測試）。畫面在 ui/rtBagPanel.ts。
 import { SWORDSMAN } from '../core/battle/rt/data';
 import type { SkillMod } from '../core/battle/rt/types';
-import { GEAR_SLOTS, gearBonus, gearScore, gearSkillMods, salvageDust, type GearSlot, type RtGear } from '../core/battle/rt/gear';
+import { GEAR_SLOTS, gearBonus, gearScore, gearSkillMods, genGear, salvageDust, type GearSlot, type RtGear } from '../core/battle/rt/gear';
 
 export interface BagState {
   bag: RtGear[];
@@ -28,6 +28,21 @@ export function unequip(st: BagState, slot: GearSlot): BagState {
 
 export function bonusOf(st: BagState): { hp: number; atk: number; def: number } {
   return gearBonus(GEAR_SLOTS.map((s) => st.equip[s]), SWORDSMAN.hp, SWORDSMAN.atk);
+}
+
+/** 身上最弱的部位（第 25 輪行商「為你挑選」）：每格分數 ÷ 同物品等級精良參考裝的分數，空格＝0；同分取前面的部位 */
+export function weakestSlot(st: BagState, ilvl: number): GearSlot {
+  let best: GearSlot = GEAR_SLOTS[0]!;
+  let low = Infinity;
+  for (const s of GEAR_SLOTS) {
+    const ref = gearScore(genGear(7, 2, ilvl, { slot: s }), SWORDSMAN.hp, SWORDSMAN.atk) || 1;
+    const r = gearScore(st.equip[s], SWORDSMAN.hp, SWORDSMAN.atk) / ref;
+    if (r < low) {
+      low = r;
+      best = s;
+    }
+  }
+  return best;
 }
 
 /** 背包裡比身上同部位好的（▲） */

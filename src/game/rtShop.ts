@@ -1,6 +1,6 @@
 // 營火行商（D-116）：用金幣自由買賣裝備與材料。純資料函式（有測試），畫面在 ui/rtShopPanel.ts。
 // 金幣以前只是統計數字；現在 = 撿到的累計 − 花掉的（spent.coin，賣出記成負的花費），和粉塵／結晶同一套帳。
-import { genGear, type Rarity, type RtGear } from '../core/battle/rt/gear';
+import { GEAR_SLOTS, genGear, type GearSlot, type Rarity, type RtGear } from '../core/battle/rt/gear';
 import type { RtRecord } from './rtRecord';
 
 /** 手上的金幣 */
@@ -49,11 +49,15 @@ export interface ShopState {
   batch: number;
   /** 這批已經買走的 uid */
   sold: string[];
+  /** 這批「為你挑選」的部位（第一次打開這批貨時看身上最弱的格子決定，之後同一批固定） */
+  pick?: GearSlot;
 }
 
 export function cleanShop(x: unknown): ShopState {
   const o = (x && typeof x === 'object' ? x : {}) as Partial<ShopState>;
-  return { batch: Number.isFinite(o.batch) ? Number(o.batch) : 0, sold: Array.isArray(o.sold) ? o.sold.filter((u): u is string => typeof u === 'string').slice(0, 8) : [] };
+  const out: ShopState = { batch: Number.isFinite(o.batch) ? Number(o.batch) : 0, sold: Array.isArray(o.sold) ? o.sold.filter((u): u is string => typeof u === 'string').slice(0, 8) : [] };
+  if (typeof o.pick === 'string' && (GEAR_SLOTS as readonly string[]).includes(o.pick)) out.pick = o.pick;
+  return out;
 }
 
 /** 每次進地圖自動換一批（runs 變了）；同一趟裡付費換貨才會變 */
@@ -64,13 +68,31 @@ export function shopBatch(rec: RtRecord): ShopState {
   return sh;
 }
 
-/** 這批貨（固定種子：同一批重開面板看到的一樣） */
+/** 「為你挑選」的稀有（第 25 輪）：部位＝你身上最弱的那格、物品等級再 +1。
+ *  第 25 輪實測：刷 30 分鐘後掉落已補滿，隨機部位的稀有常常比身上的差、整批沒東西可買 */
+export const PICK_ILVL_PLUS = 1;
+/** 這批貨還沒決定「為你挑選」的部位 → 記下 slot（同一批之後固定）；已經有就原樣回傳 */
+export function withPick(rec: RtRecord, slot: GearSlot): RtRecord {
+  const sh = shopBatch(rec);
+  if (sh.pick) return rec;
+  return { ...rec, shop: { ...sh, pick: slot } };
+}
+
+/** 這件是不是「為你挑選」的（uid 結尾 p，買下後照樣留在 uid 裡、沒有別的欄位） */
+export function isPicked(g: RtGear): boolean {
+  return g.uid.startsWith('s') && g.uid.endsWith('p');
+}
+
+/** 這批貨（固定種子：同一批重開面板看到的一樣）。這批有 pick（見 withPick）時稀有那件換成最弱部位；沒有就是舊的隨機部位 */
 export function shopStock(rec: RtRecord, level: number, region: string): RtGear[] {
   const sh = shopBatch(rec);
+  const pick = sh.pick;
   const il = shopIlvl(level);
   return STOCK_RARITY.map((r, i) => {
-    const g = genGear(((sh.batch + 1) * 2654435761 + i * 40503 + il * 97) >>> 0, r, il, { region });
-    return { ...g, uid: `s${g.uid}${i}` };
+    const picked = !!pick && r === 3;
+    const ilv = picked ? Math.min(12, il + PICK_ILVL_PLUS) : il;
+    const g = genGear(((sh.batch + 1) * 2654435761 + i * 40503 + il * 97) >>> 0, r, ilv, picked ? { region, slot: pick } : { region });
+    return { ...g, uid: `s${g.uid}${i}${picked ? 'p' : ''}` };
   }).filter((g) => !sh.sold.includes(g.uid));
 }
 
@@ -104,5 +126,5 @@ export function buyGear(rec: RtRecord, g: RtGear): RtRecord | null {
   const r = spendCoin(rec, stockPrice(rec, g));
   if (!r) return null;
   const sh = shopBatch(rec);
-  return { ...r, shop: { batch: sh.batch, sold: [...sh.sold, g.uid] } };
+  return { ...r, shop: { ...sh, sold: [...sh.sold, g.uid] } };
 }

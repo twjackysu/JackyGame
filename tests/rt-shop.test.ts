@@ -1,8 +1,9 @@
 // 營火行商（D-116）：金幣帳、價格、貨架固定種子、買賣與換貨
 import { describe, expect, it } from 'vitest';
-import { genGear } from '../src/core/battle/rt/gear';
+import { GEAR_SLOTS, genGear, type GearSlot, type RtGear } from '../src/core/battle/rt/gear';
+import { weakestSlot } from '../src/game/rtBag';
 import { spend } from '../src/game/rtRecord';
-import { buyGear, buyPrice, cleanShop, DEAL_PCT, dealIndex, isDeal, stockPrice, coinOf, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, SHOP_REROLL } from '../src/game/rtShop';
+import { PICK_ILVL_PLUS, isPicked, withPick, buyGear, buyPrice, cleanShop, DEAL_PCT, dealIndex, isDeal, stockPrice, coinOf, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, SHOP_REROLL } from '../src/game/rtShop';
 
 describe('營火行商', () => {
   it('金幣＝撿到 − 花掉；賣出記負的花費；不夠就買不了；和粉塵帳互不影響', () => {
@@ -70,5 +71,30 @@ describe('營火行商', () => {
     expect(s2.some((g) => s1.some((x) => x.uid === g.uid))).toBe(false);
     expect(rerollShop({ coin: 10, runs: 1 })).toBeNull();
     expect(cleanShop('壞資料')).toEqual({ batch: 0, sold: [] });
+  });
+  it('為你挑選（第 25 輪）：稀有那件換成身上最弱的部位、物品等級 +1；同一批固定；沒挑選時和舊版一樣', () => {
+    const rec = { runs: 4, coin: 5000 };
+    const old = shopStock(rec, 6, 'mistwood');
+    // 身上只缺護手 → 最弱的是護手
+    const equip: Partial<Record<GearSlot, RtGear>> = {};
+    for (const s of GEAR_SLOTS) if (s !== 'hands') equip[s] = genGear(100 + s.length, 2, 7, { slot: s });
+    const weak = weakestSlot({ bag: [], equip }, shopIlvl(6));
+    expect(weak).toBe('hands');
+    const r1 = withPick(rec, weak);
+    expect(withPick(r1, 'ring')).toBe(r1); // 同一批不會再變
+    const st = shopStock(r1, 6, 'mistwood');
+    const rare = st.find((g) => g.rarity === 3)!;
+    expect(rare.slot).toBe('hands');
+    expect(rare.ilvl).toBe(shopIlvl(6) + PICK_ILVL_PLUS);
+    expect(isPicked(rare)).toBe(true);
+    // 精良三件不變
+    expect(st.filter((g) => g.rarity === 2).map((g) => g.uid)).toEqual(old.filter((g) => g.rarity === 2).map((g) => g.uid));
+    // 買走後保留 pick；換貨後重新挑
+    const b = buyGear(r1, rare)!;
+    expect(cleanShop(b.shop).pick).toBe('hands');
+    expect(shopStock(b, 6, 'mistwood').some((g) => g.rarity === 3)).toBe(false);
+    expect(cleanShop(rerollShop(b)!.shop).pick).toBeUndefined();
+    // 存檔壞掉的 pick 丟掉
+    expect(cleanShop({ batch: 1, sold: [], pick: 'boots' }).pick).toBeUndefined();
   });
 });

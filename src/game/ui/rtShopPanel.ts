@@ -3,9 +3,9 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, gearTitle, type RtGear } from '../../core/battle/rt/gear';
 import { gearIcon } from '../fx/gearIcons';
-import { BAG_MAX, bonusOf, equipWith, isUpgrade, type BagState } from '../rtBag';
+import { BAG_MAX, bonusOf, equipWith, isUpgrade, weakestSlot, type BagState } from '../rtBag';
 import { walletOf, type RtRecord } from '../rtRecord';
-import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, coinOf, isDeal, stockPrice, rerollShop, sellPrice, shopStock, spendCoin } from '../rtShop';
+import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, cleanShop, coinOf, isDeal, isPicked, stockPrice, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, withPick } from '../rtShop';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { drawMerchant } from '../fx/merchant';
@@ -28,7 +28,11 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   let tab: 'buy' | 'sell' = 'buy';
   let page = 0;
   let detail: { g: RtGear; buy: boolean } | null = null;
-  const line = LINES[Math.floor(Math.random() * LINES.length)]!;
+  // 一半機率說出「為你挑選」的部位（第 25 輪：行商看得出你缺什麼）
+  const pickNow = withPick(ctx.rec(), weakestSlot(ctx.bag(), shopIlvl(ctx.level)));
+  const pickSlot = cleanShop(pickNow.shop).pick;
+  const pickLeft = shopStock(pickNow, ctx.level, ctx.region).some((g) => isPicked(g));
+  const line = pickSlot && pickLeft && Math.random() < 0.5 ? `「${SLOT_NAME[pickSlot]}該換了吧？特地幫你帶了一件。」` : LINES[Math.floor(Math.random() * LINES.length)]!;
   const root = scene.add.container(GAME_WIDTH / 2, 640).setDepth(960);
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24, off = false): Phaser.GameObjects.Text => {
@@ -104,7 +108,10 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     root.add(items);
   }
 
-  function buyTab(items: Phaser.GameObjects.GameObject[], rec: RtRecord, st: BagState): void {
+  function buyTab(items: Phaser.GameObjects.GameObject[], rec0: RtRecord, st: BagState): void {
+    // 為你挑選（第 25 輪）：這批貨第一次打開時記下身上最弱的部位，稀有那件就是那個部位
+    const rec = withPick(rec0, weakestSlot(st, shopIlvl(ctx.level)));
+    if (rec !== rec0) ctx.save(rec);
     const stock = shopStock(rec, ctx.level, ctx.region);
     const coin = coinOf(rec);
     items.push(scene.add.text(0, -392, `今天的裝備（物品等級 ${stock[0]?.ilvl ?? '-'}・每次進地圖換一批）`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0' }).setOrigin(0.5));
@@ -124,6 +131,11 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
         const strike = scene.add.rectangle(222 - was.width / 2, y + 22, was.width + 4, 2, 0xa89880).setOrigin(0.5);
         items.push(tag, was, strike);
         scene.tweens.add({ targets: tag, scale: { from: 1, to: 1.12 }, yoyo: true, repeat: -1, duration: 600, ease: 'Sine.easeInOut' });
+      }
+      if (isPicked(g)) {
+        // 為你挑選：金色小標（在特價標的左邊）
+        const pt = scene.add.text(deal ? 236 : 300, y - 30, '為你挑選', { fontFamily: UI_FONT, fontSize: '16px', fontStyle: '700', color: '#2a1a00', backgroundColor: '#ffcf5a' }).setOrigin(1, 0.5).setPadding(8, 2, 8, 2);
+        items.push(pt);
       }
     });
     items.push(scene.add.text(0, 6, '材料', { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));

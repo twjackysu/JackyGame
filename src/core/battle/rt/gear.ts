@@ -154,11 +154,13 @@ function affixValue(stat: AffixStat, L: number, t: number): number {
 /** 地區名稱標記（D-114）：荊棘谷掉的精良／稀有名字改成「荊芒／荊冠」，數值與亂數完全一樣 */
 const REGION_TAG: Record<string, [string, string]> = { mistwood: ['薄霧', '霧語'], thornvale: ['荊芒', '荊冠'] };
 
-export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string }): RtGear {
+export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string; slot?: GearSlot }): RtGear {
   const R = rng(seed);
   for (let i = 0; i < 3; i++) R();
   const L = Math.max(1, Math.min(12, Math.floor(ilvl)));
-  const slot = GEAR_SLOTS[Math.floor(R() * GEAR_SLOTS.length)]!;
+  // opts.slot：指定部位（第 25 輪行商「為你挑選」）；照樣抽一次亂數，其他結果與沒指定時相同
+  const drawn = GEAR_SLOTS[Math.floor(R() * GEAR_SLOTS.length)]!;
+  const slot = opts?.slot ?? drawn;
   const base = baseOf(slot, L, MULT[rarity]);
   const pool: AffixStat[] = ['atk', 'hp', 'def', 'atkPct', 'hpPct'];
   const affixes: RtGear['affixes'] = [];
