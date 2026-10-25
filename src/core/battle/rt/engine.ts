@@ -218,7 +218,15 @@ function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Un
   if (hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + hpPct)) / 100);
   if (atkPct) m.atk = Math.round((m.atk * (100 + atkPct)) / 100);
   clampArena(s, m);
-  if (s.arena.solid) pushOutSolid(s.arena.solid, m);
+  if (s.arena.solid) {
+    pushOutSolid(s.arena.solid, m);
+    // 抽到厚荊棘深處推不出來（荊棘谷 D-114）：改在重生點中心出生（不用亂數，推得出來的情況完全不變）
+    if (isSolidAt(s.arena.solid, m.x, m.y)) {
+      m.x = g.cx;
+      m.y = g.cy;
+      pushOutSolid(s.arena.solid, m);
+    }
+  }
   m.mode = 'idle';
   m.tier = g.tier ?? (def.boss ? 'boss' : 'normal');
   if (g.aggroUnits !== undefined) m.aggroUnits = g.aggroUnits;

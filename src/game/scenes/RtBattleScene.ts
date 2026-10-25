@@ -19,6 +19,7 @@ import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mistwood';
+import { makeThornvaleStage, THORNVALE_QUEEN } from '../../core/battle/rt/maps/thornvale';
 import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
@@ -49,8 +50,13 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   thorn_shooter: { key: 'enemy_thorn_shroom', h: 2.9, flip: false },
   thorn_mother: { key: 'enemy_thorn_shroom', h: 2.6, flip: false, tint: 0x8fe07a },
   wolf_king: { key: 'enemy_boss_wolfking', h: 3.0, flip: false },
+  // 荊棘谷（D-114）：先用現有立繪染色，之後有圖再換（ART_REQUESTS）
+  thorn_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0x9fe08a },
+  thorn_queen: { key: 'enemy_boss_wolfking', h: 3.2, flip: false, tint: 0xb8f0a0 },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
+/** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
+const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼', wolf_king: '狼王／狼后' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
 const fy0 = (x: Unit): number => x.facingY / 1000;
 
@@ -152,18 +158,19 @@ export class RtBattleScene extends Phaser.Scene {
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
     // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
     if (this.stageId === 'test_world' && q.has('debug') && !STAGES.test_world) STAGES.test_world = makeTestWorldStage();
-    // 霧語森林（D-085）：目前只有除錯入口；標題入口等 D-083
+    // 正式大地圖：霧語森林（D-085）、荊棘谷（D-114）
     if (this.stageId === 'mistwood' && !STAGES.mistwood) STAGES.mistwood = makeMistwoodStage();
+    if (this.stageId === 'thornvale' && !STAGES.thornvale) STAGES.thornvale = makeThornvaleStage();
     if (!STAGES[this.stageId]) this.stageId = 'forest_entry';
     this.seed = data.seed ?? Number(q.get('seed') ?? 1);
     const b = (data.bot !== undefined ? data.bot : q.get('bot')) as keyof typeof BOT_PROFILES | null;
-    this.bot = b && BOT_PROFILES[b] ? new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: b === 'auto' ? undefined : 35, ...(this.stageId === 'mistwood' ? { campfireBelowPotions: 8, advanceTo: MISTWOOD_KING } : {}) }, b) : null;
+    this.bot = b && BOT_PROFILES[b] ? new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: b === 'auto' ? undefined : 35, ...(this.stageId === 'mistwood' ? { campfireBelowPotions: 8, advanceTo: MISTWOOD_KING } : this.stageId === 'thornvale' ? { campfireBelowPotions: 8, advanceTo: THORNVALE_QUEEN } : {}) }, b) : null;
     this.botName = this.bot ? b : null;
   }
 
   create(): void {
     // Bot 示範也帶著玩家的等級與裝備（只讀、不存）
-    const big = !!STAGES[this.stageId]?.bossZone && !!STAGES[this.stageId]?.spawnGroups?.length && this.stageId === 'mistwood';
+    const big = !!STAGES[this.stageId]?.bossZone && !!STAGES[this.stageId]?.spawnGroups?.length && (this.stageId === 'mistwood' || this.stageId === 'thornvale');
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
@@ -227,7 +234,7 @@ export class RtBattleScene extends Phaser.Scene {
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
     // 深夜（D-103）：整個畫面壓暗、偏藍
     this.nightShade = this.s.night ? this.add.image(GAME_WIDTH / 2, 640, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
-    this.add.text(GAME_WIDTH / 2, 40, this.tracked || this.stageId === 'mistwood' ? `${STAGES[this.stageId]!.name}${this.s.night ? '・深夜' : ''}` : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
+    this.add.text(GAME_WIDTH / 2, 40, this.tracked || this.stageId === 'mistwood' || this.stageId === 'thornvale' ? `${STAGES[this.stageId]!.name}${this.s.night ? '・深夜' : ''}` : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
@@ -523,7 +530,7 @@ export class RtBattleScene extends Phaser.Scene {
   private refreshBounty(): void {
     if (!this.bountyTxt) return;
     const st = cleanBounties(loadRecord(this.stageId).bounty);
-    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${ENEMIES[b.target]?.name ?? b.target} ${b.got}/${b.need}`)].join('\n'));
+    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${BOUNTY_LABEL[b.target] ?? ENEMIES[b.target]?.name ?? b.target} ${b.got}/${b.need}`)].join('\n'));
   }
 
   private bountyKill(defId: string): void {
@@ -795,6 +802,7 @@ export class RtBattleScene extends Phaser.Scene {
       first = r.first;
       best = r.best;
       if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, '解鎖：深夜的森林！\n☰ 暫停選單・怪更兇、掉得更好', '#9fb8ff', 34, 2600));
+      if (r.first && this.stageId === 'mistwood') this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, '新地圖開放：荊棘谷！\n回標題選「前往荊棘谷」・建議 Lv6', '#a8f08a', 34, 3000));
       if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) this.time.delayedCall(4600, () => this.furyUnlockedToast());
       this.persist();
     }
@@ -802,7 +810,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bossTimed = true;
     this.time.delayedCall(300, () => bigText(this, GAME_WIDTH / 2, 440, `${name} 討伐！`, '#ffd27a', 60, 1800));
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
-    const head = first ? '首次討伐！森林安靜了一點…' : fury ? '暴怒的狼王倒下了！看看掉了什麼' : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
+    const head = first ? (this.stageId === 'thornvale' ? '首次討伐！山谷的荊棘枯萎了一些…' : '首次討伐！森林安靜了一點…') : fury ? '暴怒的狼王倒下了！看看掉了什麼' : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
   }
@@ -1024,7 +1032,7 @@ export class RtBattleScene extends Phaser.Scene {
         else this.toggleMenu();
       });
     });
-    if (this.tracked || STAGES[this.stageId]?.id === 'mistwood') {
+    if (this.tracked || STAGES[this.stageId]?.id === 'mistwood' || STAGES[this.stageId]?.id === 'thornvale') {
       // 正式大地圖（標題入口）：不列試玩關
       if (this.tracked) {
         const up = this.bagSt.bag.filter((g) => isUpgrade(this.bagSt, g)).length;
@@ -1365,8 +1373,13 @@ export class RtBattleScene extends Phaser.Scene {
     };
     if (this.textures.exists(chunkKey(0, 0))) return place();
     // 每塊各自重畫一次（Graphics.generateTexture 不吃物件位置，要用 translateCanvas 平移；同一個固定種子，所以每塊畫出同一張地圖）
+    // 地圖色調（D-114）：荊棘谷是紅褐色乾土＋紫紅荊棘叢，其他沿用森林綠
+    const tv = this.stageId === 'thornvale';
+    const P = tv
+      ? { ground: 0x2a1d19, spotA: 0x31221c, spotB: 0x241814, grass: 0x6a5232, grid: 0x382720, under: 0x160b10, crownA: 0x3a1828, crownB: 0x45202f, crownHi: 0x6a2c3e, crownTop: 0x9a4a55, edge: 0x8a5a48 }
+      : { ground: 0x16261c, spotA: 0x1a2c1f, spotB: 0x14231a, grass: 0x2f5a36, grid: 0x203a28, under: 0x0c170e, crownA: 0x1b3620, crownB: 0x203f25, crownHi: 0x2a5230, crownTop: 0x3d7042, edge: 0x5a8a60 };
     const paint = (g: Phaser.GameObjects.Graphics, bx0: number, by0: number, bx1: number, by1: number): void => {
-      g.fillStyle(0x16261c, 1).fillRect(0, 0, W, H);
+      g.fillStyle(P.ground, 1).fillRect(0, 0, W, H);
       // 固定種子的地面斑點（不影響戰鬥 PRNG）
       let seed = 1234567;
       const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -1379,13 +1392,13 @@ export class RtBattleScene extends Phaser.Scene {
         const grass = rnd() < 0.3 ? [0, 1, 2, 3, 4].map(() => rnd() * 8) : null;
         // 亂數照樣消耗（每塊畫出同一張圖），只是這塊外面的不畫
         if (x < bx0 - 80 || x > bx1 + 80 || y < by0 - 40 || y > by1 + 40) continue;
-        g.fillStyle(dark ? 0x1a2c1f : 0x14231a, 0.8).fillEllipse(x, y, ew, eh);
+        g.fillStyle(dark ? P.spotA : P.spotB, 0.8).fillEllipse(x, y, ew, eh);
         if (grass) {
-          g.lineStyle(2, 0x2f5a36, 0.8);
+          g.lineStyle(2, P.grass, 0.8);
           for (let j = -2; j <= 2; j++) g.lineBetween(x + j * 4, y, x + j * 6, y - 10 - grass[j + 2]!);
         }
       }
-      g.lineStyle(1, 0x203a28, 1);
+      g.lineStyle(1, P.grid, 1);
       for (let x = 0; x <= a.w; x += 100) g.lineBetween(x * k, 0, x * k, H);
       for (let y = 0; y <= a.h; y += 100) g.lineBetween(0, y * k, W, y * k);
       // 障礙物（D-070／D-071）：成片的（周圍 8 格有 5 格以上也是障礙）畫成樹林，零散的畫成圓石。
@@ -1410,7 +1423,7 @@ export class RtBattleScene extends Phaser.Scene {
         const cy1 = Math.min(rows.length - 1, Math.ceil(by1 / c) + 1);
         // 樹林底（深色地面，讓林帶讀起來是一整片）
         for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= Math.min(cx1, rows[cy]!.length - 1); cx++) {
-          if (rows[cy]![cx] === '#' && dense(cx, cy)) g.fillStyle(0x0c170e, 1).fillRect(cx * c - 1, cy * c - 1, c + 2, c + 2);
+          if (rows[cy]![cx] === '#' && dense(cx, cy)) g.fillStyle(P.under, 1).fillRect(cx * c - 1, cy * c - 1, c + 2, c + 2);
         }
         for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= Math.min(cx1, rows[cy]!.length - 1); cx++) {
           if (rows[cy]![cx] !== '#') continue;
@@ -1422,9 +1435,20 @@ export class RtBattleScene extends Phaser.Scene {
             const oy = (hr(cx, cy, 2) - 0.5) * c * 0.3;
             const r = c * (0.62 + hr(cx, cy, 3) * 0.18);
             g.fillStyle(0x050a06, 0.5).fillEllipse(x + c / 2 + ox + c * 0.12, y + c * 0.75 + oy, r * 2.1, r * 1.1);
-            g.fillStyle(hr(cx, cy, 4) < 0.5 ? 0x1b3620 : 0x203f25, 1).fillCircle(x + c / 2 + ox, y + c / 2 + oy, r);
-            g.fillStyle(0x2a5230, 1).fillCircle(x + c / 2 + ox - r * 0.2, y + c / 2 + oy - r * 0.25, r * 0.62);
-            g.fillStyle(0x3d7042, 0.7).fillCircle(x + c / 2 + ox - r * 0.35, y + c / 2 + oy - r * 0.4, r * 0.28);
+            g.fillStyle(hr(cx, cy, 4) < 0.5 ? P.crownA : P.crownB, 1).fillCircle(x + c / 2 + ox, y + c / 2 + oy, r);
+            g.fillStyle(P.crownHi, 1).fillCircle(x + c / 2 + ox - r * 0.2, y + c / 2 + oy - r * 0.25, r * 0.62);
+            g.fillStyle(P.crownTop, 0.7).fillCircle(x + c / 2 + ox - r * 0.35, y + c / 2 + oy - r * 0.4, r * 0.28);
+            if (tv) {
+              // 荊棘叢：放射狀的刺＋偶爾一顆紅漿果
+              g.lineStyle(2, 0xd8c09a, 0.75);
+              for (let t = 0; t < 4; t++) {
+                const ang = hr(cx, cy, 10 + t) * Math.PI * 2;
+                const bx = x + c / 2 + ox + Math.cos(ang) * r * 0.7;
+                const by = y + c / 2 + oy + Math.sin(ang) * r * 0.7;
+                g.lineBetween(bx, by, bx + Math.cos(ang) * r * 0.45, by + Math.sin(ang) * r * 0.45);
+              }
+              if (hr(cx, cy, 15) < 0.25) g.fillStyle(0xff4a5a, 0.9).fillCircle(x + c / 2 + ox + r * 0.25, y + c / 2 + oy + r * 0.1, r * 0.12);
+            }
             continue;
           }
           const j = hr(cx, cy, 5) * 0.12;
@@ -1437,7 +1461,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       g.lineStyle(10, 0x0a120d, 1).strokeRect(-5, -5, W + 10, H + 10);
-      g.lineStyle(3, 0x5a8a60, 1).strokeRect(0, 0, W, H);
+      g.lineStyle(3, P.edge, 1).strokeRect(0, 0, W, H);
     };
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
       const rx = i * GROUND_CHUNK;

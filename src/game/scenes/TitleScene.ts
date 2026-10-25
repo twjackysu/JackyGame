@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
+import { thornvaleOpen } from '../rtRecord';
 import { playMusic } from '../../audio/music';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
@@ -251,6 +252,9 @@ export class TitleScene extends Phaser.Scene {
     const items: [string, () => void][] = [];
     // 唯一的玩法：霧語森林（即時戰鬥大地圖；舊主線已移除，D-097）
     items.push(['進入霧語森林', () => this.go(() => this.scene.start('RtBattle', { stage: 'mistwood', bot: '' }))]);
+    // 第二張地圖（D-114）：打倒霧角狼王一次後開放；等級、行囊、技能點與霧語森林共用
+    if (thornvaleOpen()) items.push(['前往荊棘谷', () => this.go(() => this.scene.start('RtBattle', { stage: 'thornvale', bot: '' }))]);
+    else items.push(['荊棘谷（未開放）', () => this.lockedHint()]);
     items.push(['設定', () => {
       if (this.busy) return;
       this.busy = true;
@@ -265,7 +269,7 @@ export class TitleScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(0x0a0d1a, 0.85).fillRoundedRect(-200, -42, 400, 84, 20);
       g.lineStyle(2, 0xffd27a, i === 0 ? 1 : 0.5).strokeRoundedRect(-200, -42, 400, 84, 20);
-      const tx = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: '34px', color: '#ffffff' }).setOrigin(0.5).setLetterSpacing(6);
+      const tx = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: '34px', color: label.includes('未開放') ? '#7a7f90' : '#ffffff' }).setOrigin(0.5).setLetterSpacing(6);
       c.add([g, tx]).setSize(400, 84).setInteractive({ useHandCursor: true }).setAlpha(0);
       this.tweens.add({ targets: c, alpha: 1, y: y - 10, delay: 100 + i * 80, duration: 300, ease: 'Cubic.Out' });
       c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
@@ -275,6 +279,12 @@ export class TitleScene extends Phaser.Scene {
       });
       menu.add(c);
     });
+  }
+
+  /** 荊棘谷未開放時點一下：提示開放條件 */
+  private lockedHint(): void {
+    const tx = this.add.text(GAME_WIDTH / 2, 860, '在霧語森林打倒霧角狼王後開放', { fontFamily: UI_FONT, fontSize: '28px', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.6)' }).setPadding(16, 8, 16, 8).setOrigin(0.5).setDepth(100);
+    this.tweens.add({ targets: tx, alpha: 0, delay: 1600, duration: 400, onComplete: () => tx.destroy() });
   }
 
   private go(fn: () => void): void {

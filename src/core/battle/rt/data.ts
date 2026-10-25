@@ -153,6 +153,27 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'mother_sweep', shape: { type: 'sector', r: u(2.8), deg: 200 }, warningTicks: sec(0.9), recoverTicks: sec(0.7), damageMultiplier: 130, cooldownTicks: sec(5), triggerRange: u(2.6), blockable: true, weight: 3 },
     ],
   },
+  // 荊棘谷（D-114）：棘背狼＝帶毒的野狼（比野狼耐打）
+  thorn_wolf: {
+    id: 'thorn_wolf', name: '棘背狼', hp: 360, atk: 29, def: 8, speed: 3.3, radius: u(0.42), hitstunTicks: 4,
+    drops: { gold: [5, 9], items: [{ id: 'dust', chance: 35 }, { id: 'potion', chance: 6 }] },
+    attacks: [
+      { id: 'thorn_bite', shape: { type: 'sector', r: u(1.5), deg: 80 }, warningTicks: sec(0.65), recoverTicks: sec(0.5), damageMultiplier: 100, cooldownTicks: sec(2.2), triggerRange: u(1.3), blockable: true, status: { id: 'poison', ticks: sec(4), powerPct: 6 }, weight: 1 },
+    ],
+  },
+  // 棘冠狼后（D-114）：荊棘谷的 Boss。狼王的近戰＋荊棘母樹的毒刺與根系；第二階段招喚棘背狼、加「荊棘綻放」大圈
+  thorn_queen: {
+    id: 'thorn_queen', name: '棘冠狼后', hp: 4600, atk: 33, def: 13, speed: 3.1, radius: u(0.9), hitstunTicks: 0,
+    drops: { gold: [110, 160], items: [{ id: 'dust', chance: 100, count: [5, 8] }, { id: 'crystal', chance: 100, count: [1, 2] }] },
+    attacks: [
+      { id: 'queen_claw', shape: { type: 'sector', r: u(2.2), deg: 80 }, warningTicks: sec(0.7), recoverTicks: sec(0.4), damageMultiplier: 110, cooldownTicks: sec(3.0), triggerRange: u(2.0), blockable: true, weight: 3 },
+      { id: 'queen_lance', shape: { type: 'line', len: u(8), width: u(1.1) }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 130, cooldownTicks: sec(5), triggerRange: u(8), blockable: true, status: { id: 'poison', ticks: sec(6), powerPct: 10 }, weight: 2 },
+      { id: 'queen_roots', shape: { type: 'ring', rIn: u(1.9), rOut: u(4.4) }, warningTicks: sec(1.1), recoverTicks: sec(0.6), damageMultiplier: 150, cooldownTicks: sec(8), triggerRange: u(4.2), blockable: false, weight: 2 },
+      { id: 'queen_charge', shape: { type: 'line', len: u(7), width: u(1.6) }, warningTicks: sec(0.9), recoverTicks: sec(0.5), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(7), blockable: true, charge: { ticks: sec(0.5), wallStunTicks: sec(2) }, weight: 2 },
+      { id: 'queen_bloom', shape: { type: 'circle', r: u(3.2) }, warningTicks: sec(1.3), recoverTicks: sec(0.8), damageMultiplier: 170, cooldownTicks: sec(12), triggerRange: u(2.8), blockable: false, phase2Only: true, weight: 2 },
+    ],
+    boss: { phase2AtPct: 50, phase2CooldownPct: 85, summon: { enemyId: 'thorn_wolf', count: 2, everyTicks: sec(14) } },
+  },
   wolf_king: {
     id: 'wolf_king', name: '霧角狼王', hp: 4200, atk: 31, def: 12, speed: 3.0, radius: u(0.9), hitstunTicks: 0,
     drops: { gold: [80, 120], items: [{ id: 'dust', chance: 100, count: [4, 6] }, { id: 'crystal', chance: 100 }] },

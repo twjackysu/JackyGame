@@ -28,6 +28,8 @@ export const BOUNTY_POOL: readonly { target: string; need: [number, number]; rew
 
 export const BOUNTY_SLOTS = 3;
 
+const BOUNTY_ALIAS: Readonly<Record<string, string>> = { thorn_wolf: 'wolf', thorn_queen: 'wolf_king' };
+
 function hash(n: number): number {
   let x = (Math.imul(n + 1, 2654435761) ^ 0x5bd1e995) >>> 0;
   x ^= x >>> 15;
@@ -66,7 +68,9 @@ export function cleanBounties(raw: unknown): BountyState {
 }
 
 /** 打倒一隻 defId：對應的懸賞 +1；完成的移除、補新的，回傳完成的那些 */
-export function bountyKill(st: BountyState, defId: string): { st: BountyState; completed: Bounty[] } {
+export function bountyKill(st: BountyState, defId0: string): { st: BountyState; completed: Bounty[] } {
+  // 懸賞和荊棘谷共用（D-114）：棘背狼算野狼、棘冠狼后算 Boss 懸賞
+  const defId = BOUNTY_ALIAS[defId0] ?? defId0;
   if (!st.list.some((b) => b.target === defId)) return { st, completed: [] };
   const completed: Bounty[] = [];
   const list: Bounty[] = [];

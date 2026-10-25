@@ -116,7 +116,34 @@ export function nightUnlocked(rec: RtRecord): boolean {
   return (rec.furyKills ?? 0) >= 1;
 }
 
-export function loadRecord(stage: string): RtRecord {
+/**
+ * 共用進度的地圖（D-114）：荊棘谷的等級、經驗、行囊、技能點、材料、懸賞、累計數字都存在霧語森林的紀錄裡；
+ * 只有 MAP_KEYS（Boss 討伐、寶箱、暴怒與深夜）是每張地圖自己的。
+ */
+export const LINKED_MAPS: Readonly<Record<string, string>> = { thornvale: 'mistwood' };
+export const MAP_KEYS = ['bossKills', 'firstAt', 'bestBossSec', 'chests', 'fury', 'furyKills', 'night'] as const satisfies readonly (keyof RtRecord)[];
+type MapKey = (typeof MAP_KEYS)[number];
+
+function pickMap(rec: RtRecord): Pick<RtRecord, MapKey> {
+  const out: Record<string, unknown> = {};
+  for (const k of MAP_KEYS) if (rec[k] !== undefined) out[k] = rec[k];
+  return out as Pick<RtRecord, MapKey>;
+}
+function dropMap(rec: RtRecord): RtRecord {
+  const out: RtRecord = { ...rec };
+  for (const k of MAP_KEYS) delete out[k];
+  return out;
+}
+/** 共用地圖讀取：主地圖的共用欄位＋自己的地圖欄位 */
+export function joinRecord(home: RtRecord, own: RtRecord): RtRecord {
+  return { ...dropMap(home), ...pickMap(own) };
+}
+/** 共用地圖寫入：共用欄位寫回主地圖（主地圖自己的 Boss／寶箱不動），地圖欄位留在自己 */
+export function splitRecord(home: RtRecord, rec: RtRecord): { home: RtRecord; own: RtRecord } {
+  return { home: { ...dropMap(rec), ...pickMap(home) }, own: pickMap(rec) };
+}
+
+function readRaw(stage: string): RtRecord {
   try {
     const raw = JSON.parse(localStorage.getItem(`jg_rt_${stage}`) ?? '{}') as unknown;
     return raw && typeof raw === 'object' ? (raw as RtRecord) : {};
@@ -124,13 +151,30 @@ export function loadRecord(stage: string): RtRecord {
     return {};
   }
 }
-
-export function saveRecord(stage: string, rec: RtRecord): void {
+function writeRaw(stage: string, rec: RtRecord): void {
   try {
     localStorage.setItem(`jg_rt_${stage}`, JSON.stringify(rec));
   } catch {
     /* 無痕模式：這場的紀錄就不保留 */
   }
+}
+
+export function loadRecord(stage: string): RtRecord {
+  const home = LINKED_MAPS[stage];
+  return home ? joinRecord(readRaw(home), readRaw(stage)) : readRaw(stage);
+}
+
+export function saveRecord(stage: string, rec: RtRecord): void {
+  const home = LINKED_MAPS[stage];
+  if (!home) return writeRaw(stage, rec);
+  const sp = splitRecord(readRaw(home), rec);
+  writeRaw(home, sp.home);
+  writeRaw(stage, sp.own);
+}
+
+/** 荊棘谷開放條件（D-114）：霧語森林的狼王打倒過一次 */
+export function thornvaleOpen(): boolean {
+  return (readRaw('mistwood').bossKills ?? 0) >= 1;
 }
 
 /** 秒數 → 「4 分 05 秒」 */
