@@ -129,3 +129,33 @@ describe('暴怒狼后（D-114）', () => {
     (globalThis as any).process.stdout.write(`暴怒狼后 ${rows.join('；')}\n`);
   }, 180000);
 });
+
+describe('荊棘谷耐久（D-114）', () => {
+  beforeAll(() => {
+    STAGES.thornvale = makeThornvaleStage();
+  });
+  afterAll(() => {
+    delete STAGES.thornvale;
+  });
+  it('深夜的山谷刷 10 分鐘：怪物數量有上限、沒有卡進荊棘、一直有怪可打', () => {
+    const s = createBattle({ stageId: 'thornvale', seed: 3, level: 8, bonus: { hp: 450, atk: 35, def: 20 }, night: true });
+    const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: THORNVALE_QUEEN, huntStationary: true }, 'normal');
+    let maxUnits = 0;
+    let inSolid = 0;
+    let kills = 0;
+    while (s.tick < sec(600) && s.outcome === 'running') {
+      const n = s.events.length;
+      step(s, bot.decide(s));
+      for (let i = n; i < s.events.length; i++) {
+        const e = s.events[i]!;
+        if (e.type === 'death' && e.id !== s.units[0]!.id) kills++;
+      }
+      maxUnits = Math.max(maxUnits, s.units.filter((x) => !x.dead).length);
+      for (const x of s.units) if (!x.dead && isSolidAt(s.arena.solid!, x.x, x.y)) inSolid++;
+    }
+    expect(s.outcome).toBe('running');
+    expect(inSolid).toBe(0);
+    expect(maxUnits).toBeLessThanOrEqual(32);
+    expect(kills).toBeGreaterThan(30);
+  }, 180000);
+});

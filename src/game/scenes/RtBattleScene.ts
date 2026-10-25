@@ -1986,14 +1986,17 @@ export class RtBattleScene extends Phaser.Scene {
     if (!this.textures.exists(key)) {
       const g = this.make.graphics({ x: 0, y: 0 }, false);
       g.fillStyle(0x0b1410, 0.85).fillRect(0, 0, w + 4, h + 4);
-      g.fillStyle(0x1f3a26, 1).fillRect(2, 2, w, h);
+      const tvm = this.stageId === 'thornvale';
+      g.fillStyle(tvm ? 0x3a2a22 : 0x1f3a26, 1).fillRect(2, 2, w, h);
       if (a.solid) {
         const c = a.solid.cell * s;
-        g.fillStyle(0x6c7378, 1);
+        g.fillStyle(tvm ? 0x5a2838 : 0x6c7378, 1);
         a.solid.rows.forEach((row, cy) => {
           for (let cx = 0; cx < row.length; cx++) if (row[cx] === '#') g.fillRect(2 + cx * c, 2 + cy * c, Math.max(1, c), Math.max(1, c));
         });
       }
+      // 毒沼（D-114）：小地圖上的亮綠點
+      for (const hz of STAGES[this.stageId]?.hazards ?? []) g.fillStyle(0x8adf4a, 0.9).fillCircle(2 + hz.x * s, 2 + hz.y * s, Math.max(2, hz.r * s));
       g.lineStyle(2, 0x5a8a60, 1).strokeRect(1, 1, w + 2, h + 2);
       g.generateTexture(key, w + 4, h + 4);
       g.destroy();
