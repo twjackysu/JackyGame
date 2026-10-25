@@ -214,6 +214,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 110, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)' }).setPadding(12, 3, 12, 3).setOrigin(0.5).setDepth(49) : null;
     this.makeButtons();
     this.makeMinimap();
+    this.makeFireBtn();
     this.menu = null;
     // 右上角選單（手機上不用改網址就能換關、重來、看 Bot 示範）
     const mb = this.add.text(GAME_WIDTH - 44, 40, '☰', { fontFamily: UI_FONT, fontSize: '40px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49).setInteractive({ useHandCursor: true });
@@ -277,6 +278,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.editing) return this.editDown(p);
     if (this.ended || this.menu) return;
     if (p.y < VIEW_TOP && p.x > GAME_WIDTH - 100) return; // 選單鍵
+    if (this.fireBtn?.visible && this.fireBtn.getBounds().contains(p.x, p.y)) return; // 營火捷徑
     if (this.hint) this.dismissHint();
     for (let i = 0; i < BTN_COUNT; i++) {
       const b = this.btnPos(i);
@@ -424,6 +426,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.draw();
     this.idleHint();
     this.zoneBanner();
+    this.updateFireBtn();
     this.chestHint();
     this.streakHint();
     if (this.s.tick % (10 * TICKS_PER_SEC) === 0) this.persist();
@@ -479,13 +482,38 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
   private gearTipShown = false;
+  /** 營火旁的「行囊・強化」捷徑（D-093） */
+  private fireBtn: Phaser.GameObjects.Text | null = null;
+
+  private makeFireBtn(): void {
+    this.fireBtn = null;
+    if (!this.tracked) return;
+    const b = this.add.text(GAME_WIDTH / 2, 960, '行囊・強化', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      if (this.menu || this.editing || this.ended) return;
+      SFX.uiTap();
+      this.stick = null;
+      this.openBag(false);
+    });
+    this.fireBtn = b;
+  }
+
+  private updateFireBtn(): void {
+    const b = this.fireBtn;
+    if (!b) return;
+    const p = playerOf(this.s);
+    const near = !p.dead && (STAGES[this.stageId]?.campfires ?? []).some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
+    const up = near && this.bagSt.bag.some((g) => isUpgrade(this.bagSt, g));
+    b.setVisible(near && !this.menu).setText(up ? '行囊・強化 ▲' : '行囊・強化');
+  }
 
   private saveBag(): void {
     const rec = loadRecord(this.stageId);
     saveRecord(this.stageId, { ...rec, bag: this.bagSt.bag, equip: this.bagSt.equip });
   }
 
-  private openBag(): void {
+  private openBag(fromMenu = true): void {
     this.persist(); // 這場剛撿的材料先算進錢包
     this.menu?.destroy();
     this.menu = openRtBagPanel(
@@ -503,7 +531,8 @@ export class RtBattleScene extends Phaser.Scene {
       () => {
         this.menu?.destroy();
         this.menu = null;
-        this.toggleMenu();
+        if (fromMenu) this.toggleMenu();
+        else this.acc = 0;
       },
       {
         wallet: () => walletOf(loadRecord(this.stageId)),

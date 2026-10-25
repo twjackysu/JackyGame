@@ -126,7 +126,7 @@ export function makeMistwoodStage(): StageDefinition {
     },
     progression: { xp: { wolf: 5, wolf_pup: 3, thorn_shooter: 6, alpha_wolf: 25, wolf_king: 150 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
-    intro: '往北穿過森林，打倒霧角狼王！\n撿到裝備 ☰ 行囊換上・營火旁可以強化',
+    intro: '往北穿過森林，打倒霧角狼王！\n撿到裝備去行囊換上・營火旁可以強化',
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
     bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13), respawnTicks: sec(60) },
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...MISTWOOD_ROWS] } },
