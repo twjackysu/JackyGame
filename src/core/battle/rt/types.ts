@@ -229,6 +229,8 @@ export interface Unit {
   /** 進入戰鬥的 tick（同時追擊上限的排隊順序：先醒的先打） */
   aggroTick?: number;
   tier?: AggroTier;
+  /** 仇恨半徑（單位）另外指定，蓋過 AGGRO_RULES[tier].aggro（例：不會動的荊棘母樹縮小，避免路過就被拉住） */
+  aggroUnits?: number;
   homeX?: number;
   homeY?: number;
   /** 最後一次「在仇恨範圍內或有交手」的 tick */
@@ -242,6 +244,8 @@ export const AGGRO_RULES: Record<AggroTier, { aggro: number; chase: number; wait
   elite: { aggro: 7, chase: 16, waitSec: 5 },
   boss: { aggro: 10, chase: 40, waitSec: 8 },
 };
+/** 這隻怪的仇恨半徑（單位）：aggroUnits 優先，否則看 tier */
+export const aggroUnitsOf = (u: { tier?: AggroTier; aggroUnits?: number }): number => u.aggroUnits ?? AGGRO_RULES[u.tier ?? 'normal'].aggro;
 
 /**
  * 地圖怪的效能與公平上限（design/20 B1）：
@@ -336,6 +340,8 @@ export interface SpawnGroup {
   maxAlive: number;
   respawnTicks: number;
   tier?: AggroTier;
+  /** 仇恨半徑（單位）另外指定，蓋過 AGGRO_RULES[tier].aggro（例：不會動的荊棘母樹縮小，避免路過就被拉住） */
+  aggroUnits?: number;
   /** 區域難度：這組怪 HP／攻擊 +這麼多 %（深處比入口強；可與 rampPctPerMin 相加）。沒設＝0 */
   hpPct?: number;
   atkPct?: number;

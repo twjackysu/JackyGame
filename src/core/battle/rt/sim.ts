@@ -1,8 +1,8 @@
 // 控制器、無畫面模擬器與統計（design/19 §7、D-063 P2）。
 // 控制器只讀 BattleState、回傳 BattleCommand；同種子＋同控制器＝同結果（stateHash 驗證）。
-import { SKILLS, STAGES } from './data';
+import { ENEMIES, SKILLS, STAGES } from './data';
 import { createBattle, dist, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
-import { AGGRO_RULES, CAMPFIRE_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
+import { aggroUnitsOf, CAMPFIRE_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
 
 export interface BattleController {
   readonly name: string;
@@ -46,6 +46,8 @@ export interface BotSkill {
    * 前面沒有怪了才照原本規則挑；沒設＝原本行為（只挑最近／最安全的）。
    */
   advanceTo?: { x: number; y: number };
+  /** 有 advanceTo 時也順路去打不會動的世界精英（荊棘母樹）拿經驗；沒設＝繞過（D-111） */
+  huntStationary?: boolean;
 }
 
 export const BOT_PROFILES: Record<'auto' | 'novice' | 'normal' | 'expert', BotSkill> = {
@@ -93,7 +95,7 @@ export function pullRisk(s: BattleState, e: U): { group: number; extra: number }
   let extra = 0;
   for (const o of sleeping) {
     if (group.has(o)) continue;
-    const r = AGGRO_RULES[o.tier ?? 'normal'].aggro * UNIT + p.r;
+    const r = aggroUnitsOf(o) * UNIT + p.r;
     if (segDist(o.x, o.y, p.x, p.y, e.x, e.y) <= r) {
       extra++;
       continue;
@@ -114,11 +116,15 @@ function segDist(px: number, py: number, ax: number, ay: number, bx: number, by:
   return dist(px, py, ax + t * vx, ay + t * vy);
 }
 
-export function safestPull(s: BattleState, advanceTo?: { x: number; y: number }): U | undefined {
+export function safestPull(s: BattleState, advanceTo?: { x: number; y: number }, huntStationary = false): U | undefined {
   const p = playerOf(s);
   let best: U | undefined;
   let key: [number, number, number] | undefined;
   let pool = sleepingOf(s);
+  if (advanceTo && !huntStationary) {
+    // 不會動的世界精英（荊棘母樹，speed 0）追不上來：不是目的地本身就不去拉（D-111）
+    pool = pool.filter((e) => (ENEMIES[e.defId]?.speed ?? 1) > 0 || dist(e.x, e.y, advanceTo.x, advanceTo.y) <= 3 * UNIT);
+  }
   if (advanceTo) {
     const ahead = pool.filter((e) => dist(e.x, e.y, advanceTo.x, advanceTo.y) <= dist(p.x, p.y, advanceTo.x, advanceTo.y) + 2 * UNIT);
     if (ahead.length) pool = ahead;
@@ -163,7 +169,7 @@ export class PlayerBot implements BattleController {
       const want = this.prof.restUntilPct ?? 0;
       const tgt = s.units.find((e) => e.id === p.targetId);
       if (p.hp * 100 >= p.maxHp * want && (!tgt || tgt.dead || !sleeping(tgt))) {
-        const best = this.prof.safePull ? safestPull(s, this.prof.advanceTo) : nearestSleeping(s);
+        const best = this.prof.safePull ? safestPull(s, this.prof.advanceTo, this.prof.huntStationary) : nearestSleeping(s);
         if (best) return [{ type: 'target', id: best.id }];
       }
       if (p.hp * 100 < p.maxHp * want) return [{ type: 'stop' }];

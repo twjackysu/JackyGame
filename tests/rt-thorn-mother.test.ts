@@ -5,7 +5,8 @@ import { createBattle, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
 import { validateStage } from '../src/core/battle/rt/maps/validate';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
-import { sec } from '../src/core/battle/rt/types';
+import { MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
+import { aggroUnitsOf, sec, UNIT } from '../src/core/battle/rt/types';
 
 const out = (s: string) => (globalThis as unknown as { process: { stdout: { write: (x: string) => void } } }).process.stdout.write(s);
 
@@ -61,4 +62,38 @@ describe('荊棘母樹（D-107）', () => {
       expect(gear).toBeGreaterThanOrEqual(2);
     }, 120000);
   }
+
+  it('仇恨半徑縮成 5 格（D-111）：站 6 格外不醒、4 格內會醒', () => {
+    // 四個方向有的被樹擋住視線，看「至少一個方向會醒」與「6 格外都不醒」
+    const woke = (d: number) => {
+      let n = 0;
+      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+        const s = createBattle({ stageId: 'mistwood', seed: 1 });
+        step(s, []);
+        const m = s.units.find((u) => u.defId === 'thorn_mother')!;
+        expect(aggroUnitsOf(m)).toBe(5);
+        const p = s.units[0]!;
+        p.x = m.x + dx * d * UNIT;
+        p.y = m.y + dy * d * UNIT;
+        for (let i = 0; i < 12; i++) step(s, []);
+        if (m.mode === 'combat') n++;
+      }
+      return n;
+    };
+    expect(woke(6)).toBe(0);
+    expect(woke(4)).toBeGreaterThan(0);
+  });
+
+  it('往狼王推進的 Bot 預設繞過母樹；huntStationary 才會去打（D-111）', () => {
+    for (const hunt of [false, true]) {
+      const s = createBattle({ stageId: 'mistwood', seed: 2 });
+      const bot = new PlayerBot({ ...BOT_PROFILES.expert, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING, huntStationary: hunt }, 'expert');
+      let fought = false;
+      while (s.tick < sec(150) && !fought) {
+        step(s, bot.decide(s));
+        fought = s.units.some((u) => u.defId === 'thorn_mother' && u.mode === 'combat');
+      }
+      expect(fought).toBe(hunt);
+    }
+  }, 120000);
 });

@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillHit, SkillMod, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, CAMPFIRE_RULES, CHEST_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -218,6 +218,7 @@ function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Un
   if (s.arena.solid) pushOutSolid(s.arena.solid, m);
   m.mode = 'idle';
   m.tier = g.tier ?? (def.boss ? 'boss' : 'normal');
+  if (g.aggroUnits !== undefined) m.aggroUnits = g.aggroUnits;
   m.homeX = m.x;
   m.homeY = m.y;
   m.engagedTick = s.tick;
@@ -1086,10 +1087,11 @@ function aggro(s: BattleState, e: Unit): void {
 /** 回傳 true＝這個 tick 由地圖行為處理完（不跑戰鬥 AI） */
 function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
   const rule = AGGRO_RULES[e.tier ?? 'normal'];
+  const aggroR = aggroUnitsOf(e);
   const hx = e.homeX ?? e.x;
   const hy = e.homeY ?? e.y;
   if (e.mode === 'idle') {
-    if (!p.dead && (s.tick + e.id) % 6 === 0 && !inSafeZone(s, p) && dist(e.x, e.y, p.x, p.y) <= rule.aggro * UNIT + p.r && hasSight(s, e, p)) aggro(s, e);
+    if (!p.dead && (s.tick + e.id) % 6 === 0 && !inSafeZone(s, p) && dist(e.x, e.y, p.x, p.y) <= aggroR * UNIT + p.r && hasSight(s, e, p)) aggro(s, e);
     return e.mode === 'idle';
   }
   if (e.mode === 'returning') {
@@ -1112,7 +1114,7 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
     return true;
   }
   // 戰鬥中：在仇恨範圍內就算還在交手
-  if (dist(e.x, e.y, p.x, p.y) <= rule.aggro * UNIT + p.r) e.engagedTick = s.tick;
+  if (dist(e.x, e.y, p.x, p.y) <= aggroR * UNIT + p.r) e.engagedTick = s.tick;
   const tooFar = dist(e.x, e.y, hx, hy) > rule.chase * UNIT;
   const bored = s.tick - (e.engagedTick ?? s.tick) > rule.waitSec * TICKS_PER_SEC;
   if (!e.action && (tooFar || bored || p.dead || inSafeZone(s, p))) {

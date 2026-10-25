@@ -25,9 +25,10 @@ describe('霧語森林', () => {
   });
 
   for (const [name, seed, limitSec] of [['novice', 1, 900], ['normal', 1, 480], ['expert', 2, 480]] as const) {
+    // 新手／普通 Bot 順路打荊棘母樹拿經驗（120 經驗，像多數真人會先去刷），熟練 Bot 繞過去直衝狼王（D-111）
     it(`${name} Bot 從南營地出發，${limitSec / 60} 分鐘內打倒狼王、沒有單位卡進樹裡`, () => {
       const s = createBattle({ stageId: 'mistwood', seed });
-      const bot = new PlayerBot({ ...BOT_PROFILES[name], ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, name);
+      const bot = new PlayerBot({ ...BOT_PROFILES[name], ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING, ...(name !== 'expert' ? { huntStationary: true } : {}) }, name);
       let kills = 0;
       let inSolid = 0;
       while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(limitSec)) {

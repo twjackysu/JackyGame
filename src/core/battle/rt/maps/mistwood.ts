@@ -168,7 +168,7 @@ export function makeMistwoodStage(): StageDefinition {
       // 霧影狼（D-104）：只在深夜出現，在森林入口東側遊蕩（離南營地不遠，深夜一進來就看得到目標）
       { id: 'night_shade', enemyId: 'shade_wolf', cx: c(40), cy: c(80), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(150), tier: 'elite', lootPct: 100, nightOnly: true },
       // 荊棘母樹（D-107）：精英狼群區東側、不會動；4 分鐘重生，必掉兩件精良以上
-      { id: 'thorn_mother', enemyId: 'thorn_mother', cx: c(41), cy: c(40), spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(240), tier: 'elite' },
+      { id: 'thorn_mother', enemyId: 'thorn_mother', cx: c(41), cy: c(40), spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(240), tier: 'elite', aggroUnits: 5 },
       { id: 'elite_pack', enemyId: 'wolf', cx: c(21), cy: c(33), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 100, atkPct: 50, lootPct: 100 },
     ],
   };
