@@ -128,7 +128,8 @@ export function makeMistwoodStage(): StageDefinition {
     viewUnits: 1300,
     intro: '往北穿過森林，打倒霧角狼王！\n撿到裝備去行囊換上・營火旁可以強化',
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
-    bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13), respawnTicks: sec(60) },
+    // 暴怒版（D-099）：Lv8 或討伐 3 次後在 ☰ 開啟；HP +150%、攻擊 +150%、招式冷卻 −25%、掉 3 件、物品等級 +3、稀有 70%
+    bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13), respawnTicks: sec(60), fury: { hpPct: 150, atkPct: 150, cdPct: 25, ilvlPlus: 3, rarity: [0, 30, 70], count: 3 } },
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...MISTWOOD_ROWS] } },
     // 狼群暴動（design/20 B2）：5～8 分鐘一次、5～8 隻、25% 混狼群首領、掉落 +100%
     riot: { everyTicks: [sec(300), sec(480)], count: [5, 8], enemyId: 'wolf', eliteId: 'alpha_wolf', eliteChance: 25, hpPct: 30, lootPct: 100 },

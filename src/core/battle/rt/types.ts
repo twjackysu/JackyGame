@@ -218,6 +218,8 @@ export interface Unit {
   groupId?: string;
   /** 固定敵人在 StageDefinition.enemies 的索引（Boss 再挑戰重生用） */
   fixedIdx?: number;
+  /** 暴怒版 Boss（bossZone.fury，D-099） */
+  fury?: boolean;
   /** 進入戰鬥的 tick（同時追擊上限的排隊順序：先醒的先打） */
   aggroTick?: number;
   tier?: AggroTier;
@@ -260,6 +262,8 @@ export type BattleEvent =
   | { tick: number; type: 'damage'; src: number; dst: number; amount: number; crit: boolean; origin: 'normal' | 'skill' | 'counter' | 'enemy' | 'dot'; skill: string; absorbed?: number }
   | { tick: number; type: 'death'; id: number }
   | { tick: number; type: 'respawn'; id: number; group: string }
+  /** 暴怒版開關讓待機的 Boss 換成新單位（old＝被移除的舊單位） */
+  | { tick: number; type: 'fury'; id: number; old: number; on: boolean }
   | { tick: number; type: 'hiddenElite'; id: number }
   | { tick: number; type: 'riot'; count: number; elite: boolean; x: number; y: number }
   | { tick: number; type: 'chest'; chest: string; loot: Partial<Record<LootId, number>> }
@@ -385,7 +389,14 @@ export interface StageDefinition {
    * 回到原位時整場重置（回滿、回第一階段、召喚物消失）。倒下在營火醒來也會重置。
    * respawnTicks：Boss 被打倒後至少過這麼久、而且玩家在區域外，Boss 就回到巢穴（離開再進來可再挑戰；design/20 B2）。沒設＝不重生。
    */
-  bossZone?: { x: number; y: number; r: number; respawnTicks?: number };
+  bossZone?: {
+    x: number; y: number; r: number; respawnTicks?: number;
+    /**
+     * 暴怒版（P5 高難度，D-099）：玩家用 setBossFury 開啟後，下一次出現的 Boss 變成暴怒版。
+     * HP／攻擊再 +%、招式冷卻 −cdPct%；掉落物品等級 +ilvlPlus、稀有度權重與件數換成這組。
+     */
+    fury?: { hpPct: number; atkPct: number; cdPct: number; ilvlPlus: number; rarity: [number, number, number]; count: number };
+  };
   /** 開啟地面掉落與自動撿取（用獨立亂數，不影響戰鬥結果） */
   loot?: boolean;
   /**
@@ -496,6 +507,10 @@ export interface BattleState {
   revives?: number;
   /** Boss 再挑戰（bossZone.respawnTicks）：倒下的固定 Boss 索引與最早可重生的 tick；玩家在巢穴外才生 */
   bossRespawn?: { idx: number; at: number };
+  /** 玩家選了暴怒版 Boss（bossZone.fury）；下一次出現的 Boss 生效 */
+  bossFury?: boolean;
+  /** 打倒暴怒版的次數（這場） */
+  furyKills?: number;
   /** 重生排程：重生點 id → 到期 tick（遞增排序） */
   respawnAt?: Record<string, number[]>;
 }

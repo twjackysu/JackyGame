@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type RtControls, DEFAULT_KEYS, JOY_INDEX, buttonPos, buttonR, defaultControls, inStickZone, keyName, rebind, sanitize, setLeftHand, swapSlots } from '../src/game/rtControls';
-import { EMPTY_SNAP, mergeRun, recordBoss } from '../src/game/rtRecord';
+import { EMPTY_SNAP, furyUnlocked, mergeRun, recordBoss } from '../src/game/rtRecord';
 
 describe('即時戰鬥操作設定（D-088）', () => {
   it('預設位置與舊版相同（右手）', () => {
@@ -68,5 +68,17 @@ describe('大地圖獨立紀錄（D-087）', () => {
     const c = recordBoss(b.rec, null, 3);
     expect(c.rec.bestBossSec).toBe(250);
     expect(c.best).toBe(false);
+  });
+});
+
+describe('暴怒狼王紀錄（D-099）', () => {
+  it('Lv8 或討伐 3 次解鎖；暴怒討伐另外計數', () => {
+    expect(furyUnlocked({}, 7)).toBe(false);
+    expect(furyUnlocked({}, 8)).toBe(true);
+    expect(furyUnlocked({ bossKills: 3 }, 1)).toBe(true);
+    const r = recordBoss({ bossKills: 3 }, 100, 1, true).rec;
+    expect(r.bossKills).toBe(4);
+    expect(r.furyKills).toBe(1);
+    expect(recordBoss(r, 90, 2).rec.furyKills).toBe(1);
   });
 });

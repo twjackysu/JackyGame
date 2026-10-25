@@ -155,7 +155,33 @@ function makeFixed(s: BattleState, stage: StageDefinition, idx: number): Unit {
     m.engagedTick = s.tick;
   }
   if (stage.bossZone?.respawnTicks) m.fixedIdx = idx;
+  const fury = stage.bossZone?.fury;
+  if (fury && s.bossFury && def.boss) {
+    m.fury = true;
+    m.hp = m.maxHp = Math.round((m.maxHp * (100 + fury.hpPct)) / 100);
+    m.atk = Math.round((m.atk * (100 + fury.atkPct)) / 100);
+  }
   return m;
+}
+
+/**
+ * 開／關暴怒版 Boss（D-099）。Boss 正在巢穴待機而且滿血 → 立刻換成新版本；
+ * 交戰中或已倒下 → 下一次出現才生效。關卡沒有 bossZone.fury 就不做事。回傳是否立刻換掉。
+ */
+export function setBossFury(s: BattleState, on: boolean): boolean {
+  const stage = STAGES[s.stageId];
+  if (!stage?.bossZone?.fury) return false;
+  if (on) s.bossFury = true;
+  else delete s.bossFury;
+  const i = s.units.findIndex((u) => !u.dead && u.fixedIdx !== undefined && !!ENEMIES[u.defId]?.boss && u.mode === 'idle' && u.hp >= u.maxHp && !!u.fury !== on);
+  if (i < 0) return false;
+  const old = s.units[i]!;
+  const m = makeFixed(s, stage, old.fixedIdx!);
+  s.units.splice(i, 1, m);
+  s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== old.id);
+  for (const x of s.units) if (x.summonedBy === old.id) x.dead = true;
+  emit(s, { tick: s.tick, type: 'fury', id: m.id, old: old.id, on });
+  return true;
 }
 
 /** Boss 再挑戰：時間到而且玩家在巢穴外 → Boss 回到原位（新單位，舊屍體移除） */
@@ -260,11 +286,12 @@ function rollDrops(s: BattleState, e: Unit): void {
   const gd = st?.gearDrops?.[e.defId];
   if (gd) {
     const hpPct = e.groupId ? (st?.spawnGroups?.find((g) => g.id === e.groupId)?.hpPct ?? (e.groupId === HIDDEN_GROUP ? 100 : 0)) : e.fixedIdx !== undefined ? (st?.enemies[e.fixedIdx]?.hpPct ?? 0) : 0;
-    const ilvl = gd.ilvl + Math.floor(hpPct / 25);
+    const fury = e.fury ? st?.bossZone?.fury : undefined;
+    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0);
     const first = !!gd.firstRare && !(s.bossKills ?? []).includes(e.defId);
-    for (let k = 0; k < (gd.count ?? 1); k++) {
+    for (let k = 0; k < (fury?.count ?? gd.count ?? 1); k++) {
       if (lootRand(s) * 100 >= (gd.chance * (100 + bonus)) / 100) continue;
-      const w = gd.rarity;
+      const w = fury?.rarity ?? gd.rarity;
       const t = lootRand(s) * (w[0] + w[1] + w[2]);
       put('gear', ilvl, first && k === 0 ? 3 : t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3);
     }
@@ -612,6 +639,7 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     if (s.ground && dst.side === 'enemy' && !dst.summonedBy) rollDrops(s, dst);
     if (s.prog && dst.side === 'enemy') gainXp(s, dst);
     if (dst.mode && ENEMIES[dst.defId]?.boss && !(s.bossKills ??= []).includes(dst.defId)) s.bossKills.push(dst.defId);
+    if (dst.fury) s.furyKills = (s.furyKills ?? 0) + 1;
     const rt = STAGES[s.stageId]?.bossZone?.respawnTicks;
     if (rt && dst.fixedIdx !== undefined) s.bossRespawn = { idx: dst.fixedIdx, at: s.tick + rt };
   }
@@ -1240,7 +1268,8 @@ function updateEnemy(s: BattleState, e: Unit): void {
     const atk = pickAttack(s, e, def, d, p);
     if (atk) {
       face(e, p);
-      const cd = e.phase === 2 && def.boss ? Math.round((atk.cooldownTicks * def.boss.phase2CooldownPct) / 100) : atk.cooldownTicks;
+      let cd = e.phase === 2 && def.boss ? Math.round((atk.cooldownTicks * def.boss.phase2CooldownPct) / 100) : atk.cooldownTicks;
+      if (e.fury) cd = Math.round((cd * (100 - (STAGES[s.stageId]?.bossZone?.fury?.cdPct ?? 0))) / 100);
       e.ready[atk.id] = s.tick + cd;
       e.nextAttackTick = s.tick + atk.warningTicks + atk.recoverTicks + (atk.charge?.ticks ?? 0);
       e.action = { kind: 'enemyAttack', id: atk.id, start: s.tick, end: s.tick + atk.warningTicks + atk.recoverTicks, dirX: e.facingX, dirY: e.facingY, ox: e.x, oy: e.y, hitIds: [] };
@@ -1322,6 +1351,10 @@ export function stateHash(s: BattleState): string {
     // 只有用到點地移動時才加入（舊紀錄的雜湊不變）
     mix(s.moveGoal.x);
     mix(s.moveGoal.y);
+  }
+  if (s.bossFury || s.furyKills) {
+    // 只有用到暴怒版時才加入
+    mix(1 + (s.furyKills ?? 0));
   }
   if (s.campfireId || s.revives) {
     // 只有用到營火時才加入

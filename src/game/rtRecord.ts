@@ -27,6 +27,9 @@ export interface RtRecord {
   /** 行囊與身上裝備（D-091） */
   bag?: RtGear[];
   equip?: Partial<Record<GearSlot, RtGear>>;
+  /** 狼王暴怒版（D-099）：玩家的選擇（解鎖後才有效）與討伐次數 */
+  fury?: boolean;
+  furyKills?: number;
   /** 強化花掉的材料（累計撿到 − 花掉 ＝ 手上有的；分解得到的粉塵記成負的花費） */
   spent?: { dust?: number; crystal?: number };
 }
@@ -82,15 +85,22 @@ export function mergeRun(rec: RtRecord, prev: RunSnap, now: RunSnap): RtRecord {
 }
 
 /** 討伐 Boss：次數 +1、首殺時間、最快紀錄（只有這場第一次討伐才算時間） */
-export function recordBoss(rec: RtRecord, sec: number | null, at: number): { rec: RtRecord; first: boolean; best: boolean } {
+export function recordBoss(rec: RtRecord, sec: number | null, at: number, fury = false): { rec: RtRecord; first: boolean; best: boolean } {
   const first = !rec.bossKills;
   const out: RtRecord = { ...rec, bossKills: (rec.bossKills ?? 0) + 1, firstAt: rec.firstAt ?? at };
+  if (fury) out.furyKills = (rec.furyKills ?? 0) + 1;
   let best = false;
   if (sec !== null && (rec.bestBossSec === undefined || sec < rec.bestBossSec)) {
     out.bestBossSec = Math.round(sec);
     best = rec.bestBossSec !== undefined;
   }
   return { rec: out, first, best };
+}
+
+/** 暴怒狼王解鎖條件（D-099）：Lv8 以上或狼王討伐 3 次 */
+export const FURY_UNLOCK = { level: 8, kills: 3 } as const;
+export function furyUnlocked(rec: RtRecord, level: number): boolean {
+  return level >= FURY_UNLOCK.level || (rec.bossKills ?? 0) >= FURY_UNLOCK.kills;
 }
 
 export function loadRecord(stage: string): RtRecord {

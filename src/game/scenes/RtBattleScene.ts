@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { createBattle, enemiesOf, isSolidAt, playerOf, setGearBonus, setSkillMods, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
+import { createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { BAG_MAX, bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { skillModsOf } from '../rtBag';
@@ -17,7 +17,7 @@ import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mist
 import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
-import { EMPTY_SNAP, cleanBag, fmtSec, loadRecord, mergeRun, recordBoss, saveRecord, spend, walletOf, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, mergeRun, recordBoss, saveRecord, spend, walletOf, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -165,6 +165,8 @@ export class RtBattleScene extends Phaser.Scene {
       const valid = new Set((STAGES[this.stageId]?.chests ?? []).map((c) => c.id));
       const opened = (rec.chests ?? []).filter((id) => valid.has(id));
       if (opened.length) this.s.chestsOpened = [...opened];
+      // 暴怒狼王（D-099）：上次選了而且已解鎖 → 這次進森林的狼王就是暴怒版
+      if (rec.fury && furyUnlocked(rec, this.s.prog?.level ?? 1)) setBossFury(this.s, true);
       this.saved = { ...EMPTY_SNAP, chests: [...opened] };
       saveRecord(this.stageId, { ...rec, runs: (rec.runs ?? 0) + 1 });
       const onHide = (): void => {
@@ -659,7 +661,7 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 地圖上的 Boss 倒下（刷怪地圖不會因此結束）：金色閃光＋討伐大字＋首殺紀錄（獨立 localStorage，不碰主線存檔） */
-  private bossSlain(name: string): void {
+  private bossSlain(name: string, fury = false): void {
     SFX.perfect();
     this.cameras.main.flash(260, 255, 220, 140);
     this.cameras.main.shake(320, 0.01);
@@ -670,7 +672,7 @@ export class RtBattleScene extends Phaser.Scene {
     let best = false;
     const sec = this.s.tick / TICKS_PER_SEC;
     if (this.tracked) {
-      const r = recordBoss(loadRecord(this.stageId), this.bossTimed ? null : sec, Date.now());
+      const r = recordBoss(loadRecord(this.stageId), this.bossTimed ? null : sec, Date.now(), fury);
       saveRecord(this.stageId, r.rec);
       first = r.first;
       best = r.best;
@@ -680,7 +682,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bossTimed = true;
     this.time.delayedCall(300, () => bigText(this, GAME_WIDTH / 2, 440, `${name} 討伐！`, '#ffd27a', 60, 1800));
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
-    const head = first ? '首次討伐！森林安靜了一點…' : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
+    const head = first ? '首次討伐！森林安靜了一點…' : fury ? '暴怒的狼王倒下了！看看掉了什麼' : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
   }
@@ -821,6 +823,25 @@ export class RtBattleScene extends Phaser.Scene {
     return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
   }
 
+  /** 暫停選單的「狼王暴怒」開關（D-099）：沒解鎖時顯示條件 */
+  private furyButton(mk: (y: number, label: string, fn: () => void, hi?: boolean) => void, items: Phaser.GameObjects.GameObject[], y: number): void {
+    const rec = loadRecord(this.stageId);
+    const lv = this.s.prog?.level ?? 1;
+    if (!furyUnlocked(rec, lv)) {
+      items.push(this.add.text(0, y, `🔒 狼王暴怒（Lv${FURY_UNLOCK.level} 或討伐 ${FURY_UNLOCK.kills} 次解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
+      return;
+    }
+    const on = !!this.s.bossFury;
+    mk(y, on ? '🔥 狼王暴怒：開' : '狼王暴怒：關', () => {
+      const next = !on;
+      const now = setBossFury(this.s, next);
+      saveRecord(this.stageId, { ...loadRecord(this.stageId), fury: next });
+      this.toggleMenu();
+      bigText(this, GAME_WIDTH / 2, 470, next ? (now ? '狼王暴怒了！HP・攻擊大增・掉落更好' : '下一次出現的狼王會是暴怒版') : now ? '狼王恢復平靜' : '下一次出現的狼王恢復一般', next ? '#ff7a5a' : '#c8d0f0', 34, 1600);
+      if (next) SFX.warn(true);
+    }, on);
+  }
+
   private toggleMenu(): void {
     if (this.hint) this.dismissHint(); // 說明框不要壓在暫停選單上
     if (this.menu) {
@@ -865,8 +886,9 @@ export class RtBattleScene extends Phaser.Scene {
       ctlBtn(-190);
       mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
       mk(-30, '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
-      mk(50, '回標題', () => this.leave(() => this.scene.start('Title')));
-      items.push(this.recordText(130));
+      if (this.tracked && STAGES[this.stageId]?.bossZone?.fury) this.furyButton(mk, items, 50);
+      mk(this.tracked && STAGES[this.stageId]?.bossZone?.fury ? 130 : 50, '回標題', () => this.leave(() => this.scene.start('Title')));
+      items.push(this.recordText(this.tracked && STAGES[this.stageId]?.bossZone?.fury ? 210 : 130));
       this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
       return;
     }
@@ -980,7 +1002,7 @@ export class RtBattleScene extends Phaser.Scene {
           sparks(this, this.sx(d.x), this.sy(d.y), 18, 'spark', 0xffd27a, 420);
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
           this.killSprite(d.id);
-          if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(ENEMIES[d.defId]!.name);
+          if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(`${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]!.name}`, !!d.fury);
         }
       } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, '狼王暴怒！', '#ff7a5a', 52, 700);
       else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
@@ -1042,11 +1064,17 @@ export class RtBattleScene extends Phaser.Scene {
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 130, 450, 6);
       } else if (e.type === 'ramp') {
         if (e.minute < 5) bigText(this, GAME_WIDTH / 2, 470, `第 ${e.minute} 分鐘・狼群越來越兇了（+${e.pct}%）`, '#ff9a6a', 30, 1100);
+      } else if (e.type === 'fury') {
+        // 暴怒版開關：舊的 Boss 單位被換掉（文字提示由選單顯示；進森林時套用不提示）
+        this.sprites.get(e.old)?.destroy();
+        this.sprites.delete(e.old);
+        const d = u(e.id);
+        if (d) sparks(this, this.sx(d.x), this.sy(d.y), 24, 'ember', e.on ? 0xff6050 : 0x8a7aa8, 700);
       } else if (e.type === 'respawn') {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 10, 'ember', 0x8a7aa8, 500);
         if (d && e.group === 'boss') {
-          bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]?.name ?? 'Boss'}回到巢穴了・可以再挑戰`, '#ff8a7a', 34, 1400);
+          bigText(this, GAME_WIDTH / 2, 470, `${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]?.name ?? 'Boss'}回到巢穴了・可以再挑戰`, '#ff8a7a', 34, 1400);
           SFX.warn(true);
         } else if (d && d.tier === 'elite') {
           bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]?.name ?? '精英'}出現了！`, '#ffa040', 40, 900);
@@ -1329,7 +1357,7 @@ export class RtBattleScene extends Phaser.Scene {
     let sp = this.sprites.get(x.id);
     if (!sp) {
       sp = this.add.image(0, 0, cfg.key).setOrigin(0.5, 0.92);
-      const hPx = x.r * cfg.h * this.k;
+      const hPx = x.r * cfg.h * this.k * (x.fury ? 1.15 : 1);
       sp.setScale(hPx / sp.height);
       sp.setData('base', sp.scaleX);
       if (cfg.tint) sp.setTint(cfg.tint);
@@ -1468,6 +1496,7 @@ export class RtBattleScene extends Phaser.Scene {
         sp.setAlpha(inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' || x.mode === 'dormant' ? 0.85 : 1);
         if ((this.flashUntil.get(x.id) ?? 0) > now) sp.setTintFill(0xffffff);
         else if (winding) sp.setTint(Math.floor(now / 90) % 2 ? 0xff9a9a : 0xffffff);
+        else if (x.fury) sp.setTint(Math.floor(now / 500) % 2 ? 0xff6050 : 0xff8a70); // 暴怒版：紅色脈動
         else if (cfg.tint) sp.setTint(cfg.tint);
         else sp.clearTint();
         headY = sp.y - sp.displayHeight * 0.92;
