@@ -1,7 +1,7 @@
 # 美術需求清單（給 Jacky 回國後的本機 Agent 用 GPT／Gemini 產圖）
 
 > **這是唯一的美術需求佇列。** 開發迴圈需要 AI 繪圖時，只在這裡新增項目，不要另開檔案。Jacky 的本機 Agent 會照這份清單產圖。
-> **目前沒有待產的項目**（10/25 第 18 輪整理，D-095）：Jacky 回國前不用產任何圖。之後開發迴圈若真的需要新圖，才在「需求清單」新增。
+> **待產 1 項（P2，可有可無）**：R-012 荊棘母樹（第 20 輪新增）。Jacky 回國前不用產圖；遊戲已用程式備援（荊棘射手圖放大＋綠色＋程式畫的荊棘根）。
 
 ## 規則（開發迴圈必讀）
 1. **額度有限，總量上限：GPT 8 張、Gemini 12 張（整個專案）。** 目前已排定的數量寫在下方「額度統計」，新增前先確認不會超過。
@@ -35,11 +35,16 @@
   `Style: polished fantasy RPG game asset sheet, top-down 3/4 view (classic JRPG perspective) for map objects / front view for item icons, painterly anime style, soft lighting, each object centered in its own equal grid cell with generous empty margin, objects do not touch or overlap cell borders, solid pure green #00FF00 background, no grid lines, no text, no watermark.`
 
 ## 額度統計（已用的照算）
-- GPT：已用 4／8（剩 4）
+- GPT：已用 4／8；已排定 1（R-012）→ 剩 3
 - Gemini：已用 5／12（剩 7）
 
 ## 需求清單（待產）
-（目前沒有）
+
+### R-012 `enemy_thorn_mother.png`（GPT，P2）
+- **用途**：霧語森林的世界精英「荊棘母樹」（D-107），不會動、體型約狼王的 1.3 倍。畫面高約 2.6 格。
+- **目前備援**：`enemy_thorn_shroom` 放大＋綠色調＋程式畫的荊棘根（`RtBattleScene` 的 `SPRITE.thorn_mother`）。圖匯入後把 `SPRITE.thorn_mother.key` 改成 `enemy_thorn_mother`、拿掉 tint。
+- **prompt**：`A colossal ancient thorn tree spirit, the "Thorn Mother", rooted in place: gnarled dark trunk with a faintly glowing green core like a heart, a crown of twisting bramble branches with long purple-tipped thorns, roots spreading outward like grasping hands, a few pale blossoms and drifting spores, menacing but beautiful, slightly chibi proportions to match a mobile action RPG, seen from the front at a slight top-down angle.` ＋ 共同風格（角色、敵人）
+- **狀態**：待產
 
 ## 已完成
 - R-001～R-009 與第一批角色立繪都已產過（prompt 見 git 歷史）。舊主線刪除後（D-097），遊戲只用到其中 5 張：`bg_title_keyart`（R-004）、`enemy_boss_wolfking`（R-001）、`enemy_mist_wolf`、`enemy_thorn_shroom`（R-009）、`hero_lian`（第一批 Q 版）；其餘已從 `public/art/` 刪除。
