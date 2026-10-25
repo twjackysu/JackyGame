@@ -8,9 +8,10 @@
 - **D-099 暴怒狼王**：`bossZone.fury`＋`setBossFury`（待機滿血立刻換、否則下次出現）；霧語森林 HP／攻擊 +150%、招式冷卻 −25%、掉 3 件（物品等級 +3、稀有 70%）。Lv8 或討伐 3 次解鎖，☰「狼王暴怒：開／關」（記住選擇）、第一次達成條件有大字提示；紅色脈動、體型 +15%、討伐演出與 `furyKills`。
 - **D-100 掉落手感**：行囊滿了自動分解最差的普通裝；地上精良以上裝備在小地圖與畫面邊緣閃爍；小地圖加狼王巢穴記號（暴怒時紅）與開過的寶箱；隱藏精英掉落物品等級 +2、稀有權重 ×2。
 - **D-101 裝備圖示**：`src/game/fx/gearIcons.ts` 程式繪製六部位剪影＋稀有度上色與底光；行囊格子、清單、詳情卡、撿到時頭上飄起。
+- **D-102**：強化 +7／+10 讓稀有特效 ×1.25／×1.5（格擋 +1／+2 ticks）。
 - 暫停選單打開時收掉畫面上的大字（開場說明不再疊在選單上）；暫停選單紀錄顯示暴怒討伐次數。
 
-**驗證**：每次提交前 build＋`npx vitest run`（118 → **125 項**；新增 `tests/rt-p5.test.ts`，`rt-gear` 加參數型特效與自動分解、`rt-controls` 加暴怒紀錄）。**核心改了三次（SkillMod、暴怒、隱藏精英掉落），每次都跑舊七關＋測試大地圖＋霧語森林 × 3 種子 × 3 Bot 共 80 場 stateHash，和本輪開頭相同**（範本：`tests/zz-hash.test.ts` 不進 git——`STAGES.mistwood = makeMistwoodStage(); STAGES.test_world = makeTestWorldStage();`，每關 × 種子 1–3 × novice／normal／expert，`PlayerBot({...BOT_PROFILES[b], ult: true, potionAtPct: 35, 霧語森林再加 advanceTo: MISTWOOD_KING, campfireBelowPotions: 8})`，跑到結束或 400 秒（test_world 120、mistwood 300），寫 `id seed bot tick stateHash` 到 `HASH_OUT` 檔，`git stash push -- src` 前後各跑一次 diff）。Playwright（390×844）：暴怒版進森林就是紅色狼王（maxHp 21000）、暫停選單開關、行囊圖示與詳情卡、地上稀有裝備的邊緣提示、撿裝備，皆無頁面錯誤。
+**驗證**：每次提交前 build＋`npx vitest run`（118 → **126 項**；新增 `tests/rt-p5.test.ts`，`rt-gear` 加參數型特效與自動分解、`rt-controls` 加暴怒紀錄）。**核心改了三次（SkillMod、暴怒、隱藏精英掉落），每次都跑舊七關＋測試大地圖＋霧語森林 × 3 種子 × 3 Bot 共 80 場 stateHash，和本輪開頭相同**（範本：`tests/zz-hash.test.ts` 不進 git——`STAGES.mistwood = makeMistwoodStage(); STAGES.test_world = makeTestWorldStage();`，每關 × 種子 1–3 × novice／normal／expert，`PlayerBot({...BOT_PROFILES[b], ult: true, potionAtPct: 35, 霧語森林再加 advanceTo: MISTWOOD_KING, campfireBelowPotions: 8})`，跑到結束或 400 秒（test_world 120、mistwood 300），寫 `id seed bot tick stateHash` 到 `HASH_OUT` 檔，`git stash push -- src` 前後各跑一次 diff）。Playwright（390×844）：暴怒版進森林就是紅色狼王（maxHp 21000）、暫停選單開關、行囊圖示與詳情卡、地上稀有裝備的邊緣提示、撿裝備，皆無頁面錯誤。
 
 **數據**（`tests/rt-p5.test.ts`：普通 Bot 刷 60 分鐘 → Lv8、56 件、稀有 18，每件當 +3；每格挑該配裝偏好的最佳）：
 | 配裝 | 加成（HP／攻擊／防禦） | 一般狼王（交戰秒） | 暴怒（普通 Bot） | 暴怒（新手 Bot） |

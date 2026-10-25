@@ -241,3 +241,15 @@ describe('行囊滿了自動分解（D-100）', () => {
     expect(addWithAutoSalvage({ bag: [], equip: {} }, got)!.salvaged).toBeNull();
   });
 });
+
+describe('強化讓特效變強（D-102）', () => {
+  it('+7 起 ×1.25、+10 ×1.5；格擋判定 +1／+2 ticks', async () => {
+    const { gearSkillMods, specialOf } = await import('../src/core/battle/rt/gear');
+    const g: RtGear = { ...genGear(5, 3, 4), special: { skill: 'whirlwind', kind: 'area', value: 20 } };
+    expect(gearSkillMods([{ ...g, enh: 6 }])).toEqual({ whirlwind: { areaPct: 20 } });
+    expect(gearSkillMods([{ ...g, enh: 7 }])).toEqual({ whirlwind: { areaPct: 25 } });
+    expect(gearSkillMods([{ ...g, enh: 10 }])).toEqual({ whirlwind: { areaPct: 30 } });
+    expect(specialOf({ ...g, enh: 10, special: { skill: 'parry', kind: 'block', value: 3 } })!.value).toBe(5);
+    expect(gearLines({ ...g, enh: 7 }).some((l) => l.includes('範圍 +25%') && l.includes('強化加成'))).toBe(true);
+  });
+});

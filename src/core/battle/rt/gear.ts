@@ -214,8 +214,18 @@ export function gearLines(g: RtGear): string[] {
   if (g.base.hp) out.push(`HP +${Math.round(g.base.hp * m)}`);
   if (g.base.def) out.push(`防禦 +${Math.round(g.base.def * m)}`);
   for (const a of g.affixes) out.push(`✦ ${AFFIX_NAME[a.stat]} +${a.value}${a.stat.endsWith('Pct') ? '%' : ''}`);
-  if (g.special) out.push(specialText(g.special));
+  if (g.special) out.push(specialText(specialOf(g)!) + ((g.enh ?? 0) >= 7 ? '（強化加成）' : ''));
   return out;
+}
+
+/** 強化讓特效變強（D-102）：+7 起 ×1.25、+10 ×1.5（格擋判定 +1／+2 ticks） */
+export function specialOf(g: RtGear): RtGear['special'] {
+  const sp = g.special;
+  if (!sp) return undefined;
+  const e = g.enh ?? 0;
+  if (e < 7) return sp;
+  if (sp.kind === 'block') return { ...sp, value: sp.value + (e >= 10 ? 2 : 1) };
+  return { ...sp, value: Math.round(sp.value * (e >= 10 ? 1.5 : 1.25)) };
 }
 
 export function specialText(sp: NonNullable<RtGear['special']>): string {
@@ -238,7 +248,7 @@ export function specialText(sp: NonNullable<RtGear['special']>): string {
 export function gearSkillMods(items: (RtGear | undefined | null)[]): Record<string, SkillMod> {
   const out: Record<string, SkillMod> = {};
   for (const g of items) {
-    const sp = g?.special;
+    const sp = g ? specialOf(g) : undefined;
     if (!sp) continue;
     const m = (out[sp.skill] ??= {});
     if (sp.kind === 'cd') m.cdPct = Math.min(SKILL_MOD_CAPS.cdPct, (m.cdPct ?? 0) + sp.value);
