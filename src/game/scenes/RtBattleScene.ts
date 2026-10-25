@@ -690,6 +690,7 @@ export class RtBattleScene extends Phaser.Scene {
       saveRecord(this.stageId, r.rec);
       first = r.first;
       best = r.best;
+      if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) this.time.delayedCall(4600, () => this.furyUnlockedToast());
       this.persist();
     }
     const timed = !this.bossTimed;
@@ -830,11 +831,17 @@ export class RtBattleScene extends Phaser.Scene {
     const lines = [
       `本次：擊殺 ${now.kills}・金幣 ${now.coin}・粉塵 ${now.dust}・結晶 ${now.crystal}`,
       `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
-      `狼王討伐 ${rec.bossKills ?? 0} 次${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).length}/${nChest}`,
+      `狼王討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).length}/${nChest}`,
       `進入森林 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
     ];
     if (this.s.prog) lines.unshift(`Lv ${this.s.prog.level}・經驗 ${this.s.prog.xp}/${xpToNext(this.s.prog.level)}`);
     return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
+  }
+
+  /** 第一次達成暴怒狼王解鎖條件（D-099） */
+  private furyUnlockedToast(): void {
+    SFX.warn(true);
+    bigText(this, GAME_WIDTH / 2, 600, '解鎖：狼王暴怒！\n☰ 暫停選單可以開啟・掉落更好', '#ff7a5a', 34, 2600);
   }
 
   /** 暫停選單的「狼王暴怒」開關（D-099）：沒解鎖時顯示條件 */
@@ -866,6 +873,11 @@ export class RtBattleScene extends Phaser.Scene {
     }
     if (this.ended) return;
     this.stick = null;
+    // 開場說明等還在畫面上的大字（depth 950）收掉，免得疊在選單上
+    for (const o of [...this.children.list]) if (o instanceof Phaser.GameObjects.Text && o.depth === 950) {
+      this.tweens.killTweensOf(o);
+      o.destroy();
+    }
     const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.7).setInteractive()];
     items.push(this.add.text(0, -440, '暫停', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     const mk = (y: number, label: string, fn: () => void, hi = false) => {
@@ -1060,6 +1072,7 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'levelUp') {
         // 升級（D-090）：金色光柱＋大字＋數值浮字，立刻存檔
         const p = playerOf(this.s);
+        if (this.tracked && e.level === FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury && (loadRecord(this.stageId).bossKills ?? 0) < FURY_UNLOCK.kills) this.furyUnlockedToast();
         SFX.perfect();
         this.cameras.main.flash(180, 255, 230, 160);
         const col = this.add.rectangle(this.sx(p.x), this.sy(p.y) - 200, 90, 420, 0xffe08a, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(44);
