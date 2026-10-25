@@ -1819,6 +1819,17 @@ export class RtBattleScene extends Phaser.Scene {
       // 玩家施放中：畫技能範圍
       if (isP && x.action?.kind === 'skill') {
         const sk = skillDef(this.s, x.action.id);
+        // 龍捲（D-112）：施放中可以全速移動的旋轉技能 → 腳下往上收窄的旋風
+        if (sk && sk.role === 'aoe' && sk.moveFactor >= 1) {
+          const k0 = s.tick - x.action.start;
+          top.lineStyle(3, 0xbfe8ff, 0.7);
+          for (let q = 0; q < 5; q++) {
+            const rr = r * (2.6 - q * 0.38);
+            const yy = py - q * r * 0.55;
+            const a0 = k0 * 0.5 + q * 0.9;
+            top.beginPath().arc(px, yy, rr, a0, a0 + Math.PI * 1.2).strokePath();
+          }
+        }
         const h = sk?.hits[0] ?? sk?.block?.counter;
         if (h) {
           g.fillStyle(0x7dc8ff, 0.2);
@@ -1978,7 +1989,7 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x8a6a40, 1).fillRect(tx - 1, ty + 3, 2, 3);
         continue;
       }
-      g.fillStyle(e.mode === 'combat' ? 0xff5a4a : elite ? 0xffa040 : 0xc06a6a, e.mode === 'dormant' ? 0.5 : 0.95).fillCircle(m.x + e.x * m.s, m.y + e.y * m.s, elite ? 3.5 : 2.2);
+      g.fillStyle(e.mode === 'combat' ? 0xff5a4a : e.affix ? AFFIX_COLOR[e.affix] : elite ? 0xffa040 : 0xc06a6a, e.mode === 'dormant' ? 0.5 : 0.95).fillCircle(m.x + e.x * m.s, m.y + e.y * m.s, elite ? 3.5 : 2.2);
     }
     // 地上的精良以上裝備（D-100）：稀有度顏色的閃爍菱形，免得錯過
     for (const it of s.ground ?? []) {
