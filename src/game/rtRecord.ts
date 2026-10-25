@@ -1,5 +1,6 @@
 // 即時戰鬥大地圖的獨立紀錄（D-087）：跨場累計，只存在 localStorage `jg_rt_<stage>`，不碰主線 session 存檔。
 // 純資料函式放這裡（有測試），讀寫 localStorage 的包一層 try/catch（無痕模式）。
+import { prevMap, WORLD_MAPS, worldMap } from './worldMaps';
 import { GEAR_SLOTS, isGear, type GearSlot, type RtGear } from '../core/battle/rt/gear';
 
 export interface RtRecord {
@@ -122,7 +123,7 @@ export function nightUnlocked(rec: RtRecord): boolean {
  * 共用進度的地圖（D-114）：荊棘谷的等級、經驗、行囊、技能點、材料、懸賞、累計數字都存在霧語森林的紀錄裡；
  * 只有 MAP_KEYS（Boss 討伐、寶箱、暴怒與深夜）是每張地圖自己的。
  */
-export const LINKED_MAPS: Readonly<Record<string, string>> = { thornvale: 'mistwood' };
+export const LINKED_MAPS: Readonly<Record<string, string>> = Object.fromEntries(WORLD_MAPS.slice(1).map((m) => [m.id, WORLD_MAPS[0]!.id])); // { thornvale: 'mistwood' }
 export const MAP_KEYS = ['bossKills', 'firstAt', 'bestBossSec', 'chests', 'fury', 'furyKills', 'night'] as const satisfies readonly (keyof RtRecord)[];
 type MapKey = (typeof MAP_KEYS)[number];
 
@@ -176,22 +177,31 @@ export function saveRecord(stage: string, rec: RtRecord): void {
 
 /**
  * 暫停選單的「下一個目標」（第 22 輪）：依進度給一句話。rec＝這張地圖的紀錄（共用地圖已 join），
- * otherKills＝另一張地圖的 Boss 討伐次數（霧語森林看荊棘谷、荊棘谷看霧語森林）。
+ * otherKills＝下一張地圖（worldMaps 的 next）的 Boss 討伐次數；沒有下一張就不看。
  */
 export function nextGoal(stage: string, rec: RtRecord, level: number, otherKills: number): string {
-  const tv = stage === 'thornvale';
-  const boss = tv ? '棘冠狼后' : '霧角狼王';
-  const bw = tv ? '狼后' : '狼王';
-  if (!(rec.bossKills ?? 0)) return tv ? '沿著山谷往北，打倒棘冠狼后' : '往北穿過森林，打倒霧角狼王';
-  if (!tv && !otherKills) return '前往荊棘谷，打倒棘冠狼后';
+  const m = worldMap(stage);
+  const nx = m?.next ? worldMap(m.next) : undefined;
+  const boss = m?.boss ?? '';
+  const bw = m?.bw ?? '';
+  const mw = m?.mw ?? '';
+  if (!(rec.bossKills ?? 0)) return m?.firstGoal ?? '';
+  if (nx && !otherKills) return `前往${nx.name}，打倒${nx.boss}`;
   if (!furyUnlocked(rec, level)) return `升到 Lv${FURY_UNLOCK.level} 或討伐 ${boss} ${FURY_UNLOCK.kills} 次，開啟${bw}暴怒`;
-  if (!(rec.furyKills ?? 0)) return `☰ 開啟「${bw}暴怒」並打倒牠（解鎖深夜的${tv ? '山谷' : '森林'}）`;
-  return `刷深夜的${tv ? '山谷' : '森林'}、把裝備強化到 +10、挑戰最快討伐`;
+  if (!(rec.furyKills ?? 0)) return `☰ 開啟「${bw}暴怒」並打倒牠（解鎖深夜的${mw}）`;
+  return `刷深夜的${mw}、把裝備強化到 +10、挑戰最快討伐`;
+}
+
+/** 大地圖開放條件（D-114／D-124）：第一張一開始就開；其他張要先打倒前一張圖的 Boss 一次 */
+export function mapOpen(stage: string): boolean {
+  const pv = prevMap(stage);
+  if (!pv) return !!worldMap(stage);
+  return (readRaw(pv.id).bossKills ?? 0) >= 1;
 }
 
 /** 荊棘谷開放條件（D-114）：霧語森林的狼王打倒過一次 */
 export function thornvaleOpen(): boolean {
-  return (readRaw('mistwood').bossKills ?? 0) >= 1;
+  return mapOpen('thornvale');
 }
 
 /** 某張地圖自己的 Boss 討伐次數（不經過共用合併） */

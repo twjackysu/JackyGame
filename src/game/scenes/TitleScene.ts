@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
-import { thornvaleOpen } from '../rtRecord';
+import { mapOpen } from '../rtRecord';
+import { prevMap, WORLD_MAPS } from '../worldMaps';
 import { playMusic } from '../../audio/music';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
@@ -250,11 +251,11 @@ export class TitleScene extends Phaser.Scene {
     }
     const cx = GAME_WIDTH / 2;
     const items: [string, () => void][] = [];
-    // 唯一的玩法：霧語森林（即時戰鬥大地圖；舊主線已移除，D-097）
-    items.push(['進入霧語森林', () => this.go(() => this.scene.start('RtBattle', { stage: 'mistwood', bot: '' }))]);
-    // 第二張地圖（D-114）：打倒霧角狼王一次後開放；等級、行囊、技能點與霧語森林共用
-    if (thornvaleOpen()) items.push(['前往荊棘谷', () => this.go(() => this.scene.start('RtBattle', { stage: 'thornvale', bot: '' }))]);
-    else items.push(['荊棘谷（未開放）', () => this.lockedHint()]);
+    // 大地圖（D-097／D-114／D-124）：第一張一開始就開；之後每張要先打倒前一張的 Boss 一次。等級、行囊、技能點共用
+    WORLD_MAPS.forEach((m, i) => {
+      if (mapOpen(m.id)) items.push([`${i ? '前往' : '進入'}${m.name}`, () => this.go(() => this.scene.start('RtBattle', { stage: m.id, bot: '' }))]);
+      else items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
+    });
     items.push(['設定', () => {
       if (this.busy) return;
       this.busy = true;
@@ -282,8 +283,9 @@ export class TitleScene extends Phaser.Scene {
   }
 
   /** 荊棘谷未開放時點一下：提示開放條件 */
-  private lockedHint(): void {
-    const tx = this.add.text(GAME_WIDTH / 2, 860, '在霧語森林打倒霧角狼王後開放', { fontFamily: UI_FONT, fontSize: '28px', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.6)' }).setPadding(16, 8, 16, 8).setOrigin(0.5).setDepth(100);
+  private lockedHint(id: string): void {
+    const pv = prevMap(id);
+    const tx = this.add.text(GAME_WIDTH / 2, 860, pv ? `在${pv.name}打倒${pv.boss}後開放` : '尚未開放', { fontFamily: UI_FONT, fontSize: '28px', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.6)' }).setPadding(16, 8, 16, 8).setOrigin(0.5).setDepth(100);
     this.tweens.add({ targets: tx, alpha: 0, delay: 1600, duration: 400, onComplete: () => tx.destroy() });
   }
 

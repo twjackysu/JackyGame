@@ -28,15 +28,14 @@ const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
-import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mistwood';
-import { makeThornvaleStage, THORNVALE_QUEEN } from '../../core/battle/rt/maps/thornvale';
+import { WORLD_MAPS, worldMap } from '../worldMaps';
 import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyKill, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
-import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, thornvaleOpen, nextGoal, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { drawMerchant } from '../fx/merchant';
 
@@ -202,18 +201,18 @@ export class RtBattleScene extends Phaser.Scene {
     // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
     if (this.stageId === 'test_world' && q.has('debug') && !STAGES.test_world) STAGES.test_world = makeTestWorldStage();
     // 正式大地圖：霧語森林（D-085）、荊棘谷（D-114）
-    if (this.stageId === 'mistwood' && !STAGES.mistwood) STAGES.mistwood = makeMistwoodStage();
-    if (this.stageId === 'thornvale' && !STAGES.thornvale) STAGES.thornvale = makeThornvaleStage();
+    const wm = worldMap(this.stageId);
+    if (wm && !STAGES[wm.id]) STAGES[wm.id] = wm.make();
     if (!STAGES[this.stageId]) this.stageId = 'forest_entry';
     this.seed = data.seed ?? Number(q.get('seed') ?? 1);
     const b = (data.bot !== undefined ? data.bot : q.get('bot')) as keyof typeof BOT_PROFILES | null;
-    this.bot = b && BOT_PROFILES[b] ? new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: b === 'auto' ? undefined : 35, ...(this.stageId === 'mistwood' ? { campfireBelowPotions: 8, advanceTo: MISTWOOD_KING } : this.stageId === 'thornvale' ? { campfireBelowPotions: 8, advanceTo: THORNVALE_QUEEN } : {}) }, b) : null;
+    this.bot = b && BOT_PROFILES[b] ? new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: b === 'auto' ? undefined : 35, ...(wm ? { campfireBelowPotions: 8, advanceTo: wm.bossAt } : {}) }, b) : null;
     this.botName = this.bot ? b : null;
   }
 
   create(): void {
     // Bot 示範也帶著玩家的等級與裝備（只讀、不存）
-    const big = !!STAGES[this.stageId]?.bossZone && !!STAGES[this.stageId]?.spawnGroups?.length && (this.stageId === 'mistwood' || this.stageId === 'thornvale');
+    const big = !!STAGES[this.stageId]?.bossZone && !!STAGES[this.stageId]?.spawnGroups?.length && !!worldMap(this.stageId);
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
@@ -280,7 +279,7 @@ export class RtBattleScene extends Phaser.Scene {
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
     // 深夜（D-103）：整個畫面壓暗、偏藍
     this.nightShade = this.s.night ? this.add.image(GAME_WIDTH / 2, 640, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
-    this.add.text(GAME_WIDTH / 2, 40, this.tracked || this.stageId === 'mistwood' || this.stageId === 'thornvale' ? `${STAGES[this.stageId]!.name}${this.s.night ? '・深夜' : ''}` : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
+    this.add.text(GAME_WIDTH / 2, 40, this.tracked || worldMap(this.stageId) ? `${STAGES[this.stageId]!.name}${this.s.night ? '・深夜' : ''}` : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
@@ -543,10 +542,10 @@ export class RtBattleScene extends Phaser.Scene {
   private bloomHinted = false;
   /** 這張地圖的 Boss 與地形稱呼（D-114）：霧語森林＝狼王／森林、荊棘谷＝狼后／山谷 */
   private get bw(): string {
-    return this.stageId === 'thornvale' ? '狼后' : '狼王';
+    return worldMap(this.stageId)?.bw ?? '狼王';
   }
   private get mw(): string {
-    return this.stageId === 'thornvale' ? '山谷' : '森林';
+    return worldMap(this.stageId)?.mw ?? '森林';
   }
   private get tracked(): boolean {
     const st = STAGES[this.stageId];
@@ -941,7 +940,8 @@ export class RtBattleScene extends Phaser.Scene {
       first = r.first;
       best = r.best;
       if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `解鎖：深夜的${this.mw}！\n☰ 暫停選單・怪更兇、掉得更好`, '#9fb8ff', 34, 2600));
-      if (r.first && this.stageId === 'mistwood') this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, '新地圖開放：荊棘谷！\n回標題選「前往荊棘谷」・建議 Lv6', '#a8f08a', 34, 3000));
+      const nx = worldMap(worldMap(this.stageId)?.next ?? '');
+      if (r.first && nx) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx.name}！\n回標題選「前往${nx.name}」${nx.recLevel ? `・建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000));
       if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) this.time.delayedCall(4600, () => this.furyUnlockedToast());
       this.persist();
     }
@@ -949,7 +949,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bossTimed = true;
     this.time.delayedCall(300, () => bigText(this, GAME_WIDTH / 2, 440, `${name} 討伐！`, '#ffd27a', 60, 1800));
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
-    const head = first ? (this.stageId === 'thornvale' ? '首次討伐！山谷的荊棘枯萎了一些…' : '首次討伐！森林安靜了一點…') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
+    const head = first ? (worldMap(this.stageId)?.firstKill ?? '首次討伐！') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
   }
@@ -1084,11 +1084,11 @@ export class RtBattleScene extends Phaser.Scene {
     const lines = [
       `本次：擊殺 ${now.kills}・金幣 ${now.coin}・粉塵 ${now.dust}・結晶 ${now.crystal}`,
       `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
-      `${this.stageId === 'thornvale' ? '狼后' : '狼王'}討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
-      `進入森林 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
+      `${this.bw}討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
+      `出發冒險 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
       `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${coinOf(rec)}（營火行商）`,
     ];
-    if (this.stageId === 'mistwood' || this.stageId === 'thornvale') lines.unshift(`▶ 下一個目標：${nextGoal(this.stageId, rec, this.s.prog?.level ?? 1, bossKillsOf(this.stageId === 'thornvale' ? 'mistwood' : 'thornvale'))}`);
+    if (worldMap(this.stageId)) lines.unshift(`▶ 下一個目標：${nextGoal(this.stageId, rec, this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''))}`);
     if (this.s.prog) lines.unshift(`Lv ${this.s.prog.level}・經驗 ${this.s.prog.xp}/${xpToNext(this.s.prog.level)}`);
     return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
   }
@@ -1174,7 +1174,7 @@ export class RtBattleScene extends Phaser.Scene {
         else this.toggleMenu();
       });
     });
-    if (this.tracked || STAGES[this.stageId]?.id === 'mistwood' || STAGES[this.stageId]?.id === 'thornvale') {
+    if (this.tracked || worldMap(this.stageId)) {
       // 正式大地圖（標題入口）：不列試玩關
       if (this.tracked) {
         const up = this.bagSt.bag.filter((g) => isUpgrade(this.bagSt, g)).length;
@@ -1184,7 +1184,7 @@ export class RtBattleScene extends Phaser.Scene {
       }
       ctlBtn(-190);
       mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
-      mk(-30, this.stageId === 'thornvale' ? '重新進入山谷' : '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
+      mk(-30, `重新進入${this.mw}`, () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
       let y = 50;
       if (this.tracked && STAGES[this.stageId]?.bossZone?.fury) {
         this.furyButton(mk, items, y);
@@ -1195,10 +1195,13 @@ export class RtBattleScene extends Phaser.Scene {
         y += 80;
       }
       // 兩張地圖之間直接移動（D-114）：等級、行囊共用，只是換地圖
-      const other = this.stageId === 'thornvale' ? 'mistwood' : this.stageId === 'mistwood' && thornvaleOpen() ? 'thornvale' : null;
-      if (other && !this.botName) {
-        mk(y, other === 'thornvale' ? '前往荊棘谷' : '回霧語森林', () => this.leave(() => this.scene.start('RtBattle', { stage: other, bot: '' })));
-        y += 80;
+      // 第 26 輪：改成走登記表（D-124）——其他已開放的大地圖都列出來
+      if (!this.botName && worldMap(this.stageId)) {
+        WORLD_MAPS.forEach((m, i) => {
+          if (m.id === this.stageId || !mapOpen(m.id)) return;
+          mk(y, `${i ? '前往' : '回'}${m.name}`, () => this.leave(() => this.scene.start('RtBattle', { stage: m.id, bot: '' })));
+          y += 80;
+        });
       }
       mk(y, '回標題', () => this.leave(() => this.scene.start('Title')));
       items.push(this.recordText(y + 80));
@@ -1425,7 +1428,7 @@ export class RtBattleScene extends Phaser.Scene {
             bigText(this, GAME_WIDTH / 2, 470, '迷霧巡守 倒下了！', '#9af0e0', 44, 900);
           }
         }
-      } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, this.stageId === 'thornvale' ? '狼后怒放・荊棘綻放！' : '狼王暴怒！', this.stageId === 'thornvale' ? '#c8ff8a' : '#ff7a5a', 52, 700);
+      } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, (worldMap(this.stageId)?.phase2 ?? WORLD_MAPS[0]!.phase2)[0], (worldMap(this.stageId)?.phase2 ?? WORLD_MAPS[0]!.phase2)[1], 52, 700);
       else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
       else if (e.type === 'blink') {
         // 暴怒狼王霧中瞬移（D-105）：原地與落點各冒一團霧、不做插值滑動
@@ -1433,18 +1436,18 @@ export class RtBattleScene extends Phaser.Scene {
         this.prev.delete(e.id);
         SFX.dodge();
         // 荊棘谷的狼后（D-114）：鑽進地底、從背後的荊棘裡冒出來（綠色）
-        const tvq = this.stageId === 'thornvale';
+        const wmb = worldMap(this.stageId) ?? WORLD_MAPS[0]!;
         const wd = b?.defId === 'mist_warden';
-        sparks(this, this.sx(e.fromX), this.sy(e.fromY), 16, 'ember', tvq ? 0x9adf5a : 0xb9a8ff, 520);
-        shockRing(this, this.sx(e.fromX), this.sy(e.fromY), tvq ? 0x6ac04a : 0x9a8cff, 90, 360, 6);
+        sparks(this, this.sx(e.fromX), this.sy(e.fromY), 16, 'ember', wmb.blinkFx[0], 520);
+        shockRing(this, this.sx(e.fromX), this.sy(e.fromY), wmb.blinkFx[1], 90, 360, 6);
         if (b) {
-          sparks(this, this.sx(b.x), this.sy(b.y), 20, 'ember', tvq ? 0xc8ff8a : 0xd8ccff, 560);
+          sparks(this, this.sx(b.x), this.sy(b.y), 20, 'ember', wmb.blinkFx[2], 560);
           shockRing(this, this.sx(b.x), this.sy(b.y), 0xff6a6a, 120, 420, 8);
         }
         this.cameras.main.shake(120, 0.004);
         if (b && !this.blinkHinted.has(b.defId)) {
           this.blinkHinted.add(b.defId);
-          bigText(this, GAME_WIDTH / 2, 520, wd ? '巡守隱入霧中——小心背後！' : this.stageId === 'thornvale' ? '狼后鑽進荊棘——小心背後！' : '狼王遁入霧中——小心背後！', wd ? '#9af0e0' : this.stageId === 'thornvale' ? '#c8ff8a' : '#c9b8ff', 38, 900);
+          bigText(this, GAME_WIDTH / 2, 520, wd ? '巡守隱入霧中——小心背後！' : wmb.blink[0], wd ? '#9af0e0' : wmb.blink[1], 38, 900);
         }
       }
       else if (e.type === 'cast') {
@@ -1662,10 +1665,9 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.textures.exists(chunkKey(0, 0))) return place();
     // 每塊各自重畫一次（Graphics.generateTexture 不吃物件位置，要用 translateCanvas 平移；同一個固定種子，所以每塊畫出同一張地圖）
     // 地圖色調（D-114）：荊棘谷是紅褐色乾土＋紫紅荊棘叢，其他沿用森林綠
-    const tv = this.stageId === 'thornvale';
-    const P = tv
-      ? { ground: 0x2a1d19, spotA: 0x31221c, spotB: 0x241814, grass: 0x6a5232, grid: 0x382720, under: 0x160b10, crownA: 0x3a1828, crownB: 0x45202f, crownHi: 0x6a2c3e, crownTop: 0x9a4a55, edge: 0x8a5a48 }
-      : { ground: 0x16261c, spotA: 0x1a2c1f, spotB: 0x14231a, grass: 0x2f5a36, grid: 0x203a28, under: 0x0c170e, crownA: 0x1b3620, crownB: 0x203f25, crownHi: 0x2a5230, crownTop: 0x3d7042, edge: 0x5a8a60 };
+    const wmp = worldMap(this.stageId) ?? WORLD_MAPS[0]!;
+    const tv = wmp.decor === 'thorn';
+    const P = wmp.palette;
     const paint = (g: Phaser.GameObjects.Graphics, bx0: number, by0: number, bx1: number, by1: number): void => {
       g.fillStyle(P.ground, 1).fillRect(0, 0, W, H);
       // 固定種子的地面斑點（不影響戰鬥 PRNG）
@@ -1945,9 +1947,9 @@ export class RtBattleScene extends Phaser.Scene {
   private bossIntro(d: Unit): void {
     const def = ENEMIES[d.defId];
     if (!def) return;
-    const tv = this.stageId === 'thornvale';
-    const col = d.fury ? '#ff7a5a' : tv ? '#c8ff8a' : '#d8ccff';
-    const sub = `${tv ? '荊棘谷之主' : '霧語森林之主'}${d.fury ? '・暴怒' : ''}${this.s.night ? '・深夜' : ''}`;
+    const wmb = worldMap(this.stageId) ?? WORLD_MAPS[0]!;
+    const col = d.fury ? '#ff7a5a' : wmb.color;
+    const sub = `${wmb.lord}${d.fury ? '・暴怒' : ''}${this.s.night ? '・深夜' : ''}`;
     SFX.warn(true);
     this.time.delayedCall(180, () => SFX.hitHeavy());
     this.hitStop = Math.max(this.hitStop, 200);
@@ -2553,11 +2555,11 @@ export class RtBattleScene extends Phaser.Scene {
     if (!this.textures.exists(key)) {
       const g = this.make.graphics({ x: 0, y: 0 }, false);
       g.fillStyle(0x0b1410, 0.85).fillRect(0, 0, w + 4, h + 4);
-      const tvm = this.stageId === 'thornvale';
-      g.fillStyle(tvm ? 0x3a2a22 : 0x1f3a26, 1).fillRect(2, 2, w, h);
+      const pal = (worldMap(this.stageId) ?? WORLD_MAPS[0]!).palette;
+      g.fillStyle(pal.mini, 1).fillRect(2, 2, w, h);
       if (a.solid) {
         const c = a.solid.cell * s;
-        g.fillStyle(tvm ? 0x5a2838 : 0x6c7378, 1);
+        g.fillStyle(pal.miniSolid, 1);
         a.solid.rows.forEach((row, cy) => {
           for (let cx = 0; cx < row.length; cx++) if (row[cx] === '#') g.fillRect(2 + cx * c, 2 + cy * c, Math.max(1, c), Math.max(1, c));
         });
@@ -2679,10 +2681,10 @@ export class RtBattleScene extends Phaser.Scene {
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
       const done = !!bossDef && (s.bossKills ?? []).includes(bossDef.id);
       // 已討伐：第二行顯示「下一個目標」（每 2 秒或狀態改變才重算，避免每幀讀存檔）
-      const big = this.stageId === 'mistwood' || this.stageId === 'thornvale';
+      const big = !!worldMap(this.stageId);
       if (done && big && (this.goalDone !== done || this.time.now - this.goalAt > 2000)) {
         this.goalAt = this.time.now;
-        this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(this.stageId === 'thornvale' ? 'mistwood' : 'thornvale'));
+        this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''));
       }
       this.goalDone = done;
       this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
