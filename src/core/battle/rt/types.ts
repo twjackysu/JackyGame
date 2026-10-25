@@ -506,6 +506,8 @@ export interface BattleState {
   lootSeq?: number;
   /** 裝備帶來的技能修正（D-094）：技能 id → 冷卻 −%、傷害 +%；沒有＝不變 */
   skillMods?: Record<string, SkillMod>;
+  /** 技能變化（D-112）：技能 id 列在這裡就改用 SKILL_VARIANTS 的版本（id 不變，冷卻／按鈕共用） */
+  skillVariants?: string[];
   /** 等級與經驗（progression）；base＝等級與強化加成前的數值 */
   prog?: { level: number; xp: number; baseHp: number; baseAtk: number };
   /** 這場的武器強化等級（lootEnhance）與強化前的攻擊力 */

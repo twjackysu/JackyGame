@@ -1,7 +1,7 @@
 // 控制器、無畫面模擬器與統計（design/19 §7、D-063 P2）。
 // 控制器只讀 BattleState、回傳 BattleCommand；同種子＋同控制器＝同結果（stateHash 驗證）。
-import { ENEMIES, SKILLS, STAGES } from './data';
-import { createBattle, dist, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
+import { ENEMIES, STAGES } from './data';
+import { createBattle, dist, skillDef, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
 import { aggroUnitsOf, CAMPFIRE_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
 
 export interface BattleController {
@@ -210,16 +210,16 @@ export class PlayerBot implements BattleController {
     // 2. 技能
     const es = enemiesOf(s);
     if (es.length === 0) return out;
-    const near = es.filter((e) => dist(p.x, p.y, e.x, e.y) <= (SKILLS.whirlwind!.useRange ?? 0) + e.r);
+    const near = es.filter((e) => dist(p.x, p.y, e.x, e.y) <= (skillDef(s, 'whirlwind')!.useRange ?? 0) + e.r);
     const tgt = es.find((e) => e.id === p.targetId) ?? es.slice().sort((a, b) => dist(p.x, p.y, a.x, a.y) - dist(p.x, p.y, b.x, b.y))[0]!;
     const d = dist(p.x, p.y, tgt.x, tgt.y);
-    const ult = SKILLS.blade_storm!;
+    const ult = skillDef(s, 'blade_storm')!;
     const ultNear = es.filter((e) => dist(p.x, p.y, e.x, e.y) <= (ult.useRange ?? 0) + e.r);
     const bossNear = ultNear.some((e) => e.maxHp >= 2000);
     if (this.prof.ult && ready('blade_storm') && p.mp >= (ult.mp ?? 0) && (ultNear.length >= 3 || bossNear)) out.push({ type: 'skill', id: 'blade_storm' });
     else if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
-    else if (d <= (SKILLS.heavy_slash!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
-    else if (d > 250 && d <= (SKILLS.charge!.useRange ?? 0) && ready('charge')) out.push({ type: 'skill', id: 'charge' });
+    else if (d <= (skillDef(s, 'heavy_slash')!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
+    else if (d > 250 && d <= (skillDef(s, 'charge')!.useRange ?? 0) && ready('charge')) out.push({ type: 'skill', id: 'charge' });
     else if (near.length >= 1 && ready('whirlwind') && es.length === 1) out.push({ type: 'skill', id: 'whirlwind' });
     return out;
   }

@@ -34,6 +34,8 @@ export interface RtRecord {
   night?: boolean;
   /** 技能點分配（D-110；形狀由 rtSkills.cleanRanks 檢查） */
   skills?: unknown;
+  /** 技能變化（D-112）：選了變化版的技能 id（技能滿 5 級才有效，由 rtSkills.cleanVariants 檢查） */
+  variants?: unknown;
   /** 營地懸賞（D-109；形狀由 rtBounty.cleanBounties 檢查） */
   bounty?: unknown;
   /** 強化花掉的材料（累計撿到 − 花掉 ＝ 手上有的；分解得到的粉塵記成負的花費） */

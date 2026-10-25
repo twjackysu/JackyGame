@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
+import { createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { addWithAutoSalvage } from '../rtBag';
@@ -20,7 +20,7 @@ import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyKill, cleanBounties } from '../rtBounty';
-import { cleanRanks, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
+import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
@@ -164,7 +164,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0) });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0) });
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -500,10 +500,12 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu = openRtSkillPanel(
       this,
       cleanRanks(loadRecord(this.stageId).skills, lv),
+      this.s.skillVariants ?? [],
       lv,
-      (r) => {
-        saveRecord(this.stageId, { ...loadRecord(this.stageId), skills: r });
+      (r, v) => {
+        saveRecord(this.stageId, { ...loadRecord(this.stageId), skills: r, variants: v });
         setSkillMods(this.s, this.allMods(this.bagSt));
+        setSkillVariants(this.s, v);
         this.ptsLeft = this.skillPointsLeft();
       },
       () => {
@@ -1485,7 +1487,7 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(this.s);
     const a = p.action;
     if (!a || a.kind !== 'skill') return;
-    const sk = SKILLS[a.id];
+    const sk = skillDef(this.s, a.id);
     if (!sk) return;
     const k = this.s.tick - a.start;
     sk.hits.forEach((h, i) => {
@@ -1747,7 +1749,7 @@ export class RtBattleScene extends Phaser.Scene {
       }
       // 玩家施放中：畫技能範圍
       if (isP && x.action?.kind === 'skill') {
-        const sk = SKILLS[x.action.id];
+        const sk = skillDef(this.s, x.action.id);
         const h = sk?.hits[0] ?? sk?.block?.counter;
         if (h) {
           g.fillStyle(0x7dc8ff, 0.2);
@@ -1989,7 +1991,7 @@ export class RtBattleScene extends Phaser.Scene {
     ids.forEach((id, i) => {
       const { x, y } = this.btnPos(i);
       const R = this.btnR(i);
-      const cd = id === 'dodge' ? SWORDSMAN.dodge.cooldownTicks : SKILLS[id]!.cooldownTicks;
+      const cd = id === 'dodge' ? SWORDSMAN.dodge.cooldownTicks : skillDef(this.s, id)!.cooldownTicks;
       const left = Math.max(0, (p.ready[id] ?? 0) - s.tick);
       g.fillStyle(i === 4 ? 0x2a4a6a : 0x3a2a14, 0.95).fillCircle(x, y, R);
       g.lineStyle(3, left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, 1).strokeCircle(x, y, R);
@@ -1998,7 +2000,7 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / cd), false).fillPath();
       }
-      this.btnText[i]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : i === 4 ? '閃避' : SKILLS[id]!.name);
+      this.btnText[i]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : i === 4 ? '閃避' : skillDef(this.s, id)!.name);
     });
     // 大招：MP 環（滿 40 才亮）＋冷卻
     {

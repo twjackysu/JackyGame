@@ -1,7 +1,7 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
-import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
-import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillHit, SkillMod, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
+import { ENEMIES, SKILL_VARIANTS, SKILLS, SWORDSMAN, STAGES } from './data';
+import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
@@ -85,6 +85,8 @@ export interface BattleSetup {
   potions?: number;
   /** 裝備的技能修正（D-094） */
   skillMods?: Record<string, SkillMod>;
+  /** 技能變化（D-112）：改用 SKILL_VARIANTS 版本的技能 id */
+  skillVariants?: string[];
   /** 深夜模式（需要 StageDefinition.night，D-103） */
   night?: boolean;
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
@@ -123,6 +125,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     nextSummonTick: Number.MAX_SAFE_INTEGER, mp: Math.min(pd.mp, pd.mpStart),
   });
   if (setup.skillMods && Object.keys(setup.skillMods).length) s.skillMods = setup.skillMods;
+  setSkillVariants(s, setup.skillVariants ?? []);
   if (stage.progression) {
     const p = s.units[0]!;
     const lv = Math.max(1, Math.min(stage.progression.maxLevel, Math.floor(setup.level ?? 1)));
@@ -496,6 +499,18 @@ export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; d
 }
 
 /** 戰鬥中換裝時更新技能修正（D-094） */
+/** 這場戰鬥實際用的技能定義（有選技能變化就用變化版，D-112） */
+export function skillDef(s: BattleState, id: string): SkillDefinition | undefined {
+  return (s.skillVariants?.includes(id) ? SKILL_VARIANTS[id] : undefined) ?? SKILLS[id];
+}
+
+/** 換技能變化；正在施放的技能照舊打完（下一次施放才換） */
+export function setSkillVariants(s: BattleState, ids: readonly string[]): void {
+  const v = ids.filter((id) => SKILL_VARIANTS[id]).sort();
+  if (v.length) s.skillVariants = v;
+  else delete s.skillVariants;
+}
+
 export function setSkillMods(s: BattleState, mods: Record<string, SkillMod>): void {
   if (Object.keys(mods).length) s.skillMods = mods;
   else delete s.skillMods;
@@ -831,7 +846,7 @@ function currentTarget(s: BattleState, p: Unit): Unit | undefined {
 }
 
 function startSkill(s: BattleState, p: Unit, id: string): boolean {
-  const sk = SKILLS[id];
+  const sk = skillDef(s, id);
   if (!sk || p.dead || disabled(p, s.tick)) return false;
   if ((p.ready[id] ?? 0) > s.tick) return false;
   if (sk.mp && p.mp < sk.mp) return false;
@@ -851,7 +866,7 @@ function startDodge(s: BattleState, p: Unit, dx: number, dy: number): boolean {
   if (p.dead || disabled(p, s.tick) || (p.ready['dodge'] ?? 0) > s.tick) return false;
   // 格擋有效窗口內不能用閃避取消
   const a = p.action;
-  if (a?.kind === 'skill' && SKILLS[a.id]?.block && s.tick - a.start <= blockWindow(s, a.id)) return false;
+  if (a?.kind === 'skill' && skillDef(s, a.id)?.block && s.tick - a.start <= blockWindow(s, a.id)) return false;
   const [fx, fy] = dx === 0 && dy === 0 ? [-p.facingX, -p.facingY] : norm(dx, dy);
   p.ready['dodge'] = s.tick + pd.dodge.cooldownTicks;
   p.action = { kind: 'dodge', id: 'dodge', start: s.tick, end: s.tick + pd.dodge.ticks, dirX: fx, dirY: fy, ox: p.x, oy: p.y };
@@ -974,14 +989,14 @@ export function skillShape(s: BattleState, skillId: string, shape: Shape): Shape
 
 /** 格擋有效窗口（ticks），含裝備的 blockTicks */
 export function blockWindow(s: BattleState, skillId: string): number {
-  const b = SKILLS[skillId]?.block;
+  const b = skillDef(s, skillId)?.block;
   if (!b) return -1;
   return b.windowTicks + Math.min(SKILL_MOD_CAPS.blockTicks, Math.max(0, Math.floor(s.skillMods?.[skillId]?.blockTicks ?? 0)));
 }
 
 /** 位移技能的總距離（含 distPct） */
 export function dashDistance(s: BattleState, skillId: string): number {
-  const d = SKILLS[skillId]?.dash;
+  const d = skillDef(s, skillId)?.dash;
   if (!d) return 0;
   const pct = Math.min(SKILL_MOD_CAPS.distPct, Math.max(0, s.skillMods?.[skillId]?.distPct ?? 0));
   return pct ? Math.round((d.distance * (100 + pct)) / 100) : d.distance;
@@ -1012,7 +1027,7 @@ function updatePlayer(s: BattleState): void {
       p.y += Math.round((a.dirY / DIR) * step);
       clampArena(s, p);
     } else if (a.kind === 'skill') {
-      const sk = SKILLS[a.id]!;
+      const sk = skillDef(s, a.id)!;
       if (sk.dash && k >= sk.dash.fromTick && k < sk.dash.fromTick + sk.dash.ticks) {
         const step = Math.round(dashDistance(s, a.id) / sk.dash.ticks);
         p.x += Math.round((a.dirX / DIR) * step);
@@ -1187,7 +1202,7 @@ function pickAttack(s: BattleState, e: Unit, def: EnemyDefinition, d: number, ta
 function enemyHit(s: BattleState, e: Unit, atk: AreaAttack, p: Unit): void {
   // 格擋反擊：窗口內、可格擋 → 減傷並立即反擊
   const a = p.action;
-  const sk = a?.kind === 'skill' ? SKILLS[a.id] : undefined;
+  const sk = a?.kind === 'skill' ? skillDef(s, a.id) : undefined;
   if (a && sk?.block && atk.blockable && !a.blocked && s.tick - a.start <= blockWindow(s, a.id)) {
     a.blocked = true;
     emit(s, { tick: s.tick, type: 'block', id: p.id, attack: atk.id });
@@ -1374,6 +1389,7 @@ export function stateHash(s: BattleState): string {
   };
   mix(s.tick);
   mix(s.rngState);
+  for (const id of s.skillVariants ?? []) for (let i = 0; i < id.length; i++) mix(id.charCodeAt(i));
   for (const x of s.units) {
     mix(x.id);
     mix(x.x);

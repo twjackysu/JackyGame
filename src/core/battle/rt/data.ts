@@ -36,6 +36,48 @@ export const SKILLS: Record<string, SkillDefinition> = {
   },
 };
 
+/**
+ * 技能變化（D-112）：技能點滿 5 級後可以切換成這個版本。id 跟原技能相同（冷卻、按鈕、技能點與裝備特效都共用），
+ * 只是招式本身不一樣——同一顆按鈕換一種打法。
+ */
+export const SKILL_VARIANTS: Record<string, SkillDefinition & { variantName: string; desc: string }> = {
+  // 裂地斬：前方直線 4.5／寬 1.0、240%、穿透整排；施放 0.45s、冷卻 5s
+  heavy_slash: {
+    id: 'heavy_slash', name: '裂地斬', variantName: '裂地斬', desc: '往前劈出 4.5 格直線劍氣，整排穿透 240%；冷卻 5 秒',
+    cooldownTicks: sec(5), castTicks: sec(0.45), moveFactor: 0, role: 'single', useRange: u(4),
+    hits: [{ atTick: sec(0.45) - 1, shape: { type: 'line', len: u(4.5), width: u(1.0) }, mult: 240 }],
+  },
+  // 龍捲：1.8s 內 6×55%（範圍 1.8），施放中可以全速移動；冷卻 9s
+  whirlwind: {
+    id: 'whirlwind', name: '龍捲', variantName: '龍捲', desc: '轉 1.8 秒共 6 段（每段 55%），轉的時候能全速移動；冷卻 9 秒',
+    cooldownTicks: sec(9), castTicks: sec(1.8), moveFactor: 1.0, role: 'aoe', useRange: u(1.8),
+    hits: [0, 1, 2, 3, 4, 5].map((k) => ({ atTick: sec(0.3) * (k + 1) - 1, shape: { type: 'circle' as const, r: u(1.8) }, mult: 55 })),
+  },
+  // 流星衝：衝 6 格、路上 120%＋減速，衝到底再爆一圈 90%；冷卻 8s
+  charge: {
+    id: 'charge', name: '流星衝', variantName: '流星衝', desc: '衝 6 格、路上 120%＋減速，落地再爆一圈 90%；冷卻 8 秒',
+    cooldownTicks: sec(8), castTicks: sec(0.5), moveFactor: 0, role: 'gap', useRange: u(6.5),
+    dash: { fromTick: 0, ticks: sec(0.4), distance: u(6) },
+    hits: [
+      ...[0, 4, 8].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.1) }, mult: 120, oncePerTarget: true, status: { id: 'slow' as const, ticks: sec(1.5) } })),
+      { atTick: sec(0.4) + 2, shape: { type: 'circle' as const, r: u(1.8) }, mult: 90 },
+    ],
+  },
+  // 不動架勢：窗口 0.8s、完全不受傷，反擊改成全方位 180%；冷卻 10s
+  parry: {
+    id: 'parry', name: '不動架勢', variantName: '不動架勢', desc: '格擋窗口 0.8 秒、擋下完全不受傷，四面反擊 180%；冷卻 10 秒',
+    cooldownTicks: sec(10), castTicks: sec(1.0), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 24, reducePct: 100, counter: { atTick: 0, shape: { type: 'circle', r: u(2.6) }, mult: 180 } },
+  },
+  // 星落一閃：0.9s 蓄力、一擊 760%（範圍 3.6）；不能移動
+  blade_storm: {
+    id: 'blade_storm', name: '星落一閃', variantName: '星落一閃', desc: '蓄力 0.9 秒一擊 760%（範圍 3.6 格），站著不能動',
+    cooldownTicks: sec(45), castTicks: sec(0.9), moveFactor: 0, role: 'ult', useRange: u(3.4), mp: 40,
+    hits: [{ atTick: sec(0.9) - 1, shape: { type: 'circle', r: u(3.6) }, mult: 760 }],
+  },
+};
+
 export const SWORDSMAN: PlayerDefinition = {
   id: 'swordsman',
   hp: 620,

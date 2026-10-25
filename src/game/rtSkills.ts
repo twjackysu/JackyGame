@@ -1,5 +1,6 @@
 // 技能點（D-110）：每升一級得 1 點，自由點在五個技能上（每個最多 5 級），隨時免費重置。
 // 純資料函式（有測試）；存在霧語森林獨立紀錄 `RtRecord.skills`。效果用核心既有的 SkillMod（和裝備特效相加、照上限截斷）。
+import { SKILL_VARIANTS } from '../core/battle/rt/data';
 import { SKILL_MOD_CAPS, type SkillMod } from '../core/battle/rt/types';
 
 export const SKILL_MAX_RANK = 5;
@@ -40,6 +41,18 @@ export function addRank(r: SkillRanks, id: string, level: number): SkillRanks | 
   if (!SKILL_TREE.some((t) => t.id === id)) return null;
   if ((r[id] ?? 0) >= SKILL_MAX_RANK || usedPoints(r) >= skillPoints(level)) return null;
   return { ...r, [id]: (r[id] ?? 0) + 1 };
+}
+
+/** 技能變化（D-112）：只留「有變化版、而且這個技能滿 5 級」的 id；重置或退點後自動失效 */
+export function cleanVariants(raw: unknown, r: SkillRanks): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((id): id is string => typeof id === 'string' && !!SKILL_VARIANTS[id] && (r[id] ?? 0) >= SKILL_MAX_RANK))].sort();
+}
+
+/** 切換一個技能的變化；還沒滿級就回 null */
+export function toggleVariant(v: readonly string[], id: string, r: SkillRanks): string[] | null {
+  if (!SKILL_VARIANTS[id] || (r[id] ?? 0) < SKILL_MAX_RANK) return null;
+  return v.includes(id) ? v.filter((x) => x !== id) : [...v, id].sort();
 }
 
 export function rankMods(r: SkillRanks): Record<string, SkillMod> {
