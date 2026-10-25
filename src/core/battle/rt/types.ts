@@ -114,6 +114,10 @@ export interface AreaAttack {
   furyOnly?: boolean;
   /** 暴怒版：這招結束（沒撞牆）後立刻接這招，重新朝玩家瞄準（D-105） */
   followUp?: string;
+  /** followUp 不限暴怒版（精英詞綴招式「狂亂連咬」用，D-118） */
+  followAlways?: boolean;
+  /** 招式名（出招時畫面飄字；精英詞綴招式用，D-118） */
+  label?: string;
   /** 霧中瞬移：預告開始前先閃到玩家背後 behind 距離處，再朝玩家出招（D-105） */
   blink?: { behind: number };
 }

@@ -1,6 +1,6 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
-import { ENEMIES, SKILL_VARIANTS, SKILLS, SWORDSMAN, STAGES } from './data';
+import { AFFIX_ATTACKS, ENEMIES, SKILL_VARIANTS, SKILLS, SWORDSMAN, STAGES } from './data';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
@@ -1258,10 +1258,22 @@ function updateDormancy(s: BattleState, e: Unit, p: Unit): void {
   e.mode = far ? 'dormant' : 'idle';
 }
 
+/** 這隻怪能用的招式：原本的＋精英詞綴專屬招（D-118）；合併結果快取起來，不每 tick 配置 */
+const attackCache = new Map<string, readonly AreaAttack[]>();
+export function attacksOf(e: { defId: string; affix?: EliteAffix }): readonly AreaAttack[] {
+  const def = ENEMIES[e.defId];
+  if (!def) return [];
+  if (!e.affix) return def.attacks;
+  const key = `${e.defId}|${e.affix}`;
+  let v = attackCache.get(key);
+  if (!v) attackCache.set(key, (v = [...def.attacks, ...AFFIX_ATTACKS[e.affix]]));
+  return v;
+}
+
 function pickAttack(s: BattleState, e: Unit, def: EnemyDefinition, d: number, target: Unit): AreaAttack | undefined {
   const sight = hasSight(s, e, target);
   // 隔著石頭不能射擊（衝鋒例外：隔石衝鋒會撞上石頭暈眩，是可利用的弱點）
-  const ok = def.attacks.filter((a) => a.weight > 0 && (!a.furyOnly || !!e.fury) && (!a.phase2Only || e.phase === 2) && (e.ready[a.id] ?? 0) <= s.tick && d <= a.triggerRange + target.r && (sight || !!a.charge));
+  const ok = (e.affix ? attacksOf(e) : def.attacks).filter((a) => a.weight > 0 && (!a.furyOnly || !!e.fury) && (!a.phase2Only || e.phase === 2) && (e.ready[a.id] ?? 0) <= s.tick && d <= a.triggerRange + target.r && (sight || !!a.charge));
   if (ok.length === 0) return undefined;
   const total = ok.reduce((n, a) => n + a.weight, 0);
   let r = nextRand(s) * total;
@@ -1354,7 +1366,7 @@ function updateEnemy(s: BattleState, e: Unit): void {
   if (disabled(e, s.tick)) return;
   const a = e.action;
   if (a) {
-    const atk = def.attacks.find((x) => x.id === a.id)!;
+    const atk = attacksOf(e).find((x) => x.id === a.id)!;
     const hitTick = a.start + atk.warningTicks;
     if (a.kind === 'enemyAttack' && s.tick === hitTick) {
       s.telegraphs = s.telegraphs.filter((t) => !(t.ownerId === e.id && t.hitTick === hitTick));
@@ -1387,7 +1399,7 @@ function updateEnemy(s: BattleState, e: Unit): void {
     if (e.action && s.tick >= e.action.end) {
       e.action = null;
       // 暴怒版接招（D-105）：例如衝完立刻回頭再衝一次
-      const next = e.fury && atk.followUp && !p.dead ? def.attacks.find((x) => x.id === atk.followUp) : undefined;
+      const next = (e.fury || atk.followAlways) && atk.followUp && !p.dead ? attacksOf(e).find((x) => x.id === atk.followUp) : undefined;
       if (next) startEnemyAttack(s, e, def, next, p);
     }
     return;

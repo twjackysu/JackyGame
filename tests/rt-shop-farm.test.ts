@@ -25,7 +25,10 @@ function kingFight(seed: number, level: number, bonus: { hp: number; atk: number
   let engaged = -1;
   while (!(s.bossKills ?? []).length && s.tick < sec(900)) {
     step(s, bot.decide(s));
-    if (engaged < 0 && s.units.some((u) => u.defId === 'wolf_king' && !u.dead && u.mode === 'combat')) engaged = s.tick;
+    // 從「最後一次」交手開始算（第 24 輪：只擦到邊就脫戰回家的那次不算）
+    const fighting = s.units.some((u) => u.defId === 'wolf_king' && !u.dead && u.mode === 'combat');
+    if (engaged < 0 && fighting) engaged = s.tick;
+    else if (!fighting && s.units.some((u) => u.defId === 'wolf_king' && !u.dead && u.mode === 'idle')) engaged = -1;
   }
   return Math.round((s.tick - Math.max(0, engaged)) / 30);
 }

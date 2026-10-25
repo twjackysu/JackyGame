@@ -1,6 +1,6 @@
 // 即時戰鬥原型資料（D-063：劍士單人；技能暫用 design/20 §A6 四技能＋閃避；霧角狼王依 design/19 §2.9）。
 // 數值是第一版基準，之後由模擬器（sim.ts）校準。
-import { sec, u, type EnemyDefinition, type PlayerDefinition, type SkillDefinition, type StageDefinition } from './types';
+import { sec, u, type AreaAttack, type EliteAffix, type EnemyDefinition, type PlayerDefinition, type SkillDefinition, type StageDefinition } from './types';
 
 export const SKILLS: Record<string, SkillDefinition> = {
   // 重斬：4s、施放 0.3s、前方扇形 2.0／90°、180%
@@ -99,6 +99,23 @@ export const SWORDSMAN: PlayerDefinition = {
   skills: ['heavy_slash', 'whirlwind', 'charge', 'parry', 'blade_storm'],
   // 閃避：位移 2.5、動作 9 ticks、無敵 1～6、冷卻 5s
   dodge: { distance: u(2.5), ticks: 9, invulnFrom: 1, invulnTo: 6, cooldownTicks: sec(5) },
+};
+
+/**
+ * 精英詞綴專屬招式（D-118）：有詞綴的精英在原本的招式之外多一招，看招就知道是哪種詞綴。
+ * 迅捷＝短距離突進（可格擋）、堅韌＝原地震地（不能格擋、命中緩速）、狂亂＝兩段連咬（可格擋，第二口重新瞄準）。
+ */
+export const AFFIX_ATTACKS: Record<EliteAffix, readonly AreaAttack[]> = {
+  swift: [
+    { id: 'affix_dash', label: '疾影突進', shape: { type: 'line', len: u(4.5), width: u(1.0) }, warningTicks: sec(0.55), recoverTicks: sec(0.4), damageMultiplier: 100, cooldownTicks: sec(6), triggerRange: u(4.5), blockable: true, charge: { ticks: sec(0.25), wallStunTicks: sec(1.2) }, weight: 2 },
+  ],
+  tough: [
+    { id: 'affix_quake', label: '大地震擊', shape: { type: 'circle', r: u(2.4) }, warningTicks: sec(1.1), recoverTicks: sec(0.8), damageMultiplier: 150, cooldownTicks: sec(9), triggerRange: u(2.0), blockable: false, status: { id: 'slow', ticks: sec(2) }, weight: 2 },
+  ],
+  frenzy: [
+    { id: 'affix_rend', label: '狂亂連咬', shape: { type: 'sector', r: u(1.7), deg: 90 }, warningTicks: sec(0.5), recoverTicks: sec(0.15), damageMultiplier: 80, cooldownTicks: sec(7), triggerRange: u(1.5), blockable: true, weight: 2, followUp: 'affix_rend2', followAlways: true },
+    { id: 'affix_rend2', shape: { type: 'sector', r: u(1.8), deg: 100 }, warningTicks: sec(0.35), recoverTicks: sec(0.5), damageMultiplier: 90, cooldownTicks: 0, triggerRange: u(1.8), blockable: true, weight: 0 },
+  ],
 };
 
 export const ENEMIES: Record<string, EnemyDefinition> = {

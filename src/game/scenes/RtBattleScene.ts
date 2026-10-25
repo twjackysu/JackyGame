@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { activeHazards, createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
+import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
@@ -1421,6 +1421,13 @@ export class RtBattleScene extends Phaser.Scene {
           if (tg0?.blockable) this.tipOnce('jg_tip_block', '黃框＝可以格擋！敵人打到前按「格擋反擊」', '#ffe08a');
           else this.tipOnce('jg_tip_tele', '紅色範圍填滿就命中——走出去！', '#ff9a8a');
         }
+        // 精英詞綴招式（D-118）：怪頭上飄招式名（詞綴顏色），一看就知道要閃還是格擋
+        if (e.attack.startsWith('affix_')) {
+          const o = u(e.owner);
+          const lb = o ? attacksOf(o).find((q) => q.id === e.attack)?.label : undefined;
+          if (o?.affix && lb) floatNumber(this, this.sx(o.x), this.sy(o.y) - 110, `${lb}！`, { color: `#${AFFIX_COLOR[o.affix].toString(16).padStart(6, '0')}`, size: 28 });
+          if (o?.affix === 'tough' && lb) this.cameras.main.shake(120, 0.003);
+        }
         // 地面荊棘（第 23 輪）：記下預告，命中那一刻在範圍裡長出荊棘
         if (THORN_ATTACKS.has(e.attack)) {
           const tg = [...this.s.telegraphs].reverse().find((t) => t.ownerId === e.owner && t.attackId === e.attack);
@@ -2103,7 +2110,7 @@ export class RtBattleScene extends Phaser.Scene {
     for (const t of s.telegraphs) {
       const prog = Math.min(1, (s.tick - t.startTick) / Math.max(1, t.hitTick - t.startTick));
       const owner = s.units.find((x) => x.id === t.ownerId);
-      const atk = owner ? ENEMIES[owner.defId]?.attacks.find((q) => q.id === t.attackId) : undefined;
+      const atk = owner ? attacksOf(owner).find((q) => q.id === t.attackId) : undefined;
       const col = atk?.status ? 0xb060ff : 0xff3a3a;
       g.fillStyle(col, 0.14);
       this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, g, true);
