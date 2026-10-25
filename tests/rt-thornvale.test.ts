@@ -1,7 +1,7 @@
 // 荊棘谷（D-114）：資料檢查＋Bot（帶著霧語森林刷出來的等級）從谷口出發打倒棘冠狼后。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { STAGES } from '../src/core/battle/rt/data';
-import { createBattle, isSolidAt, step } from '../src/core/battle/rt/engine';
+import { createBattle, isSolidAt, setBossFury, step } from '../src/core/battle/rt/engine';
 import { makeThornvaleStage, THORNVALE_QUEEN } from '../src/core/battle/rt/maps/thornvale';
 import { validateStage } from '../src/core/battle/rt/maps/validate';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
@@ -105,4 +105,27 @@ describe('毒沼 hazards（D-114）', () => {
     expect(s.events.filter((e) => e.type === 'hazard').length).toBe(n);
     expect(p.statuses.find((q) => q.id === 'poison')).toBeUndefined();
   });
+});
+
+describe('暴怒狼后（D-114）', () => {
+  beforeAll(() => {
+    STAGES.thornvale = makeThornvaleStage();
+  });
+  afterAll(() => {
+    delete STAGES.thornvale;
+  });
+  it('Lv10＋荊棘谷裝備的普通 Bot 打得倒暴怒狼后，暴怒招（毒刺連射、背後突襲）有出現', () => {
+    const rows: string[] = [];
+    for (const seed of [1, 2]) {
+      const s = createBattle({ stageId: 'thornvale', seed, level: 10, bonus: { hp: 750, atk: 55, def: 30 } });
+      expect(setBossFury(s, true)).toBe(true);
+      const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: THORNVALE_QUEEN }, 'normal');
+      while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(900)) step(s, bot.decide(s));
+      const furyAtk = s.events.filter((e) => e.type === 'telegraph' && (e.attack === 'queen_lance2' || e.attack === 'queen_ambush')).length;
+      rows.push(`seed ${seed}: ${Math.round(s.tick / 30)} 秒、倒下 ${s.revives ?? 0}、暴怒招 ${furyAtk}`);
+      expect(s.bossKills ?? []).toContain('thorn_queen');
+      expect(furyAtk).toBeGreaterThan(0);
+    }
+    (globalThis as any).process.stdout.write(`暴怒狼后 ${rows.join('；')}\n`);
+  }, 180000);
 });

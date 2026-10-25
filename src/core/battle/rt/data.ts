@@ -167,7 +167,10 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
     drops: { gold: [110, 160], items: [{ id: 'dust', chance: 100, count: [5, 8] }, { id: 'crystal', chance: 100, count: [1, 2] }] },
     attacks: [
       { id: 'queen_claw', shape: { type: 'sector', r: u(2.2), deg: 80 }, warningTicks: sec(0.7), recoverTicks: sec(0.4), damageMultiplier: 110, cooldownTicks: sec(3.0), triggerRange: u(2.0), blockable: true, weight: 3 },
-      { id: 'queen_lance', shape: { type: 'line', len: u(8), width: u(1.1) }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 130, cooldownTicks: sec(5), triggerRange: u(8), blockable: true, status: { id: 'poison', ticks: sec(6), powerPct: 10 }, weight: 2 },
+      { id: 'queen_lance', shape: { type: 'line', len: u(8), width: u(1.1) }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 130, cooldownTicks: sec(5), triggerRange: u(8), blockable: true, status: { id: 'poison', ticks: sec(6), powerPct: 10 }, weight: 2, followUp: 'queen_lance2' },
+      // 暴怒版限定：毒刺連射第二發（預告較短）；鑽進荊棘從背後冒出撕咬
+      { id: 'queen_lance2', shape: { type: 'line', len: u(8), width: u(1.1) }, warningTicks: sec(0.5), recoverTicks: sec(0.6), damageMultiplier: 110, cooldownTicks: 0, triggerRange: u(8), blockable: true, status: { id: 'poison', ticks: sec(6), powerPct: 10 }, weight: 0, furyOnly: true },
+      { id: 'queen_ambush', shape: { type: 'sector', r: u(2.6), deg: 130 }, warningTicks: sec(0.9), recoverTicks: sec(0.7), damageMultiplier: 150, cooldownTicks: sec(11), triggerRange: u(6), blockable: true, blink: { behind: u(2.2) }, weight: 2, furyOnly: true },
       { id: 'queen_roots', shape: { type: 'ring', rIn: u(1.9), rOut: u(4.4) }, warningTicks: sec(1.1), recoverTicks: sec(0.6), damageMultiplier: 150, cooldownTicks: sec(8), triggerRange: u(4.2), blockable: false, weight: 2 },
       { id: 'queen_charge', shape: { type: 'line', len: u(7), width: u(1.6) }, warningTicks: sec(0.9), recoverTicks: sec(0.5), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(7), blockable: true, charge: { ticks: sec(0.5), wallStunTicks: sec(2) }, weight: 2 },
       { id: 'queen_bloom', shape: { type: 'circle', r: u(3.2) }, warningTicks: sec(1.3), recoverTicks: sec(0.8), damageMultiplier: 170, cooldownTicks: sec(12), triggerRange: u(2.8), blockable: false, phase2Only: true, weight: 2 },

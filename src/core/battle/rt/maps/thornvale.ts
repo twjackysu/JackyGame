@@ -110,7 +110,9 @@ export function makeThornvaleStage(): StageDefinition {
     viewUnits: 1300,
     intro: '沿著山谷往北，打倒棘冠狼后！\n棘背狼的咬傷會中毒・建議 Lv6 以上',
     enemies: [{ enemyId: 'thorn_queen', x: THORNVALE_QUEEN.x, y: THORNVALE_QUEEN.y, hpPct: 80, atkPct: 30 }],
-    bossZone: { x: THORNVALE_QUEEN.x, y: c(11), r: u(11), respawnTicks: sec(60) },
+    // 暴怒版（和霧語森林同規則：Lv8 或這張圖討伐 3 次後在 ☰ 開啟）；打倒暴怒狼后一次後解鎖深夜的山谷
+    bossZone: { x: THORNVALE_QUEEN.x, y: c(11), r: u(11), respawnTicks: sec(60), fury: { hpPct: 150, atkPct: 140, cdPct: 25, ilvlPlus: 3, rarity: [0, 25, 75], count: 3 } },
+    night: { hpPct: 60, atkPct: 40, ilvlPlus: 2, lootPct: 50 },
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...THORNVALE_ROWS] } },
     riot: { everyTicks: [sec(300), sec(480)], count: [4, 6], enemyId: 'thorn_wolf', eliteId: 'alpha_wolf', eliteChance: 25, hpPct: 30, lootPct: 100 },
     eliteAffixes: { chancePct: 60 },

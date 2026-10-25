@@ -471,6 +471,13 @@ export class RtBattleScene extends Phaser.Scene {
   // ---------- 大地圖獨立紀錄（D-087） ----------
   /** 這張地圖有沒有跨場紀錄（有 Boss 巢穴的刷怪大地圖） */
   private hazardHinted = false;
+  /** 這張地圖的 Boss 與地形稱呼（D-114）：霧語森林＝狼王／森林、荊棘谷＝狼后／山谷 */
+  private get bw(): string {
+    return this.stageId === 'thornvale' ? '狼后' : '狼王';
+  }
+  private get mw(): string {
+    return this.stageId === 'thornvale' ? '山谷' : '森林';
+  }
   private get tracked(): boolean {
     const st = STAGES[this.stageId];
     return !!st?.bossZone && !!st.spawnGroups?.length && !this.bot;
@@ -802,7 +809,7 @@ export class RtBattleScene extends Phaser.Scene {
       saveRecord(this.stageId, r.rec);
       first = r.first;
       best = r.best;
-      if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, '解鎖：深夜的森林！\n☰ 暫停選單・怪更兇、掉得更好', '#9fb8ff', 34, 2600));
+      if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `解鎖：深夜的${this.mw}！\n☰ 暫停選單・怪更兇、掉得更好`, '#9fb8ff', 34, 2600));
       if (r.first && this.stageId === 'mistwood') this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, '新地圖開放：荊棘谷！\n回標題選「前往荊棘谷」・建議 Lv6', '#a8f08a', 34, 3000));
       if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) this.time.delayedCall(4600, () => this.furyUnlockedToast());
       this.persist();
@@ -811,7 +818,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bossTimed = true;
     this.time.delayedCall(300, () => bigText(this, GAME_WIDTH / 2, 440, `${name} 討伐！`, '#ffd27a', 60, 1800));
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
-    const head = first ? (this.stageId === 'thornvale' ? '首次討伐！山谷的荊棘枯萎了一些…' : '首次討伐！森林安靜了一點…') : fury ? '暴怒的狼王倒下了！看看掉了什麼' : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
+    const head = first ? (this.stageId === 'thornvale' ? '首次討伐！山谷的荊棘枯萎了一些…' : '首次討伐！森林安靜了一點…') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
   }
@@ -958,11 +965,11 @@ export class RtBattleScene extends Phaser.Scene {
   private nightButton(mk: (y: number, label: string, fn: () => void, hi?: boolean) => void, items: Phaser.GameObjects.GameObject[], y: number): void {
     const rec = loadRecord(this.stageId);
     if (!nightUnlocked(rec)) {
-      items.push(this.add.text(0, y, '🔒 深夜的森林（打倒暴怒狼王解鎖）', { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
+      items.push(this.add.text(0, y, `🔒 深夜的${this.mw}（打倒暴怒${this.bw}解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
       return;
     }
     const on = !!this.s.night;
-    mk(y, on ? '🌙 回到白天（重新進入）' : '🌙 深夜的森林（重新進入）', () => this.leave(() => {
+    mk(y, on ? '🌙 回到白天（重新進入）' : `🌙 深夜的${this.mw}（重新進入）`, () => this.leave(() => {
       saveRecord(this.stageId, { ...loadRecord(this.stageId), night: !on });
       this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' });
     }), on);
@@ -971,7 +978,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 第一次達成暴怒狼王解鎖條件（D-099） */
   private furyUnlockedToast(): void {
     SFX.warn(true);
-    bigText(this, GAME_WIDTH / 2, 600, '解鎖：狼王暴怒！\n☰ 暫停選單可以開啟・掉落更好', '#ff7a5a', 34, 2600);
+    bigText(this, GAME_WIDTH / 2, 600, `解鎖：${this.bw}暴怒！\n☰ 暫停選單可以開啟・掉落更好`, '#ff7a5a', 34, 2600);
   }
 
   /** 暫停選單的「狼王暴怒」開關（D-099）：沒解鎖時顯示條件 */
@@ -979,16 +986,16 @@ export class RtBattleScene extends Phaser.Scene {
     const rec = loadRecord(this.stageId);
     const lv = this.s.prog?.level ?? 1;
     if (!furyUnlocked(rec, lv)) {
-      items.push(this.add.text(0, y, `🔒 狼王暴怒（Lv${FURY_UNLOCK.level} 或討伐 ${FURY_UNLOCK.kills} 次解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
+      items.push(this.add.text(0, y, `🔒 ${this.bw}暴怒（Lv${FURY_UNLOCK.level} 或討伐 ${FURY_UNLOCK.kills} 次解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
       return;
     }
     const on = !!this.s.bossFury;
-    mk(y, on ? '🔥 狼王暴怒：開' : '狼王暴怒：關', () => {
+    mk(y, on ? `🔥 ${this.bw}暴怒：開` : `${this.bw}暴怒：關`, () => {
       const next = !on;
       const now = setBossFury(this.s, next);
       saveRecord(this.stageId, { ...loadRecord(this.stageId), fury: next });
       this.toggleMenu();
-      bigText(this, GAME_WIDTH / 2, 470, next ? (now ? '狼王暴怒了！HP・攻擊大增・掉落更好' : '下一次出現的狼王會是暴怒版') : now ? '狼王恢復平靜' : '下一次出現的狼王恢復一般', next ? '#ff7a5a' : '#c8d0f0', 34, 1600);
+      bigText(this, GAME_WIDTH / 2, 470, next ? (now ? `${this.bw}暴怒了！HP・攻擊大增・掉落更好` : `下一次出現的${this.bw}會是暴怒版`) : now ? `${this.bw}恢復平靜` : `下一次出現的${this.bw}恢復一般`, next ? '#ff7a5a' : '#c8d0f0', 34, 1600);
       if (next) SFX.warn(true);
     }, on);
   }
@@ -1192,16 +1199,18 @@ export class RtBattleScene extends Phaser.Scene {
         const b = u(e.id);
         this.prev.delete(e.id);
         SFX.dodge();
-        sparks(this, this.sx(e.fromX), this.sy(e.fromY), 16, 'ember', 0xb9a8ff, 520);
-        shockRing(this, this.sx(e.fromX), this.sy(e.fromY), 0x9a8cff, 90, 360, 6);
+        // 荊棘谷的狼后（D-114）：鑽進地底、從背後的荊棘裡冒出來（綠色）
+        const tvq = this.stageId === 'thornvale';
+        sparks(this, this.sx(e.fromX), this.sy(e.fromY), 16, 'ember', tvq ? 0x9adf5a : 0xb9a8ff, 520);
+        shockRing(this, this.sx(e.fromX), this.sy(e.fromY), tvq ? 0x6ac04a : 0x9a8cff, 90, 360, 6);
         if (b) {
-          sparks(this, this.sx(b.x), this.sy(b.y), 20, 'ember', 0xd8ccff, 560);
+          sparks(this, this.sx(b.x), this.sy(b.y), 20, 'ember', tvq ? 0xc8ff8a : 0xd8ccff, 560);
           shockRing(this, this.sx(b.x), this.sy(b.y), 0xff6a6a, 120, 420, 8);
         }
         this.cameras.main.shake(120, 0.004);
         if (!this.blinkHinted) {
           this.blinkHinted = true;
-          bigText(this, GAME_WIDTH / 2, 520, '狼王遁入霧中——小心背後！', '#c9b8ff', 38, 900);
+          bigText(this, GAME_WIDTH / 2, 520, this.stageId === 'thornvale' ? '狼后鑽進荊棘——小心背後！' : '狼王遁入霧中——小心背後！', this.stageId === 'thornvale' ? '#c8ff8a' : '#c9b8ff', 38, 900);
         }
       }
       else if (e.type === 'cast') {
