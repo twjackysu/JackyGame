@@ -41,6 +41,7 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   alpha_wolf: { key: 'enemy_mist_wolf', h: 2.8, flip: true, tint: 0xffb080 },
   shade_wolf: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xa88aff },
   thorn_shooter: { key: 'enemy_thorn_shroom', h: 2.9, flip: false },
+  thorn_mother: { key: 'enemy_thorn_shroom', h: 2.6, flip: false, tint: 0x8fe07a },
   wolf_king: { key: 'enemy_boss_wolfking', h: 3.0, flip: false },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
@@ -1076,6 +1077,13 @@ export class RtBattleScene extends Phaser.Scene {
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
           this.killSprite(d.id);
           if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(`${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]!.name}`, !!d.fury);
+          else if (d.defId === 'thorn_mother') {
+            // 荊棘母樹倒下（D-107）：綠色衝擊波＋葉片＋大字
+            this.cameras.main.shake(220, 0.007);
+            shockRing(this, this.sx(d.x), this.sy(d.y), 0x6aff7a, 220, 560, 10);
+            sparks(this, this.sx(d.x), this.sy(d.y), 26, 'ember', 0x9aff7a, 700);
+            bigText(this, GAME_WIDTH / 2, 470, '荊棘母樹 倒下了！', '#9aff8a', 46, 900);
+          }
         }
       } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, '狼王暴怒！', '#ff7a5a', 52, 700);
       else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
@@ -1576,6 +1584,21 @@ export class RtBattleScene extends Phaser.Scene {
       // 腳下：陰影＋陣營圈（RO 式）
       g.fillStyle(0x000000, 0.4).fillEllipse(px, py + r * 0.15, r * 2.4, r * 1.0);
       g.lineStyle(isP ? 3 : 2, isP ? 0x7dc8ff : winding ? 0xff5a5a : boss ? 0xffb0d0 : 0xd0d0e0, sp ? 0.75 : 1).strokeEllipse(px, py + r * 0.15, r * 2.3, r * 0.95);
+      if (x.defId === 'thorn_mother') {
+        // 荊棘母樹（D-107）：腳下一圈搖曳的荊棘根＋淡綠光（程式美術備援）
+        g.fillStyle(0x6aff7a, 0.1 + 0.05 * Math.sin(now / 500)).fillEllipse(px, py + r * 0.15, r * 4.2, r * 1.8);
+        for (let k = 0; k < 12; k++) {
+          const an = (k / 12) * Math.PI * 2 + Math.sin(now / 900 + k) * 0.08;
+          const cx0 = px + Math.cos(an) * r * 1.15;
+          const cy0 = py + r * 0.15 + Math.sin(an) * r * 0.48;
+          const len = r * (0.55 + 0.25 * ((k * 7) % 3)) * (1 + 0.08 * Math.sin(now / 300 + k * 1.7));
+          const tx = cx0 + Math.cos(an) * len;
+          const ty = cy0 + Math.sin(an) * len * 0.42 - len * 0.35;
+          const nx = -Math.sin(an) * r * 0.12;
+          const ny = Math.cos(an) * r * 0.05;
+          g.fillStyle(k % 2 ? 0x2f5a2a : 0x3f7a34, 1).fillTriangle(cx0 - nx, cy0 - ny, cx0 + nx, cy0 + ny, tx, ty);
+        }
+      }
       let headY = py - r;
       if (sp) {
         const cfg = SPRITE[isP ? 'swordsman' : x.defId]!;
@@ -1779,6 +1802,14 @@ export class RtBattleScene extends Phaser.Scene {
     }
     for (const e of enemiesOf(s)) {
       const elite = e.tier === 'elite' || ENEMIES[e.defId]?.boss;
+      if (e.defId === 'thorn_mother') {
+        // 荊棘母樹：綠色小樹記號（D-107）
+        const tx = m.x + e.x * m.s;
+        const ty = m.y + e.y * m.s;
+        g.fillStyle(e.mode === 'combat' ? 0xff5a4a : 0x6aff7a, 0.95).fillTriangle(tx, ty - 6, tx - 5, ty + 3, tx + 5, ty + 3);
+        g.fillStyle(0x8a6a40, 1).fillRect(tx - 1, ty + 3, 2, 3);
+        continue;
+      }
       g.fillStyle(e.mode === 'combat' ? 0xff5a4a : elite ? 0xffa040 : 0xc06a6a, e.mode === 'dormant' ? 0.5 : 0.95).fillCircle(m.x + e.x * m.s, m.y + e.y * m.s, elite ? 3.5 : 2.2);
     }
     // 地上的精良以上裝備（D-100）：稀有度顏色的閃爍菱形，免得錯過

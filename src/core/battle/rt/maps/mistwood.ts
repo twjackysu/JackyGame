@@ -123,9 +123,10 @@ export function makeMistwoodStage(): StageDefinition {
       thorn_shooter: { chance: 6, ilvl: 3, rarity: [75, 22, 3] },
       alpha_wolf: { chance: 40, ilvl: 4, rarity: [40, 45, 15] },
       shade_wolf: { chance: 100, ilvl: 5, rarity: [0, 50, 50] },
+      thorn_mother: { chance: 100, ilvl: 5, rarity: [0, 45, 55], count: 2 },
       wolf_king: { chance: 100, ilvl: 4, rarity: [0, 40, 60], count: 2, firstRare: true },
     },
-    progression: { xp: { wolf: 5, wolf_pup: 3, thorn_shooter: 6, alpha_wolf: 25, shade_wolf: 60, wolf_king: 150 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
+    progression: { xp: { wolf: 5, wolf_pup: 3, thorn_shooter: 6, alpha_wolf: 25, shade_wolf: 60, thorn_mother: 120, wolf_king: 150 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '往北穿過森林，打倒霧角狼王！\n撿到裝備去行囊換上・營火旁可以強化',
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
@@ -148,7 +149,7 @@ export function makeMistwoodStage(): StageDefinition {
     campfires: [{ id: 'south', x: c(24), y: c(89) }, { id: 'deep', x: c(36), y: c(49) }],
     zones: [
       { name: '狼王巢穴', hint: '霧角狼王的地盤・跑出巢穴牠會回去回滿', danger: true, x0: 0, y0: 0, x1: u(W), y1: u(24) },
-      { name: '精英狼群', hint: '危險：狼群首領出沒', danger: true, x0: 0, y0: u(24), x1: u(W), y1: u(46) },
+      { name: '精英狼群', hint: '危險：狼群首領出沒・東邊有荊棘母樹', danger: true, x0: 0, y0: u(24), x1: u(W), y1: u(46) },
       { name: '狼群巢穴', hint: '狼比入口兇・一次拉一組', x0: 0, y0: u(46), x1: u(24), y1: u(74) },
       { name: '森林深處', hint: '小心石頭後的射手・北邊有營火', x0: u(24), y0: u(46), x1: u(W), y1: u(74) },
       { name: '森林入口', x0: 0, y0: u(74), x1: u(W), y1: u(86) },
@@ -163,6 +164,8 @@ export function makeMistwoodStage(): StageDefinition {
       { id: 'elite', enemyId: 'alpha_wolf', cx: c(24), cy: c(36), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(180), hpPct: 100, atkPct: 50, lootPct: 100, tier: 'elite' },
       // 霧影狼（D-104）：只在深夜出現，在森林入口東側遊蕩（離南營地不遠，深夜一進來就看得到目標）
       { id: 'night_shade', enemyId: 'shade_wolf', cx: c(40), cy: c(80), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(150), tier: 'elite', lootPct: 100, nightOnly: true },
+      // 荊棘母樹（D-107）：精英狼群區東側、不會動；4 分鐘重生，必掉兩件精良以上
+      { id: 'thorn_mother', enemyId: 'thorn_mother', cx: c(41), cy: c(40), spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(240), tier: 'elite' },
       { id: 'elite_pack', enemyId: 'wolf', cx: c(21), cy: c(33), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 100, atkPct: 50, lootPct: 100 },
     ],
   };

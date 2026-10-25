@@ -789,8 +789,9 @@ function separate(s: BattleState): void {
       const overlap = a.r + b.r - d;
       if (overlap <= 0) continue;
       const [nx, ny] = d === 0 ? [DIR, 0] : norm(b.x - a.x, b.y - a.y);
-      const heavyA = !!ENEMIES[a.defId]?.boss;
-      const heavyB = !!ENEMIES[b.defId]?.boss;
+      // Boss 與不會動的（荊棘母樹 speed 0，D-107）推不動
+      const heavyA = !!ENEMIES[a.defId]?.boss || ENEMIES[a.defId]?.speed === 0;
+      const heavyB = !!ENEMIES[b.defId]?.boss || ENEMIES[b.defId]?.speed === 0;
       const pa = heavyA ? 0 : heavyB ? 1 : 0.5;
       const pb = heavyB ? 0 : heavyA ? 1 : 0.5;
       a.x -= Math.round((nx / DIR) * overlap * pa);

@@ -101,6 +101,16 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'shade_charge', shape: { type: 'line', len: u(5.5), width: u(1.3) }, warningTicks: sec(0.7), recoverTicks: sec(0.5), damageMultiplier: 140, cooldownTicks: sec(6), triggerRange: u(5.5), blockable: true, charge: { ticks: sec(0.35), wallStunTicks: sec(1.5) }, weight: 2 },
     ],
   },
+  // 荊棘母樹（D-107）：不會動的世界精英；遠處直線毒刺、貼身大扇形橫掃、中距離根系環（環內貼著樹是安全的）
+  thorn_mother: {
+    id: 'thorn_mother', name: '荊棘母樹', hp: 4200, atk: 34, def: 10, speed: 0, radius: u(1.0), hitstunTicks: 0,
+    drops: { gold: [60, 90], items: [{ id: 'dust', chance: 100, count: [4, 6] }, { id: 'crystal', chance: 100 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'mother_lance', shape: { type: 'line', len: u(8), width: u(1.0) }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 120, cooldownTicks: sec(3.5), triggerRange: u(8), blockable: true, status: { id: 'poison', ticks: sec(6), powerPct: 10 }, weight: 3 },
+      { id: 'mother_roots', shape: { type: 'ring', rIn: u(1.9), rOut: u(4.4) }, warningTicks: sec(1.1), recoverTicks: sec(0.6), damageMultiplier: 140, cooldownTicks: sec(7), triggerRange: u(4.4), blockable: false, weight: 2 },
+      { id: 'mother_sweep', shape: { type: 'sector', r: u(2.8), deg: 200 }, warningTicks: sec(0.9), recoverTicks: sec(0.7), damageMultiplier: 130, cooldownTicks: sec(5), triggerRange: u(2.6), blockable: true, weight: 3 },
+    ],
+  },
   wolf_king: {
     id: 'wolf_king', name: '霧角狼王', hp: 4200, atk: 31, def: 12, speed: 3.0, radius: u(0.9), hitstunTicks: 0,
     drops: { gold: [80, 120], items: [{ id: 'dust', chance: 100, count: [4, 6] }, { id: 'crystal', chance: 100 }] },
