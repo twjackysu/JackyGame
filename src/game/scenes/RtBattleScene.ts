@@ -8,7 +8,7 @@ import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
 import { coinOf, spendCoin } from '../rtShop';
-import { openEmberCardPanel } from '../ui/emberCardPanel';
+import { grantCard, openEmberCardPanel, syncChestCards } from '../ui/emberCardPanel';
 import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
@@ -45,7 +45,7 @@ import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '..
 import { Ambient } from '../fx/ambient';
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
-import { opponentsAt } from '../../core/cards/emberCards';
+import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
 const STAGE_IDS = Object.keys(STAGES);
@@ -786,6 +786,8 @@ export class RtBattleScene extends Phaser.Scene {
   /** 營火燼牌（D-127）：從行商面板進來，離開回到行商 */
   private openCards(): void {
     this.menu?.destroy();
+    // 以前就開過的寶箱補發燼牌（D-131）
+    syncChestCards(WORLD_MAPS.flatMap((m) => loadRecord(m.id).chests ?? []));
     this.menu = openEmberCardPanel(
       this,
       {
@@ -1696,6 +1698,9 @@ export class RtBattleScene extends Phaser.Scene {
         const got = Object.entries(e.loot).map(([k, n]) => `${LOOT_NAMES[k] ?? k} ×${n}`).join('　');
         bigText(this, GAME_WIDTH / 2, 390, c?.nightOnly ? '夜光寶箱！' : '找到隱藏寶箱！', c?.nightOnly ? '#bfe0ff' : '#ffd27a', 46, 1000);
         this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, 446, got, '#f4e6c0', 30, 1400));
+        // 寶箱裡的燼牌（D-131）：第一次拿到才出字
+        const card = this.tracked ? CHEST_CARDS[e.chest] : undefined;
+        if (card && grantCard(card)) this.time.delayedCall(1300, () => bigText(this, GAME_WIDTH / 2, 500, `＋燼牌「${EMBER_CARDS[card]?.name ?? card}」\n營火行商的「燼牌」可以用`, '#ffb36a', 28, 1800));
       } else if (e.type === 'rest') {
         const p = playerOf(this.s);
         SFX.itemGet();

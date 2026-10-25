@@ -51,7 +51,14 @@ export const CARDS: Readonly<Record<string, CardDef>> = {
   forgehand: { id: 'forgehand', name: '鍛爐學徒', power: 4, row: 1 },
   scorch: { id: 'scorch', name: '燼爆', power: 0, ability: 'scorch', desc: '燼爆：燒掉場上點數最高的單位（雙方都算、傳奇除外）' },
   hero_colossus: { id: 'hero_colossus', name: '燼心岩王', power: 12, row: 0, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
+  // 第 28 輪（D-131）：只能在大地圖的寶箱裡找到的牌
+  mist_warden: { id: 'mist_warden', name: '迷霧巡守', power: 7, row: 0 },
+  thorn_stalker: { id: 'thorn_stalker', name: '荊棘巡獵者', power: 8, row: 0 },
+  hero_obsidian: { id: 'hero_obsidian', name: '黑曜首領', power: 9, row: 0, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
 };
+
+/** 寶箱裡的燼牌（D-131）：寶箱 id → 牌；每張只拿一次，守在難去的地方 */
+export const CHEST_CARDS: Readonly<Record<string, string>> = { elite_corner: 'mist_warden', tv_gallery_west: 'thorn_stalker', er_vent_heart: 'hero_obsidian' };
 
 /** 玩家的牌組（15 張） */
 export const PLAYER_DECK: readonly string[] = ['militia', 'militia', 'militia', 'wolfhunter', 'shieldman', 'sellsword', 'bear', 'archer', 'archer', 'mage', 'ballista', 'scout', 'hero_blade', 'horn', 'frost'];
@@ -365,7 +372,7 @@ export function aiMove(g: CardGame, side: number, who: Opponent = OPPONENTS[0]!)
 
 /** 下注贏了依序拿到莫托的一張牌（加進你的牌組；全部拿完就只拿金幣） */
 export const CARD_REWARDS: readonly string[] = OPPONENTS[0]!.rewards;
-const ALL_REWARDS: readonly string[] = OPPONENTS.flatMap((o) => o.rewards);
+const ALL_REWARDS: readonly string[] = [...OPPONENTS.flatMap((o) => o.rewards), ...Object.values(CHEST_CARDS)];
 
 /** 手上所有的牌＝基本牌組＋贏來的牌（未知 id、超過可贏張數的會被丟掉） */
 export function ownedCards(won: readonly string[]): string[] {

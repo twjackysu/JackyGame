@@ -192,3 +192,20 @@ describe('燼牌自己組牌（D-130）', () => {
     expect(deckWith(won, ['wolfhunter', 'shieldman']).length).toBe(DECK_MAX);
   });
 });
+
+describe('寶箱裡的燼牌（D-131）', () => {
+  it('寶箱都在大地圖上、不是夜光寶箱；牌拿得進牌組', async () => {
+    const { CHEST_CARDS, ownedCards } = await import('../src/core/cards/emberCards');
+    const { makeMistwoodStage } = await import('../src/core/battle/rt/maps/mistwood');
+    const { makeThornvaleStage } = await import('../src/core/battle/rt/maps/thornvale');
+    const { makeEmberriftStage } = await import('../src/core/battle/rt/maps/emberrift');
+    const chests = [makeMistwoodStage(), makeThornvaleStage(), makeEmberriftStage()].flatMap((s) => s.chests ?? []);
+    for (const [chest, id] of Object.entries(CHEST_CARDS)) {
+      const c = chests.find((x) => x.id === chest);
+      expect(c, chest).toBeDefined();
+      expect(c!.nightOnly).toBeFalsy();
+      expect(CARDS[id]).toBeDefined();
+      expect(ownedCards([id])).toContain(id);
+    }
+  });
+});

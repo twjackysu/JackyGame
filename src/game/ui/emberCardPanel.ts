@@ -2,7 +2,7 @@
 // 全螢幕面板：上半是莫托的後排／前排、中間天候、下半是你的前排／後排與手牌。點一張牌看說明、再點一次（或按「出牌」）打出。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { aiMove, applyMove, CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
+import { aiMove, applyMove, CARDS, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
 import { GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
@@ -42,6 +42,23 @@ function stats(): Stats {
     return { played: 0, won: 0, cards: [], by: {}, off: [] };
   }
 }
+/** 寶箱裡的燼牌（D-131）：還沒拿過就加進收藏，回傳有沒有新拿到 */
+export function grantCard(id: string): boolean {
+  if (!CARDS[id]) return false;
+  const st = stats();
+  if (st.cards.includes(id)) return false;
+  st.cards.push(id);
+  saveStats(st);
+  return true;
+}
+
+/** 以前就開過的寶箱（D-131 之前的存檔）：補發牌，回傳補了哪些 */
+export function syncChestCards(opened: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const [chest, id] of Object.entries(CHEST_CARDS)) if (opened.includes(chest) && grantCard(id)) out.push(id);
+  return out;
+}
+
 function bump(s: Stats, id: string, won: boolean): void {
   s.played++;
   if (won) s.won++;
@@ -251,7 +268,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     items.push(scene.add.text(0, -235, rules.join('\n'), { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', lineSpacing: 6 }).setOrigin(0.5));
     const nx = nextReward(st.cards, who);
     const stake = who.stake;
-    items.push(scene.add.text(0, -50, `你的牌組 ${deckWith(st.cards, st.off).length + 1} 張（含晴空）${st.cards.length ? `・贏來的牌 ${st.cards.length} 張` : ''}\n${nx ? `下注贏了，${who.short}會把「${CARDS[nx]!.name}」給你` : `${who.short}的牌你全都贏到了！`}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0', align: 'center', lineSpacing: 6, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
+    items.push(scene.add.text(0, -50, `你的牌組 ${deckWith(st.cards, st.off).length + 1} 張（含晴空）・寶箱裡的燼牌 ${Object.values(CHEST_CARDS).filter((id) => st.cards.includes(id)).length}/${Object.keys(CHEST_CARDS).length}\n${nx ? `下注贏了，${who.short}會把「${CARDS[nx]!.name}」給你` : `${who.short}的牌你全都贏到了！`}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0', align: 'center', lineSpacing: 6, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
     items.push(scene.add.text(0, 10, `戰績 ${st.won} 勝 / ${st.played} 場　手上金幣 ${ctx.coin()}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
     const can = ctx.coin() >= stake;
     items.push(btn(0, 90, can ? `下注 ${stake} 金開局（贏了拿 ${stake * 2}）` : `金幣不夠下注（${stake}）`, () => start(true), true, 26, !can));
