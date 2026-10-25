@@ -18,6 +18,8 @@ import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, aggroU
 /** 精英詞綴顏色（D-113）：迅捷青、堅韌綠、狂暴紅 */
 /** 命中時會在地上長出荊棘的招式（第 23 輪） */
 const THORN_ATTACKS = new Set(['queen_lance', 'queen_lance2', 'queen_roots', 'queen_bloom', 'mother_lance', 'mother_roots']);
+/** 燼心岩王與黑曜首領（D-125）：命中那一刻地上裂出熔岩（走 thornPending，命中時改呼叫 spawnLava） */
+const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash']);
 
 function lerpColor(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t);
@@ -1491,7 +1493,7 @@ export class RtBattleScene extends Phaser.Scene {
           if (o?.affix === 'tough' && lb) this.cameras.main.shake(120, 0.003);
         }
         // 地面荊棘（第 23 輪）：記下預告，命中那一刻在範圍裡長出荊棘
-        if (THORN_ATTACKS.has(e.attack)) {
+        if (THORN_ATTACKS.has(e.attack) || LAVA_ATTACKS.has(e.attack)) {
           const tg = [...this.s.telegraphs].reverse().find((t) => t.ownerId === e.owner && t.attackId === e.attack);
           if (tg) this.thornPending.push({ ...tg });
         }
@@ -1949,6 +1951,59 @@ export class RtBattleScene extends Phaser.Scene {
     });
   }
 
+  /** 熔岩裂地（D-125）：命中範圍裡裂出發光的熔岩紋＋火星，1.4 秒冷卻變暗（純畫面） */
+  private spawnLava(t: Telegraph): void {
+    const sh = t.shape;
+    const g = this.add.graphics().setDepth(8).setBlendMode(Phaser.BlendModes.ADD);
+    const lines: [number, number][][] = [];
+    const zig = (x0: number, y0: number, x1: number, y1: number, n: number, amp: number): [number, number][] => {
+      const pts: [number, number][] = [];
+      const nx = -(y1 - y0);
+      const ny = x1 - x0;
+      const L = Math.hypot(nx, ny) || 1;
+      for (let i = 0; i <= n; i++) {
+        const f = i / n;
+        const o = i === 0 || i === n ? 0 : (Math.random() - 0.5) * amp;
+        pts.push([x0 + (x1 - x0) * f + (nx / L) * o, y0 + (y1 - y0) * f + (ny / L) * o]);
+      }
+      return pts;
+    };
+    if (sh.type === 'line') {
+      const ex = t.ox + (t.dirX / 1000) * sh.len;
+      const ey = t.oy + (t.dirY / 1000) * sh.len;
+      lines.push(zig(t.ox, t.oy, ex, ey, 9, sh.width * 0.5));
+      for (let i = 0; i < 4; i++) {
+        const f = 0.2 + Math.random() * 0.7;
+        const bx = t.ox + (ex - t.ox) * f;
+        const by = t.oy + (ey - t.oy) * f;
+        const a = Math.atan2(ey - t.oy, ex - t.ox) + (Math.random() < 0.5 ? 1 : -1) * (0.6 + Math.random() * 0.6);
+        lines.push(zig(bx, by, bx + Math.cos(a) * sh.width * 0.9, by + Math.sin(a) * sh.width * 0.9, 3, sh.width * 0.2));
+      }
+    } else if (sh.type === 'circle' || sh.type === 'ring') {
+      const r0 = sh.type === 'ring' ? sh.rIn : sh.r * 0.15;
+      const r1 = sh.type === 'ring' ? sh.rOut : sh.r;
+      const n = sh.type === 'ring' ? 10 : 7;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+        lines.push(zig(t.ox + Math.cos(a) * r0, t.oy + Math.sin(a) * r0, t.ox + Math.cos(a) * r1, t.oy + Math.sin(a) * r1, 4, (r1 - r0) * 0.25));
+      }
+    } else return;
+    const draw = (heat: number) => {
+      g.clear();
+      for (const pts of lines) {
+        const v = pts.map(([x, y]) => new Phaser.Math.Vector2(this.sx(x), this.sy(y)));
+        g.lineStyle(16, 0xc8401a, 0.35 * heat).strokePoints(v, false);
+        g.lineStyle(7, 0xff7a2a, 0.85 * heat).strokePoints(v, false);
+        g.lineStyle(2.5, 0xffe6a0, heat).strokePoints(v, false);
+      }
+    };
+    draw(1);
+    const o = { h: 1 };
+    // 跟著鏡頭：每幀用世界座標重畫（1.4 秒）
+    this.tweens.add({ targets: o, h: 0, duration: 1400, ease: 'Quad.easeIn', onUpdate: () => draw(o.h), onComplete: () => g.destroy() });
+    sparks(this, this.sx(t.ox), this.sy(t.oy), 14, 'ember', 0xff8a3a, 520);
+  }
+
   /** 噴發口預告（D-125）：平常熔岩芯微微發光；噴發前 warnTicks 圈內越來越亮、外圈收縮 */
   private drawVents(g: Phaser.GameObjects.Graphics, now: number): void {
     const vs = STAGES[this.stageId]?.vents;
@@ -2083,7 +2138,9 @@ export class RtBattleScene extends Phaser.Scene {
       for (let i = 1; i <= n; i++) {
         const d = (sh.len * i) / (n + 0.5);
         const off = (Math.random() - 0.5) * sh.width * 0.7;
-        pts.push([t.ox + t.dirX * d - t.dirY * off, t.oy + t.dirY * d + t.dirX * off]);
+        const dx = t.dirX / 1000; // 預告方向是 1000 倍整數（引擎的 DIR）；第 26 輪修：以前直接乘，直線荊棘長在 1000 倍遠的地方
+        const dy = t.dirY / 1000;
+        pts.push([t.ox + dx * d - dy * off, t.oy + dy * d + dx * off]);
       }
     } else return;
     const big = sh.type !== 'line';
@@ -2114,7 +2171,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.thornPending.length) {
       this.thornPending = this.thornPending.filter((t) => {
         if (s.tick < t.hitTick) return true;
-        this.spawnThorns(t);
+        if (LAVA_ATTACKS.has(t.attackId)) this.spawnLava(t);
+        else this.spawnThorns(t);
         return false;
       });
     }
