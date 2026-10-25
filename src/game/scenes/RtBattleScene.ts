@@ -19,7 +19,7 @@ import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mist
 import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
-import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, mergeRun, recordBoss, saveRecord, spend, walletOf, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, walletOf, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -155,7 +155,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked || big ? skillModsOf(this.bagSt) : undefined });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked || big ? skillModsOf(this.bagSt) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0) });
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -213,7 +213,9 @@ export class RtBattleScene extends Phaser.Scene {
     const hdr = this.add.graphics().setDepth(48);
     hdr.fillStyle(0x0b1410, 0.94).fillRect(0, 0, GAME_WIDTH, VIEW_TOP);
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
-    this.add.text(GAME_WIDTH / 2, 40, this.tracked || this.stageId === 'mistwood' ? STAGES[this.stageId]!.name : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
+    // 深夜（D-103）：整個畫面壓暗、偏藍
+    if (this.s.night) this.add.rectangle(GAME_WIDTH / 2, 640, GAME_WIDTH, 1280, 0x081038, 0.38).setDepth(42).setBlendMode(Phaser.BlendModes.MULTIPLY);
+    this.add.text(GAME_WIDTH / 2, 40, this.tracked || this.stageId === 'mistwood' ? `${STAGES[this.stageId]!.name}${this.s.night ? '・深夜' : ''}` : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
     // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
@@ -690,6 +692,7 @@ export class RtBattleScene extends Phaser.Scene {
       saveRecord(this.stageId, r.rec);
       first = r.first;
       best = r.best;
+      if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, '解鎖：深夜的森林！\n☰ 暫停選單・怪更兇、掉得更好', '#9fb8ff', 34, 2600));
       if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) this.time.delayedCall(4600, () => this.furyUnlockedToast());
       this.persist();
     }
@@ -838,6 +841,20 @@ export class RtBattleScene extends Phaser.Scene {
     return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
   }
 
+  /** 暫停選單的「深夜的森林」開關（D-103）：要重新進入森林才生效 */
+  private nightButton(mk: (y: number, label: string, fn: () => void, hi?: boolean) => void, items: Phaser.GameObjects.GameObject[], y: number): void {
+    const rec = loadRecord(this.stageId);
+    if (!nightUnlocked(rec)) {
+      items.push(this.add.text(0, y, '🔒 深夜的森林（打倒暴怒狼王解鎖）', { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
+      return;
+    }
+    const on = !!this.s.night;
+    mk(y, on ? '🌙 回到白天（重新進入）' : '🌙 深夜的森林（重新進入）', () => this.leave(() => {
+      saveRecord(this.stageId, { ...loadRecord(this.stageId), night: !on });
+      this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' });
+    }), on);
+  }
+
   /** 第一次達成暴怒狼王解鎖條件（D-099） */
   private furyUnlockedToast(): void {
     SFX.warn(true);
@@ -912,9 +929,17 @@ export class RtBattleScene extends Phaser.Scene {
       ctlBtn(-190);
       mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
       mk(-30, '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
-      if (this.tracked && STAGES[this.stageId]?.bossZone?.fury) this.furyButton(mk, items, 50);
-      mk(this.tracked && STAGES[this.stageId]?.bossZone?.fury ? 130 : 50, '回標題', () => this.leave(() => this.scene.start('Title')));
-      items.push(this.recordText(this.tracked && STAGES[this.stageId]?.bossZone?.fury ? 210 : 130));
+      let y = 50;
+      if (this.tracked && STAGES[this.stageId]?.bossZone?.fury) {
+        this.furyButton(mk, items, y);
+        y += 80;
+      }
+      if (this.tracked && STAGES[this.stageId]?.night) {
+        this.nightButton(mk, items, y);
+        y += 80;
+      }
+      mk(y, '回標題', () => this.leave(() => this.scene.start('Title')));
+      items.push(this.recordText(y + 80));
       this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
       return;
     }

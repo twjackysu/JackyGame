@@ -389,6 +389,8 @@ export interface StageDefinition {
    * 回到原位時整場重置（回滿、回第一階段、召喚物消失）。倒下在營火醒來也會重置。
    * respawnTicks：Boss 被打倒後至少過這麼久、而且玩家在區域外，Boss 就回到巢穴（離開再進來可再挑戰；design/20 B2）。沒設＝不重生。
    */
+  /** 深夜（D-103）：玩家選了才套用（BattleSetup.night）；重生點的怪 HP／攻擊 +%、掉落 +%、裝備物品等級 +ilvlPlus */
+  night?: { hpPct: number; atkPct: number; ilvlPlus: number; lootPct: number };
   bossZone?: {
     x: number; y: number; r: number; respawnTicks?: number;
     /**
@@ -507,6 +509,8 @@ export interface BattleState {
   revives?: number;
   /** Boss 再挑戰（bossZone.respawnTicks）：倒下的固定 Boss 索引與最早可重生的 tick；玩家在巢穴外才生 */
   bossRespawn?: { idx: number; at: number };
+  /** 深夜模式（StageDefinition.night，D-103） */
+  night?: boolean;
   /** 玩家選了暴怒版 Boss（bossZone.fury）；下一次出現的 Boss 生效 */
   bossFury?: boolean;
   /** 打倒暴怒版的次數（這場） */

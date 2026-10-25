@@ -30,6 +30,8 @@ export interface RtRecord {
   /** 狼王暴怒版（D-099）：玩家的選擇（解鎖後才有效）與討伐次數 */
   fury?: boolean;
   furyKills?: number;
+  /** 深夜模式（D-103）：打倒暴怒狼王一次後解鎖 */
+  night?: boolean;
   /** 強化花掉的材料（累計撿到 − 花掉 ＝ 手上有的；分解得到的粉塵記成負的花費） */
   spent?: { dust?: number; crystal?: number };
 }
@@ -101,6 +103,11 @@ export function recordBoss(rec: RtRecord, sec: number | null, at: number, fury =
 export const FURY_UNLOCK = { level: 8, kills: 3 } as const;
 export function furyUnlocked(rec: RtRecord, level: number): boolean {
   return level >= FURY_UNLOCK.level || (rec.bossKills ?? 0) >= FURY_UNLOCK.kills;
+}
+
+/** 深夜模式解鎖（D-103）：打倒暴怒狼王至少一次 */
+export function nightUnlocked(rec: RtRecord): boolean {
+  return (rec.furyKills ?? 0) >= 1;
 }
 
 export function loadRecord(stage: string): RtRecord {

@@ -128,6 +128,8 @@ export function makeMistwoodStage(): StageDefinition {
     viewUnits: 1300,
     intro: '往北穿過森林，打倒霧角狼王！\n撿到裝備去行囊換上・營火旁可以強化',
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
+    // 深夜（D-103）：打倒暴怒狼王一次後解鎖；重生點的怪 HP +60%、攻擊 +40%、掉落 +50%、裝備物品等級 +2
+    night: { hpPct: 60, atkPct: 40, ilvlPlus: 2, lootPct: 50 },
     // 暴怒版（D-099）：Lv8 或討伐 3 次後在 ☰ 開啟；HP +150%、攻擊 +150%、招式冷卻 −25%、掉 3 件、物品等級 +3、稀有 70%
     bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13), respawnTicks: sec(60), fury: { hpPct: 150, atkPct: 150, cdPct: 25, ilvlPlus: 3, rarity: [0, 30, 70], count: 3 } },
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...MISTWOOD_ROWS] } },

@@ -116,3 +116,23 @@ describe('P5 配裝比較（Lv8、同一批裝備）', () => {
     out(`\n[P5 配裝]\n${rows.join('\n')}\n`);
   }, 300000);
 });
+
+describe('深夜的森林（D-103）', () => {
+  it('重生點的怪更兇、Boss 不變；沒設 night 的關卡不受影響；刷過的角色打得完', () => {
+    const day = createBattle({ stageId: 'mistwood', seed: 1 });
+    const night = createBattle({ stageId: 'mistwood', seed: 1, night: true });
+    const nt = STAGES.mistwood!.night!;
+    expect(night.night).toBe(true);
+    const hp = (s: BattleState, g: string) => s.units.find((u) => u.groupId === g)!.maxHp;
+    expect(hp(night, 'entry')).toBe(Math.round((hp(day, 'entry') * (100 + nt.hpPct)) / 100));
+    expect(king(night)!.maxHp).toBe(king(day)!.maxHp);
+    expect(createBattle({ stageId: 'wolf_king', seed: 1, night: true }).night).toBeUndefined();
+    // Lv8＋一般裝備的普通 Bot：深夜也能從南營地打到狼王
+    const s = createBattle({ stageId: 'mistwood', seed: 2, night: true, level: 8, bonus: { hp: 450, atk: 40, def: 25 } });
+    const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
+    while (!(s.bossKills ?? []).length && s.tick < sec(900)) step(s, bot.decide(s));
+    const ilvls = (s.gearGot ?? []).map((g) => g.ilvl);
+    out(`\n[深夜] Lv8 普通 Bot：狼王 ${Math.round(s.tick / 30)} 秒、營火醒來 ${s.revives ?? 0} 次、撿 ${ilvls.length} 件（物品等級 ${Math.min(...ilvls)}～${Math.max(...ilvls)}）\n`);
+    expect(s.bossKills ?? []).toContain('wolf_king');
+  }, 120000);
+});

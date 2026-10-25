@@ -85,6 +85,8 @@ export interface BattleSetup {
   potions?: number;
   /** 裝備的技能修正（D-094） */
   skillMods?: Record<string, SkillMod>;
+  /** 深夜模式（需要 StageDefinition.night，D-103） */
+  night?: boolean;
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
   level?: number;
   xp?: number;
@@ -128,6 +130,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     applyLevel(s, p);
     p.hp = p.maxHp;
   }
+  if (setup.night && stage.night) s.night = true;
   stage.enemies.forEach((_, i) => s.units.push(makeFixed(s, stage, i)));
   for (const g of stage.spawnGroups ?? []) {
     // 開場：等角度排在半徑 60% 的圓上（不用亂數，方便擺關卡）；石頭上的會被推出去
@@ -205,8 +208,9 @@ function spawnFromGroup(s: BattleState, g: SpawnGroup, x: number, y: number): Un
   if (!def) throw new Error(`unknown enemy ${g.enemyId}`);
   const m = makeEnemy(s, def, x, y);
   const ramp = rampPct(s);
-  const hpPct = ramp + (g.hpPct ?? 0);
-  const atkPct = ramp + (g.atkPct ?? 0);
+  const nt = s.night ? STAGES[s.stageId]?.night : undefined;
+  const hpPct = ramp + (g.hpPct ?? 0) + (nt?.hpPct ?? 0);
+  const atkPct = ramp + (g.atkPct ?? 0) + (nt?.atkPct ?? 0);
   if (hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + hpPct)) / 100);
   if (atkPct) m.atk = Math.round((m.atk * (100 + atkPct)) / 100);
   clampArena(s, m);
@@ -262,7 +266,8 @@ function rollDrops(s: BattleState, e: Unit): void {
   const d = ENEMIES[e.defId]?.drops;
   if (!d) return;
   const st = STAGES[s.stageId];
-  const bonus = !e.groupId ? 0 : e.groupId === RIOT_GROUP ? (st?.riot?.lootPct ?? 0) : e.groupId === HIDDEN_GROUP ? (st?.hiddenElite?.lootPct ?? 0) : (st?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0);
+  const nt = s.night ? st?.night : undefined;
+  const bonus = (e.groupId ? (nt?.lootPct ?? 0) : 0) + (!e.groupId ? 0 : e.groupId === RIOT_GROUP ? (st?.riot?.lootPct ?? 0) : e.groupId === HIDDEN_GROUP ? (st?.hiddenElite?.lootPct ?? 0) : (st?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0));
   const range = (r: [number, number]) => r[0] + Math.floor(lootRand(s) * (r[1] - r[0] + 1));
   const more = (n: number) => (bonus ? Math.round((n * (100 + bonus)) / 100) : n);
   const put = (kind: LootId, amount: number, rarity?: 1 | 2 | 3) => {
@@ -289,7 +294,7 @@ function rollDrops(s: BattleState, e: Unit): void {
     const fury = e.fury ? st?.bossZone?.fury : undefined;
     // 隱藏精英（D-100）：物品等級再 +2、稀有權重 ×2
     const hidden = e.groupId === HIDDEN_GROUP;
-    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0) + (hidden ? 2 : 0);
+    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0) + (hidden ? 2 : 0) + (nt?.ilvlPlus ?? 0);
     const first = !!gd.firstRare && !(s.bossKills ?? []).includes(e.defId);
     for (let k = 0; k < (fury?.count ?? gd.count ?? 1); k++) {
       if (lootRand(s) * 100 >= (gd.chance * (100 + bonus)) / 100) continue;
@@ -1355,6 +1360,7 @@ export function stateHash(s: BattleState): string {
     mix(s.moveGoal.x);
     mix(s.moveGoal.y);
   }
+  if (s.night) mix(7);
   if (s.bossFury || s.furyKills) {
     // 只有用到暴怒版時才加入
     mix(1 + (s.furyKills ?? 0));
