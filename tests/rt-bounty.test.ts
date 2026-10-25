@@ -1,7 +1,7 @@
 // 營地懸賞（D-109）：純資料函式。
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../src/core/battle/rt/data';
-import { BOUNTY_POOL, BOUNTY_SLOTS, bountyKill, cleanBounties, makeBounty } from '../src/game/rtBounty';
+import { BOUNTY_POOL, BOUNTY_SLOTS, bountyKill, bountyTargetsOf, cleanBounties, makeBounty } from '../src/game/rtBounty';
 
 describe('營地懸賞（D-109）', () => {
   it('同編號同結果；池子裡的目標都是存在的敵人；數量在範圍內', () => {
@@ -39,5 +39,15 @@ describe('營地懸賞（D-109）', () => {
     expect(r.st.done).toBe(1);
     expect(r.st.list.length).toBe(BOUNTY_SLOTS);
     expect(r.st.list.some((b) => b.n === 0)).toBe(false);
+  });
+
+  it('每張大地圖打得到哪些懸賞目標（第 28 輪：打不到的在 HUD 標「別張地圖」）', () => {
+    const ember = bountyTargetsOf(['slag_slime', 'ember_wolf', 'ember_shroom', 'obsidian_alpha', 'ember_colossus']);
+    expect(ember.has('wolf')).toBe(true);
+    expect(ember.has('wolf_king')).toBe(true);
+    expect(ember.has('thorn_mother')).toBe(false);
+    // 每個懸賞目標至少有一張地圖打得到
+    const all = bountyTargetsOf(Object.keys(ENEMIES));
+    for (const p of BOUNTY_POOL) expect(all.has(p.target)).toBe(true);
   });
 });

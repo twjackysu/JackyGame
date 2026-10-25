@@ -37,7 +37,7 @@ import { WORLD_MAPS, worldMap } from '../worldMaps';
 import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
-import { bountyKill, cleanBounties } from '../rtBounty';
+import { bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
@@ -651,7 +651,10 @@ export class RtBattleScene extends Phaser.Scene {
   private refreshBounty(): void {
     if (!this.bountyTxt) return;
     const st = cleanBounties(loadRecord(this.stageId).bounty);
-    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${BOUNTY_LABEL[b.target] ?? ENEMIES[b.target]?.name ?? b.target} ${b.got}/${b.need}`)].join('\n'));
+    // 懸賞三張地圖共用：這張地圖打不到的目標標「別張地圖」（例：燼紅裂谷沒有荊棘母樹）
+    const stg = STAGES[this.stageId];
+    const here = bountyTargetsOf([...(stg?.spawnGroups ?? []).map((g) => g.enemyId), ...(stg?.enemies ?? []).map((e) => e.enemyId)]);
+    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${BOUNTY_LABEL[b.target] ?? ENEMIES[b.target]?.name ?? b.target} ${b.got}/${b.need}${here.has(b.target) ? '' : '（別張地圖）'}`)].join('\n'));
   }
 
   private bountyKill(defId: string): void {

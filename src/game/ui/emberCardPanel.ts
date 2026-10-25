@@ -71,6 +71,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   let lastLog = '';
   /** 這場下注贏到的牌 */
   let prizeCard: string | undefined;
+  /** 新牌展示演過了沒（render 會重畫很多次，只演一次） */
+  let revealed = false;
   /** 剛出的那張牌（畫面上彈一下）：[side, row, 數量] */
   let fresh: [number, Row, number] | null = null;
   /** 這次的對手：預設是這張地圖的在地對手（沒有就莫托） */
@@ -261,6 +263,70 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       render();
     }, true, 26));
     items.push(btn(120, 470, '回行商', () => onClose(), false, 26));
+    if (prizeCard && !revealed) {
+      revealed = true;
+      scene.time.delayedCall(450, () => {
+        if (root.active && prizeCard) reveal(prizeCard);
+      });
+    }
+  }
+
+  /** 一張大牌（新牌展示、牌組一覽用） */
+  function bigCard(x: number, y: number, id: string, k = 1): Phaser.GameObjects.Container {
+    const c = CARDS[id]!;
+    const col = cardColor(id);
+    const box = scene.add.container(x, y);
+    box.add(scene.add.rectangle(0, 0, 200 * k, 290 * k, col.fill, 1).setStrokeStyle(6 * k, col.edge, 1));
+    box.add(scene.add.rectangle(0, -30 * k, 170 * k, 150 * k, 0x000000, 0.25).setStrokeStyle(2 * k, col.edge, 0.5));
+    if (c.power) {
+      box.add(scene.add.circle(-62 * k, -108 * k, 30 * k, 0x0a0806, 1).setStrokeStyle(3 * k, col.edge, 1));
+      box.add(scene.add.text(-62 * k, -108 * k, `${c.power}`, { fontFamily: TITLE_FONT, fontSize: `${36 * k}px`, color: '#ffffff' }).setOrigin(0.5));
+    }
+    box.add(scene.add.text(62 * k, -110 * k, c.row === undefined ? '特殊' : c.row === 0 ? '前排' : '後排', { fontFamily: UI_FONT, fontSize: `${20 * k}px`, color: hexOf(col.edge) }).setOrigin(0.5));
+    // 中間的紋章：依能力畫不同的符號
+    const sym = c.ability === 'hero' ? '★' : c.ability === 'scorch' ? '✹' : c.ability === 'bond' ? '∞' : c.ability === 'scout' ? '◎' : c.ability === 'horn' ? '♫' : c.row === 0 ? '⚔' : c.row === 1 ? '➶' : '❄';
+    box.add(scene.add.text(0, -30 * k, sym, { fontFamily: UI_FONT, fontSize: `${70 * k}px`, color: hexOf(col.edge) }).setOrigin(0.5).setAlpha(0.85));
+    box.add(scene.add.text(0, 72 * k, c.name, { fontFamily: TITLE_FONT, fontSize: `${30 * k}px`, color: '#f8ecd8', stroke: '#000', strokeThickness: 4 * k }).setOrigin(0.5));
+    if (c.desc) box.add(scene.add.text(0, 112 * k, c.desc.split('：')[0]!, { fontFamily: UI_FONT, fontSize: `${18 * k}px`, color: '#ffd27a' }).setOrigin(0.5));
+    return box;
+  }
+
+  /** 贏到新牌：暗幕＋旋轉光芒＋翻牌（點一下關掉） */
+  function reveal(id: string): void {
+    const ov = scene.add.container(0, 0);
+    const dim = scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.78).setInteractive();
+    const rays = scene.add.graphics();
+    const hero = CARDS[id]!.ability === 'hero';
+    const rc = hero ? 0xffd27a : cardColor(id).edge;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      rays.fillStyle(rc, 0.16).fillTriangle(0, 0, Math.cos(a - 0.12) * 520, Math.sin(a - 0.12) * 520, Math.cos(a + 0.12) * 520, Math.sin(a + 0.12) * 520);
+    }
+    rays.setPosition(0, -140);
+    const card = bigCard(0, -140, id, 1.25);
+    const t1 = scene.add.text(0, -380, hero ? '傳奇卡！' : '獲得新牌！', { fontFamily: TITLE_FONT, fontSize: '54px', color: hero ? '#ffd27a' : '#ffffff', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5);
+    const t2 = scene.add.text(0, 120, `「${CARDS[id]!.name}」加進你的牌組\n點一下繼續`, { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc8', align: 'center', lineSpacing: 8 }).setOrigin(0.5);
+    ov.add([dim, rays, card, t1, t2]);
+    root.add(ov);
+    card.setScale(0.01, 1.25);
+    scene.tweens.add({ targets: card, scaleX: 1, scaleY: 1, duration: 520, ease: 'Back.Out' });
+    scene.tweens.add({ targets: rays, angle: 360, duration: 14000, repeat: -1 });
+    scene.tweens.add({ targets: rays, alpha: { from: 0, to: 1 }, duration: 600 });
+    scene.tweens.add({ targets: t1, scale: { from: 1.6, to: 1 }, alpha: { from: 0, to: 1 }, duration: 400, ease: 'Cubic.Out' });
+    scene.cameras.main.flash(220, 255, 230, 160);
+    SFX.itemGet();
+    for (let i = 0; i < 26; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 140 + Math.random() * 200;
+      const e = scene.add.circle(0, -140, 3 + Math.random() * 5, rc, 1);
+      ov.add(e);
+      scene.tweens.add({ targets: e, x: Math.cos(a) * d, y: -140 + Math.sin(a) * d, alpha: 0, duration: 700 + Math.random() * 500, ease: 'Cubic.Out' });
+    }
+    dim.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      scene.tweens.killTweensOf(rays);
+      ov.destroy();
+    });
   }
 
   function start(bet: boolean): void {
@@ -271,6 +337,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     } else staked = 0;
     g = newCardGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, [deckWith(stats().cards), who.deck], who.short);
     prizeCard = undefined;
+    revealed = false;
     sel = -1;
     lastLog = g.turn === 0 ? '擲硬幣：你先手' : `擲硬幣：${who.short}先手`;
     fresh = null;
@@ -395,6 +462,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   }
 
   render();
+  root.setData('reveal', reveal); // 截圖／除錯用
   return root;
 }
 
