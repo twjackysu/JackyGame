@@ -1,0 +1,24 @@
+// 暫時的回歸檢查（不進 git）：舊七關＋霧語森林＋測試大地圖＋荊棘谷 × 種子 1–3 × 三種 Bot 的 stateHash
+import { it } from 'vitest';
+import { STAGES } from '../src/core/battle/rt/data';
+import { createBattle, stateHash, step } from '../src/core/battle/rt/engine';
+import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
+import { makeThornvaleStage, THORNVALE_QUEEN } from '../src/core/battle/rt/maps/thornvale';
+import { makeTestWorldStage } from '../src/core/battle/rt/maps/testWorld';
+import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
+import { sec } from '../src/core/battle/rt/types';
+import { writeFileSync } from 'node:fs';
+it('hash', () => {
+  const old = Object.keys(STAGES).filter((k) => !['mistwood', 'thornvale', 'test_world', 'emberrift'].includes(k));
+  STAGES.mistwood = makeMistwoodStage(); STAGES.thornvale = makeThornvaleStage(); STAGES.test_world = makeTestWorldStage();
+  const out: string[] = [];
+  for (const id of [...old, 'mistwood', 'test_world', 'thornvale']) for (const seed of [1, 2, 3]) for (const b of ['novice', 'normal', 'expert'] as const) {
+    const s = createBattle(id === 'thornvale' ? { stageId: id, seed, level: 6 } : { stageId: id, seed });
+    const adv = id === 'mistwood' ? { campfireBelowPotions: 8, advanceTo: MISTWOOD_KING } : id === 'thornvale' ? { campfireBelowPotions: 8, advanceTo: THORNVALE_QUEEN } : {};
+    const bot = new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: 40, ...adv }, b);
+    const lim = sec(id === 'thornvale' || id === 'mistwood' ? 300 : 240);
+    while (s.outcome === 'running' && s.tick < lim) step(s, bot.decide(s));
+    out.push(`${id} ${seed} ${b} ${stateHash(s)}`);
+  }
+  writeFileSync(process.env.HASH_OUT ?? '/tmp/claude-0/hash.txt', out.join('\n'));
+}, 900000);
