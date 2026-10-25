@@ -61,6 +61,7 @@ describe('霧語森林的裝備掉落與換裝', () => {
     expect(kingTick).toBeGreaterThan(0);
     expect(kingDrops.length).toBe(2);
     expect(kingDrops.every((e) => e.type === 'drop' && (e.rarity ?? 1) >= 2)).toBe(true);
+    expect(kingDrops.some((e) => e.type === 'drop' && e.rarity === 3)).toBe(true); // 這場第一次打倒保底稀有
     expect(drops.length).toBeGreaterThan(2);
   });
 

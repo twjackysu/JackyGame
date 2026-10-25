@@ -388,7 +388,7 @@ export interface StageDefinition {
    * 裝備掉落（P4-2，D-091；需要 loot）：怪物 id → 機率 %（乘上掉落加成）、物品等級（重生點每 +25% HP 再 +1）、
    * 稀有度權重 [普通, 精良, 稀有]、掉幾次。撿到記在 `BattleState.gearGot`，實際數值由 `gear.ts` 用種子產生。
    */
-  gearDrops?: Record<string, { chance: number; ilvl: number; rarity: [number, number, number]; count?: number }>;
+  gearDrops?: Record<string, { chance: number; ilvl: number; rarity: [number, number, number]; count?: number; /** 這場第一次打倒時第一件保底稀有（Boss 用） */ firstRare?: boolean }>;
   /** 刷怪關的壓力曲線：每過 1 分鐘，之後重生的怪 HP 與攻擊 +這麼多 %（每分鐘發一次 ramp 事件） */
   rampPctPerMin?: number;
   /**

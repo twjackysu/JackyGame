@@ -122,7 +122,7 @@ export function makeMistwoodStage(): StageDefinition {
       wolf: { chance: 5, ilvl: 2, rarity: [80, 18, 2] },
       thorn_shooter: { chance: 6, ilvl: 3, rarity: [75, 22, 3] },
       alpha_wolf: { chance: 40, ilvl: 4, rarity: [40, 45, 15] },
-      wolf_king: { chance: 100, ilvl: 4, rarity: [0, 40, 60], count: 2 },
+      wolf_king: { chance: 100, ilvl: 4, rarity: [0, 40, 60], count: 2, firstRare: true },
     },
     progression: { xp: { wolf: 5, wolf_pup: 3, thorn_shooter: 6, alpha_wolf: 25, wolf_king: 150 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,

@@ -258,11 +258,12 @@ function rollDrops(s: BattleState, e: Unit): void {
   if (gd) {
     const hpPct = e.groupId ? (st?.spawnGroups?.find((g) => g.id === e.groupId)?.hpPct ?? (e.groupId === HIDDEN_GROUP ? 100 : 0)) : e.fixedIdx !== undefined ? (st?.enemies[e.fixedIdx]?.hpPct ?? 0) : 0;
     const ilvl = gd.ilvl + Math.floor(hpPct / 25);
+    const first = !!gd.firstRare && !(s.bossKills ?? []).includes(e.defId);
     for (let k = 0; k < (gd.count ?? 1); k++) {
       if (lootRand(s) * 100 >= (gd.chance * (100 + bonus)) / 100) continue;
       const w = gd.rarity;
       const t = lootRand(s) * (w[0] + w[1] + w[2]);
-      put('gear', ilvl, t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3);
+      put('gear', ilvl, first && k === 0 ? 3 : t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3);
     }
   }
 }
