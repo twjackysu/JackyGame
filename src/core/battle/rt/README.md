@@ -28,5 +28,6 @@
   - `bossZone.respawnTicks`：固定 Boss 倒下後至少過這麼久、玩家在區域外就回到原位（`processBossRespawn`，事件 `respawn` group `boss`）。
   - `riot`：狼群暴動（`processRiot`，事件 `riot`）；暴動怪 `groupId: 'riot'`、醒著直接追、追丟就移除；營火圈或 Boss 區域內延後 5 秒。
   - `chests`：隱藏寶箱，走近 `CHEST_RULES.openUnits` 自動打開（不用亂數，事件 `chest`，`s.chestsOpened`）；畫面在 `hintUnits` 內才淡入。
+  - `hiddenElite`：不倒下連殺 `streak` 隻普通怪（`s.streak`，倒下歸零）→ 7 單位外冒出醒著的精英（`groupId: 'hidden'`，事件 `hiddenElite`）。
   - `SpawnGroup.lootPct`／`riot.lootPct`：金幣與粉塵數量加成（不多抽掉落亂數）。
   - `pushOutSolid` 修正（D-086）：圓心在障礙格內只往鄰格空地推。
