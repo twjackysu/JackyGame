@@ -10,10 +10,18 @@ import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
-import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
+import type { BattleCommand, BattleState, Shape, Telegraph, Unit } from '../../core/battle/rt/types';
 import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, type EliteAffix } from '../../core/battle/rt/types';
 
 /** 精英詞綴顏色（D-113）：迅捷青、堅韌綠、狂暴紅 */
+/** 命中時會在地上長出荊棘的招式（第 23 輪） */
+const THORN_ATTACKS = new Set(['queen_lance', 'queen_lance2', 'queen_roots', 'queen_bloom', 'mother_lance', 'mother_roots']);
+
+function lerpColor(a: number, b: number, t: number): number {
+  const m = (sh: number) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t);
+  return (m(16) << 16) | (m(8) << 8) | m(0);
+}
+
 const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf6a, frenzy: 0xff5a4a };
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
@@ -135,6 +143,12 @@ export class RtBattleScene extends Phaser.Scene {
   private glows: Phaser.GameObjects.Image[] = [];
   /** 大地圖目標列（沒有就 null） */
   private goal: Phaser.GameObjects.Text | null = null;
+  private goalDone = false;
+  private goalAt = 0;
+  private goalNext = '';
+  /** 地面長出的荊棘（狼后／母樹的毒刺、根系環、綻放命中時；只是畫面） */
+  private thornFx: { x: number; y: number; born: number; size: number; seed: number; wither?: number }[] = [];
+  private thornPending: Telegraph[] = [];
   private bountyTxt: Phaser.GameObjects.Text | null = null;
   /** 還沒點的技能點（☰ 紅點用；升級與改動時更新） */
   private ptsLeft = 0;
@@ -247,7 +261,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
     this.refreshBounty();
     this.ptsLeft = this.tracked ? this.skillPointsLeft() : 0;
-    this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 110, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)' }).setPadding(12, 3, 12, 3).setOrigin(0.5).setDepth(49) : null;
+    this.goalDone = false; this.goalAt = 0; this.goalNext = '';
+    this.thornFx = []; this.thornPending = [];
+    this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 95, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)', align: 'center', lineSpacing: 4 }).setPadding(12, 3, 12, 3).setOrigin(0.5, 0).setDepth(49) : null;
     this.makeButtons();
     this.makeMinimap();
     this.makeFireBtn();
@@ -1186,6 +1202,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
           this.killSprite(d.id);
           this.bountyKill(d.defId);
+          if (d.defId === 'thorn_queen' || d.defId === 'thorn_mother') this.thornWither(d.x, d.y, d.defId === 'thorn_queen');
           if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(`${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]!.name}`, !!d.fury);
           else if (d.defId === 'thorn_mother') {
             // 荊棘母樹倒下（D-107）：綠色衝擊波＋葉片＋大字
@@ -1235,6 +1252,11 @@ export class RtBattleScene extends Phaser.Scene {
           this.lastWarnTick = e.tick;
           const o = u(e.owner);
           SFX.warn(!!(o && ENEMIES[o.defId]?.boss));
+        }
+        // 地面荊棘（第 23 輪）：記下預告，命中那一刻在範圍裡長出荊棘
+        if (THORN_ATTACKS.has(e.attack)) {
+          const tg = [...this.s.telegraphs].reverse().find((t) => t.ownerId === e.owner && t.attackId === e.attack);
+          if (tg) this.thornPending.push({ ...tg });
         }
         // 荊棘綻放（D-114）：狼后腳下冒出綠色孢子＋第一次提示跑出圈外
         if (e.attack === 'queen_bloom') {
@@ -1618,6 +1640,101 @@ export class RtBattleScene extends Phaser.Scene {
     });
   }
 
+  /** 命中的那一刻在預告範圍裡長出荊棘（狼后／母樹，第 23 輪；純畫面、用 Math.random 不影響戰鬥） */
+  private spawnThorns(t: Telegraph): void {
+    const now = this.time.now;
+    const pts: [number, number][] = [];
+    const sh = t.shape;
+    if (sh.type === 'ring') {
+      const n = 16;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+        const r = sh.rIn + (sh.rOut - sh.rIn) * (0.2 + Math.random() * 0.7);
+        pts.push([t.ox + Math.cos(a) * r, t.oy + Math.sin(a) * r]);
+      }
+    } else if (sh.type === 'circle') {
+      for (let i = 0; i < 18; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = sh.r * Math.sqrt(0.08 + Math.random() * 0.9);
+        pts.push([t.ox + Math.cos(a) * r, t.oy + Math.sin(a) * r]);
+      }
+    } else if (sh.type === 'line') {
+      const n = 7;
+      for (let i = 1; i <= n; i++) {
+        const d = (sh.len * i) / (n + 0.5);
+        const off = (Math.random() - 0.5) * sh.width * 0.7;
+        pts.push([t.ox + t.dirX * d - t.dirY * off, t.oy + t.dirY * d + t.dirX * off]);
+      }
+    } else return;
+    const big = sh.type !== 'line';
+    pts.forEach(([x, y], i) => this.thornFx.push({ x, y, born: now + i * (big ? 12 : 30), size: (big ? 0.62 : 0.52) + Math.random() * 0.3, seed: Math.random() * 1000 }));
+    if (this.thornFx.length > 120) this.thornFx.splice(0, this.thornFx.length - 120);
+  }
+
+  /** 狼后／母樹倒下：地上的荊棘全部提早枯萎，周圍再冒一圈枯枝與落葉 */
+  private thornWither(x: number, y: number, queen: boolean): void {
+    const now = this.time.now;
+    for (const f of this.thornFx) f.wither = Math.min(f.wither ?? Infinity, now + Math.random() * 300);
+    const n = queen ? 22 : 12;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const r = UNIT * (1.2 + Math.random() * (queen ? 2.6 : 1.6));
+      this.thornFx.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, born: now - 400, size: 0.5 + Math.random() * 0.35, seed: Math.random() * 1000, wither: now + 200 + Math.random() * 500 });
+    }
+    // 落葉：褐色＋暗紫的碎片往外飄
+    for (let i = 0; i < (queen ? 3 : 2); i++) this.time.delayedCall(250 + i * 220, () => {
+      sparks(this, this.sx(x), this.sy(y), 18, 'ember', i % 2 ? 0x8a5a3a : 0x7a3a5a, 900);
+      shockRing(this, this.sx(x), this.sy(y), 0x8a6a4a, (140 + i * 80) * this.k, 700, 5);
+    });
+  }
+
+  /** 每幀畫地面荊棘：0.15 秒長出 → 停留 → 枯萎變褐、縮回地面 */
+  private drawThorns(g: Phaser.GameObjects.Graphics, now: number): void {
+    const s = this.s;
+    if (this.thornPending.length) {
+      this.thornPending = this.thornPending.filter((t) => {
+        if (s.tick < t.hitTick) return true;
+        this.spawnThorns(t);
+        return false;
+      });
+    }
+    if (!this.thornFx.length) return;
+    const HOLD = 1300;
+    const FADE = 500;
+    const k = this.k;
+    this.thornFx = this.thornFx.filter((f) => {
+      const age = now - f.born;
+      if (age < 0) return true;
+      const wStart = f.wither ?? f.born + HOLD;
+      const w = Math.max(0, Math.min(1, (now - wStart) / FADE));
+      if (w >= 1) return false;
+      const px = this.sx(f.x);
+      const py = this.sy(f.y);
+      if (px < -80 || px > GAME_WIDTH + 80 || py < -80 || py > VIEW_BOTTOM + 80) return true;
+      const grow = Math.min(1, age / 150);
+      const pop = grow < 1 ? grow : 1 + 0.12 * Math.max(0, 1 - (age - 150) / 200);
+      const h = UNIT * f.size * k * pop * (1 - 0.6 * w);
+      const base = h * 0.42;
+      // 顏色：紫紅 → 枯褐
+      const col = w > 0 ? lerpColor(0x6a2a4a, 0x5a4630, w) : 0x6a2a4a;
+      const hi = w > 0 ? lerpColor(0xc0507a, 0x8a7050, w) : 0xc0507a;
+      const al = 1 - w * 0.8;
+      g.fillStyle(0x000000, 0.25 * al).fillEllipse(px, py + 2, base * 2.6, base * 0.8);
+      for (let j = -1; j <= 1; j++) {
+        const lean = j * 0.45 + Math.sin(f.seed + j) * 0.15;
+        const hh = h * (j === 0 ? 1 : 0.7);
+        const tx = px + Math.sin(lean) * hh;
+        const ty = py - Math.cos(lean) * hh;
+        const bx = px + j * base * 0.6;
+        g.fillStyle(col, al).fillTriangle(bx - base * 0.35, py, bx + base * 0.35, py, tx, ty);
+        g.fillStyle(hi, al * 0.9).fillTriangle(bx - base * 0.08, py - 1, bx + base * 0.12, py - 1, tx, ty);
+      }
+      // 剛長出來時刺尖的毒綠閃光
+      if (age < 300 && w === 0) g.fillStyle(0xc8ff8a, 0.8 * (1 - age / 300)).fillCircle(px + Math.sin(f.seed) * 2, py - h, 3 + 4 * (1 - age / 300));
+      return true;
+    });
+  }
+
   /** 裂地斬（D-112）：沿直線裂開的地面＋金色劍氣，從玩家往前一路炸開 */
   private groundSplit(x: number, y: number, ang: number, len: number, width: number): void {
     const px = this.sx(x);
@@ -1703,6 +1820,7 @@ export class RtBattleScene extends Phaser.Scene {
       const y = this.oy + im.y;
       im.setVisible(x < GAME_WIDTH && x + im.width > 0 && y < VIEW_BOTTOM && y + im.height > 0);
     }
+    this.drawThorns(g, now);
     // 地面掉落：金幣（金色閃光）、粉塵（藍點）、結晶（紫菱形）、藥水（紅瓶）；上下浮動
     for (const it of s.ground ?? []) {
       const ix = this.sx(it.x);
@@ -2117,7 +2235,14 @@ export class RtBattleScene extends Phaser.Scene {
       const st = STAGES[this.stageId]!;
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
       const done = !!bossDef && (s.bossKills ?? []).includes(bossDef.id);
-      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐・離開巢穴可再挑戰` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
+      // 已討伐：第二行顯示「下一個目標」（每 2 秒或狀態改變才重算，避免每幀讀存檔）
+      const big = this.stageId === 'mistwood' || this.stageId === 'thornvale';
+      if (done && big && (this.goalDone !== done || this.time.now - this.goalAt > 2000)) {
+        this.goalAt = this.time.now;
+        this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(this.stageId === 'thornvale' ? 'mistwood' : 'thornvale'));
+      }
+      this.goalDone = done;
+      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
@@ -2126,6 +2251,7 @@ export class RtBattleScene extends Phaser.Scene {
     // Boss 大血條（畫面上方）
     // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss && (!STAGES[this.stageId]?.mapAi || e.mode === 'combat'));
+    this.goal?.setVisible(!boss);
     if (boss) {
       const w = 600;
       const x0 = (GAME_WIDTH - w) / 2;
