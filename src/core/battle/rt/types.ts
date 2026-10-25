@@ -15,6 +15,20 @@ export type Shape =
   | { type: 'line'; len: number; width: number }
   | { type: 'ring'; rIn: number; rOut: number };
 
+/**
+ * 裝備帶來的技能修正（D-094、D-098）。引擎會夾上限：冷卻 −40%、範圍 +50%、格擋窗口 +6 ticks、衝刺距離 +50%。
+ * areaPct：命中範圍（圓／扇形半徑、直線長度、環外徑）；blockTicks：格擋有效窗口；distPct：位移技能距離。
+ */
+export interface SkillMod {
+  cdPct?: number;
+  dmgPct?: number;
+  areaPct?: number;
+  blockTicks?: number;
+  distPct?: number;
+}
+
+export const SKILL_MOD_CAPS = { cdPct: 40, areaPct: 50, blockTicks: 6, distPct: 50 } as const;
+
 export type StatusId = 'break' | 'slow' | 'stun' | 'atkUp' | 'burn' | 'poison' | 'freeze' | 'weak' | 'shield';
 
 /** 狀態規則（design/19 §2.10）：疊層上限；持續傷害每 30 ticks 結算一次 */
@@ -461,7 +475,7 @@ export interface BattleState {
   /** 掉落物流水號 */
   lootSeq?: number;
   /** 裝備帶來的技能修正（D-094）：技能 id → 冷卻 −%、傷害 +%；沒有＝不變 */
-  skillMods?: Record<string, { cdPct?: number; dmgPct?: number }>;
+  skillMods?: Record<string, SkillMod>;
   /** 等級與經驗（progression）；base＝等級與強化加成前的數值 */
   prog?: { level: number; xp: number; baseHp: number; baseAtk: number };
   /** 這場的武器強化等級（lootEnhance）與強化前的攻擊力 */

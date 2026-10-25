@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { createBattle, enemiesOf, isSolidAt, playerOf, setGearBonus, setSkillMods, step, xpToNext } from '../../core/battle/rt/engine';
+import { createBattle, enemiesOf, isSolidAt, playerOf, setGearBonus, setSkillMods, skillShape, step, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { BAG_MAX, bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { skillModsOf } from '../rtBag';
@@ -966,7 +966,8 @@ export class RtBattleScene extends Phaser.Scene {
         this.hitStop = Math.max(this.hitStop, 110);
         const p = playerOf(this.s);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0x7dffb0, 90, 300, 6);
-        const cs = SKILLS.parry?.block?.counter.shape;
+        const cs0 = SKILLS.parry?.block?.counter.shape;
+        const cs = cs0 && skillShape(this.s, 'parry', cs0);
         if (cs?.type === 'sector') this.slash(p.x, p.y, Math.atan2(p.facingY, p.facingX), cs.r, cs.deg + 30, 0x7dffb0, 10);
         bigText(this, this.sx(p.x), this.sy(p.y) - 80, '格擋！', '#7dffb0', 40, 300);
       } else if (e.type === 'dodged') {
@@ -1286,6 +1287,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.fxDone.add(key);
       const ang = Math.atan2(a.dirY, a.dirX);
       const big = h.mult >= 150;
+      const hs = skillShape(this.s, a.id, h.shape); // 裝備的範圍特效（D-098）
       if (sk.dash) {
         // 衝鋒：身後殘影線
         const g = this.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
@@ -1296,18 +1298,18 @@ export class RtBattleScene extends Phaser.Scene {
           g.lineStyle(4 - Math.abs(j), 0x9fd8ff, 0.8).lineBetween(px - Math.sin(ang) * j * 14, py + Math.cos(ang) * j * 14, px - Math.cos(ang) * L - Math.sin(ang) * j * 14, py - Math.sin(ang) * L + Math.cos(ang) * j * 14);
         }
         this.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
-      } else if (h.shape.type === 'circle') {
+      } else if (hs.type === 'circle') {
         const ult = sk.role === 'ult';
-        this.spin(p.x, p.y, h.shape.r, big ? 0xffd05a : ult ? 0xff7ad0 : 0x9fd8ff, (this.time.now / 90) % (Math.PI * 2));
-        if (ult) this.spin(p.x, p.y, h.shape.r * 0.6, 0xffd0f0, (this.time.now / 70 + Math.PI) % (Math.PI * 2));
+        this.spin(p.x, p.y, hs.r, big ? 0xffd05a : ult ? 0xff7ad0 : 0x9fd8ff, (this.time.now / 90) % (Math.PI * 2));
+        if (ult) this.spin(p.x, p.y, hs.r * 0.6, 0xffd0f0, (this.time.now / 70 + Math.PI) % (Math.PI * 2));
         if (ult && big) {
           this.cameras.main.shake(200, 0.009);
-          shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd05a, h.shape.r * this.k * 1.1, 420, 12);
+          shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd05a, hs.r * this.k * 1.1, 420, 12);
           this.hitStop = Math.max(this.hitStop, 120);
         }
       }
-      else if (h.shape.type === 'sector') {
-        this.slash(p.x, p.y, ang, h.shape.r, h.shape.deg + 30, big ? 0xffd05a : 0x9fd8ff, big ? 10 : 7);
+      else if (hs.type === 'sector') {
+        this.slash(p.x, p.y, ang, hs.r, hs.deg + 30, big ? 0xffd05a : 0x9fd8ff, big ? 10 : 7);
         if (big) this.cameras.main.shake(80, 0.004);
       }
     });
@@ -1505,7 +1507,7 @@ export class RtBattleScene extends Phaser.Scene {
         const h = sk?.hits[0] ?? sk?.block?.counter;
         if (h) {
           g.fillStyle(0x7dc8ff, 0.2);
-          this.shapePath(h.shape, pos.x, pos.y, x.action.dirX, x.action.dirY, g, true);
+          this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x, pos.y, x.action.dirX, x.action.dirY, g, true);
         }
       }
     }

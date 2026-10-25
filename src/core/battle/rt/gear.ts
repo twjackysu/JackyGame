@@ -1,5 +1,7 @@
 // 即時戰鬥的裝備（P4-2，D-091）：純資料與純函式，不依賴 Phaser。
 // 掉落「有沒有、什麼稀有度、物品等級」由核心決定（獨立掉落亂數，不影響戰鬥）；撿到後用 (種子) 產生實際裝備。
+import type { SkillMod } from './types';
+import { SKILL_MOD_CAPS } from './types';
 
 export type GearSlot = 'weapon' | 'head' | 'body' | 'hands' | 'ring' | 'amulet';
 export const GEAR_SLOTS: GearSlot[] = ['weapon', 'head', 'body', 'hands', 'ring', 'amulet'];
@@ -24,8 +26,34 @@ export interface RtGear {
   affixes: { stat: AffixStat; value: number }[];
   /** 強化等級（營火旁強化，D-092）；每級底數值 +10% */
   enh?: number;
-  /** 稀有裝備的技能特效（D-094）：某個技能冷卻 −% 或傷害 +% */
-  special?: { skill: string; kind: 'cd' | 'dmg'; value: number };
+  /** 稀有裝備的技能特效（D-094、D-098）：冷卻 −%、傷害 +%、範圍 +%、格擋窗口 +ticks、衝鋒距離 +% */
+  special?: { skill: string; kind: SpecialKind; value: number };
+}
+
+export type SpecialKind = 'cd' | 'dmg' | 'area' | 'block' | 'dist';
+/** 每個技能可以抽到的特效種類（第三種是「參數型」，D-098） */
+export const SPECIAL_KINDS: Record<string, SpecialKind[]> = {
+  heavy_slash: ['cd', 'dmg', 'area'],
+  whirlwind: ['cd', 'dmg', 'area'],
+  charge: ['cd', 'dmg', 'dist'],
+  parry: ['cd', 'dmg', 'block'],
+  blade_storm: ['cd', 'dmg', 'area'],
+};
+
+/** 特效數值範圍（t∈[0,1)） */
+function specialValue(kind: SpecialKind, t: number): number {
+  switch (kind) {
+    case 'cd':
+      return Math.round(8 + 7 * t);
+    case 'dmg':
+      return Math.round(12 + 13 * t);
+    case 'area':
+      return Math.round(15 + 15 * t);
+    case 'block':
+      return 2 + Math.floor(3 * t); // 2～4 ticks（約 0.07～0.13 秒）
+    case 'dist':
+      return Math.round(20 + 20 * t);
+  }
 }
 
 /** 可以出現在特效上的技能（名稱只給顯示用） */
@@ -136,9 +164,9 @@ export function genGear(seed: number, rarity: Rarity, ilvl: number): RtGear {
   if (rarity === 3) {
     const ids = Object.keys(SPECIAL_SKILLS);
     const skill = ids[Math.floor(R() * ids.length)]!;
-    const kind = R() < 0.5 ? 'cd' : 'dmg';
-    const t = R();
-    special = { skill, kind, value: kind === 'cd' ? Math.round(8 + 7 * t) : Math.round(12 + 13 * t) };
+    const kinds = SPECIAL_KINDS[skill] ?? ['cd', 'dmg'];
+    const kind = kinds[Math.floor(R() * kinds.length)]!;
+    special = { skill, kind, value: specialValue(kind, R()) };
   }
   const names = NAMES[slot];
   const baseName = names[Math.min(names.length - 1, Math.floor((L - 1) / 2))]!;
@@ -192,18 +220,32 @@ export function gearLines(g: RtGear): string[] {
 
 export function specialText(sp: NonNullable<RtGear['special']>): string {
   const n = SPECIAL_SKILLS[sp.skill] ?? sp.skill;
-  return sp.kind === 'cd' ? `★ ${n}冷卻 −${sp.value}%` : `★ ${n}傷害 +${sp.value}%`;
+  switch (sp.kind) {
+    case 'cd':
+      return `★ ${n}冷卻 −${sp.value}%`;
+    case 'dmg':
+      return `★ ${n}傷害 +${sp.value}%`;
+    case 'area':
+      return `★ ${n}範圍 +${sp.value}%`;
+    case 'block':
+      return `★ ${n}判定 +${(sp.value / 30).toFixed(2)} 秒`;
+    case 'dist':
+      return `★ ${n}距離 +${sp.value}%`;
+  }
 }
 
-/** 身上裝備的技能修正合計（冷卻最多 −40%，引擎也會夾） */
-export function gearSkillMods(items: (RtGear | undefined | null)[]): Record<string, { cdPct?: number; dmgPct?: number }> {
-  const out: Record<string, { cdPct?: number; dmgPct?: number }> = {};
+/** 身上裝備的技能修正合計（上限 SKILL_MOD_CAPS，引擎也會夾） */
+export function gearSkillMods(items: (RtGear | undefined | null)[]): Record<string, SkillMod> {
+  const out: Record<string, SkillMod> = {};
   for (const g of items) {
     const sp = g?.special;
     if (!sp) continue;
     const m = (out[sp.skill] ??= {});
-    if (sp.kind === 'cd') m.cdPct = Math.min(40, (m.cdPct ?? 0) + sp.value);
-    else m.dmgPct = (m.dmgPct ?? 0) + sp.value;
+    if (sp.kind === 'cd') m.cdPct = Math.min(SKILL_MOD_CAPS.cdPct, (m.cdPct ?? 0) + sp.value);
+    else if (sp.kind === 'dmg') m.dmgPct = (m.dmgPct ?? 0) + sp.value;
+    else if (sp.kind === 'area') m.areaPct = Math.min(SKILL_MOD_CAPS.areaPct, (m.areaPct ?? 0) + sp.value);
+    else if (sp.kind === 'block') m.blockTicks = Math.min(SKILL_MOD_CAPS.blockTicks, (m.blockTicks ?? 0) + sp.value);
+    else if (sp.kind === 'dist') m.distPct = Math.min(SKILL_MOD_CAPS.distPct, (m.distPct ?? 0) + sp.value);
   }
   return out;
 }

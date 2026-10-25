@@ -1,8 +1,8 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { ENEMIES, SKILLS, SWORDSMAN, STAGES } from './data';
-import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillHit, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, CAMPFIRE_RULES, CHEST_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import type { Action, AreaAttack, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillHit, SkillMod, SpawnGroup, StageDefinition, StatusApply, StatusId, Unit } from './types';
+import { AGGRO_RULES, CAMPFIRE_RULES, CHEST_RULES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
@@ -84,7 +84,7 @@ export interface BattleSetup {
   /** 攜帶的藥水數（預設 PlayerDefinition.potion.carry；之後由背包提供） */
   potions?: number;
   /** 裝備的技能修正（D-094） */
-  skillMods?: Record<string, { cdPct?: number; dmgPct?: number }>;
+  skillMods?: Record<string, SkillMod>;
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
   level?: number;
   xp?: number;
@@ -459,7 +459,7 @@ export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; d
 }
 
 /** 戰鬥中換裝時更新技能修正（D-094） */
-export function setSkillMods(s: BattleState, mods: Record<string, { cdPct?: number; dmgPct?: number }>): void {
+export function setSkillMods(s: BattleState, mods: Record<string, SkillMod>): void {
   if (Object.keys(mods).length) s.skillMods = mods;
   else delete s.skillMods;
 }
@@ -799,7 +799,7 @@ function startSkill(s: BattleState, p: Unit, id: string): boolean {
   if (p.action && p.action.kind !== 'attack') return false; // 同時只能一個主動技能
   const t = currentTarget(s, p);
   if (t) face(p, t);
-  const cdPct = Math.min(40, Math.max(0, s.skillMods?.[id]?.cdPct ?? 0));
+  const cdPct = Math.min(SKILL_MOD_CAPS.cdPct, Math.max(0, s.skillMods?.[id]?.cdPct ?? 0));
   p.ready[id] = s.tick + (cdPct ? Math.round((sk.cooldownTicks * (100 - cdPct)) / 100) : sk.cooldownTicks); // 冷卻從施放開始計
   if (sk.mp) p.mp -= sk.mp;
   p.action = { kind: 'skill', id, start: s.tick, end: s.tick + sk.castTicks, dirX: p.facingX, dirY: p.facingY, ox: p.x, oy: p.y, hitIds: [], targetId: t?.id };
@@ -812,7 +812,7 @@ function startDodge(s: BattleState, p: Unit, dx: number, dy: number): boolean {
   if (p.dead || disabled(p, s.tick) || (p.ready['dodge'] ?? 0) > s.tick) return false;
   // 格擋有效窗口內不能用閃避取消
   const a = p.action;
-  if (a?.kind === 'skill' && SKILLS[a.id]?.block && s.tick - a.start <= SKILLS[a.id]!.block!.windowTicks) return false;
+  if (a?.kind === 'skill' && SKILLS[a.id]?.block && s.tick - a.start <= blockWindow(s, a.id)) return false;
   const [fx, fy] = dx === 0 && dy === 0 ? [-p.facingX, -p.facingY] : norm(dx, dy);
   p.ready['dodge'] = s.tick + pd.dodge.cooldownTicks;
   p.action = { kind: 'dodge', id: 'dodge', start: s.tick, end: s.tick + pd.dodge.ticks, dirX: fx, dirY: fy, ox: p.x, oy: p.y };
@@ -916,10 +916,43 @@ function drinkPotion(s: BattleState, p: Unit): boolean {
   return true;
 }
 
+/** 套上範圍修正後的技能形狀（areaPct；沒有修正就回傳原物件） */
+export function skillShape(s: BattleState, skillId: string, shape: Shape): Shape {
+  const pct = Math.min(SKILL_MOD_CAPS.areaPct, Math.max(0, s.skillMods?.[skillId]?.areaPct ?? 0));
+  if (!pct) return shape;
+  const k = (n: number) => Math.round((n * (100 + pct)) / 100);
+  switch (shape.type) {
+    case 'circle':
+      return { type: 'circle', r: k(shape.r) };
+    case 'sector':
+      return { type: 'sector', r: k(shape.r), deg: shape.deg };
+    case 'line':
+      return { type: 'line', len: k(shape.len), width: shape.width };
+    case 'ring':
+      return { type: 'ring', rIn: shape.rIn, rOut: k(shape.rOut) };
+  }
+}
+
+/** 格擋有效窗口（ticks），含裝備的 blockTicks */
+export function blockWindow(s: BattleState, skillId: string): number {
+  const b = SKILLS[skillId]?.block;
+  if (!b) return -1;
+  return b.windowTicks + Math.min(SKILL_MOD_CAPS.blockTicks, Math.max(0, Math.floor(s.skillMods?.[skillId]?.blockTicks ?? 0)));
+}
+
+/** 位移技能的總距離（含 distPct） */
+export function dashDistance(s: BattleState, skillId: string): number {
+  const d = SKILLS[skillId]?.dash;
+  if (!d) return 0;
+  const pct = Math.min(SKILL_MOD_CAPS.distPct, Math.max(0, s.skillMods?.[skillId]?.distPct ?? 0));
+  return pct ? Math.round((d.distance * (100 + pct)) / 100) : d.distance;
+}
+
 function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillId: string, origin: 'skill' | 'counter'): void {
+  const shape = skillShape(s, skillId, h.shape);
   for (const e of enemiesOf(s)) {
     if (h.oncePerTarget && a.hitIds?.includes(e.id)) continue;
-    if (!inShape(h.shape, p.x, p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
+    if (!inShape(shape, p.x, p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
     a.hitIds?.push(e.id);
     const dmgPct = s.skillMods?.[skillId]?.dmgPct ?? 0;
     dealDamage(s, p, e, dmgPct ? Math.round((h.mult * (100 + dmgPct)) / 100) : h.mult, origin, skillId);
@@ -942,7 +975,7 @@ function updatePlayer(s: BattleState): void {
     } else if (a.kind === 'skill') {
       const sk = SKILLS[a.id]!;
       if (sk.dash && k >= sk.dash.fromTick && k < sk.dash.fromTick + sk.dash.ticks) {
-        const step = Math.round(sk.dash.distance / sk.dash.ticks);
+        const step = Math.round(dashDistance(s, a.id) / sk.dash.ticks);
         p.x += Math.round((a.dirX / DIR) * step);
         p.y += Math.round((a.dirY / DIR) * step);
         clampArena(s, p);
@@ -1115,7 +1148,7 @@ function enemyHit(s: BattleState, e: Unit, atk: AreaAttack, p: Unit): void {
   // 格擋反擊：窗口內、可格擋 → 減傷並立即反擊
   const a = p.action;
   const sk = a?.kind === 'skill' ? SKILLS[a.id] : undefined;
-  if (a && sk?.block && atk.blockable && !a.blocked && s.tick - a.start <= sk.block.windowTicks) {
+  if (a && sk?.block && atk.blockable && !a.blocked && s.tick - a.start <= blockWindow(s, a.id)) {
     a.blocked = true;
     emit(s, { tick: s.tick, type: 'block', id: p.id, attack: atk.id });
     gainMp(p, playerDef().mpGain.block);

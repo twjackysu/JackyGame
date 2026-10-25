@@ -1,5 +1,6 @@
 // 即時戰鬥行囊的純資料函式（D-091；有測試）。畫面在 ui/rtBagPanel.ts。
 import { SWORDSMAN } from '../core/battle/rt/data';
+import type { SkillMod } from '../core/battle/rt/types';
 import { GEAR_SLOTS, gearBonus, gearScore, gearSkillMods, type GearSlot, type RtGear } from '../core/battle/rt/gear';
 
 export interface BagState {
@@ -36,6 +37,6 @@ export function isUpgrade(st: BagState, g: RtGear): boolean {
 
 
 /** 身上裝備的技能特效合計（D-094） */
-export function skillModsOf(st: BagState): Record<string, { cdPct?: number; dmgPct?: number }> {
+export function skillModsOf(st: BagState): Record<string, SkillMod> {
   return gearSkillMods(GEAR_SLOTS.map((s) => st.equip[s]));
 }

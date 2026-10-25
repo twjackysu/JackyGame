@@ -181,3 +181,36 @@ describe('稀有裝備的技能特效（D-094）', () => {
     expect(b.skillMods).toBeUndefined();
   });
 });
+
+describe('參數型技能特效（D-098）', () => {
+  it('範圍、格擋窗口、衝鋒距離都會生效，而且有上限', async () => {
+    const { skillShape, blockWindow, dashDistance } = await import('../src/core/battle/rt/engine');
+    const { gearSkillMods, specialText, SPECIAL_KINDS } = await import('../src/core/battle/rt/gear');
+    const s = createBattle({ stageId: 'forest_entry', seed: 1, skillMods: { whirlwind: { areaPct: 80 }, parry: { blockTicks: 9 }, charge: { distPct: 30 } } });
+    const base = { type: 'circle' as const, r: 220 };
+    expect(skillShape(s, 'whirlwind', base)).toEqual({ type: 'circle', r: 330 }); // 夾在 +50%
+    expect(skillShape(s, 'heavy_slash', base)).toBe(base);
+    expect(blockWindow(s, 'parry')).toBe(12 + 6); // 夾在 +6
+    expect(dashDistance(s, 'charge')).toBe(520);
+    // 衝鋒距離真的變長
+    const a = createBattle({ stageId: 'forest_entry', seed: 1 });
+    const y0 = a.units[0]!.y;
+    for (const st of [a, s]) {
+      step(st, [{ type: 'skill', id: 'charge' }]);
+      for (let i = 0; i < 9; i++) step(st, []);
+    }
+    expect(y0 - s.units[0]!.y).toBeGreaterThan(y0 - a.units[0]!.y + 80);
+    // 裝備合計與文字
+    expect(specialText({ skill: 'parry', kind: 'block', value: 3 })).toBe('★ 格擋反擊判定 +0.10 秒');
+    const g = genGear(5, 3, 4);
+    expect(gearSkillMods([{ ...g, special: { skill: 'whirlwind', kind: 'area', value: 30 } }, { ...g, special: { skill: 'whirlwind', kind: 'area', value: 30 } }])).toEqual({ whirlwind: { areaPct: 50 } });
+    // 稀有裝備抽得到每一種特效
+    const kinds = new Set<string>();
+    for (let seed = 1; seed < 400; seed++) {
+      const sp = genGear(seed, 3, 4).special!;
+      expect(SPECIAL_KINDS[sp.skill]).toContain(sp.kind);
+      kinds.add(sp.kind);
+    }
+    expect([...kinds].sort()).toEqual(['area', 'block', 'cd', 'dist', 'dmg']);
+  });
+});
