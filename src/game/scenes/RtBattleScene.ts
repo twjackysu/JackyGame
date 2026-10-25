@@ -39,6 +39,14 @@ const HINT_KEY = 'jg_rt_hint_seen';
 const fx0 = (x: Unit): number => x.facingX / 1000;
 const fy0 = (x: Unit): number => x.facingY / 1000;
 
+/** HUD 時間：一分鐘內顯示「12.3 秒」，之後「3:05」 */
+function clock(tick: number): string {
+  const sec = tick / TICKS_PER_SEC;
+  if (sec < 60) return `${sec.toFixed(1)} 秒`;
+  const m = Math.floor(sec / 60);
+  return `${m}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+}
+
 export class RtBattleScene extends Phaser.Scene {
   private s!: BattleState;
   private stageId = 'forest_entry';
@@ -88,6 +96,8 @@ export class RtBattleScene extends Phaser.Scene {
   private arrowLabels: Phaser.GameObjects.Text[] = [];
   /** 營火光暈（預先烘好的放射漸層，ADD 混色；每幀只改位置與縮放） */
   private glows: Phaser.GameObjects.Image[] = [];
+  /** 大地圖目標列（沒有就 null） */
+  private goal: Phaser.GameObjects.Text | null = null;
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
   private zoneName: string | null = null;
   /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
@@ -147,6 +157,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.add.text(GAME_WIDTH / 2, 40, `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
     this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
+    // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
+    const stG = STAGES[this.stageId];
+    this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 110, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)' }).setPadding(12, 3, 12, 3).setOrigin(0.5).setDepth(49) : null;
     this.makeButtons();
     this.makeMinimap();
     this.menu = null;
@@ -498,6 +511,7 @@ export class RtBattleScene extends Phaser.Scene {
     items.push(this.add.text(0, -190, '換關卡', { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     STAGE_IDS.forEach((id, i) => mk(-130 + i * 76, `${id === this.stageId ? '▶ ' : ''}${STAGES[id]!.name}`, () => this.scene.restart({ stage: id, seed: this.seed + 1, bot: this.botName ?? '' })));
     mk(-130 + STAGE_IDS.length * 76 + 20, this.botName ? '改成自己操作' : '看 Bot 示範（熟練）', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'expert' }));
+    mk(-130 + STAGE_IDS.length * 76 + 100, '回標題', () => this.scene.start('Title'));
     this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(95);
   }
 
@@ -1186,7 +1200,13 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
-    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${s.loot.gold ?? 0}　粉塵 ${s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${(s.tick / TICKS_PER_SEC).toFixed(1)} 秒`);
+    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${s.loot.gold ?? 0}　粉塵 ${s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
+    if (this.goal) {
+      const st = STAGES[this.stageId]!;
+      const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
+      const done = !!bossDef && (s.bossKills ?? []).includes(bossDef.id);
+      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐・繼續刷怪變強` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
+    }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
     const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < SWORDSMAN.potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
