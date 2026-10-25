@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { createBattle, enemiesOf, isSolidAt, playerOf, step } from '../../core/battle/rt/engine';
+import { createBattle, enemiesOf, isSolidAt, playerOf, step, xpToNext } from '../../core/battle/rt/engine';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
 import { CAMPFIRE_RULES, CHEST_RULES, TICKS_PER_SEC, UNIT } from '../../core/battle/rt/types';
@@ -141,7 +141,8 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed });
+    const rec0 = this.tracked ? loadRecord(this.stageId) : {};
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp });
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -435,7 +436,12 @@ export class RtBattleScene extends Phaser.Scene {
   private persist(): void {
     if (!this.tracked || !this.s) return;
     const now = this.snap();
-    saveRecord(this.stageId, mergeRun(loadRecord(this.stageId), this.saved, now));
+    const rec = mergeRun(loadRecord(this.stageId), this.saved, now);
+    if (this.s.prog) {
+      rec.level = this.s.prog.level;
+      rec.xp = this.s.prog.xp;
+    }
+    saveRecord(this.stageId, rec);
     this.saved = now;
   }
 
@@ -472,7 +478,7 @@ export class RtBattleScene extends Phaser.Scene {
       saveControls(this.ctl);
       this.makeButtons();
     });
-    const ui = this.add.container(GAME_WIDTH / 2, 330, [bg, t, h, done, reset]).setDepth(96);
+    const ui = this.add.container(GAME_WIDTH / 2, 330, [bg, t, h, done, reset]).setDepth(961);
     this.editing = { drag: null, sx: 0, sy: 0, moved: false, pick: null, ui };
   }
   private endEdit(): void {
@@ -702,6 +708,7 @@ export class RtBattleScene extends Phaser.Scene {
       `狼王討伐 ${rec.bossKills ?? 0} 次${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).length}/${nChest}`,
       `進入森林 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
     ];
+    if (this.s.prog) lines.unshift(`Lv ${this.s.prog.level}・經驗 ${this.s.prog.xp}/${xpToNext(this.s.prog.level)}`);
     return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
   }
 
@@ -747,7 +754,7 @@ export class RtBattleScene extends Phaser.Scene {
       mk(-80, '重新進入森林', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
       mk(10, '回標題', () => this.leave(() => this.scene.start('Title')));
       items.push(this.recordText(160));
-      this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(95);
+      this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
       return;
     }
     ctlBtn(-270);
@@ -756,7 +763,7 @@ export class RtBattleScene extends Phaser.Scene {
     STAGE_IDS.forEach((id, i) => mk(-60 + i * 72, `${id === this.stageId ? '▶ ' : ''}${STAGES[id]!.name}`, () => this.scene.restart({ stage: id, seed: this.seed + 1, bot: this.botName ?? '' })));
     mk(-60 + STAGE_IDS.length * 72 + 14, this.botName ? '改成自己操作' : '看 Bot 示範（熟練）', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'expert' }));
     mk(-60 + STAGE_IDS.length * 72 + 90, '回標題', () => this.scene.start('Title'));
-    this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(95);
+    this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
   }
 
   private showHint(): void {
@@ -898,6 +905,18 @@ export class RtBattleScene extends Phaser.Scene {
           e.kind === 'gold' ? [`+${e.amount} 金`, '#ffd27a'] : e.kind === 'dust' ? [`粉塵 +${e.amount}`, '#9fd8ff'] : e.kind === 'crystal' ? [`結晶 +${e.amount}`, '#d0a0ff'] : [`藥水 +${e.amount}`, '#7dffb0'];
         floatNumber(this, this.sx(p.x) + 40, this.sy(p.y) - 70, L[0], { color: L[1], size: e.kind === 'gold' ? 22 : 24 });
         if (e.kind !== 'gold') SFX.itemGet();
+      } else if (e.type === 'levelUp') {
+        // 升級（D-090）：金色光柱＋大字＋數值浮字，立刻存檔
+        const p = playerOf(this.s);
+        SFX.perfect();
+        this.cameras.main.flash(180, 255, 230, 160);
+        const col = this.add.rectangle(this.sx(p.x), this.sy(p.y) - 200, 90, 420, 0xffe08a, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(44);
+        this.tweens.add({ targets: col, scaleX: 0.1, alpha: 0, duration: 900, ease: 'Cubic.In', onComplete: () => col.destroy() });
+        bigText(this, GAME_WIDTH / 2, 470, `等級提升！Lv ${e.level}`, '#ffe08a', 54, 1000);
+        floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, `HP ${e.maxHp}・攻擊 ${e.atk}`, { color: '#ffe08a', size: 26 });
+        sparks(this, this.sx(p.x), this.sy(p.y) - 30, 36, 'ember', 0xffe08a, 700);
+        shockRing(this, this.sx(p.x), this.sy(p.y), 0xffe08a, 200, 600, 8);
+        this.persist();
       } else if (e.type === 'enhance') {
         const p = playerOf(this.s);
         SFX.confirm();
@@ -1493,7 +1512,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
-    this.hud.setText(`HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${s.loot.gold ?? 0}　粉塵 ${s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
+    this.hud.setText(`${s.prog ? `Lv ${s.prog.level}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${s.loot.gold ?? 0}　粉塵 ${s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
     if (this.goal) {
       const st = STAGES[this.stageId]!;
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
@@ -1599,6 +1618,11 @@ export class RtBattleScene extends Phaser.Scene {
       const x0 = (GAME_WIDTH - w) / 2;
       g.fillStyle(0x000000, 0.6).fillRect(x0 - 2, 96, w + 4, 8);
       g.fillStyle(0xff7ad0, 1).fillRect(x0, 98, (w * p.mp) / SWORDSMAN.mp, 4);
+      // 經驗條（D-090）：MP 條正下方，金色
+      if (s.prog) {
+        g.fillStyle(0x000000, 0.6).fillRect(x0 - 2, 104, w + 4, 6);
+        g.fillStyle(0xffe08a, 1).fillRect(x0, 105, Math.min(w, (w * s.prog.xp) / xpToNext(s.prog.level)), 3);
+      }
     }
   }
 

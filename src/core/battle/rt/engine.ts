@@ -83,6 +83,14 @@ export interface BattleSetup {
   bonus?: { hp?: number; atk?: number; def?: number; critRate?: number };
   /** 攜帶的藥水數（預設 PlayerDefinition.potion.carry；之後由背包提供） */
   potions?: number;
+  /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
+  level?: number;
+  xp?: number;
+}
+
+/** 從 level 升到 level+1 需要的經驗（D-090：Lv2 約 10 隻狼、Lv10 累計約 1 萬） */
+export function xpToNext(level: number): number {
+  return Math.round(60 * Math.pow(level, 1.7));
 }
 
 export function createBattle(setup: BattleSetup): BattleState {
@@ -110,6 +118,13 @@ export function createBattle(setup: BattleSetup): BattleState {
     nextAttackTick: 0, invulnUntil: -1, hitstunUntil: -1, hitstunImmuneUntil: -1, targetId: null, phase: 1,
     nextSummonTick: Number.MAX_SAFE_INTEGER, mp: Math.min(pd.mp, pd.mpStart),
   });
+  if (stage.progression) {
+    const p = s.units[0]!;
+    const lv = Math.max(1, Math.min(stage.progression.maxLevel, Math.floor(setup.level ?? 1)));
+    s.prog = { level: lv, xp: Math.max(0, Math.floor(setup.xp ?? 0)), baseHp: p.maxHp, baseAtk: p.atk };
+    applyLevel(s, p);
+    p.hp = p.maxHp;
+  }
   stage.enemies.forEach((_, i) => s.units.push(makeFixed(s, stage, i)));
   for (const g of stage.spawnGroups ?? []) {
     // 開場：等角度排在半徑 60% 的圓上（不用亂數，方便擺關卡）；石頭上的會被推出去
@@ -375,13 +390,50 @@ function processChests(s: BattleState): void {
 function lootEnhance(s: BattleState, p: Unit): void {
   const rule = STAGES[s.stageId]?.lootEnhance;
   if (!rule) return;
-  const e = (s.enhance ??= { level: 0, baseAtk: p.atk });
+  const e = (s.enhance ??= { level: 0, baseAtk: s.prog?.baseAtk ?? p.atk });
   const pts = (s.loot!.dust ?? 0) + 5 * (s.loot!.crystal ?? 0);
   const lv = Math.min(rule.maxLevel, Math.floor(pts / rule.dustPerLevel));
   if (lv <= e.level) return;
   e.level = lv;
-  p.atk = Math.round((e.baseAtk * (100 + rule.atkPctPerLevel * lv)) / 100);
+  recomputeAtk(s, p);
   emit(s, { tick: s.tick, type: 'enhance', level: lv, atk: p.atk });
+}
+
+/** 攻擊力＝基礎 ×（100 ＋ 等級加成 ＋ 撿材料強化加成）%（沒有等級時與舊算法相同） */
+function recomputeAtk(s: BattleState, p: Unit): void {
+  const st = STAGES[s.stageId];
+  const base = s.prog?.baseAtk ?? s.enhance?.baseAtk ?? p.atk;
+  const lvPct = s.prog && st?.progression ? st.progression.atkPctPerLevel * (s.prog.level - 1) : 0;
+  const enPct = s.enhance && st?.lootEnhance ? st.lootEnhance.atkPctPerLevel * s.enhance.level : 0;
+  p.atk = Math.round((base * (100 + lvPct + enPct)) / 100);
+}
+
+/** 依等級重算最大 HP 與攻擊；HP 補上增加的量 */
+function applyLevel(s: BattleState, p: Unit): void {
+  const rule = STAGES[s.stageId]?.progression;
+  if (!rule || !s.prog) return;
+  const before = p.maxHp;
+  p.maxHp = Math.round((s.prog.baseHp * (100 + rule.hpPctPerLevel * (s.prog.level - 1))) / 100);
+  if (!p.dead) p.hp = Math.min(p.maxHp, p.hp + Math.max(0, p.maxHp - before));
+  recomputeAtk(s, p);
+}
+
+/** 打倒怪物得經驗；滿了就升級（一次可能連升） */
+function gainXp(s: BattleState, dst: Unit): void {
+  const st = STAGES[s.stageId];
+  const rule = st?.progression;
+  if (!rule || !s.prog || dst.summonedBy) return;
+  const g = dst.groupId ? st.spawnGroups?.find((q) => q.id === dst.groupId) : undefined;
+  const fixed = dst.fixedIdx !== undefined ? st.enemies[dst.fixedIdx] : undefined;
+  const pct = 100 + (g?.hpPct ?? fixed?.hpPct ?? 0);
+  s.prog.xp += Math.round(((rule.xp[dst.defId] ?? 0) * pct) / 100);
+  const p = s.units[0]!;
+  while (s.prog.level < rule.maxLevel && s.prog.xp >= xpToNext(s.prog.level)) {
+    s.prog.xp -= xpToNext(s.prog.level);
+    s.prog.level++;
+    applyLevel(s, p);
+    emit(s, { tick: s.tick, type: 'levelUp', level: s.prog.level, maxHp: p.maxHp, atk: p.atk });
+  }
 }
 
 /** 還有沒有會重生的怪（刷怪地圖不會因清空而勝利） */
@@ -512,6 +564,7 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     if (dst.groupId) queueRespawn(s, dst.groupId);
     if (dst.side === 'enemy' && STAGES[s.stageId]?.hiddenElite && dst.tier === 'normal' && !dst.summonedBy) s.streak = (s.streak ?? 0) + 1;
     if (s.ground && dst.side === 'enemy' && !dst.summonedBy) rollDrops(s, dst);
+    if (s.prog && dst.side === 'enemy') gainXp(s, dst);
     if (dst.mode && ENEMIES[dst.defId]?.boss && !(s.bossKills ??= []).includes(dst.defId)) s.bossKills.push(dst.defId);
     const rt = STAGES[s.stageId]?.bossZone?.respawnTicks;
     if (rt && dst.fixedIdx !== undefined) s.bossRespawn = { idx: dst.fixedIdx, at: s.tick + rt };
@@ -1197,6 +1250,11 @@ export function stateHash(s: BattleState): string {
   if (s.respawnAt) {
     // 只有用到重生點時才加入（舊紀錄的雜湊不變）
     for (const id of Object.keys(s.respawnAt).sort()) for (const t of s.respawnAt[id]!) mix(t);
+  }
+  if (s.prog) {
+    // 只有開啟等級時才加入（舊紀錄的雜湊不變）
+    mix(s.prog.level);
+    mix(s.prog.xp);
   }
   mix(s.events.length);
   mix(s.potions);

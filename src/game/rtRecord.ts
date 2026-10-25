@@ -20,6 +20,9 @@ export interface RtRecord {
   runs?: number;
   /** 累計遊玩秒數 */
   playSec?: number;
+  /** 等級與目前經驗（D-090；下次進森林帶著） */
+  level?: number;
+  xp?: number;
 }
 
 /** 一場的累計快照（從開場到現在） */

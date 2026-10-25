@@ -253,6 +253,7 @@ export type BattleEvent =
   | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number }
   | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number }
   | { tick: number; type: 'enhance'; level: number; atk: number }
+  | { tick: number; type: 'levelUp'; level: number; maxHp: number; atk: number }
   | { tick: number; type: 'ramp'; minute: number; pct: number }
   /** 單位直接移除（Boss 重置時召喚物消失） */
   | { tick: number; type: 'despawn'; id: number }
@@ -376,6 +377,11 @@ export interface StageDefinition {
    * 每級攻擊 +atkPctPerLevel%，最多 maxLevel。只在這一場有效，不碰主線存檔。
    */
   lootEnhance?: { dustPerLevel: number; maxLevel: number; atkPctPerLevel: number };
+  /**
+   * 經驗值與等級（P4，D-090）：打倒怪物得經驗（`xp[enemyId]`，重生點的 hpPct 加成也加在經驗上；召喚物不給），
+   * 升級立刻生效：最大 HP、攻擊各 +每級 %（HP 同時補上增加的量）。等級與經驗由 BattleSetup 帶入、畫面層存檔。
+   */
+  progression?: { xp: Record<string, number>; maxLevel: number; hpPctPerLevel: number; atkPctPerLevel: number };
   /** 刷怪關的壓力曲線：每過 1 分鐘，之後重生的怪 HP 與攻擊 +這麼多 %（每分鐘發一次 ramp 事件） */
   rampPctPerMin?: number;
   /**
@@ -447,6 +453,8 @@ export interface BattleState {
   ground?: GroundItem[];
   /** 掉落物流水號 */
   lootSeq?: number;
+  /** 等級與經驗（progression）；base＝等級與強化加成前的數值 */
+  prog?: { level: number; xp: number; baseHp: number; baseAtk: number };
   /** 這場的武器強化等級（lootEnhance）與強化前的攻擊力 */
   enhance?: { level: number; baseAtk: number };
   /** 這場撿到的東西 */

@@ -10,7 +10,7 @@ import { ACTIONS, ACTION_LABEL, SCALES, defaultControls, keyName, rebind, setLef
 export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done: (c: RtControls, edit: boolean) => void): Phaser.GameObjects.Container {
   let c = start;
   let waiting: RtAction | null = null;
-  const root = scene.add.container(GAME_WIDTH / 2, 640).setDepth(95);
+  const root = scene.add.container(GAME_WIDTH / 2, 640).setDepth(960);
   const kb = scene.input.keyboard;
   const onKey = (ev: KeyboardEvent): void => {
     if (!waiting) return;
