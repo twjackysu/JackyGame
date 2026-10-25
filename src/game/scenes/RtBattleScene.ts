@@ -20,6 +20,8 @@ import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyKill, cleanBounties } from '../rtBounty';
+import { cleanRanks, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
+import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
@@ -160,7 +162,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked || big ? skillModsOf(this.bagSt) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0) });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0) });
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -473,6 +475,38 @@ export class RtBattleScene extends Phaser.Scene {
     this.saved = now;
   }
 
+  // ---------- 技能點（D-110） ----------
+  /** 裝備特效＋技能點（只有正式大地圖才有技能點） */
+  private allMods(st: Parameters<typeof skillModsOf>[0]): ReturnType<typeof skillModsOf> {
+    if (!this.tracked) return skillModsOf(st);
+    return mergeMods(skillModsOf(st), rankMods(cleanRanks(loadRecord(this.stageId).skills, this.s.prog?.level ?? 1)));
+  }
+
+  private skillPointsLeft(): number {
+    const lv = this.s.prog?.level ?? 1;
+    return skillPoints(lv) - usedPoints(cleanRanks(loadRecord(this.stageId).skills, lv));
+  }
+
+  private openSkills(): void {
+    this.persist();
+    this.menu?.destroy();
+    const lv = this.s.prog?.level ?? 1;
+    this.menu = openRtSkillPanel(
+      this,
+      cleanRanks(loadRecord(this.stageId).skills, lv),
+      lv,
+      (r) => {
+        saveRecord(this.stageId, { ...loadRecord(this.stageId), skills: r });
+        setSkillMods(this.s, this.allMods(this.bagSt));
+      },
+      () => {
+        this.menu?.destroy();
+        this.menu = null;
+        this.toggleMenu();
+      },
+    );
+  }
+
   // ---------- 營地懸賞（D-109） ----------
   private refreshBounty(): void {
     if (!this.bountyTxt) return;
@@ -584,7 +618,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.bagSt = st;
         this.saveBag();
         setGearBonus(this.s, bonusOf(st));
-        setSkillMods(this.s, skillModsOf(st));
+        setSkillMods(this.s, this.allMods(st));
       },
       () => {
         this.menu?.destroy();
@@ -955,8 +989,8 @@ export class RtBattleScene extends Phaser.Scene {
     }
     const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.7).setInteractive()];
     items.push(this.add.text(0, -440, '暫停', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
-    const mk = (y: number, label: string, fn: () => void, hi = false) => {
-      const t = this.add.text(0, y, label, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(24, 12, 24, 12).setInteractive({ useHandCursor: true });
+    const mk = (y: number, label: string, fn: () => void, hi = false, x = 0) => {
+      const t = this.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(24, 12, 24, 12).setInteractive({ useHandCursor: true });
       t.on('pointerdown', () => {
         SFX.confirm();
         fn();
@@ -982,7 +1016,9 @@ export class RtBattleScene extends Phaser.Scene {
       // 正式大地圖（標題入口）：不列試玩關
       if (this.tracked) {
         const up = this.bagSt.bag.filter((g) => isUpgrade(this.bagSt, g)).length;
-        mk(-270, `行囊（${this.bagSt.bag.length}）${up ? `　▲${up}` : ''}`, () => this.openBag(), up > 0);
+        mk(-270, `行囊（${this.bagSt.bag.length}）${up ? `　▲${up}` : ''}`, () => this.openBag(), up > 0, -140);
+        const pts = this.skillPointsLeft();
+        mk(-270, `技能點${pts > 0 ? `（${pts}）` : ''}`, () => this.openSkills(), pts > 0, 160);
       }
       ctlBtn(-190);
       mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
@@ -1185,7 +1221,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.cameras.main.flash(180, 255, 230, 160);
         const col = this.add.rectangle(this.sx(p.x), this.sy(p.y) - 200, 90, 420, 0xffe08a, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(44);
         this.tweens.add({ targets: col, scaleX: 0.1, alpha: 0, duration: 900, ease: 'Cubic.In', onComplete: () => col.destroy() });
-        bigText(this, GAME_WIDTH / 2, 470, `等級提升！Lv ${e.level}`, '#ffe08a', 54, 1000);
+        bigText(this, GAME_WIDTH / 2, 470, `等級提升！Lv ${e.level}${this.tracked ? '\n技能點 +1（☰ → 技能點）' : ''}`, '#ffe08a', 54, 1000);
         floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, `HP ${e.maxHp}・攻擊 ${e.atk}`, { color: '#ffe08a', size: 26 });
         sparks(this, this.sx(p.x), this.sy(p.y) - 30, 36, 'ember', 0xffe08a, 700);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffe08a, 200, 600, 8);

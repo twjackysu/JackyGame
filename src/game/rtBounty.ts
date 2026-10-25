@@ -20,7 +20,6 @@ export interface BountyState {
 /** 懸賞池：數量範圍與獎勵（深夜限定的怪不列，白天也要能完成） */
 export const BOUNTY_POOL: readonly { target: string; need: [number, number]; reward: { dust: number; crystal: number } }[] = [
   { target: 'wolf', need: [12, 20], reward: { dust: 6, crystal: 0 } },
-  { target: 'wolf_pup', need: [6, 10], reward: { dust: 4, crystal: 0 } },
   { target: 'thorn_shooter', need: [4, 6], reward: { dust: 6, crystal: 0 } },
   { target: 'alpha_wolf', need: [2, 3], reward: { dust: 4, crystal: 1 } },
   { target: 'thorn_mother', need: [1, 1], reward: { dust: 4, crystal: 1 } },
