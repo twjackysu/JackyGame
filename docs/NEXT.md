@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> ✅ **第 17 輪（10/25 08:12–08:45）**：Jacky 仍沒回。**D-085**：霧語森林接成正式關卡 `rt/maps/mistwood.ts`，**只開除錯網址** `?debug&scene=RtBattle&stage=mistwood`（`&bot=normal` 看 Bot 打到狼王）。另做：狼王再挑戰（`bossZone.respawnTicks`）、狼群暴動（`riot`）、隱藏寶箱（`chests`）、隱藏精英（`hiddenElite`）、深處掉落加成（`lootPct`）、HUD 目標列、討伐演出＋首殺紀錄、Boss 弱點內心提示、☰ 回標題、大地圖單位深度修正；**D-086** 修好擊退卡進樹林。550 項測試；舊七關＋測試大地圖 72 場 stateHash 不變。
+> ✅ **第 17 輪（10/25 08:12–08:50）**：Jacky 仍沒回。**D-085**：霧語森林接成正式關卡 `rt/maps/mistwood.ts`，**只開除錯網址** `?debug&scene=RtBattle&stage=mistwood`（`&bot=normal` 看 Bot 打到狼王）。另做：狼王再挑戰（`bossZone.respawnTicks`）、狼群暴動（`riot`）、隱藏寶箱（`chests`）、隱藏精英（`hiddenElite`）、深處掉落加成（`lootPct`）、HUD 目標列、討伐演出＋首殺紀錄、Boss 弱點內心提示、☰ 回標題、大地圖單位深度修正；**D-086** 修好擊退卡進樹林。550 項測試；舊七關＋測試大地圖 72 場 stateHash 不變。
 > ⏰ **D-083：標題畫面入口仍等到 10/26 12:00（台北）**。期限前不要加標題按鈕、不要放進 ☰ 換關清單（`STAGE_IDS`）。
 > 除錯入口：`stage=mistwood`（正式草圖）、`stage=test_world`（測試大地圖）。
 
