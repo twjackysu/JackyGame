@@ -35,8 +35,8 @@
   `Style: polished fantasy RPG game asset sheet, top-down 3/4 view (classic JRPG perspective) for map objects / front view for item icons, painterly anime style, soft lighting, each object centered in its own equal grid cell with generous empty margin, objects do not touch or overlap cell borders, solid pure green #00FF00 background, no grid lines, no text, no watermark.`
 
 ## 額度統計（已用的照算）
-- GPT：已用 4／8；已排定 2（R-012、R-013）→ 剩 2
-- Gemini：已用 5／12；已排定 2（R-014、R-015）→ 剩 5
+- GPT：已用 4／8；已排定 3（R-012、R-013、R-016）→ 剩 1
+- Gemini：已用 5／12；已排定 3（R-014、R-015、R-017）→ 剩 4
 
 ## 需求清單（待產）
 
@@ -56,6 +56,18 @@
 - **用途**：荊棘谷會巡邏的世界精英「荊棘巡獵者」（D-117），在迴廊來回走、玩家會盯著牠的動向。畫面高約 3.1 格，比棘背狼大一號。
 - **目前備援**：`enemy_mist_wolf` 染橘紅（`SPRITE.thorn_stalker`）＋程式畫的仇恨圈、視線扇形與腳印。圖匯入後改 key、拿掉 tint。
 - **prompt**：`A large hunting wolf, the "Thorn Stalker": rust-red and charcoal fur, a mane and spine of long curved bramble thorns, a tattered vine wrapped around its neck like a hunter's scarf, one glowing amber eye and one scarred eye, low prowling stance mid-stride as if patrolling, menacing and alert, slightly chibi proportions to match a mobile action RPG, facing the viewer at a slight top-down angle.` ＋ 共同風格（角色、敵人）
+- **狀態**：待產
+
+### R-016 `enemy_ember_colossus.png`（GPT，P2）
+- **用途**：第三張地圖「燼紅裂谷」的 Boss「燼心岩王」（D-125），慢、重，拳擊、熔岩裂地、重踏。畫面高約 3.2 格（半徑比狼王大一點）。
+- **目前備援**：程式畫的玄武岩巨像（`src/game/fx/emberArt.ts` 的 `makeEmberColossus`，開機時產生 `enemy_ember_colossus` 材質）。圖匯入後同名檔案會蓋過程式材質（`makeEmberColossus` 看到材質已存在就不畫）；若檔名不同，改 `RtBattleScene` 的 `SPRITE.ember_colossus.key`。
+- **prompt**：`A towering basalt golem boss, the "Ember-Heart Colossus": a body of stacked black volcanic rock slabs held together by glowing orange magma seams, a blazing molten core visible in its chest like a heart, small head with two slit eyes of white-hot light, massive boulder fists hanging to its knees, small flames flickering on its shoulders, drifting embers and ash, heavy and ancient, slightly chibi proportions to match a mobile action RPG, standing pose facing the viewer at a slight top-down angle.` ＋ 共同風格（角色、敵人）
+- **狀態**：待產
+
+### R-017 `enemy_slag_slime.png`（Gemini，P3）
+- **用途**：燼紅裂谷的小怪「熔渣史萊姆」（D-125），數量多、會跳過來壓人。畫面高約 1.1 格（矮胖）。
+- **目前備援**：程式畫的焦黑殼熔岩團（`makeSlagSlime`，材質 `enemy_slag_slime`）。圖匯入後同名蓋過即可。
+- **prompt**：`A round blob of molten slag, the "Slag Slime": a crust of cracked black volcanic rock plates floating on a bright orange-yellow molten body, glowing cracks between the plates, two small glowing yellow eyes, drips of lava at the bottom, cute but dangerous, slightly chibi proportions to match a mobile action RPG, facing the viewer at a slight top-down angle.` ＋ 共同風格（角色、敵人）
 - **狀態**：待產
 
 ### R-012 `enemy_thorn_mother.png`（GPT，P2）
