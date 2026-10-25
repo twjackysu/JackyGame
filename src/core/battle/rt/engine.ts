@@ -197,7 +197,9 @@ function processRespawns(s: BattleState): void {
 function rollDrops(s: BattleState, e: Unit): void {
   const d = ENEMIES[e.defId]?.drops;
   if (!d) return;
+  const bonus = e.groupId ? (STAGES[s.stageId]?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0) : 0;
   const range = (r: [number, number]) => r[0] + Math.floor(lootRand(s) * (r[1] - r[0] + 1));
+  const more = (n: number) => (bonus ? Math.round((n * (100 + bonus)) / 100) : n);
   const put = (kind: LootId, amount: number) => {
     if (amount <= 0) return;
     const a = lootRand(s) * Math.PI * 2;
@@ -208,8 +210,12 @@ function rollDrops(s: BattleState, e: Unit): void {
     s.ground!.push(it);
     emit(s, { tick: s.tick, type: 'drop', item: it.id, kind, amount });
   };
-  put('gold', range(d.gold));
-  for (const i of d.items ?? []) if (lootRand(s) * 100 < i.chance) put(i.id, i.count ? range(i.count) : 1);
+  put('gold', more(range(d.gold)));
+  for (const i of d.items ?? []) {
+    if (lootRand(s) * 100 >= i.chance) continue;
+    const n = i.count ? range(i.count) : 1;
+    put(i.id, i.id === 'dust' ? more(n) : n);
+  }
 }
 
 /** 走近 2.5 單位自動撿起；藥水滿了就留在地上；放太久消失 */
@@ -421,11 +427,14 @@ function pushOutSolid(solid: NonNullable<BattleState['arena']['solid']>, u: Unit
         if (d2 >= u.r * u.r) continue;
         if (d2 === 0) {
           // 圓心在格子裡：往最短的那一邊推出去
+          // 只考慮鄰格不是障礙物的那幾邊（厚樹林裡往旁邊推只會推進另一棵樹；D-086）；四邊都堵住才照舊
           const outs = [u.x - left + u.r, left + c - u.x + u.r, u.y - top + u.r, top + c - u.y + u.r];
-          const m = Math.min(...outs);
-          if (m === outs[0]) u.x = left - u.r;
-          else if (m === outs[1]) u.x = left + c + u.r;
-          else if (m === outs[2]) u.y = top - u.r;
+          const open = [solid.rows[cy]?.[cx - 1], solid.rows[cy]?.[cx + 1], solid.rows[cy - 1]?.[cx], solid.rows[cy + 1]?.[cx]].map((ch) => ch !== undefined && ch !== '#');
+          const m = open.some(Boolean) ? Math.min(...outs.filter((_, i) => open[i])) : Math.min(...outs);
+          const pick = (i: number) => m === outs[i] && (open[i] || !open.some(Boolean));
+          if (pick(0)) u.x = left - u.r;
+          else if (pick(1)) u.x = left + c + u.r;
+          else if (pick(2)) u.y = top - u.r;
           else u.y = top + c + u.r;
         } else {
           const d = Math.sqrt(d2);

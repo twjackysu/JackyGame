@@ -131,12 +131,12 @@ export function makeMistwoodStage(): StageDefinition {
     ],
     spawnGroups: [
       { id: 'entry', enemyId: 'wolf', cx: c(24), cy: c(79), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30) },
-      { id: 'den_a', enemyId: 'wolf', cx: c(11), cy: c(62), spawnRadius: u(2), maxAlive: 4, respawnTicks: sec(30), hpPct: 30, atkPct: 15 },
-      { id: 'den_b', enemyId: 'wolf', cx: c(16), cy: c(56), spawnRadius: u(2), maxAlive: 4, respawnTicks: sec(30), hpPct: 30, atkPct: 15 },
-      { id: 'deep_wolves', enemyId: 'wolf', cx: c(38), cy: c(66), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 50, atkPct: 25 },
-      { id: 'deep_shooters', enemyId: 'thorn_shooter', cx: c(37), cy: c(58), spawnRadius: u(2), maxAlive: 2, respawnTicks: sec(45), hpPct: 50, atkPct: 25 },
-      { id: 'elite', enemyId: 'alpha_wolf', cx: c(24), cy: c(36), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(180), hpPct: 100, atkPct: 50, tier: 'elite' },
-      { id: 'elite_pack', enemyId: 'wolf', cx: c(21), cy: c(33), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 100, atkPct: 50 },
+      { id: 'den_a', enemyId: 'wolf', cx: c(11), cy: c(62), spawnRadius: u(2), maxAlive: 4, respawnTicks: sec(30), hpPct: 30, atkPct: 15, lootPct: 30 },
+      { id: 'den_b', enemyId: 'wolf', cx: c(16), cy: c(56), spawnRadius: u(2), maxAlive: 4, respawnTicks: sec(30), hpPct: 30, atkPct: 15, lootPct: 30 },
+      { id: 'deep_wolves', enemyId: 'wolf', cx: c(38), cy: c(66), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 50, atkPct: 25, lootPct: 60 },
+      { id: 'deep_shooters', enemyId: 'thorn_shooter', cx: c(37), cy: c(58), spawnRadius: u(2), maxAlive: 2, respawnTicks: sec(45), hpPct: 50, atkPct: 25, lootPct: 60 },
+      { id: 'elite', enemyId: 'alpha_wolf', cx: c(24), cy: c(36), spawnRadius: u(1), maxAlive: 1, respawnTicks: sec(180), hpPct: 100, atkPct: 50, lootPct: 100, tier: 'elite' },
+      { id: 'elite_pack', enemyId: 'wolf', cx: c(21), cy: c(33), spawnRadius: u(2), maxAlive: 3, respawnTicks: sec(30), hpPct: 100, atkPct: 50, lootPct: 100 },
     ],
   };
 }

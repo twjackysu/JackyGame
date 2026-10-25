@@ -308,6 +308,8 @@ export interface SpawnGroup {
   /** 區域難度：這組怪 HP／攻擊 +這麼多 %（深處比入口強；可與 rampPctPerMin 相加）。沒設＝0 */
   hpPct?: number;
   atkPct?: number;
+  /** 區域獎勵：這組怪掉的金幣與粉塵數量 +這麼多 %（不多抽亂數，掉不掉照舊）。沒設＝0 */
+  lootPct?: number;
 }
 /** 營火（design/20 B4）：怪不追進安全範圍（追進來就脫戰回家）、休息回滿、死亡在最後休息的營火復活 */
 export interface Campfire {
