@@ -1833,7 +1833,7 @@ export class RtBattleScene extends Phaser.Scene {
         // 脫戰返回中半透明（打不到）；待機的怪稍暗
         sp.setAlpha(inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' || x.mode === 'dormant' ? 0.85 : 1);
         if ((this.flashUntil.get(x.id) ?? 0) > now) sp.setTintFill(0xffffff);
-        else if (winding) sp.setTint(Math.floor(now / 90) % 2 ? 0xff9a9a : 0xffffff);
+        else if (winding) sp.setTint(Math.floor(now / 90) % 2 ? 0xff9a9a : (cfg.tint ?? 0xffffff));
         else if (x.fury) sp.setTint(Math.floor(now / 500) % 2 ? 0xff6050 : 0xff8a70); // 暴怒版：紅色脈動
         else if (cfg.tint) sp.setTint(cfg.tint);
         else sp.clearTint();

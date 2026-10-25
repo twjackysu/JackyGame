@@ -1,7 +1,7 @@
 # 美術需求清單（給 Jacky 回國後的本機 Agent 用 GPT／Gemini 產圖）
 
 > **這是唯一的美術需求佇列。** 開發迴圈需要 AI 繪圖時，只在這裡新增項目，不要另開檔案。Jacky 的本機 Agent 會照這份清單產圖。
-> **待產 1 項（P2，可有可無）**：R-012 荊棘母樹（第 20 輪新增）。Jacky 回國前不用產圖；遊戲已用程式備援（荊棘射手圖放大＋綠色＋程式畫的荊棘根）。
+> **待產 3 項**：R-013 棘冠狼后（GPT，P1，第 22 輪新增：第二張地圖「荊棘谷」的 Boss）、R-014 棘背狼（Gemini，P2）、R-012 荊棘母樹（GPT，P2）。Jacky 回國前不用產圖；全部已有程式備援（現有立繪染色）。
 
 ## 規則（開發迴圈必讀）
 1. **額度有限，總量上限：GPT 8 張、Gemini 12 張（整個專案）。** 目前已排定的數量寫在下方「額度統計」，新增前先確認不會超過。
@@ -35,10 +35,22 @@
   `Style: polished fantasy RPG game asset sheet, top-down 3/4 view (classic JRPG perspective) for map objects / front view for item icons, painterly anime style, soft lighting, each object centered in its own equal grid cell with generous empty margin, objects do not touch or overlap cell borders, solid pure green #00FF00 background, no grid lines, no text, no watermark.`
 
 ## 額度統計（已用的照算）
-- GPT：已用 4／8；已排定 1（R-012）→ 剩 3
-- Gemini：已用 5／12（剩 7）
+- GPT：已用 4／8；已排定 2（R-012、R-013）→ 剩 2
+- Gemini：已用 5／12；已排定 1（R-014）→ 剩 6
 
 ## 需求清單（待產）
+
+### R-013 `enemy_boss_thornqueen.png`（GPT，P1）
+- **用途**：第二張地圖「荊棘谷」的 Boss「棘冠狼后」（D-114），會動、會衝鋒、會鑽進荊棘從背後出現。畫面高約 3.2 格，和霧角狼王同尺寸。
+- **目前備援**：`enemy_boss_wolfking` 染淡綠（`RtBattleScene` 的 `SPRITE.thorn_queen`）。圖匯入後把 `SPRITE.thorn_queen.key` 改成 `enemy_boss_thornqueen`、拿掉 tint。
+- **prompt**：`A majestic giant she-wolf boss, the "Thorn-Crowned Queen": sleek moss-green and ash-grey fur, a crown of twisted bramble with long purple-tipped thorns growing from her head and spine, glowing poison-green eyes, thorny vines coiled around her forelegs, a few crimson berries and pale blossoms in the brambles, drifting green spores around her, regal and dangerous, slightly chibi proportions to match a mobile action RPG, standing pose facing the viewer at a slight top-down angle.` ＋ 共同風格（角色、敵人）
+- **狀態**：待產
+
+### R-014 `enemy_thorn_wolf.png`（Gemini，P2）
+- **用途**：荊棘谷的小怪「棘背狼」（D-114），數量多。畫面高約 2.9 格，和霧狼同尺寸。
+- **目前備援**：`enemy_mist_wolf` 染綠（`SPRITE.thorn_wolf`）。圖匯入後改 key、拿掉 tint。
+- **prompt**：`A lean feral wolf with dark olive fur and a ridge of sharp bramble thorns growing along its back and tail, small dripping green poison on its fangs, crouched ready to pounce, slightly chibi proportions to match a mobile action RPG, facing the viewer at a slight top-down angle.` ＋ 共同風格（角色、敵人）
+- **狀態**：待產
 
 ### R-012 `enemy_thorn_mother.png`（GPT，P2）
 - **用途**：霧語森林的世界精英「荊棘母樹」（D-107），不會動、體型約狼王的 1.3 倍。畫面高約 2.6 格。
