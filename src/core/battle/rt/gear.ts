@@ -22,7 +22,28 @@ export interface RtGear {
   name: string;
   base: { atk?: number; hp?: number; def?: number };
   affixes: { stat: AffixStat; value: number }[];
+  /** 強化等級（營火旁強化，D-092）；每級底數值 +10% */
+  enh?: number;
 }
+
+export const ENH_MAX = 10;
+/** 強化 +N → +N+1 的費用與成功率（+1～+5 必成；之後逐級下降；失敗只扣材料，不會掉級） */
+export function enhanceCost(enh: number): { dust: number; crystal: number; rate: number } {
+  const n = enh + 1;
+  return { dust: 2 + 2 * n, crystal: n > 5 ? n - 5 : 0, rate: n <= 5 ? 100 : Math.max(30, 100 - (n - 5) * 14) };
+}
+
+/** 分解得到的粉塵（稀有度、物品等級、強化越高越多） */
+export function salvageDust(g: RtGear): number {
+  return g.rarity * 2 + Math.floor(g.ilvl / 2) + (g.enh ?? 0);
+}
+
+/** 顯示名稱（含強化 +N） */
+export function gearTitle(g: RtGear): string {
+  return g.enh ? `+${g.enh} ${g.name}` : g.name;
+}
+
+const enhMul = (g: RtGear): number => 1 + 0.1 * (g.enh ?? 0);
 
 export interface GearStats {
   atk: number;
@@ -115,9 +136,10 @@ export function gearStats(items: (RtGear | undefined | null)[]): GearStats {
   const s: GearStats = { atk: 0, hp: 0, def: 0, atkPct: 0, hpPct: 0 };
   for (const g of items) {
     if (!g) continue;
-    s.atk += g.base.atk ?? 0;
-    s.hp += g.base.hp ?? 0;
-    s.def += g.base.def ?? 0;
+    const m = enhMul(g);
+    s.atk += Math.round((g.base.atk ?? 0) * m);
+    s.hp += Math.round((g.base.hp ?? 0) * m);
+    s.def += Math.round((g.base.def ?? 0) * m);
     for (const a of g.affixes) s[a.stat] += a.value;
   }
   return s;
@@ -143,9 +165,10 @@ export function gearScore(g: RtGear | undefined | null, baseHp: number, baseAtk:
 /** 一行數值說明（「攻擊 +12・HP +80」） */
 export function gearLines(g: RtGear): string[] {
   const out: string[] = [];
-  if (g.base.atk) out.push(`攻擊 +${g.base.atk}`);
-  if (g.base.hp) out.push(`HP +${g.base.hp}`);
-  if (g.base.def) out.push(`防禦 +${g.base.def}`);
+  const m = enhMul(g);
+  if (g.base.atk) out.push(`攻擊 +${Math.round(g.base.atk * m)}`);
+  if (g.base.hp) out.push(`HP +${Math.round(g.base.hp * m)}`);
+  if (g.base.def) out.push(`防禦 +${Math.round(g.base.def * m)}`);
   for (const a of g.affixes) out.push(`✦ ${AFFIX_NAME[a.stat]} +${a.value}${a.stat.endsWith('Pct') ? '%' : ''}`);
   return out;
 }
@@ -153,5 +176,5 @@ export function gearLines(g: RtGear): string[] {
 /** 讀檔時檢查一件裝備的形狀（壞資料丟掉） */
 export function isGear(x: unknown): x is RtGear {
   const g = x as RtGear;
-  return !!g && typeof g.uid === 'string' && GEAR_SLOTS.includes(g.slot) && [1, 2, 3].includes(g.rarity) && typeof g.name === 'string' && !!g.base && Array.isArray(g.affixes);
+  return !!g && typeof g.uid === 'string' && (g.enh === undefined || (Number.isInteger(g.enh) && g.enh >= 0 && g.enh <= ENH_MAX)) && GEAR_SLOTS.includes(g.slot) && [1, 2, 3].includes(g.rarity) && typeof g.name === 'string' && !!g.base && Array.isArray(g.affixes);
 }

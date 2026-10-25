@@ -27,6 +27,20 @@ export interface RtRecord {
   /** 行囊與身上裝備（D-091） */
   bag?: RtGear[];
   equip?: Partial<Record<GearSlot, RtGear>>;
+  /** 強化花掉的材料（累計撿到 − 花掉 ＝ 手上有的；分解得到的粉塵記成負的花費） */
+  spent?: { dust?: number; crystal?: number };
+}
+
+/** 手上可以用的粉塵與結晶 */
+export function walletOf(rec: RtRecord): { dust: number; crystal: number } {
+  return { dust: Math.max(0, (rec.dust ?? 0) - (rec.spent?.dust ?? 0)), crystal: Math.max(0, (rec.crystal ?? 0) - (rec.spent?.crystal ?? 0)) };
+}
+
+/** 花材料（負數＝得到，例如分解）；不夠就回 null */
+export function spend(rec: RtRecord, dust: number, crystal: number): RtRecord | null {
+  const w = walletOf(rec);
+  if (w.dust < dust || w.crystal < crystal) return null;
+  return { ...rec, spent: { dust: (rec.spent?.dust ?? 0) + dust, crystal: (rec.spent?.crystal ?? 0) + crystal } };
 }
 
 /** 讀出來的行囊一律檢查形狀（壞資料丟掉、最多 60 件、身上的部位要對） */

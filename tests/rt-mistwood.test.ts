@@ -136,7 +136,7 @@ describe('隱藏寶箱 chests', () => {
     expect(s.chestsOpened).toEqual(['deep_hollow']);
     expect(s.potions).toBe(20);
     expect(s.loot!.dust).toBe(8);
-    expect(s.enhance?.level).toBe(2); // 8 粉塵 → +2
+    expect(s.enhance).toBeUndefined(); // 霧語森林改成真的裝備強化（D-092），撿粉塵不再自動強化
     step(s, []);
     expect(s.events.filter((e) => e.type === 'chest').length).toBe(1);
     const bad = makeMistwoodStage();
@@ -201,7 +201,7 @@ describe('隱藏精英 hiddenElite', () => {
       ev = s.events.find((e) => e.type === 'hiddenElite');
     }
     expect(ev).toBeDefined();
-    expect(maxStreak).toBeGreaterThanOrEqual(12);
+    expect(maxStreak).toBeGreaterThanOrEqual(11); // 第 12 隻倒下的那一 tick 就觸發並歸零
     const m = s.units.find((x) => x.groupId === 'hidden')!;
     expect(m.tier).toBe('elite');
     expect(m.mode).toBe('combat');

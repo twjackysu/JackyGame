@@ -114,7 +114,7 @@ export const MISTWOOD_KING = { x: c(24), y: c(10) };
 export function makeMistwoodStage(): StageDefinition {
   return {
     id: 'mistwood', name: '霧語森林', timeLimitTicks: sec(60 * 60), player: { x: c(24), y: c(92) },
-    mapAi: true, reviveAtCampfire: true, loot: true, lootEnhance: { dustPerLevel: 4, maxLevel: 5, atkPctPerLevel: 8 },
+    mapAi: true, reviveAtCampfire: true, loot: true, // 撿粉塵自動強化（lootEnhance）在第 18 輪拿掉：改成真的裝備強化（D-092）
     // 經驗值與等級（D-090）：Lv2 約 10 隻狼、Lv10 累計約 1 萬經驗（2～3 小時）
     // 裝備掉落（D-091）：小怪偶爾、首領常常、狼王必掉兩件（精良以上）
     gearDrops: {
@@ -126,7 +126,7 @@ export function makeMistwoodStage(): StageDefinition {
     },
     progression: { xp: { wolf: 5, wolf_pup: 3, thorn_shooter: 6, alpha_wolf: 25, wolf_king: 150 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
-    intro: '往北穿過森林，打倒霧角狼王！\n撿粉塵武器會變強・打不過就回營火',
+    intro: '往北穿過森林，打倒霧角狼王！\n撿到裝備 ☰ 行囊換上・營火旁可以強化',
     enemies: [{ enemyId: 'wolf_king', x: MISTWOOD_KING.x, y: MISTWOOD_KING.y, hpPct: 100, atkPct: 30 }],
     bossZone: { x: MISTWOOD_KING.x, y: c(11), r: u(13), respawnTicks: sec(60) },
     arena: { w: u(W), h: u(H), solid: { cell: u(1), rows: [...MISTWOOD_ROWS] } },

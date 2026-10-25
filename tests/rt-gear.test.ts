@@ -127,3 +127,26 @@ describe('行囊（純資料）', () => {
     expect(c.equip).toEqual({ weapon: b });
   });
 });
+
+describe('強化與錢包（D-092）', () => {
+  it('費用與成功率；強化提高數值；分解給粉塵', async () => {
+    const { enhanceCost, salvageDust, gearTitle } = await import('../src/core/battle/rt/gear');
+    expect(enhanceCost(0)).toEqual({ dust: 4, crystal: 0, rate: 100 });
+    expect(enhanceCost(4).rate).toBe(100);
+    expect(enhanceCost(5)).toMatchObject({ crystal: 1, rate: 86 });
+    expect(enhanceCost(9).rate).toBeGreaterThanOrEqual(30);
+    const g: RtGear = { uid: 'w', slot: 'weapon', rarity: 2, ilvl: 4, name: '劍', base: { atk: 10 }, affixes: [] };
+    expect(gearBonus([{ ...g, enh: 5 }], 600, 34).atk).toBe(15);
+    expect(gearTitle({ ...g, enh: 3 })).toBe('+3 劍');
+    expect(salvageDust({ ...g, enh: 2 })).toBe(4 + 2 + 2);
+  });
+  it('錢包＝累計撿到 − 花掉；不夠就不能花；分解是負的花費', async () => {
+    const { walletOf, spend } = await import('../src/game/rtRecord');
+    const r0 = { dust: 20, crystal: 1 };
+    expect(walletOf(r0)).toEqual({ dust: 20, crystal: 1 });
+    const r1 = spend(r0, 12, 1)!;
+    expect(walletOf(r1)).toEqual({ dust: 8, crystal: 0 });
+    expect(spend(r1, 9, 0)).toBeNull();
+    expect(walletOf(spend(r1, -5, 0)!)).toEqual({ dust: 13, crystal: 0 });
+  });
+});

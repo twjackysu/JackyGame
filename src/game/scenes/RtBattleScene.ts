@@ -16,7 +16,7 @@ import { makeMistwoodStage, MISTWOOD_KING } from '../../core/battle/rt/maps/mist
 import { GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
-import { EMPTY_SNAP, cleanBag, fmtSec, loadRecord, mergeRun, recordBoss, saveRecord, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, cleanBag, fmtSec, loadRecord, mergeRun, recordBoss, saveRecord, spend, walletOf, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -486,6 +486,7 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   private openBag(): void {
+    this.persist(); // 這場剛撿的材料先算進錢包
     this.menu?.destroy();
     this.menu = openRtBagPanel(
       this,
@@ -503,6 +504,19 @@ export class RtBattleScene extends Phaser.Scene {
         this.menu?.destroy();
         this.menu = null;
         this.toggleMenu();
+      },
+      {
+        wallet: () => walletOf(loadRecord(this.stageId)),
+        atFire: () => {
+          const p = playerOf(this.s);
+          return (STAGES[this.stageId]?.campfires ?? []).some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
+        },
+        spend: (d, c) => {
+          const r = spend(loadRecord(this.stageId), d, c);
+          if (!r) return false;
+          saveRecord(this.stageId, r);
+          return true;
+        },
       },
     );
   }
