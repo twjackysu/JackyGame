@@ -1,7 +1,7 @@
 // 燼紅裂谷（D-125）：第三張大地圖。驗證、噴發口規則、三種 Bot 打倒燼心岩王、共用進度與開放順序。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { STAGES } from '../src/core/battle/rt/data';
-import { createBattle, isSolidAt, step, ventLeft } from '../src/core/battle/rt/engine';
+import { createBattle, isSolidAt, setBossFury, step, ventLeft } from '../src/core/battle/rt/engine';
 import { EMBERRIFT_COLOSSUS, EMBERRIFT_VENTS, makeEmberriftStage } from '../src/core/battle/rt/maps/emberrift';
 import { validateStage } from '../src/core/battle/rt/maps/validate';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
@@ -119,5 +119,38 @@ describe('燼紅裂谷', () => {
     expect(maxUnits).toBeLessThanOrEqual(32);
     expect(kills).toBeGreaterThan(30);
     expect(vents).toBeGreaterThan(100);
+  }, 180000);
+
+  it('暴怒岩王：Lv14＋裝備的普通 Bot 打得倒，暴怒招（裂地第二道、熔心爆發）有出現', () => {
+    const rows: string[] = [];
+    for (const seed of [1, 2]) {
+      const s = createBattle({ stageId: 'emberrift', seed, level: 14, bonus: { hp: 900, atk: 70, def: 35 } });
+      expect(setBossFury(s, true)).toBe(true);
+      const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: EMBERRIFT_COLOSSUS }, 'normal');
+      while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(900)) step(s, bot.decide(s));
+      const furyAtk = s.events.filter((e) => e.type === 'telegraph' && (e.attack === 'colossus_fissure2' || e.attack === 'colossus_core_burst')).length;
+      rows.push(`seed ${seed}: ${Math.round(s.tick / 30)} 秒、倒下 ${s.revives ?? 0}、暴怒招 ${furyAtk}`);
+      expect(s.bossKills ?? []).toContain('ember_colossus');
+      expect(furyAtk).toBeGreaterThan(0);
+    }
+    (globalThis as any).process.stdout.write(`暴怒岩王 ${rows.join('；')}\n`);
+  }, 180000);
+
+  it('東路（黑曜長廊）也走得通：Bot 先到長廊盡頭、再去王座打倒岩王', () => {
+    const s = createBattle({ stageId: 'emberrift', seed: 2, level: 11, bonus: GEAR });
+    const hall = { x: u(39) + 50, y: u(46) + 50 };
+    let bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: hall }, 'normal');
+    let reached = -1;
+    while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(900)) {
+      step(s, bot.decide(s));
+      const p = s.units[0]!;
+      if (reached < 0 && Math.hypot(p.x - hall.x, p.y - hall.y) < u(3)) {
+        reached = s.tick;
+        bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: EMBERRIFT_COLOSSUS }, 'normal');
+      }
+    }
+    (globalThis as any).process.stdout.write(`emberrift 東路：到長廊 ${(reached / 30).toFixed(0)} 秒、岩王 ${(s.tick / 30).toFixed(0)} 秒\n`);
+    expect(reached).toBeGreaterThan(0);
+    expect(s.bossKills ?? []).toContain('ember_colossus');
   }, 180000);
 });

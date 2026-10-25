@@ -21,7 +21,7 @@ const THORN_ATTACKS = new Set(['queen_lance', 'queen_lance2', 'queen_roots', 'qu
 /** 燼心岩王與黑曜首領（D-125）：命中那一刻地上裂出熔岩（走 thornPending，命中時改呼叫 spawnLava） */
 /** 背上畫火焰鬃毛的怪（D-125） */
 const FLAME_MANE = new Set(['ember_wolf', 'obsidian_alpha', 'magma_stalker']);
-const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge']);
+const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
 
 function lerpColor(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t);
@@ -1503,6 +1503,17 @@ export class RtBattleScene extends Phaser.Scene {
           if (tg) this.thornPending.push({ ...tg });
         }
         // 荊棘綻放（D-114）：狼后腳下冒出綠色孢子＋第一次提示跑出圈外
+        if (e.attack === 'colossus_core_burst') {
+          // 暴怒岩王的熔心爆發（第 26 輪）：胸口熔心亮起＋大圈警告
+          const o = u(e.owner);
+          if (o) {
+            shockRing(this, this.sx(o.x), this.sy(o.y), 0xff8a3a, 5.2 * 100 * this.k, 1100, 8);
+            sparks(this, this.sx(o.x), this.sy(o.y) - 60, 30, 'ember', 0xffb36a, 900);
+          }
+          this.cameras.main.shake(300, 0.004);
+          SFX.warn(true);
+          bigText(this, GAME_WIDTH / 2, 520, '熔心爆發——跑出圈外！', '#ffb36a', 40, 900);
+        }
         if (e.attack === 'queen_bloom') {
           const o = u(e.owner);
           if (o) {

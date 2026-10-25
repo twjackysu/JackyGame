@@ -324,6 +324,8 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'colossus_quake', shape: { type: 'ring', rIn: u(2.2), rOut: u(5.0) }, warningTicks: sec(1.2), recoverTicks: sec(0.7), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(4.5), blockable: false, phase2Only: true, weight: 2 },
       // 暴怒版限定：裂地之後再補一道（預告短）
       { id: 'colossus_fissure2', shape: { type: 'line', len: u(10), width: u(1.4) }, warningTicks: sec(0.6), recoverTicks: sec(0.7), damageMultiplier: 130, cooldownTicks: 0, triggerRange: u(10), blockable: true, weight: 0, furyOnly: true },
+      // 暴怒版限定：熔心爆發——超大圓、預告長，跑出去就沒事（第 26 輪）
+      { id: 'colossus_core_burst', shape: { type: 'circle', r: u(5.2) }, warningTicks: sec(1.7), recoverTicks: sec(1.1), damageMultiplier: 190, cooldownTicks: sec(16), triggerRange: u(3.2), blockable: false, weight: 2, furyOnly: true },
     ],
     boss: { phase2AtPct: 50, phase2CooldownPct: 85, summon: { enemyId: 'slag_slime', count: 2, everyTicks: sec(16) } },
   },
