@@ -1,7 +1,7 @@
 # 美術需求清單（給 Jacky 回國後的本機 Agent 用 GPT／Gemini 產圖）
 
 > **這是唯一的美術需求佇列。** 開發迴圈需要 AI 繪圖時，只在這裡新增項目，不要另開檔案。Jacky 的本機 Agent 會照這份清單產圖。
-> **待產 3 項**：R-013 棘冠狼后（GPT，P1，第 22 輪新增：第二張地圖「荊棘谷」的 Boss）、R-014 棘背狼（Gemini，P2）、R-012 荊棘母樹（GPT，P2）。Jacky 回國前不用產圖；全部已有程式備援（現有立繪染色）。
+> **待產 4 項**：R-013 棘冠狼后（GPT，P1，第 22 輪新增：第二張地圖「荊棘谷」的 Boss）、R-014 棘背狼（Gemini，P2）、R-012 荊棘母樹（GPT，P2）、R-015 荊棘巡獵者（Gemini，P3，第 24 輪）。Jacky 回國前不用產圖；全部已有程式備援（現有立繪染色）。
 
 ## 規則（開發迴圈必讀）
 1. **額度有限，總量上限：GPT 8 張、Gemini 12 張（整個專案）。** 目前已排定的數量寫在下方「額度統計」，新增前先確認不會超過。
@@ -36,7 +36,7 @@
 
 ## 額度統計（已用的照算）
 - GPT：已用 4／8；已排定 2（R-012、R-013）→ 剩 2
-- Gemini：已用 5／12；已排定 1（R-014）→ 剩 6
+- Gemini：已用 5／12；已排定 2（R-014、R-015）→ 剩 5
 
 ## 需求清單（待產）
 
@@ -50,6 +50,12 @@
 - **用途**：荊棘谷的小怪「棘背狼」（D-114），數量多。畫面高約 2.9 格，和霧狼同尺寸。
 - **目前備援**：`enemy_mist_wolf` 染綠（`SPRITE.thorn_wolf`）。圖匯入後改 key、拿掉 tint。
 - **prompt**：`A lean feral wolf with dark olive fur and a ridge of sharp bramble thorns growing along its back and tail, small dripping green poison on its fangs, crouched ready to pounce, slightly chibi proportions to match a mobile action RPG, facing the viewer at a slight top-down angle.` ＋ 共同風格（角色、敵人）
+- **狀態**：待產
+
+### R-015 `enemy_thorn_stalker.png`（Gemini，P3）
+- **用途**：荊棘谷會巡邏的世界精英「荊棘巡獵者」（D-117），在迴廊來回走、玩家會盯著牠的動向。畫面高約 3.1 格，比棘背狼大一號。
+- **目前備援**：`enemy_mist_wolf` 染橘紅（`SPRITE.thorn_stalker`）＋程式畫的仇恨圈、視線扇形與腳印。圖匯入後改 key、拿掉 tint。
+- **prompt**：`A large hunting wolf, the "Thorn Stalker": rust-red and charcoal fur, a mane and spine of long curved bramble thorns, a tattered vine wrapped around its neck like a hunter's scarf, one glowing amber eye and one scarred eye, low prowling stance mid-stride as if patrolling, menacing and alert, slightly chibi proportions to match a mobile action RPG, facing the viewer at a slight top-down angle.` ＋ 共同風格（角色、敵人）
 - **狀態**：待產
 
 ### R-012 `enemy_thorn_mother.png`（GPT，P2）
