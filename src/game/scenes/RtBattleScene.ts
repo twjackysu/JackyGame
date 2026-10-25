@@ -7,6 +7,7 @@ import { activeHazards, createBattle, enemiesOf, isSolidAt, playerOf, setBossFur
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
+import { coinOf } from '../rtShop';
 import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
@@ -145,6 +146,9 @@ export class RtBattleScene extends Phaser.Scene {
   /** 大地圖目標列（沒有就 null） */
   private goal: Phaser.GameObjects.Text | null = null;
   private goalDone = false;
+  /** HUD 的金幣＝錢包（上次存檔時）＋這場還沒存的（D-116 行商之後金幣是能花的錢） */
+  private coinBase = -1;
+  private dustBase = 0;
   private goalAt = 0;
   private goalNext = '';
   /** 地面長出的荊棘（狼后／母樹的毒刺、根系環、綻放命中時；只是畫面） */
@@ -266,6 +270,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.refreshBounty();
     this.ptsLeft = this.tracked ? this.skillPointsLeft() : 0;
     this.goalDone = false; this.goalAt = 0; this.goalNext = '';
+    this.coinBase = this.tracked ? coinOf(loadRecord(this.stageId)) : -1;
+    this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.thornFx = []; this.thornPending = [];
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 95, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)', align: 'center', lineSpacing: 4 }).setPadding(12, 3, 12, 3).setOrigin(0.5, 0).setDepth(49) : null;
     this.makeButtons();
@@ -519,6 +525,8 @@ export class RtBattleScene extends Phaser.Scene {
     }
     saveRecord(this.stageId, rec);
     this.saved = now;
+    this.coinBase = coinOf(rec);
+    this.dustBase = walletOf(rec).dust;
   }
 
   // ---------- 技能點（D-110） ----------
@@ -580,6 +588,7 @@ export class RtBattleScene extends Phaser.Scene {
       });
     });
     saveRecord(this.stageId, out);
+    this.dustBase = walletOf(out).dust;
     this.refreshBounty();
     if (r.completed.length && this.bountyTxt) this.tweens.add({ targets: this.bountyTxt, scale: 1.12, duration: 160, yoyo: true });
   }
@@ -600,7 +609,10 @@ export class RtBattleScene extends Phaser.Scene {
     this.saveBag();
     if (r.salvaged) {
       const w = spend(loadRecord(this.stageId), -r.dust, 0);
-      if (w) saveRecord(this.stageId, w);
+      if (w) {
+        saveRecord(this.stageId, w);
+        this.dustBase = walletOf(w).dust;
+      }
       floatNumber(this, this.sx(p.x), this.sy(p.y) - 150, `行囊滿・自動分解 ${r.salvaged.name} +${r.dust} 粉塵`, { color: '#c8c0a8', size: 20 });
       if (r.salvaged.uid === g.uid) return;
     }
@@ -660,7 +672,11 @@ export class RtBattleScene extends Phaser.Scene {
       this,
       {
         rec: () => loadRecord(this.stageId),
-        save: (r) => saveRecord(this.stageId, r),
+        save: (r) => {
+          saveRecord(this.stageId, r);
+          this.coinBase = coinOf(r);
+          this.dustBase = walletOf(r).dust;
+        },
         bag: () => this.bagSt,
         setBag: (st) => {
           this.bagSt = st;
@@ -728,6 +744,7 @@ export class RtBattleScene extends Phaser.Scene {
           const r = spend(loadRecord(this.stageId), d, c);
           if (!r) return false;
           saveRecord(this.stageId, r);
+          this.dustBase = walletOf(r).dust;
           return true;
         },
       },
@@ -2312,7 +2329,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
-    this.hud.setText(`${s.prog ? `Lv ${s.prog.level}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${s.loot.gold ?? 0}　粉塵 ${s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
+    this.hud.setText(`${s.prog ? `Lv ${s.prog.level}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${this.coinBase >= 0 ? this.coinBase + Math.max(0, (s.loot.gold ?? 0) - this.saved.coin) : s.loot.gold ?? 0}　粉塵 ${this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
     if (this.goal) {
       const st = STAGES[this.stageId]!;
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
