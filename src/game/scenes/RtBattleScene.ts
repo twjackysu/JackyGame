@@ -19,6 +19,8 @@ import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, aggroU
 /** 命中時會在地上長出荊棘的招式（第 23 輪） */
 const THORN_ATTACKS = new Set(['queen_lance', 'queen_lance2', 'queen_roots', 'queen_bloom', 'mother_lance', 'mother_roots']);
 /** 燼心岩王與黑曜首領（D-125）：命中那一刻地上裂出熔岩（走 thornPending，命中時改呼叫 spawnLava） */
+/** 背上畫火焰鬃毛的怪（D-125） */
+const FLAME_MANE = new Set(['ember_wolf', 'obsidian_alpha', 'magma_stalker']);
 const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge']);
 
 function lerpColor(a: number, b: number, t: number): number {
@@ -2524,6 +2526,18 @@ export class RtBattleScene extends Phaser.Scene {
         else if (cfg.tint) sp.setTint(cfg.tint);
         else sp.clearTint();
         headY = sp.y - sp.displayHeight * 0.92;
+        if (FLAME_MANE.has(x.defId) && !x.dead) {
+          // 燼紅裂谷的狼（D-125）：背上搖曳的火焰鬃毛（染色立繪的程式加料，純畫面）
+          const big = x.defId !== 'ember_wolf';
+          for (let q = 0; q < (big ? 4 : 3); q++) {
+            const fxp = sp.x + (q - (big ? 1.5 : 1)) * r * 0.42 * (sp.flipX ? -1 : 1);
+            const fyp = sp.y - sp.displayHeight * (0.62 + 0.05 * Math.sin(q * 2.1));
+            const hgt = r * (big ? 1.15 : 0.9) * (0.75 + 0.25 * Math.sin(now / 90 + q * 1.7 + x.id));
+            const sway = Math.sin(now / 140 + q + x.id) * r * 0.12;
+            top.fillStyle(0xff5a1a, 0.8).fillTriangle(fxp - r * 0.24, fyp, fxp + r * 0.24, fyp, fxp + sway, fyp - hgt);
+            top.fillStyle(0xffc04a, 0.95).fillTriangle(fxp - r * 0.11, fyp, fxp + r * 0.11, fyp, fxp + sway * 0.6, fyp - hgt * 0.6);
+          }
+        }
         if (isP) {
           this.shadowGhost(x, sp, now);
           this.drawUltAim(g, x, now);
