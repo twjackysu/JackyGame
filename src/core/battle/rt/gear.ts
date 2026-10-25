@@ -83,32 +83,32 @@ function baseOf(slot: GearSlot, L: number, m: number): RtGear['base'] {
   const r = (n: number) => Math.max(1, Math.round(n * m));
   switch (slot) {
     case 'weapon':
-      return { atk: r(2 + 1.2 * L) };
+      return { atk: r(1 + 0.8 * L) };
     case 'body':
-      return { hp: r(30 + 15 * L), def: r(1 + 0.6 * L) };
+      return { hp: r(20 + 10 * L), def: r(1 + 0.5 * L) };
     case 'head':
-      return { hp: r(20 + 10 * L), def: r(1 + 0.3 * L) };
+      return { hp: r(12 + 7 * L), def: r(1 + 0.3 * L) };
     case 'hands':
-      return { atk: r(1 + 0.5 * L), def: r(1 + 0.3 * L) };
+      return { atk: r(0.5 + 0.3 * L), def: r(1 + 0.3 * L) };
     case 'ring':
-      return { atk: r(1 + 0.5 * L) };
+      return { atk: r(0.5 + 0.3 * L) };
     case 'amulet':
-      return { hp: r(15 + 8 * L) };
+      return { hp: r(10 + 6 * L) };
   }
 }
 
 function affixValue(stat: AffixStat, L: number, t: number): number {
   switch (stat) {
     case 'atk':
-      return Math.round(1 + L * (0.3 + 0.4 * t));
+      return Math.round(1 + L * (0.2 + 0.3 * t));
     case 'hp':
-      return Math.round(8 + L * (4 + 5 * t));
+      return Math.round(6 + L * (3 + 3 * t));
     case 'def':
       return Math.round(1 + L * (0.2 + 0.3 * t));
     case 'atkPct':
-      return Math.round(2 + 2 * t + L * 0.3);
+      return Math.round(1 + 2 * t + L * 0.2);
     case 'hpPct':
-      return Math.round(3 + 3 * t + L * 0.3);
+      return Math.round(2 + 2 * t + L * 0.2);
   }
 }
 
