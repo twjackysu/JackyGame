@@ -221,7 +221,10 @@ export class PlayerBot implements BattleController {
     // 2. 技能
     const es = enemiesOf(s);
     if (es.length === 0) return out;
-    const near = es.filter((e) => dist(p.x, p.y, e.x, e.y) <= (skillDef(s, 'whirlwind')!.useRange ?? 0) + e.r);
+    // 環形的範圍技（長弓環形箭雨，D-149）：太貼身的打不到，只算落在環上的
+    const ws = skillDef(s, 'whirlwind')!.hits[0]?.shape;
+    const rIn = ws?.type === 'ring' ? ws.rIn : 0;
+    const near = es.filter((e) => { const d0 = dist(p.x, p.y, e.x, e.y); return d0 <= (skillDef(s, 'whirlwind')!.useRange ?? 0) + e.r && d0 + e.r >= rIn; });
     const tgt = es.find((e) => e.id === p.targetId) ?? es.slice().sort((a, b) => dist(p.x, p.y, a.x, a.y) - dist(p.x, p.y, b.x, b.y))[0]!;
     const d = dist(p.x, p.y, tgt.x, tgt.y);
     const ult = skillDef(s, 'blade_storm')!;
