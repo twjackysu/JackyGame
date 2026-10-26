@@ -70,6 +70,8 @@ const CHOICE_ECHO: Record<string, string> = {
   'thornvale:take': '斷掉的根鬚，再也沒有長回來。',
   'emberrift:spare': '燼心還在跳，像是在跟你打招呼。',
   'emberrift:take': '岩石冷冰冰的，一點光都沒有。',
+  'starfall:spare': '夜空的星座，在你頭頂閃了一下。',
+  'starfall:take': '這裡曾經嵌著一顆星，現在只剩空空的凹槽。',
 };
 const VIEW_BOTTOM = GAME_HEIGHT;
 /** 地面材質分塊大小（px） */
@@ -307,7 +309,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.idleHinted = false;
     this.afterChoice = [];
     this.choiceMarkSaid = false;
-    { const p0 = playerOf(this.s); const kinds: Record<string, 'cub' | 'flower' | 'wisp'> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp' }; const kind = kinds[this.stageId]; this.cub = this.tracked && !this.bot && kind && loadChoices()[this.stageId] === 'spare' ? { x: p0.x - UNIT, y: p0.y + UNIT, a: 0, t: 0, face: 1, kind } : null; }
+    { const p0 = playerOf(this.s); const kinds: Record<string, 'cub' | 'flower' | 'wisp' | 'star'> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp', starfall: 'star' }; const kind = kinds[this.stageId]; this.cub = this.tracked && !this.bot && kind && loadChoices()[this.stageId] === 'spare' ? { x: p0.x - UNIT, y: p0.y + UNIT, a: 0, t: 0, face: 1, kind } : null; }
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
     this.chestHinted = new Set();
@@ -2696,7 +2698,7 @@ export class RtBattleScene extends Phaser.Scene {
    */
   private choiceMarkSaid = false;
   /** 霧中小狼（D-157：霧語森林選了「還」）：半透明、跟在你身後，戰鬥時躲進霧裡（變淡）。純畫面 */
-  private cub: { x: number; y: number; a: number; t: number; face: number; kind: 'cub' | 'flower' | 'wisp' } | null = null;
+  private cub: { x: number; y: number; a: number; t: number; face: number; kind: 'cub' | 'flower' | 'wisp' | 'star' } | null = null;
   private drawCub(g: Phaser.GameObjects.Graphics, now: number): void {
     const c = this.cub;
     if (!c) return;
@@ -2729,7 +2731,22 @@ export class RtBattleScene extends Phaser.Scene {
       // 荊棘谷＝母樹的白花精（浮著轉）、燼紅裂谷＝燼心的小火靈（跳動的火球）
       const bob = Math.sin(now / 400) * 6 * k;
       const hy = cy - 40 * k + bob;
-      if (c.kind === 'flower') {
+      if (c.kind === 'star') {
+        // 星隕高原＝回到夜空的那顆星留下的小星星：四芒星慢慢轉、拖一道淡藍光尾（D-158）
+        const tw = 0.75 + 0.25 * Math.sin(now / 230);
+        const rot = now / 1400;
+        g.fillStyle(0x9fc8ff, c.a * 0.3 * tw).fillCircle(cx, hy, 26 * k);
+        if (moving) g.fillStyle(0xbcd8ff, c.a * 0.35).fillEllipse(cx - c.face * 16 * k, hy + 3 * k, 26 * k, 6 * k);
+        const al = Math.min(1, c.a * 1.9);
+        for (let q = 0; q < 4; q++) {
+          const an = rot + (q * Math.PI) / 2;
+          const L = (q % 2 ? 13 : 20) * k * tw;
+          const ox = Math.cos(an);
+          const oy = Math.sin(an);
+          g.fillStyle(0xeaf4ff, al).fillTriangle(cx + ox * L, hy + oy * L, cx - oy * 4 * k, hy + ox * 4 * k, cx + oy * 4 * k, hy - ox * 4 * k);
+        }
+        g.fillStyle(0xffffff, al).fillCircle(cx, hy, 4.5 * k);
+      } else if (c.kind === 'flower') {
         g.fillStyle(0xffffff, c.a * 0.3).fillCircle(cx, hy, 18 * k);
         for (let q = 0; q < 5; q++) {
           const an = (q / 5) * Math.PI * 2 + now / 900;
@@ -2812,6 +2829,26 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0x2a1a14, 1).fillRoundedRect(cx - 20 * k, cy - 30 * k, 40 * k, 32 * k, 8 * k);
       g.fillStyle(0xff6a1a, 0.9).fillCircle(cx, cy - 15 * k, (9 + 3 * beat) * k);
       g.fillStyle(0xffd04a, 1).fillCircle(cx, cy - 15 * k, (4 + 2 * beat) * k);
+    } else if (map === 'starfall' && pick === 'spare') {
+      // 星星回到夜空：地上一圈淡藍星環，上方一道細細的光柱一直通到畫面頂端（D-158）
+      g.fillStyle(0x9fc8ff, 0.08 + 0.08 * pulse).fillRect(cx - 5 * k, cy - 260 * k, 10 * k, 260 * k);
+      g.fillStyle(0xeaf4ff, 0.18 + 0.12 * pulse).fillRect(cx - 1.5 * k, cy - 260 * k, 3 * k, 260 * k);
+      g.lineStyle(2 * k, 0x9fc8ff, 0.5 + 0.3 * pulse).strokeEllipse(cx, cy - 2 * k, 56 * k, 16 * k);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + t * 0.5;
+        g.fillStyle(0xeaf4ff, 0.6 + 0.4 * Math.sin(t * 3 + i)).fillCircle(cx + Math.cos(a) * 28 * k, cy - 2 * k + Math.sin(a) * 8 * k, 1.8 * k);
+      }
+    } else if (map === 'starfall') {
+      // 被取走墜星核的地方：灰掉的晶簇，中間一個空的星形凹槽
+      g.fillStyle(0x6a6e84, 1).fillTriangle(cx - 24 * k, cy, cx - 12 * k, cy - 34 * k, cx - 2 * k, cy);
+      g.fillStyle(0x7a7e94, 1).fillTriangle(cx - 6 * k, cy, cx + 6 * k, cy - 44 * k, cx + 18 * k, cy);
+      g.fillStyle(0x5e6276, 1).fillTriangle(cx + 12 * k, cy, cx + 22 * k, cy - 26 * k, cx + 30 * k, cy);
+      g.lineStyle(1.5 * k, 0xa8acc0, 0.7).strokeTriangle(cx - 6 * k, cy, cx + 6 * k, cy - 44 * k, cx + 18 * k, cy);
+      g.lineStyle(2 * k, 0x22242e, 1);
+      for (let q = 0; q < 4; q++) {
+        const an = -Math.PI / 2 + (q * Math.PI) / 2;
+        g.lineBetween(cx + 6 * k, cy - 18 * k, cx + 6 * k + Math.cos(an) * 7 * k, cy - 18 * k + Math.sin(an) * 7 * k);
+      }
     } else {
       // 冷掉的黑岩：沒有光的裂紋
       g.fillStyle(0x24201e, 1).fillRoundedRect(cx - 20 * k, cy - 30 * k, 40 * k, 32 * k, 8 * k);

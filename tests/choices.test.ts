@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOSS_CHOICES, choiceOf, cleanChoices, epilogueLine, makeChoice, shopDiscountPct, withEpilogue, SPARE_DISCOUNT } from '../src/game/choices';
+import { BOSS_CHOICES, choiceOf, cleanChoices, codaLine, epilogueLine, makeChoice, shopDiscountPct, withEpilogue, SPARE_DISCOUNT } from '../src/game/choices';
 import { FINALE_LINES } from '../src/game/finaleStats';
 import { WORLD_MAPS, FINALE_MAP } from '../src/game/worldMaps';
 import { genGear } from '../src/core/battle/rt/gear';
@@ -7,9 +7,10 @@ import { buyGear, buyPrice, stockPrice } from '../src/game/rtShop';
 import type { RtRecord } from '../src/game/rtRecord';
 
 describe('討伐後的抉擇（D-157）', () => {
-  it('三張主線地圖各一個抉擇、地圖存在、文字不重複', () => {
+  it('四張大地圖各一個抉擇（通關後的地圖標 postGame）、地圖存在、文字不重複', () => {
     const story = WORLD_MAPS.filter((m) => !m.postGame).map((m) => m.id);
-    expect(BOSS_CHOICES.map((c) => c.map).sort()).toEqual([...story].sort());
+    expect(BOSS_CHOICES.map((c) => c.map).sort()).toEqual(WORLD_MAPS.map((m) => m.id).sort());
+    for (const c of BOSS_CHOICES) expect(!!c.postGame).toBe(!story.includes(c.map));
     expect(story).toContain(FINALE_MAP);
     const labels = BOSS_CHOICES.flatMap((c) => [c.take.label, c.spare.label]);
     expect(new Set(labels).size).toBe(labels.length);
@@ -17,7 +18,8 @@ describe('討伐後的抉擇（D-157）', () => {
       expect(c.take.crystal).toBeGreaterThan(0);
       expect(c.take.desc).toContain(String(c.take.crystal));
     }
-    expect(choiceOf('starfall')).toBeUndefined();
+    expect(choiceOf('starfall')?.postGame).toBe(true);
+    expect(choiceOf('nowhere')).toBeUndefined();
   });
 
   it('壞資料丟掉；抉擇只有一次', () => {
@@ -27,7 +29,7 @@ describe('討伐後的抉擇（D-157）', () => {
     const a = makeChoice({}, 'mistwood', 'take')!;
     expect(a).toEqual({ mistwood: 'take' });
     expect(makeChoice(a, 'mistwood', 'spare')).toBeNull();
-    expect(makeChoice(a, 'starfall', 'spare')).toBeNull();
+    expect(makeChoice(a, 'nowhere', 'spare')).toBeNull();
   });
 
   it('還＝行商裝備便宜（每個 10%、和特價疊乘）', () => {
@@ -55,6 +57,20 @@ describe('討伐後的抉擇（D-157）', () => {
     expect(w[w.length - 1]).toBe(FINALE_LINES[FINALE_LINES.length - 1]);
     expect(w[w.length - 2]).toBe(epilogueLine(mix));
   });
+
+  it('星隕高原（D-158）：不影響三片土地那句；選過的話結語最後多一句尾聲；四個都還＝−40%', () => {
+    const all = { mistwood: 'spare', thornvale: 'spare', emberrift: 'spare' } as const;
+    expect(epilogueLine({ ...all, starfall: 'take' })).toBe(epilogueLine(all));
+    expect(epilogueLine({ starfall: 'spare' })).toBeNull();
+    expect(codaLine({})).toBeNull();
+    expect(codaLine({ starfall: 'spare' })).not.toBe(codaLine({ starfall: 'take' }));
+    const w = withEpilogue(FINALE_LINES, { ...all, starfall: 'spare' });
+    expect(w.length).toBe(FINALE_LINES.length + 2);
+    expect(w[w.length - 1]).toBe(codaLine({ starfall: 'spare' }));
+    expect(w[w.length - 2]).toBe(FINALE_LINES[FINALE_LINES.length - 1]);
+    expect(withEpilogue(FINALE_LINES, { starfall: 'take' })).toEqual([...FINALE_LINES, codaLine({ starfall: 'take' })]);
+    expect(shopDiscountPct({ ...all, starfall: 'spare' })).toBe(4 * SPARE_DISCOUNT);
+  });
 });
 
 describe('燼牌對手的回聲（D-157）', () => {
@@ -68,5 +84,6 @@ describe('燼牌對手的回聲（D-157）', () => {
     expect(b).toBeTruthy();
     expect(a).not.toBe(b);
     expect(rivalEcho('goran', { thornvale: 'spare' })).toBeNull();
+    expect(rivalEcho('sol', { starfall: 'spare' })).toBeTruthy();
   });
 });
