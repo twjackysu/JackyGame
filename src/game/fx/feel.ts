@@ -59,7 +59,7 @@ export interface NumberStyle {
 }
 
 /** 彈跳傷害數字 */
-export function floatNumber(scene: Phaser.Scene, x: number, y: number, text: string, st: NumberStyle): void {
+export function floatNumber(scene: Phaser.Scene, x: number, y: number, text: string, st: NumberStyle): Phaser.GameObjects.Text {
   const t = scene.add
     .text(x + Phaser.Math.Between(-18, 18), y, text, {
       fontFamily: UI_FONT,
@@ -85,6 +85,7 @@ export function floatNumber(scene: Phaser.Scene, x: number, y: number, text: str
       .setDepth(900);
     scene.tweens.add({ targets: l, y: l.y - 70, alpha: { from: 1, to: 0 }, duration: 1000, ease: 'Cubic.Out', onComplete: () => l.destroy() });
   }
+  return t;
 }
 
 /** 放射火花 */

@@ -165,6 +165,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 鏡頭（世界座標，鏡頭中心） */
   private camX = 0;
   private camY = 0;
+  private dotNum = new Map<number, { t: Phaser.GameObjects.Text; at: number; sum: number; skill: string }>();
   private lastBowSfx = 0;
   private hint: Phaser.GameObjects.Container | null = null;
   /** 已播過特效的技能段（`施放 tick:段`） */
@@ -1610,6 +1611,16 @@ export class RtBattleScene extends Phaser.Scene {
           this.slash(src.x, src.y, Math.atan2(d.y - src.y, d.x - src.x), 150, 110, e.crit ? 0xffd05a : 0xffffff, 5);
           this.knock(d.id, d.x - src.x, d.y - src.y, 10);
         } else if (src && src.side === 'player' && e.origin !== 'dot') this.knock(d.id, d.x - src.x, d.y - src.y, 16);
+        // 持續傷害的數字合併（第 34 輪）：同一隻怪 1 秒內的灼燒＋中毒跳成同一個數字（狼群身上一堆小數字太吵）
+        const dn = e.origin === 'dot' && !toPlayer ? this.dotNum.get(d.id) : undefined;
+        if (dn && dn.t.active && this.time.now - dn.at < 1000) {
+          dn.sum += e.amount;
+          if (dn.skill !== e.skill) dn.t.setColor('#ffd27a');
+          dn.t.setText(`${dn.sum}`);
+        } else if (e.origin === 'dot' && !toPlayer) {
+          const t = floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}`, { color: e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: 22 });
+          this.dotNum.set(d.id, { t, at: this.time.now, sum: e.amount, skill: e.skill });
+        } else
         floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : e.origin === 'dot' ? 22 : 26 });
         if (!toPlayer && e.origin !== 'dot') {
           SFX.hitLight();
