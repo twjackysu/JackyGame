@@ -122,6 +122,10 @@ export interface AreaAttack {
   label?: string;
   /** 霧中瞬移：預告開始前先閃到玩家背後 behind 距離處，再朝玩家出招（D-105） */
   blink?: { behind: number };
+  /** 召喚墜星（第 31 輪，星骸守望者）：預告畫在玩家腳下（出招當下的位置），不是怪自己身上 */
+  atTarget?: boolean;
+  /** 命中時也打到範圍內追著你的一般怪（扣最大 HP 的這個 %，不打 Boss）——把召喚來的狼引到落點底下 */
+  hitsEnemiesPct?: number;
 }
 
 export interface EnemyDefinition {

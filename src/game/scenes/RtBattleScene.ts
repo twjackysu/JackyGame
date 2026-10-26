@@ -24,6 +24,9 @@ const THORN_ATTACKS = new Set(['queen_lance', 'queen_lance2', 'queen_roots', 'qu
 const FLAME_MANE = new Set(['ember_wolf', 'obsidian_alpha', 'magma_stalker']);
 const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
 
+/** 星骸守望者的召喚墜星（第 31 輪）：預告畫成藍白色＋從夜空落下的星星，落地時跟地圖的落星一樣爆開 */
+const METEOR_ATTACKS = new Set(['sentinel_meteor', 'sentinel_meteor2']);
+
 function lerpColor(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t);
   return (m(16) << 16) | (m(8) << 8) | m(0);
@@ -603,6 +606,7 @@ export class RtBattleScene extends Phaser.Scene {
   private ventHit = new Map<number, number>();
   private ventKills = 0;
   private bloomHinted = false;
+  private meteorHinted = false;
   /** 這張地圖的 Boss 與地形稱呼（D-114）：霧語森林＝狼王／森林、荊棘谷＝狼后／山谷 */
   private get bw(): string {
     return worldMap(this.stageId)?.bw ?? '狼王';
@@ -1745,6 +1749,14 @@ export class RtBattleScene extends Phaser.Scene {
           if (o?.affix === 'tough' && lb) this.cameras.main.shake(120, 0.003);
         }
         // 地面荊棘（第 23 輪）：記下預告，命中那一刻在範圍裡長出荊棘
+        if (METEOR_ATTACKS.has(e.attack)) {
+          const tg = [...this.s.telegraphs].reverse().find((t) => t.ownerId === e.owner && t.attackId === e.attack);
+          if (tg) this.thornPending.push({ ...tg });
+          if (e.attack === 'sentinel_meteor' && !this.meteorHinted && !this.bot) {
+            this.meteorHinted = true;
+            bigText(this, GAME_WIDTH / 2, 520, '守望者召喚墜星——藍圈在你腳下！', '#c8d8ff', 36, 900);
+          }
+        }
         if (THORN_ATTACKS.has(e.attack) || LAVA_ATTACKS.has(e.attack)) {
           const tg = [...this.s.telegraphs].reverse().find((t) => t.ownerId === e.owner && t.attackId === e.attack);
           if (tg) this.thornPending.push({ ...tg });
@@ -1789,12 +1801,7 @@ export class RtBattleScene extends Phaser.Scene {
         const near = Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 8;
         if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14 && this.starMap) {
           // 墜星落地（D-138）：白色閃光＋藍色衝擊環＋碎星四濺
-          sparks(this, vx, vy, 22, 'spark', 0xc8d8ff, 640);
-          sparks(this, vx, vy - 16, 10, 'ember', 0x8aa8ff, 820);
-          shockRing(this, vx, vy, 0x8aa8ff, e.r * this.k * 1.3, 380, 8);
-          shockRing(this, vx, vy, 0xffffff, e.r * this.k * 0.8, 240, 4);
-          const fl = this.add.circle(vx, vy, e.r * this.k * 1.1, 0xe0e8ff, 0.7).setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
-          this.tweens.add({ targets: fl, scale: 1.5, alpha: 0, duration: 300, ease: 'Cubic.easeOut', onComplete: () => fl.destroy() });
+          this.starImpact(vx, vy, e.r * this.k);
         } else if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) {
           sparks(this, vx, vy, 22, 'ember', 0xff8a3a, 620);
           sparks(this, vx, vy - 20, 10, 'spark', 0xffe0a0, 820);
@@ -2362,19 +2369,32 @@ export class RtBattleScene extends Phaser.Scene {
       g.lineStyle(2, C[4]!, 0.8).strokeCircle(vx, vy, vr * (1.6 - 0.6 * t));
       if (this.starMap) {
         // 星星從右上方的夜空落下：越接近落地越靠近、越亮（最後 0.5 秒才看得到）
-        const f = Math.max(0, (t - 0.5) / 0.5);
-        if (f > 0) {
-          const d = (1 - f * f) * 560;
-          const hx = vx + d * 0.55;
-          const hy = vy - d;
-          g.lineStyle(18, 0x6a86ff, 0.3 * f).lineBetween(hx, hy, hx + 110, hy - 200);
-          g.lineStyle(8, 0xa8c0ff, 0.6 * f).lineBetween(hx, hy, hx + 80, hy - 145);
-          g.lineStyle(3, 0xffffff, 0.95 * f).lineBetween(hx, hy, hx + 50, hy - 90);
-          g.fillStyle(0x8aa8ff, 0.35 * f).fillCircle(hx, hy, 22 + 10 * f);
-          g.fillStyle(0xffffff, f).fillCircle(hx, hy, 9 + 6 * f);
-        }
+        this.fallingStar(g, vx, vy, Math.max(0, (t - 0.5) / 0.5));
       }
     }
+  }
+
+  /** 從右上方夜空落下的星星（f：0 → 1，1＝落地）；墜星與守望者的召喚墜星共用 */
+  private fallingStar(g: Phaser.GameObjects.Graphics, vx: number, vy: number, f: number): void {
+    if (f <= 0) return;
+    const d = (1 - f * f) * 560;
+    const hx = vx + d * 0.55;
+    const hy = vy - d;
+    g.lineStyle(18, 0x6a86ff, 0.3 * f).lineBetween(hx, hy, hx + 110, hy - 200);
+    g.lineStyle(8, 0xa8c0ff, 0.6 * f).lineBetween(hx, hy, hx + 80, hy - 145);
+    g.lineStyle(3, 0xffffff, 0.95 * f).lineBetween(hx, hy, hx + 50, hy - 90);
+    g.fillStyle(0x8aa8ff, 0.35 * f).fillCircle(hx, hy, 22 + 10 * f);
+    g.fillStyle(0xffffff, f).fillCircle(hx, hy, 9 + 6 * f);
+  }
+
+  /** 墜星落地的爆開（白色閃光＋藍色衝擊環＋碎星） */
+  private starImpact(vx: number, vy: number, r: number): void {
+    sparks(this, vx, vy, 22, 'spark', 0xc8d8ff, 640);
+    sparks(this, vx, vy - 16, 10, 'ember', 0x8aa8ff, 820);
+    shockRing(this, vx, vy, 0x8aa8ff, r * 1.3, 380, 8);
+    shockRing(this, vx, vy, 0xffffff, r * 0.8, 240, 4);
+    const fl = this.add.circle(vx, vy, r * 1.1, 0xe0e8ff, 0.7).setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: fl, scale: 1.5, alpha: 0, duration: 300, ease: 'Cubic.easeOut', onComplete: () => fl.destroy() });
   }
 
   /** 碎甲斬命中（第 26 輪）：敵人身上迸出 6～9 片紅褐盾片，旋轉、往外飛、落地淡出（純畫面） */
@@ -2523,7 +2543,15 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.thornPending.length) {
       this.thornPending = this.thornPending.filter((t) => {
         if (s.tick < t.hitTick) return true;
-        if (LAVA_ATTACKS.has(t.attackId)) this.spawnLava(t);
+        if (METEOR_ATTACKS.has(t.attackId)) {
+          const pl = playerOf(s);
+          const r = t.shape.type === 'circle' ? t.shape.r : UNIT;
+          this.starImpact(this.sx(t.ox), this.sy(t.oy), r * this.k);
+          if (Math.hypot(pl.x - t.ox, pl.y - t.oy) < UNIT * 8) {
+            this.cameras.main.shake(130, 0.005);
+            SFX.hitHeavy();
+          }
+        } else if (LAVA_ATTACKS.has(t.attackId)) this.spawnLava(t);
         else this.spawnThorns(t);
         return false;
       });
@@ -2828,7 +2856,8 @@ export class RtBattleScene extends Phaser.Scene {
       const prog = Math.min(1, (s.tick - t.startTick) / Math.max(1, t.hitTick - t.startTick));
       const owner = s.units.find((x) => x.id === t.ownerId);
       const atk = owner ? attacksOf(owner).find((q) => q.id === t.attackId) : undefined;
-      const col = atk?.status ? 0xb060ff : 0xff3a3a;
+      const meteor = METEOR_ATTACKS.has(t.attackId);
+      const col = meteor ? 0x8aa8ff : atk?.status ? 0xb060ff : 0xff3a3a;
       g.fillStyle(col, 0.14);
       this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, g, true);
       g.fillStyle(col, 0.22 + prog * 0.25);
@@ -2840,6 +2869,15 @@ export class RtBattleScene extends Phaser.Scene {
       if (s.night) {
         top.lineStyle(3, t.blockable ? 0xffd27a : blink ? 0xffffff : col, 0.9);
         this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, top, false);
+      }
+      if (meteor) {
+        // 召喚墜星：中央白色十字星閃爍，最後 45% 星星從夜空落下（畫在上層，暈影蓋不住）
+        const vx = this.sx(t.ox);
+        const vy = this.sy(t.oy);
+        const tw = 10 + 4 * Math.sin(now / 90);
+        g.fillStyle(0xffffff, 0.5 + 0.4 * prog).fillPoints([new Phaser.Math.Vector2(vx, vy - tw * 1.6), new Phaser.Math.Vector2(vx + tw * 0.4, vy), new Phaser.Math.Vector2(vx, vy + tw * 1.6), new Phaser.Math.Vector2(vx - tw * 0.4, vy)], true);
+        g.fillPoints([new Phaser.Math.Vector2(vx - tw * 1.6, vy), new Phaser.Math.Vector2(vx, vy - tw * 0.4), new Phaser.Math.Vector2(vx + tw * 1.6, vy), new Phaser.Math.Vector2(vx, vy + tw * 0.4)], true);
+        this.fallingStar(top, vx, vy, Math.max(0, (prog - 0.55) / 0.45));
       }
     }
     this.drawPaws(g, now);

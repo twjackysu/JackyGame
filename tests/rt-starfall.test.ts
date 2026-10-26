@@ -176,4 +176,42 @@ describe('星光碎片（D-141）', () => {
     for (let i = 0; i < sec(5) + 1; i++) step(s, []);
     expect(s.shards?.some((q) => q.idx === 0)).toBe(false);
   });
+  it('第二階段召喚墜星：預告畫在玩家腳下、砸完再追一顆；落點裡追著你的星痕狼也會被砸（第 31 輪）', () => {
+    const s = createBattle({ stageId: 'starfall', seed: 2, level: 16, bonus: GEAR });
+    const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: STARFALL_SENTINEL }, 'normal');
+    let first: { ox: number; oy: number; px: number; py: number } | undefined;
+    let second = false;
+    let splashed = false;
+    while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(900) && !(first && second && splashed)) {
+      const n = s.events.length;
+      step(s, bot.decide(s));
+      const p = s.units[0]!;
+      for (let i = n; i < s.events.length; i++) {
+        const e = s.events[i]!;
+        if (e.type === 'telegraph' && e.attack === 'sentinel_meteor' && !first) {
+          const t = s.telegraphs.find((q) => q.attackId === 'sentinel_meteor')!;
+          first = { ox: t.ox, oy: t.oy, px: p.x, py: p.y };
+        }
+        if (e.type === 'telegraph' && e.attack === 'sentinel_meteor2') second = true;
+      }
+      // 把一隻戰鬥中的星痕狼釘在落點中央，看會不會被砸
+      const tg = s.telegraphs.find((q) => q.attackId.startsWith('sentinel_meteor'));
+      // （召喚的狼通常很快被 Bot 打死，這裡借一隻遠處的狼，設成戰鬥中）
+      const wolf = s.units.find((x) => !x.dead && x.defId === 'star_wolf');
+      if (tg && wolf && !splashed) {
+        wolf.mode = 'combat';
+        wolf.x = tg.ox;
+        wolf.y = tg.oy;
+      }
+      for (let i = n; i < s.events.length; i++) {
+        const e = s.events[i]!;
+        if (e.type === 'damage' && e.skill === 'vent' && s.units.find((x) => x.id === e.dst)?.defId === 'star_wolf') splashed = true;
+      }
+    }
+    expect(first).toBeDefined();
+    // 出招那一刻玩家的位置（Bot 下一個 tick 才動）
+    expect(Math.hypot(first!.ox - first!.px, first!.oy - first!.py)).toBeLessThan(u(1));
+    expect(second).toBe(true);
+    expect(splashed).toBe(true);
+  }, 240000);
 });

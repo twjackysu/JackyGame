@@ -1377,9 +1377,21 @@ function startEnemyAttack(s: BattleState, e: Unit, def: EnemyDefinition, atk: Ar
   if (e.affix) cd = Math.round((cd * (100 - (ELITE_AFFIXES[e.affix].cdPct ?? 0))) / 100);
   e.ready[atk.id] = s.tick + cd;
   e.nextAttackTick = s.tick + atk.warningTicks + atk.recoverTicks + (atk.charge?.ticks ?? 0);
-  e.action = { kind: 'enemyAttack', id: atk.id, start: s.tick, end: s.tick + atk.warningTicks + atk.recoverTicks, dirX: e.facingX, dirY: e.facingY, ox: e.x, oy: e.y, hitIds: [] };
-  s.telegraphs.push({ ownerId: e.id, attackId: atk.id, shape: atk.shape, ox: e.x, oy: e.y, dirX: e.facingX, dirY: e.facingY, hitTick: s.tick + atk.warningTicks, startTick: s.tick, blockable: atk.blockable });
+  const ox = atk.atTarget ? p.x : e.x;
+  const oy = atk.atTarget ? p.y : e.y;
+  e.action = { kind: 'enemyAttack', id: atk.id, start: s.tick, end: s.tick + atk.warningTicks + atk.recoverTicks, dirX: e.facingX, dirY: e.facingY, ox, oy, hitIds: [] };
+  s.telegraphs.push({ ownerId: e.id, attackId: atk.id, shape: atk.shape, ox, oy, dirX: e.facingX, dirY: e.facingY, hitTick: s.tick + atk.warningTicks, startTick: s.tick, blockable: atk.blockable });
   emit(s, { tick: s.tick, type: 'telegraph', owner: e.id, attack: atk.id });
+}
+
+/** 召喚墜星（第 31 輪）：落點裡追著你的一般怪也會被砸（算玩家的擊殺，跟噴發口一樣）；Boss 與待機的怪不算 */
+function splashEnemies(s: BattleState, e: Unit, atk: AreaAttack, ox: number, oy: number, p: Unit): void {
+  for (const x of s.units) {
+    if (x.dead || x.side !== 'enemy' || x.id === e.id || ENEMIES[x.defId]?.boss) continue;
+    if (x.mode !== undefined && x.mode !== 'combat') continue;
+    if (!inShape(atk.shape, ox, oy, 0, 0, x.x, x.y, x.r * 0.5)) continue;
+    applyHp(s, p, x, Math.max(1, Math.round((x.maxHp * atk.hitsEnemiesPct!) / 100)), false, 'dot', 'vent');
+  }
 }
 
 function updateEnemy(s: BattleState, e: Unit): void {
@@ -1427,6 +1439,7 @@ function updateEnemy(s: BattleState, e: Unit): void {
         a.kind = 'charge';
         a.end = s.tick + atk.charge.ticks + atk.recoverTicks;
       } else if (!p.dead && inShape(atk.shape, a.ox, a.oy, a.dirX, a.dirY, p.x, p.y, p.r)) enemyHit(s, e, atk, p);
+      if (atk.hitsEnemiesPct) splashEnemies(s, e, atk, a.ox, a.oy, p);
     }
     if (a.kind === 'charge' && atk.charge && atk.shape.type === 'line') {
       const k = s.tick - hitTick;

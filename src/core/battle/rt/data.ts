@@ -388,6 +388,9 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'sentinel_blink', shape: { type: 'sector', r: u(2.6), deg: 130 }, warningTicks: sec(0.9), recoverTicks: sec(0.7), damageMultiplier: 145, cooldownTicks: sec(12), triggerRange: u(7), blockable: true, blink: { behind: u(2.2) }, weight: 2 },
       { id: 'sentinel_stomp', shape: { type: 'circle', r: u(3.0) }, warningTicks: sec(1.15), recoverTicks: sec(0.8), damageMultiplier: 160, cooldownTicks: sec(9), triggerRange: u(2.6), blockable: false, weight: 2 },
       { id: 'sentinel_ring', shape: { type: 'ring', rIn: u(2.2), rOut: u(5.0) }, warningTicks: sec(1.2), recoverTicks: sec(0.7), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(4.5), blockable: false, phase2Only: true, weight: 2 },
+      // 第二階段：召喚墜星——預告畫在玩家腳下，砸完再追一顆（往你新的位置）；落點裡的星痕狼也會被砸（第 31 輪）
+      { id: 'sentinel_meteor', shape: { type: 'circle', r: u(1.7) }, warningTicks: sec(1.3), recoverTicks: sec(0.4), damageMultiplier: 150, cooldownTicks: sec(8), triggerRange: u(10), blockable: false, phase2Only: true, weight: 2, atTarget: true, hitsEnemiesPct: 40, followUp: 'sentinel_meteor2', followAlways: true },
+      { id: 'sentinel_meteor2', shape: { type: 'circle', r: u(1.7) }, warningTicks: sec(1.0), recoverTicks: sec(0.6), damageMultiplier: 130, cooldownTicks: 0, triggerRange: u(12), blockable: false, weight: 0, atTarget: true, hitsEnemiesPct: 40 },
       { id: 'sentinel_lance2', shape: { type: 'line', len: u(11), width: u(1.2) }, warningTicks: sec(0.55), recoverTicks: sec(0.7), damageMultiplier: 125, cooldownTicks: 0, triggerRange: u(11), blockable: true, weight: 0, furyOnly: true },
       { id: 'sentinel_starfall', shape: { type: 'circle', r: u(5.4) }, warningTicks: sec(1.7), recoverTicks: sec(1.1), damageMultiplier: 190, cooldownTicks: sec(16), triggerRange: u(3.2), blockable: false, weight: 2, furyOnly: true },
     ],
