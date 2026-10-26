@@ -2338,13 +2338,15 @@ export class RtBattleScene extends Phaser.Scene {
       g.lineStyle(2, C[4]!, 0.8).strokeCircle(vx, vy, vr * (1.6 - 0.6 * t));
       if (this.starMap) {
         // 星星從右上方的夜空落下：越接近落地越靠近、越亮（最後 0.5 秒才看得到）
-        const f = Math.max(0, (t - 0.65) / 0.35);
+        const f = Math.max(0, (t - 0.5) / 0.5);
         if (f > 0) {
-          const d = (1 - f) * 520;
+          const d = (1 - f * f) * 560;
           const hx = vx + d * 0.55;
           const hy = vy - d;
-          g.lineStyle(10, 0x6a86ff, 0.35 * f).lineBetween(hx, hy, hx + 90, hy - 160);
-          g.lineStyle(4, 0xe0e8ff, 0.9 * f).lineBetween(hx, hy, hx + 60, hy - 110);
+          g.lineStyle(18, 0x6a86ff, 0.3 * f).lineBetween(hx, hy, hx + 110, hy - 200);
+          g.lineStyle(8, 0xa8c0ff, 0.6 * f).lineBetween(hx, hy, hx + 80, hy - 145);
+          g.lineStyle(3, 0xffffff, 0.95 * f).lineBetween(hx, hy, hx + 50, hy - 90);
+          g.fillStyle(0x8aa8ff, 0.35 * f).fillCircle(hx, hy, 22 + 10 * f);
           g.fillStyle(0xffffff, f).fillCircle(hx, hy, 9 + 6 * f);
         }
       }
