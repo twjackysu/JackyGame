@@ -58,6 +58,11 @@ export const CARDS: Readonly<Record<string, CardDef>> = {
   // 第 29 輪：伊妲的招牌（D-135）
   echo: { id: 'echo', name: '說書回聲', power: 1, row: 1, ability: 'echo', desc: '回響：放在後排，再把你場上最強的一張單位（傳奇除外）複製一份' },
   hero_obsidian: { id: 'hero_obsidian', name: '黑曜首領', power: 9, row: 0, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
+  // 第 30 輪：星隕高原（索爾，D-139）
+  star_wolf: { id: 'star_wolf', name: '星痕狼', power: 3, row: 0, ability: 'bond', desc: '同袍：同排每多一張，點數倍增' },
+  stargazer: { id: 'stargazer', name: '觀星學徒', power: 5, row: 1 },
+  comet: { id: 'comet', name: '彗星巡者', power: 9, row: 0 },
+  hero_sentinel: { id: 'hero_sentinel', name: '星骸守望者', power: 12, row: 1, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
 };
 
 /** 寶箱裡的燼牌（D-131）：寶箱 id → 牌；每張只拿一次，守在難去的地方 */
@@ -79,6 +84,8 @@ export interface Opponent {
   map?: string;
   /** 隱藏對手（D-132）：三位都贏過一次才會出現在每個營火 */
   secret?: boolean;
+  /** 通關後地圖的對手（D-139）：不算進「三位都贏過」 */
+  extra?: boolean;
   deck: readonly string[];
   stake: number;
   /** 下注贏了依序拿到的牌（各對手之間不重複） */
@@ -111,6 +118,12 @@ export const OPPONENTS: readonly Opponent[] = [
     id: 'ida', name: '燼火說書人伊妲', short: '伊妲', secret: true, stake: 200, rewards: ['hero_echo', 'echo'], bankAt: 9, bailAt: 10,
     deck: ['thornhound', 'thornhound', 'thornhound', 'golem', 'mage', 'ballista', 'ballista', 'echo', 'owl', 'scout', 'echo', 'hero_seer', 'scorch', 'horn', 'fog'],
     hello: '「三家都贏過了？聽我說最後一個故事吧。」', win: '「故事還沒講完呢，再來？」', lose: '「……回響之燼，就交給你了。」', blurb: '「回響」會複製場上最強的牌',
+  },
+  // 第 30 輪（D-139）：星隕高原的觀星者——通關後才見得到；牌組是星痕狼群＋大塊頭＋燼爆＋濃霧，比葛倫再硬一點
+  {
+    id: 'sol', name: '觀星者索爾', short: '索爾', map: 'starfall', extra: true, stake: 160, rewards: ['star_wolf', 'stargazer', 'comet', 'hero_sentinel'], bankAt: 9, bailAt: 11,
+    deck: ['star_wolf', 'star_wolf', 'star_wolf', 'stargazer', 'stargazer', 'comet', 'ballista', 'bear', 'mage', 'owl', 'scout', 'scorch', 'hero_sentinel', 'horn', 'fog'],
+    hello: '「星星掉下來的地方，牌運最好。」', win: '「看吧，星象早就寫好了。」', lose: '「……星象沒寫到你。」', blurb: '星痕狼群＋燼爆＋濃霧，攻守都硬',
   },
 ];
 export const opponent = (id: string): Opponent => OPPONENTS.find((o) => o.id === id) ?? OPPONENTS[0]!;

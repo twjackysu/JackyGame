@@ -68,6 +68,7 @@ export function drawMerchant(g: Phaser.GameObjects.Graphics, x: number, y: numbe
  * - 薇菈（荊棘谷）：綠色短披肩、紅褐長髮、背著藥草籃，身邊一隻趴著的棘背獵犬。
  * - 葛倫（燼紅裂谷）：光頭大鬍子、皮圍裙、肩上扛鍛造錘，圍裙上的燼紋會發亮。
  * - 伊妲（隱藏對手）：深紫長袍、銀白長髮、發光的書、繞著星燼。
+ * - 索爾（星隕高原，D-139）：深藍星紋斗篷＋兜帽、白鬍子、手上的黃銅望遠鏡指著天空。
  */
 export function drawCardRival(g: Phaser.GameObjects.Graphics, id: string, x: number, y: number, h: number, now: number): void {
   const s = h / 100;
@@ -100,6 +101,24 @@ export function drawCardRival(g: Phaser.GameObjects.Graphics, id: string, x: num
       g.fillCircle(x + 4 * s, y - 72 * s + breath, 1.7 * s);
     }
     g.fillStyle(0xd8706a, 0.5).fillCircle(x - 6 * s, y - 68 * s + breath, 2 * s).fillCircle(x + 6 * s, y - 68 * s + breath, 2 * s);
+  } else if (id === 'sol') {
+    // 斗篷（星紋）
+    g.fillStyle(0x1a2248, 1).fillPoints([{ x: x - 12 * s, y: y - 64 * s + breath }, { x: x + 12 * s, y: y - 64 * s + breath }, { x: x + 26 * s, y: y - 2 * s }, { x: x - 26 * s, y: y - 2 * s }], true);
+    const tw = 0.5 + 0.5 * Math.sin(now / 300);
+    for (const [dx, dy] of [[-12, -30], [8, -44], [14, -16], [-4, -12], [-16, -50]] as const) g.fillStyle(0xd8e4ff, 0.5 + 0.5 * tw).fillCircle(x + dx * s, y + dy * s + breath, 1.6 * s);
+    // 兜帽＋臉＋白鬍子
+    g.fillStyle(0x24305e, 1).fillEllipse(x, y - 74 * s + breath, 30 * s, 32 * s);
+    g.fillStyle(0xe8c8a8, 1).fillEllipse(x, y - 72 * s + breath, 16 * s, 16 * s);
+    g.fillStyle(0xf0f0f6, 1).fillTriangle(x - 8 * s, y - 68 * s + breath, x + 8 * s, y - 68 * s + breath, x, y - 52 * s + breath);
+    if (now % 4400 >= 140) {
+      g.fillStyle(0x2a2a3a, 1).fillCircle(x - 4 * s, y - 74 * s + breath, 1.6 * s);
+      g.fillCircle(x + 4 * s, y - 74 * s + breath, 1.6 * s);
+    }
+    // 黃銅望遠鏡（斜斜指向天空）
+    g.lineStyle(6 * s, 0xb8903a, 1).lineBetween(x + 10 * s, y - 46 * s + breath, x + 34 * s, y - 84 * s + breath);
+    g.lineStyle(3 * s, 0xf0d08a, 1).lineBetween(x + 12 * s, y - 49 * s + breath, x + 30 * s, y - 78 * s + breath);
+    g.fillStyle(0xe8c8a8, 1).fillCircle(x + 12 * s, y - 46 * s + breath, 4.5 * s);
+    g.fillStyle(0xc8d8ff, 0.4 + 0.4 * tw).fillCircle(x + 36 * s, y - 88 * s + breath, 4 * s);
   } else if (id === 'ida') {
     // 伊妲（D-132，隱藏對手）：深紫長袍、銀白長髮、手上攤開一本發光的書，身邊繞著幾點星燼
     const sway = Math.sin(now / 900) * 2 * s;

@@ -112,6 +112,7 @@ describe('營火燼牌', () => {
     expect(opponentsAt('thornvale').map((o) => o.id)).toEqual(['merchant', 'vela']);
     expect(opponentsAt('emberrift').map((o) => o.id)).toEqual(['merchant', 'goran']);
     expect(opponentsAt('emberrift', true).map((o) => o.id)).toEqual(['merchant', 'goran', 'ida']);
+    expect(opponentsAt('starfall').map((o) => o.id)).toEqual(['merchant', 'sol']);
     const all = OPPONENTS.slice(0, 3).flatMap((o) => o.rewards);
     expect(deckWith(all).length).toBe(DECK_MAX);
     const rate = (deck: string[], who: Opponent): number => {
@@ -135,6 +136,22 @@ describe('營火燼牌', () => {
     (globalThis as any).process.stdout.write(`[燼牌] 伊妲：基本 ${ida}、拿齊三家 ${idaAll}（150 場）\n`);
     expect(ida).toBeLessThan(gr);
     expect(idaAll).toBeGreaterThan(ida + 30);
+  });
+
+  it('觀星者索爾（D-139，星隕高原）：不算進「三位都贏過」；基本牌組很難贏，拿齊三家的牌有得打', () => {
+    const sol = OPPONENTS.find((o) => o.id === 'sol')!;
+    expect(sol.extra).toBe(true);
+    expect(OPPONENTS.filter((o) => !o.secret && !o.extra).map((o) => o.id)).toEqual(['merchant', 'vela', 'goran']);
+    const rate = (deck: string[]): number => {
+      let w = 0;
+      for (let seed = 1; seed <= 150; seed++) if (playOut(seed, deck, sol).winner === 0) w++;
+      return w;
+    };
+    const base = rate(deckWith([]));
+    const all = rate(deckWith(OPPONENTS.slice(0, 3).flatMap((o) => o.rewards)));
+    (globalThis as any).process.stdout.write(`[燼牌] 索爾：基本 ${base}、拿齊三家 ${all}（150 場）\n`);
+    expect(base).toBeLessThan(45);
+    expect(all).toBeGreaterThan(base + 25);
   });
 
   it('AI 對 AI 打 200 場：每場都在 3 局內結束、雙方都贏得到、沒有卡住', () => {
