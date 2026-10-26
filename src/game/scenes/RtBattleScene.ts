@@ -48,7 +48,7 @@ import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, ni
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
-import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice } from '../choices';
+import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
 import { openChoice } from '../ui/choicePanel';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
@@ -62,6 +62,15 @@ const STAGE_IDS = Object.keys(STAGES);
 const VIEW_UNITS_W = 1050;
 /** 世界可視區：標題列下方到畫面底（操作鍵疊在上面） */
 const VIEW_TOP = 110;
+/** 抉擇的痕跡走近時的一句話（D-157） */
+const CHOICE_ECHO: Record<string, string> = {
+  'mistwood:spare': '霧裡的小狼，抬頭看了你一眼。',
+  'mistwood:take': '石座上，只剩一截冷掉的角根。',
+  'thornvale:spare': '白花在荊棘之間，輕輕搖著。',
+  'thornvale:take': '斷掉的根鬚，再也沒有長回來。',
+  'emberrift:spare': '燼心還在跳，像是在跟你打招呼。',
+  'emberrift:take': '岩石冷冰冰的，一點光都沒有。',
+};
 const VIEW_BOTTOM = GAME_HEIGHT;
 /** 地面材質分塊大小（px） */
 const GROUND_CHUNK = 1024;
@@ -297,6 +306,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.engaged = false;
     this.idleHinted = false;
     this.afterChoice = [];
+    this.choiceMarkSaid = false;
+    { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
     this.chestHinted = new Set();
     this.bossMemo = false;
@@ -1102,6 +1113,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 抉擇選完之後才出的提示（新地圖開放等） */
   private afterChoice: (() => void)[] = [];
+  private choiceMark: { x: number; y: number; map: string; pick: ChoicePick } | null = null;
 
   /** 討伐後的抉擇（D-157）：戰鬥暫停（當成 menu）；取＝馬上拿結晶、還＝之後行商便宜。有面板開著就晚一點再跳 */
   private showChoice(ch: BossChoice): void {
@@ -1117,6 +1129,9 @@ export class RtBattleScene extends Phaser.Scene {
       const c = makeChoice(loadChoices(), this.stageId, pick);
       if (c) {
         saveChoices(c);
+        const bz = STAGES[this.stageId]?.bossZone;
+        if (bz) this.choiceMark = { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick };
+        this.choiceMarkSaid = true;
         if (pick === 'take' && this.tracked) {
           const rec = spend(loadRecord(this.stageId), 0, -ch.take.crystal);
           if (rec) saveRecord(this.stageId, rec);
@@ -2674,6 +2689,80 @@ export class RtBattleScene extends Phaser.Scene {
     this.cameras.main.shake(120, 0.005);
   }
 
+  /**
+   * 抉擇的痕跡（D-157，第 35 輪）：Boss 巢穴旁留下你選擇的結果——還：霧裡的小狼／母樹的白花／還在燒的燼心；
+   * 取：斷掉的霧角石座／枯掉的荊棘／冷掉的黑岩。走近時說一句話（每次進地圖一次）。純畫面。
+   */
+  private choiceMarkSaid = false;
+  private drawChoiceMark(g: Phaser.GameObjects.Graphics, now: number): void {
+    if (!this.choiceMark) return;
+    const { x, y, map, pick } = this.choiceMark;
+    const cx = this.sx(x);
+    const cy = this.sy(y);
+    if (cx < -100 || cx > GAME_WIDTH + 100 || cy < VIEW_TOP - 140 || cy > VIEW_BOTTOM + 100) return;
+    const k = this.k * 2.6;
+    const t = now / 1000;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 2.2);
+    g.fillStyle(0x000000, 0.3).fillEllipse(cx, cy + 4 * k, 70 * k, 18 * k);
+    if (map === 'mistwood' && pick === 'spare') {
+      // 霧裡的小狼：半透明、坐著、尾巴輕輕擺
+      const a = 0.45 + 0.15 * pulse;
+      g.fillStyle(0xcfe4ff, 0.18 * pulse).fillEllipse(cx, cy - 18 * k, 90 * k, 50 * k);
+      g.fillStyle(0xd8e8ff, a).fillEllipse(cx, cy - 14 * k, 34 * k, 28 * k);
+      g.fillCircle(cx + 6 * k, cy - 36 * k, 13 * k);
+      g.fillTriangle(cx - 2 * k, cy - 44 * k, cx + 3 * k, cy - 58 * k, cx + 7 * k, cy - 46 * k);
+      g.fillTriangle(cx + 8 * k, cy - 46 * k, cx + 14 * k, cy - 58 * k, cx + 17 * k, cy - 42 * k);
+      const sw = Math.sin(t * 3) * 6 * k;
+      g.lineStyle(6 * k, 0xd8e8ff, a).lineBetween(cx - 14 * k, cy - 6 * k, cx - 28 * k + sw, cy - 20 * k);
+      g.fillStyle(0x6ab8ff, 0.9).fillCircle(cx + 10 * k, cy - 38 * k, 2 * k);
+    } else if (map === 'mistwood') {
+      // 斷掉的霧角留下的石座：灰石＋一截冷掉的角根
+      g.fillStyle(0x4a4e58, 1).fillRoundedRect(cx - 22 * k, cy - 16 * k, 44 * k, 18 * k, 5 * k);
+      g.fillStyle(0x8a8478, 1).fillTriangle(cx - 6 * k, cy - 16 * k, cx + 8 * k, cy - 16 * k, cx + 2 * k, cy - 34 * k);
+      g.lineStyle(2 * k, 0x2a2c32, 1).lineBetween(cx - 2 * k, cy - 30 * k, cx + 4 * k, cy - 22 * k);
+    } else if (map === 'thornvale' && pick === 'spare') {
+      // 母樹的白花：三朵五瓣白花，花心淡金，微微發光
+      for (let i = 0; i < 3; i++) {
+        const fx = cx + (i - 1) * 20 * k;
+        const fy = cy - (8 + (i % 2) * 10) * k;
+        g.lineStyle(2 * k, 0x5a8a4a, 1).lineBetween(fx, fy, fx, cy);
+        g.fillStyle(0xffffff, 0.12 + 0.12 * pulse).fillCircle(fx, fy, 16 * k);
+        for (let q = 0; q < 5; q++) {
+          const a = (q / 5) * Math.PI * 2 + t * 0.3;
+          g.fillStyle(0xf8f4ff, 1).fillEllipse(fx + Math.cos(a) * 6 * k, fy + Math.sin(a) * 5 * k, 9 * k, 7 * k);
+        }
+        g.fillStyle(0xffe08a, 1).fillCircle(fx, fy, 3 * k);
+      }
+    } else if (map === 'thornvale') {
+      // 根鬚斷掉的地方：枯掉的褐色荊棘
+      g.lineStyle(3 * k, 0x6a4a2a, 1);
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI / 2 + (i - 2) * 0.45;
+        g.lineBetween(cx, cy, cx + Math.cos(a) * 26 * k, cy + Math.sin(a) * 26 * k);
+      }
+      g.fillStyle(0x4a3220, 1).fillEllipse(cx, cy - 2 * k, 26 * k, 10 * k);
+    } else if (map === 'emberrift' && pick === 'spare') {
+      // 還在燒的燼心：熔岩裂縫裡跳動的橘色光
+      const beat = Math.max(0, Math.sin(t * 4)) ** 4;
+      g.fillStyle(0xff8a3a, 0.16 + 0.2 * beat).fillCircle(cx, cy - 16 * k, 34 * k);
+      g.fillStyle(0x2a1a14, 1).fillRoundedRect(cx - 20 * k, cy - 30 * k, 40 * k, 32 * k, 8 * k);
+      g.fillStyle(0xff6a1a, 0.9).fillCircle(cx, cy - 15 * k, (9 + 3 * beat) * k);
+      g.fillStyle(0xffd04a, 1).fillCircle(cx, cy - 15 * k, (4 + 2 * beat) * k);
+    } else {
+      // 冷掉的黑岩：沒有光的裂紋
+      g.fillStyle(0x24201e, 1).fillRoundedRect(cx - 20 * k, cy - 30 * k, 40 * k, 32 * k, 8 * k);
+      g.lineStyle(2 * k, 0x5a524c, 1).lineBetween(cx - 8 * k, cy - 24 * k, cx + 2 * k, cy - 12 * k).lineBetween(cx + 2 * k, cy - 12 * k, cx - 4 * k, cy - 2 * k);
+    }
+    if (!this.choiceMarkSaid && !this.bot) {
+      const p = playerOf(this.s);
+      if (Math.hypot(p.x - x, p.y - y) < UNIT * 2.5) {
+        this.choiceMarkSaid = true;
+        const line = CHOICE_ECHO[`${map}:${pick}`];
+        if (line) floatNumber(this, cx, cy - 70 * k, line, { color: pick === 'spare' ? '#c8f0dc' : '#d8ccb8', size: 24 });
+      }
+    }
+  }
+
   private hexShield(x: number, y: number): void {
     const cx = this.sx(x);
     const cy = this.sy(y) - 40;
@@ -3426,6 +3515,7 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0xd8b050, a).fillRect(cx - 4 * k, cy - 10 * k, 8 * k, 10 * k);
       if (!opened && (now / 500) % 2 < 0.25) g.fillStyle(0xfff0c0, a).fillCircle(cx + 18 * k, cy - 18 * k, 3 * k);
     }
+    this.drawChoiceMark(g, now);
     // 前世的記憶（D-137）：紫色的光點在原地浮著，遠遠就看得到
     for (const mem of this.memLeft) {
       const cx = this.sx(mem.tx * UNIT + UNIT / 2);
