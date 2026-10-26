@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TIP_LINE_MAX, wrapTip } from '../src/game/ui/tipText';
+import { TIP_LINE_MAX, tipMs, wrapTip } from '../src/game/ui/tipText';
 
 describe('提示大字換行（第 37 輪）', () => {
   it('短的不動、長的在標點後斷成兩行，每行不超過一行的寬度', () => {
@@ -12,5 +12,12 @@ describe('提示大字換行（第 37 輪）', () => {
       for (const l of lines) expect([...l].length, l).toBeLessThanOrEqual(TIP_LINE_MAX + 4);
     }
     expect(wrapTip('長弓：站遠一點射！狼貼過來就按「後躍射擊」拉開距離')).toBe('長弓：站遠一點射！\n狼貼過來就按「後躍射擊」拉開距離');
+  });
+  it('提示停留時間：短的 2.2 秒、長的隨字數加長，最多 4 秒（第 40 輪）', () => {
+    expect(tipMs('（記得……牠衝鋒撞到樹或石頭會暈！）')).toBe(2200);
+    const long = tipMs('（記得……岩王很慢！紅圈跑出去，黃框的拳頭能格擋！）');
+    expect(long).toBeGreaterThan(2200);
+    expect(long).toBeLessThanOrEqual(4000);
+    expect(tipMs('字'.repeat(100))).toBe(4000);
   });
 });

@@ -56,7 +56,7 @@ import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
-import { wrapTip } from '../ui/tipText';
+import { tipMs, wrapTip } from '../ui/tipText';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -1133,7 +1133,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (pending && ch) this.time.delayedCall(4300, () => this.showChoice(ch));
       // 最後一張地圖第一次討伐 → 通關演出（D-133）
       if (r.first && this.stageId === FINALE_MAP && !this.bot) later(5000, () => this.showFinale());
-      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！\n回標題選「前往${nx?.name}」${nx?.recLevel ? `・建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000);
+      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！\n回標題選「前往${nx?.name}」${nx?.recLevel ? `\n建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000);
       // 通關那張圖：新地圖開放（星隕高原）等通關演出看完才出，以前會在演出（depth 2000）底下播完、玩家看不到（第 39 輪）
       if (r.first && nx) {
         if (this.stageId === FINALE_MAP && !this.bot) this.afterFinale.push(opened);
@@ -1247,6 +1247,11 @@ export class RtBattleScene extends Phaser.Scene {
       const q = this.afterFinale.splice(0);
       q.forEach((fn, i) => this.time.delayedCall(2400 + i * 3200, fn));
     });
+  }
+
+  /** 第一次遇到 Boss 的前世攻略提示（每張圖不同，worldMaps.bossTip） */
+  private bossTipText(): string {
+    return worldMap(this.stageId)?.bossTip ?? '（記得……牠衝鋒撞到樹或石頭會暈！）';
   }
 
   /** 通關演出看完才出的提示（新地圖開放：星隕高原） */
@@ -1919,7 +1924,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (d && ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length && !this.bossMemo) {
           this.bossMemo = true;
           this.bossIntro(d);
-          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, 600, wrapTip(worldMap(this.stageId)?.bossTip ?? '（記得……牠衝鋒撞到樹或石頭會暈！）'), '#d8c8ff', 28, 2200));
+          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, 600, wrapTip(this.bossTipText()), '#d8c8ff', 28, tipMs(this.bossTipText())));
         }
       } else if (e.type === 'leash') {
         const d = u(e.id);

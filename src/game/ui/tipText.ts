@@ -14,3 +14,9 @@ export function wrapTip(text: string): string {
   if (best <= 0 || best >= text.length) best = Math.ceil(mid);
   return `${text.slice(0, best)}\n${text.slice(best)}`;
 }
+
+/** 提示停留時間（第 40 輪）：短的 2.2 秒；長的（兩行）每字約 0.11 秒，最多 4 秒，讓手機上讀得完 */
+export function tipMs(text: string, base = 2200): number {
+  const n = [...text.replace(/\n/g, '')].length;
+  return Math.min(4000, Math.max(base, n * 110));
+}
