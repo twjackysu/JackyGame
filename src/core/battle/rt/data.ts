@@ -329,6 +329,60 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
     ],
     boss: { phase2AtPct: 50, phase2CooldownPct: 85, summon: { enemyId: 'slag_slime', count: 2, everyTicks: sec(16) } },
   },
+  // ---- 星隕高原（D-138，通關後的挑戰地圖）：星痕狼、星芒菇、晶殼魔像、星輝首領、Boss 星骸守望者 ----
+  // 星痕狼：快、撲咬（短衝）＋咬，數值比燼鬃狼高一截
+  star_wolf: {
+    id: 'star_wolf', name: '星痕狼', hp: 520, atk: 36, def: 11, speed: 3.8, radius: u(0.42), hitstunTicks: 4,
+    drops: { gold: [6, 10], items: [{ id: 'dust', chance: 40 }] },
+    attacks: [
+      { id: 'starwolf_bite', shape: { type: 'sector', r: u(1.5), deg: 80 }, warningTicks: sec(0.6), recoverTicks: sec(0.4), damageMultiplier: 100, cooldownTicks: sec(2.4), triggerRange: u(1.3), blockable: true, weight: 3 },
+      { id: 'starwolf_lunge', shape: { type: 'line', len: u(4), width: u(1.1) }, warningTicks: sec(0.7), recoverTicks: sec(0.6), damageMultiplier: 120, cooldownTicks: sec(6), triggerRange: u(4), blockable: true, charge: { ticks: sec(0.3), wallStunTicks: sec(1.3) }, weight: 2 },
+    ],
+  },
+  // 星芒菇：射出星芒（直線、窄、射程長），近身會放一圈小星爆（不能格擋）
+  star_shroom: {
+    id: 'star_shroom', name: '星芒菇', hp: 320, atk: 32, def: 6, speed: 2.6, radius: u(0.4), hitstunTicks: 5,
+    drops: { gold: [6, 10], items: [{ id: 'dust', chance: 45 }, { id: 'potion', chance: 14 }] },
+    attacks: [
+      { id: 'star_shot', shape: { type: 'line', len: u(8), width: u(0.8) }, warningTicks: sec(0.8), recoverTicks: sec(0.6), damageMultiplier: 110, cooldownTicks: sec(3.0), triggerRange: u(7), blockable: true, weight: 2 },
+      { id: 'star_pop', shape: { type: 'circle', r: u(1.6) }, warningTicks: sec(0.8), recoverTicks: sec(0.7), damageMultiplier: 100, cooldownTicks: sec(5), triggerRange: u(1.3), blockable: false, weight: 1 },
+    ],
+  },
+  // 晶殼魔像：慢、硬、出手重；拳（扇形）＋晶刺環（不能格擋，要往外跑）
+  crystal_golem: {
+    id: 'crystal_golem', name: '晶殼魔像', hp: 900, atk: 38, def: 16, speed: 2.3, radius: u(0.6), hitstunTicks: 3,
+    drops: { gold: [8, 13], items: [{ id: 'dust', chance: 60 }, { id: 'crystal', chance: 8 }] },
+    attacks: [
+      { id: 'golem_fist', shape: { type: 'sector', r: u(1.9), deg: 90 }, warningTicks: sec(0.8), recoverTicks: sec(0.6), damageMultiplier: 125, cooldownTicks: sec(3.2), triggerRange: u(1.6), blockable: true, weight: 3 },
+      { id: 'golem_spikes', shape: { type: 'ring', rIn: u(1.0), rOut: u(2.8) }, warningTicks: sec(1.0), recoverTicks: sec(0.8), damageMultiplier: 130, cooldownTicks: sec(8), triggerRange: u(2.2), blockable: false, weight: 2 },
+    ],
+  },
+  // 星輝首領（精英）：撕咬＋長衝鋒＋衝完落下星爆
+  astral_alpha: {
+    id: 'astral_alpha', name: '星輝首領', hp: 2200, atk: 40, def: 15, speed: 3.9, radius: u(0.6), hitstunTicks: 2,
+    drops: { gold: [40, 60], items: [{ id: 'dust', chance: 100, count: [3, 5] }, { id: 'crystal', chance: 70 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'astral_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.6), recoverTicks: sec(0.4), damageMultiplier: 115, cooldownTicks: sec(2.3), triggerRange: u(1.6), blockable: true, weight: 3 },
+      { id: 'astral_charge', shape: { type: 'line', len: u(6.5), width: u(1.3) }, warningTicks: sec(0.75), recoverTicks: sec(0.4), damageMultiplier: 140, cooldownTicks: sec(7.5), triggerRange: u(6.5), blockable: true, charge: { ticks: sec(0.4), wallStunTicks: sec(1.6) }, weight: 2, followUp: 'astral_nova', followAlways: true },
+      { id: 'astral_nova', shape: { type: 'circle', r: u(2.3) }, warningTicks: sec(0.6), recoverTicks: sec(0.7), damageMultiplier: 125, cooldownTicks: 0, triggerRange: u(3), blockable: false, weight: 0 },
+    ],
+  },
+  // 星骸守望者（Boss）：墜星化成的晶石巨人。斬擊（扇形）、星槍（長直線）、瞬移到背後（一般版就會）、重踏；
+  // 第二階段加星環＋招喚星痕狼；暴怒版：星槍連發、「星落」超大圓（預告長，跑出去就沒事）
+  star_sentinel: {
+    id: 'star_sentinel', name: '星骸守望者', hp: 8200, atk: 41, def: 16, speed: 2.9, radius: u(1.0), hitstunTicks: 0,
+    drops: { gold: [180, 240], items: [{ id: 'dust', chance: 100, count: [7, 10] }, { id: 'crystal', chance: 100, count: [2, 3] }] },
+    attacks: [
+      { id: 'sentinel_slash', shape: { type: 'sector', r: u(2.6), deg: 100 }, warningTicks: sec(0.75), recoverTicks: sec(0.5), damageMultiplier: 120, cooldownTicks: sec(3.0), triggerRange: u(2.3), blockable: true, weight: 3 },
+      { id: 'sentinel_lance', shape: { type: 'line', len: u(11), width: u(1.2) }, warningTicks: sec(0.95), recoverTicks: sec(0.6), damageMultiplier: 145, cooldownTicks: sec(6.5), triggerRange: u(10), blockable: true, weight: 2, followUp: 'sentinel_lance2' },
+      { id: 'sentinel_blink', shape: { type: 'sector', r: u(2.6), deg: 130 }, warningTicks: sec(0.9), recoverTicks: sec(0.7), damageMultiplier: 145, cooldownTicks: sec(12), triggerRange: u(7), blockable: true, blink: { behind: u(2.2) }, weight: 2 },
+      { id: 'sentinel_stomp', shape: { type: 'circle', r: u(3.0) }, warningTicks: sec(1.15), recoverTicks: sec(0.8), damageMultiplier: 160, cooldownTicks: sec(9), triggerRange: u(2.6), blockable: false, weight: 2 },
+      { id: 'sentinel_ring', shape: { type: 'ring', rIn: u(2.2), rOut: u(5.0) }, warningTicks: sec(1.2), recoverTicks: sec(0.7), damageMultiplier: 150, cooldownTicks: sec(10), triggerRange: u(4.5), blockable: false, phase2Only: true, weight: 2 },
+      { id: 'sentinel_lance2', shape: { type: 'line', len: u(11), width: u(1.2) }, warningTicks: sec(0.55), recoverTicks: sec(0.7), damageMultiplier: 125, cooldownTicks: 0, triggerRange: u(11), blockable: true, weight: 0, furyOnly: true },
+      { id: 'sentinel_starfall', shape: { type: 'circle', r: u(5.4) }, warningTicks: sec(1.7), recoverTicks: sec(1.1), damageMultiplier: 190, cooldownTicks: sec(16), triggerRange: u(3.2), blockable: false, weight: 2, furyOnly: true },
+    ],
+    boss: { phase2AtPct: 50, phase2CooldownPct: 85, summon: { enemyId: 'star_wolf', count: 2, everyTicks: sec(15) } },
+  },
   wolf_king: {
     id: 'wolf_king', name: '霧角狼王', hp: 4200, atk: 31, def: 12, speed: 3.0, radius: u(0.9), hitstunTicks: 0,
     drops: { gold: [80, 120], items: [{ id: 'dust', chance: 100, count: [4, 6] }, { id: 'crystal', chance: 100 }] },

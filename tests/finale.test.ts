@@ -15,7 +15,7 @@ describe('通關演出', () => {
     expect(st.chests).toBe(3);
     expect(st.cardsWon).toBe(7);
     expect(st.bosses.map((b) => b.kills)).toEqual([5, 2, 1]);
-    expect(st.bosses.map((b) => b.name)).toEqual(WORLD_MAPS.map((m) => m.boss));
+    expect(st.bosses.map((b) => b.name)).toEqual(WORLD_MAPS.filter((m) => !m.postGame).map((m) => m.boss));
     expect(st.bosses[2]!.best).toBe(300);
   });
   it('空紀錄不會壞', () => {

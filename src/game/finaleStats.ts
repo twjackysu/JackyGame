@@ -48,7 +48,8 @@ export interface FinaleStats {
 export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0, memories = 0): FinaleStats {
   const home = recs[WORLD_MAPS[0]!.id] ?? {};
   return {
-    bosses: WORLD_MAPS.map((m) => {
+    // 通關後的挑戰地圖（D-138）：打倒過才列進旅程
+    bosses: WORLD_MAPS.filter((m) => !m.postGame || (recs[m.id]?.bossKills ?? 0) > 0).map((m) => {
       const r = recs[m.id] ?? {};
       return { name: m.boss, map: m.name, first: r.firstAt, best: r.bestBossSec, kills: r.bossKills ?? 0, color: m.color };
     }),

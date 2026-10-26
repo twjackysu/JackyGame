@@ -20,6 +20,10 @@ export const MEMORIES: readonly Memory[] = [
   { id: 'er_vents', map: 'emberrift', tx: 8, ty: 46, lines: '熔岩口噴發前，地面會越來越亮。\n把怪引過去燒——玩家都叫這招「烤狼」。' },
   { id: 'er_hall', map: 'emberrift', tx: 40, ty: 46, lines: '走噴口原還是黑曜長廊？\n前世的公會為了這個吵了一整晚。' },
   { id: 'er_throne', map: 'emberrift', tx: 23, ty: 26, lines: '燼心岩王從來沒出現在更新預告裡。\n停服前最後一次改版，他就站在這裡等。' },
+  // 星隕高原（D-138，通關後）：故事的下一頁——這個世界的星星，和停服那晚一樣
+  { id: 'sf_field', map: 'starfall', tx: 26, ty: 71, lines: '停服那晚，登入畫面的星星一顆顆熄滅。\n這裡的星星，是往下掉的。' },
+  { id: 'sf_hall', map: 'starfall', tx: 39, ty: 48, lines: '星落之前，地上會先出現藍色的圈。\n把怪引過去——跟「烤狼」是一樣的道理。' },
+  { id: 'sf_obs', map: 'starfall', tx: 16, ty: 32, lines: '企劃說過，最後的地圖叫「星燼」。\n原來不是沒做完，是做在這個世界裡。' },
 ];
 
 export const MEMORY_REWARD = { each: 1, all: 5 } as const;

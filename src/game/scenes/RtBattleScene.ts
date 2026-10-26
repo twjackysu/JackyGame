@@ -83,12 +83,18 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   obsidian_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x9a8aa8 },
   ember_colossus: { key: 'enemy_ember_colossus', h: 3.0, flip: true },
   magma_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff6a3a },
+  // 星隕高原（D-138）：守望者與魔像是程式美術（fx/starArt.ts），其他先用現有立繪染色
+  star_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0x9ab8ff },
+  star_shroom: { key: 'enemy_thorn_shroom', h: 2.9, flip: false, tint: 0xb8a8ff },
+  crystal_golem: { key: 'enemy_crystal_golem', h: 2.4, flip: false },
+  astral_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xe0d0ff },
+  star_sentinel: { key: 'enemy_star_sentinel', h: 3.1, flip: true },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
 /** 巡邏怪的仇恨圈／視線顏色（D-117） */
 const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0, magma_stalker: 0xff5a2a };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
-const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼／燼鬃狼', wolf_king: '狼王／狼后／岩王', thorn_shooter: '荊棘射手／燼芯菇', alpha_wolf: '首領級精英' };
+const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼／燼鬃狼／星痕狼', wolf_king: '狼王／狼后／岩王／守望者', thorn_shooter: '荊棘射手／燼芯菇／星芒菇', alpha_wolf: '首領級精英' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
 const fy0 = (x: Unit): number => x.facingY / 1000;
 
@@ -573,18 +579,23 @@ export class RtBattleScene extends Phaser.Scene {
     const n = this.ventKills;
     const vx = this.sx(x);
     const vy = this.sy(y);
-    floatNumber(this, vx, vy - 56, n > 1 ? `燒死了！×${n}` : '燒死了！', { color: '#ffb050', size: 34 });
-    sparks(this, vx, vy - 10, 16, 'ember', 0xffc060, 760);
-    sparks(this, vx, vy - 30, 8, 'spark', 0xfff0b0, 900);
+    const st = this.starMap; // 星隕高原（D-138）：被星星砸死
+    floatNumber(this, vx, vy - 56, st ? (n > 1 ? `砸死了！×${n}` : '砸死了！') : n > 1 ? `燒死了！×${n}` : '燒死了！', { color: st ? '#c8d8ff' : '#ffb050', size: 34 });
+    sparks(this, vx, vy - 10, 16, 'ember', st ? 0x8aa8ff : 0xffc060, 760);
+    sparks(this, vx, vy - 30, 8, 'spark', st ? 0xe0e8ff : 0xfff0b0, 900);
     if (this.bot) return;
-    if (n === 1) bigText(this, GAME_WIDTH / 2, 430, '引進噴口燒掉了！', '#ffc070', 36, 900);
-    else if ([3, 6, 10, 15, 20, 30, 50].includes(n)) bigText(this, GAME_WIDTH / 2, 430, `噴口已燒死 ${n} 隻！`, '#ffc070', 36, 900);
+    if (n === 1) bigText(this, GAME_WIDTH / 2, 430, st ? '引到落星底下砸扁了！' : '引進噴口燒掉了！', st ? '#c8d8ff' : '#ffc070', 36, 900);
+    else if ([3, 6, 10, 15, 20, 30, 50].includes(n)) bigText(this, GAME_WIDTH / 2, 430, st ? `落星已砸死 ${n} 隻！` : `噴口已燒死 ${n} 隻！`, st ? '#c8d8ff' : '#ffc070', 36, 900);
   }
 
   // ---------- 大地圖獨立紀錄（D-087） ----------
   /** 這張地圖有沒有跨場紀錄（有 Boss 巢穴的刷怪大地圖） */
   private hazardHinted = false;
   private ventHinted = false;
+  /** 這張圖的噴發口是墜星（D-138，星隕高原） */
+  private get starMap(): boolean {
+    return worldMap(this.stageId)?.decor === 'star';
+  }
   private ambient: Ambient | null = null;
   /** 噴發口燒死的回饋（第 27 輪）：被噴發口打到的怪 id → tick；這趟燒死幾隻 */
   private ventHit = new Map<number, number>();
@@ -1765,7 +1776,15 @@ export class RtBattleScene extends Phaser.Scene {
         const vy = this.sy(e.y);
         const pl = playerOf(this.s);
         const near = Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 8;
-        if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) {
+        if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14 && this.starMap) {
+          // 墜星落地（D-138）：白色閃光＋藍色衝擊環＋碎星四濺
+          sparks(this, vx, vy, 22, 'spark', 0xc8d8ff, 640);
+          sparks(this, vx, vy - 16, 10, 'ember', 0x8aa8ff, 820);
+          shockRing(this, vx, vy, 0x8aa8ff, e.r * this.k * 1.3, 380, 8);
+          shockRing(this, vx, vy, 0xffffff, e.r * this.k * 0.8, 240, 4);
+          const fl = this.add.circle(vx, vy, e.r * this.k * 1.1, 0xe0e8ff, 0.7).setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+          this.tweens.add({ targets: fl, scale: 1.5, alpha: 0, duration: 300, ease: 'Cubic.easeOut', onComplete: () => fl.destroy() });
+        } else if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) {
           sparks(this, vx, vy, 22, 'ember', 0xff8a3a, 620);
           sparks(this, vx, vy - 20, 10, 'spark', 0xffe0a0, 820);
           shockRing(this, vx, vy, 0xff7a2a, e.r * this.k * 1.25, 380, 8);
@@ -1778,7 +1797,8 @@ export class RtBattleScene extends Phaser.Scene {
         }
         if (!this.ventHinted && near && !this.bot) {
           this.ventHinted = true;
-          bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
+          if (this.starMap) bigText(this, GAME_WIDTH / 2, 470, '星星砸下來了！地上出現藍圈就快走開\n（閃避可以躲・把追你的怪引過來砸）', '#c8d8ff', 30, 1800);
+          else bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
         }
       }
       else if (e.type === 'summon') {
@@ -1943,6 +1963,7 @@ export class RtBattleScene extends Phaser.Scene {
     const wmp = worldMap(this.stageId) ?? WORLD_MAPS[0]!;
     const tv = wmp.decor === 'thorn';
     const ember = wmp.decor === 'ember';
+    const starD = wmp.decor === 'star';
     const P = wmp.palette;
     const paint = (g: Phaser.GameObjects.Graphics, bx0: number, by0: number, bx1: number, by1: number): void => {
       g.fillStyle(P.ground, 1).fillRect(0, 0, W, H);
@@ -1987,6 +2008,20 @@ export class RtBattleScene extends Phaser.Scene {
         const vy = v.y * k;
         const vr = v.r * k;
         if (vx + vr < bx0 - 40 || vx - vr > bx1 + 40 || vy + vr < by0 - 40 || vy - vr > by1 + 40) continue;
+        if (starD) {
+          // 墜星落點（D-138）：被砸出來的淺坑＋放射裂痕＋坑底一塊發光的星晶
+          g.fillStyle(0x070812, 0.85).fillEllipse(vx, vy, vr * 2.1, vr * 1.8);
+          g.fillStyle(0x1c2140, 1).fillEllipse(vx, vy, vr * 1.5, vr * 1.25);
+          g.lineStyle(2, 0x4a5aa0, 0.7);
+          for (let t = 0; t < 7; t++) {
+            const a2 = (t / 7) * Math.PI * 2 + vx * 0.01;
+            g.lineBetween(vx + Math.cos(a2) * vr * 0.7, vy + Math.sin(a2) * vr * 0.6, vx + Math.cos(a2) * vr * 1.15, vy + Math.sin(a2) * vr * 0.98);
+          }
+          // 坑底的星晶碎塊（菱形，避免看起來像箭頭）
+          g.fillStyle(0x6a7ad8, 0.9).fillPoints([new Phaser.Math.Vector2(vx, vy - vr * 0.3), new Phaser.Math.Vector2(vx + vr * 0.17, vy), new Phaser.Math.Vector2(vx, vy + vr * 0.22), new Phaser.Math.Vector2(vx - vr * 0.17, vy)], true);
+          g.fillStyle(0xd8e0ff, 0.9).fillPoints([new Phaser.Math.Vector2(vx, vy - vr * 0.18), new Phaser.Math.Vector2(vx + vr * 0.07, vy), new Phaser.Math.Vector2(vx, vy + vr * 0.1), new Phaser.Math.Vector2(vx - vr * 0.07, vy)], true);
+          continue;
+        }
         g.fillStyle(0x0a0606, 0.9).fillEllipse(vx, vy, vr * 2.2, vr * 1.9);
         g.fillStyle(0x3a1a10, 1).fillEllipse(vx, vy, vr * 1.5, vr * 1.25);
         g.fillStyle(0x8a2a10, 0.9).fillEllipse(vx, vy, vr * 0.8, vr * 0.6);
@@ -2044,6 +2079,19 @@ export class RtBattleScene extends Phaser.Scene {
               }
               if (hr(cx, cy, 15) < 0.25) g.fillStyle(0xff4a5a, 0.9).fillCircle(x + c / 2 + ox + r * 0.25, y + c / 2 + oy + r * 0.1, r * 0.12);
             }
+            if (starD && hr(cx, cy, 30) < 0.85) {
+              // 星晶（D-138）：樹冠位置長出一簇藍紫色晶柱（亮面＋白色稜線）
+              const bx = x + c / 2 + ox;
+              const by = y + c / 2 + oy + r * 0.2;
+              for (let t = 0; t < 3; t++) {
+                const lean = (hr(cx, cy, 31 + t) - 0.5) * r * 0.9;
+                const hh = r * (0.9 + hr(cx, cy, 34 + t) * 0.8);
+                const ww = r * 0.22;
+                const px = bx + (t - 1) * r * 0.42;
+                g.fillStyle(t === 1 ? 0x7a86e0 : 0x5a62b8, 1).fillTriangle(px - ww, by, px + ww, by, px + lean, by - hh);
+                g.fillStyle(0xc8d4ff, 0.75).fillTriangle(px - ww * 0.2, by, px + ww * 0.5, by, px + lean, by - hh);
+              }
+            }
             if (ember && hr(cx, cy, 20) < 0.4) {
               // 燼岩（D-125）：玄武岩上發光的熔岩裂紋（外層暗橘、內層亮黃）
               const ang = hr(cx, cy, 21) * Math.PI;
@@ -2059,6 +2107,15 @@ export class RtBattleScene extends Phaser.Scene {
             continue;
           }
           const j = hr(cx, cy, 5) * 0.12;
+          if (starD) {
+            // 星隕高原的零星晶柱（D-138）：影子＋三根發光晶柱
+            g.fillStyle(0x04050c, 0.6).fillEllipse(x + c * 0.55, y + c * 0.82, c * 1.05, c * 0.4);
+            g.fillStyle(0x3a3e7a, 1).fillTriangle(x + c * 0.12, y + c * 0.86, x + c * 0.5, y + c * 0.86, x + c * 0.26, y + c * 0.2);
+            g.fillStyle(0x6a76d0, 1).fillTriangle(x + c * 0.3, y + c * 0.9, x + c * 0.74, y + c * 0.9, x + c * (0.5 + j), y - c * 0.1);
+            g.fillStyle(0x4a52a0, 1).fillTriangle(x + c * 0.6, y + c * 0.88, x + c * 0.92, y + c * 0.88, x + c * 0.82, y + c * 0.36);
+            g.fillStyle(0xd8e0ff, 0.8).fillTriangle(x + c * 0.48, y + c * 0.9, x + c * 0.6, y + c * 0.9, x + c * (0.5 + j), y - c * 0.1);
+            continue;
+          }
           if (ember) {
             // 燼岩的零星岩柱：黑色玄武岩＋一道熔岩裂紋（不長青苔）
             g.fillStyle(0x050303, 0.6).fillEllipse(x + c * 0.55, y + c * 0.8, c * 1.05, c * 0.4);
@@ -2259,13 +2316,27 @@ export class RtBattleScene extends Phaser.Scene {
       const vy = this.sy(v.y);
       const vr = v.r * this.k;
       const left = ventLeft(this.s.tick, v, this.s.night);
-      g.fillStyle(0xff7a2a, 0.12 + 0.06 * Math.sin(now / 300 + v.x)).fillEllipse(vx, vy, vr * 1.1, vr * 0.9);
+      // 墜星（D-138）用藍白色，其他是熔岩橘
+      const C = this.starMap ? [0x8aa8ff, 0x6a86ff, 0xe0e8ff, 0xc8d8ff, 0xffffff] : [0xff7a2a, 0xff5a1a, 0xffc04a, 0xffd08a, 0xffe0b0];
+      g.fillStyle(C[0]!, 0.12 + 0.06 * Math.sin(now / 300 + v.x)).fillEllipse(vx, vy, vr * 1.1, vr * 0.9);
       if (left > v.warnTicks) continue;
       const t = 1 - left / v.warnTicks; // 0 → 1
-      g.fillStyle(0xff5a1a, 0.12 + 0.3 * t).fillCircle(vx, vy, vr);
-      g.fillStyle(0xffc04a, 0.1 + 0.35 * t * t).fillCircle(vx, vy, vr * (0.3 + 0.5 * t));
-      g.lineStyle(3, 0xffd08a, 0.5 + 0.5 * t).strokeCircle(vx, vy, vr);
-      g.lineStyle(2, 0xffe0b0, 0.8).strokeCircle(vx, vy, vr * (1.6 - 0.6 * t));
+      g.fillStyle(C[1]!, 0.12 + 0.3 * t).fillCircle(vx, vy, vr);
+      g.fillStyle(C[2]!, 0.1 + 0.35 * t * t).fillCircle(vx, vy, vr * (0.3 + 0.5 * t));
+      g.lineStyle(3, C[3]!, 0.5 + 0.5 * t).strokeCircle(vx, vy, vr);
+      g.lineStyle(2, C[4]!, 0.8).strokeCircle(vx, vy, vr * (1.6 - 0.6 * t));
+      if (this.starMap) {
+        // 星星從右上方的夜空落下：越接近落地越靠近、越亮（最後 0.5 秒才看得到）
+        const f = Math.max(0, (t - 0.65) / 0.35);
+        if (f > 0) {
+          const d = (1 - f) * 520;
+          const hx = vx + d * 0.55;
+          const hy = vy - d;
+          g.lineStyle(10, 0x6a86ff, 0.35 * f).lineBetween(hx, hy, hx + 90, hy - 160);
+          g.lineStyle(4, 0xe0e8ff, 0.9 * f).lineBetween(hx, hy, hx + 60, hy - 110);
+          g.fillStyle(0xffffff, f).fillCircle(hx, hy, 9 + 6 * f);
+        }
+      }
     }
   }
 

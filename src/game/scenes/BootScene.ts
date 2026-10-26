@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { makeEmberColossus, makeSlagSlime } from '../fx/emberArt';
+import { makeCrystalGolem, makeStarSentinel } from '../fx/starArt';
 import { HAND_ART } from '../../data/handArt';
 
 /**
@@ -24,6 +25,8 @@ export class BootScene extends Phaser.Scene {
     this.makeShard('shard', 18, 48);
     makeSlagSlime(this);
     makeEmberColossus(this);
+    makeStarSentinel(this);
+    makeCrystalGolem(this);
     // 除錯入口：?debug&scene=RtBattle&stage=mistwood（試玩小關卡 stage=wolf_king 等）
     const q = new URLSearchParams(window.location.search);
     if (q.get('scene') === 'RtBattle') this.scene.start('RtBattle');

@@ -1,9 +1,9 @@
 // 大地圖的環境粒子（第 27 輪）：純畫面、不碰戰鬥亂數。
-// 霧語森林＝白天飄浮的光塵／深夜螢火蟲；荊棘谷＝飄落的紫紅花瓣與孢子；燼紅裂谷＝往上竄的火星＋落下的灰燼。
+// 霧語森林＝白天飄浮的光塵／深夜螢火蟲；荊棘谷＝飄落的紫紅花瓣與孢子；燼紅裂谷＝往上竄的火星＋落下的灰燼；星隕高原＝閃爍的星塵＋斜斜落下的碎星（D-138）。
 // 粒子存在畫面座標，鏡頭移動時跟著世界位移（視差 0.85），超出畫面就從另一邊繞回來。省電畫質數量減半。
 import Phaser from 'phaser';
 
-export type AmbientKind = 'forest' | 'thorn' | 'ember';
+export type AmbientKind = 'forest' | 'thorn' | 'ember' | 'star';
 
 interface Mote {
   img: Phaser.GameObjects.Image;
@@ -69,6 +69,12 @@ function layersOf(kind: AmbientKind, night: boolean): Layer[] {
     return [
       { tex: 'amb_petal', n: 16, tint: [0xd86a9a, 0xb84a7a, 0xe89ab8, 0x9a5aa8], scale: [0.8, 1.3], alpha: [0.6, 0.9], vx: [10, 34], vy: [26, 52], sway: 30, twinkle: 0, add: false, spin: 2.2, depth: 41 },
       { tex: 'amb_dot', n: 12, tint: [0xc8ff8a, 0xa8e070], scale: [0.25, 0.45], alpha: [0.35, 0.75], vx: [-6, 10], vy: [-12, -2], sway: 14, twinkle: 1.6, add: true, depth: 41 },
+    ];
+  }
+  if (kind === 'star') {
+    return [
+      { tex: 'amb_dot', n: 26, tint: [0xe0e8ff, 0xa8c0ff, 0xd8b8ff, 0xffffff], scale: [0.22, 0.5], alpha: [0.5, 1], vx: [-4, 4], vy: [-4, 4], sway: 6, twinkle: 3.2, add: true, depth: 43 },
+      { tex: 'amb_flake', n: 12, tint: [0xc8d8ff, 0x9ab0ff, 0xe8e0ff], scale: [0.5, 0.9], alpha: [0.5, 0.85], vx: [-40, -18], vy: [40, 70], sway: 8, twinkle: 2, add: true, spin: 3, depth: 42 },
     ];
   }
   return [
