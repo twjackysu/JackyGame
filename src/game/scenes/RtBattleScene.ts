@@ -1678,6 +1678,7 @@ export class RtBattleScene extends Phaser.Scene {
         const cs0 = pd?.block?.counter.shape;
         const cs = cs0 && skillShape(this.s, 'parry', cs0);
         const ang = Math.atan2(p.facingY, p.facingX);
+        if (this.s.weapon === 'staff') this.hexShield(p.x, p.y);
         if (cs && this.s.weapon === 'staff') this.staffFx(p.x, p.y, ang, cs, false, true, 0, pd?.block?.counter.status?.id); // 法杖：屏障炸開／鏡像光束（D-152）
         else if (cs && this.s.weapon === 'bow' && cs.type !== 'line') this.bowFx(p.x, p.y, ang, cs, false, false, false, false, pd?.block?.counter.status?.id); // 流光見切（D-148）：四面射出；殘月見切（D-149）：紫色扇形
         else if (cs?.type === 'sector') this.slash(p.x, p.y, ang, cs.r, cs.deg + 30, 0x7dffb0, 10);
@@ -2494,6 +2495,59 @@ export class RtBattleScene extends Phaser.Scene {
     this.ghostAt = now;
     const gh = this.add.image(sp.x, sp.y, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setDepth(sp.depth - 0.5).setTint(0x7a4aff).setAlpha(0.5);
     this.tweens.add({ targets: gh, alpha: 0, scaleX: sp.scaleX * 1.08, duration: 350, ease: 'Cubic.easeOut', onComplete: () => gh.destroy() });
+  }
+
+  /** 法杖擋下攻擊（第 34 輪）：身邊一圈六角形星輝護盾亮起、碎成光點（純畫面） */
+  private hexShield(x: number, y: number): void {
+    const cx = this.sx(x);
+    const cy = this.sy(y) - 40;
+    const g = this.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD).setPosition(cx, cy);
+    const R = 78;
+    const hex = (r: number) => Array.from({ length: 6 }, (_, i) => ({ x: Math.cos((i / 6) * Math.PI * 2 + Math.PI / 6) * r, y: Math.sin((i / 6) * Math.PI * 2 + Math.PI / 6) * r }));
+    g.fillStyle(0xc89aff, 0.18).fillPoints(hex(R), true);
+    g.lineStyle(5, 0xe0c8ff, 0.95).strokePoints(hex(R), true);
+    g.lineStyle(2, 0xffffff, 0.6).strokePoints(hex(R * 0.7), true);
+    for (const v of hex(R)) g.lineStyle(1.5, 0xc89aff, 0.6).lineBetween(0, 0, v.x, v.y);
+    g.setScale(0.6);
+    this.tweens.add({ targets: g, scale: 1.1, duration: 140, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: g, alpha: 0, delay: 260, duration: 260, onComplete: () => g.destroy() });
+    sparks(this, cx, cy, 16, 'spark', 0xe0c8ff, 520);
+  }
+
+  /** 法杖的閃現類位移（第 34 輪）：起點一圈紫光「消失」、路上星屑、終點白紫閃光「出現」（純畫面） */
+  private blinkMark = '';
+  private blinkFx(p: Unit, sp: Phaser.GameObjects.Image): void {
+    const a = p.action;
+    const cx = sp.x;
+    const cy = sp.y - sp.displayHeight * 0.4;
+    const appear = (): void => {
+      const fl = this.add.circle(cx, cy, 20, 0xffffff, 0.85).setDepth(sp.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: fl, scale: 3, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => fl.destroy() });
+      shockRing(this, cx, cy, 0xffffff, 60, 200, 4);
+    };
+    // 畫面幀數低、跳過位移結束那一幀時：動作結束就補「出現」
+    if (this.blinkMark.endsWith(':s') && (!a || `${a.start}:s` !== this.blinkMark)) {
+      this.blinkMark = this.blinkMark.replace(':s', ':e');
+      appear();
+    }
+    if (!a || a.kind !== 'skill') return;
+    const d = skillDef(this.s, a.id)?.dash;
+    if (!d) return;
+    const k = this.s.tick - a.start;
+    if (k >= d.fromTick && this.blinkMark !== `${a.start}:s`) {
+      if (this.blinkMark === `${a.start}:e`) return;
+      this.blinkMark = `${a.start}:s`;
+      shockRing(this, cx, cy, 0xc89aff, 70, 240, 6);
+      sparks(this, cx, cy, 14, 'spark', 0xe0c8ff, 420);
+      const fl = this.add.circle(cx, cy, 46, 0xd8c0ff, 0.6).setDepth(sp.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: fl, scale: 0.2, alpha: 0, duration: 220, onComplete: () => fl.destroy() });
+      return;
+    }
+    if (k > d.fromTick && k < d.fromTick + d.ticks) sparks(this, cx, cy, 2, 'spark', 0xc89aff, 260);
+    if (k >= d.fromTick + d.ticks && this.blinkMark === `${a.start}:s`) {
+      this.blinkMark = `${a.start}:e`;
+      appear();
+    }
   }
 
   /** 直線大招蓄力中的瞄準線（破空斬月，第 26 輪）：前段跟著目標轉（淡金），鎖定後變白並閃爍，打出去前看得到範圍 */
@@ -3319,6 +3373,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
         if (isP) {
           this.shadowGhost(x, sp, now);
+          if (this.s.weapon === 'staff') this.blinkFx(x, sp);
           this.drawUltAim(g, x, now);
           if (this.s.weapon === 'bow' && !x.dead) {
             // 長弓（D-147）：主角身前一把長弓（程式畫的；拉弓時弦往後拉）
