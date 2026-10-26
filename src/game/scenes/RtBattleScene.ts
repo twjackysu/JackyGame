@@ -22,6 +22,8 @@ const THORN_ATTACKS = new Set(['queen_lance', 'queen_lance2', 'queen_roots', 'qu
 /** 燼心岩王與黑曜首領（D-125）：命中那一刻地上裂出熔岩（走 thornPending，命中時改呼叫 spawnLava） */
 /** 背上畫火焰鬃毛的怪（D-125） */
 const FLAME_MANE = new Set(['ember_wolf', 'obsidian_alpha', 'magma_stalker']);
+/** 荊棘谷的狼（第 40 輪）：背上一排荊棘刺（「棘背狼」名副其實），染色立繪的程式加料 */
+const THORN_BACK: Readonly<Record<string, number>> = { thorn_wolf: 0x4a1f38, thorn_stalker: 0x5a1f1a, night_thorn_alpha: 0x2a1a4a };
 /** 星隕高原的狼（第 40 輪）：染色立繪身上加會閃的星痕；彗星巡者拖彗尾、星蝕狼背上一輪日蝕 */
 const STAR_MARKS = new Set(['star_wolf', 'astral_alpha', 'comet_stalker', 'eclipse_wolf']);
 const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
@@ -4033,6 +4035,21 @@ export class RtBattleScene extends Phaser.Scene {
           }
         }
         if (STAR_MARKS.has(x.defId) && !x.dead) this.drawStarMarks(top, x, sp, r, now);
+        const thorn = THORN_BACK[x.defId];
+        if (thorn !== undefined && !x.dead) {
+          // 背上一排往後彎的荊棘刺：深色刺身＋亮色刺尖，呼吸時微微起伏
+          const dir = sp.flipX ? -1 : 1;
+          const n = x.defId === 'thorn_wolf' ? 4 : 5;
+          for (let q = 0; q < n; q++) {
+            const bx = sp.x + dir * (0.3 - q * 0.3) * r;
+            const by = sp.y - sp.displayHeight * (0.6 + 0.04 * Math.sin(q * 1.9)) + Math.sin(now / 380 + x.id) * r * 0.03;
+            const h = r * (0.8 + 0.25 * ((q * 3) % 2)) * (q === 0 || q === n - 1 ? 0.75 : 1);
+            const tipX = bx - dir * h * 0.45;
+            const tipY = by - h;
+            top.fillStyle(thorn, 1).fillTriangle(bx - r * 0.16, by, bx + r * 0.16, by, tipX, tipY);
+            top.fillStyle(0xff7ab0, 0.95).fillTriangle(tipX - dir * 1, tipY, tipX + (bx - tipX) * 0.28 - r * 0.04, tipY + (by - tipY) * 0.28, tipX + (bx - tipX) * 0.28 + r * 0.04, tipY + (by - tipY) * 0.28);
+          }
+        }
         if (isP) {
           this.shadowGhost(x, sp, now);
           if (this.s.weapon === 'staff') this.blinkFx(x, sp);
