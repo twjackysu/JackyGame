@@ -25,7 +25,7 @@ const FLAME_MANE = new Set(['ember_wolf', 'obsidian_alpha', 'magma_stalker']);
 const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
 
 /** 星骸守望者的召喚墜星（第 31 輪）：預告畫成藍白色＋從夜空落下的星星，落地時跟地圖的落星一樣爆開 */
-const METEOR_ATTACKS = new Set(['sentinel_meteor', 'sentinel_meteor2']);
+const METEOR_ATTACKS = new Set(['sentinel_meteor', 'sentinel_meteor2', 'eclipse_howl']);
 
 function lerpColor(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t);
@@ -93,10 +93,11 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   astral_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xe0d0ff },
   star_sentinel: { key: 'enemy_star_sentinel', h: 3.1, flip: true },
   comet_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xc8e0ff },
+  eclipse_wolf: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0x7a5aff },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
 /** 巡邏怪的仇恨圈／視線顏色（D-117） */
-const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0, magma_stalker: 0xff5a2a, comet_stalker: 0x8ab0ff };
+const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0, magma_stalker: 0xff5a2a, comet_stalker: 0x8ab0ff, eclipse_wolf: 0x9a7aff };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
 const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼／燼鬃狼／星痕狼', wolf_king: '狼王／狼后／岩王／守望者', thorn_shooter: '荊棘射手／燼芯菇／星芒菇', alpha_wolf: '首領級精英' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
@@ -327,7 +328,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (STAGES[this.stageId]?.hazards?.some((h) => h.nightOnly || h.nightR)) this.time.delayedCall(5600, () => bigText(this, GAME_WIDTH / 2, 600, '深夜的毒沼擴散了\n荊棘坡與迴廊也冒出新的毒沼', '#a8f08a', 30, 2200));
       // 深夜的裂谷（D-125）：噴發口更頻繁＋熔核巡者
       // 深夜的高原（D-138）：星星落得更頻繁
-      if (STAGES[this.stageId]?.vents?.some((v) => v.nightEveryTicks)) this.time.delayedCall(5600, () => (this.starMap ? bigText(this, GAME_WIDTH / 2, 600, '深夜的星星落得更頻繁\n墜星原要看準空檔再走', '#c8d8ff', 30, 2200) : bigText(this, GAME_WIDTH / 2, 600, '深夜的熔岩口噴得更頻繁\n熔渣坡有「熔核巡者」在巡邏', '#ffb36a', 30, 2200)));
+      if (STAGES[this.stageId]?.vents?.some((v) => v.nightEveryTicks)) this.time.delayedCall(5600, () => (this.starMap ? bigText(this, GAME_WIDTH / 2, 600, '深夜的星星落得更頻繁\n晶簇林有「星蝕狼」在巡邏', '#c8d8ff', 30, 2200) : bigText(this, GAME_WIDTH / 2, 600, '深夜的熔岩口噴得更頻繁\n熔渣坡有「熔核巡者」在巡邏', '#ffb36a', 30, 2200)));
     }
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
@@ -1678,7 +1679,7 @@ export class RtBattleScene extends Phaser.Scene {
             shockRing(this, this.sx(d.x), this.sy(d.y), 0xff6a2a, 190, 500, 9);
             sparks(this, this.sx(d.x), this.sy(d.y), 24, 'ember', 0xffa050, 640);
             bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]!.name} 倒下了！`, '#ffa868', 44, 900);
-          } else if (d.defId === 'comet_stalker' || d.defId === 'astral_alpha') {
+          } else if (d.defId === 'comet_stalker' || d.defId === 'astral_alpha' || d.defId === 'eclipse_wolf') {
             // 彗星巡者／星輝首領倒下（D-138）：藍白星爆環＋碎星
             this.cameras.main.shake(180, 0.006);
             shockRing(this, this.sx(d.x), this.sy(d.y), 0x8aa8ff, 190, 500, 9);
@@ -1752,6 +1753,10 @@ export class RtBattleScene extends Phaser.Scene {
         if (METEOR_ATTACKS.has(e.attack)) {
           const tg = [...this.s.telegraphs].reverse().find((t) => t.ownerId === e.owner && t.attackId === e.attack);
           if (tg) this.thornPending.push({ ...tg });
+          if (e.attack === 'eclipse_howl') {
+            const o = u(e.owner);
+            if (o) floatNumber(this, this.sx(o.x), this.sy(o.y) - 110, '星蝕嚎叫！', { color: '#b8a0ff', size: 28 });
+          }
           if (e.attack === 'sentinel_meteor' && !this.meteorHinted && !this.bot) {
             this.meteorHinted = true;
             bigText(this, GAME_WIDTH / 2, 520, '守望者召喚墜星——藍圈在你腳下！', '#c8d8ff', 36, 900);

@@ -377,6 +377,17 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'comet_burst', shape: { type: 'circle', r: u(2.4) }, warningTicks: sec(0.9), recoverTicks: sec(0.8), damageMultiplier: 140, cooldownTicks: sec(9), triggerRange: u(2.0), blockable: false, weight: 2 },
     ],
   },
+  // 星蝕狼（深夜限定巡邏精英，第 31 輪）：在晶簇林與碎星迴廊之間來回；撕咬、撲擊、「星蝕嚎叫」——對著夜空嚎叫，
+  // 在你腳下召來一顆小墜星（預告在你腳下，跟守望者的召喚墜星同一套；落點裡的狼也會被砸）
+  eclipse_wolf: {
+    id: 'eclipse_wolf', name: '星蝕狼', hp: 3600, atk: 40, def: 14, speed: 4.0, radius: u(0.6), hitstunTicks: 2,
+    drops: { gold: [60, 90], items: [{ id: 'dust', chance: 100, count: [3, 5] }, { id: 'crystal', chance: 100 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'eclipse_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.6), recoverTicks: sec(0.4), damageMultiplier: 115, cooldownTicks: sec(2.2), triggerRange: u(1.6), blockable: true, weight: 3 },
+      { id: 'eclipse_lunge', shape: { type: 'line', len: u(6), width: u(1.3) }, warningTicks: sec(0.75), recoverTicks: sec(0.5), damageMultiplier: 140, cooldownTicks: sec(7), triggerRange: u(6), blockable: true, charge: { ticks: sec(0.4), wallStunTicks: sec(1.6) }, weight: 2 },
+      { id: 'eclipse_howl', shape: { type: 'circle', r: u(1.5) }, warningTicks: sec(1.2), recoverTicks: sec(0.6), damageMultiplier: 135, cooldownTicks: sec(7), triggerRange: u(7), blockable: false, weight: 2, atTarget: true, hitsEnemiesPct: 40 },
+    ],
+  },
   // 星骸守望者（Boss）：墜星化成的晶石巨人。斬擊（扇形）、星槍（長直線）、瞬移到背後（一般版就會）、重踏；
   // 第二階段加星環＋招喚星痕狼；暴怒版：星槍連發、「星落」超大圓（預告長，跑出去就沒事）
   star_sentinel: {

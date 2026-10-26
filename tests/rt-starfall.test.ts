@@ -137,6 +137,33 @@ describe('彗星巡者（D-138）', () => {
     out(`彗星巡者：交戰 ${((s.tick - t0) / 30).toFixed(0)} 秒、倒下 ${s.revives ?? 0}`);
     expect(!c || c.dead).toBe(true);
   }, 120000);
+
+  it('星蝕狼（第 31 輪）：只在深夜出現；Lv15＋裝備普通 Bot 打得倒、會在玩家腳下召來小墜星', async () => {
+    const { ECLIPSE_PATROL } = await import('../src/core/battle/rt/maps/starfall');
+    expect(createBattle({ stageId: 'starfall', seed: 1, level: 15 }).units.some((x) => x.defId === 'eclipse_wolf')).toBe(false);
+    for (const seed of [1, 2, 3]) {
+      const s = createBattle({ stageId: 'starfall', seed, level: 15, bonus: GEAR, night: true });
+      expect(s.units.some((x) => x.defId === 'eclipse_wolf' && !x.dead)).toBe(true);
+      const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: ECLIPSE_PATROL[2]! }, 'normal');
+      let t0 = -1;
+      let howls = 0;
+      while (s.outcome === 'running' && s.tick < sec(400)) {
+        const n = s.events.length;
+        step(s, bot.decide(s));
+        for (let i = n; i < s.events.length; i++) {
+          const e = s.events[i]!;
+          if (e.type === 'telegraph' && e.attack === 'eclipse_howl') howls++;
+        }
+        const c = s.units.find((x) => x.defId === 'eclipse_wolf');
+        if (t0 < 0 && c?.mode === 'combat') t0 = s.tick;
+        if (!c || c.dead) break;
+      }
+      const c = s.units.find((x) => x.defId === 'eclipse_wolf');
+      out(`星蝕狼 seed${seed}：交戰 ${((s.tick - t0) / 30).toFixed(0)} 秒、嚎叫 ${howls}、倒下 ${s.revives ?? 0}`);
+      expect(!c || c.dead).toBe(true);
+      expect(t0).toBeGreaterThan(0);
+    }
+  }, 240000);
 });
 
 describe('星光碎片（D-141）', () => {
