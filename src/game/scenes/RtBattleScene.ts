@@ -333,6 +333,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bossMemo = false;
     this.cameras.main.setZoom(1); // 保險：舊版 Boss 登場會推鏡頭
     this.blinkHinted = new Set(); // 場景重開不會重跑欄位初始值
+    this.rareQueue = [];
     this.streakHinted = false;
     this.arrowLabels = [];
     const p0 = playerOf(this.s);
@@ -759,6 +760,9 @@ export class RtBattleScene extends Phaser.Scene {
 
   // ---------- 裝備（D-091） ----------
   /** 撿到裝備：用種子產生數值、放進行囊、立刻存檔；稀有以上大字 */
+  /** 等著合成一則「稀有裝備！」大字的（250ms 內撿到的） */
+  private rareQueue: { name: string; night: boolean; col: string }[] = [];
+
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
     this.time.delayedCall(900, () => this.tipOnce('jg_tip_gear', '撿到裝備了！☰「行囊」或營火旁可以換上', '#9fe8a0'));
@@ -788,7 +792,18 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: icon, alpha: 0, delay: 700, duration: 400, onComplete: () => icon.destroy(true) });
     if (rarity >= 3) {
       SFX.perfect();
-      bigText(this, GAME_WIDTH / 2, 560, `${g.night ? '深夜的稀有！' : '稀有裝備！'}\n${gearName(g)}`, g.night ? '#b8a8ff' : col, 44, 1200);
+      // 同一刻撿到好幾件稀有（Boss 掉落）合成一則大字（第 39 輪：以前兩則「稀有裝備！」上下疊在一起）
+      const q = this.rareQueue;
+      q.push({ name: gearName(g), night: !!g.night, col });
+      if (q.length === 1) {
+        this.time.delayedCall(250, () => {
+          const list = this.rareQueue.splice(0);
+          if (!list.length || !this.scene.isActive()) return;
+          const f = list[0]!;
+          const head = f.night ? '深夜的稀有！' : '稀有裝備！';
+          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.slice(0, 3).map((x) => x.name).join('\n')}`, f.night ? '#b8a8ff' : f.col, 44, 1200 + 400 * (Math.min(3, list.length) - 1));
+        });
+      }
     } else {
       SFX.confirm();
       floatNumber(this, this.sx(p.x), this.sy(p.y) - 120, gearName(g), { color: col, size: rarity === 2 ? 28 : 24 });
