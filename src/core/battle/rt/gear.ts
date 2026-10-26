@@ -227,14 +227,15 @@ export function gearScore(g: RtGear | undefined | null, baseHp: number, baseAtk:
 }
 
 /** 一行數值說明（「攻擊 +12・HP +80」） */
-export function gearLines(g: RtGear): string[] {
+/** names：特效顯示的技能名（長弓用弓的招式名，D-147）；沒給＝劍 */
+export function gearLines(g: RtGear, names: Record<string, string> = SPECIAL_SKILLS): string[] {
   const out: string[] = [];
   const m = enhMul(g);
   if (g.base.atk) out.push(`攻擊 +${Math.round(g.base.atk * m)}`);
   if (g.base.hp) out.push(`HP +${Math.round(g.base.hp * m)}`);
   if (g.base.def) out.push(`防禦 +${Math.round(g.base.def * m)}`);
   for (const a of g.affixes) out.push(`✦ ${AFFIX_NAME[a.stat]} +${a.value}${a.stat.endsWith('Pct') ? '%' : ''}`);
-  if (g.special) out.push(specialText(specialOf(g)!) + ((g.enh ?? 0) >= 7 ? '（強化加成）' : ''));
+  if (g.special) out.push(specialText(specialOf(g)!, names) + ((g.enh ?? 0) >= 7 ? '（強化加成）' : ''));
   return out;
 }
 
@@ -248,8 +249,8 @@ export function specialOf(g: RtGear): RtGear['special'] {
   return { ...sp, value: Math.round(sp.value * (e >= 10 ? 1.5 : 1.25)) };
 }
 
-export function specialText(sp: NonNullable<RtGear['special']>): string {
-  const n = SPECIAL_SKILLS[sp.skill] ?? sp.skill;
+export function specialText(sp: NonNullable<RtGear['special']>, names: Record<string, string> = SPECIAL_SKILLS): string {
+  const n = names[sp.skill] ?? sp.skill;
   switch (sp.kind) {
     case 'cd':
       return `★ ${n}冷卻 −${sp.value}%`;

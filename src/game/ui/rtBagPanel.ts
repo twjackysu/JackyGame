@@ -1,5 +1,6 @@
 // 即時戰鬥「行囊」（P4-3，D-091）：6 格裝備、背包清單（▲＝比身上的好）、詳情與換上後的數值差、換上／卸下／丟棄。
 import Phaser from 'phaser';
+import { skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
 import { SWORDSMAN } from '../../core/battle/rt/data';
 import { ENH_MAX, GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, enhanceCost, gearLines, gearScore, gearTitle, salvageDust, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
@@ -128,7 +129,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -300, gearTitle(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -255, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}${worn ? '・裝備中' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
-    out.push(scene.add.text(0, -170, gearLines(g).join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5, 0.5));
+    out.push(scene.add.text(0, -170, gearLines(g, skillNames()).join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5, 0.5));
     // 強化（D-092）：營火旁才能強化；+5 以內必成，之後有成功率，失敗只扣材料
     if (ctx) {
       const enh = g.enh ?? 0;

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ARCHER, BOW_SKILLS, SKILLS, STAGES, SWORDSMAN } from '../src/core/battle/rt/data';
 import { createBattle, dashDistance, playerDef, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
+import { makeStarfallStage, STARFALL_SENTINEL } from '../src/core/battle/rt/maps/starfall';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec, u } from '../src/core/battle/rt/types';
 
@@ -10,9 +11,11 @@ const out = (t: string) => (globalThis as any).process.stdout.write(t + '\n');
 
 beforeAll(() => {
   STAGES.mistwood = makeMistwoodStage();
+  STAGES.starfall = makeStarfallStage();
 });
 afterAll(() => {
   delete STAGES.mistwood;
+  delete STAGES.starfall;
 });
 
 describe('長弓（D-147）', () => {
@@ -75,5 +78,17 @@ describe('長弓（D-147）', () => {
       }
     }
     out(`\n[長弓 vs 劍 霧語森林]\n${rows.join('\n')}`);
+  }, 300000);
+
+  it('長弓也打得倒星骸守望者（普通 Bot、Lv14＋裝備，和劍同一套標準）', () => {
+    const rows: string[] = [];
+    for (const weapon of [undefined, 'bow'] as const) {
+      const s = createBattle({ stageId: 'starfall', seed: 1, level: 14, bonus: { hp: 600, atk: 55, def: 28 }, weapon });
+      const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: STARFALL_SENTINEL }, 'normal');
+      while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(900)) step(s, bot.decide(s));
+      rows.push(`${weapon ?? 'sword'}：${(s.bossKills ?? []).length ? '打倒' : '沒打倒'} ${Math.round(s.tick / 30)} 秒、營火醒來 ${s.revives ?? 0}`);
+      if (weapon) expect((s.bossKills ?? []).length).toBeGreaterThan(0);
+    }
+    out(`\n[星骸守望者 Lv14＋裝備]\n${rows.join('\n')}`);
   }, 300000);
 });

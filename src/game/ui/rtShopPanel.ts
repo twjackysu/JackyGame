@@ -1,5 +1,6 @@
 // 營火行商（D-116）：用金幣自由買賣。買＝貨架 4 件裝備＋材料＋付費換一批；賣＝背包裡的裝備換金幣。
 import Phaser from 'phaser';
+import { skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
 import { RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, gearTitle, type RtGear } from '../../core/battle/rt/gear';
 import { gearIcon } from '../fx/gearIcons';
@@ -216,7 +217,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -290, gearTitle(g), { fontFamily: TITLE_FONT, fontSize: '34px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -245, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
-    out.push(scene.add.text(0, -150, gearLines(g).join('\n'), { fontFamily: UI_FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5));
+    out.push(scene.add.text(0, -150, gearLines(g, skillNames()).join('\n'), { fontFamily: UI_FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5));
     const now = bonusOf(st);
     const after = bonusOf(equipWith(st, g));
     const d = (k: 'atk' | 'hp' | 'def', name: string) => {

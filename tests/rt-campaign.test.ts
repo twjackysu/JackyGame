@@ -29,7 +29,8 @@ describe('通關機器人：新存檔一路打到第三張地圖的 Boss', () =>
     delete STAGES.emberrift;
   });
 
-  it('普通 Bot、沒有裝備：每張地圖最多出發 4 次（每次 15 分鐘）就打倒 Boss', () => {
+  for (const weapon of [undefined, 'bow'] as const)
+  it(`普通 Bot、沒有裝備${weapon ? '、長弓（D-147）' : ''}：每張地圖最多出發 4 次（每次 15 分鐘）就打倒 Boss`, () => {
     let level = 1;
     let xp = 0;
     let seed = 1;
@@ -38,7 +39,7 @@ describe('通關機器人：新存檔一路打到第三張地圖的 Boss', () =>
     for (const m of ROUTE) {
       let done = false;
       for (let run = 1; run <= 4 && !done; run++) {
-        const s = createBattle({ stageId: m.id, seed: seed++, level, xp });
+        const s = createBattle({ stageId: m.id, seed: seed++, level, xp, weapon });
         const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: m.at }, 'normal');
         while (s.outcome === 'running' && !(s.bossKills ?? []).includes(m.boss) && s.tick < sec(900)) step(s, bot.decide(s));
         done = (s.bossKills ?? []).includes(m.boss);
@@ -49,7 +50,7 @@ describe('通關機器人：新存檔一路打到第三張地圖的 Boss', () =>
       }
       expect(done, log.join('\n')).toBe(true);
     }
-    (globalThis as any).process.stdout.write(`[通關機器人] 共 ${(total / 60).toFixed(1)} 分鐘\n${log.join('\n')}\n`);
+    (globalThis as any).process.stdout.write(`[通關機器人${weapon ? '・長弓' : ''}] 共 ${(total / 60).toFixed(1)} 分鐘\n${log.join('\n')}\n`);
     expect(level).toBeGreaterThanOrEqual(4);
   }, 600000);
 });
