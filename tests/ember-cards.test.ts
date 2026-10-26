@@ -222,7 +222,8 @@ describe('寶箱裡的燼牌（D-131）', () => {
     const { makeMistwoodStage } = await import('../src/core/battle/rt/maps/mistwood');
     const { makeThornvaleStage } = await import('../src/core/battle/rt/maps/thornvale');
     const { makeEmberriftStage } = await import('../src/core/battle/rt/maps/emberrift');
-    const chests = [makeMistwoodStage(), makeThornvaleStage(), makeEmberriftStage()].flatMap((s) => s.chests ?? []);
+    const { makeStarfallStage } = await import('../src/core/battle/rt/maps/starfall');
+    const chests = [makeMistwoodStage(), makeThornvaleStage(), makeEmberriftStage(), makeStarfallStage()].flatMap((s) => s.chests ?? []);
     for (const [chest, id] of Object.entries(CHEST_CARDS)) {
       const c = chests.find((x) => x.id === chest);
       expect(c, chest).toBeDefined();

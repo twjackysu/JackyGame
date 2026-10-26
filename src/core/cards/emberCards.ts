@@ -63,10 +63,12 @@ export const CARDS: Readonly<Record<string, CardDef>> = {
   stargazer: { id: 'stargazer', name: '觀星學徒', power: 5, row: 1 },
   comet: { id: 'comet', name: '彗星巡者', power: 9, row: 0 },
   hero_sentinel: { id: 'hero_sentinel', name: '星骸守望者', power: 12, row: 1, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
+  // 星隕高原晶簇林盡頭的寶箱（D-139）
+  astral: { id: 'astral', name: '星輝首領', power: 8, row: 1 },
 };
 
 /** 寶箱裡的燼牌（D-131）：寶箱 id → 牌；每張只拿一次，守在難去的地方 */
-export const CHEST_CARDS: Readonly<Record<string, string>> = { elite_corner: 'mist_warden', tv_gallery_west: 'thorn_stalker', er_vent_heart: 'hero_obsidian' };
+export const CHEST_CARDS: Readonly<Record<string, string>> = { elite_corner: 'mist_warden', tv_gallery_west: 'thorn_stalker', er_vent_heart: 'hero_obsidian', sf_grove_end: 'astral' };
 
 /** 玩家的牌組（15 張） */
 export const PLAYER_DECK: readonly string[] = ['militia', 'militia', 'militia', 'wolfhunter', 'shieldman', 'sellsword', 'bear', 'archer', 'archer', 'mage', 'ballista', 'scout', 'hero_blade', 'horn', 'frost'];
