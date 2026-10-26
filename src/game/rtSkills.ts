@@ -10,7 +10,7 @@ export const SKILL_TREE: readonly { id: string; name: string; per: string; mod: 
   { id: 'heavy_slash', name: '重斬', per: '傷害 +8%', mod: (r) => ({ dmgPct: 8 * r }) },
   { id: 'whirlwind', name: '旋風斬', per: '範圍 +6%・傷害 +3%', mod: (r) => ({ areaPct: 6 * r, dmgPct: 3 * r }) },
   { id: 'charge', name: '衝鋒', per: '冷卻 −5%・距離 +4%', mod: (r) => ({ cdPct: 5 * r, distPct: 4 * r }) },
-  { id: 'parry', name: '格擋反擊', per: '反擊傷害 +6%・每 2 級判定 +1 tick', mod: (r) => ({ dmgPct: 6 * r, blockTicks: Math.floor(r / 2) }) },
+  { id: 'parry', name: '格擋反擊', per: '反擊傷害 +6%・每 2 級格擋時間 +0.03 秒', mod: (r) => ({ dmgPct: 6 * r, blockTicks: Math.floor(r / 2) }) },
   { id: 'blade_storm', name: '劍刃風暴', per: '傷害 +8%・冷卻 −3%', mod: (r) => ({ dmgPct: 8 * r, cdPct: 3 * r }) },
 ];
 
