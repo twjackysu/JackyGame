@@ -1,8 +1,8 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 35 輪（10/26 21:15）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 36 輪（10/26 23:05）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
-> 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
+> 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159 路上的相遇**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
 
 ## 每輪開頭先看
@@ -10,7 +10,9 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 35 輪）
+## 現況（第 36 輪）
+- **路上的相遇（D-159）**：`src/game/encounters.ts`（`ENCOUNTERS`、`meet`／`pendingThanks`／`claimThanks`／`openEncounters`／`rivalEncounterEcho`）＋ `fx/encounterNpc.ts`；場景 `encounterCheck`（update 裡、memoryCheck 之後）／`giveThanks`／`drawEncounters`（`encOpen`／`encThanks`／`encDone`）。存 `jg_encounters`（take／spare／thanked）。**加一個相遇**：`ENCOUNTERS` 加一筆（格子要在地上，測試會檢查上下左右）＋ `drawEncounterNpc` 加一種 `npc`；`tests/encounters.test.ts` 目前要求「三張主線圖各一個」，加第二個要改那條。截圖腳本 `screenshots/r36c.mjs <map> open|panel|thanks`（gitignored，新 session 照 PROGRESS 第 36 輪重寫：設 `jg_encounters` 後 reload、傳送玩家到格子＋0.6 格）。
+- 星隕高原也有抉擇（D-158）：`BOSS_CHOICES` 第四筆 `postGame: true`；`codaLine` 接在結語最後；小星星 `cub.kind === 'star'`。
 - **討伐後的抉擇（D-157）**：`src/game/choices.ts`（`BOSS_CHOICES`、`loadChoices`／`makeChoice`／`shopDiscountPct`／`withEpilogue`）＋ `ui/choicePanel.ts`；場景 `showChoice`／`afterChoice`／`drawChoiceMark`。存 `jg_choices`（截圖：`localStorage.setItem('jg_choices', JSON.stringify({ mistwood: 'spare' }))`；直接開面板要用 vite dev（5173）`const m = await import('/src/game/choices.ts'); sc.showChoice(m.choiceOf('thornvale'))`）。`stockPrice`／`buyGear` 多一個 `offPct` 參數。
 - 四張大地圖：霧語森林→荊棘谷→燼紅裂谷（打倒岩王＝通關演出）→ **星隕高原**（通關後的挑戰地圖，`postGame`，建議 Lv14＋裝備；墜星＝vents 換皮；Boss 星骸守望者 8200／41，第二階段「召喚墜星」（D-143）；白天巡邏精英彗星巡者、**深夜限定星蝕狼**（D-144））。
 - 營火行商、巡邏精英、技能變化二、營火燼牌（五位對手）。有頭有尾：序章 → 12 段前世的記憶 → 通關演出（`FINALE_MAP = 'emberrift'`）。
@@ -27,8 +29,9 @@
 
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～20 題）。
-2. （第 35 輪已把 PROGRESS 第 25～29 輪合併；再超過 300 行就合併第 30～34 輪。）
-3. **抉擇第二輪（選做，看「好玩嗎」）**：①「還」的後果更有感——小同伴第 35 輪已做（`drawCub`：小狼／白花精／小火靈，都是程式畫的；有人覺得太小可以放大 `k`），或白花讓荊棘谷的毒短一點（要動核心＝要重跑 stateHash，先別）；②星隕高原守望者也來一題（通關後，影響「這個世界還在等你」之後的一句）（③燼牌對手的開場白第 35 輪已做，`rivalEcho`）。**不要**把抉擇做成永久戰鬥加成（D-157 理由）。
+2. （PROGRESS 約 175 行；超過 300 行就合併第 30～35 輪。）
+3. **相遇第二輪（選做，看「好玩嗎」，FOR_JACKY 第 21 題問了）**：①星隕高原也放一個相遇（通關後；`encounters.test.ts` 第一條要改成「四張圖」）；②每張圖第二個相遇（例：護送一段路的旅人——要動核心？不要，做成「跟在身後的 NPC 走到營火就算完成」的純畫面版；或「被你取過錢的少年」之後在森林深處再遇到一次＝連續劇情）；③抉擇的「還」更有感：白花讓荊棘谷的毒短一點（要動核心＝要重跑 stateHash，先別）。**不要**把抉擇／相遇做成永久戰鬥加成（D-157 理由）。
+   - 待確認（真機）：相遇的人物大小（`this.k * 2.1`）、氣泡會不會擋到怪；通關演出四張 Boss 卡＋七格統計的排版（第 36 輪只用座標算，沒截到圖——無頭瀏覽器點 9 下還在「第一章・完」，可以試 `scene.time.timeScale = 20` 再截）。
 4. **打磨期（11/4 起功能凍結）之前**：新手引導第 35 輪看過程式（`showHint`→開場大字→`tipOnce` 排隊，`tipBusy` 會擋重疊；升級大字已提示技能點），沒發現問題，真人回饋再調。旅商／燼牌對手烘成貼圖**不做**（有呼吸、眨眼動畫，而且已有畫面外剔除，只畫畫面內的 1～2 個）。README 舊截圖 9:16 有黑邊，可接受。
 5. **長弓／法杖的主角圖（選做）**：拿弓／拿杖的 Q 版圖（ART_REQUESTS，GPT 只剩 1，FOR_JACKY 第 17／19 題問）；真機聽 `SFX.bowShot`／`magicBolt`／`timeStop`／`voidOpen`。**不要再試「Bot 放風箏」**（D-148）。
 6. **星隕高原第三輪（選做）**：還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖；星蝕狼／彗星巡者是霧狼染色；Bot 撿星光碎片。
@@ -42,7 +45,7 @@
 - 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 268 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 272 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
 - 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
 - **舊關卡雜湊比對**（核心改動必做）——**第 26 輪起的做法**：範本存在 `scripts/zz-hash.template.ts.txt`（90 場），複製成 `tests/zz-hash.test.ts`；`git worktree add /tmp/claude-0/old <本輪開頭 commit>`＋`ln -s $PWD/node_modules /tmp/claude-0/old/node_modules`，兩邊各跑一次（`HASH_OUT=/tmp/claude-0/hash-old.txt` / `hash-new.txt`）再 `diff`，最後 `git worktree remove --force`。以下是舊說明：（`tests/zz-hash.test.ts` 不在 git，新 session 要照範本重寫）：第 24 輪起含荊棘谷共 90 場（荊棘谷用 `level: 6`＋`advanceTo: THORNVALE_QUEEN`、300 秒）；第 19 輪的範本在 PROGRESS 第 19 輪；寫暫時的 vitest（檔名 `tests/zz-*.test.ts`，已 gitignore；第 21 輪的 `zz-hash` 範本見 PROGRESS 第 19 輪），把 `Object.keys(STAGES)`＋霧語森林／測試大地圖 × 種子 1–3 × novice／normal／expert 的 `stateHash` 寫進檔案（共 81 場），`git stash push -- <改過的核心檔>` 前後各跑一次 diff。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。
