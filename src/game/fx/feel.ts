@@ -126,9 +126,11 @@ export function shockRing(scene: Phaser.Scene, x: number, y: number, color: numb
   });
 }
 
-/** 畫面中央大字（PERFECT / BREAK / VICTORY） */
+/** 往上排的大字不能高過這裡（左上角小地圖＋懸賞板到 y≈425、目標字在 95～150） */
+const BANNER_CEIL = 430;
 const BANNERS = new WeakMap<Phaser.Scene, { t: Phaser.GameObjects.Text; h: number; fading: boolean }[]>();
 
+/** 畫面中央大字（PERFECT / BREAK / VICTORY） */
 export function bigText(
   scene: Phaser.Scene, x: number, y: number, text: string, color: string, size = 72, hold = 450,
 ): Phaser.GameObjects.Text {
@@ -141,23 +143,38 @@ export function bigText(
     .setScale(2.2)
     .setAlpha(0);
   let entry: { fading: boolean } | null = null;
-  // 置中的公告大字互相避開（D-162）：只看同一個場景、水平置中、還沒開始淡出的
+  const show = (): void => {
+    if (!t.active) return;
+    if (scene.renderer.type === Phaser.WEBGL && highFx()) t.postFX?.addGlow(Phaser.Display.Color.HexStringToColor(color).color, 3, 0, false, 0.1, 12);
+    scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 180, ease: 'Back.Out' });
+    if (hold >= 0) {
+      // 開始淡出就讓出位置（用補間自己的時鐘：掉幀時補間會比 scene.time 慢）
+      scene.tweens.add({ targets: t, alpha: 0, scale: 1.15, delay: 180 + hold, duration: 260, onStart: () => { if (entry) entry.fading = true; }, onComplete: () => t.destroy() });
+    }
+  };
+  // 置中的公告大字互相避開（D-162）：只看同一個場景、水平置中、還沒開始淡出的；
+  // 上下都沒位置就排隊（D-164），每 0.25 秒（補間時鐘）再試一次，最多等約 6 秒就照原位出
   if (Math.abs(x - scene.scale.width / 2) < 1 && hold >= 0) {
-    const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
-    const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
     const h = t.height;
-    if (busy.length) t.setY(stackY(y, h, busy, scene.scale.height * 0.62));
-    const e = { t, h, fading: false };
-    entry = e;
-    live.push(e);
-    BANNERS.set(scene, live);
-  }
-  if (scene.renderer.type === Phaser.WEBGL && highFx()) t.postFX?.addGlow(Phaser.Display.Color.HexStringToColor(color).color, 3, 0, false, 0.1, 12);
-  scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 180, ease: 'Back.Out' });
-  if (hold >= 0) {
-    // 開始淡出就讓出位置（用補間自己的時鐘：掉幀時補間會比 scene.time 慢）
-    scene.tweens.add({ targets: t, alpha: 0, scale: 1.15, delay: 180 + hold, duration: 260, onStart: () => { if (entry) entry.fading = true; }, onComplete: () => t.destroy() });
-  }
+    let tries = 0;
+    const place = (): void => {
+      if (!t.active || !scene.sys.isActive()) return;
+      const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
+      const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
+      const cy = busy.length ? stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL) : y;
+      if (cy === null && tries++ < 24) {
+        scene.tweens.addCounter({ from: 0, to: 1, duration: 250, onComplete: place });
+        return;
+      }
+      t.setY(cy ?? y);
+      const e = { t, h, fading: false };
+      entry = e;
+      live.push(e);
+      BANNERS.set(scene, live);
+      show();
+    };
+    place();
+  } else show();
   return t;
 }
 
