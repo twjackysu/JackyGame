@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 39 輪（10/27 05:25）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 40 輪（10/27 06:50）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,10 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 39 輪）
+## 現況（第 40 輪）
+- **染色立繪的記號（D-166）**：`THORN_BACK`（荊棘刺）、`STAR_MARKS`／`drawStarMarks`（星痕、彗尾、日蝕）、`FLAME_MANE`（火焰鬃毛）都在 `drawUnits` 立繪之後畫；霧狼圖朝右，前方 `dir = sp.flipX ? -1 : 1`。霧團（迷霧巡守）試過不好看，不要再試。
+- **護送遇敵（D-167）**：`escort.scared`（附近 `ESCORT_SCARED_TILES` 6 格有交戰中的怪就停）。
+- **提示停留時間**：`tipMs(text)`（`ui/tipText.ts`），長提示請用它算 `bigText` 的停留時間。
 - **路上的相遇（D-159／160）**：`src/game/encounters.ts`（`ENCOUNTERS` 7 筆：主線三張圖各 2、星隕高原 1；`meet`／`pendingThanks`／`claimThanks`／`openEncounters`／`rivalEncounterEcho(rival, cur, rnd)`）＋ `fx/encounterNpc.ts`（7 種 `npc`）；場景 `encounterCheck`／`giveThanks`／`drawEncounters`（`encOpen`／`encThanks`／`encDone`，`encAt` 覆寫畫的位置）。**護送**：`Encounter.escort {tx, ty, place}`＋場景 `escort`／`drawEscort`（目前只有採藥婆婆 `mw_herbs`）。存 `jg_encounters`（take／spare／thanked）。**加一個相遇**：`ENCOUNTERS` 加一筆（`tests/encounters.test.ts` 第一條鎖住每張圖的數量，要一起改；新相遇要離重生點 > 8 格、離記憶／其他相遇 ≥ 6 格）＋ `drawEncounterNpc` 加一種 `npc`＋（選）`RIVAL_ENC` 加回聲。找位置：照 PROGRESS 第 37 輪重寫 `tests/zz-encspot.test.ts`。通關演出「幫助過的人」只算 `STORY_ENCOUNTERS`（`finaleStats.ts`）。截圖腳本（gitignored，新 session 照 PROGRESS 第 36／37 輪重寫）：傳送玩家到格子附近；面板「助」在 390×844 頁面座標 (195, 551)、「就這麼做」(195, 675)。
 - 星隕高原也有抉擇（D-158）：`BOSS_CHOICES` 第四筆 `postGame: true`；`codaLine` 接在結語最後；小星星 `cub.kind === 'star'`。
 - **討伐後的抉擇（D-157）**：`src/game/choices.ts`（`BOSS_CHOICES`、`loadChoices`／`makeChoice`／`shopDiscountPct`／`withEpilogue`）＋ `ui/choicePanel.ts`；場景 `showChoice`／`afterChoice`／`drawChoiceMark`。存 `jg_choices`（截圖：`localStorage.setItem('jg_choices', JSON.stringify({ mistwood: 'spare' }))`；直接開面板要用 vite dev（5173）`const m = await import('/src/game/choices.ts'); sc.showChoice(m.choiceOf('thornvale'))`）。`stockPrice`／`buyGear` 多一個 `offPct` 參數。
@@ -27,19 +30,19 @@
 - **Boss 第一次遇到的提示**：`worldMaps.ts` 的 `bossTip`（加新地圖要填；提到「衝鋒」的 Boss 必須有 `wallStunTicks` 衝鋒，測試會擋）。通關那張圖的「新地圖開放」排在通關演出之後（`afterFinale`）。
 - **第一次升級 40 經驗（D-165）**：`xpToNext(1) = 40`，其餘 60×Lv^1.7。stateHash 基準從第 39 輪的 commit 起算（霧語森林／測試大地圖的雜湊和第 34 輪不同）。
 - 截圖：`localStorage.setItem('jg_weapon','staff')`（或 bow）；**不設 `jg_weapon` 的新存檔會在序章後跳選武器**；凍結模擬只畫畫面用 `sc.editing = true`；特效可直接 `sc.staffFx(x, y, ang, shape, ult, single, blink, status)`／`sc.bowFx(...)`；`window.__rt.send({ type: 'skill', id })` 放技能。
-- 通關機器人 `tests/rt-campaign.test.ts`（新存檔→三個 Boss，不含星隕高原；劍、弓各一趟）。stateHash 基準：第 34 輪最後的 commit（第 35 輪沒動核心；本輪 89 場＋長弓 18 場與開頭相同；長弓那組的寫法在 PROGRESS 第 34 輪，`tests/zz-hashbow.test.ts` 是 mistwood／wolf_king × 種子 1–3 × 三組變化、Lv8、200 秒）。
+- 通關機器人 `tests/rt-campaign.test.ts`（新存檔→三個 Boss，不含星隕高原；劍、弓、杖各一趟）。stateHash 基準：第 34 輪最後的 commit（第 35 輪沒動核心；本輪 89 場＋長弓 18 場與開頭相同；長弓那組的寫法在 PROGRESS 第 34 輪，`tests/zz-hashbow.test.ts` 是 mistwood／wolf_king × 種子 1–3 × 三組變化、Lv8、200 秒）。
 - **畫面剔除（D-151）**：`draw()` 的單位迴圈、營火、掉落都會跳過畫面外的；新加的世界物件也要照做（`px/py` 超出 `GAME_WIDTH`／`VIEW_TOP`～`VIEW_BOTTOM`＋邊界就 `continue`）。量測腳本：Graphics `commandBuffer.length` 加總（第 33 輪 `screenshots/r33perf.mjs`）。
 
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
-2. （PROGRESS 約 230 行；超過 300 行就合併第 30～35 輪。）
-3. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。真機待確認：護送路上婆婆被怪追時會不會出戲；人物大小（`this.k * 2.1`）、氣泡會不會擋到怪。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-4. **（下一輪建議主工作）「第一眼」第四段（剩下的）**：第 37～39 輪已看完霧語森林從新存檔到打倒狼王、荊棘谷／燼紅裂谷 Boss 倒下→抉擇→大字（D-161～165）。還沒做的：①**截圖確認第 39 輪最後一個修正**：燼紅裂谷通關演出按「繼續冒險」後約 2.4 秒出「新地圖開放：星隕高原」（`afterFinale`）。`screenshots/r39h.mjs` 的寫法：從 `r39a.mjs` 改 stage `emberrift`、Boss regex `/colossus/`、先設 `jg_rt_mistwood`／`jg_rt_thornvale` = `{bossKills:1}` 與 `jg_choices`；等抉擇面板要用**固定等待**（timeScale 4 下約 7～8 秒），別用「掃 scene 樹找『就這麼做』」的迴圈（第 39 輪這樣寫等不到）；之後 timeScale 30、每 1.2 秒點畫面直到出現「繼續冒險」再點它。②通關後回標題，星隕高原入口第一次出現的說明。③星隕高原的 Boss 提示（瞬移）在真機看字會不會太長（兩行）。只修看得到的問題。
-   - 截圖技巧：`sc.time.timeScale = sc.tweens.timeScale = 4` 才等得到抉擇面板；點按鈕用 scene 樹找 Text 座標（r39a 的 `clickText`）。
+2. （PROGRESS 約 240 行；超過 300 行就合併第 30～35 輪。）
+3. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。護送遇敵已會停下（D-167）。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
+4. **（下一輪建議主工作）「第一眼」第五段：中段的手感**。前四段已看完新存檔→狼王→抉擇→荊棘谷→裂谷 Boss→通關演出→星隕高原入口。還沒看過的：①**深夜**（暴怒狼王後解鎖）第一次進入的說明與畫面（壓暗層會不會太暗、HUD 字看不看得清楚，`jg_rt_mistwood = {"bossKills":1,"furyKills":1,"night":true}`）；②☰ 選單切暴怒版／深夜的說明文字在 360×640 會不會超出；③燼牌輸掉時的畫面與下注扣錢的提示；④行囊滿了自動分解時的提示。只修看得到的問題。截圖腳本照 PROGRESS 第 40 輪重寫 `screenshots/r40s.mjs`（最好用：參數帶 localStorage JSON 與要執行的 JS）。
+   - 其他還是染色立繪、沒有記號的怪：`wolf_pup`、`alpha_wolf`、`shade_wolf`（深夜）、`mist_warden`、`ember_shroom`、`star_shroom`、`thorn_queen`（狼王圖染綠，有鹿角，**不要**加荊棘王冠會和鹿角打架）。要加就仿 D-166，先截圖確認在深色地面看得到（霧團失敗過）。
 5. **README 截圖更新（選做，打磨期做也可以）**：抉擇、相遇的截圖已有；第一眼的修正（大字排隊）不用新截圖。
 6. **打磨期（11/4 起功能凍結）之前**：新手引導第 35 輪看過程式（`showHint`→開場大字→`tipOnce` 排隊，`tipBusy` 會擋重疊；升級大字已提示技能點），沒發現問題，真人回饋再調。旅商／燼牌對手烘成貼圖**不做**（有呼吸、眨眼動畫，而且已有畫面外剔除，只畫畫面內的 1～2 個）。README 舊截圖 9:16 有黑邊，可接受。
 7. **長弓／法杖的主角圖（選做）**：拿弓／拿杖的 Q 版圖（ART_REQUESTS，GPT 只剩 1，FOR_JACKY 第 17／19 題問）；真機聽 `SFX.bowShot`／`magicBolt`／`timeStop`／`voidOpen`。**不要再試「Bot 放風箏」**（D-148）。
-8. **星隕高原第三輪（選做）**：還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖；星蝕狼／彗星巡者是霧狼染色；Bot 撿星光碎片。
+8. **星隕高原第三輪（選做）**：還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖；星蝕狼／彗星巡者是霧狼染色（第 40 輪已加彗尾／日蝕記號，D-166）；Bot 撿星光碎片。
 9. **數值（等真人回饋）**：巡守太硬 → `mist_warden` HP 1050→900；巡獵者 1400→1200；岩王太難 → 6000／35（D-136）；守望者太難 → 8200→7400（D-138）；星蝕狼太硬 → 3600→3000（D-144）；長弓太強 → `ARCHER.atk` 31→30 或 HP 540→500（看 3 個種子以上再改）；長弓變化二太強 → 灼燒 30→25%、中毒 20→15%（D-149）；法杖太強 → `MAGE` HP 540→500 會讓通關機器人慢一倍（D-152），先降攻擊 33→31；抉擇的結晶 3／4／5 或折扣 10% 若真人覺得不平衡再調（`choices.ts`）。
 
 ## 其他（空檔再做）
