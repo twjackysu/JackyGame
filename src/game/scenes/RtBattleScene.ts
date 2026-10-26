@@ -56,6 +56,7 @@ import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
+import { wrapTip } from '../ui/tipText';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -204,6 +205,8 @@ export class RtBattleScene extends Phaser.Scene {
   private leftFire = false;
   /** true＝先不跳一次性提示：開場大字（y 760）還在、或上一個提示還沒消失（用場景時鐘，和 bigText 補間同步） */
   private tipBusy = false;
+  /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
+  private openRun = 0;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
   private paws: { x: number; y: number; a: number; t: number; side: number }[] = [];
   /** 每隻巡邏怪上一個腳印的位置（unit id → 位置） */
@@ -1167,22 +1170,23 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 開場：地圖說明大字＋操作說明框（序章播完才跑） */
   private opening(): void {
-    const st00 = STAGES[this.stageId];
-    if (!this.bot) {
-      if (st00?.intro || st00?.spawnGroups?.length) this.time.delayedCall(3600, () => this.showHint());
-      else this.showHint();
-    }
+    const run = ++this.openRun;
     // 刷怪關的開場說明（怪會重生、營火是安全區）
     const st0 = STAGES[this.stageId];
     this.tipBusy = false;
     if (st0?.intro || st0?.spawnGroups?.length) {
-      // 開場大字 0.4 秒出現、約 3.4 秒消失，提示（y 700）等它走了再出
+      // 開場大字 0.4 秒出現、約 3.4 秒消失；操作說明框與提示（y 700）等大字**真的消失**才出（第 37 輪：
+      // 以前用固定 3.8 秒計時，掉幀時大字的淡出 tween 比計時慢，「黃框＝可以格擋」會疊在大字上）。6 秒保底。
       this.tipBusy = true;
-      this.time.delayedCall(3800, () => (this.tipBusy = false));
-
+      const after = (): void => {
+        if (run !== this.openRun || !this.tipBusy) return;
+        this.tipBusy = false;
+        if (!this.bot) this.showHint();
+      };
       const intro = st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）';
-      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, intro, '#ffd27a', 30, 2600));
-    }
+      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, intro, '#ffd27a', 30, 2600).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
+      this.time.delayedCall(6000, after);
+    } else if (!this.bot) this.showHint();
   }
 
   /** Boss 倒下（第 29 輪）：慢動作 1.4 秒＋從屍體放射出的光芒（地圖主色＋金色）慢慢轉、淡出 */
@@ -1791,8 +1795,14 @@ export class RtBattleScene extends Phaser.Scene {
       return;
     }
     this.tipBusy = true;
-    this.time.delayedCall(2200, () => (this.tipBusy = false));
-    bigText(this, GAME_WIDTH / 2, 700, text, color, 30, 1600);
+    // 等大字真的消失才放下一則（第 37 輪：固定 2.2 秒計時在掉幀時比淡出 tween 快，兩則會疊在一起）；4 秒保底
+    let freed = false;
+    const free = (): void => {
+      if (!freed) this.tipBusy = false;
+      freed = true;
+    };
+    this.time.delayedCall(4000, free);
+    bigText(this, GAME_WIDTH / 2, 700, wrapTip(text), color, 30, 1600).once('destroy', () => { if (this.scene.isActive()) this.time.delayedCall(200, free); });
   }
 
   private dismissHint(): void {
