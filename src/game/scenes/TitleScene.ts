@@ -174,6 +174,13 @@ export class TitleScene extends Phaser.Scene {
       });
     }
 
+    // 通關徽記（D-133）：看過通關演出 → 標題下方一行金字
+    if (finaleSeen()) {
+      const badge = this.add.text(cx, ty + 262, '✦ 第一章　通關 ✦', { fontFamily: TITLE_FONT, fontSize: '30px', fontStyle: 'bold', color: '#ffe6a8', stroke: '#3a1a06', strokeThickness: 6, padding: { x: 12, y: 8 } }).setOrigin(0.5).setLetterSpacing(4).setAlpha(0);
+      this.tweens.add({ targets: badge, alpha: 0.9, delay: skipIntro ? 0 : 1300, duration: 900 });
+      this.tweens.add({ targets: badge, scale: 1.04, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+
     // Pulsing tap prompt.
     this.busy = false;
     this.menu = undefined;
