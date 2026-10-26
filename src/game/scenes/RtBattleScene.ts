@@ -307,6 +307,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.idleHinted = false;
     this.afterChoice = [];
     this.choiceMarkSaid = false;
+    { const p0 = playerOf(this.s); this.cub = this.tracked && !this.bot && this.stageId === 'mistwood' && loadChoices().mistwood === 'spare' ? { x: p0.x - UNIT, y: p0.y + UNIT, a: 0, t: 0, face: 1 } : null; }
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
     this.chestHinted = new Set();
@@ -2694,6 +2695,48 @@ export class RtBattleScene extends Phaser.Scene {
    * 取：斷掉的霧角石座／枯掉的荊棘／冷掉的黑岩。走近時說一句話（每次進地圖一次）。純畫面。
    */
   private choiceMarkSaid = false;
+  /** 霧中小狼（D-157：霧語森林選了「還」）：半透明、跟在你身後，戰鬥時躲進霧裡（變淡）。純畫面 */
+  private cub: { x: number; y: number; a: number; t: number; face: number } | null = null;
+  private drawCub(g: Phaser.GameObjects.Graphics, now: number): void {
+    const c = this.cub;
+    if (!c) return;
+    const p = playerOf(this.s);
+    const dt = Math.min(0.1, Math.max(0, (now - c.t) / 1000));
+    c.t = now;
+    const fl = Math.hypot(p.facingX, p.facingY) || 1;
+    const fx = p.facingX / fl;
+    const fy = p.facingY / fl;
+    const tx = p.x - fx * UNIT * 1.1 + fy * UNIT * 0.5;
+    const ty = p.y - fy * UNIT * 1.1 - fx * UNIT * 0.5;
+    const d = Math.hypot(tx - c.x, ty - c.y);
+    if (d > UNIT * 12) {
+      c.x = tx;
+      c.y = ty;
+    } else if (d > UNIT * 0.3) {
+      const k0 = Math.min(1, dt * (d > UNIT * 3 ? 5 : 2.5));
+      if (Math.abs(tx - c.x) > 4) c.face = tx > c.x ? 1 : -1;
+      c.x += (tx - c.x) * k0;
+      c.y += (ty - c.y) * k0;
+    }
+    const fight = p.dead || enemiesOf(this.s).some((e) => e.mode === 'combat');
+    c.a += ((fight ? 0.08 : 0.5) - c.a) * Math.min(1, dt * 3);
+    const cx = this.sx(c.x);
+    const cy = this.sy(c.y);
+    if (cx < -60 || cx > GAME_WIDTH + 60 || cy < VIEW_TOP - 80 || cy > VIEW_BOTTOM + 60) return;
+    const k = this.k * 1.7;
+    const moving = d > UNIT * 0.4;
+    const hop = moving ? Math.abs(Math.sin(now / 110)) * 5 * k : 0;
+    const f = c.face;
+    const a = c.a * (0.85 + 0.15 * Math.sin(now / 500));
+    g.fillStyle(0xcfe4ff, a * 0.25).fillEllipse(cx, cy - 12 * k, 64 * k, 34 * k);
+    g.fillStyle(0xd8e8ff, a).fillEllipse(cx, cy - 12 * k - hop, 30 * k, 20 * k);
+    g.fillCircle(cx + f * 13 * k, cy - 24 * k - hop, 10 * k);
+    g.fillTriangle(cx + f * 8 * k, cy - 30 * k - hop, cx + f * 10 * k, cy - 42 * k - hop, cx + f * 14 * k, cy - 31 * k - hop);
+    g.fillTriangle(cx + f * 14 * k, cy - 31 * k - hop, cx + f * 18 * k, cy - 42 * k - hop, cx + f * 20 * k, cy - 28 * k - hop);
+    const sw = Math.sin(now / (moving ? 90 : 300)) * 5 * k;
+    g.lineStyle(5 * k, 0xd8e8ff, a).lineBetween(cx - f * 13 * k, cy - 14 * k - hop, cx - f * 24 * k, cy - 24 * k - hop + sw);
+    g.fillStyle(0x6ab8ff, Math.min(1, a * 1.8)).fillCircle(cx + f * 16 * k, cy - 26 * k - hop, 1.8 * k);
+  }
   private drawChoiceMark(g: Phaser.GameObjects.Graphics, now: number): void {
     if (!this.choiceMark) return;
     const { x, y, map, pick } = this.choiceMark;
@@ -3516,6 +3559,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (!opened && (now / 500) % 2 < 0.25) g.fillStyle(0xfff0c0, a).fillCircle(cx + 18 * k, cy - 18 * k, 3 * k);
     }
     this.drawChoiceMark(g, now);
+    this.drawCub(g, now);
     // 前世的記憶（D-137）：紫色的光點在原地浮著，遠遠就看得到
     for (const mem of this.memLeft) {
       const cx = this.sx(mem.tx * UNIT + UNIT / 2);
