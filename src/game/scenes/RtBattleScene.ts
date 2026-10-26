@@ -48,6 +48,7 @@ import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, ni
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
+import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
@@ -369,7 +370,17 @@ export class RtBattleScene extends Phaser.Scene {
       this.menu = playPrologue(this, () => {
         this.menu = null;
         this.acc = 0;
-        this.opening();
+        if (weaponChosen()) return this.opening();
+        // 第一次冒險：選武器（D-150）。選長弓要重新進入地圖（戰鬥數值是開場算好的），序章已看過所以直接開場
+        this.menu = openWeaponPick(this, (w) => {
+          this.menu = null;
+          saveWeapon(w);
+          if ((w === 'bow') !== (this.s.weapon === 'bow')) this.scene.restart({ stage: this.stageId, seed: this.seed, bot: '' });
+          else {
+            this.acc = 0;
+            this.opening();
+          }
+        });
       });
     } else this.opening();
     this.input.addPointer(2);
