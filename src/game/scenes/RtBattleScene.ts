@@ -2932,6 +2932,17 @@ export class RtBattleScene extends Phaser.Scene {
       // 隕星術：夜空砸下一顆大隕星（星落的光柱＋墜星落地）
       this.starfall(x, y, hs.r);
       this.starImpact(vx, vy, R);
+      // 落點留下燃燒的隕石坑 2.5 秒（純畫面）
+      const cr = this.add.graphics().setDepth(5).setPosition(vx, vy);
+      cr.fillStyle(0x1a0c06, 0.55).fillEllipse(0, 0, R * 1.5, R * 0.9);
+      cr.fillStyle(0xff6a2a, 0.35).fillEllipse(0, 0, R * 0.9, R * 0.5);
+      for (let i = 0; i < 7; i++) {
+        const a0 = (i / 7) * Math.PI * 2 + Math.random() * 0.4;
+        const r1 = R * (0.55 + Math.random() * 0.25);
+        cr.lineStyle(3, 0xffa040, 0.85).lineBetween(Math.cos(a0) * R * 0.25, Math.sin(a0) * R * 0.15, Math.cos(a0) * r1, Math.sin(a0) * r1 * 0.6);
+      }
+      this.tweens.add({ targets: cr, alpha: 0, delay: 1600, duration: 900, onComplete: () => cr.destroy() });
+      for (let i = 0; i < 4; i++) this.time.delayedCall(300 + i * 450, () => sparks(this, vx + (Math.random() - 0.5) * R, vy + (Math.random() - 0.5) * R * 0.5, 4, 'ember', 0xff8a3a, 600));
       sparks(this, vx, vy, 26, 'ember', 0xff8a3a, 820);
       this.cameras.main.shake(260, 0.012);
       this.cameras.main.flash(140, 255, 230, 200);
@@ -2954,6 +2965,24 @@ export class RtBattleScene extends Phaser.Scene {
       } });
       shockRing(this, vx, vy, st === 'slow' ? 0x8a6aff : 0xc89aff, R, 260, 4);
       this.cameras.main.shake(70, 0.004);
+      return;
+    }
+    if (!single && st === 'slow') {
+      // 雷暴：每段從天上劈下 2 道閃電（鋸齒線）落在範圍裡
+      for (let j = 0; j < 2; j++) {
+        const a0 = Math.random() * Math.PI * 2;
+        const d0 = Math.random() * R * 0.85;
+        const tx = vx + Math.cos(a0) * d0;
+        const ty = vy + Math.sin(a0) * d0 * 0.6;
+        const bolt = this.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
+        const pts: { x: number; y: number }[] = [];
+        for (let q = 0; q <= 6; q++) pts.push({ x: tx + (q === 6 ? 0 : (Math.random() - 0.5) * 34), y: ty - 320 + (320 * q) / 6 });
+        bolt.lineStyle(9, 0x8ab0ff, 0.35).strokePoints(pts, false).lineStyle(3, 0xffffff, 1).strokePoints(pts, false);
+        this.tweens.add({ targets: bolt, alpha: 0, duration: 180, onComplete: () => bolt.destroy() });
+        sparks(this, tx, ty, 6, 'spark', 0xc8d8ff, 300);
+        shockRing(this, tx, ty, 0x9fc0ff, 34, 200, 3);
+      }
+      this.cameras.main.shake(60, 0.003);
       return;
     }
     // 魔法陣：地上一圈符文＋往外炸開
