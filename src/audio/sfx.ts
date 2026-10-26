@@ -207,6 +207,17 @@ export const SFX = {
     playSfx({ wave: 'triangle', freq: 180, freqEnd: 120, sustain: 0.01, release: 0.12, volume: 0.28 });
     playSfx({ wave: 'noise', freq: 4200, freqEnd: 1800, sustain: 0.02, release: 0.14, volume: 0.18, lowpass: 7000, delay: 0.02 });
   },
+  /** 法杖普攻（D-152）：短促上滑的魔彈聲 */
+  magicBolt: (): void => {
+    playSfx({ wave: 'sine', freq: 520, freqEnd: 1240, sustain: 0.01, release: 0.12, volume: 0.2, vibrato: 18, vibratoRate: 30 });
+    playSfx({ wave: 'noise', freq: 6000, freqEnd: 3000, sustain: 0.01, release: 0.08, volume: 0.08, lowpass: 9000, delay: 0.01 });
+  },
+  /** 法杖技能（D-152）：低頻轟聲＋上方的亮音 */
+  magicBlast: (): void => {
+    playSfx({ wave: 'sine', freq: 220, freqEnd: 70, sustain: 0.05, release: 0.35, volume: 0.4 });
+    playSfx({ wave: 'triangle', freq: 1320, freqEnd: 880, sustain: 0.02, release: 0.25, volume: 0.16, delay: 0.02 });
+    playSfx({ wave: 'noise', freq: 2400, freqEnd: 600, sustain: 0.03, release: 0.25, volume: 0.2, lowpass: 5000 });
+  },
   hitHeavy: (): void => {
     playSfx({ wave: 'noise', freq: 700, freqEnd: 60, sustain: 0.04, release: 0.3, volume: 0.6, lowpass: 1800 });
     playSfx({ wave: 'sine', freq: 120, freqEnd: 35, sustain: 0.05, release: 0.35, volume: 0.6 });

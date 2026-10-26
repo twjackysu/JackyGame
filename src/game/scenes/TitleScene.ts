@@ -4,7 +4,7 @@ import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
 import { bossKillsOf, mapOpen } from '../rtRecord';
 import { prevMap, WORLD_MAPS, FINALE_MAP } from '../worldMaps';
-import { loadWeapon, saveWeapon, WEAPON_NAME } from '../weapon';
+import { loadWeapon, nextWeapon, saveWeapon, WEAPON_NAME } from '../weapon';
 import { playMusic } from '../../audio/music';
 import { finaleSeen, loadFinaleStats, playFinale } from '../ui/finale';
 import { mulberry32, randRange } from '../../core/rng';
@@ -303,17 +303,18 @@ export class TitleScene extends Phaser.Scene {
       menu.add(c);
       if (fresh.has(i)) this.unlockPulse(c, 100 + i * 80 + 320);
     });
-    // 武器（D-147）：「設定」右邊的小按鈕，長劍 ⇄ 長弓（下次進地圖生效）
+    // 武器（D-147／152）：「設定」右邊的小按鈕，長劍 → 長弓 → 法杖（下次進地圖生效）
     {
       const y = 1180 + TALL - (items.length > 4 ? 0 : 40) - 10;
       const w = this.add.container(cx + 282, y);
       const g = this.add.graphics();
       const tx = this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', align: 'center', lineSpacing: 2 }).setOrigin(0.5);
       const paint = () => {
-        const bow = loadWeapon() === 'bow';
-        g.clear().fillStyle(bow ? 0x12200e : 0x0a0d1a, 0.85).fillRoundedRect(-62, -42, 124, 84, 18);
-        g.lineStyle(2, bow ? 0xc8f0a0 : 0xffd27a, 0.7).strokeRoundedRect(-62, -42, 124, 84, 18);
-        tx.setText(`武器\n${WEAPON_NAME[loadWeapon()]} ⇄`).setColor(bow ? '#c8f0a0' : '#ffe0a0');
+        const cw = loadWeapon();
+        const look = cw === 'bow' ? [0x12200e, 0xc8f0a0, '#c8f0a0'] as const : cw === 'staff' ? [0x180e24, 0xdcc0ff, '#dcc0ff'] as const : [0x0a0d1a, 0xffd27a, '#ffe0a0'] as const;
+        g.clear().fillStyle(look[0], 0.85).fillRoundedRect(-62, -42, 124, 84, 18);
+        g.lineStyle(2, look[1], 0.7).strokeRoundedRect(-62, -42, 124, 84, 18);
+        tx.setText(`武器\n${WEAPON_NAME[cw]} ⇄`).setColor(look[2]);
       };
       paint();
       w.add([g, tx]).setSize(124, 84).setInteractive({ useHandCursor: true }).setAlpha(0);
@@ -322,10 +323,10 @@ export class TitleScene extends Phaser.Scene {
         ev.stopPropagation();
         if (this.busy) return;
         SFX.confirm();
-        saveWeapon(loadWeapon() === 'bow' ? 'sword' : 'bow');
+        saveWeapon(nextWeapon(loadWeapon()));
         paint();
         this.tweens.add({ targets: w, scale: { from: 1.12, to: 1 }, duration: 220, ease: 'Back.easeOut' });
-        const msg = this.add.text(cx, y - (items.length - 1) * 100 - 80, loadWeapon() === 'bow' ? '長弓：普攻 5 格遠距、靠後躍拉開距離' : '長劍：近身連斬、旋風斬清群、格擋反擊', { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(60);
+        const msg = this.add.text(cx, y - (items.length - 1) * 100 - 80, ({ sword: '長劍：近身連斬、旋風斬清群、格擋反擊', bow: '長弓：普攻 5 格遠距、靠後躍拉開距離', staff: '法杖：冰凍控場、閃現、蓄力隕星' } as const)[loadWeapon()], { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(60);
         this.tweens.add({ targets: msg, y: msg.y - 30, alpha: 0, delay: 1200, duration: 600, onComplete: () => msg.destroy() });
       });
       menu.add(w);

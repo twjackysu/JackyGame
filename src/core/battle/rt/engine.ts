@@ -1,6 +1,6 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
-import { AFFIX_ATTACKS, ARCHER, BOW_SKILLS, BOW_VARIANTS, BOW_VARIANTS_B, ENEMIES, SKILL_VARIANTS, SKILL_VARIANTS_B, SKILLS, SWORDSMAN, STAGES, variantB } from './data';
+import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
@@ -87,8 +87,8 @@ export interface BattleSetup {
   skillMods?: Record<string, SkillMod>;
   /** 技能變化（D-112）：改用 SKILL_VARIANTS 版本的技能 id */
   skillVariants?: string[];
-  /** 武器（D-147）：'bow'＝長弓；沒有＝劍士 */
-  weapon?: 'bow';
+  /** 武器（D-147／152）：'bow'＝長弓、'staff'＝法杖；沒有＝劍士 */
+  weapon?: 'bow' | 'staff';
   /** 深夜模式（需要 StageDefinition.night，D-103） */
   night?: boolean;
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
@@ -104,7 +104,7 @@ export function xpToNext(level: number): number {
 export function createBattle(setup: BattleSetup): BattleState {
   const stage = STAGES[setup.stageId];
   if (!stage) throw new Error(`unknown stage ${setup.stageId}`);
-  const pd = setup.player ?? (setup.weapon === 'bow' ? ARCHER : SWORDSMAN);
+  const pd = setup.player ?? WEAPONS[setup.weapon ?? 'sword'].player;
   const s: BattleState = {
     tick: 0, rngState: (setup.seed >>> 0) || 1, units: [], telegraphs: [], events: [], nextId: 1, arena: stage.arena,
     stageId: stage.id, outcome: 'running', timeLimitTicks: stage.timeLimitTicks, manualMove: null,
@@ -112,7 +112,7 @@ export function createBattle(setup: BattleSetup): BattleState {
   };
   // 打散初始種子
   for (let i = 0; i < 4; i++) nextRand(s);
-  if (setup.weapon === 'bow') s.weapon = 'bow'; // D-147
+  if (setup.weapon) s.weapon = setup.weapon; // D-147／152
   if (stage.loot) {
     s.lootRng = ((setup.seed ^ 0x5bd1e995) >>> 0) || 1;
     s.ground = [];
@@ -535,17 +535,15 @@ export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; d
 /** 這場戰鬥實際用的技能定義（有選技能變化就用變化版，D-112） */
 export function skillDef(s: BattleState, id: string): SkillDefinition | undefined {
   const v = s.skillVariants;
-  // 長弓（D-147）：技能欄同一組 id，招式整組換掉；變化（D-148）、變化二（D-149）
-  if (s.weapon === 'bow') return (v?.includes(id) ? BOW_VARIANTS[id] : v?.includes(variantB(id)) ? BOW_VARIANTS_B[id] : undefined) ?? BOW_SKILLS[id];
-  if (!v) return SKILLS[id];
-  if (v.includes(id)) return SKILL_VARIANTS[id] ?? SKILLS[id];
-  if (v.includes(variantB(id))) return SKILL_VARIANTS_B[id] ?? SKILLS[id]; // 第二種變化（D-121）
-  return SKILLS[id];
+  // 武器表（D-152）：技能欄同一組 id，招式整組換掉；變化（D-112／148）、變化二（D-121／149）
+  const w = WEAPONS[s.weapon ?? 'sword'];
+  if (!v) return w.skills[id];
+  return (v.includes(id) ? w.variants[id] : v.includes(variantB(id)) ? w.variantsB[id] : undefined) ?? w.skills[id];
 }
 
 /** 換技能變化；正在施放的技能照舊打完（下一次施放才換） */
 export function setSkillVariants(s: BattleState, ids: readonly string[]): void {
-  const v = ids.filter((id) => SKILL_VARIANTS[id] || (id.endsWith(':b') && SKILL_VARIANTS_B[id.slice(0, -2)])).sort();
+  const v = ids.filter((id) => WEAPONS.sword.variants[id] || (id.endsWith(':b') && WEAPONS.sword.variantsB[id.slice(0, -2)])).sort();
   if (v.length) s.skillVariants = v;
   else delete s.skillVariants;
 }
@@ -693,7 +691,7 @@ export function computeDamage(atk: number, mult: number, pool: number, def: numb
 
 /** 目前武器的玩家定義（D-147：長弓；沒設＝劍士，舊關卡結果完全不變） */
 export function playerDef(s?: Pick<BattleState, 'weapon'>): PlayerDefinition {
-  return s?.weapon === 'bow' ? ARCHER : SWORDSMAN;
+  return WEAPONS[s?.weapon ?? 'sword'].player;
 }
 
 function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 'normal' | 'skill' | 'counter' | 'enemy', skill: string, reducePct = 0): number {

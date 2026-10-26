@@ -278,6 +278,154 @@ export const ARCHER: PlayerDefinition = {
 };
 
 /**
+ * 星術法杖（第 34 輪，D-152）：第三種武器。普攻 4.5 格魔彈、身板最薄（HP 500／防禦 12），MP 上限 140。
+ * 打法：「冰霜新星」凍住貼身的狼、「閃現」穿過去落地爆炸、「星焰彈」燒一整排，最後蓄力「隕星術」砸大圈。
+ */
+export const STAFF_SKILLS: Record<string, SkillDefinition> = {
+  // 星焰彈：6.5 格直線 170%＋灼燒 3 秒（每秒 25%）；冷卻 4s
+  heavy_slash: {
+    id: 'heavy_slash', name: '星焰彈', cooldownTicks: sec(4), castTicks: sec(0.35), moveFactor: 0, role: 'single', useRange: u(6),
+    hits: [{ atTick: sec(0.35) - 1, shape: { type: 'line', len: u(6.5), width: u(1.0) }, mult: 170, status: { id: 'burn', ticks: sec(3), powerPct: 25 } }],
+  },
+  // 冰霜新星：自身圓 2.8 格 130%＋冰凍 1.5 秒（Boss 減速）；冷卻 10s
+  whirlwind: {
+    id: 'whirlwind', name: '冰霜新星', cooldownTicks: sec(10), castTicks: sec(0.4), moveFactor: 0, role: 'aoe', useRange: u(2.4),
+    hits: [{ atTick: sec(0.4) - 1, shape: { type: 'circle', r: u(2.8) }, mult: 130, status: { id: 'freeze', ticks: sec(1.5) } }],
+  },
+  // 閃現：0.13 秒瞬移 5 格，落地爆一圈 140%＋減速；冷卻 6s
+  charge: {
+    id: 'charge', name: '閃現', cooldownTicks: sec(6), castTicks: sec(0.35), moveFactor: 0, role: 'gap', useRange: u(5.5),
+    dash: { fromTick: 0, ticks: 4, distance: u(5) },
+    hits: [{ atTick: 5, shape: { type: 'circle', r: u(1.8) }, mult: 140, status: { id: 'slow', ticks: sec(1.5) } }],
+  },
+  // 星輝屏障：1 秒窗口、擋下不受傷，四面反擊 200%＋減速；冷卻 10s
+  parry: {
+    id: 'parry', name: '星輝屏障', cooldownTicks: sec(10), castTicks: sec(1.1), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 30, reducePct: 100, counter: { atTick: 0, shape: { type: 'circle', r: u(3) }, mult: 200, status: { id: 'slow', ticks: sec(2) } } },
+  },
+  // 隕星術（大招）：蓄力 1.2 秒，身邊 4 格砸下隕星 900%＋破甲；40 MP
+  blade_storm: {
+    id: 'blade_storm', name: '隕星術', cooldownTicks: sec(45), castTicks: sec(1.2), moveFactor: 0, role: 'ult', useRange: u(3.6), mp: 40,
+    hits: [{ atTick: sec(1.2) - 1, shape: { type: 'circle', r: u(4) }, mult: 900, status: { id: 'break', ticks: sec(6) } }],
+  },
+};
+
+/** 法杖技能說明（技能點面板、選武器卡） */
+export const STAFF_DESC: Record<string, string> = {
+  heavy_slash: '6.5 格直線火球 170%，打中的敵人「灼燒」3 秒；冷卻 4 秒',
+  whirlwind: '身邊 2.8 格冰爆 130%，小怪冰凍 1.5 秒、Boss 減速；冷卻 10 秒',
+  charge: '往前瞬移 5 格，落地爆一圈 140%＋減速；冷卻 6 秒',
+  parry: '1 秒屏障、擋下不受傷，四面反擊 200%＋減速；冷卻 10 秒',
+  blade_storm: '蓄力 1.2 秒，身邊 4 格砸下隕星 900%＋破甲；40 MP',
+};
+
+/** 法杖的技能變化（滿 5 級切換；存檔與劍／弓共用 `skillVariants`） */
+export const STAFF_VARIANTS: Record<string, SkillDefinition & { variantName: string; desc: string }> = {
+  heavy_slash: {
+    id: 'heavy_slash', name: '寒冰長槍', variantName: '寒冰長槍', desc: '瞄準 0.3 秒，8 格冰槍 300%＋冰凍 1 秒（Boss 減速）；冷卻 5 秒',
+    cooldownTicks: sec(5), castTicks: sec(0.55), moveFactor: 0, role: 'single', useRange: u(7.5), aimTicks: sec(0.3),
+    hits: [{ atTick: sec(0.55) - 1, shape: { type: 'line', len: u(8), width: u(0.9) }, mult: 300, status: { id: 'freeze', ticks: sec(1) } }],
+  },
+  whirlwind: {
+    id: 'whirlwind', name: '雷暴', variantName: '雷暴', desc: '1.5 秒內身邊 2.6 格落雷 5 次（每次 50%）＋減速，可以邊走邊放；冷卻 10 秒',
+    cooldownTicks: sec(10), castTicks: sec(1.5), moveFactor: 0.8, role: 'aoe', useRange: u(2.4),
+    hits: [0, 1, 2, 3, 4].map((k) => ({ atTick: sec(0.3) * (k + 1) - 1, shape: { type: 'circle' as const, r: u(2.6) }, mult: 50, status: { id: 'slow' as const, ticks: sec(1) } })),
+  },
+  charge: {
+    id: 'charge', name: '星界轉移', variantName: '星界轉移', desc: '原地留下寒霜 120%＋冰凍 1 秒，往後瞬移 5 格；冷卻 7 秒',
+    cooldownTicks: sec(7), castTicks: sec(0.35), moveFactor: 0, role: 'gap', useRange: u(2.5),
+    dash: { fromTick: 2, ticks: 4, distance: -u(5) },
+    hits: [{ atTick: 1, shape: { type: 'circle', r: u(2.2) }, mult: 120, status: { id: 'freeze', ticks: sec(1) } }],
+  },
+  parry: {
+    id: 'parry', name: '鏡像反射', variantName: '鏡像反射', desc: '0.5 秒鏡盾、擋下不受傷，反射一道 7 格光束 360%；冷卻 8 秒',
+    cooldownTicks: sec(8), castTicks: sec(0.7), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 15, reducePct: 100, counter: { atTick: 0, shape: { type: 'line', len: u(7), width: u(1.4) }, mult: 360 } },
+  },
+  blade_storm: {
+    id: 'blade_storm', name: '流星雨', variantName: '流星雨', desc: '2.4 秒內身邊 4 格落下 8 波流星（每波 90%）＋最後一顆 200%，可以邊走邊放；40 MP',
+    cooldownTicks: sec(45), castTicks: sec(2.4), moveFactor: 0.5, role: 'ult', useRange: u(3.6), mp: 40,
+    hits: [
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => ({ atTick: 8 * (k + 1) - 1, shape: { type: 'circle' as const, r: u(4) }, mult: 90 })),
+      { atTick: sec(2.4) - 1, shape: { type: 'circle' as const, r: u(4) }, mult: 200 },
+    ],
+  },
+};
+
+/** 法杖的第二種變化：主題是「蝕」——中毒、灼燒領域、虛弱與時間凝滯 */
+export const STAFF_VARIANTS_B: Record<string, SkillDefinition & { variantName: string; desc: string }> = {
+  heavy_slash: {
+    id: 'heavy_slash', name: '蝕魂彈', variantName: '蝕魂彈', desc: '6 格穿透魂彈 120%＋「中毒」6 秒（每秒 25%，可疊 5 層）；冷卻 3.5 秒',
+    cooldownTicks: sec(3.5), castTicks: sec(0.35), moveFactor: 0, role: 'single', useRange: u(5.5),
+    hits: [{ atTick: sec(0.35) - 1, shape: { type: 'line', len: u(6), width: u(1.0) }, mult: 120, status: { id: 'poison', ticks: sec(6), powerPct: 25 } }],
+  },
+  whirlwind: {
+    id: 'whirlwind', name: '灼熱領域', variantName: '灼熱領域', desc: '身邊 1.5～4 格的火環燒兩波（每波 90%）＋「灼燒」3 秒；冷卻 9 秒',
+    cooldownTicks: sec(9), castTicks: sec(0.8), moveFactor: 0.4, role: 'aoe', useRange: u(3.6),
+    hits: [0, 1].map((k) => ({ atTick: sec(0.4) * (k + 1) - 1, shape: { type: 'ring' as const, rIn: u(1.5), rOut: u(4) }, mult: 90, status: { id: 'burn' as const, ticks: sec(3), powerPct: 30 } })),
+  },
+  charge: {
+    id: 'charge', name: '影界穿梭', variantName: '影界穿梭', desc: '瞬移 4 格、路上 100%＋「虛弱」4 秒，落地再爆 100%；冷卻 5 秒',
+    cooldownTicks: sec(5), castTicks: sec(0.35), moveFactor: 0, role: 'gap', useRange: u(4.5),
+    dash: { fromTick: 0, ticks: 4, distance: u(4) },
+    hits: [
+      ...[0, 2, 4].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 100, oncePerTarget: true, status: { id: 'weak' as const, ticks: sec(4) } })),
+      { atTick: 5, shape: { type: 'circle' as const, r: u(1.6) }, mult: 100 },
+    ],
+  },
+  parry: {
+    id: 'parry', name: '時間凝滯', variantName: '時間凝滯', desc: '0.8 秒窗口、傷害 −80%，周圍 4 格 150%＋冰凍 2 秒（Boss 減速）；冷卻 11 秒',
+    cooldownTicks: sec(11), castTicks: sec(1.0), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 24, reducePct: 80, counter: { atTick: 0, shape: { type: 'circle', r: u(4) }, mult: 150, status: { id: 'freeze', ticks: sec(2) } } },
+  },
+  blade_storm: {
+    id: 'blade_storm', name: '虛空奇點', variantName: '虛空奇點', desc: '2 秒內身邊 4.5 格被黑洞撕扯 10 次（每次 80%）＋減速；40 MP',
+    cooldownTicks: sec(45), castTicks: sec(2.0), moveFactor: 0, role: 'ult', useRange: u(4), mp: 40,
+    hits: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => ({ atTick: 6 * (k + 1) - 1, shape: { type: 'circle' as const, r: u(4.5) }, mult: 80, status: { id: 'slow' as const, ticks: sec(1) } })),
+  },
+};
+
+/** 星術師（D-152）：最脆、普攻 4.5 格、MP 上限 140（大招可以存比較多） */
+export const MAGE: PlayerDefinition = {
+  ...SWORDSMAN,
+  id: 'mage',
+  hp: 500,
+  atk: 33,
+  def: 12,
+  speed: 3.5,
+  attackIntervalTicks: sec(0.85),
+  attackRange: u(4.5),
+  attackWindupTicks: sec(0.3),
+  attackRecoverTicks: sec(0.55) - 1,
+  critRate: 6,
+  mp: 140,
+  dodge: { distance: u(2.6), ticks: 9, invulnFrom: 1, invulnTo: 6, cooldownTicks: sec(4.5) },
+};
+
+/** 武器 id（D-152：武器表；'sword' 在 BattleState 裡不寫，舊結果完全不變） */
+export type WeaponKind = 'sword' | 'bow' | 'staff';
+type VariantTable = Record<string, SkillDefinition & { variantName: string; desc: string }>;
+export interface WeaponDef {
+  id: WeaponKind;
+  name: string;
+  player: PlayerDefinition;
+  skills: Record<string, SkillDefinition>;
+  variants: VariantTable;
+  variantsB: VariantTable;
+  /** 技能點面板的說明（沒有＝劍，顯示「每級」） */
+  desc?: Record<string, string>;
+}
+export const WEAPONS: Record<WeaponKind, WeaponDef> = {
+  sword: { id: 'sword', name: '長劍', player: SWORDSMAN, skills: SKILLS, variants: SKILL_VARIANTS, variantsB: SKILL_VARIANTS_B },
+  bow: { id: 'bow', name: '長弓', player: ARCHER, skills: BOW_SKILLS, variants: BOW_VARIANTS, variantsB: BOW_VARIANTS_B, desc: BOW_DESC },
+  staff: { id: 'staff', name: '法杖', player: MAGE, skills: STAFF_SKILLS, variants: STAFF_VARIANTS, variantsB: STAFF_VARIANTS_B, desc: STAFF_DESC },
+};
+export const WEAPON_IDS: readonly WeaponKind[] = ['sword', 'bow', 'staff'];
+
+/**
  * 精英詞綴專屬招式（D-118）：有詞綴的精英在原本的招式之外多一招，看招就知道是哪種詞綴。
  * 迅捷＝短距離突進（可格擋）、堅韌＝原地震地（不能格擋、命中緩速）、狂亂＝兩段連咬（可格擋，第二口重新瞄準）。
  */
