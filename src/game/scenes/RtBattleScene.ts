@@ -34,7 +34,7 @@ import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap } from '../worldMaps';
-import { GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
@@ -44,6 +44,7 @@ import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, ni
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
+import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
@@ -203,6 +204,8 @@ export class RtBattleScene extends Phaser.Scene {
   private bossMemo = false;
   /** 已經提示過「有點熟悉」的寶箱 */
   private chestHinted = new Set<string>();
+  /** 前世的記憶（D-137）：這張圖還沒想起來的記憶點 */
+  private memLeft: Memory[] = [];
   /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
   private mini: { x: number; y: number; w: number; h: number; s: number } | null = null;
   private idleHinted = false;
@@ -342,6 +345,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.paws = [];
     this.pawLast.clear();
+    { const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
       this.tipBusy = true;
@@ -550,6 +554,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneBanner();
     this.updateFireBtn();
     this.chestHint();
+    this.memoryCheck();
     this.streakHint();
     if (this.s.tick % (10 * TICKS_PER_SEC) === 0) this.persist();
     if (this.s.outcome !== 'running') this.finish();
@@ -1089,6 +1094,40 @@ export class RtBattleScene extends Phaser.Scene {
     bigText(this, GAME_WIDTH / 2, 600, '（記得……不倒下一直打下去，首領會被引出來……）', '#d8c8ff', 26, 2200);
   }
 
+  /** 前世的記憶（D-137）：走到記憶點旁邊 → 想起一段事、拿結晶（不暫停戰鬥） */
+  private memoryCheck(): void {
+    if (!this.memLeft.length) return;
+    const p = playerOf(this.s);
+    if (p.dead) return;
+    const i = this.memLeft.findIndex((m) => Math.hypot(m.tx * UNIT + UNIT / 2 - p.x, m.ty * UNIT + UNIT / 2 - p.y) < MEMORY_RADIUS * UNIT);
+    if (i < 0) return;
+    const mem = this.memLeft.splice(i, 1)[0]!;
+    const r = recall(loadMemories(), mem.id);
+    if (!r) return;
+    saveMemories(r.ids);
+    const rec = spend(loadRecord(this.stageId), 0, -r.crystal);
+    if (rec) saveRecord(this.stageId, rec);
+    SFX.itemGet();
+    const x = this.sx(mem.tx * UNIT + UNIT / 2);
+    const y = this.sy(mem.ty * UNIT + UNIT / 2);
+    sparks(this, x, y, 30, 'spark', 0xd8b0ff, 420);
+    shockRing(this, x, y, 0xc89aff, 200, 700, 6);
+    this.cameras.main.flash(220, 190, 150, 255);
+    // 上方的回憶卡：標題、內容、獎勵；6 秒後淡出
+    const c = this.add.container(GAME_WIDTH / 2, 300).setDepth(940).setAlpha(0);
+    const body = this.add.text(0, 6, mem.lines, { fontFamily: TITLE_FONT, fontSize: '27px', color: '#f0e6ff', align: 'center', lineSpacing: 10, wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+    const h = body.height + 120;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x140a22, 0.9).fillRoundedRect(-320, -56, 640, h, 18);
+    bg.lineStyle(2, 0xc89aff, 0.9).strokeRoundedRect(-320, -56, 640, h, 18);
+    const head = this.add.text(0, -32, `✦ 前世的記憶　${r.ids.length}/${MEMORIES.length}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#c8a0ff' }).setOrigin(0.5);
+    const gain = this.add.text(0, h - 80, `+${r.crystal} 結晶${r.all ? '　——所有的記憶都想起來了！' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: r.all ? '#ffd27a' : '#a8e8ff' }).setOrigin(0.5);
+    c.add([bg, head, body, gain]);
+    this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
+    this.tweens.add({ targets: c, alpha: 0, delay: r.all ? 8000 : 6000, duration: 700, onComplete: () => c.destroy() });
+    if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, 640, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
+  }
+
   /** 隱藏寶箱附近第一次靠近：「這個地方似乎有點熟悉……」（design/20 C2，只提示不指路） */
   private chestHint(): void {
     const list = STAGES[this.stageId]?.chests;
@@ -1215,6 +1254,7 @@ export class RtBattleScene extends Phaser.Scene {
       `出發冒險 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
       `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${coinOf(rec)}（營火行商）`,
     ];
+    if (memoriesOf(this.stageId).length) { const mh = loadMemories(); lines.push(`前世的記憶：這裡 ${memoriesOf(this.stageId).filter((m) => mh.includes(m.id)).length}/${memoriesOf(this.stageId).length}・全部 ${mh.length}/${MEMORIES.length}`); }
     const cs = cardSummary();
     if (cs.played || cs.have) lines.push(`營火燼牌 ${cs.won} 勝 / ${cs.played} 場・收集 ${cs.have}/${cs.total} 張`);
     if (worldMap(this.stageId)) lines.unshift(`▶ 下一個目標：${nextGoal(this.stageId, rec, this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''))}`);
@@ -2570,6 +2610,27 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0xd8b050, a).fillRect(cx - 4 * k, cy - 10 * k, 8 * k, 10 * k);
       if (!opened && (now / 500) % 2 < 0.25) g.fillStyle(0xfff0c0, a).fillCircle(cx + 18 * k, cy - 18 * k, 3 * k);
     }
+    // 前世的記憶（D-137）：紫色的光點在原地浮著，遠遠就看得到
+    for (const mem of this.memLeft) {
+      const cx = this.sx(mem.tx * UNIT + UNIT / 2);
+      const cy = this.sy(mem.ty * UNIT + UNIT / 2);
+      if (cx < -80 || cx > GAME_WIDTH + 80 || cy < -120 || cy > GAME_HEIGHT + 80) continue;
+      const k = this.k * 2;
+      const t = now / 1000;
+      const bob = Math.sin(t * 2) * 6 * k;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+      top.fillStyle(0x8a5ad0, 0.22 + 0.1 * pulse).fillEllipse(cx, cy + 8 * k, 90 * k, 28 * k);
+      top.fillStyle(0xb08aff, 0.14 + 0.08 * pulse).fillRect(cx - 7 * k, cy - 130 * k, 14 * k, 130 * k);
+      top.fillStyle(0xc89aff, 0.3 + 0.2 * pulse).fillCircle(cx, cy - 30 * k + bob, 20 * k);
+      top.fillStyle(0xf4e8ff, 0.95).fillPoints([
+        new Phaser.Math.Vector2(cx, cy - 48 * k + bob), new Phaser.Math.Vector2(cx + 11 * k, cy - 30 * k + bob),
+        new Phaser.Math.Vector2(cx, cy - 12 * k + bob), new Phaser.Math.Vector2(cx - 11 * k, cy - 30 * k + bob),
+      ], true);
+      for (let j = 0; j < 3; j++) {
+        const a = t * 1.6 + (j * Math.PI * 2) / 3;
+        top.fillStyle(0xe0c8ff, 0.8).fillCircle(cx + Math.cos(a) * 26 * k, cy - 30 * k + bob + Math.sin(a) * 9 * k, 2.5 * k);
+      }
+    }
     // 營火：安全範圍淡圈＋木柴＋跳動的火焰與光暈
     let fi = 0;
     for (const c of STAGES[this.stageId]?.campfires ?? []) {
@@ -2931,6 +2992,7 @@ export class RtBattleScene extends Phaser.Scene {
       }
       if ((s.chestsOpened ?? []).includes(c.id)) g.fillStyle(0x8a8070, 0.8).fillRect(m.x + c.x * m.s - 2, m.y + c.y * m.s - 2, 4, 4);
     }
+    for (const mem of this.memLeft) g.fillStyle(0xd0a8ff, 0.6 + 0.4 * Math.sin(now / 300)).fillCircle(m.x + (mem.tx * UNIT + UNIT / 2) * m.s, m.y + (mem.ty * UNIT + UNIT / 2) * m.s, 3);
     for (const e of enemiesOf(s)) {
       const elite = e.tier === 'elite' || ENEMIES[e.defId]?.boss;
       if (e.defId === 'thorn_mother') {

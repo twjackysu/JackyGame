@@ -8,7 +8,7 @@ import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { highFx } from '../settings';
 import { fmtSec } from '../rtRecord';
-import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, fmtPlay, markFinaleSeen, markPrologueSeen, type FinaleStats } from '../finaleStats';
+import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, fmtPlay, markFinaleSeen, MEMORY_TOTAL, markPrologueSeen, type FinaleStats } from '../finaleStats';
 export { finaleSeen, loadFinaleStats, prologueSeen } from '../finaleStats';
 
 const fmtDate = (at?: number): string => {
@@ -164,11 +164,13 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
       ['擊殺', `${stats.kills}`],
       ['寶箱', `${stats.chests}`],
       ['燼牌勝場', `${stats.cardsWon}`],
+      ['前世的記憶', `${stats.memories}/${MEMORY_TOTAL}`],
     ];
     sum.forEach(([k, v], i) => {
       const col = i % 3;
       const row = Math.floor(i / 3);
-      const x = cx + (col - 1) * 210 + (row ? 105 : 0);
+      const inRow = Math.min(3, sum.length - row * 3);
+      const x = cx + (col - (inRow - 1) / 2) * 210;
       const y = 790 + row * 130;
       const kv = scene.add.text(x, y, v, { fontFamily: TITLE_FONT, fontSize: '40px', fontStyle: 'bold', color: '#fff4d6' }).setOrigin(0.5).setAlpha(0);
       const kk = scene.add.text(x, y + 42, k, { fontFamily: UI_FONT, fontSize: '22px', color: '#a89878' }).setOrigin(0.5).setAlpha(0);
@@ -204,7 +206,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
     hint.setVisible(false);
     const t = scene.add.text(cx, 420, '感謝遊玩', { fontFamily: TITLE_FONT, fontSize: '80px', fontStyle: '900', color: '#ffe6a8', stroke: '#3a1a06', strokeThickness: 6 }).setOrigin(0.5).setAlpha(0);
     glow(t, 0xffb35a);
-    const more = scene.add.text(cx, 610, '冒險還沒結束：\n暴怒的 Boss・深夜的地圖・把裝備強化到 +10\n還有營火邊那位不輕易現身的說書人……', { fontFamily: UI_FONT, fontSize: '26px', color: '#d8ccb0', align: 'center', lineSpacing: 12 }).setOrigin(0.5).setAlpha(0);
+    const more = scene.add.text(cx, 610, `冒險還沒結束：\n暴怒的 Boss・深夜的地圖・把裝備強化到 +10\n${stats && stats.memories < MEMORY_TOTAL ? `還有 ${MEMORY_TOTAL - stats.memories} 段沒想起來的前世記憶（紫色光點）\n` : ''}還有營火邊那位不輕易現身的說書人……`, { fontFamily: UI_FONT, fontSize: '26px', color: '#d8ccb0', align: 'center', lineSpacing: 12 }).setOrigin(0.5).setAlpha(0);
     const btn = scene.add.container(cx, 860).setAlpha(0);
     const g = scene.add.graphics();
     g.fillStyle(0x2a1a08, 0.95).fillRoundedRect(-190, -46, 380, 92, 22);

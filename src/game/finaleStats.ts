@@ -1,6 +1,7 @@
 // 通關演出的文字與旅程統計（D-133）：純資料，不 import Phaser（測試用）。
 import { WORLD_MAPS } from './worldMaps';
 import { loadRecord, type RtRecord } from './rtRecord';
+import { loadMemories, MEMORIES } from './memories';
 
 /** 序章（D-134）：前世的設定，和結語前後呼應 */
 export const PROLOGUE_LINES: readonly string[] = [
@@ -30,6 +31,8 @@ export const FINALE_CREDITS: readonly [string, string][] = [
 ];
 
 export interface BossLine { name: string; map: string; first?: number; best?: number; kills: number; color: string }
+export const MEMORY_TOTAL = MEMORIES.length;
+
 export interface FinaleStats {
   bosses: BossLine[];
   level: number;
@@ -37,10 +40,12 @@ export interface FinaleStats {
   kills: number;
   chests: number;
   cardsWon: number;
+  /** 前世的記憶（D-137）想起幾個 */
+  memories: number;
 }
 
 /** 從各地圖紀錄算出這趟旅程（純函式，有測試） */
-export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0): FinaleStats {
+export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0, memories = 0): FinaleStats {
   const home = recs[WORLD_MAPS[0]!.id] ?? {};
   return {
     bosses: WORLD_MAPS.map((m) => {
@@ -52,6 +57,7 @@ export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0): Final
     kills: home.kills ?? 0,
     chests: WORLD_MAPS.reduce((n, m) => n + (recs[m.id]?.chests?.length ?? 0), 0),
     cardsWon,
+    memories,
   };
 }
 
@@ -72,7 +78,7 @@ export function loadFinaleStats(): FinaleStats {
   } catch {
     /* 無痕模式 */
   }
-  return finaleStats(recs, won);
+  return finaleStats(recs, won, loadMemories().length);
 }
 
 export function finaleSeen(): boolean {
