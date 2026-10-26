@@ -3633,6 +3633,8 @@ export class RtBattleScene extends Phaser.Scene {
       if ((s.chestsOpened ?? []).includes(c.id)) g.fillStyle(0x8a8070, 0.8).fillRect(m.x + c.x * m.s - 2, m.y + c.y * m.s - 2, 4, 4);
     }
     for (const mem of this.memLeft) g.fillStyle(0xd0a8ff, 0.6 + 0.4 * Math.sin(now / 300)).fillCircle(m.x + (mem.tx * UNIT + UNIT / 2) * m.s, m.y + (mem.ty * UNIT + UNIT / 2) * m.s, 3);
+    let lastCol = -1;
+    let lastAl = -1;
     for (const e of enemiesOf(s)) {
       const elite = e.tier === 'elite' || ENEMIES[e.defId]?.boss;
       if (e.defId === 'thorn_mother') {
@@ -3641,6 +3643,7 @@ export class RtBattleScene extends Phaser.Scene {
         const ty = m.y + e.y * m.s;
         g.fillStyle(e.mode === 'combat' ? 0xff5a4a : 0x6aff7a, 0.95).fillTriangle(tx, ty - 6, tx - 5, ty + 3, tx + 5, ty + 3);
         g.fillStyle(0x8a6a40, 1).fillRect(tx - 1, ty + 3, 2, 3);
+        lastCol = -1;
         continue;
       }
       if (e.patrol) {
@@ -3650,9 +3653,21 @@ export class RtBattleScene extends Phaser.Scene {
         const a = Math.atan2(e.facingY, e.facingX);
         const pt = (an: number, rr: number) => ({ x: tx + Math.cos(a + an) * rr, y: ty + Math.sin(a + an) * rr });
         g.fillStyle(e.mode === 'combat' ? 0xff5a4a : 0xff8a5c, e.mode === 'dormant' ? 0.6 : 1).fillPoints([pt(0, 6), pt(2.5, 4.5), pt(Math.PI, 2), pt(-2.5, 4.5)], true);
+        lastCol = -1;
         continue;
       }
-      g.fillStyle(e.mode === 'combat' ? 0xff5a4a : e.affix ? AFFIX_COLOR[e.affix] : elite ? 0xffa040 : 0xc06a6a, e.mode === 'dormant' ? 0.5 : 0.95).fillCircle(m.x + e.x * m.s, m.y + e.y * m.s, elite ? 3.5 : 2.2);
+      const col = e.mode === 'combat' ? 0xff5a4a : e.affix ? AFFIX_COLOR[e.affix] : elite ? 0xffa040 : 0xc06a6a;
+      const al = e.mode === 'dormant' ? 0.5 : 0.95;
+      // 手機效能（第 34 輪）：一般怪畫 4×4 方塊（圓要好幾個指令），顏色沒變就不重設 fillStyle
+      if (col !== lastCol || al !== lastAl) {
+        g.fillStyle(col, al);
+        lastCol = col;
+        lastAl = al;
+      }
+      if (elite) {
+        g.fillCircle(m.x + e.x * m.s, m.y + e.y * m.s, 3.5);
+        lastCol = -1;
+      } else g.fillRect(m.x + e.x * m.s - 2, m.y + e.y * m.s - 2, 4, 4);
     }
     // 地上的精良以上裝備（D-100）：稀有度顏色的閃爍菱形，免得錯過
     for (const it of s.ground ?? []) {

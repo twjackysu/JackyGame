@@ -53,6 +53,12 @@ describe('武器表與法杖（D-152）', () => {
     expect(toggleVariant(['heavy_slash:b'], 'heavy_slash', r, 'staff')).toEqual([]);
   });
 
+  it('所有武器的位移技能每 tick 最多 50（太快會穿進障礙物裡卡住，D-153）', () => {
+    for (const w of WEAPON_IDS) for (const tbl of [WEAPONS[w].skills, WEAPONS[w].variants, WEAPONS[w].variantsB]) for (const sk of Object.values(tbl)) {
+      if (sk.dash) expect(Math.abs(sk.dash.distance) / sk.dash.ticks, `${w} ${sk.name}`).toBeLessThanOrEqual(50);
+    }
+  });
+
   it('閃現：瞬移 5 格（開場面向北）', () => {
     const s = createBattle({ stageId: 'mistwood', seed: 3, weapon: 'staff' });
     const p = s.units[0]!;
