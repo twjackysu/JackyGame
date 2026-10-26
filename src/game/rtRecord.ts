@@ -192,6 +192,13 @@ export function nextGoal(stage: string, rec: RtRecord, level: number, otherKills
   return `刷深夜的${mw}、把裝備強化到 +10、挑戰最快討伐`;
 }
 
+/** 等級不夠時的小提示（第 30 輪，NEXT 第 3 項：新手沒裝備卡在荊棘谷）：還沒打倒這張圖的 Boss、等級低於建議等級才出現 */
+export function levelTip(stage: string, rec: RtRecord, level: number): string | null {
+  const m = worldMap(stage);
+  if (!m?.recLevel || (rec.bossKills ?? 0) > 0 || level >= m.recLevel) return null;
+  return `建議 Lv${m.recLevel}（現在 Lv${level}）：打不過就先刷怪升級、\n到營火找行商買裝備、把裝備強化`;
+}
+
 /** 大地圖開放條件（D-114／D-124）：第一張一開始就開；其他張要先打倒前一張圖的 Boss 一次 */
 export function mapOpen(stage: string): boolean {
   const pv = prevMap(stage);

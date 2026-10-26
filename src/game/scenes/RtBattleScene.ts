@@ -40,7 +40,7 @@ import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
-import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -1326,6 +1326,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (memoriesOf(this.stageId).length) { const mh = loadMemories(); lines.push(`前世的記憶：這裡 ${memoriesOf(this.stageId).filter((m) => mh.includes(m.id)).length}/${memoriesOf(this.stageId).length}・全部 ${mh.length}/${MEMORIES.length}`); }
     const cs = cardSummary();
     if (cs.played || cs.have) lines.push(`營火燼牌 ${cs.won} 勝 / ${cs.played} 場・收集 ${cs.have}/${cs.total} 張`);
+    const tip = worldMap(this.stageId) ? levelTip(this.stageId, rec, this.s.prog?.level ?? 1) : null;
+    if (tip) lines.unshift(tip);
     if (worldMap(this.stageId)) lines.unshift(`▶ 下一個目標：${nextGoal(this.stageId, rec, this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''))}`);
     if (this.s.prog) lines.unshift(`Lv ${this.s.prog.level}・經驗 ${this.s.prog.xp}/${xpToNext(this.s.prog.level)}`);
     return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
