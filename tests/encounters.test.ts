@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { claimThanks, cleanEncounters, ENCOUNTERS, encountersOf, meet, openEncounters, pendingThanks, worth } from '../src/game/encounters';
+import { rivalEncounterEcho, claimThanks, cleanEncounters, ENCOUNTERS, encountersOf, meet, openEncounters, pendingThanks, worth } from '../src/game/encounters';
 import { isSolidAt } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
 import { makeThornvaleStage } from '../src/core/battle/rt/maps/thornvale';
@@ -39,5 +39,12 @@ describe('路上的相遇（D-159）', () => {
     expect(pendingThanks(t, 'thornvale')).toEqual([]);
     expect(claimThanks(t, 'tv_mule')).toBeNull();
     expect(encountersOf('starfall')).toEqual([]);
+  });
+
+  it('燼牌對手會提起同一張地圖的相遇', () => {
+    expect(rivalEncounterEcho('vela', {})).toBeNull();
+    expect(rivalEncounterEcho('sol', { mw_hunter: 'take' })).toBeNull();
+    expect(rivalEncounterEcho('merchant', { mw_hunter: 'take' })).not.toBe(rivalEncounterEcho('merchant', { mw_hunter: 'spare' }));
+    expect(rivalEncounterEcho('goran', { er_miner: 'thanked' })).toBe(rivalEncounterEcho('goran', { er_miner: 'spare' }));
   });
 });

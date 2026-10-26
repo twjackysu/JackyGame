@@ -2,6 +2,7 @@
 // 全螢幕面板：上半是莫托的後排／前排、中間天候、下半是你的前排／後排與手牌。點一張牌看說明、再點一次（或按「出牌」）打出。
 import Phaser from 'phaser';
 import { loadChoices, rivalEcho } from '../choices';
+import { loadEncounters, rivalEncounterEcho } from '../encounters';
 import { SFX } from '../../audio/sfx';
 import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
@@ -99,6 +100,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   let sel = -1;
   let busy = false;
   const helloEcho = Math.random() < 0.6; // 這次打開面板要不要說抉擇的那句（D-157）
+  const echoPick = Math.random();
   let lastLog = '';
   /** 這場下注贏到的牌 */
   let prizeCard: string | undefined;
@@ -281,7 +283,9 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
 
   function lobby(items: Phaser.GameObjects.GameObject[]): void {
     const st = stats();
-    const echo = rivalEcho(who.id, loadChoices()); // 抉擇的回聲（D-157）
+    // 抉擇（D-157）與路上的相遇（D-159）的回聲：兩句都有的話隨機挑一句
+    const echoes = [rivalEcho(who.id, loadChoices()), rivalEncounterEcho(who.id, loadEncounters())].filter((x): x is string => !!x);
+    const echo = echoes.length ? echoes[Math.floor(echoPick * echoes.length)]! : null;
     items.push(scene.add.text(30, -545, `${who.short}：${echo && helloEcho ? echo : who.hello}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', wordWrap: { width: 520, useAdvancedWrap: true } }).setOrigin(0.5));
     // 對手：三個頁籤；不在這張地圖的對手顯示去哪裡找（D-129）
     here = opponentsAt(ctx.map, secretOpen());

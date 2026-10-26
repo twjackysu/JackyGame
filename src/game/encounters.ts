@@ -123,3 +123,17 @@ export function openEncounters(cur: Record<string, EncounterState>, map: string)
 
 /** 回禮的總價值（金幣＋結晶×40）要比「取」高：做好事要有回報（測試用） */
 export const worth = (r: { coin?: number; crystal?: number }): number => (r.coin ?? 0) + (r.crystal ?? 0) * 40;
+
+/** 燼牌對手對相遇的一句開場白（D-159）：對手 id → 他所在地圖的相遇；沒選過回 null */
+const RIVAL_ENC: Record<string, { id: string; take: string; spare: string }> = {
+  merchant: { id: 'mw_hunter', take: '「那個獵人小鬼一拐一拐地回來了……錢袋是空的。」', spare: '「獵人小鬼的狗找到了，天天在營火邊轉。」' },
+  vela: { id: 'tv_mule', take: '「有頭騾子拖著荊棘回到村裡，貨袋破了……」', spare: '「商隊的老灰平安回來了，大家都在說你。」' },
+  goran: { id: 'er_miner', take: '「有個礦工在對岸困了兩天，才被同伴救出來……哼。」', spare: '「那個礦工是我徒弟。替我謝謝你，年輕人。」' },
+};
+
+export function rivalEncounterEcho(rival: string, cur: Record<string, EncounterState>): string | null {
+  const r = RIVAL_ENC[rival];
+  const v = r ? cur[r.id] : undefined;
+  if (!r || !v) return null;
+  return v === 'take' ? r.take : r.spare;
+}
