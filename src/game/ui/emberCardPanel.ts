@@ -376,7 +376,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       if (k >= 0) finalLeft.splice(k, 1);
       return k < 0;
     });
-    items.push(scene.add.text(30, -545, '點一張牌：帶上場 ⇄ 留在箱子裡', { fontFamily: UI_FONT, fontSize: '20px', color: '#e8c8a0' }).setOrigin(0.5));
+    items.push(scene.add.text(30, -545, '點一張牌看說明，再點一次：帶上場 ⇄ 留在箱子裡', { fontFamily: UI_FONT, fontSize: '20px', color: '#e8c8a0' }).setOrigin(0.5));
     const cols = 7;
     owned.forEach(({ id }, i) => {
       const x = ((i % cols) - (cols - 1) / 2) * 98;
@@ -385,10 +385,17 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       const col = cardColor(id);
       const off = marks[i]!;
       const cut = trimmed[i]!;
-      const bg = scene.add.rectangle(x, y, 88, 120, col.fill, off ? 0.35 : 1).setStrokeStyle(3, off ? 0x4a4038 : cut ? 0x8a7a6a : col.edge, 1);
+      const peek = deckPeek === id;
+      const bg = scene.add.rectangle(x, y, 88, 120, col.fill, off ? 0.35 : 1).setStrokeStyle(peek ? 5 : 3, peek ? 0xffe08a : off ? 0x4a4038 : cut ? 0x8a7a6a : col.edge, 1);
       bg.setInteractive({ useHandCursor: true }).on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
         ev.stopPropagation();
-        deckPeek = id;
+        // 第 31 輪：第一次點只看說明（金框），同一張再點一次才切換帶上／留在箱子裡
+        if (deckPeek !== id) {
+          deckPeek = id;
+          SFX.uiTap();
+          render();
+          return;
+        }
         const s2 = stats();
         if (off) {
           const k = s2.off.indexOf(id);
