@@ -99,7 +99,8 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x080604, 0.95).setInteractive()];
     items.push(scene.add.text(0, -585, '營火行商', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     items.push(portrait);
-    items.push(scene.add.text(0, -538, `旅商莫托：${line}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0' }).setOrigin(0.5));
+    // 第 38 輪：往右挪、限寬自動換行，長的台詞（燼牌回聲、相遇）不再蓋到左邊的旅商
+    items.push(scene.add.text(50, -538, `旅商莫托：${line}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', wordWrap: { width: 520, useAdvancedWrap: true }, align: 'center', lineSpacing: -2 }).setOrigin(0.5));
     items.push(scene.add.text(0, -500, `金幣 ${coinOf(rec)}　粉塵 ${w.dust}　結晶 ${w.crystal}　背包 ${st.bag.length}/${BAG_MAX}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
     const tx = ctx.onCards ? 200 : 110;
     items.push(btn(-tx, -448, '買', () => {
