@@ -4,6 +4,9 @@ import { loadRecord, type RtRecord } from './rtRecord';
 import { loadMemories, MEMORIES } from './memories';
 import { ENCOUNTERS, loadEncounters } from './encounters';
 
+/** 通關演出「幫助過的人」只算主線三張圖的相遇（星隕高原是通關後才去的） */
+export const STORY_ENCOUNTERS = ENCOUNTERS.filter((e) => !WORLD_MAPS.find((m) => m.id === e.map)?.postGame);
+
 /** 序章（D-134）：前世的設定，和結語前後呼應 */
 export const PROLOGUE_LINES: readonly string[] = [
   '《星燼回響》——一款冷門的手機遊戲。',
@@ -84,7 +87,7 @@ export function loadFinaleStats(): FinaleStats {
     /* 無痕模式 */
   }
   const en = loadEncounters();
-  return finaleStats(recs, won, loadMemories().length, ENCOUNTERS.filter((e) => en[e.id] === 'spare' || en[e.id] === 'thanked').length);
+  return finaleStats(recs, won, loadMemories().length, STORY_ENCOUNTERS.filter((e) => en[e.id] === 'spare' || en[e.id] === 'thanked').length);
 }
 
 export function finaleSeen(): boolean {

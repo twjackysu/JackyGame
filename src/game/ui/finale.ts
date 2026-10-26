@@ -1,7 +1,6 @@
 // 通關演出（第 29 輪，D-133）：第一次打倒最後一張大地圖的 Boss 後播放——
 // 結語、「第一章・完」、這趟旅程的紀錄（三位 Boss 的首殺日期與最快時間、等級、擊殺…）、製作名單、繼續冒險。
 // 純畫面：不動核心、不寫戰鬥存檔，只記 `jg_finale_seen`。標題「回顧結局」可以重看。
-import { ENCOUNTERS } from '../encounters';
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { playMusic } from '../../audio/music';
@@ -9,7 +8,7 @@ import { GAME_WIDTH, GAME_HEIGHT, TALL } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { highFx } from '../settings';
 import { fmtSec } from '../rtRecord';
-import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, fmtPlay, markFinaleSeen, MEMORY_TOTAL, markPrologueSeen, type FinaleStats } from '../finaleStats';
+import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, fmtPlay, markFinaleSeen, MEMORY_TOTAL, markPrologueSeen, STORY_ENCOUNTERS, type FinaleStats } from '../finaleStats';
 import { FINALE_MAP, worldMap } from '../worldMaps';
 import { loadChoices, withEpilogue } from '../choices';
 export { finaleSeen, loadFinaleStats, prologueSeen } from '../finaleStats';
@@ -168,7 +167,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
       ['寶箱', `${stats.chests}`],
       ['燼牌勝場', `${stats.cardsWon}`],
       ['前世的記憶', `${stats.memories}/${MEMORY_TOTAL}`],
-      ...(stats.helped !== undefined ? ([['幫助過的人', `${stats.helped}/${ENCOUNTERS.length}`]] as [string, string][]) : []),
+      ...(stats.helped !== undefined ? ([['幫助過的人', `${stats.helped}/${STORY_ENCOUNTERS.length}`]] as [string, string][]) : []),
     ];
     // 四位 Boss（打倒過星隕高原）時卡片排到 ~810，統計往下移，不要疊在一起
     const top = Math.max(790, 300 + stats.bosses.length * 150 + 40);
