@@ -2289,7 +2289,7 @@ export class RtBattleScene extends Phaser.Scene {
         return;
       }
       if (this.s.weapon === 'staff') {
-        this.staffFx(p.x, p.y, ang, hs, sk.role === 'ult', sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, h.status?.id);
+        this.staffFx(p.x + ((h.ahead ?? 0) * a.dirX) / 1000, p.y + ((h.ahead ?? 0) * a.dirY) / 1000, ang, hs, sk.role === 'ult', sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, h.status?.id);
         return;
       }
       if (sk.dash) {
@@ -2506,6 +2506,20 @@ export class RtBattleScene extends Phaser.Scene {
     const k = this.s.tick - a.start;
     if (k > h.atTick) return;
     const hs = skillShape(this.s, a.id, h.shape);
+    if (hs.type === 'circle' && h.ahead) {
+      // 隕星術（D-155）：前方的落點圈，蓄力時跟著目標轉、鎖定後閃爍，內圈隨蓄力長大
+      const cx = this.sx(p.x + (h.ahead * a.dirX) / 1000);
+      const cy = this.sy(p.y + (h.ahead * a.dirY) / 1000);
+      const R = hs.r * this.k;
+      const locked = k >= sk.aimTicks;
+      const prog = Math.min(1, k / h.atTick);
+      const col = locked ? 0xffd0a0 : 0xc89aff;
+      g.fillStyle(col, locked ? 0.1 + 0.12 * (Math.floor(now / 70) % 2) : 0.08).fillCircle(cx, cy, R);
+      g.fillStyle(0xff8a3a, 0.22).fillCircle(cx, cy, R * prog);
+      g.lineStyle(2.5, col, locked ? 0.95 : 0.6).strokeCircle(cx, cy, R);
+      g.lineStyle(1.5, col, 0.5).lineBetween(cx - R * 0.3, cy, cx + R * 0.3, cy).lineBetween(cx, cy - R * 0.3, cx, cy + R * 0.3);
+      return;
+    }
     if (hs.type !== 'line') return;
     const ang = Math.atan2(a.dirY, a.dirX);
     const c = Math.cos(ang);

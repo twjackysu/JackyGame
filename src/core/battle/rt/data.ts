@@ -304,10 +304,10 @@ export const STAFF_SKILLS: Record<string, SkillDefinition> = {
     hits: [],
     block: { windowTicks: 30, reducePct: 100, counter: { atTick: 0, shape: { type: 'circle', r: u(3) }, mult: 200, status: { id: 'slow', ticks: sec(2) } } },
   },
-  // 隕星術（大招）：蓄力 1.2 秒，身邊 4 格砸下隕星 900%＋破甲；40 MP
+  // 隕星術（大招）：蓄力 1.2 秒（前 0.8 秒自動瞄準），在前方 3.5 格砸下隕星（範圍 3 格）900%＋破甲；40 MP（D-155：以前砸在自己身邊）
   blade_storm: {
-    id: 'blade_storm', name: '隕星術', cooldownTicks: sec(45), castTicks: sec(1.2), moveFactor: 0, role: 'ult', useRange: u(3.6), mp: 40,
-    hits: [{ atTick: sec(1.2) - 1, shape: { type: 'circle', r: u(4) }, mult: 900, status: { id: 'break', ticks: sec(6) } }],
+    id: 'blade_storm', name: '隕星術', cooldownTicks: sec(45), castTicks: sec(1.2), moveFactor: 0, role: 'ult', useRange: u(6), mp: 40, aimTicks: sec(0.8),
+    hits: [{ atTick: sec(1.2) - 1, shape: { type: 'circle', r: u(3) }, ahead: u(3.5), mult: 900, status: { id: 'break', ticks: sec(6) } }],
   },
 };
 
@@ -317,7 +317,7 @@ export const STAFF_DESC: Record<string, string> = {
   whirlwind: '身邊 2.8 格冰爆 130%，小怪冰凍 1.5 秒、Boss 減速；冷卻 10 秒',
   charge: '往前瞬移 5 格，落地爆一圈 140%＋減速；冷卻 6 秒',
   parry: '1 秒屏障、擋下不受傷，四面反擊 200%＋減速；冷卻 10 秒',
-  blade_storm: '蓄力 1.2 秒，身邊 4 格砸下隕星 900%＋破甲；40 MP',
+  blade_storm: '蓄力 1.2 秒（自動瞄準），在前方 3.5 格砸下隕星（範圍 3 格）900%＋破甲；40 MP',
 };
 
 /** 法杖的技能變化（滿 5 級切換；存檔與劍／弓共用 `skillVariants`） */

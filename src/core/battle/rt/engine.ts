@@ -1104,7 +1104,7 @@ function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillI
   const shape = skillShape(s, skillId, h.shape);
   for (const e of enemiesOf(s)) {
     if (h.oncePerTarget && a.hitIds?.includes(e.id)) continue;
-    if (!inShape(shape, p.x, p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
+    if (!inShape(shape, h.ahead ? p.x + Math.round((a.dirX * h.ahead) / DIR) : p.x, h.ahead ? p.y + Math.round((a.dirY * h.ahead) / DIR) : p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
     a.hitIds?.push(e.id);
     const dmgPct = s.skillMods?.[skillId]?.dmgPct ?? 0;
     dealDamage(s, p, e, dmgPct ? Math.round((h.mult * (100 + dmgPct)) / 100) : h.mult, origin, skillId);

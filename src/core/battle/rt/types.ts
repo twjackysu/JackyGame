@@ -63,6 +63,8 @@ export interface SkillHit {
   status?: StatusApply;
   /** 同一次施放中，同一個敵人最多被這一段打一次（衝鋒用） */
   oncePerTarget?: boolean;
+  /** 判定中心往施放方向前移（整數座標；法杖隕星術，D-155）。沒有＝以施放者為中心 */
+  ahead?: number;
 }
 
 /**
