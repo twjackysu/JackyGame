@@ -36,7 +36,12 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   const pickNow = withPick(ctx.rec(), weakestSlot(ctx.bag(), shopIlvl(ctx.level)));
   const pickSlot = cleanShop(pickNow.shop).pick;
   const pickLeft = shopStock(pickNow, ctx.level, ctx.region).some((g) => isPicked(g));
-  const line = pickSlot && pickLeft && Math.random() < 0.5 ? `「${SLOT_NAME[pickSlot]}該換了吧？特地幫你帶了一件。」` : LINES[Math.floor(Math.random() * LINES.length)]!;
+  // 抉擇（D-157）的回聲：還過東西的話，莫托偶爾會提起
+  const ch = loadChoices();
+  const spared = shopDiscountPct(ch) > 0;
+  const took = Object.values(ch).includes('take');
+  const echo = spared && Math.random() < 0.35 ? '「聽說你放過了牠們。這價錢，算我的心意。」' : took && Math.random() < 0.25 ? '「那顆發光的東西，你真的拿走了啊。」' : null;
+  const line = echo ?? (pickSlot && pickLeft && Math.random() < 0.5 ? `「${SLOT_NAME[pickSlot]}該換了吧？特地幫你帶了一件。」` : LINES[Math.floor(Math.random() * LINES.length)]!);
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24, off = false): Phaser.GameObjects.Text => {
