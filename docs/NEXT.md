@@ -16,11 +16,12 @@
 - 有頭有尾：序章 → 12 段前世的記憶（每張圖 3 段）→ 通關演出（`FINALE_MAP = 'emberrift'`）。☰ 紀錄有「下一個目標」＋等級不夠提示（`levelTip`）。
 - **截圖注意**：新的 localStorage 會先播序章——Playwright 腳本先 `localStorage.setItem('jg_prologue_seen','1')`；開放星隕高原要 `jg_rt_emberrift = {"bossKills":1}`。preview 網址是 `http://localhost:4173/?debug`（不是 /JackyGame/）。傳送玩家：`window.__rt.state().units[0].x/y = …`（格×100＋50）。要截墜星：把 `s.tick` 設成下一次落星前 26 tick，每 0.5 秒截一張（第 30 輪 `screenshots/r30e.mjs`，gitignored）。
 - 通關機器人 `tests/rt-campaign.test.ts`（新存檔→三個 Boss，不含星隕高原）。
+- **stateHash 基準換了**：第 30 輪 Bot 修正（D-141）讓 camp_clearing 4 場不同；下一輪比對請用第 30 輪最後的 commit 當舊版。
 
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～15 題）。
 2. **星隕高原第二輪（擇一或都做）**：
-   - 一個**真的新的機制**（現在墜星＝噴發口換皮）：例如「星光碎片」——墜星落地後留下 6 秒的發光碎片，玩家踩上去回 MP／短暫加速（核心要加：vent 落地產生暫時物件；只在有 `vents[].shard` 的關卡跑，舊關卡 stateHash 不變）。或守望者第二階段「召喚墜星」：在玩家腳下追加 1～2 個臨時落點。
+   - 星光碎片已做（D-141）。可再加：守望者第二階段「召喚墜星」（在玩家腳下追加 1～2 個臨時落點，核心要加臨時 vent）；Bot 會不會去撿碎片（現在不會，只影響數據）。
    - 深夜的高原專屬：深夜限定巡邏精英或夜光寶箱提示文字（目前沿用通用的夜光寶箱提示；`night` 已設）。
    - 守望者／魔像的程式美術再精緻一點（現在近看是晶石塊），或在 ART_REQUESTS 排一張（GPT 剩 1，要先問 Jacky——已寫在 FOR_JACKY 第 15 題）。
 3. **打磨期（11/4 起功能凍結）之前的檢查**：手機效能（四張圖都開環境粒子＋晶簇材質，看 `GROUND_CHUNK` 材質數量）、標題六顆按鈕在小螢幕的排版、README 截圖是否需要重拍。
@@ -35,7 +36,7 @@
 - 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 241 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 242 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
 - 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
 - **舊關卡雜湊比對**（核心改動必做）——**第 26 輪起的做法**：範本存在 `scripts/zz-hash.template.ts.txt`（90 場），複製成 `tests/zz-hash.test.ts`；`git worktree add /tmp/claude-0/old <本輪開頭 commit>`＋`ln -s $PWD/node_modules /tmp/claude-0/old/node_modules`，兩邊各跑一次（`HASH_OUT=/tmp/claude-0/hash-old.txt` / `hash-new.txt`）再 `diff`，最後 `git worktree remove --force`。以下是舊說明：（`tests/zz-hash.test.ts` 不在 git，新 session 要照範本重寫）：第 24 輪起含荊棘谷共 90 場（荊棘谷用 `level: 6`＋`advanceTo: THORNVALE_QUEEN`、300 秒）；第 19 輪的範本在 PROGRESS 第 19 輪；寫暫時的 vitest（檔名 `tests/zz-*.test.ts`，已 gitignore；第 21 輪的 `zz-hash` 範本見 PROGRESS 第 19 輪），把 `Object.keys(STAGES)`＋霧語森林／測試大地圖 × 種子 1–3 × novice／normal／expert 的 `stateHash` 寫進檔案（共 81 場），`git stash push -- <改過的核心檔>` 前後各跑一次 diff。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。
