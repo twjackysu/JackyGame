@@ -1,6 +1,6 @@
 // 技能點（D-110）：每升一級得 1 點，自由點在五個技能上（每個最多 5 級），隨時免費重置。
 // 純資料函式（有測試）；存在霧語森林獨立紀錄 `RtRecord.skills`。效果用核心既有的 SkillMod（和裝備特效相加、照上限截斷）。
-import { SKILL_VARIANTS, SKILL_VARIANTS_B, variantB } from '../core/battle/rt/data';
+import { BOW_VARIANTS_B, SKILL_VARIANTS, SKILL_VARIANTS_B, variantB } from '../core/battle/rt/data';
 import { SKILL_MOD_CAPS, type SkillMod } from '../core/battle/rt/types';
 
 export const SKILL_MAX_RANK = 5;
@@ -72,8 +72,8 @@ export function toggleVariant(v: readonly string[], id: string, r: SkillRanks, b
   if (!SKILL_VARIANTS[id] || (r[id] ?? 0) < SKILL_MAX_RANK) return null;
   const i = variantIndex(v, id);
   const rest = v.filter((x) => x !== id && x !== variantB(id));
-  // 長弓（D-148）只有一種變化：原招 ⇄ 變化
-  const next = i === 0 || (bow && i === 2) ? id : i === 1 && !bow && SKILL_VARIANTS_B[id] ? variantB(id) : null;
+  // 長弓也有變化二（D-149）：原招 → 變化 → 變化二 → 原招
+  const next = i === 0 ? id : i === 1 && (bow ? BOW_VARIANTS_B[id] : SKILL_VARIANTS_B[id]) ? variantB(id) : null;
   return (next ? [...rest, next] : rest).sort();
 }
 

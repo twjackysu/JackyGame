@@ -1,6 +1,6 @@
 // 長弓（D-147）：第二種武器。技能欄同一組 id、招式整組換掉；沒選長弓時結果跟以前完全一樣。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ARCHER, BOW_SKILLS, BOW_VARIANTS, SKILLS, STAGES, SWORDSMAN } from '../src/core/battle/rt/data';
+import { ARCHER, BOW_SKILLS, BOW_VARIANTS, BOW_VARIANTS_B, SKILLS, STAGES, SWORDSMAN } from '../src/core/battle/rt/data';
 import { blockWindow, createBattle, dashDistance, playerDef, setBossFury, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
 import { toggleVariant } from '../src/game/rtSkills';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
@@ -31,9 +31,9 @@ describe('長弓（D-147）', () => {
     expect(skillDef(s, 'charge')!.name).toBe('後躍射擊');
     expect(dashDistance(s, 'charge')).toBe(-u(3.5));
     expect(s.units[0]!.maxHp).toBeLessThan(createBattle({ stageId: 'mistwood', seed: 1 }).units[0]!.maxHp);
-    // 劍的變化二在弓這裡＝原招（弓只有一種變化，D-148）
+    // 變化二（D-149）：`:b` 在弓這裡是弓自己的變化二
     const v = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow', skillVariants: ['heavy_slash:b'] });
-    expect(skillDef(v, 'heavy_slash')!.name).toBe('穿雲箭');
+    expect(skillDef(v, 'heavy_slash')!.name).toBe('燼火箭');
   });
 
   it('後躍射擊：先射、再往面向的反方向跳 3.5 格', () => {
@@ -93,7 +93,7 @@ describe('長弓（D-147）', () => {
     out(`\n[星骸守望者 Lv14＋裝備]\n${rows.join('\n')}`);
   }, 300000);
 
-  it('長弓的技能變化（D-148）：五招都有、名字不同；原招 ⇄ 變化（沒有變化二）；進到戰鬥', () => {
+  it('長弓的技能變化（D-148／149）：五招都有、名字不同；原招 → 變化 → 變化二 → 原招；進到戰鬥', () => {
     for (const id of SWORDSMAN.skills) {
       const b = BOW_VARIANTS[id]!;
       expect(b.id).toBe(id);
@@ -103,8 +103,8 @@ describe('長弓（D-147）', () => {
     const r = { heavy_slash: 5, parry: 5 };
     const a = toggleVariant([], 'heavy_slash', r, true)!;
     expect(a).toEqual(['heavy_slash']);
-    expect(toggleVariant(a, 'heavy_slash', r, true)).toEqual([]);
-    expect(toggleVariant(['heavy_slash:b'], 'heavy_slash', r, true)).toEqual(['heavy_slash']);
+    expect(toggleVariant(a, 'heavy_slash', r, true)).toEqual(['heavy_slash:b']);
+    expect(toggleVariant(['heavy_slash:b'], 'heavy_slash', r, true)).toEqual([]);
     const s = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow', skillVariants: ['charge', 'parry'] });
     expect(skillDef(s, 'charge')!.name).toBe('霜箭後躍');
     expect(dashDistance(s, 'charge')).toBe(-u(4));
@@ -122,5 +122,60 @@ describe('長弓（D-147）', () => {
       expect((s.bossKills ?? []).length).toBeGreaterThan(0);
     }
     out(`\n[長弓變化 暴怒狼王 Lv11]\n${rows.join('\n')}`);
+  }, 300000);
+
+  it('長弓的變化二（D-149）：每招帶狀態／形狀不同；燼火箭灼燒、蝕毒中毒、殘月虛弱、環形箭雨貼身打不到', () => {
+    const names = new Set<string>();
+    for (const id of SWORDSMAN.skills) {
+      const b = BOW_VARIANTS_B[id]!;
+      expect(b.id).toBe(id);
+      expect(b.desc.length).toBeGreaterThan(10);
+      names.add(b.name).add(BOW_VARIANTS[id]!.name).add(BOW_SKILLS[id]!.name);
+    }
+    expect(names.size).toBe(15);
+    // 燼火箭：射中前方的狼 → 牠身上有灼燒、之後持續掉血
+    const s = createBattle({ stageId: 'mistwood', seed: 2, weapon: 'bow', skillVariants: ['heavy_slash:b', 'whirlwind:b'] });
+    const p = s.units[0]!;
+    const w = s.units.find((x) => x.defId === 'wolf')!;
+    p.x = w.x; p.y = w.y + u(3); w.mode = 'combat'; w.homeX = w.x; w.homeY = w.y; // 離開營火（安全範圍裡怪會脫戰）
+    p.facingX = 0; p.facingY = -1000;
+    step(s, [{ type: 'skill', id: 'heavy_slash' }]);
+    for (let i = 0; i < sec(0.5); i++) step(s, []);
+    expect(w.statuses.some((q) => q.id === 'burn')).toBe(true);
+    const hp = w.hp;
+    for (let i = 0; i < sec(1.1); i++) step(s, []);
+    expect(w.hp).toBeLessThan(hp);
+    // 環形箭雨：貼身（1 格）的怪打不到、3.5 格的打得到
+    const t = createBattle({ stageId: 'mistwood', seed: 2, weapon: 'bow', skillVariants: ['whirlwind:b'] });
+    const q = t.units[0]!;
+    const [near, far] = t.units.filter((x) => x.defId === 'wolf');
+    const pin = () => { near!.x = near!.homeX = q.x + u(1); near!.y = near!.homeY = q.y; far!.x = far!.homeX = q.x - u(3.5); far!.y = far!.homeY = q.y; };
+    q.x = far!.x + u(3.5); q.y = far!.y; // 離開營火
+    pin(); near!.mode = 'combat'; far!.mode = 'combat';
+    const h0 = [near!.hp, far!.hp];
+    t.units.filter((x) => x.side === 'enemy' && x !== near && x !== far).forEach((x) => { x.x = 0; x.y = 0; });
+    step(t, [{ type: 'skill', id: 'whirlwind' }]);
+    for (let i = 0; i < sec(0.9); i++) { pin(); step(t, []); }
+    expect(near!.hp).toBe(h0[0]);
+    expect(far!.hp).toBeLessThan(h0[1]!);
+    // 蝕毒、殘月：進到戰鬥的技能定義
+    const v = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow', skillVariants: ['charge:b', 'parry:b', 'blade_storm:b'] });
+    expect(skillDef(v, 'charge')!.hits[0]!.status?.id).toBe('poison');
+    expect(dashDistance(v, 'charge')).toBe(-u(3.5));
+    expect(blockWindow(v, 'parry')).toBe(15);
+    expect(skillDef(v, 'blade_storm')!.moveFactor).toBeGreaterThan(0);
+  });
+
+  it('長弓＋變化二：普通 Bot Lv11 打倒暴怒狼王', () => {
+    const rows: string[] = [];
+    for (const vars of [['heavy_slash:b', 'whirlwind:b', 'charge:b'], ['parry:b', 'blade_storm:b']]) {
+      const s = createBattle({ stageId: 'mistwood', seed: 1, level: 11, bonus: { hp: 300, atk: 30, def: 15 }, weapon: 'bow', skillVariants: vars });
+      setBossFury(s, true);
+      const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
+      while (s.outcome === 'running' && !(s.bossKills ?? []).length && s.tick < sec(1200)) step(s, bot.decide(s));
+      rows.push(`${vars.join('＋')}：${(s.bossKills ?? []).length ? '打倒' : '沒打倒'} ${Math.round(s.tick / 30)} 秒、倒 ${s.revives ?? 0}`);
+      expect((s.bossKills ?? []).length).toBeGreaterThan(0);
+    }
+    out(`\n[長弓變化二 暴怒狼王 Lv11]\n${rows.join('\n')}`);
   }, 300000);
 });

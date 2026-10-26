@@ -70,7 +70,7 @@ export const BOW_SKILLS: Record<string, SkillDefinition> = {
   },
 };
 
-/** 長弓的技能變化（D-148）：滿 5 級切換；存檔沿用劍的 `skillVariants`（同一個 id＝第一種變化），弓沒有變化二 */
+/** 長弓的技能變化（D-148）：滿 5 級切換；存檔沿用劍的 `skillVariants`（同一個 id＝第一種變化）；變化二見 BOW_VARIANTS_B（D-149） */
 export const BOW_VARIANTS: Record<string, SkillDefinition & { variantName: string; desc: string }> = {
   // 貫星狙擊：蓄力 0.7 秒（前 0.4 秒自動瞄準）、9 格細長一箭 330%；冷卻 7s
   heavy_slash: {
@@ -103,6 +103,45 @@ export const BOW_VARIANTS: Record<string, SkillDefinition & { variantName: strin
     id: 'blade_storm', name: '天穹一矢', variantName: '天穹一矢', desc: '瞄準 0.7 秒，一箭 10 格寬光 800%＋破甲 8 秒；40 MP',
     cooldownTicks: sec(45), castTicks: sec(0.9), moveFactor: 0, role: 'ult', useRange: u(6), mp: 40, aimTicks: sec(0.7),
     hits: [{ atTick: sec(0.9) - 1, shape: { type: 'line', len: u(10), width: u(2.6) }, mult: 800, status: { id: 'break', ticks: sec(8) } }],
+  },
+};
+
+/**
+ * 長弓的第二種變化（D-149，第 33 輪）：和劍一樣「原招 → 變化 → 變化二 → 原招」輪流切換，存檔寫 `${id}:b`（劍和弓共用同一份選擇）。
+ * 主題是「帶狀態的箭」：灼燒、毒、虛弱，加上只打外圈的箭雨（逼你保持距離）與邊跑邊下的星雨。
+ */
+export const BOW_VARIANTS_B: Record<string, SkillDefinition & { variantName: string; desc: string }> = {
+  // 燼火箭：6 格穿透 150%＋灼燒 4 秒（每秒 30%，最多 3 層）；冷卻 4s
+  heavy_slash: {
+    id: 'heavy_slash', name: '燼火箭', variantName: '燼火箭', desc: '6 格穿透火箭 150%，打中的敵人「灼燒」4 秒（每秒 30%，可疊 3 層）；冷卻 4 秒',
+    cooldownTicks: sec(4), castTicks: sec(0.35), moveFactor: 0, role: 'single', useRange: u(5.5),
+    hits: [{ atTick: sec(0.35) - 1, shape: { type: 'line', len: u(6), width: u(0.9) }, mult: 150, status: { id: 'burn', ticks: sec(4), powerPct: 30 } }],
+  },
+  // 環形箭雨：身邊 2～5 格的環形落兩波 2×110%＋減速（貼身的打不到）；施放中能慢慢走；冷卻 8s
+  whirlwind: {
+    id: 'whirlwind', name: '環形箭雨', variantName: '環形箭雨', desc: '箭雨落在身邊 2～5 格的環上（貼身的打不到），兩波各 110%＋減速；冷卻 8 秒',
+    cooldownTicks: sec(8), castTicks: sec(0.8), moveFactor: 0.4, role: 'aoe', useRange: u(4.5),
+    hits: [0, 1].map((k) => ({ atTick: sec(0.4) * (k + 1) - 1, shape: { type: 'ring' as const, rIn: u(2), rOut: u(5) }, mult: 110, status: { id: 'slow' as const, ticks: sec(1.5) } })),
+  },
+  // 蝕毒後躍：射一箭 100%＋中毒 5 秒（每秒 20%，可疊），往後跳 3.5 格；冷卻 5s
+  charge: {
+    id: 'charge', name: '蝕毒後躍', variantName: '蝕毒後躍', desc: '毒箭 100%＋「中毒」5 秒（每秒 20%，可疊 5 層），往後跳 3.5 格；冷卻 5 秒',
+    cooldownTicks: sec(5), castTicks: sec(0.4), moveFactor: 0, role: 'gap', useRange: u(2.5),
+    dash: { fromTick: 2, ticks: sec(0.25), distance: -u(3.5) },
+    hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 90 }, mult: 100, status: { id: 'poison', ticks: sec(5), powerPct: 20 } }],
+  },
+  // 殘月見切：窗口 0.5 秒、無傷，反擊前方 4.5 格大扇形 240%＋虛弱 4 秒；冷卻 8s
+  parry: {
+    id: 'parry', name: '殘月見切', variantName: '殘月見切', desc: '見切 0.5 秒、擋下不受傷，前方 4.5 格扇形反擊 240%＋「虛弱」4 秒；冷卻 8 秒',
+    cooldownTicks: sec(8), castTicks: sec(0.7), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 15, reducePct: 100, counter: { atTick: 0, shape: { type: 'sector', r: u(4.5), deg: 140 }, mult: 240, status: { id: 'weak', ticks: sec(4) } } },
+  },
+  // 流星箭雨（大招）：2 秒內身邊 4.5 格落 10 波 70%（共 700%）＋減速，可以邊跑邊下（60%）；40 MP
+  blade_storm: {
+    id: 'blade_storm', name: '流星箭雨', variantName: '流星箭雨', desc: '2 秒內身邊 4.5 格落下 10 波星箭（每波 70%）＋減速，可以邊跑邊下；40 MP',
+    cooldownTicks: sec(45), castTicks: sec(2.0), moveFactor: 0.6, role: 'ult', useRange: u(4), mp: 40,
+    hits: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => ({ atTick: 6 * (k + 1) - 1, shape: { type: 'circle' as const, r: u(4.5) }, mult: 70, status: { id: 'slow' as const, ticks: sec(1) } })),
   },
 };
 

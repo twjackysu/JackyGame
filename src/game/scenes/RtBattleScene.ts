@@ -1652,7 +1652,7 @@ export class RtBattleScene extends Phaser.Scene {
         const cs0 = pd?.block?.counter.shape;
         const cs = cs0 && skillShape(this.s, 'parry', cs0);
         const ang = Math.atan2(p.facingY, p.facingX);
-        if (cs && this.s.weapon === 'bow' && cs.type !== 'line') this.bowFx(p.x, p.y, ang, cs, false, false, false); // 流光見切（D-148）：四面射出
+        if (cs && this.s.weapon === 'bow' && cs.type !== 'line') this.bowFx(p.x, p.y, ang, cs, false, false, false, false, pd?.block?.counter.status?.id); // 流光見切（D-148）：四面射出；殘月見切（D-149）：紫色扇形
         else if (cs?.type === 'sector') this.slash(p.x, p.y, ang, cs.r, cs.deg + 30, 0x7dffb0, 10);
         else if (cs?.type === 'circle') {
           this.spin(p.x, p.y, cs.r, 0xffd27a, (this.time.now / 90) % (Math.PI * 2));
@@ -2258,7 +2258,7 @@ export class RtBattleScene extends Phaser.Scene {
       const big = h.mult >= 150;
       const hs = skillShape(this.s, a.id, h.shape); // 裝備的範圍特效（D-098）
       if (this.s.weapon === 'bow') {
-        this.bowFx(p.x, p.y, ang, hs, sk.role === 'ult', !!sk.dash, h.status?.id === 'break', h.status?.id === 'freeze');
+        this.bowFx(p.x, p.y, ang, hs, sk.role === 'ult', !!sk.dash, h.status?.id === 'break', h.status?.id === 'freeze', h.status?.id);
         return;
       }
       if (sk.dash) {
@@ -2771,9 +2771,23 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 長弓技能的畫面（D-147）：直線＝光箭、扇形＝一排扇形的箭（後躍射擊多一道往後的殘影）、圓＝四面射出 */
-  private bowFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, leap: boolean, brk: boolean, frost = false): void {
+  private bowFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, leap: boolean, brk: boolean, frost = false, st?: string): void {
+    // 變化二的箭（D-149）：灼燒＝火箭、中毒＝綠毒箭、虛弱＝紫色殘月
+    const elem = st === 'burn' ? 0xff8a3a : st === 'poison' ? 0xa8ff6a : st === 'weak' ? 0xc8a0ff : 0;
+    if (hs.type === 'ring' || (ult && hs.type === 'circle')) {
+      // 環形箭雨／流星箭雨（D-149）：箭從天上落進範圍
+      this.arrowRain(x, y, hs.type === 'ring' ? hs.rIn : 0, hs.type === 'ring' ? hs.rOut : hs.r, ult ? 0xff9ae0 : 0x9fe0ff, ult ? 5 : 12, ult);
+      return;
+    }
     if (hs.type === 'line') {
-      this.arrowBeam(x, y, ang, hs.len, hs.width, ult ? 0xff9ae0 : brk ? 0xff8a6a : 0x9fe0ff, ult);
+      this.arrowBeam(x, y, ang, hs.len, hs.width, ult ? 0xff9ae0 : brk ? 0xff8a6a : elem || 0x9fe0ff, ult);
+      if (st === 'burn') {
+        // 燼火箭：沿著箭道留下一串火星
+        for (let i = 1; i <= 5; i++) {
+          const d = (hs.len * i) / 5;
+          this.time.delayedCall(i * 22, () => sparks(this, this.sx(x + Math.cos(ang) * d), this.sy(y + Math.sin(ang) * d) - 20, 5, 'ember', 0xff9a3a, 520));
+        }
+      }
       if (ult && brk) {
         this.cameras.main.flash(120, 255, 180, 240);
         this.hitStop = Math.max(this.hitStop, 120);
@@ -2787,7 +2801,19 @@ export class RtBattleScene extends Phaser.Scene {
       const a = hs.type === 'sector' ? ang - span / 2 + (span * i) / (n - 1) : ang + (span * i) / n;
       const ex = x + Math.cos(a) * r;
       const ey = y + Math.sin(a) * r;
-      this.time.delayedCall(i * 12, () => this.arrowShot(x, y, ex, ey, frost ? 0xbff4ff : leap ? 0xc8f0a0 : 0x9fe0ff));
+      this.time.delayedCall(i * 12, () => this.arrowShot(x, y, ex, ey, elem || (frost ? 0xbff4ff : leap ? 0xc8f0a0 : 0x9fe0ff)));
+    }
+    if (st === 'poison' || st === 'weak') {
+      // 蝕毒後躍＝前方一團綠色毒霧；殘月見切＝一道紫色弧月
+      const fx = this.sx(x) + Math.cos(ang) * r * 0.6 * this.k;
+      const fy = this.sy(y) + Math.sin(ang) * r * 0.6 * this.k;
+      if (st === 'poison') {
+        for (let i = 0; i < 5; i++) {
+          const puff = this.add.circle(fx + (Math.random() - 0.5) * 60, fy + (Math.random() - 0.5) * 40, 18 + Math.random() * 14, 0x7ad04a, 0.45).setDepth(689);
+          this.tweens.add({ targets: puff, scale: 2.2, alpha: 0, y: puff.y - 30, duration: 700 + i * 80, ease: 'Cubic.easeOut', onComplete: () => puff.destroy() });
+        }
+        sparks(this, fx, fy, 10, 'spark', 0xc8ff8a, 500);
+      } else this.slash(x, y, ang, r, span * (180 / Math.PI) + 20, 0xc8a0ff, 9);
     }
     if (frost) {
       // 霜箭後躍（D-148）：前方一團寒氣
@@ -2802,6 +2828,32 @@ export class RtBattleScene extends Phaser.Scene {
       shockRing(this, this.sx(x), this.sy(y), 0xc8f0a0, 70, 260, 5);
       sparks(this, this.sx(x), this.sy(y), 8, 'spark', 0xe0ffd0, 300);
     }
+  }
+
+  /** 箭雨（D-149）：n 支箭從右上的天空斜斜落進 rIn～rOut 的範圍，落地迸出小火花；大招版是粉紅的星箭、落地多一圈光 */
+  private arrowRain(x: number, y: number, rIn: number, rOut: number, color: number, n: number, star: boolean): void {
+    if (this.time.now - this.lastBowSfx > 60) {
+      this.lastBowSfx = this.time.now;
+      SFX.bowShot();
+    }
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = rIn + Math.sqrt(Math.random()) * (rOut - rIn);
+      const tx = this.sx(x + Math.cos(a) * d);
+      const ty = this.sy(y + Math.sin(a) * d);
+      const g = this.add.graphics().setDepth(692).setBlendMode(Phaser.BlendModes.ADD);
+      const H = 260 + Math.random() * 80;
+      g.lineStyle(star ? 7 : 4, color, star ? 0.5 : 0.4).lineBetween(0, 0, 70, -H * 0.5);
+      g.lineStyle(2, 0xffffff, 0.95).lineBetween(0, 0, 40, -H * 0.28);
+      g.fillStyle(0xffffff, 1).fillCircle(0, 0, star ? 6 : 3.5);
+      g.setPosition(tx + H * 0.25, ty - H * 0.9).setAlpha(0.2);
+      this.tweens.add({ targets: g, x: tx, y: ty, alpha: 1, duration: 150 + i * 14, delay: i * 26, ease: 'Quad.easeIn', onComplete: () => {
+        g.destroy();
+        sparks(this, tx, ty, star ? 7 : 4, 'spark', color, 300);
+        if (star) shockRing(this, tx, ty, color, 46, 260, 4);
+      } });
+    }
+    if (rIn > 0) shockRing(this, this.sx(x), this.sy(y), color, rOut * this.k, 360, 3);
   }
 
   /** 星落一閃（D-112）：天上落下的光柱＋落地衝擊環 */

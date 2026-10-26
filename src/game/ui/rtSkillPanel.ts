@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
-import { BOW_DESC, BOW_SKILLS, BOW_VARIANTS, SKILL_VARIANTS, SKILL_VARIANTS_B } from '../../core/battle/rt/data';
+import { BOW_DESC, BOW_SKILLS, BOW_VARIANTS, BOW_VARIANTS_B, SKILL_VARIANTS, SKILL_VARIANTS_B } from '../../core/battle/rt/data';
 import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, skillPoints, toggleVariant, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
 
 /** 開面板；每次改動呼叫 change（呼叫端存檔＋套用；v＝選了變化的技能，D-112），關閉時呼叫 done。回傳的容器由呼叫端銷毀 */
@@ -27,17 +27,16 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     const left = skillPoints(level) - usedPoints(r);
     const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.84).setInteractive()];
     items.push(scene.add.text(0, -520, '技能點', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
-    items.push(scene.add.text(0, -480, bow ? '長弓：技能點與劍共用・滿 5 級可以切換一種「變化」' : '技能滿 5 級可以切換兩種「變化」：同一顆按鈕換一種招式', { fontFamily: UI_FONT, fontSize: '19px', color: '#ffb6f0' }).setOrigin(0.5));
+    items.push(scene.add.text(0, -480, bow ? '長弓：技能點與劍共用・滿 5 級可以切換兩種「變化」' : '技能滿 5 級可以切換兩種「變化」：同一顆按鈕換一種招式', { fontFamily: UI_FONT, fontSize: '19px', color: '#ffb6f0' }).setOrigin(0.5));
     items.push(scene.add.text(0, -448, `Lv ${level}・剩 ${left} 點（每升一級 +1，可以隨時免費重置）`, { fontFamily: UI_FONT, fontSize: '22px', color: left > 0 ? '#9fff9a' : '#c8d0f0' }).setOrigin(0.5));
     SKILL_TREE.forEach((t, i) => {
       const y = -360 + i * 140;
       const rank = r[t.id] ?? 0;
       items.push(scene.add.rectangle(0, y, 640, 120, 0x1a140c, 0.9).setStrokeStyle(2, rank ? 0xffd27a : 0x5a4a30, 0.8));
-      // 長弓（D-147）：弓的招式沒有變化版
+      // 長弓（D-147）：弓有自己的兩種變化（D-148／149）
       const alt0 = bow ? BOW_VARIANTS[t.id] : SKILL_VARIANTS[t.id];
-      const altB = bow ? undefined : SKILL_VARIANTS_B[t.id];
-      const vi0 = variantIndex(v, t.id);
-      const vi = bow && vi0 === 2 ? 0 : vi0; // 長弓沒有變化二（D-148）：劍選的變化二在弓這裡＝原招
+      const altB = bow ? BOW_VARIANTS_B[t.id] : SKILL_VARIANTS_B[t.id];
+      const vi = variantIndex(v, t.id);
       const alt = vi === 2 ? altB : alt0; // 現在選的變化（D-121：第二種變化）
       const on = vi > 0;
       items.push(scene.add.text(-300, y - 30, on && alt ? `${bow ? (BOW_SKILLS[t.id]?.name ?? t.name) : t.name} → ${alt.variantName}` : bow ? (BOW_SKILLS[t.id]?.name ?? t.name) : t.name, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: on ? '#ffb6f0' : '#ffffff' }).setOrigin(0, 0.5));
