@@ -1095,8 +1095,9 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** Boss 倒下（第 29 輪）：慢動作 1.4 秒＋從屍體放射出的光芒（地圖主色＋金色）慢慢轉、淡出 */
-  private bossRays(x: number, y: number, color: number): void {
-    this.slowMs = 1400;
+  private bossRays(x: number, y: number, color: number, long = true): void {
+    // 第 31 輪：只有第一次討伐（或第一次打倒暴怒版）放滿 1.4 秒；之後刷 Boss 只留 0.45 秒，不拖節奏
+    this.slowMs = long ? 1400 : 450;
     const g = this.add.graphics().setDepth(60).setBlendMode(Phaser.BlendModes.ADD).setPosition(x, y);
     const n = 12;
     for (let i = 0; i < n; i++) {
@@ -1660,7 +1661,11 @@ export class RtBattleScene extends Phaser.Scene {
           if (this.ventHit.get(d.id) === e.tick) this.ventKill(d.x, d.y);
           this.ventHit.delete(d.id);
           if (d.defId === 'thorn_queen' || d.defId === 'thorn_mother') this.thornWither(d.x, d.y, d.defId === 'thorn_queen');
-          if (ENEMIES[d.defId]?.boss && !this.bot) this.bossRays(this.sx(d.x), this.sy(d.y), Phaser.Display.Color.HexStringToColor(worldMap(this.stageId)?.color ?? '#ffd27a').color);
+          if (ENEMIES[d.defId]?.boss && !this.bot) {
+            const rec = this.tracked ? loadRecord(this.stageId) : {};
+            const long = d.fury ? !rec.furyKills : !rec.bossKills;
+            this.bossRays(this.sx(d.x), this.sy(d.y), Phaser.Display.Color.HexStringToColor(worldMap(this.stageId)?.color ?? '#ffd27a').color, long);
+          }
           if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(`${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]!.name}`, !!d.fury);
           else if (d.defId === 'thorn_mother') {
             // 荊棘母樹倒下（D-107）：綠色衝擊波＋葉片＋大字
