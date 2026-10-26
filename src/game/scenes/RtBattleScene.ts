@@ -1986,6 +1986,8 @@ export class RtBattleScene extends Phaser.Scene {
       }
       return box;
     };
+    // 省記憶體（第 31 輪）：一張大地圖的地面材質約 50MB（GPU），以前四張圖都留著；換圖時把別張圖的地面丟掉，回來再畫
+    for (const tk of this.textures.getTextureKeys()) if (tk.startsWith('rt_ground_') && tk !== key && !tk.startsWith(`${key}_`)) this.textures.remove(tk);
     if (this.textures.exists(chunkKey(0, 0))) return place();
     // 每塊各自重畫一次（Graphics.generateTexture 不吃物件位置，要用 translateCanvas 平移；同一個固定種子，所以每塊畫出同一張地圖）
     // 地圖色調（D-114）：荊棘谷是紅褐色乾土＋紫紅荊棘叢，其他沿用森林綠
