@@ -71,8 +71,8 @@
 | ![灼燒與中毒](docs/screenshots/68-burn-poison.jpg) | ![三種武器](docs/screenshots/69-weapon-pick-3.jpg) | ![隕星術](docs/screenshots/70-staff-meteor.jpg) |
 | **法杖的技能點與變化** | **冰霜新星（魔法陣＋寒氣）** | **隕星術的落點圈** |
 | ![法杖技能](docs/screenshots/71-staff-skills.jpg) | ![冰霜新星](docs/screenshots/72-staff-nova.jpg) | ![落點圈](docs/screenshots/74-meteor-aim.jpg) |
-| **行囊：武器名與圖示跟著武器** | | |
-| ![法杖行囊](docs/screenshots/73-staff-bag.jpg) | | |
+| **行囊：武器名與圖示跟著武器** | **虛空奇點（黑洞把光點吸進去）** | **時間凝滯（倒轉的時鐘）** |
+| ![法杖行囊](docs/screenshots/73-staff-bag.jpg) | ![虛空奇點](docs/screenshots/75-staff-void.jpg) | ![時間凝滯](docs/screenshots/76-staff-timestop.jpg) |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面（以及燼紅裂谷的熔渣史萊姆、燼心岩王，星隕高原的晶殼魔像、星骸守望者）是程式繪製，每張 AI 圖都有程式備援。
 
