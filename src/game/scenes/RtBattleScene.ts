@@ -307,7 +307,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.idleHinted = false;
     this.afterChoice = [];
     this.choiceMarkSaid = false;
-    { const p0 = playerOf(this.s); this.cub = this.tracked && !this.bot && this.stageId === 'mistwood' && loadChoices().mistwood === 'spare' ? { x: p0.x - UNIT, y: p0.y + UNIT, a: 0, t: 0, face: 1 } : null; }
+    { const p0 = playerOf(this.s); const kinds: Record<string, 'cub' | 'flower' | 'wisp'> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp' }; const kind = kinds[this.stageId]; this.cub = this.tracked && !this.bot && kind && loadChoices()[this.stageId] === 'spare' ? { x: p0.x - UNIT, y: p0.y + UNIT, a: 0, t: 0, face: 1, kind } : null; }
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
     this.chestHinted = new Set();
@@ -2696,7 +2696,7 @@ export class RtBattleScene extends Phaser.Scene {
    */
   private choiceMarkSaid = false;
   /** 霧中小狼（D-157：霧語森林選了「還」）：半透明、跟在你身後，戰鬥時躲進霧裡（變淡）。純畫面 */
-  private cub: { x: number; y: number; a: number; t: number; face: number } | null = null;
+  private cub: { x: number; y: number; a: number; t: number; face: number; kind: 'cub' | 'flower' | 'wisp' } | null = null;
   private drawCub(g: Phaser.GameObjects.Graphics, now: number): void {
     const c = this.cub;
     if (!c) return;
@@ -2725,6 +2725,27 @@ export class RtBattleScene extends Phaser.Scene {
     if (cx < -60 || cx > GAME_WIDTH + 60 || cy < VIEW_TOP - 80 || cy > VIEW_BOTTOM + 60) return;
     const k = this.k * 1.7;
     const moving = d > UNIT * 0.4;
+    if (c.kind !== 'cub') {
+      // 荊棘谷＝母樹的白花精（浮著轉）、燼紅裂谷＝燼心的小火靈（跳動的火球）
+      const bob = Math.sin(now / 400) * 6 * k;
+      const hy = cy - 40 * k + bob;
+      if (c.kind === 'flower') {
+        g.fillStyle(0xffffff, c.a * 0.3).fillCircle(cx, hy, 18 * k);
+        for (let q = 0; q < 5; q++) {
+          const an = (q / 5) * Math.PI * 2 + now / 900;
+          g.fillStyle(0xf8f4ff, c.a * 1.6 > 1 ? 1 : c.a * 1.6).fillEllipse(cx + Math.cos(an) * 7 * k, hy + Math.sin(an) * 6 * k, 10 * k, 8 * k);
+        }
+        g.fillStyle(0xffe08a, Math.min(1, c.a * 2)).fillCircle(cx, hy, 3.5 * k);
+      } else {
+        const beat = Math.max(0, Math.sin(now / 160)) ** 3;
+        g.fillStyle(0xff8a3a, c.a * 0.35).fillCircle(cx, hy, (16 + 4 * beat) * k);
+        g.fillStyle(0xff6a1a, Math.min(1, c.a * 1.8)).fillTriangle(cx - 7 * k, hy + 3 * k, cx + 7 * k, hy + 3 * k, cx + Math.sin(now / 120) * 3 * k, hy - 16 * k);
+        g.fillStyle(0xff6a1a, Math.min(1, c.a * 1.8)).fillCircle(cx, hy + 2 * k, 7 * k);
+        g.fillStyle(0xffd04a, Math.min(1, c.a * 2)).fillCircle(cx, hy + 2 * k, 3.5 * k);
+      }
+      g.fillStyle(0x000000, c.a * 0.3).fillEllipse(cx, cy, 20 * k, 6 * k);
+      return;
+    }
     const hop = moving ? Math.abs(Math.sin(now / 110)) * 5 * k : 0;
     const f = c.face;
     const a = c.a * (0.85 + 0.15 * Math.sin(now / 500));
