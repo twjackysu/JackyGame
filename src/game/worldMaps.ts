@@ -69,6 +69,9 @@ export const WORLD_MAPS: readonly WorldMap[] = [
   },
 ];
 
+/** 打倒這張圖的 Boss（第一次）會播通關演出（D-133）；之後加的挑戰地圖接在後面也不會改變結局 */
+export const FINALE_MAP = 'emberrift';
+
 export const worldMap = (id: string): WorldMap | undefined => WORLD_MAPS.find((m) => m.id === id);
 /** 開放這張圖的前一張（第一張回傳 undefined） */
 export const prevMap = (id: string): WorldMap | undefined => WORLD_MAPS.find((m) => m.next === id);

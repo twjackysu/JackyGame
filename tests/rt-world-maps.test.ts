@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../src/core/battle/rt/data';
 import { validateStage } from '../src/core/battle/rt/maps/validate';
 import { LINKED_MAPS, nextGoal } from '../src/game/rtRecord';
-import { prevMap, WORLD_MAPS, worldMap } from '../src/game/worldMaps';
+import { FINALE_MAP, prevMap, WORLD_MAPS, worldMap } from '../src/game/worldMaps';
 
 describe('大地圖登記表', () => {
   it('每張圖：地圖 id 對得上、驗證沒問題、Boss 巢穴有 Boss、文字欄位都有填', () => {
@@ -34,5 +34,8 @@ describe('大地圖登記表', () => {
     expect(nextGoal('thornvale', { bossKills: 1 }, 1, 0)).toBe('前往燼紅裂谷，打倒燼心岩王');
     expect(nextGoal('thornvale', { bossKills: 1 }, 1, 1)).toContain('開啟狼后暴怒');
     expect(nextGoal('thornvale', { bossKills: 9, furyKills: 1, fury: true }, 20, 1)).toBe('刷深夜的山谷、把裝備強化到 +10、挑戰最快討伐');
+  });
+  it('通關演出的地圖（D-133）是登記表裡的大地圖', () => {
+    expect(worldMap(FINALE_MAP)).toBeTruthy();
   });
 });

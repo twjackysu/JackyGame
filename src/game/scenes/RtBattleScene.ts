@@ -33,7 +33,7 @@ const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
-import { WORLD_MAPS, worldMap } from '../worldMaps';
+import { WORLD_MAPS, worldMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
@@ -1042,7 +1042,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `解鎖：深夜的${this.mw}！\n☰ 暫停選單・怪更兇、掉得更好`, '#9fb8ff', 34, 2600));
       const nx = worldMap(worldMap(this.stageId)?.next ?? '');
       // 最後一張地圖第一次討伐 → 通關演出（D-133）
-      if (r.first && !nx && !this.bot) this.time.delayedCall(5000, () => this.showFinale());
+      if (r.first && this.stageId === FINALE_MAP && !this.bot) this.time.delayedCall(5000, () => this.showFinale());
       if (r.first && nx) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx.name}！\n回標題選「前往${nx.name}」${nx.recLevel ? `・建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000));
       if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) this.time.delayedCall(4600, () => this.furyUnlockedToast());
       this.persist();
