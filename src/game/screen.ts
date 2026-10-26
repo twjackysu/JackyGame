@@ -8,7 +8,11 @@ const MAX_HEIGHT = 1600;
 
 function computeHeight(): number {
   if (typeof window === 'undefined' || !window.innerWidth || !window.innerHeight) return BASE_HEIGHT;
-  const h = Math.round((720 * window.innerHeight) / window.innerWidth / 2) * 2;
+  // 用遊戲容器（#game，已扣掉瀏海／底部橫條的安全區）的大小；拿不到才用整個視窗
+  const el = typeof document !== 'undefined' ? document.getElementById('game') : null;
+  const w = el?.clientWidth || window.innerWidth;
+  const hh = el?.clientHeight || window.innerHeight;
+  const h = Math.round((720 * hh) / w / 2) * 2;
   return Math.max(BASE_HEIGHT, Math.min(MAX_HEIGHT, h));
 }
 
