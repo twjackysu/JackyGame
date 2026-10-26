@@ -313,7 +313,7 @@ export class RtBattleScene extends Phaser.Scene {
     hdr.fillStyle(0x0b1410, 0.94).fillRect(0, 0, GAME_WIDTH, VIEW_TOP);
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
     // 深夜（D-103）：整個畫面壓暗、偏藍
-    this.nightShade = this.s.night ? this.add.image(GAME_WIDTH / 2, 640, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
+    this.nightShade = this.s.night ? this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
     // 環境粒子（第 27 輪）：大地圖才有；光塵／螢火蟲、花瓣孢子、火星灰燼
     const amb = worldMap(this.stageId);
     this.ambient = amb ? new Ambient(this, amb.decor, getSettings().lowFx, !!this.s.night, { x: 0, y: VIEW_TOP, w: GAME_WIDTH, h: VIEW_BOTTOM - VIEW_TOP }) : null;
@@ -743,7 +743,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     if (!this.gearTipShown) {
       this.gearTipShown = true;
-      this.time.delayedCall(900, () => bigText(this, GAME_WIDTH / 2, 640, '撿到裝備了！☰ → 行囊 可以換上', '#9fd8ff', 30, 1800));
+      this.time.delayedCall(900, () => bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, '撿到裝備了！☰ → 行囊 可以換上', '#9fd8ff', 30, 1800));
     }
   }
   private gearTipShown = false;
@@ -1170,7 +1170,7 @@ export class RtBattleScene extends Phaser.Scene {
     c.add([bg, head, body, gain]);
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: r.all ? 8000 : 6000, duration: 700, onComplete: () => c.destroy() });
-    if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, 640, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
+    if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
   }
 
   /** ☰「前世的記憶」（D-137）：重讀想起來的記憶；沒想起來的只寫在哪張地圖 */
@@ -1212,7 +1212,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (c.nightOnly || this.chestHinted.has(c.id) || this.s.chestsOpened?.includes(c.id)) continue;
       if (Math.hypot(c.x - p.x, c.y - p.y) > CHEST_RULES.hintUnits * UNIT) continue;
       this.chestHinted.add(c.id);
-      const t = this.add.text(GAME_WIDTH / 2, 640, '這個地方似乎有點熟悉……', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: 'italic', color: '#d8c8ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+      const t = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '這個地方似乎有點熟悉……', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: 'italic', color: '#d8c8ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(66).setAlpha(0);
       this.tweens.add({ targets: t, alpha: 0.9, duration: 700, hold: 1800, yoyo: true, onComplete: () => t.destroy() });
     }
   }

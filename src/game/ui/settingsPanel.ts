@@ -18,8 +18,9 @@ export function openSettings(scene: Phaser.Scene, depth = 900): Promise<void> {
   return new Promise((resolve) => {
     const ui = scene.add.container(0, 0).setDepth(depth);
     const dim = scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75).setInteractive();
-    const top = 300;
     const h = 150 + ROWS.length * 120 + 110;
+    // 長螢幕（D-142）：面板垂直置中（1280 高時 top 約 300，跟以前差不多）
+    const top = Math.max(120, Math.round(GAME_HEIGHT / 2 - h / 2 + 30));
     const g = scene.add.graphics();
     g.fillStyle(0x0a0d1a, 0.97).fillRoundedRect(50, top, GAME_WIDTH - 100, h, 24);
     g.lineStyle(2, 0xffd27a, 0.8).strokeRoundedRect(50, top, GAME_WIDTH - 100, h, 24);
