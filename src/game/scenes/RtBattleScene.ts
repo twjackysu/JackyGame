@@ -164,6 +164,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 鏡頭（世界座標，鏡頭中心） */
   private camX = 0;
   private camY = 0;
+  private lastBowSfx = 0;
   private hint: Phaser.GameObjects.Container | null = null;
   /** 已播過特效的技能段（`施放 tick:段`） */
   private fxDone = new Set<string>();
@@ -2721,6 +2722,10 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 長弓普攻（D-147）：箭從主角飛到目標（約 0.1 秒）＋細尾光 */
   private arrowShot(x0: number, y0: number, x1: number, y1: number, color: number): void {
+    if (this.time.now - this.lastBowSfx > 60) {
+      this.lastBowSfx = this.time.now;
+      SFX.bowShot();
+    }
     const ax = this.sx(x0);
     const ay = this.sy(y0) - 20;
     const bx = this.sx(x1);
@@ -2741,6 +2746,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 穿透箭／星河貫射（D-147）：一道沿直線的光箭——箭頭飛到底，身後留下發光的軌跡 */
   private arrowBeam(x: number, y: number, ang: number, len: number, width: number, color: number, heavy = false): void {
+    SFX.bowShot();
     const px = this.sx(x);
     const py = this.sy(y) - 20;
     const L = len * this.k;

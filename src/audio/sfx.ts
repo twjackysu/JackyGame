@@ -202,6 +202,11 @@ export const SFX = {
     playSfx({ wave: 'noise', freq: 1400, freqEnd: 300, sustain: 0.01, release: 0.1, volume: 0.35, lowpass: 3200 });
     playSfx({ wave: 'square', freq: 260, freqEnd: 90, sustain: 0.01, release: 0.08, volume: 0.2 });
   },
+  /** 長弓（D-147）：弦音（短促的低頻撥弦）＋箭的風切 */
+  bowShot: (): void => {
+    playSfx({ wave: 'triangle', freq: 180, freqEnd: 120, sustain: 0.01, release: 0.12, volume: 0.28 });
+    playSfx({ wave: 'noise', freq: 4200, freqEnd: 1800, sustain: 0.02, release: 0.14, volume: 0.18, lowpass: 7000, delay: 0.02 });
+  },
   hitHeavy: (): void => {
     playSfx({ wave: 'noise', freq: 700, freqEnd: 60, sustain: 0.04, release: 0.3, volume: 0.6, lowpass: 1800 });
     playSfx({ wave: 'sine', freq: 120, freqEnd: 35, sustain: 0.05, release: 0.35, volume: 0.6 });
