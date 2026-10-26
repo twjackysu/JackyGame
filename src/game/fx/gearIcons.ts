@@ -3,6 +3,7 @@
 import Phaser from 'phaser';
 import type { GearSlot, Rarity } from '../../core/battle/rt/gear';
 import { RARITY_COLOR } from '../../core/battle/rt/gear';
+import { loadWeapon, type WeaponId } from '../weapon';
 
 const S = 96; // 材質邊長（放大縮小都清楚）
 
@@ -13,7 +14,7 @@ const pts = (a: number[]): P[] => {
   return out;
 };
 
-function draw(g: Phaser.GameObjects.Graphics, slot: GearSlot): void {
+function draw(g: Phaser.GameObjects.Graphics, slot: GearSlot, w: WeaponId = 'sword'): void {
   const fill = 0xf2f2f2;
   const shade = 0xa8a8a8;
   const line = 0x2a2a2a;
@@ -23,6 +24,22 @@ function draw(g: Phaser.GameObjects.Graphics, slot: GearSlot): void {
   };
   switch (slot) {
     case 'weapon':
+      if (w === 'bow') {
+        // 長弓（第 34 輪：武器欄圖示跟著目前武器）：弓臂＋弦＋握把
+        g.lineStyle(14, line, 1).beginPath().arc(30, 48, 44, -1.15, 1.15, false).strokePath();
+        g.lineStyle(8, fill, 1).beginPath().arc(30, 48, 44, -1.15, 1.15, false).strokePath();
+        g.lineStyle(3, line, 1).lineBetween(30 + Math.cos(-1.15) * 44, 48 + Math.sin(-1.15) * 44, 30 + Math.cos(1.15) * 44, 48 + Math.sin(1.15) * 44);
+        poly([66, 40, 76, 40, 76, 56, 66, 56], shade);
+        break;
+      }
+      if (w === 'staff') {
+        // 法杖：斜放的杖身＋頂端菱形星晶
+        g.lineStyle(14, line, 1).lineBetween(16, 88, 62, 30);
+        g.lineStyle(8, shade, 1).lineBetween(16, 88, 62, 30);
+        poly([72, 4, 86, 22, 72, 40, 58, 22], 0xffffff);
+        g.lineStyle(3, shade, 1).lineBetween(58, 22, 86, 22);
+        break;
+      }
       // 斜放的長劍：劍身、護手、握柄、柄頭
       poly([70, 10, 84, 12, 86, 26, 40, 70, 28, 60]);
       g.lineStyle(3, shade, 1).lineBetween(78, 18, 36, 62);
@@ -66,10 +83,11 @@ function draw(g: Phaser.GameObjects.Graphics, slot: GearSlot): void {
 
 /** 取得（必要時產生）某部位的圖示材質 key */
 export function gearIconKey(scene: Phaser.Scene, slot: GearSlot): string {
-  const key = `gear_icon_${slot}`;
+  const w = slot === 'weapon' ? loadWeapon() : 'sword';
+  const key = w === 'sword' ? `gear_icon_${slot}` : `gear_icon_${slot}_${w}`;
   if (!scene.textures.exists(key)) {
     const g = scene.make.graphics({ x: 0, y: 0 }, false);
-    draw(g, slot);
+    draw(g, slot, w);
     g.generateTexture(key, S, S);
     g.destroy();
   }
