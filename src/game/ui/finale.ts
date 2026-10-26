@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { playMusic } from '../../audio/music';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, TALL } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { highFx } from '../settings';
 import { fmtSec } from '../rtRecord';
@@ -44,7 +44,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
   playMusic('title', 2);
 
   // 背景：緩慢旋轉的星印＋往上飄的星燼
-  const sigil = scene.add.graphics().setPosition(cx, 560).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
+  const sigil = scene.add.graphics().setPosition(cx, 560 + TALL / 2).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
   const star = (r1: number, r2: number, n: number, rot = 0): Phaser.Math.Vector2[] =>
     Array.from({ length: n * 2 }, (_, i) => {
       const a = rot + (i / (n * 2)) * Math.PI * 2;
@@ -72,12 +72,12 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
   root.add(hint);
   scene.tweens.add({ targets: hint, alpha: 0.8, delay: 3000, duration: 600 });
 
-  let layer = scene.add.container(0, 0);
+  let layer = scene.add.container(0, TALL / 2); // 長螢幕（D-142）：內容垂直置中
   root.add(layer);
   const clear = (): void => {
     const old = layer;
     scene.tweens.add({ targets: old, alpha: 0, duration: 400, onComplete: () => old.destroy() });
-    layer = scene.add.container(0, 0);
+    layer = scene.add.container(0, TALL / 2); // 長螢幕（D-142）：內容垂直置中
     root.add(layer);
   };
   const glow = (t: Phaser.GameObjects.Text, color: number): void => {
@@ -87,7 +87,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
     const g = scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
     root.add(g);
     const o = { r: 20, a: 1 };
-    scene.tweens.add({ targets: o, r, a: 0, duration: 900, ease: 'Cubic.easeOut', onUpdate: () => g.clear().lineStyle(6 * o.a + 1, color, o.a).strokeCircle(cx, y, o.r), onComplete: () => g.destroy() });
+    scene.tweens.add({ targets: o, r, a: 0, duration: 900, ease: 'Cubic.easeOut', onUpdate: () => g.clear().lineStyle(6 * o.a + 1, color, o.a).strokeCircle(cx, y + TALL / 2, o.r), onComplete: () => g.destroy() });
   };
 
   const lineTexts: Phaser.GameObjects.Text[] = [];
@@ -183,7 +183,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
   // 4. 製作名單（往上捲）
   steps.push(() => {
     clear();
-    const roll = scene.add.container(0, GAME_HEIGHT + 40);
+    const roll = scene.add.container(0, GAME_HEIGHT + 40 - TALL / 2);
     let y = 0;
     const add = (t: Phaser.GameObjects.Text, gap: number): void => {
       t.setY(y);
@@ -198,7 +198,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
     add(scene.add.text(cx, 0, '2026・原創作品・GPL-3.0', { fontFamily: UI_FONT, fontSize: '22px', color: '#7a7060' }).setOrigin(0.5, 0), 0);
     layer.add(roll);
     const ms = 15000;
-    scene.tweens.add({ targets: roll, y: -y - 40, duration: ms, ease: 'Linear' });
+    scene.tweens.add({ targets: roll, y: -y - 40 - TALL / 2, duration: ms, ease: 'Linear' });
     return ms;
   });
   // 5. 感謝遊玩＋還能做什麼＋繼續冒險
