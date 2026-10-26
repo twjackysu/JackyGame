@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 31 輪（10/26 13:00）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 32 輪（10/26 14:45）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,22 +10,23 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 31 輪）
+## 現況（第 32 輪）
 - 四張大地圖：霧語森林→荊棘谷→燼紅裂谷（打倒岩王＝通關演出）→ **星隕高原**（通關後的挑戰地圖，`postGame`，建議 Lv14＋裝備；墜星＝vents 換皮；Boss 星骸守望者 8200／41，第二階段「召喚墜星」（D-143）；白天巡邏精英彗星巡者、**深夜限定星蝕狼**（D-144））。
 - 營火行商、巡邏精英、技能變化二、營火燼牌（五位對手）。有頭有尾：序章 → 12 段前世的記憶 → 通關演出（`FINALE_MAP = 'emberrift'`）。
 - **長螢幕（D-142）**：`src/game/screen.ts` 開機時依 `#game` 比例算 `GAME_HEIGHT`（1280～1600）與 `TALL`。**新 UI 一律這樣排**：貼齊下緣的 y 加 `TALL`、置中的用 `GAME_HEIGHT / 2`、全螢幕遮罩高 `GAME_HEIGHT`；不要再寫死 640／1280。
 - 核心新招式欄位（D-143）：`AreaAttack.atTarget`（預告在玩家腳下）、`hitsEnemiesPct`（也砸範圍內追你的一般怪）。畫面上屬於 `METEOR_ATTACKS` 的招式畫成藍白墜星。
 - 換地圖會丟掉別張圖的地面材質（D-145）；Boss 慢動作只在第一次放滿（D-146）。
 - **截圖注意**：新的 localStorage 會先播序章——先 `localStorage.setItem('jg_prologue_seen','1')`；開放星隕高原要 `jg_rt_emberrift = {"bossKills":1}`；深夜要 `jg_rt_starfall = {"bossKills":1,"furyKills":1,"night":true}`。preview 網址 `http://localhost:4173/?debug`。進地圖：`__game.scene.getScene('Title').scene.start('RtBattle', { stage: 'starfall', bot: '' })`。傳送：`window.__rt.state().units[0].x/y = …`。**viewport 比例會改變畫面高度**：390×844 → `GAME_HEIGHT` 1558、頁面座標＝遊戲座標 × 390/720（不再有上下黑邊的 75.5 偏移）；360×640 → 1280（跟以前一樣）。預告圈的截圖可以直接 `s.telegraphs.push({...})`（第 31 輪 `screenshots/r31a.mjs`）。
-- 通關機器人 `tests/rt-campaign.test.ts`（新存檔→三個 Boss，不含星隕高原）。stateHash 基準：第 31 輪最後的 commit（本輪 89 場與開頭相同）。
+- **兩種武器（D-147）**：`weapon: 'bow'` → `playerDef(s)`＝`ARCHER`、`skillDef` 先查 `BOW_SKILLS`（同五個 id）。選擇存 `jg_weapon`（`src/game/weapon.ts`），標題「設定」右邊、☰「武器：長劍 ⇄」。弓的技能變化只有一種（`BOW_VARIANTS`，D-148）。截圖要用弓：`localStorage.setItem('jg_weapon','bow')`；特效可直接 `sc.bowFx(x, y, ang, shape, ult, leap, brk)`／`sc.arrowShot(...)`。
+- 通關機器人 `tests/rt-campaign.test.ts`（新存檔→三個 Boss，不含星隕高原；劍、弓各一趟）。stateHash 基準：第 32 輪最後的 commit（本輪 89 場與開頭相同）。
 
 ### 下一輪從這裡開始（依序）
-1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～16 題）。
-2. **長螢幕收尾檢查**（Playwright 412×915）：燼牌大廳、牌局開局、組牌畫面已看過 OK（第 31 輪）；還沒看：翻牌展示、燼爆／回響演出（座標已改 `GAME_HEIGHT / 2`）；操作設定拖曳按鈕到下緣（`clampPos` 用新高度）；標題「設定」面板；通關演出完整播一次（名單捲到最後）；小地圖／懸賞框位置。有東西沒跟著移就照上面的規則改。
-3. **打磨期（11/4 起功能凍結）之前**：手機效能（四張圖都開環境粒子＋晶簇材質；長螢幕視野變大，看 `drawVents`／裝飾的畫面外剔除範圍是不是用 `VIEW_BOTTOM`）、README 截圖是否需要重拍（舊截圖是 9:16 有黑邊的版本，可接受）。
-4. **星隕高原第三輪（選做）**：守望者／魔像已改成切面晶石（第 31 輪），還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖；星蝕狼／彗星巡者是霧狼染色；Bot 撿星光碎片。
-5. **數值（等真人回饋）**：巡守太硬 → `mist_warden` HP 1050→900；巡獵者 1400→1200；岩王太難 → 6000／35（D-136）；守望者太難 → 8200→7400（D-138）；星蝕狼太硬 → 3600→3000（D-144）。
-6. 候選：新武器類型（雙手斧、弓）——工作量大，先寫設計；燼牌組牌已改成「先看說明、再點才切換」。
+1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～17 題）。
+2. **長弓第三輪（D-147／148 後續，選做）**：①主角拿弓的樣子：現在是程式在身前畫一把弓（`hero_lian` 還拿著劍），可考慮 ART_REQUESTS 排一張拿弓的 Q 版（GPT 只剩 1，FOR_JACKY 第 17 題問）；②弓的變化二（劍有兩種）；③真機聽 `SFX.bowShot` 要不要更脆。**不要再試「Bot 放風箏」**（D-148：通關變慢一倍）。
+3. **打磨期（11/4 起功能凍結）之前**：手機效能（四張圖都開環境粒子＋晶簇材質）、README 截圖是否需要重拍（舊截圖是 9:16 有黑邊的版本，可接受）、通關演出在 412×915 完整播一次（名單捲到最後，第 32 輪沒看）。
+4. **星隕高原第三輪（選做）**：還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖；星蝕狼／彗星巡者是霧狼染色；Bot 撿星光碎片。
+5. **數值（等真人回饋）**：巡守太硬 → `mist_warden` HP 1050→900；巡獵者 1400→1200；岩王太難 → 6000／35（D-136）；守望者太難 → 8200→7400（D-138）；星蝕狼太硬 → 3600→3000（D-144）；長弓太強 → `ARCHER.atk` 31→30 或 HP 540→500（攻擊 30 時通關機器人在荊棘谷要 3 趟，變異很大，看 3 個種子以上再改）。
+6. 候選：第三種武器（雙手斧＝慢、重、霸體？）——先看 Jacky 對長弓的回饋再決定。
 
 ## 其他（空檔再做）
 - 操作設定後續：搖桿要不要「跟著手指」或固定、按鈕透明度（等 Jacky 回覆）。
