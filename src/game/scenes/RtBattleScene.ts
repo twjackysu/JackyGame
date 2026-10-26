@@ -81,6 +81,9 @@ const VIEW_BOTTOM = GAME_HEIGHT;
 const GROUND_CHUNK = 1024;
 /** 主角在可視區的垂直位置（偏上，留空間給下方操作鍵） */
 const FOCUS_Y = 0.42;
+/** 第一次提示／回營火說明的高度（第 38 輪，D-163）：以前寫死 700＝正好蓋在主角身上（主角在 VIEW_TOP＋可視高×0.42：844 高的手機約 718），
+ *  黃框格擋提示一出來就把正在打你的狼蓋住。改排在主角下方 250，下排操作鍵上面。 */
+const TIP_Y = Math.round(Math.min(VIEW_TOP + (GAME_HEIGHT - VIEW_TOP) * FOCUS_Y + 250, GAME_HEIGHT - 470)); // 360×640（高 1280）不壓到 MP 球
 /** 立繪對應（D-067；沒有圖就退回程式圓形） */
 const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: number }> = {
   swordsman: { key: 'hero_lian', h: 3.6, flip: true },
@@ -910,7 +913,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (!near) this.leftFire = true;
     else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie) {
       this.fireHinted = true;
-      bigText(this, GAME_WIDTH / 2, 600, '回到營火：點火堆＝休息回滿・補藥水\n「行囊・強化」換裝／強化　「行商」用金幣買賣', '#ffe0a0', 26, 2600);
+      bigText(this, GAME_WIDTH / 2, TIP_Y, '回到營火：點火堆＝休息回滿・補藥水\n「行囊・強化」換裝／強化　「行商」用金幣買賣', '#ffe0a0', 26, 2600);
     }
   }
 
@@ -1798,7 +1801,7 @@ export class RtBattleScene extends Phaser.Scene {
       freed = true;
     };
     this.time.delayedCall(4000, free);
-    bigText(this, GAME_WIDTH / 2, 700, wrapTip(text), color, 30, 1600).once('destroy', () => { if (this.scene.isActive()) this.time.delayedCall(200, free); });
+    bigText(this, GAME_WIDTH / 2, TIP_Y, wrapTip(text), color, 30, 1600).once('destroy', () => { if (this.scene.isActive()) this.time.delayedCall(200, free); });
   }
 
   private dismissHint(): void {
