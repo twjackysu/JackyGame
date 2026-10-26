@@ -278,7 +278,7 @@ export const ARCHER: PlayerDefinition = {
 };
 
 /**
- * 星術法杖（第 34 輪，D-152）：第三種武器。普攻 4.5 格魔彈、身板最薄（HP 500／防禦 12），MP 上限 140。
+ * 星術法杖（第 34 輪，D-152）：第三種武器。普攻 4.5 格魔彈、身板和長弓手一樣薄（HP 540／防禦 15），MP 上限 140。
  * 打法：「冰霜新星」凍住貼身的狼、「閃現」穿過去落地爆炸、「星焰彈」燒一整排，最後蓄力「隕星術」砸大圈。
  */
 export const STAFF_SKILLS: Record<string, SkillDefinition> = {
@@ -292,11 +292,11 @@ export const STAFF_SKILLS: Record<string, SkillDefinition> = {
     id: 'whirlwind', name: '冰霜新星', cooldownTicks: sec(10), castTicks: sec(0.4), moveFactor: 0, role: 'aoe', useRange: u(2.4),
     hits: [{ atTick: sec(0.4) - 1, shape: { type: 'circle', r: u(2.8) }, mult: 130, status: { id: 'freeze', ticks: sec(1.5) } }],
   },
-  // 閃現：0.13 秒瞬移 5 格，落地爆一圈 140%＋減速；冷卻 6s
+  // 閃現：0.33 秒閃過 5 格（每 tick 最多 50，太快會卡進障礙物裡——第 34 輪 4 ticks 時 Bot 被卡在牆裡），落地爆一圈 140%＋減速；冷卻 6s
   charge: {
-    id: 'charge', name: '閃現', cooldownTicks: sec(6), castTicks: sec(0.35), moveFactor: 0, role: 'gap', useRange: u(5.5),
-    dash: { fromTick: 0, ticks: 4, distance: u(5) },
-    hits: [{ atTick: 5, shape: { type: 'circle', r: u(1.8) }, mult: 140, status: { id: 'slow', ticks: sec(1.5) } }],
+    id: 'charge', name: '閃現', cooldownTicks: sec(6), castTicks: sec(0.45), moveFactor: 0, role: 'gap', useRange: u(5.5),
+    dash: { fromTick: 0, ticks: 10, distance: u(5) },
+    hits: [{ atTick: 11, shape: { type: 'circle', r: u(1.8) }, mult: 140, status: { id: 'slow', ticks: sec(1.5) } }],
   },
   // 星輝屏障：1 秒窗口、擋下不受傷，四面反擊 200%＋減速；冷卻 10s
   parry: {
@@ -334,8 +334,8 @@ export const STAFF_VARIANTS: Record<string, SkillDefinition & { variantName: str
   },
   charge: {
     id: 'charge', name: '星界轉移', variantName: '星界轉移', desc: '原地留下寒霜 120%＋冰凍 1 秒，往後瞬移 5 格；冷卻 7 秒',
-    cooldownTicks: sec(7), castTicks: sec(0.35), moveFactor: 0, role: 'gap', useRange: u(2.5),
-    dash: { fromTick: 2, ticks: 4, distance: -u(5) },
+    cooldownTicks: sec(7), castTicks: sec(0.45), moveFactor: 0, role: 'gap', useRange: u(2.5),
+    dash: { fromTick: 2, ticks: 10, distance: -u(5) },
     hits: [{ atTick: 1, shape: { type: 'circle', r: u(2.2) }, mult: 120, status: { id: 'freeze', ticks: sec(1) } }],
   },
   parry: {
@@ -368,11 +368,11 @@ export const STAFF_VARIANTS_B: Record<string, SkillDefinition & { variantName: s
   },
   charge: {
     id: 'charge', name: '影界穿梭', variantName: '影界穿梭', desc: '瞬移 4 格、路上 100%＋「虛弱」4 秒，落地再爆 100%；冷卻 5 秒',
-    cooldownTicks: sec(5), castTicks: sec(0.35), moveFactor: 0, role: 'gap', useRange: u(4.5),
-    dash: { fromTick: 0, ticks: 4, distance: u(4) },
+    cooldownTicks: sec(5), castTicks: sec(0.4), moveFactor: 0, role: 'gap', useRange: u(4.5),
+    dash: { fromTick: 0, ticks: 8, distance: u(4) },
     hits: [
-      ...[0, 2, 4].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 100, oncePerTarget: true, status: { id: 'weak' as const, ticks: sec(4) } })),
-      { atTick: 5, shape: { type: 'circle' as const, r: u(1.6) }, mult: 100 },
+      ...[0, 3, 6].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 100, oncePerTarget: true, status: { id: 'weak' as const, ticks: sec(4) } })),
+      { atTick: 9, shape: { type: 'circle' as const, r: u(1.6) }, mult: 100 },
     ],
   },
   parry: {
@@ -388,13 +388,13 @@ export const STAFF_VARIANTS_B: Record<string, SkillDefinition & { variantName: s
   },
 };
 
-/** 星術師（D-152）：最脆、普攻 4.5 格、MP 上限 140（大招可以存比較多） */
+/** 星術師（D-152）：生命／防禦和長弓手一樣（500／12 時通關機器人要 75～104 分鐘，劍／弓約 45），普攻 4.5 格、攻擊 33、MP 上限 140 */
 export const MAGE: PlayerDefinition = {
   ...SWORDSMAN,
   id: 'mage',
-  hp: 500,
+  hp: 540,
   atk: 33,
-  def: 12,
+  def: 15,
   speed: 3.5,
   attackIntervalTicks: sec(0.85),
   attackRange: u(4.5),

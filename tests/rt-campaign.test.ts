@@ -29,8 +29,8 @@ describe('通關機器人：新存檔一路打到第三張地圖的 Boss', () =>
     delete STAGES.emberrift;
   });
 
-  for (const weapon of [undefined, 'bow'] as const)
-  it(`普通 Bot、沒有裝備${weapon ? '、長弓（D-147）' : ''}：每張地圖最多出發 4 次（每次 15 分鐘）就打倒 Boss`, () => {
+  for (const weapon of [undefined, 'bow', 'staff'] as const)
+  it(`普通 Bot、沒有裝備${weapon === 'bow' ? '、長弓（D-147）' : weapon === 'staff' ? '、法杖（D-152）' : ''}：每張地圖最多出發 4 次（每次 15 分鐘）就打倒 Boss`, () => {
     let level = 1;
     let xp = 0;
     let seed = 1;
@@ -50,7 +50,7 @@ describe('通關機器人：新存檔一路打到第三張地圖的 Boss', () =>
       }
       expect(done, log.join('\n')).toBe(true);
     }
-    (globalThis as any).process.stdout.write(`[通關機器人${weapon ? '・長弓' : ''}] 共 ${(total / 60).toFixed(1)} 分鐘\n${log.join('\n')}\n`);
+    (globalThis as any).process.stdout.write(`[通關機器人${weapon === 'bow' ? '・長弓' : weapon === 'staff' ? '・法杖' : ''}] 共 ${(total / 60).toFixed(1)} 分鐘\n${log.join('\n')}\n`);
     expect(level).toBeGreaterThanOrEqual(4);
   }, 600000);
 });

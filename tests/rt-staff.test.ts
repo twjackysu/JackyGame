@@ -35,13 +35,13 @@ describe('武器表與法杖（D-152）', () => {
     expect(WEAPONS.bow.skills).toBe(BOW_SKILLS);
   });
 
-  it('法杖：普攻 4.5 格、最脆、閃現往前 5 格、變化切換', () => {
+  it('法杖：普攻 4.5 格、比劍士脆、閃現往前 5 格、變化切換', () => {
     const s = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'staff' });
     expect(s.weapon).toBe('staff');
     expect(playerDef(s)).toBe(MAGE);
     expect(skillDef(s, 'charge')!.name).toBe('閃現');
     expect(dashDistance(s, 'charge')).toBe(u(5));
-    expect(s.units[0]!.maxHp).toBeLessThan(createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow' }).units[0]!.maxHp);
+    expect(s.units[0]!.maxHp).toBeLessThan(createBattle({ stageId: 'mistwood', seed: 1 }).units[0]!.maxHp);
     const v = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'staff', skillVariants: ['heavy_slash', 'charge:b'] });
     expect(skillDef(v, 'heavy_slash')).toBe(STAFF_VARIANTS.heavy_slash);
     expect(skillDef(v, 'charge')).toBe(STAFF_VARIANTS_B.charge);
@@ -58,7 +58,7 @@ describe('武器表與法杖（D-152）', () => {
     const p = s.units[0]!;
     const y0 = p.y;
     step(s, [{ type: 'skill', id: 'charge' }]);
-    for (let i = 0; i < sec(0.4); i++) step(s, []);
+    for (let i = 0; i < sec(0.5); i++) step(s, []);
     expect(y0 - p.y).toBeGreaterThan(u(3.5));
   });
 
