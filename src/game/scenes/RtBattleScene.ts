@@ -50,10 +50,12 @@ import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
 import { openChoice } from '../ui/choicePanel';
+import { claimThanks, ENCOUNTER_RADIUS, encountersOf, loadEncounters, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
+import { drawEncounterNpc } from '../fx/encounterNpc';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -236,6 +238,11 @@ export class RtBattleScene extends Phaser.Scene {
   private chestHinted = new Set<string>();
   /** 前世的記憶（D-137）：這張圖還沒想起來的記憶點 */
   private memLeft: Memory[] = [];
+  /** 路上的相遇（D-159）：還沒選的、選了「助」等著道謝的 */
+  private encOpen: Encounter[] = [];
+  private encThanks: Encounter[] = [];
+  /** 這次已經道謝過的：還站在原地（高興的樣子、沒有氣泡），下次進地圖就不在了 */
+  private encDone: Encounter[] = [];
   /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
   private mini: { x: number; y: number; w: number; h: number; s: number } | null = null;
   private idleHinted = false;
@@ -381,6 +388,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.paws = [];
     this.pawLast.clear();
+    { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; }
     { const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
@@ -605,6 +613,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.updateFireBtn();
     this.chestHint();
     this.memoryCheck();
+    this.encounterCheck();
     this.streakHint();
     if (this.s.tick % (10 * TICKS_PER_SEC) === 0) this.persist();
     if (this.s.outcome !== 'running') this.finish();
@@ -1251,6 +1260,102 @@ export class RtBattleScene extends Phaser.Scene {
     if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
   }
 
+  /** 路上的相遇（D-159）：走到旁邊（附近沒有在打的怪）→ 還沒選的跳抉擇面板；選了「助」的 → 這次進地圖來道謝、給回禮 */
+  private encounterCheck(): void {
+    if (!this.encOpen.length && !this.encThanks.length) return;
+    if (this.menu || this.editing || this.ended) return;
+    const p = playerOf(this.s);
+    if (p.dead || enemiesOf(this.s).some((e) => e.mode === 'combat')) return;
+    const near = (e: Encounter): boolean => Math.hypot(e.tx * UNIT + UNIT / 2 - p.x, e.ty * UNIT + UNIT / 2 - p.y) < ENCOUNTER_RADIUS * UNIT;
+    const th = this.encThanks.find(near);
+    if (th) {
+      this.encThanks = this.encThanks.filter((e) => e !== th);
+      this.encDone.push(th);
+      this.giveThanks(th);
+      return;
+    }
+    const e = this.encOpen.find(near);
+    if (!e) return;
+    if (this.hint) this.dismissHint();
+    this.menu = openChoice(this, e, (pick) => {
+      this.menu = null;
+      this.acc = 0;
+      this.encOpen = this.encOpen.filter((x) => x !== e);
+      const c = meet(loadEncounters(), e.id, pick);
+      if (!c) return;
+      saveEncounters(c);
+      const x = this.sx(e.tx * UNIT + UNIT / 2);
+      const y = this.sy(e.ty * UNIT + UNIT / 2);
+      let extra = '';
+      if (pick === 'take') {
+        let rec: RtRecord | null = loadRecord(this.stageId);
+        if (e.take.coin) rec = rec && spendCoin(rec, -e.take.coin);
+        if (e.take.crystal) rec = rec && spend(rec, 0, -e.take.crystal);
+        if (rec) saveRecord(this.stageId, rec);
+        this.persist(); // 讓畫面上方的金幣跟著更新
+        SFX.itemGet();
+        extra = `\n${e.take.coin ? `+${e.take.coin} 金` : ''}${e.take.crystal ? `+${e.take.crystal} 結晶` : ''}`;
+        sparks(this, x, y, 22, 'ember', 0xffd27a, 480);
+      } else {
+        extra = '\n（下次回到這裡，也許會有人記得你）';
+        sparks(this, x, y, 26, 'spark', 0xa8f0c8, 520);
+        shockRing(this, x, y, 0x7dd8b0, 220, 700, 6);
+      }
+      bigText(this, GAME_WIDTH / 2, 560, `${e[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 28, 3000);
+    }, { kicker: '相遇', spareTag: '助' });
+  }
+
+  /** 相遇的回禮（D-159）：上方一張綠色的卡（和前世的記憶同一種排法），拿金幣／結晶 */
+  private giveThanks(e: Encounter): void {
+    const c0 = claimThanks(loadEncounters(), e.id);
+    if (!c0) return;
+    saveEncounters(c0);
+    let rec: RtRecord | null = loadRecord(this.stageId);
+    if (e.thanks.coin) rec = rec && spendCoin(rec, -e.thanks.coin);
+    if (e.thanks.crystal) rec = rec && spend(rec, 0, -e.thanks.crystal);
+    if (rec) saveRecord(this.stageId, rec);
+    this.persist();
+    SFX.perfect();
+    const x = this.sx(e.tx * UNIT + UNIT / 2);
+    const y = this.sy(e.ty * UNIT + UNIT / 2);
+    sparks(this, x, y, 30, 'spark', 0xa8f0c8, 480);
+    shockRing(this, x, y, 0x7dd8b0, 220, 700, 6);
+    const c = this.add.container(GAME_WIDTH / 2, 300).setDepth(940).setAlpha(0);
+    const body = this.add.text(0, 6, e.thanks.lines, { fontFamily: TITLE_FONT, fontSize: '26px', color: '#e8fff0', align: 'center', lineSpacing: 10, wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+    const h = body.height + 120;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0a1a14, 0.92).fillRoundedRect(-320, -56, 640, h, 18);
+    bg.lineStyle(2, 0x7dd8b0, 0.9).strokeRoundedRect(-320, -56, 640, h, 18);
+    const head = this.add.text(0, -32, `✦ 回禮・${e.title}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#a8f0c8' }).setOrigin(0.5);
+    const gain = this.add.text(0, h - 80, [e.thanks.coin ? `+${e.thanks.coin} 金` : '', e.thanks.crystal ? `+${e.thanks.crystal} 結晶` : ''].filter(Boolean).join('　'), { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' }).setOrigin(0.5);
+    c.add([bg, head, body, gain]);
+    this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
+    this.tweens.add({ targets: c, alpha: 0, delay: 7000, duration: 700, onComplete: () => c.destroy() });
+  }
+
+  /** 畫相遇的人（D-159）：還沒選＝遇到麻煩的樣子；等著道謝＝高興的樣子。純畫面、畫面外不畫 */
+  private drawEncounters(g: Phaser.GameObjects.Graphics, now: number): void {
+    for (const [list, happy, bubble] of [[this.encOpen, false, true], [this.encThanks, true, true], [this.encDone, true, false]] as const) {
+      for (const e of list) {
+        const cx = this.sx(e.tx * UNIT + UNIT / 2);
+        const cy = this.sy(e.ty * UNIT + UNIT / 2);
+        if (cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 160 || cy > VIEW_BOTTOM + 80) continue;
+        drawEncounterNpc(g, e.npc, cx, cy, this.k * 2.1, now, happy);
+        if (!bubble) continue;
+        // 頭上的提示：還沒選＝白色「…」氣泡；等著道謝＝綠色「！」
+        const b = Math.sin(now / 300) * 4;
+        const hy = cy - 125 * this.k * 2.1 + b;
+        g.fillStyle(happy ? 0x2a5a44 : 0x2a2a34, 0.9).fillRoundedRect(cx - 26, hy - 18, 52, 36, 12);
+        g.fillTriangle(cx - 6, hy + 16, cx + 6, hy + 16, cx, hy + 26);
+        if (happy) {
+          g.fillStyle(0xa8f0c8, 1).fillRect(cx - 3, hy - 11, 6, 15).fillCircle(cx, hy + 9, 3.2);
+        } else {
+          for (let i = -1; i <= 1; i++) g.fillStyle(0xf0f0f0, 0.5 + 0.5 * Math.max(0, Math.sin(now / 220 - i))).fillCircle(cx + i * 12, hy, 4);
+        }
+      }
+    }
+  }
+
   /** ☰「前世的記憶」（D-137）：重讀想起來的記憶；沒想起來的只寫在哪張地圖 */
   private openMemoryBook(): void {
     this.menu?.destroy();
@@ -1408,6 +1513,7 @@ export class RtBattleScene extends Phaser.Scene {
       `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${coinOf(rec)}（營火行商）`,
     ];
     { const chs = choiceOf(this.stageId); const cp = loadChoices()[this.stageId]; if (chs && cp) lines.push(`你的抉擇：${chs.short[cp]}${cp === 'take' ? '' : `（行商 −${shopDiscountPct(loadChoices())}%）`}`); }
+    { const en = loadEncounters(); for (const e of encountersOf(this.stageId)) { const v = en[e.id]; if (v) lines.push(`路上的相遇：${e.short[v === 'thanked' ? 'spare' : v]}${v === 'spare' ? '（對方會來道謝）' : v === 'thanked' ? '（收到回禮了）' : ''}`); } }
     if (memoriesOf(this.stageId).length) { const mh = loadMemories(); lines.push(`前世的記憶：這裡 ${memoriesOf(this.stageId).filter((m) => mh.includes(m.id)).length}/${memoriesOf(this.stageId).length}・全部 ${mh.length}/${MEMORIES.length}`); }
     const cs = cardSummary();
     if (cs.played || cs.have) lines.push(`營火燼牌 ${cs.won} 勝 / ${cs.played} 場・收集 ${cs.have}/${cs.total} 張`);
@@ -3617,6 +3723,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (!opened && (now / 500) % 2 < 0.25) g.fillStyle(0xfff0c0, a).fillCircle(cx + 18 * k, cy - 18 * k, 3 * k);
     }
     this.drawChoiceMark(g, now);
+    this.drawEncounters(g, now);
     this.drawCub(g, now);
     // 前世的記憶（D-137）：紫色的光點在原地浮著，遠遠就看得到
     for (const mem of this.memLeft) {

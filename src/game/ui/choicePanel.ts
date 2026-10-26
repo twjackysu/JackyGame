@@ -4,21 +4,27 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
-import type { BossChoice, ChoicePick } from '../choices';
+import type { BossChoice, ChoiceOption, ChoicePick } from '../choices';
 
 const COL: Record<ChoicePick, { line: number; css: string; tag: string }> = {
   take: { line: 0xffb35a, css: '#ffd27a', tag: '取' },
   spare: { line: 0x7dd8b0, css: '#a8f0c8', tag: '還' },
 };
 
-export function openChoice(scene: Phaser.Scene, ch: BossChoice, onPick: (p: ChoicePick) => void): Phaser.GameObjects.Container {
+/** 路上的相遇（D-159）也用這個面板：標頭換成「相遇」、還的那張卡字樣換成「助」 */
+export interface ChoiceLook {
+  kicker?: string;
+  spareTag?: string;
+}
+
+export function openChoice(scene: Phaser.Scene, ch: Pick<BossChoice, 'title' | 'prompt'> & Record<ChoicePick, ChoiceOption>, onPick: (p: ChoicePick) => void, look: ChoiceLook = {}): Phaser.GameObjects.Container {
   const cx = GAME_WIDTH / 2;
   const cy = GAME_HEIGHT / 2;
   const root = scene.add.container(0, 0).setDepth(1900).setAlpha(0);
   const veil = scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x05040a, 0.88).setInteractive();
   root.add(veil);
   scene.tweens.add({ targets: root, alpha: 1, duration: 500 });
-  root.add(scene.add.text(cx, cy - 500, '抉擇', { fontFamily: UI_FONT, fontSize: '22px', color: '#a89878' }).setOrigin(0.5));
+  root.add(scene.add.text(cx, cy - 500, look.kicker ?? '抉擇', { fontFamily: UI_FONT, fontSize: '22px', color: '#a89878' }).setOrigin(0.5));
   root.add(scene.add.text(cx, cy - 450, ch.title, { fontFamily: TITLE_FONT, fontSize: '48px', color: '#ffe6a8', stroke: '#2a1404', strokeThickness: 6 }).setOrigin(0.5));
   root.add(scene.add.text(cx, cy - 380, ch.prompt, { fontFamily: TITLE_FONT, fontSize: '26px', color: '#e8e0d0', align: 'center', lineSpacing: 12 }).setOrigin(0.5, 0));
   let sel: ChoicePick | null = null;
@@ -37,7 +43,7 @@ export function openChoice(scene: Phaser.Scene, ch: BossChoice, onPick: (p: Choi
       bg.lineStyle(hi ? 5 : 2, c.line, hi ? 1 : 0.55).strokeRoundedRect(-300, -80, 600, 160, 18);
     };
     paints[k](false);
-    const tag = scene.add.text(-250, 0, c.tag, { fontFamily: TITLE_FONT, fontSize: '54px', color: c.css }).setOrigin(0.5);
+    const tag = scene.add.text(-250, 0, k === 'spare' && look.spareTag ? look.spareTag : c.tag, { fontFamily: TITLE_FONT, fontSize: '54px', color: c.css }).setOrigin(0.5);
     const lab = scene.add.text(-190, -28, opt.label, { fontFamily: TITLE_FONT, fontSize: '32px', color: '#fff4dc' }).setOrigin(0, 0.5);
     const desc = scene.add.text(-190, 26, opt.desc, { fontFamily: UI_FONT, fontSize: '20px', color: c.css, wordWrap: { width: 470, useAdvancedWrap: true } }).setOrigin(0, 0.5);
     const hit = scene.add.rectangle(0, 0, 600, 160, 0, 0).setInteractive({ useHandCursor: true });
