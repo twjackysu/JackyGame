@@ -10,7 +10,7 @@
 import { mulberry32, type Rng } from '../rng';
 
 export type Row = 0 | 1; // 0＝前排（近戰），1＝後排（遠程）
-export type Ability = 'bond' | 'scout' | 'horn' | 'frost' | 'fog' | 'clear' | 'hero' | 'scorch';
+export type Ability = 'bond' | 'scout' | 'horn' | 'frost' | 'fog' | 'clear' | 'hero' | 'scorch' | 'echo';
 
 export interface CardDef {
   id: string;
@@ -55,6 +55,8 @@ export const CARDS: Readonly<Record<string, CardDef>> = {
   mist_warden: { id: 'mist_warden', name: '迷霧巡守', power: 7, row: 0 },
   thorn_stalker: { id: 'thorn_stalker', name: '荊棘巡獵者', power: 8, row: 0 },
   hero_echo: { id: 'hero_echo', name: '回響之燼', power: 13, row: 1, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
+  // 第 29 輪：伊妲的招牌（D-135）
+  echo: { id: 'echo', name: '說書回聲', power: 1, row: 1, ability: 'echo', desc: '回響：放在後排，再把你場上最強的一張單位（傳奇除外）複製一份' },
   hero_obsidian: { id: 'hero_obsidian', name: '黑曜首領', power: 9, row: 0, ability: 'hero', desc: '傳奇：不受天候與戰號影響' },
 };
 
@@ -106,9 +108,9 @@ export const OPPONENTS: readonly Opponent[] = [
     hello: '「火候到了就出手——燼爆可不挑人。」', win: '「燒得乾乾淨淨。」', lose: '「好，好！這把火你接住了。」', blurb: '大塊頭＋燼爆，從不退讓',
   },
   {
-    id: 'ida', name: '燼火說書人伊妲', short: '伊妲', secret: true, stake: 200, rewards: ['hero_echo'], bankAt: 9, bailAt: 10,
-    deck: ['thornhound', 'thornhound', 'thornhound', 'golem', 'golem', 'ballista', 'ballista', 'mage', 'briar_archer', 'scout', 'owl', 'hero_seer', 'scorch', 'horn', 'fog'],
-    hello: '「三家都贏過了？聽我說最後一個故事吧。」', win: '「故事還沒講完呢，再來？」', lose: '「……回響之燼，就交給你了。」', blurb: '三家之長，最後的對手',
+    id: 'ida', name: '燼火說書人伊妲', short: '伊妲', secret: true, stake: 200, rewards: ['hero_echo', 'echo'], bankAt: 9, bailAt: 10,
+    deck: ['thornhound', 'thornhound', 'thornhound', 'golem', 'mage', 'ballista', 'ballista', 'echo', 'owl', 'scout', 'echo', 'hero_seer', 'scorch', 'horn', 'fog'],
+    hello: '「三家都贏過了？聽我說最後一個故事吧。」', win: '「故事還沒講完呢，再來？」', lose: '「……回響之燼，就交給你了。」', blurb: '「回響」會複製場上最強的牌',
   },
 ];
 export const opponent = (id: string): Opponent => OPPONENTS.find((o) => o.id === id) ?? OPPONENTS[0]!;
@@ -141,6 +143,8 @@ export interface CardGame {
   oppName?: string;
   /** 最近一次燼爆燒掉的牌：[side, row, id]（畫面演出用） */
   lastBurn?: [number, Row, string][];
+  /** 最近一次回響複製的牌：[side, row, id]（畫面演出用） */
+  lastEcho?: [number, Row, string];
 }
 
 /** 燼爆要燒的牌：場上點數最高（> 0）的非傳奇單位，同分一起 */
@@ -156,6 +160,27 @@ export function scorchTargets(g: CardGame): [number, Row, string][] {
         if (p > max) max = p;
       }
   return max > 0 ? all.filter((x) => x[3] === max).map(([a, b, c]) => [a, b, c]) : [];
+}
+
+/** 回響要複製哪張：自己場上（傳奇、回響除外）複製後加分最多的那張；場上沒有單位回 null */
+export function echoTarget(g: CardGame, side: number): [Row, string] | null {
+  const S = g.sides[side]!;
+  let best: [Row, string] | null = null;
+  let gain = 0;
+  for (const row of [0, 1] as const)
+    for (const id of new Set(S.rows[row])) {
+      const a = CARDS[id]!.ability;
+      if (a === 'hero' || a === 'echo') continue;
+      const before = rowScore(g, side, row);
+      S.rows[row].push(id);
+      const d = rowScore(g, side, row) - before;
+      S.rows[row].pop();
+      if (d > gain) {
+        gain = d;
+        best = [row, id];
+      }
+    }
+  return best;
 }
 
 function scorch(g: CardGame): [number, Row, string][] {
@@ -265,6 +290,15 @@ export function applyMove(g: CardGame, side: number, m: Move): boolean {
     else if (c.ability === 'fog') g.weather[1] = true;
     else if (c.ability === 'clear') g.weather = [false, false];
     else if (c.ability === 'scorch') g.lastBurn = scorch(g);
+    else if (c.ability === 'echo') {
+      const t = echoTarget(g, side);
+      g.lastEcho = undefined;
+      S.rows[c.row!].push(id);
+      if (t) {
+        S.rows[t[0]].push(t[1]);
+        g.lastEcho = [side, t[0], t[1]];
+      }
+    }
     else if (c.ability === 'scout') {
       O.rows[c.row!].push(id);
       for (let k = 0; k < 2 && S.deck.length; k++) S.hand.push(S.deck.shift()!);
@@ -426,7 +460,7 @@ export function trimDeck(deck: string[]): string[] {
     let wv = Infinity;
     d.forEach((id, i) => {
       const c = CARDS[id]!;
-      if (c.row === undefined || c.ability === 'hero' || c.ability === 'scout') return;
+      if (c.row === undefined || c.ability === 'hero' || c.ability === 'scout' || c.ability === 'echo') return;
       const v = cardValue(d, id);
       if (v < wv) {
         wv = v;

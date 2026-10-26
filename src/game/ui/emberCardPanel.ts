@@ -86,6 +86,7 @@ function cardColor(id: string): { fill: number; edge: number } {
   const c = CARDS[id]!;
   if (c.ability === 'hero') return { fill: 0x3a2a0c, edge: 0xffd27a };
   if (c.ability === 'scorch') return { fill: 0x3a160a, edge: 0xff7a2a };
+  if (c.ability === 'echo') return { fill: 0x2a1438, edge: 0xd89aff };
   if (c.row === undefined) return { fill: 0x2a1a3a, edge: 0xc89aff };
   return c.row === 0 ? { fill: 0x3a1c14, edge: 0xe0805a } : { fill: 0x142438, edge: 0x6ab0ff };
 }
@@ -103,6 +104,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   let revealed = false;
   /** 燼爆要演的牌（等 render 完再演，才不會被清掉） */
   let burnPending: [number, Row, string][] | null = null;
+  let echoPending: [number, Row, string] | null = null;
   /** 剛出的那張牌（畫面上彈一下）：[side, row, 數量] */
   let fresh: [number, Row, number] | null = null;
   /** 這次的對手：預設是這張地圖的在地對手（沒有就莫托） */
@@ -257,7 +259,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
         items.push(scene.add.text(x - 30, y - 46, `${c.power}`, { fontFamily: TITLE_FONT, fontSize: '24px', color: '#ffffff' }).setOrigin(0.5));
       }
       items.push(scene.add.text(x + 32, y - 50, c.row === undefined ? '特' : c.row === 0 ? '前' : '後', { fontFamily: UI_FONT, fontSize: '16px', color: hexOf(col.edge) }).setOrigin(0.5));
-      const tag = c.ability === 'bond' ? '同袍' : c.ability === 'scout' ? '斥候' : c.ability === 'hero' ? '傳奇' : c.ability === 'scorch' ? '燼爆' : '';
+      const tag = c.ability === 'bond' ? '同袍' : c.ability === 'scout' ? '斥候' : c.ability === 'hero' ? '傳奇' : c.ability === 'scorch' ? '燼爆' : c.ability === 'echo' ? '回響' : '';
       if (tag) items.push(scene.add.text(x, y + 6, tag, { fontFamily: UI_FONT, fontSize: '15px', color: '#ffd27a' }).setOrigin(0.5));
       items.push(scene.add.text(x, y + 44, c.name, { fontFamily: UI_FONT, fontSize: '17px', color: '#f0e6d8', align: 'center', wordWrap: { width: 92, useAdvancedWrap: true } }).setOrigin(0.5));
     });
@@ -310,6 +312,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       '戰號：一排點數 ×2　傳奇：不受天候與戰號影響',
       '霜寒／濃霧：雙方前排／後排都變 1 點　晴空：解除',
       '燼爆：燒掉場上點數最高的單位（雙方都算）',
+      ...(secretOpen() ? ['回響：再複製一張自己場上最強的單位'] : []),
     ];
     items.push(scene.add.text(0, -235, rules.join('\n'), { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', lineSpacing: 6 }).setOrigin(0.5));
     const nx = nextReward(st.cards, who);
@@ -403,7 +406,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       const a = off ? 0.4 : 1;
       if (c.power) items.push(scene.add.text(x - 28, y - 42, `${c.power}`, { fontFamily: TITLE_FONT, fontSize: '22px', color: '#ffffff', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setAlpha(a));
       items.push(scene.add.text(x + 30, y - 44, c.row === undefined ? '特' : c.row === 0 ? '前' : '後', { fontFamily: UI_FONT, fontSize: '14px', color: hexOf(col.edge) }).setOrigin(0.5).setAlpha(a));
-      const tag = c.ability === 'bond' ? '同袍' : c.ability === 'scout' ? '斥候' : c.ability === 'hero' ? '傳奇' : c.ability === 'scorch' ? '燼爆' : '';
+      const tag = c.ability === 'bond' ? '同袍' : c.ability === 'scout' ? '斥候' : c.ability === 'hero' ? '傳奇' : c.ability === 'scorch' ? '燼爆' : c.ability === 'echo' ? '回響' : '';
       if (tag && !off && !cut) items.push(scene.add.text(x, y - 4, tag, { fontFamily: UI_FONT, fontSize: '14px', color: '#ffd27a' }).setOrigin(0.5).setAlpha(a));
       items.push(scene.add.text(x, y + 32, c.name, { fontFamily: UI_FONT, fontSize: '15px', color: '#f0e6d8', align: 'center', wordWrap: { width: 80, useAdvancedWrap: true } }).setOrigin(0.5).setAlpha(a));
       if (off) items.push(scene.add.text(x, y + 6, '箱子', { fontFamily: UI_FONT, fontSize: '16px', fontStyle: '700', color: '#a89880', backgroundColor: '#1a140e' }).setOrigin(0.5).setPadding(4, 2, 4, 2));
@@ -457,7 +460,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     }
     box.add(scene.add.text(62 * k, -110 * k, c.row === undefined ? '特殊' : c.row === 0 ? '前排' : '後排', { fontFamily: UI_FONT, fontSize: `${20 * k}px`, color: hexOf(col.edge) }).setOrigin(0.5));
     // 中間的紋章：依能力畫不同的符號
-    const sym = c.ability === 'hero' ? '★' : c.ability === 'scorch' ? '✹' : c.ability === 'bond' ? '∞' : c.ability === 'scout' ? '◎' : c.ability === 'horn' ? '♫' : c.row === 0 ? '⚔' : c.row === 1 ? '➶' : '❄';
+    const sym = c.ability === 'hero' ? '★' : c.ability === 'scorch' ? '✹' : c.ability === 'echo' ? '❖' : c.ability === 'bond' ? '∞' : c.ability === 'scout' ? '◎' : c.ability === 'horn' ? '♫' : c.row === 0 ? '⚔' : c.row === 1 ? '➶' : '❄';
     box.add(scene.add.text(0, -30 * k, sym, { fontFamily: UI_FONT, fontSize: `${70 * k}px`, color: hexOf(col.edge) }).setOrigin(0.5).setAlpha(0.85));
     box.add(scene.add.text(0, 72 * k, c.name, { fontFamily: TITLE_FONT, fontSize: `${30 * k}px`, color: '#f8ecd8', stroke: '#000', strokeThickness: 4 * k }).setOrigin(0.5));
     if (c.desc) box.add(scene.add.text(0, 112 * k, c.desc.split('：')[0]!, { fontFamily: UI_FONT, fontSize: `${18 * k}px`, color: '#ffd27a' }).setOrigin(0.5));
@@ -567,6 +570,11 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
         const burnt = g.lastBurn ?? [];
         lastLog = burnt.length ? `燼爆！燒掉了${burnt.map(([sd, , id]) => `${sd === 0 ? '你的' : who.short + '的'}「${CARDS[id]!.name}」`).join('、')}` : `${lastLog}——場上沒有能燒的牌`;
         if (burnt.length) burnPending = burnt;
+      } else if (pc.ability === 'echo') {
+        const e = g.lastEcho;
+        const mine = lastLog.startsWith('你');
+        lastLog = e ? `回響！${mine ? '你' : who.short}的「${CARDS[e[2]]!.name}」多了一張` : `${lastLog}——場上沒有能複製的單位`;
+        if (e) echoPending = e;
       }
       else if (pc.ability === 'frost' || pc.ability === 'fog') lastLog += `——雙方${pc.ability === 'frost' ? '前排' : '後排'}都變 1 點`;
       else if (pc.ability === 'horn') lastLog += '——一排點數 ×2';
@@ -588,6 +596,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     if (burnPending) {
       burnFx(burnPending);
       burnPending = null;
+    }
+    if (echoPending) {
+      echoFx(echoPending);
+      echoPending = null;
     }
     if (!g.over && g.turn === 1) aiTurn(wait);
   }
@@ -657,7 +669,26 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     });
   }
 
+  /** 回響（D-135）：被複製的那排泛起紫色波紋，新的那張從說書回聲的位置飄過去 */
+  function echoFx([side, row, id]: [number, Row, string]): void {
+    scene.cameras.main.flash(160, 200, 140, 255);
+    SFX.cardMagic();
+    const rowY = (sd: number, r: Row): number => (sd === 1 ? (r === 1 ? -440 : -330) : r === 0 ? -200 : -90);
+    const cx = GAME_WIDTH / 2;
+    const y = 640 + rowY(side, row) + 6;
+    const from = 640 + rowY(side, 1) + 6;
+    for (let k = 0; k < 3; k++) {
+      const ring = scene.add.ellipse(cx, y, 80, 30).setStrokeStyle(4, 0xd89aff, 1).setDepth(995).setAlpha(0.9);
+      scene.tweens.add({ targets: ring, scaleX: 6, scaleY: 3, alpha: 0, delay: k * 140, duration: 700, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+    }
+    const ghost = scene.add.container(cx + 200, from).setDepth(996).setAlpha(0.95);
+    ghost.add(scene.add.rectangle(0, 0, 56, 80, 0x8a5ad0, 0.9).setStrokeStyle(3, 0xf0d8ff, 1));
+    ghost.add(scene.add.text(0, 0, CARDS[id]!.name.slice(0, 2), { fontFamily: UI_FONT, fontSize: '16px', color: '#fff' }).setOrigin(0.5));
+    scene.tweens.add({ targets: ghost, x: cx, y, scale: 1.3, alpha: 0, duration: 650, ease: 'Sine.easeInOut', onComplete: () => ghost.destroy() });
+  }
+
   render();
+  root.setData('echo', echoFx);
   root.setData('reveal', reveal); // 截圖／除錯用
   root.setData('burn', burnFx);
   return root;

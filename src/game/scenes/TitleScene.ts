@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
-import { mapOpen } from '../rtRecord';
+import { bossKillsOf, mapOpen } from '../rtRecord';
 import { prevMap, WORLD_MAPS } from '../worldMaps';
 import { playMusic } from '../../audio/music';
 import { finaleSeen, loadFinaleStats, playFinale } from '../ui/finale';
@@ -261,7 +261,9 @@ export class TitleScene extends Phaser.Scene {
       else items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
     });
     // 通關後（D-133）：可以重看通關演出
-    if (finaleSeen()) items.push(['✦ 回顧結局', () => {
+    // 舊存檔已經打倒過最後一張圖的 Boss（通關演出做出來之前）也看得到
+    const cleared = finaleSeen() || bossKillsOf(WORLD_MAPS[WORLD_MAPS.length - 1]!.id) > 0;
+    if (cleared) items.push([finaleSeen() ? '✦ 回顧結局' : '✦ 觀看結局', () => {
       if (this.busy) return;
       this.busy = true;
       playFinale(this, loadFinaleStats(), () => {

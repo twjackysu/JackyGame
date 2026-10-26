@@ -1,6 +1,6 @@
 // 營火燼牌（D-127）：規則與 AI。
 import { describe, expect, it } from 'vitest';
-import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, DECK_MAX, deckWith, legalMoves, MERCHANT_DECK, newCardGame, nextReward, OPPONENTS, opponentsAt, PLAYER_DECK, rowScore, scorchTargets, totalScore, type CardGame, type Opponent } from '../src/core/cards/emberCards';
+import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, DECK_MAX, deckWith, legalMoves, MERCHANT_DECK, newCardGame, nextReward, OPPONENTS, opponentsAt, PLAYER_DECK, rowScore, echoTarget, scorchTargets, totalScore, type CardGame, type Opponent } from '../src/core/cards/emberCards';
 
 function bare(): CardGame {
   const g = newCardGame(1);
@@ -213,5 +213,31 @@ describe('寶箱裡的燼牌（D-131）', () => {
       expect(CARDS[id]).toBeDefined();
       expect(ownedCards([id])).toContain(id);
     }
+  });
+});
+
+describe('回響（D-135，伊妲的招牌）', () => {
+  it('複製自己場上加分最多的單位（同袍疊上去）、自己留在後排；傳奇不複製', () => {
+    const g = bare();
+    g.sides[0].rows = [['thornhound', 'thornhound', 'bear', 'hero_blade'], []];
+    g.sides[0].hand = ['echo', 'militia'];
+    expect(echoTarget(g, 0)).toEqual([0, 'thornhound']); // 獵犬 2→3 隻：8→18（+10）勝過岩甲熊 +8
+    const before = totalScore(g, 0);
+    expect(applyMove(g, 0, { type: 'play', card: 0 })).toBe(true);
+    expect(g.sides[0].rows[0].filter((x) => x === 'thornhound').length).toBe(3);
+    expect(g.sides[0].rows[1]).toEqual(['echo']);
+    expect(totalScore(g, 0)).toBe(before + 10 + 1);
+    expect(g.lastEcho).toEqual([0, 0, 'thornhound']);
+  });
+  it('場上只有傳奇或空的時候只放自己（1 點）', () => {
+    const g = bare();
+    g.sides[0].rows = [['hero_blade'], []];
+    g.sides[0].hand = ['echo', 'militia'];
+    expect(echoTarget(g, 0)).toBeNull();
+    applyMove(g, 0, { type: 'play', card: 0 });
+    expect(totalScore(g, 0)).toBe(11);
+  });
+  it('牌組超過上限時不會被當成最弱的牌拿掉', () => {
+    expect(deckWith(OPPONENTS.flatMap((o) => o.rewards))).toContain('echo');
   });
 });
