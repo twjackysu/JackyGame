@@ -1,8 +1,8 @@
 // 營火行商（D-116）：用金幣自由買賣。買＝貨架 4 件裝備＋材料＋付費換一批；賣＝背包裡的裝備換金幣。
 import Phaser from 'phaser';
-import { skillNames } from '../weapon';
+import { gearName, gearTitleW, skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
-import { RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, gearTitle, type RtGear } from '../../core/battle/rt/gear';
+import { RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, type RtGear } from '../../core/battle/rt/gear';
 import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, weakestSlot, type BagState } from '../rtBag';
 import { walletOf, type RtRecord } from '../rtRecord';
@@ -125,7 +125,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       const p = stockPrice(rec, g);
       const deal = isDeal(rec, g);
       const y = -335 + i * 84;
-      items.push(...row(y, 74, g, `【${SLOT_NAME[g.slot]}】${gearTitle(g)}`, `${p} 金`, coin >= p ? (deal ? '#7dffb0' : '#ffe08a') : '#ff8a7a', () => {
+      items.push(...row(y, 74, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `${p} 金`, coin >= p ? (deal ? '#7dffb0' : '#ffe08a') : '#ff8a7a', () => {
         detail = { g, buy: true };
         render();
       }, isUpgrade(st, g) ? '▲ ' : ''));
@@ -177,7 +177,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     items.push(scene.add.text(0, -392, '背包裡的裝備（身上穿的不能賣）', { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0' }).setOrigin(0.5));
     if (!st.bag.length) items.push(scene.add.text(0, -250, '背包是空的', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8' }).setOrigin(0.5));
     st.bag.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE).forEach((g, i) => {
-      items.push(...row(-335 + i * 74, 64, g, `【${SLOT_NAME[g.slot]}】${gearTitle(g)}`, `+${sellPrice(g)} 金`, '#ffe08a', () => {
+      items.push(...row(-335 + i * 74, 64, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `+${sellPrice(g)} 金`, '#ffe08a', () => {
         detail = { g, buy: false };
         render();
       }, isUpgrade(st, g) ? '▲ ' : ''));
@@ -215,7 +215,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
     out.push(scene.add.rectangle(0, -60, 600, 540, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
-    out.push(scene.add.text(0, -290, gearTitle(g), { fontFamily: TITLE_FONT, fontSize: '34px', color: hex(col) }).setOrigin(0.5));
+    out.push(scene.add.text(0, -290, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '34px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -245, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     out.push(scene.add.text(0, -150, gearLines(g, skillNames()).join('\n'), { fontFamily: UI_FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5));
     const now = bonusOf(st);
@@ -224,7 +224,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       const v = after[k] - now[k];
       return v === 0 ? `${name} ±0` : `${name} ${v > 0 ? '+' : ''}${v}`;
     };
-    if (buy) out.push(scene.add.text(0, 10, `${st.equip[g.slot] ? `換掉「${st.equip[g.slot]!.name}」` : '換上後'}：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`, { fontFamily: UI_FONT, fontSize: '21px', color: isUpgrade(st, g) ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5));
+    if (buy) out.push(scene.add.text(0, 10, `${st.equip[g.slot] ? `換掉「${gearName(st.equip[g.slot]!)}」` : '換上後'}：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`, { fontFamily: UI_FONT, fontSize: '21px', color: isUpgrade(st, g) ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5));
     else if (isUpgrade(st, g)) out.push(scene.add.text(0, 10, '這件比你身上的好！', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb07a' }).setOrigin(0.5));
     const back = () => {
       detail = null;
@@ -244,7 +244,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
         const next: BagState = { ...cur, bag: [mine, ...cur.bag] };
         ctx.setBag(wear ? equipWith(next, mine) : next);
         coinFx();
-        toast(wear ? `換上 ${g.name}！` : `買下 ${g.name}！到行囊換上`, hex(col));
+        toast(wear ? `換上 ${gearName(g)}！` : `買下 ${gearName(g)}！到行囊換上`, hex(col));
         back();
       };
       const up = isUpgrade(st, g);

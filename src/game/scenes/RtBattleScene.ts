@@ -35,7 +35,7 @@ function lerpColor(a: number, b: number, t: number): number {
 const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf6a, frenzy: 0xff5a4a };
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES } from '../../core/battle/rt/data';
-import { loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME } from '../weapon';
+import { gearName, loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME } from '../weapon';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -741,7 +741,7 @@ export class RtBattleScene extends Phaser.Scene {
         saveRecord(this.stageId, w);
         this.dustBase = walletOf(w).dust;
       }
-      floatNumber(this, this.sx(p.x), this.sy(p.y) - 150, `行囊滿・自動分解 ${r.salvaged.name} +${r.dust} 粉塵`, { color: '#c8c0a8', size: 20 });
+      floatNumber(this, this.sx(p.x), this.sy(p.y) - 150, `行囊滿・自動分解 ${gearName(r.salvaged)} +${r.dust} 粉塵`, { color: '#c8c0a8', size: 20 });
       if (r.salvaged.uid === g.uid) return;
     }
     const col = `#${RARITY_COLOR[rarity].toString(16).padStart(6, '0')}`;
@@ -751,10 +751,10 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: icon, alpha: 0, delay: 700, duration: 400, onComplete: () => icon.destroy(true) });
     if (rarity >= 3) {
       SFX.perfect();
-      bigText(this, GAME_WIDTH / 2, 560, `${g.night ? '深夜的稀有！' : '稀有裝備！'}\n${g.name}`, g.night ? '#b8a8ff' : col, 44, 1200);
+      bigText(this, GAME_WIDTH / 2, 560, `${g.night ? '深夜的稀有！' : '稀有裝備！'}\n${gearName(g)}`, g.night ? '#b8a8ff' : col, 44, 1200);
     } else {
       SFX.confirm();
-      floatNumber(this, this.sx(p.x), this.sy(p.y) - 120, g.name, { color: col, size: rarity === 2 ? 28 : 24 });
+      floatNumber(this, this.sx(p.x), this.sy(p.y) - 120, gearName(g), { color: col, size: rarity === 2 ? 28 : 24 });
     }
     if (!this.gearTipShown) {
       this.gearTipShown = true;

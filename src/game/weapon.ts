@@ -43,3 +43,15 @@ export function skillNames(w: WeaponId = loadWeapon()): Record<string, string> {
   if (w === 'sword') return SPECIAL_SKILLS;
   return Object.fromEntries(Object.entries(WEAPONS[w].skills).map(([id, d]) => [id, d.name]));
 }
+
+/** 武器欄裝備的顯示名跟著目前武器換字（第 34 輪）：拿長弓撿到「霧鋼劍」顯示成「霧鋼弓」、法杖顯示「霧鋼杖」；存檔裡的名字不變 */
+const NOUN: Record<WeaponId, { big: string; one: string } | null> = { sword: null, bow: { big: '長弓', one: '弓' }, staff: { big: '法杖', one: '杖' } };
+export function gearName(g: { slot: string; name: string }, w: WeaponId = loadWeapon()): string {
+  const n = NOUN[w];
+  if (!n || g.slot !== 'weapon') return g.name;
+  return g.name.replace(/(大劍|劍)(?=・|$)/, (m) => (m === '大劍' ? n.big : n.one));
+}
+/** gearTitle 的武器版（含強化 +N） */
+export function gearTitleW(g: { slot: string; name: string; enh?: number }, w: WeaponId = loadWeapon()): string {
+  return g.enh ? `+${g.enh} ${gearName(g, w)}` : gearName(g, w);
+}

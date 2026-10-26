@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MAGE, STAFF_SKILLS, STAFF_VARIANTS, STAFF_VARIANTS_B, STAGES, SWORDSMAN, WEAPONS, WEAPON_IDS, BOW_SKILLS, SKILLS } from '../src/core/battle/rt/data';
 import { createBattle, dashDistance, playerDef, skillDef, step } from '../src/core/battle/rt/engine';
 import { toggleVariant } from '../src/game/rtSkills';
+import { gearName, gearTitleW } from '../src/game/weapon';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec, u } from '../src/core/battle/rt/types';
@@ -57,6 +58,14 @@ describe('武器表與法杖（D-152）', () => {
     for (const w of WEAPON_IDS) for (const tbl of [WEAPONS[w].skills, WEAPONS[w].variants, WEAPONS[w].variantsB]) for (const sk of Object.values(tbl)) {
       if (sk.dash) expect(Math.abs(sk.dash.distance) / sk.dash.ticks, `${w} ${sk.name}`).toBeLessThanOrEqual(50);
     }
+  });
+
+  it('武器欄裝備的顯示名跟著武器換字', () => {
+    expect(gearName({ slot: 'weapon', name: '鋒利的王牙大劍・旋' }, 'staff')).toBe('鋒利的王牙法杖・旋');
+    expect(gearName({ slot: 'weapon', name: '霧鋼劍' }, 'bow')).toBe('霧鋼弓');
+    expect(gearName({ slot: 'weapon', name: '霧鋼劍' }, 'sword')).toBe('霧鋼劍');
+    expect(gearName({ slot: 'ring', name: '狼牙戒' }, 'staff')).toBe('狼牙戒');
+    expect(gearTitleW({ slot: 'weapon', name: '夜燼・嗜血的鐵劍', enh: 3 }, 'staff')).toBe('+3 夜燼・嗜血的鐵杖');
   });
 
   it('閃現：瞬移 5 格（開場面向北）', () => {

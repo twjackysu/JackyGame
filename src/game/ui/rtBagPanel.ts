@@ -1,9 +1,9 @@
 // 即時戰鬥「行囊」（P4-3，D-091）：6 格裝備、背包清單（▲＝比身上的好）、詳情與換上後的數值差、換上／卸下／丟棄。
 import Phaser from 'phaser';
-import { skillNames } from '../weapon';
+import { gearName, gearTitleW, skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
 import { SWORDSMAN } from '../../core/battle/rt/data';
-import { ENH_MAX, GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, enhanceCost, gearLines, gearScore, gearTitle, salvageDust, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
+import { ENH_MAX, GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, enhanceCost, gearLines, gearScore, salvageDust, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
 import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, unequip, type BagState } from '../rtBag';
 
@@ -76,7 +76,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
       const x = -230 + (i % 3) * 230;
       const y = -466 + Math.floor(i / 3) * 72;
       const g = st.equip[slot];
-      items.push(...cell(x, y, 220, 64, g, g ? short(gearTitle(g)) : `${SLOT_NAME[slot]}（空）`, () => {
+      items.push(...cell(x, y, 220, 64, g, g ? short(gearTitleW(g)) : `${SLOT_NAME[slot]}（空）`, () => {
         if (g) {
           detail = g;
           render();
@@ -91,7 +91,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     const list = st.bag.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
     if (!list.length) items.push(scene.add.text(0, -150, '還沒有裝備\n打倒怪物有機會掉落；首領常掉、狼王必掉', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
     list.forEach((g, i) => {
-      items.push(...cell(0, -290 + i * 68, 640, 60, g, `【${SLOT_NAME[g.slot]}】${gearTitle(g)}　Lv${g.ilvl}`, () => {
+      items.push(...cell(0, -290 + i * 68, 640, 60, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}　Lv${g.ilvl}`, () => {
         detail = g;
         render();
       }, isUpgrade(st, g) ? '▲' : ''));
@@ -127,7 +127,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
     out.push(scene.add.rectangle(0, -60, 600, 560, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
-    out.push(scene.add.text(0, -300, gearTitle(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5));
+    out.push(scene.add.text(0, -300, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -255, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}${worn ? '・裝備中' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     out.push(scene.add.text(0, -170, gearLines(g, skillNames()).join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5, 0.5));
     // 強化（D-092）：營火旁才能強化；+5 以內必成，之後有成功率，失敗只扣材料
@@ -172,7 +172,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
       const v = after[k] - now[k];
       return v === 0 ? `${name} ±0` : `${name} ${v > 0 ? '+' : ''}${v}`;
     };
-    const cmp = `${worn ? '卸下後' : st.equip[g.slot] ? `換掉「${st.equip[g.slot]!.name}」` : '換上後'}：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`;
+    const cmp = `${worn ? '卸下後' : st.equip[g.slot] ? `換掉「${gearName(st.equip[g.slot]!)}」` : '換上後'}：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`;
     const better = after.atk * 4 + after.hp * 0.25 + after.def * 3 > now.atk * 4 + now.hp * 0.25 + now.def * 3;
     out.push(scene.add.text(0, 10, cmp, { fontFamily: UI_FONT, fontSize: '22px', color: worn ? '#c8d0f0' : better ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5));
     if (worn) {
