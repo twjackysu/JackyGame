@@ -43,6 +43,7 @@ import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
+import { loadFinaleStats, playFinale } from '../ui/finale';
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
@@ -1034,6 +1035,8 @@ export class RtBattleScene extends Phaser.Scene {
       best = r.best;
       if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `解鎖：深夜的${this.mw}！\n☰ 暫停選單・怪更兇、掉得更好`, '#9fb8ff', 34, 2600));
       const nx = worldMap(worldMap(this.stageId)?.next ?? '');
+      // 最後一張地圖第一次討伐 → 通關演出（D-133）
+      if (r.first && !nx && !this.bot) this.time.delayedCall(5000, () => this.showFinale());
       if (r.first && nx) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx.name}！\n回標題選「前往${nx.name}」${nx.recLevel ? `・建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000));
       if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) this.time.delayedCall(4600, () => this.furyUnlockedToast());
       this.persist();
@@ -1045,6 +1048,23 @@ export class RtBattleScene extends Phaser.Scene {
     const head = first ? (worldMap(this.stageId)?.firstKill ?? '首次討伐！') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
+  }
+
+  /** 通關演出（D-133）：戰鬥暫停（當成 menu），按「繼續冒險」回到地圖；有面板開著就晚一點再播 */
+  private showFinale(): void {
+    if (this.ended) return;
+    if (this.menu || this.editing) {
+      this.time.delayedCall(1500, () => this.showFinale());
+      return;
+    }
+    this.fireBtn?.setVisible(false);
+    this.shopBtn?.setVisible(false);
+    this.cardBtn?.setVisible(false);
+    this.menu = playFinale(this, loadFinaleStats(), () => {
+      this.menu = null;
+      this.acc = 0;
+      bigText(this, GAME_WIDTH / 2, 560, '地上的戰利品別忘了撿！', '#f4e6c0', 32, 1800);
+    });
   }
 
   /** 隱藏精英的「遊戲記憶」提示：第一次連殺到門檻的 2/3 時出現一次 */

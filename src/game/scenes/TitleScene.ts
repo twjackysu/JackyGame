@@ -5,6 +5,7 @@ import { SFX } from '../../audio/sfx';
 import { mapOpen } from '../rtRecord';
 import { prevMap, WORLD_MAPS } from '../worldMaps';
 import { playMusic } from '../../audio/music';
+import { finaleSeen, loadFinaleStats, playFinale } from '../ui/finale';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
@@ -259,6 +260,14 @@ export class TitleScene extends Phaser.Scene {
       if (mapOpen(m.id)) items.push([`${i ? '前往' : '進入'}${m.name}`, () => this.go(() => this.scene.start('RtBattle', { stage: m.id, bot: '' }))]);
       else items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
     });
+    // 通關後（D-133）：可以重看通關演出
+    if (finaleSeen()) items.push(['✦ 回顧結局', () => {
+      if (this.busy) return;
+      this.busy = true;
+      playFinale(this, loadFinaleStats(), () => {
+        this.busy = false;
+      }, '回到標題');
+    }]);
     items.push(['設定', () => {
       if (this.busy) return;
       this.busy = true;

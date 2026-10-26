@@ -1,0 +1,82 @@
+// 通關演出的文字與旅程統計（D-133）：純資料，不 import Phaser（測試用）。
+import { WORLD_MAPS } from './worldMaps';
+import { loadRecord, type RtRecord } from './rtRecord';
+
+export const FINALE_LINES: readonly string[] = [
+  '霧散了。荊棘枯了。熔岩暗了下來。',
+  '三片土地的主人，都倒在你的劍下。',
+  '前世的你，就是在這裡關掉了遊戲——\n「第一章・完」，然後再也沒有更新。',
+  '可是這一次，畫面沒有變黑。',
+  '風從裂谷吹上來，帶著星燼的味道。\n地圖的邊緣之外，還有你不記得的路。',
+  '——這個世界，還在等你。',
+];
+
+export const FINALE_CREDITS: readonly [string, string][] = [
+  ['企劃・試玩・美術（AI 繪圖）', 'Jacky'],
+  ['程式・關卡・數值・程式美術', 'Claude（Anthropic）\n每兩小時一輪的自動開發迴圈'],
+  ['引擎與工具', 'Phaser 3・TypeScript・Vite\nCapacitor・Vitest・Playwright'],
+  ['音樂與音效', 'WebAudio 即時合成（沒有任何音檔）'],
+  ['特別感謝', '每一位把狼王打到暈過去的玩家'],
+];
+
+export interface BossLine { name: string; map: string; first?: number; best?: number; kills: number; color: string }
+export interface FinaleStats {
+  bosses: BossLine[];
+  level: number;
+  playSec: number;
+  kills: number;
+  chests: number;
+  cardsWon: number;
+}
+
+/** 從各地圖紀錄算出這趟旅程（純函式，有測試） */
+export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0): FinaleStats {
+  const home = recs[WORLD_MAPS[0]!.id] ?? {};
+  return {
+    bosses: WORLD_MAPS.map((m) => {
+      const r = recs[m.id] ?? {};
+      return { name: m.boss, map: m.name, first: r.firstAt, best: r.bestBossSec, kills: r.bossKills ?? 0, color: m.color };
+    }),
+    level: home.level ?? 1,
+    playSec: home.playSec ?? 0,
+    kills: home.kills ?? 0,
+    chests: WORLD_MAPS.reduce((n, m) => n + (recs[m.id]?.chests?.length ?? 0), 0),
+    cardsWon,
+  };
+}
+
+/** 遊玩時間：「3 小時 05 分」或「42 分」 */
+export function fmtPlay(sec: number): string {
+  const m = Math.floor(sec / 60);
+  return m >= 60 ? `${Math.floor(m / 60)} 小時 ${String(m % 60).padStart(2, '0')} 分` : `${m} 分`;
+}
+
+/** 讀 localStorage 的版本（畫面用） */
+export function loadFinaleStats(): FinaleStats {
+  const recs: Record<string, RtRecord> = {};
+  for (const m of WORLD_MAPS) recs[m.id] = loadRecord(m.id);
+  let won = 0;
+  try {
+    const c = JSON.parse(localStorage.getItem('jg_cards') ?? '{}') as { won?: unknown };
+    won = typeof c.won === 'number' ? c.won : 0;
+  } catch {
+    /* 無痕模式 */
+  }
+  return finaleStats(recs, won);
+}
+
+export function finaleSeen(): boolean {
+  try {
+    return localStorage.getItem('jg_finale_seen') === '1';
+  } catch {
+    return false;
+  }
+}
+export function markFinaleSeen(): void {
+  try {
+    localStorage.setItem('jg_finale_seen', '1');
+  } catch {
+    /* 無痕模式 */
+  }
+}
+
