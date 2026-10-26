@@ -8,8 +8,8 @@ import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { highFx } from '../settings';
 import { fmtSec } from '../rtRecord';
-import { FINALE_CREDITS, FINALE_LINES, fmtPlay, markFinaleSeen, type FinaleStats } from '../finaleStats';
-export { finaleSeen, loadFinaleStats } from '../finaleStats';
+import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, fmtPlay, markFinaleSeen, markPrologueSeen, type FinaleStats } from '../finaleStats';
+export { finaleSeen, loadFinaleStats, prologueSeen } from '../finaleStats';
 
 const fmtDate = (at?: number): string => {
   if (!at) return '—';
@@ -22,7 +22,18 @@ const fmtDate = (at?: number): string => {
  * 點畫面＝跳到下一段；最後一段按「繼續冒險」才呼叫 onDone。
  */
 export function playFinale(scene: Phaser.Scene, stats: FinaleStats, onDone: () => void, doneLabel = '繼續冒險'): Phaser.GameObjects.Container {
-  markFinaleSeen();
+  return runStory(scene, stats, onDone, doneLabel);
+}
+
+/** 序章（D-134）：第一次進霧語森林前播放；點一下跳下一行、右上「略過」直接結束 */
+export function playPrologue(scene: Phaser.Scene, onDone: () => void): Phaser.GameObjects.Container {
+  return runStory(scene, null, onDone, '');
+}
+
+function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => void, doneLabel: string): Phaser.GameObjects.Container {
+  const lines = stats ? FINALE_LINES : PROLOGUE_LINES;
+  if (stats) markFinaleSeen();
+  else markPrologueSeen();
   const cx = GAME_WIDTH / 2;
   const root = scene.add.container(0, 0).setDepth(2000);
   const fx = highFx();
@@ -81,19 +92,38 @@ export function playFinale(scene: Phaser.Scene, stats: FinaleStats, onDone: () =
   const lineTexts: Phaser.GameObjects.Text[] = [];
   const steps: (() => number)[] = [];
   // 1. 結語：一行一行浮現，前面的變暗
-  FINALE_LINES.forEach((ln, i) => {
+  lines.forEach((ln, i) => {
     steps.push(() => {
       for (const t of lineTexts) scene.tweens.add({ targets: t, alpha: 0.45, duration: 500 });
       const y = 250 + lineTexts.reduce((h, t) => h + t.height + 34, 0);
-      const t = scene.add.text(cx, y, ln, { fontFamily: TITLE_FONT, fontSize: '34px', color: i === FINALE_LINES.length - 1 ? '#ffd27a' : '#f4e6c0', align: 'center', lineSpacing: 10, wordWrap: { width: 640, useAdvancedWrap: true } })
+      const t = scene.add.text(cx, y, ln, { fontFamily: TITLE_FONT, fontSize: '34px', color: i === lines.length - 1 ? '#ffd27a' : '#f4e6c0', align: 'center', lineSpacing: 10, wordWrap: { width: 640, useAdvancedWrap: true } })
         .setOrigin(0.5, 0).setAlpha(0);
       layer.add(t);
       lineTexts.push(t);
       scene.tweens.add({ targets: t, alpha: 1, y: y - 8, duration: 900, ease: 'Sine.easeOut' });
-      if (i === FINALE_LINES.length - 1) glow(t, 0xffb35a);
+      if (i === lines.length - 1) glow(t, 0xffb35a);
       return ln.length > 18 ? 3000 : 2300;
     });
   });
+  if (!stats) {
+    // 序章收尾：地圖名卡，然後自己結束
+    steps.push(() => {
+      clear();
+      SFX.confirm();
+      ring(560, 0x9adfa0, 300);
+      const t = scene.add.text(cx, 560, '霧語森林', { fontFamily: TITLE_FONT, fontSize: '84px', fontStyle: '900', color: '#e8f4d8', stroke: '#0a1a0c', strokeThickness: 8 }).setOrigin(0.5).setAlpha(0).setScale(1.4);
+      const sub = scene.add.text(cx, 660, '第一章　轉生者的森林', { fontFamily: TITLE_FONT, fontSize: '30px', color: '#a8d8a0' }).setOrigin(0.5).setAlpha(0).setLetterSpacing(4);
+      layer.add([t, sub]);
+      glow(t, 0x9adfa0);
+      scene.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 700, ease: 'Back.Out' });
+      scene.tweens.add({ targets: sub, alpha: 1, delay: 500, duration: 700 });
+      return 2400;
+    });
+    steps.push(() => {
+      finish();
+      return -1;
+    });
+  } else {
   // 2. 第一章・完
   steps.push(() => {
     clear();
@@ -193,6 +223,7 @@ export function playFinale(scene: Phaser.Scene, stats: FinaleStats, onDone: () =
     scene.tweens.add({ targets: btn, scale: 1.04, delay: 1800, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     return -1;
   });
+  }
 
   let idx = -1;
   let timer: Phaser.Time.TimerEvent | null = null;
@@ -220,6 +251,15 @@ export function playFinale(scene: Phaser.Scene, stats: FinaleStats, onDone: () =
     lastTap = now;
     next();
   });
+  if (!stats) {
+    const skip = scene.add.text(GAME_WIDTH - 30, 40, '略過 ▶▶', { fontFamily: UI_FONT, fontSize: '24px', color: '#c8c0b0', backgroundColor: 'rgba(0,0,0,0.4)' }).setPadding(14, 8, 14, 8).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    skip.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      SFX.uiTap();
+      finish();
+    });
+    root.add(skip);
+  }
   timer = scene.time.delayedCall(1500, next);
   return root;
 }

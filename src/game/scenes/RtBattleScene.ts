@@ -43,7 +43,7 @@ import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
-import { loadFinaleStats, playFinale } from '../ui/finale';
+import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
@@ -338,25 +338,19 @@ export class RtBattleScene extends Phaser.Scene {
     });
     if (this.botName) this.add.text(44, 40, '觀戰', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff', backgroundColor: '#1a2a3a' }).setPadding(8, 4, 8, 4).setOrigin(0.5).setDepth(49);
     // 第 26 輪：開場一次只出一件事——有開場大字時，操作說明框等大字消失（3.6 秒）再出，不再五段文字疊在一起
-    const st00 = STAGES[this.stageId];
     this.hint = null; // 場景重開時上一場的說明框已被銷毀
-    if (!this.bot) {
-      if (st00?.intro || st00?.spawnGroups?.length) this.time.delayedCall(3600, () => this.showHint());
-      else this.showHint();
-    }
-    // 刷怪關的開場說明（怪會重生、營火是安全區）
-    const st0 = STAGES[this.stageId];
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.paws = [];
     this.pawLast.clear();
-    if (st0?.intro || st0?.spawnGroups?.length) {
-      // 開場大字 0.4 秒出現、約 3.4 秒消失，提示（y 700）等它走了再出
+    // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
+    if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
       this.tipBusy = true;
-      this.time.delayedCall(3800, () => (this.tipBusy = false));
-
-      const intro = st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）';
-      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, intro, '#ffd27a', 30, 2600));
-    }
+      this.menu = playPrologue(this, () => {
+        this.menu = null;
+        this.acc = 0;
+        this.opening();
+      });
+    } else this.opening();
     this.input.addPointer(2);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onDown(p));
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onMove(p));
@@ -1048,6 +1042,26 @@ export class RtBattleScene extends Phaser.Scene {
     const head = first ? (worldMap(this.stageId)?.firstKill ?? '首次討伐！') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
+  }
+
+  /** 開場：地圖說明大字＋操作說明框（序章播完才跑） */
+  private opening(): void {
+    const st00 = STAGES[this.stageId];
+    if (!this.bot) {
+      if (st00?.intro || st00?.spawnGroups?.length) this.time.delayedCall(3600, () => this.showHint());
+      else this.showHint();
+    }
+    // 刷怪關的開場說明（怪會重生、營火是安全區）
+    const st0 = STAGES[this.stageId];
+    this.tipBusy = false;
+    if (st0?.intro || st0?.spawnGroups?.length) {
+      // 開場大字 0.4 秒出現、約 3.4 秒消失，提示（y 700）等它走了再出
+      this.tipBusy = true;
+      this.time.delayedCall(3800, () => (this.tipBusy = false));
+
+      const intro = st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）';
+      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, intro, '#ffd27a', 30, 2600));
+    }
   }
 
   /** 通關演出（D-133）：戰鬥暫停（當成 menu），按「繼續冒險」回到地圖；有面板開著就晚一點再播 */

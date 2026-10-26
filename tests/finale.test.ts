@@ -1,6 +1,6 @@
 // 通關演出（D-133）：旅程統計從三張地圖的紀錄算出來、文字不會太長擠爆畫面。
 import { describe, expect, it } from 'vitest';
-import { FINALE_CREDITS, FINALE_LINES, finaleStats, fmtPlay } from '../src/game/finaleStats';
+import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, finaleStats, fmtPlay } from '../src/game/finaleStats';
 import { WORLD_MAPS } from '../src/game/worldMaps';
 
 describe('通關演出', () => {
@@ -27,8 +27,8 @@ describe('通關演出', () => {
     expect(fmtPlay(42 * 60 + 5)).toBe('42 分');
     expect(fmtPlay(3 * 3600 + 5 * 60)).toBe('3 小時 05 分');
   });
-  it('每行結語不超過 20 字（直式畫面一行放得下）', () => {
-    for (const ln of FINALE_LINES) for (const part of ln.split('\n')) expect(part.length).toBeLessThanOrEqual(20);
+  it('每行序章／結語不超過 20 字（直式畫面一行放得下）', () => {
+    for (const ln of [...FINALE_LINES, ...PROLOGUE_LINES]) for (const part of ln.split('\n')) expect(part.length).toBeLessThanOrEqual(20);
     expect(FINALE_CREDITS.length).toBeGreaterThan(2);
   });
 });

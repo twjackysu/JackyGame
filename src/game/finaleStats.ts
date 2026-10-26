@@ -2,6 +2,16 @@
 import { WORLD_MAPS } from './worldMaps';
 import { loadRecord, type RtRecord } from './rtRecord';
 
+/** 序章（D-134）：前世的設定，和結語前後呼應 */
+export const PROLOGUE_LINES: readonly string[] = [
+  '《星燼回響》——一款冷門的手機遊戲。',
+  '全伺服器只有你一個人拿到全成就。',
+  '停止營運的那天晚上，你最後一次\n打倒霧角狼王，然後睡著了。',
+  '醒來的時候，營火在身邊劈啪作響。',
+  '森林的氣味、遠處狼的低吼……\n全都是真的。',
+  '——而你記得這裡的每一個秘密。',
+];
+
 export const FINALE_LINES: readonly string[] = [
   '霧散了。荊棘枯了。熔岩暗了下來。',
   '三片土地的主人，都倒在你的劍下。',
@@ -80,3 +90,18 @@ export function markFinaleSeen(): void {
   }
 }
 
+
+export function prologueSeen(): boolean {
+  try {
+    return localStorage.getItem('jg_prologue_seen') === '1';
+  } catch {
+    return true;
+  }
+}
+export function markPrologueSeen(): void {
+  try {
+    localStorage.setItem('jg_prologue_seen', '1');
+  } catch {
+    /* 無痕模式 */
+  }
+}
