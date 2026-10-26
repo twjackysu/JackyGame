@@ -1595,7 +1595,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.slash(src.x, src.y, Math.atan2(d.y - src.y, d.x - src.x), 150, 110, e.crit ? 0xffd05a : 0xffffff, 5);
           this.knock(d.id, d.x - src.x, d.y - src.y, 10);
         } else if (src && src.side === 'player' && e.origin !== 'dot') this.knock(d.id, d.x - src.x, d.y - src.y, 16);
-        floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : 26 });
+        floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : e.origin === 'dot' ? 22 : 26 });
         if (!toPlayer && e.origin !== 'dot') {
           SFX.hitLight();
           sparks(this, this.sx(d.x), this.sy(d.y), 6, 'spark', 0xffffff, 260);
@@ -3189,9 +3189,27 @@ export class RtBattleScene extends Phaser.Scene {
           top.fillStyle(0xffe066, 1).fillCircle(px + Math.cos(an) * r * 0.8, headY - 8 + Math.sin(an) * 5, 5);
         }
       }
-      if (x.statuses.some((q) => q.id === 'poison' && q.until > s.tick)) top.fillStyle(0xb060ff, 1).fillCircle(px + r, headY + 10, 7);
+      if (isP && x.statuses.some((q) => q.id === 'poison' && q.until > s.tick)) top.fillStyle(0xb060ff, 1).fillCircle(px + r, headY + 10, 7);
       // 變化二的狀態（D-121）：冰凍＝淡藍冰殼、破甲＝紅色裂盾、虛弱＝灰紫向下箭頭
       if (!isP) {
+        // 長弓變化二（D-149）：灼燒＝身上竄著小火苗、中毒＝往上冒的綠色泡泡
+        if (x.statuses.some((q) => q.id === 'burn' && q.until > s.tick)) {
+          const bodyH = Math.max(r, py - headY);
+          for (let q = 0; q < 3; q++) {
+            const fx1 = px + (q - 1) * bodyH * 0.22;
+            const fy1 = py - bodyH * (0.28 + 0.12 * (q % 2));
+            const hh = bodyH * (0.32 + 0.12 * Math.sin(now / 80 + q * 2 + x.id));
+            const w0 = bodyH * 0.09;
+            top.fillStyle(0xff6a1a, 0.8).fillTriangle(fx1 - w0, fy1, fx1 + w0, fy1, fx1 + Math.sin(now / 120 + q) * w0 * 0.6, fy1 - hh);
+            top.fillStyle(0xffd04a, 0.95).fillTriangle(fx1 - w0 * 0.45, fy1, fx1 + w0 * 0.45, fy1, fx1, fy1 - hh * 0.55);
+          }
+        }
+        if (x.statuses.some((q) => q.id === 'poison' && q.until > s.tick)) {
+          for (let q = 0; q < 4; q++) {
+            const t = ((now / 900 + q / 4 + x.id * 0.13) % 1);
+            top.fillStyle(0x9aff5a, 0.8 * (1 - t)).fillCircle(px + Math.sin(q * 2.3 + x.id) * r * 0.6, py - Math.max(r, py - headY) * (0.3 + 0.6 * t), 4 + 4 * (1 - t));
+          }
+        }
         if (x.statuses.some((q) => q.id === 'freeze' && q.until > s.tick)) {
           top.fillStyle(0xbff4ff, 0.28).fillEllipse(px, py - r * 0.4, r * 2.6, r * 2.2);
           top.lineStyle(2, 0xe8fcff, 0.85).strokeEllipse(px, py - r * 0.4, r * 2.6, r * 2.2);
