@@ -22,6 +22,8 @@ const THORN_ATTACKS = new Set(['queen_lance', 'queen_lance2', 'queen_roots', 'qu
 /** 燼心岩王與黑曜首領（D-125）：命中那一刻地上裂出熔岩（走 thornPending，命中時改呼叫 spawnLava） */
 /** 背上畫火焰鬃毛的怪（D-125） */
 const FLAME_MANE = new Set(['ember_wolf', 'obsidian_alpha', 'magma_stalker']);
+/** 星隕高原的狼（第 40 輪）：染色立繪身上加會閃的星痕；彗星巡者拖彗尾、星蝕狼背上一輪日蝕 */
+const STAR_MARKS = new Set(['star_wolf', 'astral_alpha', 'comet_stalker', 'eclipse_wolf']);
 const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
 
 /** 星骸守望者的召喚墜星（第 31 輪）：預告畫成藍白色＋從夜空落下的星星，落地時跟地圖的落星一樣爆開 */
@@ -1247,6 +1249,47 @@ export class RtBattleScene extends Phaser.Scene {
       const q = this.afterFinale.splice(0);
       q.forEach((fn, i) => this.time.delayedCall(2400 + i * 3200, fn));
     });
+  }
+
+  /** 星隕高原的狼（第 40 輪，純畫面）：身上幾顆會閃的四芒星痕；彗星巡者身後拖三道彗尾；星蝕狼背上一輪黑日＋紫色日冕 */
+  private drawStarMarks(top: Phaser.GameObjects.Graphics, x: Unit, sp: Phaser.GameObjects.Image, r: number, now: number): void {
+    const dir = sp.flipX ? -1 : 1;
+    const bodyY = sp.y - sp.displayHeight * 0.45;
+    if (x.defId === 'comet_stalker') {
+      // 彗尾：從背後往後拖、末端變細變淡，跟著呼吸伸縮
+      for (let q = 0; q < 3; q++) {
+        const len = r * (2.2 + q * 0.5) * (0.85 + 0.15 * Math.sin(now / 160 + q * 1.3 + x.id));
+        const oy = (q - 1) * r * 0.22;
+        const bx = sp.x - dir * r * 0.4;
+        const by = bodyY + oy;
+        top.fillStyle(q === 1 ? 0xe8f0ff : 0x8ab0ff, q === 1 ? 0.55 : 0.32);
+        top.fillTriangle(bx, by - r * 0.16, bx, by + r * 0.16, bx - dir * len, by + oy * 0.6);
+      }
+    }
+    if (x.defId === 'eclipse_wolf') {
+      // 日蝕：背上一輪黑日，外圈紫色日冕慢慢呼吸
+      // 放在尾巴上方（不和頭上的血條疊在一起）
+      const ex = sp.x - dir * r * 0.75;
+      const ey = sp.y - sp.displayHeight * 0.8;
+      const er = r * 0.52;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 260 + x.id);
+      top.fillStyle(0x9a7aff, 0.18 + 0.14 * pulse).fillCircle(ex, ey, er * (1.7 + 0.25 * pulse));
+      top.fillStyle(0xd8c8ff, 0.5 + 0.3 * pulse).fillCircle(ex, ey, er * 1.12);
+      top.fillStyle(0x0a0618, 1).fillCircle(ex, ey, er);
+    }
+    // 星痕：固定位置的四芒小星，輪流閃
+    const n = x.defId === 'star_wolf' ? 3 : 4;
+    for (let q = 0; q < n; q++) {
+      const tw = Math.sin(now / 220 + q * 2.3 + x.id * 0.7);
+      if (tw < 0.1) continue;
+      const sx0 = sp.x + dir * (q - (n - 1) / 2) * r * 0.48;
+      const sy0 = bodyY - r * (0.25 + 0.18 * ((q * 5) % 3));
+      const L = r * 0.26 * tw;
+      const w = L * 0.28;
+      top.fillStyle(0xffffff, 0.9 * tw);
+      top.fillTriangle(sx0 - w, sy0, sx0 + w, sy0, sx0, sy0 - L).fillTriangle(sx0 - w, sy0, sx0 + w, sy0, sx0, sy0 + L);
+      top.fillTriangle(sx0, sy0 - w, sx0, sy0 + w, sx0 - L, sy0).fillTriangle(sx0, sy0 - w, sx0, sy0 + w, sx0 + L, sy0);
+    }
   }
 
   /** 第一次遇到 Boss 的前世攻略提示（每張圖不同，worldMaps.bossTip） */
@@ -3989,6 +4032,7 @@ export class RtBattleScene extends Phaser.Scene {
             top.fillStyle(0xffc04a, 0.95).fillTriangle(fxp - r * 0.11, fyp, fxp + r * 0.11, fyp, fxp + sway * 0.6, fyp - hgt * 0.6);
           }
         }
+        if (STAR_MARKS.has(x.defId) && !x.dead) this.drawStarMarks(top, x, sp, r, now);
         if (isP) {
           this.shadowGhost(x, sp, now);
           if (this.s.weapon === 'staff') this.blinkFx(x, sp);
