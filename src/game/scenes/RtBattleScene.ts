@@ -3151,6 +3151,22 @@ export class RtBattleScene extends Phaser.Scene {
             const ty2 = by - Math.sin(a0) * R;
             top.fillStyle(0xffd27a, 1).fillCircle(tx, ty1, 3.5).fillCircle(tx, ty2, 3.5);
             top.lineStyle(1.5, 0xf0f0e0, 0.9).beginPath().moveTo(tx, ty1).lineTo(tx - dir * pull, by).lineTo(tx, ty2).strokePath();
+            // 弓身的金色描邊（遠看也認得出是弓）
+            top.lineStyle(1.5, 0xffe0a0, 0.7).beginPath().arc(bx - dir * R * 0.55, by, R + 2.5, a0 + 0.15, a0 + 2.05, false).strokePath();
+            if (pull > 0) {
+              // 拉弓時搭著一支箭：箭尾在弦上、箭頭超出弓身；技能的箭頭會發光（顏色跟著招式的狀態）
+              const sk = x.action?.kind === 'skill' ? skillDef(this.s, x.action.id) : undefined;
+              const st0 = sk?.hits[0]?.status?.id ?? sk?.block?.counter.status?.id;
+              const col = sk?.role === 'ult' ? 0xff9ae0 : st0 === 'burn' ? 0xff8a3a : st0 === 'poison' ? 0xa8ff6a : st0 === 'freeze' ? 0xbff4ff : st0 === 'weak' ? 0xc8a0ff : sk ? 0x9fe0ff : 0;
+              const ax0 = tx - dir * pull;
+              const ax1 = bx + dir * R * 0.55;
+              top.lineStyle(3, 0x8a6a40, 1).lineBetween(ax0, by, ax1, by);
+              top.fillStyle(0xf4f8ff, 1).fillTriangle(ax1 + dir * 10, by, ax1, by - 5, ax1, by + 5);
+              if (col) {
+                const gl = 0.5 + 0.5 * Math.sin(now / 60);
+                top.fillStyle(col, 0.35 + 0.25 * gl).fillCircle(ax1 + dir * 4, by, (sk?.role === 'ult' ? 16 : 10) + 3 * gl);
+              }
+            }
           }
         }
       } else {
