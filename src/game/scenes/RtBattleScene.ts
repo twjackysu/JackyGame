@@ -2867,7 +2867,9 @@ export class RtBattleScene extends Phaser.Scene {
     // 地面掉落：金幣（金色閃光）、粉塵（藍點）、結晶（紫菱形）、藥水（紅瓶）；上下浮動
     for (const it of s.ground ?? []) {
       const ix = this.sx(it.x);
+      if (ix < -60 || ix > GAME_WIDTH + 60) continue;
       const iy = this.sy(it.y) - 6 - 4 * Math.sin(now / 260 + it.id);
+      if (iy < VIEW_TOP - 60 || iy > VIEW_BOTTOM + 200) continue; // 光柱往上 150
       const k = this.k;
       g.fillStyle(0x000000, 0.35).fillEllipse(ix, this.sy(it.y) + 6, 26 * k * 2, 8 * k * 2);
       if (it.kind === 'gold') {
@@ -2950,6 +2952,12 @@ export class RtBattleScene extends Phaser.Scene {
       const cx = this.sx(c.x);
       const cy = this.sy(c.y);
       const k = this.k * 1.5;
+      const safeR = CAMPFIRE_RULES.safeUnits * UNIT * this.k;
+      if (cx < -safeR || cx > GAME_WIDTH + safeR || cy < VIEW_TOP - safeR || cy > VIEW_BOTTOM + safeR) {
+        this.glows[fi++]?.setVisible(false);
+        continue;
+      }
+      this.glows[fi]?.setVisible(true);
       g.lineStyle(2, 0xffb060, 0.18).strokeCircle(cx, cy, CAMPFIRE_RULES.safeUnits * UNIT * this.k);
       const gl = this.glows[fi++];
       if (gl) gl.setPosition(cx, cy - 10 * k).setScale(((s.night ? 400 : 300) * k * (1 + 0.06 * Math.sin(now / 130))) / 128).setAlpha(0.85 + 0.15 * Math.sin(now / 170));
@@ -3010,6 +3018,13 @@ export class RtBattleScene extends Phaser.Scene {
       const boss = !!ENEMIES[x.defId]?.boss;
       const inv = isP && x.invulnUntil >= s.tick;
       const sp = this.spriteFor(x);
+      // 畫面外的單位不畫（大地圖上一百多隻怪，以前每幀都畫陰影／圈／血條，還送整張立繪進渲染）；巡邏怪照畫（仇恨圈很大＋腳印）
+      const cullM = r * 5 + 80;
+      if (!isP && !x.patrol && (px < -cullM || px > GAME_WIDTH + cullM || py < VIEW_TOP - cullM || py > VIEW_BOTTOM + cullM)) {
+        if (sp?.visible) sp.setVisible(false);
+        continue;
+      }
+      if (sp && !sp.visible) sp.setVisible(true);
       const winding = !isP && s.telegraphs.some((t) => t.ownerId === x.id);
       // 腳下：陰影＋陣營圈（RO 式）
       g.fillStyle(0x000000, 0.4).fillEllipse(px, py + r * 0.15, r * 2.4, r * 1.0);
