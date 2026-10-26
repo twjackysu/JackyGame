@@ -1618,6 +1618,7 @@ export class RtBattleScene extends Phaser.Scene {
           if (dn.skill !== e.skill) dn.t.setColor('#ffd27a');
           dn.t.setText(`${dn.sum}`);
         } else if (e.origin === 'dot' && !toPlayer) {
+          if (e.skill === 'burn' && this.onScreen(d.x, d.y)) this.emberPuff(this.sx(d.x), this.sy(d.y) - 20);
           const t = floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}`, { color: e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: 22 });
           this.dotNum.set(d.id, { t, at: this.time.now, sum: e.amount, skill: e.skill });
         } else
@@ -2498,6 +2499,133 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 法杖擋下攻擊（第 34 輪）：身邊一圈六角形星輝護盾亮起、碎成光點（純畫面） */
+  /** 世界座標在不在畫面裡（含一點邊界；短命特效用，畫面外就不產生粒子） */
+  private onScreen(x: number, y: number): boolean {
+    const px = this.sx(x);
+    const py = this.sy(y);
+    return px > -80 && px < GAME_WIDTH + 80 && py > VIEW_TOP - 80 && py < VIEW_BOTTOM + 80;
+  }
+
+  /** 灼燒每跳一次：身上往上竄幾顆火星（第 35 輪；純畫面） */
+  private emberPuff(x: number, y: number): void {
+    const p = this.add.particles(x, y, 'ember', {
+      speed: { min: 40, max: 110 }, angle: { min: 245, max: 295 }, gravityY: -120,
+      scale: { start: 0.9, end: 0 }, lifespan: { min: 380, max: 700 }, blendMode: Phaser.BlendModes.ADD, emitting: false,
+    });
+    p.setDepth(800);
+    p.explode(getSettings().lowFx ? 2 : 5, 0, 0);
+    this.time.delayedCall(800, () => p.destroy());
+  }
+
+  /**
+   * 時間凝滯（法杖變化二的格擋，第 35 輪）：地上浮出一面鐘——12 道刻度、兩根指針飛快倒轉後停住，再整面碎成冰藍光點。純畫面。
+   */
+  private timeClock(x: number, y: number, rUnits: number): void {
+    const vx = this.sx(x);
+    const vy = this.sy(y);
+    const R = rUnits * this.k;
+    const g = this.add.graphics().setDepth(689).setBlendMode(Phaser.BlendModes.ADD).setPosition(vx, vy);
+    const col = 0xa8ecff;
+    this.tweens.addCounter({ from: 0, to: 1, duration: 900, onUpdate: (tw) => {
+      const t = tw.getValue() ?? 1;
+      const grow = Math.min(1, t * 4);
+      const rr = R * (0.6 + 0.4 * grow);
+      g.clear();
+      g.fillStyle(0x6ab8ff, 0.1 * grow).fillEllipse(0, 0, rr * 2, rr * 1.2);
+      g.lineStyle(5, col, 0.85 * grow).strokeEllipse(0, 0, rr * 2, rr * 1.2).lineStyle(2, 0xffffff, 0.5 * grow).strokeEllipse(0, 0, rr * 1.75, rr * 1.05);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const r0 = rr * (i % 3 === 0 ? 0.72 : 0.8);
+        g.lineStyle(i % 3 === 0 ? 4 : 2, 0xe8fcff, 0.9 * grow).lineBetween(Math.cos(a) * r0, Math.sin(a) * r0 * 0.6, Math.cos(a) * rr * 0.9, Math.sin(a) * rr * 0.9 * 0.6);
+      }
+      // 指針：前 60% 飛快倒轉（減速），之後停在 12 點
+      const spin = t < 0.6 ? (1 - t / 0.6) ** 2 * Math.PI * 6 : 0;
+      const am = -Math.PI / 2 - spin;
+      const ah = -Math.PI / 2 - spin / 12 - Math.PI / 6;
+      g.lineStyle(5, 0xffffff, grow).lineBetween(0, 0, Math.cos(am) * rr * 0.68, Math.sin(am) * rr * 0.68 * 0.6);
+      g.lineStyle(7, col, grow).lineBetween(0, 0, Math.cos(ah) * rr * 0.45, Math.sin(ah) * rr * 0.45 * 0.6);
+      g.fillStyle(0xffffff, grow).fillCircle(0, 0, 7);
+      g.setAlpha(t < 0.75 ? 1 : 1 - (t - 0.75) / 0.25);
+    }, onComplete: () => {
+      g.destroy();
+      sparks(this, vx, vy, 18, 'spark', col, 420);
+    } });
+    this.cameras.main.flash(80, 170, 220, 255);
+  }
+
+  /**
+   * 虛空奇點（法杖變化二的大招，第 35 輪）：中央一顆黑洞＋紫色吸積環，周圍的光點被吸進去。
+   * 每段命中呼叫一次，同一次施放共用同一個黑洞（`voidFx` 存著，最後一段後 0.5 秒收掉）。純畫面。
+   */
+  private voidFx: { g: Phaser.GameObjects.Graphics; until: number; x: number; y: number; R: number; motes: { a: number; d: number; v: number }[] } | null = null;
+  private voidHole(x: number, y: number, rUnits: number): void {
+    const now = this.time.now;
+    if (this.voidFx && this.voidFx.g.active) {
+      const v = this.voidFx;
+      v.until = now + 650;
+      v.x = x;
+      v.y = y;
+      for (let i = 0; i < 4; i++) v.motes.push({ a: Math.random() * Math.PI * 2, d: 1, v: 0.9 + Math.random() * 0.8 });
+      this.cameras.main.shake(50, 0.003);
+      return;
+    }
+    const g = this.add.graphics().setDepth(691);
+    const v = (this.voidFx = { g, until: now + 650, x, y, R: rUnits * this.k, motes: [] as { a: number; d: number; v: number }[] });
+    for (let i = 0; i < 14; i++) v.motes.push({ a: Math.random() * Math.PI * 2, d: 0.4 + Math.random() * 0.6, v: 0.9 + Math.random() * 0.8 });
+    let last = now;
+    const tick = (): void => {
+      if (!g.active) return;
+      const t = this.time.now;
+      const dt = Math.min(0.05, (t - last) / 1000);
+      last = t;
+      const fade = Math.max(0, Math.min(1, (v.until - t) / 300));
+      if (fade <= 0) {
+        g.destroy();
+        if (this.voidFx === v) this.voidFx = null;
+        sparks(this, this.sx(v.x), this.sy(v.y) - 30, 14, 'spark', 0xc89aff, 380);
+        return;
+      }
+      const cx = this.sx(v.x);
+      const cy = this.sy(v.y) - 30;
+      const R = v.R;
+      const core = R * 0.16 * (0.6 + 0.4 * fade);
+      g.clear();
+      // 外圈：被扭曲的淡紫色漩渦（三條旋臂）
+      for (let arm = 0; arm < 3; arm++) {
+        const pts: { x: number; y: number }[] = [];
+        for (let q = 0; q <= 14; q++) {
+          const f = q / 14;
+          const a = t / 260 + arm * ((Math.PI * 2) / 3) + f * 3.2;
+          const rr = core + (R * 0.85 - core) * f;
+          pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * 0.6 });
+        }
+        g.lineStyle(9, 0x8a5aff, 0.35 * fade).strokePoints(pts, false);
+        g.lineStyle(3, 0xd8c0ff, 0.7 * fade).strokePoints(pts, false);
+      }
+      // 被吸進去的光點：越靠近越快
+      for (const m of v.motes) {
+        m.d -= dt * m.v * (1.3 - m.d);
+        m.a += dt * (2.5 / Math.max(0.15, m.d));
+        if (m.d <= 0.12) {
+          m.d = 0.8 + Math.random() * 0.25;
+          m.a = Math.random() * Math.PI * 2;
+        }
+        const mx = cx + Math.cos(m.a) * R * m.d;
+        const my = cy + Math.sin(m.a) * R * m.d * 0.6;
+        g.fillStyle(0xe8d8ff, fade * Math.min(1, m.d * 2)).fillCircle(mx, my, 3 + 3 * m.d);
+      }
+      // 吸積環＋黑洞本體（最後畫，蓋在最上面）
+      g.lineStyle(8, 0xb070ff, 0.75 * fade).strokeEllipse(cx, cy, core * 3.2, core * 1.5);
+      g.lineStyle(3, 0xffffff, 0.8 * fade).strokeEllipse(cx, cy, core * 2.9, core * 1.3);
+      g.fillStyle(0x05010c, fade).fillCircle(cx, cy, core);
+      g.lineStyle(2, 0xd8b0ff, 0.9 * fade).strokeCircle(cx, cy, core + 1);
+      this.time.delayedCall(16, tick);
+    };
+    tick();
+    shockRing(this, this.sx(x), this.sy(y) - 30, 0x8a5aff, v.R, 400, 6);
+    this.cameras.main.shake(120, 0.005);
+  }
+
   private hexShield(x: number, y: number): void {
     const cx = this.sx(x);
     const cy = this.sy(y) - 40;
@@ -2949,8 +3077,13 @@ export class RtBattleScene extends Phaser.Scene {
       this.hitStop = Math.max(this.hitStop, 150);
       return;
     }
+    if (ult && st === 'slow') {
+      // 虛空奇點（第 35 輪）：黑洞＋被吸進去的光點
+      this.voidHole(x, y, hs.r);
+      return;
+    }
     if (ult) {
-      // 流星雨／虛空奇點：每段在範圍裡隨機落一顆小流星
+      // 流星雨：每段在範圍裡隨機落一顆小流星
       const a = Math.random() * Math.PI * 2;
       const d = Math.random() * R * 0.8;
       const px = vx + Math.cos(a) * d;
@@ -2996,6 +3129,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: g, alpha: 0, scaleX: 1.15, scaleY: 1.15, duration: 520, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
     shockRing(this, vx, vy, col, R * 1.1, 360, 9);
     sparks(this, vx, vy, 16, st === 'burn' ? 'ember' : 'spark', col, 520);
+    if (st === 'freeze' && blink === 0 && single && R >= 4 * UNIT * this.k - 1) this.timeClock(x, y, hs.r); // 時間凝滯（4 格冰凍反擊）
     if (st === 'freeze') {
       this.spawnFrost(x, y, hs.r);
       this.cameras.main.flash(90, 190, 240, 255);
@@ -3509,8 +3643,10 @@ export class RtBattleScene extends Phaser.Scene {
         // 長弓變化二（D-149）：灼燒＝身上竄著小火苗、中毒＝往上冒的綠色泡泡
         if (x.statuses.some((q) => q.id === 'burn' && q.until > s.tick)) {
           const bodyH = Math.max(r, py - headY);
-          for (let q = 0; q < 3; q++) {
-            const fx1 = px + (q - 1) * bodyH * 0.22;
+          // 第 35 輪：火苗後面一層會閃的橘光、火苗 3 → 5 根（星焰彈命中後一眼看得出「著火了」）
+          top.fillStyle(0xff7a2a, 0.16 + 0.08 * Math.sin(now / 70 + x.id)).fillEllipse(px, py - bodyH * 0.45, bodyH * 1.1, bodyH * 1.2);
+          for (let q = 0; q < 5; q++) {
+            const fx1 = px + (q - 2) * bodyH * 0.15;
             const fy1 = py - bodyH * (0.28 + 0.12 * (q % 2));
             const hh = bodyH * (0.32 + 0.12 * Math.sin(now / 80 + q * 2 + x.id));
             const w0 = bodyH * 0.09;
