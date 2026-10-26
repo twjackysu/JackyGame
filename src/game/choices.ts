@@ -111,3 +111,16 @@ export function withEpilogue(lines: readonly string[], c: Record<string, ChoiceP
   if (!e || !lines.length) return [...lines];
   return [...lines.slice(0, -1), e, lines[lines.length - 1]!];
 }
+
+/** 燼牌對手對你的抉擇的一句開場白（對手 id → 他所在的地圖）；沒選過回 null */
+const RIVAL_ECHO: Record<string, { map: string; take: string; spare: string }> = {
+  merchant: { map: 'mistwood', take: '「霧角賣不賣？開玩笑的，坐吧。」', spare: '「最近霧裡的小狼，常在營火邊打轉。」' },
+  vela: { map: 'thornvale', take: '「王冠……你真的扯斷了根。算了，出牌吧。」', spare: '「母樹那邊開了白花——是你吧？謝謝。」' },
+  goran: { map: 'emberrift', take: '「燼心在你手上？哼，讓我看看你配不配。」', spare: '「裂谷的火還在燒——老頭子我欠你一杯。」' },
+};
+
+export function rivalEcho(id: string, c: Record<string, ChoicePick>): string | null {
+  const r = RIVAL_ECHO[id];
+  const p = r ? c[r.map] : undefined;
+  return r && p ? r[p] : null;
+}
