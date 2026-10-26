@@ -334,6 +334,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.cameras.main.setZoom(1); // 保險：舊版 Boss 登場會推鏡頭
     this.blinkHinted = new Set(); // 場景重開不會重跑欄位初始值
     this.rareQueue = [];
+    this.afterFinale = [];
     this.streakHinted = false;
     this.arrowLabels = [];
     const p0 = playerOf(this.s);
@@ -1132,7 +1133,12 @@ export class RtBattleScene extends Phaser.Scene {
       if (pending && ch) this.time.delayedCall(4300, () => this.showChoice(ch));
       // 最後一張地圖第一次討伐 → 通關演出（D-133）
       if (r.first && this.stageId === FINALE_MAP && !this.bot) later(5000, () => this.showFinale());
-      if (r.first && nx) later(4600, () => bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx.name}！\n回標題選「前往${nx.name}」${nx.recLevel ? `・建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000));
+      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！\n回標題選「前往${nx?.name}」${nx?.recLevel ? `・建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000);
+      // 通關那張圖：新地圖開放（星隕高原）等通關演出看完才出，以前會在演出（depth 2000）底下播完、玩家看不到（第 39 輪）
+      if (r.first && nx) {
+        if (this.stageId === FINALE_MAP && !this.bot) this.afterFinale.push(opened);
+        else later(4600, opened);
+      }
       if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) later(4600, () => this.furyUnlockedToast());
       this.persist();
     }
@@ -1238,8 +1244,13 @@ export class RtBattleScene extends Phaser.Scene {
       this.menu = null;
       this.acc = 0;
       bigText(this, GAME_WIDTH / 2, 560, '地上的戰利品別忘了撿！', '#f4e6c0', 32, 1800);
+      const q = this.afterFinale.splice(0);
+      q.forEach((fn, i) => this.time.delayedCall(2400 + i * 3200, fn));
     });
   }
+
+  /** 通關演出看完才出的提示（新地圖開放：星隕高原） */
+  private afterFinale: (() => void)[] = [];
 
   /** 隱藏精英的「遊戲記憶」提示：第一次連殺到門檻的 2/3 時出現一次 */
   private streakHint(): void {
