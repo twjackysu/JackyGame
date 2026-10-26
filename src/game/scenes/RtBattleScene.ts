@@ -1908,7 +1908,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (d && ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length && !this.bossMemo) {
           this.bossMemo = true;
           this.bossIntro(d);
-          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, 600, '（記得……牠衝鋒撞到樹或石頭會暈！）', '#d8c8ff', 28, 2200));
+          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, 600, wrapTip(worldMap(this.stageId)?.bossTip ?? '（記得……牠衝鋒撞到樹或石頭會暈！）'), '#d8c8ff', 28, 2200));
         }
       } else if (e.type === 'leash') {
         const d = u(e.id);

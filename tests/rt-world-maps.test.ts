@@ -14,7 +14,18 @@ describe('大地圖登記表', () => {
       expect(st.bossZone).toBeTruthy();
       const bossIds = [...st.enemies.map((e) => e.enemyId), ...(st.spawnGroups ?? []).map((g) => g.enemyId)].filter((id) => ENEMIES[id]?.boss);
       expect(bossIds.map((id) => ENEMIES[id]!.name)).toContain(m.boss);
-      for (const k of ['name', 'bw', 'mw', 'lord', 'firstKill', 'firstGoal'] as const) expect(m[k].length).toBeGreaterThan(0);
+      for (const k of ['name', 'bw', 'mw', 'lord', 'firstKill', 'firstGoal', 'bossTip'] as const) expect(m[k].length).toBeGreaterThan(0);
+    }
+  });
+
+  it('Boss 提示說的招式真的存在：提到「衝鋒」的 Boss 要有會撞牆暈的衝鋒、提到「瞬移」的要會瞬移（第 39 輪）', () => {
+    for (const m of WORLD_MAPS) {
+      const st = m.make();
+      const boss = [...st.enemies.map((e) => e.enemyId), ...(st.spawnGroups ?? []).map((g) => g.enemyId)].map((id) => ENEMIES[id]).find((d) => d?.boss && d.name === m.boss)!;
+      const atks = JSON.stringify(boss);
+      if (m.bossTip.includes('衝鋒')) expect(atks).toContain('wallStunTicks');
+      else expect(atks).not.toContain('wallStunTicks');
+      if (m.bossTip.includes('瞬移')) expect(atks).toMatch(/blink|teleport/);
     }
   });
 
