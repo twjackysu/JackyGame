@@ -16,8 +16,9 @@ describe('經驗值與等級', () => {
     delete STAGES.mistwood;
   });
 
-  it('升級曲線：Lv2 要 60、Lv10 累計約 1 萬', () => {
-    expect(xpToNext(1)).toBe(60);
+  it('升級曲線：Lv2 要 40（D-165）、Lv10 累計約 1 萬', () => {
+    expect(xpToNext(1)).toBe(40);
+    expect(xpToNext(2)).toBe(195);
     let sum = 0;
     for (let l = 1; l < 10; l++) sum += xpToNext(l);
     expect(sum).toBeGreaterThan(8000);

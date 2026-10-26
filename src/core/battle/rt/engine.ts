@@ -96,8 +96,12 @@ export interface BattleSetup {
   xp?: number;
 }
 
-/** 從 level 升到 level+1 需要的經驗（D-090：Lv2 約 10 隻狼、Lv10 累計約 1 萬） */
+/**
+ * 從 level 升到 level+1 需要的經驗（D-090：Lv10 累計約 1 萬）。
+ * 第一次升級特別快（D-165：60→40＝約 8 隻狼，新玩家約 1 分多鐘就看到第一次升級與技能點）
+ */
 export function xpToNext(level: number): number {
+  if (level <= 1) return 40;
   return Math.round(60 * Math.pow(level, 1.7));
 }
 
