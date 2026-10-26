@@ -1,6 +1,6 @@
 # 進度紀錄（新的在最上面）
 
-## 2026-10-27 00:17–00:50（台北）第 37 輪 — 相遇第二輪（D-160：每張主線圖兩個＋星隕高原一個、第一個護送）、通關統計排版修正
+## 2026-10-27 00:17–01:15（台北）第 37 輪 — 相遇第二輪（D-160：每張主線圖兩個＋星隕高原一個、第一個護送）、通關統計排版修正、新存檔開場不疊字（D-161）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠。照 NEXT 第 3 項（相遇第二輪：星隕高原也放一個、每張圖第二個、護送）。
 
 **做了什麼**
@@ -8,8 +8,9 @@
 - **護送**：`Encounter.escort`＋場景 `escort`／`encAt`／`drawEscort`；選「助」後婆婆跟著走，目的地一圈綠光，送到當場道謝。
 - **修**：通關演出統計七格在 360×640 第三列壓到「點一下畫面繼續」→ 改 4＋3 兩列。「幫助過的人」只算主線六個。
 - README 相遇段落＋截圖 81、82；DECISIONS D-160；FOR_JACKY 第 21 題補充。
+- **新存檔「第一眼」檢查（NEXT 第 4 項，D-161）**：Playwright 從空的 localStorage 走一遍（標題「點擊開始」→ 進入霧語森林 → 序章 → 選武器 → 開場 → 拖搖桿往北）。找到並修掉：①開場大字還在時「黃框＝可以格擋」就疊上來（tipBusy 用固定計時，掉幀時比淡出 tween 快）→ 操作說明框與提示改成等大字的 `destroy` 事件（6 秒／4 秒保底）；②長弓／法杖／星光碎片／巡邏提示一行超過畫面寬 → `src/game/ui/tipText.ts` 的 `wrapTip` 超過 18 字在標點後斷兩行（新測試 `tests/tip-text.test.ts`）。腳本 `screenshots/r37n.mjs`（傳 `390x844`／`360x640`；標題要先點畫面才出按鈕、文字用 scene 樹找座標再點）。
 
-**驗證**：build＋`npx vitest run`（272 項；`encounters.test.ts` 改成「主線各 2、星隕高原 1」＋新相遇離重生點 > 8 格、離記憶／其他相遇 ≥ 6 格、護送目的地在地上且 ≥ 10 格、回聲亂數）。核心沒動（沒重跑 stateHash）。Playwright（390×844 與 360×640，vite preview）：四個新人物（麻煩樣子）、盜賊面板、信差回禮卡、護送全程（點面板「助」→「就這麼做」→ 分段傳送 → 送到後 `jg_encounters` = thanked）、通關演出旅程頁（`sc.showFinale()`＋`sc.time.timeScale = sc.tweens.timeScale = 30`，每次點擊後截圖；腳本 `screenshots/r37f.mjs`／`r37s.mjs`／`r37e.mjs`，gitignored），皆無頁面錯誤。
+**驗證**：build＋`npx vitest run`（272 → **273 項**；`encounters.test.ts` 改成「主線各 2、星隕高原 1」＋新相遇離重生點 > 8 格、離記憶／其他相遇 ≥ 6 格、護送目的地在地上且 ≥ 10 格、回聲亂數）。核心沒動（沒重跑 stateHash）。Playwright（390×844 與 360×640，vite preview）：四個新人物（麻煩樣子）、盜賊面板、信差回禮卡、護送全程（點面板「助」→「就這麼做」→ 分段傳送 → 送到後 `jg_encounters` = thanked）、通關演出旅程頁（`sc.showFinale()`＋`sc.time.timeScale = sc.tweens.timeScale = 30`，每次點擊後截圖；腳本 `screenshots/r37f.mjs`／`r37s.mjs`／`r37e.mjs`，gitignored），皆無頁面錯誤。
 
 **問題**：①找相遇位置寫了暫時測試 `tests/zz-encspot.test.ts`（列出 3×3 都是地面、離重生點／巡邏點 ≥ 9 格、離記憶 ≥ 8 格的格子）；②第 36 輪的三個相遇本來就放在怪旁邊，「離重生點 > 8 格」只檢查新的；③通關演出截圖：timeScale 30 時等太久會跳過旅程頁，要每點一下就截一張。
 
