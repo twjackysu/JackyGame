@@ -339,7 +339,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.camX = p0.x;
     this.camY = p0.y;
     this.updateCamera(1);
-    this.cameras.main.setBackgroundColor('#0b1410');
+    // 地圖外（鏡頭往下多捲、讓主角不被按鈕擋住時看得到）用這張圖的密林／岩壁底色，看起來像牆延伸出去，不是黑洞（第 39 輪）
+    this.cameras.main.setBackgroundColor(worldMap(this.stageId)?.palette.under ?? 0x0b1410);
     this.ground = this.makeGround();
     this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, this.glowTexture()).setBlendMode(Phaser.BlendModes.ADD));
     this.g = this.add.graphics();
