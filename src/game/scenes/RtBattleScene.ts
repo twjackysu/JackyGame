@@ -1154,6 +1154,36 @@ export class RtBattleScene extends Phaser.Scene {
     if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, 640, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
   }
 
+  /** ☰「前世的記憶」（D-137）：重讀想起來的記憶；沒想起來的只寫在哪張地圖 */
+  private openMemoryBook(): void {
+    this.menu?.destroy();
+    const have = loadMemories();
+    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x0a0614, 0.92).setInteractive()];
+    items.push(this.add.text(0, -540, `✦ 前世的記憶　${have.length}/${MEMORIES.length}`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#d8b0ff' }).setOrigin(0.5));
+    items.push(this.add.text(0, -488, '地上浮著的紫色光點・走過去就會想起來（每段 +1 結晶）', { fontFamily: UI_FONT, fontSize: '19px', color: '#9a88b8' }).setOrigin(0.5));
+    let y = -440;
+    for (const wm of WORLD_MAPS) {
+      items.push(this.add.text(-310, y, wm.name, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: wm.color }).setOrigin(0, 0));
+      y += 38;
+      for (const m of memoriesOf(wm.id)) {
+        const got = have.includes(m.id);
+        const t = this.add.text(-290, y, got ? m.lines : '？？？（還沒想起來）', { fontFamily: got ? TITLE_FONT : UI_FONT, fontSize: '20px', color: got ? '#f0e6ff' : '#6a5a80', lineSpacing: 6, wordWrap: { width: 590, useAdvancedWrap: true } }).setOrigin(0, 0);
+        items.push(t);
+        y += t.height + 16;
+      }
+      y += 14;
+    }
+    const back = this.add.text(0, Math.min(y + 40, 580), '返回', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#d8b0ff' }).setOrigin(0.5).setPadding(28, 12, 28, 12).setInteractive({ useHandCursor: true });
+    back.on('pointerdown', () => {
+      SFX.uiCancel();
+      this.menu?.destroy();
+      this.menu = null;
+      this.toggleMenu();
+    });
+    items.push(back);
+    this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
+  }
+
   /** 隱藏寶箱附近第一次靠近：「這個地方似乎有點熟悉……」（design/20 C2，只提示不指路） */
   private chestHint(): void {
     const list = STAGES[this.stageId]?.chests;
@@ -1356,7 +1386,7 @@ export class RtBattleScene extends Phaser.Scene {
       items.push(t);
     };
     mk(-350, '繼續', () => this.toggleMenu(), true);
-    const ctlBtn = (y: number) => mk(y, '操作設定', () => {
+    const ctlBtn = (y: number, x = 0) => mk(y, '操作設定', () => {
       this.menu?.destroy();
       this.menu = null;
       this.menu = openRtControlsPanel(this, this.ctl, (c, edit) => {
@@ -1369,7 +1399,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (edit) this.startEdit();
         else this.toggleMenu();
       });
-    });
+    }, false, x);
     if (this.tracked || worldMap(this.stageId)) {
       // 正式大地圖（標題入口）：不列試玩關
       if (this.tracked) {
@@ -1378,7 +1408,10 @@ export class RtBattleScene extends Phaser.Scene {
         const pts = this.skillPointsLeft();
         mk(-270, `技能點${pts > 0 ? `（${pts}）` : ''}`, () => this.openSkills(), pts > 0, 160);
       }
-      ctlBtn(-190);
+      if (this.tracked) {
+        ctlBtn(-190, -150);
+        mk(-190, `前世的記憶 ${loadMemories().length}/${MEMORIES.length}`, () => this.openMemoryBook(), false, 165);
+      } else ctlBtn(-190);
       mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
       mk(-30, `重新進入${this.mw}`, () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
       let y = 50;
