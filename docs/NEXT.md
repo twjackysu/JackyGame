@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 39 輪（10/27 05:00）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 39 輪（10/27 05:25）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -24,6 +24,7 @@
 - **位移技能上限（D-153）**：`|distance| / ticks ≤ 50`（每 tick 超過半格會穿進厚牆裡卡住），測試會擋。
 - **`SkillHit.ahead`（D-155）**：判定中心往前移；`drawUltAim` 對「圓＋ahead」畫落點圈。
 - **置中大字（D-162／164）**：`bigText` x＝畫面寬／2 時會自動避開還沒淡出的其他置中大字（`fx/bannerStack.ts`），上下都沒位置（往上會超過 `BANNER_CEIL` 430）就**排隊**等前面的淡出（最多約 6 秒）；新加的大字不用自己算錯開；要固定位置（不想被推開／不想排隊）就把 x 偏 1px 以上。提示高度用 `TIP_Y`（D-163），不要再寫死 700。同一刻多件稀有裝備合成一則（`rareQueue`）。
+- **Boss 第一次遇到的提示**：`worldMaps.ts` 的 `bossTip`（加新地圖要填；提到「衝鋒」的 Boss 必須有 `wallStunTicks` 衝鋒，測試會擋）。通關那張圖的「新地圖開放」排在通關演出之後（`afterFinale`）。
 - **第一次升級 40 經驗（D-165）**：`xpToNext(1) = 40`，其餘 60×Lv^1.7。stateHash 基準從第 39 輪的 commit 起算（霧語森林／測試大地圖的雜湊和第 34 輪不同）。
 - 截圖：`localStorage.setItem('jg_weapon','staff')`（或 bow）；**不設 `jg_weapon` 的新存檔會在序章後跳選武器**；凍結模擬只畫畫面用 `sc.editing = true`；特效可直接 `sc.staffFx(x, y, ang, shape, ult, single, blink, status)`／`sc.bowFx(...)`；`window.__rt.send({ type: 'skill', id })` 放技能。
 - 通關機器人 `tests/rt-campaign.test.ts`（新存檔→三個 Boss，不含星隕高原；劍、弓各一趟）。stateHash 基準：第 34 輪最後的 commit（第 35 輪沒動核心；本輪 89 場＋長弓 18 場與開頭相同；長弓那組的寫法在 PROGRESS 第 34 輪，`tests/zz-hashbow.test.ts` 是 mistwood／wolf_king × 種子 1–3 × 三組變化、Lv8、200 秒）。
@@ -31,9 +32,9 @@
 
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
-2. （PROGRESS 約 225 行；超過 300 行就合併第 30～35 輪。）
+2. （PROGRESS 約 230 行；超過 300 行就合併第 30～35 輪。）
 3. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。真機待確認：護送路上婆婆被怪追時會不會出戲；人物大小（`this.k * 2.1`）、氣泡會不會擋到怪。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-4. **（下一輪建議主工作）「第一眼」第四段：第二張圖之後的節奏**。第 37～39 輪已看完霧語森林從新存檔到打倒狼王（D-161～165）。還沒看的：①荊棘谷打倒棘冠狼后→抉擇→「新地圖開放：燼紅裂谷」（同 `screenshots/r39a.mjs`，把 `stage` 改 thornvale、Boss `defId` 換成棘冠狼后的 id，先設 `jg_rt_mistwood`／`jg_choices`）；②燼紅裂谷打倒岩王→抉擇→通關演出（`showFinale`，抉擇選完才出，確認中間沒有大字被通關演出蓋住或卡在畫面上）；③通關後回標題，星隕高原入口第一次出現的說明。只修看得到的問題。
+4. **（下一輪建議主工作）「第一眼」第四段（剩下的）**：第 37～39 輪已看完霧語森林從新存檔到打倒狼王、荊棘谷／燼紅裂谷 Boss 倒下→抉擇→大字（D-161～165）。還沒做的：①**截圖確認第 39 輪最後一個修正**：燼紅裂谷通關演出按「繼續冒險」後約 2.4 秒出「新地圖開放：星隕高原」（`afterFinale`）。`screenshots/r39h.mjs` 的寫法：從 `r39a.mjs` 改 stage `emberrift`、Boss regex `/colossus/`、先設 `jg_rt_mistwood`／`jg_rt_thornvale` = `{bossKills:1}` 與 `jg_choices`；等抉擇面板要用**固定等待**（timeScale 4 下約 7～8 秒），別用「掃 scene 樹找『就這麼做』」的迴圈（第 39 輪這樣寫等不到）；之後 timeScale 30、每 1.2 秒點畫面直到出現「繼續冒險」再點它。②通關後回標題，星隕高原入口第一次出現的說明。③星隕高原的 Boss 提示（瞬移）在真機看字會不會太長（兩行）。只修看得到的問題。
    - 截圖技巧：`sc.time.timeScale = sc.tweens.timeScale = 4` 才等得到抉擇面板；點按鈕用 scene 樹找 Text 座標（r39a 的 `clickText`）。
 5. **README 截圖更新（選做，打磨期做也可以）**：抉擇、相遇的截圖已有；第一眼的修正（大字排隊）不用新截圖。
 6. **打磨期（11/4 起功能凍結）之前**：新手引導第 35 輪看過程式（`showHint`→開場大字→`tipOnce` 排隊，`tipBusy` 會擋重疊；升級大字已提示技能點），沒發現問題，真人回饋再調。旅商／燼牌對手烘成貼圖**不做**（有呼吸、眨眼動畫，而且已有畫面外剔除，只畫畫面內的 1～2 個）。README 舊截圖 9:16 有黑邊，可接受。
@@ -49,7 +50,7 @@
 - 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 278 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 279 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
 - 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
 - **舊關卡雜湊比對**（核心改動必做）——**第 26 輪起的做法**：範本存在 `scripts/zz-hash.template.ts.txt`（90 場），複製成 `tests/zz-hash.test.ts`；`git worktree add /tmp/claude-0/old <本輪開頭 commit>`＋`ln -s $PWD/node_modules /tmp/claude-0/old/node_modules`，兩邊各跑一次（`HASH_OUT=/tmp/claude-0/hash-old.txt` / `hash-new.txt`）再 `diff`，最後 `git worktree remove --force`。以下是舊說明：（`tests/zz-hash.test.ts` 不在 git，新 session 要照範本重寫）：第 24 輪起含荊棘谷共 90 場（荊棘谷用 `level: 6`＋`advanceTo: THORNVALE_QUEEN`、300 秒）；第 19 輪的範本在 PROGRESS 第 19 輪；寫暫時的 vitest（檔名 `tests/zz-*.test.ts`，已 gitignore；第 21 輪的 `zz-hash` 範本見 PROGRESS 第 19 輪），把 `Object.keys(STAGES)`＋霧語森林／測試大地圖 × 種子 1–3 × novice／normal／expert 的 `stateHash` 寫進檔案（共 81 場），`git stash push -- <改過的核心檔>` 前後各跑一次 diff。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。

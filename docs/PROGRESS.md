@@ -1,6 +1,6 @@
 # 進度紀錄（新的在最上面）
 
-## 2026-10-27 04:14–05:00（台北）第 39 輪 — 新存檔「第一眼」第三段：Boss 倒下後大字排隊（D-164）、第一次升級變快（D-165）、地圖外底色
+## 2026-10-27 04:14–05:25（台北）第 39 輪 — 新存檔「第一眼」第三段：Boss 倒下後大字排隊（D-164）、第一次升級變快（D-165）、每張圖自己的 Boss 提示、通關後的新地圖提示
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠。照 NEXT 第 4 項（第一眼・第三段：狼王倒下→抉擇→新地圖開放、☰ 選單／技能點第一次、燼牌第一次）。
 
 **做了什麼**
@@ -8,9 +8,12 @@
 - **D-165**：Lv1→2 要 40 經驗（原 60）。無頭 Bot 約 30 秒升 Lv2。
 - 技能點面板「每 2 級判定 +1 tick」→「每 2 級格擋時間 +0.03 秒」。
 - 地圖外（鏡頭往下多捲的地方）底色改用每張圖的 `palette.under`（荊棘谷暗紅等），不再是一片綠黑色。
+- **Boss 提示每張圖不同**：第一次遇到 Boss 的「（記得……牠衝鋒撞到樹或石頭會暈！）」以前四張圖共用，但燼心岩王、星骸守望者根本不衝鋒 → `worldMaps.ts` 新欄位 `bossTip`（岩王：紅圈跑出去、拳頭能格擋；守望者：瞬移到背後），`rt-world-maps` 測試檢查提示說的招式真的存在。
+- **通關後的新地圖提示**：燼紅裂谷第一次討伐的「新地圖開放：星隕高原」以前和通關演出（depth 2000）同時排在抉擇之後，在演出底下播完、玩家看不到 → 改排在演出按「繼續冒險」之後（`afterFinale`）。演出最後一頁本來就寫「星隕高原開放了」，這則補「回標題選前往」。**這個只看了程式沒截到圖**（`screenshots/r39h.mjs` 等抉擇的迴圈改壞了，時間不夠修）。
+- 荊棘谷（r39g）、燼紅裂谷（r39h）打倒 Boss→抉擇→結語→新地圖開放的順序也看過：大字排隊正常。
 - 看過沒問題的：抉擇面板本身、☰ 暫停選單（說明框在開選單時已會收掉，截圖看到的是無頭瀏覽器淡出慢）、技能點面板、燼牌大廳＋第一局（前 3 場有教練提示）、新存檔死亡→營火醒來、荊棘谷第一次進入、標題（打倒狼王後多「前往荊棘谷」）。
 
-**驗證**：每次提交前 build＋`npx vitest run --exclude 'tests/zz-*'`（277 → **278 項**，`banner-stack` 多一項排隊）。核心改了 `xpToNext`：`rt-campaign`（劍、弓通關）通過；耐久測試餘裕調整見 D-165；沒有重跑 90 場 stateHash（預期霧語森林會變、舊七關不用經驗）。Playwright（vite preview，390×844 與 360×640）腳本 `screenshots/r39a.mjs`（新存檔→傳送到狼王旁、狼王 HP 1、`target`→ `timeScale 4` 等抉擇→用 scene 樹找「還」「就這麼做」的座標點→每 0.8 秒截圖）、`r39b.mjs`（☰ 與選單裡的按鈕，第二個參數是按鈕文字的 regex）、`r39c.mjs`（第四個參數 `cards`＝`sc.openCards()`）、`r39d.mjs`（標題，參數是 localStorage JSON）、`r39e.mjs`（HP 1 去咬狼＝死亡）、`r39f.mjs`（荊棘谷第一次），都 gitignored。皆無頁面錯誤。
+**驗證**：每次提交前 build＋`npx vitest run --exclude 'tests/zz-*'`（277 → **279 項**，`banner-stack` 多一項排隊、`rt-world-maps` 多一項 Boss 提示）。核心改了 `xpToNext`：`rt-campaign`（劍、弓通關）通過；耐久測試餘裕調整見 D-165；沒有重跑 90 場 stateHash（預期霧語森林會變、舊七關不用經驗）。Playwright（vite preview，390×844 與 360×640）腳本 `screenshots/r39a.mjs`（新存檔→傳送到狼王旁、狼王 HP 1、`target`→ `timeScale 4` 等抉擇→用 scene 樹找「還」「就這麼做」的座標點→每 0.8 秒截圖）、`r39b.mjs`（☰ 與選單裡的按鈕，第二個參數是按鈕文字的 regex）、`r39c.mjs`（第四個參數 `cards`＝`sc.openCards()`）、`r39d.mjs`（標題，參數是 localStorage JSON）、`r39e.mjs`（HP 1 去咬狼＝死亡）、`r39f.mjs`（荊棘谷第一次），都 gitignored。皆無頁面錯誤。
 
 **問題**：①無頭瀏覽器裡 Phaser 時間很慢，抉擇面板要 `sc.time.timeScale = sc.tweens.timeScale = 4` 才等得到；②page.evaluate 裡不能用 `process.argv`（第一版寫錯）；③Phaser 的 Text 物件 `text` 可能是 undefined（掃 scene 樹要 `String(o.text ?? '')`）。
 
