@@ -30,6 +30,8 @@ export interface Encounter {
 
 /** 護送：跟著你的人走到目的地幾格內就算送到 */
 export const ESCORT_RADIUS = 2.5;
+/** 護送的人附近幾格內有在打的怪就停下來縮著（第 40 輪），打完再跟上 */
+export const ESCORT_SCARED_TILES = 6;
 
 export const ENCOUNTERS: readonly Encounter[] = [
   {

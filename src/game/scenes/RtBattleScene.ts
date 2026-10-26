@@ -50,7 +50,7 @@ import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
 import { openChoice } from '../ui/choicePanel';
-import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, encountersOf, loadEncounters, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
+import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, encountersOf, loadEncounters, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings } from '../settings';
@@ -250,7 +250,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 這次已經道謝過的：還站在原地（高興的樣子、沒有氣泡），下次進地圖就不在了 */
   private encDone: Encounter[] = [];
   /** 護送中（D-160）：跟在玩家身後的相遇人物（世界座標）；送到目的地就道謝。純畫面 */
-  private escort: { e: Encounter; x: number; y: number; t: number } | null = null;
+  private escort: { e: Encounter; x: number; y: number; t: number; scared?: boolean; check?: number } | null = null;
   /** 相遇人物畫在哪（世界座標；護送送到之後留在目的地） */
   private encAt = new Map<string, { x: number; y: number }>();
   /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
@@ -1396,8 +1396,15 @@ export class RtBattleScene extends Phaser.Scene {
     const fl = Math.hypot(p.facingX, p.facingY) || 1;
     const tx = p.x - (p.facingX / fl) * UNIT * 1.4 - (p.facingY / fl) * UNIT * 0.4;
     const ty = p.y - (p.facingY / fl) * UNIT * 1.4 + (p.facingX / fl) * UNIT * 0.4;
+    // 第 40 輪：附近有在打的怪就停下來縮著（不跟進戰場），打完再跟上；每 0.25 秒檢查一次
+    if (!es.check || now - es.check > 250) {
+      es.check = now;
+      es.scared = enemiesOf(this.s).some((e) => e.mode === 'combat' && Math.hypot(e.x - es.x, e.y - es.y) < UNIT * ESCORT_SCARED_TILES);
+    }
     const d = Math.hypot(tx - es.x, ty - es.y);
-    if (d > UNIT * 14) {
+    if (es.scared) {
+      // 停在原地
+    } else if (d > UNIT * 14) {
       es.x = tx;
       es.y = ty;
     } else if (d > UNIT * 0.3) {
@@ -1416,7 +1423,14 @@ export class RtBattleScene extends Phaser.Scene {
     const cx = this.sx(es.x);
     const cy = this.sy(es.y);
     if (cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 160 || cy > VIEW_BOTTOM + 80) return;
-    drawEncounterNpc(g, es.e.npc, cx, cy, this.k * 2.1, now, true);
+    drawEncounterNpc(g, es.e.npc, cx, cy, this.k * 2.1, now, !es.scared);
+    if (es.scared) {
+      // 害怕：頭上紅色「！」氣泡（和相遇的氣泡同一種形狀）
+      const hy = cy - 125 * this.k * 2.1 + Math.sin(now / 120) * 3;
+      g.fillStyle(0x5a2a2a, 0.9).fillRoundedRect(cx - 26, hy - 18, 52, 36, 12);
+      g.fillTriangle(cx - 6, hy + 16, cx + 6, hy + 16, cx, hy + 26);
+      g.fillStyle(0xff9a8a, 1).fillRect(cx - 3, hy - 11, 6, 15).fillCircle(cx, hy + 9, 3.2);
+    }
   }
 
   /** 畫相遇的人（D-159）：還沒選＝遇到麻煩的樣子；等著道謝＝高興的樣子。純畫面、畫面外不畫 */
