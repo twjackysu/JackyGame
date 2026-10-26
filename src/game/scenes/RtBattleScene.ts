@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
+import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
@@ -34,7 +34,8 @@ function lerpColor(a: number, b: number, t: number): number {
 
 const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf6a, frenzy: 0xff5a4a };
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
-import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
+import { ENEMIES } from '../../core/battle/rt/data';
+import { loadWeapon, saveWeapon, weaponSetup, WEAPON_NAME } from '../weapon';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -250,7 +251,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0) });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined });
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -405,7 +406,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   private makeButtons(): void {
     for (const t of this.btnText) t.destroy();
-    const names = [...this.ctl.order.map((id) => SKILLS[id]!.name), '閃避', '大招', '藥水'];
+    const names = [...this.ctl.order.map((id) => ((this.s ? skillDef(this.s, id) : undefined) ?? SKILLS[id])!.name), '閃避', '大招', '藥水'];
     const sc = this.ctl.scale;
     this.btnText = names.map((n, i) => {
       const { x, y } = this.btnPos(i);
@@ -670,6 +671,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.menu = null;
         this.toggleMenu();
       },
+      this.s.weapon === 'bow',
     );
   }
 
@@ -1433,7 +1435,16 @@ export class RtBattleScene extends Phaser.Scene {
         ctlBtn(-190, -150);
         mk(-190, `前世的記憶 ${loadMemories().length}/${MEMORIES.length}`, () => this.openMemoryBook(), false, 165);
       } else ctlBtn(-190);
-      mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
+      if (this.tracked && !this.botName) {
+        // 換武器（D-147）：存起來後重新進入地圖（從營火出發）
+        const w = loadWeapon();
+        const other = w === 'bow' ? 'sword' : 'bow';
+        mk(-110, '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: 'normal' })), false, -165);
+        mk(-110, `武器：${WEAPON_NAME[w]} ⇄`, () => {
+          saveWeapon(other);
+          this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: '' }));
+        }, false, 150);
+      } else mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
       mk(-30, `重新進入${this.mw}`, () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
       let y = 50;
       if (this.tracked && STAGES[this.stageId]?.bossZone?.fury) {
@@ -1575,7 +1586,11 @@ export class RtBattleScene extends Phaser.Scene {
         if (!toPlayer && e.origin !== 'dot') this.hitStop = Math.max(this.hitStop, e.crit || e.origin === 'counter' ? 70 : e.origin === 'skill' ? 45 : 25);
         if (!toPlayer && (e.crit || e.origin === 'counter')) this.cameras.main.shake(70, 0.003);
         const src = u(e.src);
-        if (src && src.side === 'player' && e.origin === 'normal') {
+        if (src && src.side === 'player' && e.origin === 'normal' && this.s.weapon === 'bow') {
+          // 長弓普攻（D-147）：一支箭飛過去
+          this.arrowShot(src.x, src.y, d.x, d.y, e.crit ? 0xffd05a : 0xd8f0ff);
+          this.knock(d.id, d.x - src.x, d.y - src.y, 6);
+        } else if (src && src.side === 'player' && e.origin === 'normal') {
           this.slash(src.x, src.y, Math.atan2(d.y - src.y, d.x - src.x), 150, 110, e.crit ? 0xffd05a : 0xffffff, 5);
           this.knock(d.id, d.x - src.x, d.y - src.y, 10);
         } else if (src && src.side === 'player' && e.origin !== 'dot') this.knock(d.id, d.x - src.x, d.y - src.y, 16);
@@ -1641,8 +1656,9 @@ export class RtBattleScene extends Phaser.Scene {
           this.spin(p.x, p.y, cs.r, 0xffd27a, (this.time.now / 90) % (Math.PI * 2));
           shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, cs.r * this.k * 1.1, 380, 8);
         } else if (cs?.type === 'line') {
-          // 迴光一閃（D-121）：擋下的瞬間一道白金劍氣直射出去
-          this.groundSplit(p.x, p.y, ang, cs.len, cs.width);
+          // 迴光一閃（D-121）：擋下的瞬間一道白金劍氣直射出去；長弓的見切射擊是一支金色重箭（D-147）
+          if (this.s.weapon === 'bow') this.arrowBeam(p.x, p.y, ang, cs.len, cs.width, 0xffe08a, true);
+          else this.groundSplit(p.x, p.y, ang, cs.len, cs.width);
           this.cameras.main.flash(110, 255, 250, 220);
           this.hitStop = Math.max(this.hitStop, 160);
         }
@@ -1722,7 +1738,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       else if (e.type === 'cast') {
-        if (SKILLS[e.skill]?.role === 'ult') {
+        if (skillDef(this.s, e.skill)?.role === 'ult') {
           // 大招：閃光＋金粉環＋大字（D-071 放上試玩鍵位）
           const p = playerOf(this.s);
           SFX.perfect();
@@ -2239,6 +2255,10 @@ export class RtBattleScene extends Phaser.Scene {
       const ang = Math.atan2(a.dirY, a.dirX);
       const big = h.mult >= 150;
       const hs = skillShape(this.s, a.id, h.shape); // 裝備的範圍特效（D-098）
+      if (this.s.weapon === 'bow') {
+        this.bowFx(p.x, p.y, ang, hs, sk.role === 'ult', !!sk.dash, h.status?.id === 'break');
+        return;
+      }
       if (sk.dash) {
         // 衝鋒：身後殘影線
         const g = this.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
@@ -2699,6 +2719,76 @@ export class RtBattleScene extends Phaser.Scene {
     this.cameras.main.shake(120, 0.006);
   }
 
+  /** 長弓普攻（D-147）：箭從主角飛到目標（約 0.1 秒）＋細尾光 */
+  private arrowShot(x0: number, y0: number, x1: number, y1: number, color: number): void {
+    const ax = this.sx(x0);
+    const ay = this.sy(y0) - 20;
+    const bx = this.sx(x1);
+    const by = this.sy(y1) - 20;
+    const ang = Math.atan2(by - ay, bx - ax);
+    const tail = this.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+    tail.lineStyle(3, color, 0.7).lineBetween(ax, ay, bx, by);
+    this.tweens.add({ targets: tail, alpha: 0, duration: 200, onComplete: () => tail.destroy() });
+    const arrow = this.add.graphics().setDepth(691).setPosition(ax, ay).setRotation(ang);
+    arrow.lineStyle(4, 0x8a6a40, 1).lineBetween(-34, 0, 8, 0);
+    arrow.fillStyle(0xf4f8ff, 1).fillTriangle(16, 0, 4, -7, 4, 7);
+    arrow.fillStyle(color, 1).fillTriangle(-34, 0, -44, -8, -30, 0).fillTriangle(-34, 0, -44, 8, -30, 0);
+    this.tweens.add({ targets: arrow, x: bx, y: by, duration: 90, ease: 'Linear', onComplete: () => {
+      arrow.destroy();
+      sparks(this, bx, by, 5, 'spark', color, 220);
+    } });
+  }
+
+  /** 穿透箭／星河貫射（D-147）：一道沿直線的光箭——箭頭飛到底，身後留下發光的軌跡 */
+  private arrowBeam(x: number, y: number, ang: number, len: number, width: number, color: number, heavy = false): void {
+    const px = this.sx(x);
+    const py = this.sy(y) - 20;
+    const L = len * this.k;
+    const W = Math.max(10, width * this.k * (heavy ? 0.5 : 0.3));
+    const cx = Math.cos(ang);
+    const cy = Math.sin(ang);
+    const g = this.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+    g.fillStyle(color, 0.35).fillTriangle(px - cy * W, py + cx * W, px + cy * W, py - cx * W, px + cx * L, py + cy * L);
+    g.lineStyle(heavy ? 6 : 4, 0xffffff, 0.9).lineBetween(px, py, px + cx * L, py + cy * L);
+    this.tweens.add({ targets: g, alpha: 0, duration: heavy ? 420 : 300, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
+    const head = this.add.graphics().setDepth(692).setPosition(px, py).setRotation(ang).setBlendMode(Phaser.BlendModes.ADD);
+    const s = heavy ? 1.6 : 1.2;
+    head.fillStyle(color, 0.6).fillCircle(0, 0, 18 * s);
+    head.fillStyle(0xffffff, 1).fillTriangle(22 * s, 0, -8 * s, -9 * s, -8 * s, 9 * s);
+    this.tweens.add({ targets: head, x: px + cx * L, y: py + cy * L, duration: heavy ? 160 : 120, ease: 'Cubic.easeOut', onComplete: () => {
+      head.destroy();
+      sparks(this, px + cx * L, py + cy * L, heavy ? 14 : 8, 'spark', color, 360);
+    } });
+    for (let i = 1; i <= 3; i++) this.time.delayedCall(i * 30, () => sparks(this, px + (cx * L * i) / 3, py + (cy * L * i) / 3, 4, 'spark', color, 260));
+    if (heavy) this.cameras.main.shake(110, 0.005);
+  }
+
+  /** 長弓技能的畫面（D-147）：直線＝光箭、扇形＝一排扇形的箭（後躍射擊多一道往後的殘影）、圓＝四面射出 */
+  private bowFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, leap: boolean, brk: boolean): void {
+    if (hs.type === 'line') {
+      this.arrowBeam(x, y, ang, hs.len, hs.width, ult ? 0xff9ae0 : brk ? 0xff8a6a : 0x9fe0ff, ult);
+      if (ult && brk) {
+        this.cameras.main.flash(120, 255, 180, 240);
+        this.hitStop = Math.max(this.hitStop, 120);
+      }
+      return;
+    }
+    const r = hs.type === 'sector' || hs.type === 'circle' ? hs.r : UNIT * 3;
+    const span = hs.type === 'sector' ? (hs.deg * Math.PI) / 180 : Math.PI * 2;
+    const n = hs.type === 'sector' ? 5 : 8;
+    for (let i = 0; i < n; i++) {
+      const a = hs.type === 'sector' ? ang - span / 2 + (span * i) / (n - 1) : ang + (span * i) / n;
+      const ex = x + Math.cos(a) * r;
+      const ey = y + Math.sin(a) * r;
+      this.time.delayedCall(i * 12, () => this.arrowShot(x, y, ex, ey, leap ? 0xc8f0a0 : 0x9fe0ff));
+    }
+    if (leap) {
+      // 後躍：腳下一圈風壓
+      shockRing(this, this.sx(x), this.sy(y), 0xc8f0a0, 70, 260, 5);
+      sparks(this, this.sx(x), this.sy(y), 8, 'spark', 0xe0ffd0, 300);
+    }
+  }
+
   /** 星落一閃（D-112）：天上落下的光柱＋落地衝擊環 */
   private starfall(x: number, y: number, r: number): void {
     const px = this.sx(x);
@@ -2964,6 +3054,22 @@ export class RtBattleScene extends Phaser.Scene {
         if (isP) {
           this.shadowGhost(x, sp, now);
           this.drawUltAim(g, x, now);
+          if (this.s.weapon === 'bow' && !x.dead) {
+            // 長弓（D-147）：主角身前一把長弓（程式畫的；拉弓時弦往後拉）
+            const dir = sp.flipX ? -1 : 1;
+            const bx = sp.x + dir * r * 0.7;
+            const by = sp.y - sp.displayHeight * 0.48;
+            const R = sp.displayHeight * 0.36;
+            const pull = x.action && (x.action.kind === 'attack' || x.action.kind === 'skill') ? Math.min(1, (s.tick - x.action.start) / 6) * R * 0.35 : 0;
+            const a0 = dir > 0 ? -1.1 : Math.PI - 1.1;
+            top.lineStyle(7, 0x3a2410, 0.9).beginPath().arc(bx - dir * R * 0.55, by, R, dir > 0 ? -1.1 : Math.PI - 1.1, dir > 0 ? 1.1 : Math.PI + 1.1, false).strokePath();
+            top.lineStyle(4, 0xb07a3a, 1).beginPath().arc(bx - dir * R * 0.55, by, R, a0, a0 + 2.2, false).strokePath();
+            const tx = bx - dir * R * 0.55 + Math.cos(a0) * R;
+            const ty1 = by + Math.sin(a0) * R;
+            const ty2 = by - Math.sin(a0) * R;
+            top.fillStyle(0xffd27a, 1).fillCircle(tx, ty1, 3.5).fillCircle(tx, ty2, 3.5);
+            top.lineStyle(1.5, 0xf0f0e0, 0.9).beginPath().moveTo(tx, ty1).lineTo(tx - dir * pull, by).lineTo(tx, ty2).strokePath();
+          }
         }
       } else {
         g.fillStyle(isP ? (inv ? 0x9fd8ff : 0x4a8aff) : boss ? 0x8a3a6a : 0x6a6a7a, inv ? 0.6 : 1).fillCircle(px, py, r);
@@ -3275,7 +3381,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
-    const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < SWORDSMAN.potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
+    const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < playerDef(this.s).potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
     this.calmText.setVisible(calm && !this.tipBusy && !this.hint).setText(calm ? restTip || (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // Boss 大血條（畫面上方）
     // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
@@ -3320,7 +3426,7 @@ export class RtBattleScene extends Phaser.Scene {
     ids.forEach((id, i) => {
       const { x, y } = this.btnPos(i);
       const R = this.btnR(i);
-      const cd = id === 'dodge' ? SWORDSMAN.dodge.cooldownTicks : skillDef(this.s, id)!.cooldownTicks;
+      const cd = id === 'dodge' ? playerDef(this.s).dodge.cooldownTicks : skillDef(this.s, id)!.cooldownTicks;
       const left = Math.max(0, (p.ready[id] ?? 0) - s.tick);
       g.fillStyle(i === 4 ? 0x2a4a6a : 0x3a2a14, 0.95).fillCircle(x, y, R);
       g.lineStyle(3, left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, 1).strokeCircle(x, y, R);
@@ -3333,13 +3439,13 @@ export class RtBattleScene extends Phaser.Scene {
     });
     // 大招：MP 環（滿 40 才亮）＋冷卻
     {
-      const ult = SKILLS.blade_storm!;
+      const ult = skillDef(this.s, 'blade_storm')!;
       const need = ult.mp ?? 40;
       const { x, y } = this.btnPos(5);
       const R = this.btnR(5);
       const left = Math.max(0, (p.ready['blade_storm'] ?? 0) - s.tick);
       const ok = left === 0 && p.mp >= need;
-      if (ok && !this.bot && !this.menu) this.tipOnce('jg_tip_ult', '大招充滿了！按右下粉紅色「劍刃風暴」', '#ff9ae0');
+      if (ok && !this.bot && !this.menu) this.tipOnce('jg_tip_ult', `大招充滿了！按右下粉紅色「${ult.name}」`, '#ff9ae0');
       const now = this.time.now;
       g.fillStyle(ok ? 0x5a1a3a : 0x2a1420, 0.95).fillCircle(x, y, R);
       g.lineStyle(5, 0x333344, 1).strokeCircle(x, y, R);
@@ -3357,7 +3463,7 @@ export class RtBattleScene extends Phaser.Scene {
     {
       const { x, y } = this.btnPos(6);
       const R = this.btnR(6);
-      const pt = SWORDSMAN.potion;
+      const pt = playerDef(this.s).potion;
       const left = Math.max(0, (p.ready['potion'] ?? 0) - s.tick);
       const low = p.hp < p.maxHp * 0.4 && left === 0 && s.potions > 0;
       g.fillStyle(0x3a1414, 0.95).fillCircle(x, y, R);
@@ -3373,7 +3479,7 @@ export class RtBattleScene extends Phaser.Scene {
       const w = 220;
       const x0 = (GAME_WIDTH - w) / 2;
       g.fillStyle(0x000000, 0.6).fillRect(x0 - 2, 96, w + 4, 8);
-      g.fillStyle(0xff7ad0, 1).fillRect(x0, 98, (w * p.mp) / SWORDSMAN.mp, 4);
+      g.fillStyle(0xff7ad0, 1).fillRect(x0, 98, (w * p.mp) / playerDef(this.s).mp, 4);
       // 經驗條（D-090）：MP 條正下方，金色
       if (s.prog) {
         g.fillStyle(0x000000, 0.6).fillRect(x0 - 2, 104, w + 4, 6);

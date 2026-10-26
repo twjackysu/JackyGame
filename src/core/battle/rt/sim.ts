@@ -235,7 +235,7 @@ export class PlayerBot implements BattleController {
     }
     else if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
     else if (d <= (skillDef(s, 'heavy_slash')!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
-    else if (d > 250 && d <= (skillDef(s, 'charge')!.useRange ?? 0) && ready('charge')) out.push({ type: 'skill', id: 'charge' });
+    else if (ready('charge') && (backLeap(s) ? d <= (skillDef(s, 'charge')!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge')!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' });
     else if (near.length >= 1 && ready('whirlwind') && es.length === 1) out.push({ type: 'skill', id: 'whirlwind' });
     return out;
   }
@@ -261,6 +261,11 @@ export interface BattleResult {
 }
 
 /** 從事件流算出結果（MetricsCollector 的單場版本） */
+/** 長弓的「後躍射擊」（D-147）是往後跳：敵人貼近時才用，跟劍士的衝鋒相反 */
+function backLeap(s: BattleState): boolean {
+  return (skillDef(s, 'charge')?.dash?.distance ?? 0) < 0;
+}
+
 export function summarize(s: BattleState): BattleResult {
   const p = playerOf(s);
   let totalDamage = 0;

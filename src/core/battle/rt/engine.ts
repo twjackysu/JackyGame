@@ -1,6 +1,6 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
-import { AFFIX_ATTACKS, ENEMIES, SKILL_VARIANTS, SKILL_VARIANTS_B, SKILLS, SWORDSMAN, STAGES, variantB } from './data';
+import { AFFIX_ATTACKS, ARCHER, BOW_SKILLS, ENEMIES, SKILL_VARIANTS, SKILL_VARIANTS_B, SKILLS, SWORDSMAN, STAGES, variantB } from './data';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
@@ -87,6 +87,8 @@ export interface BattleSetup {
   skillMods?: Record<string, SkillMod>;
   /** 技能變化（D-112）：改用 SKILL_VARIANTS 版本的技能 id */
   skillVariants?: string[];
+  /** 武器（D-147）：'bow'＝長弓；沒有＝劍士 */
+  weapon?: 'bow';
   /** 深夜模式（需要 StageDefinition.night，D-103） */
   night?: boolean;
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
@@ -102,7 +104,7 @@ export function xpToNext(level: number): number {
 export function createBattle(setup: BattleSetup): BattleState {
   const stage = STAGES[setup.stageId];
   if (!stage) throw new Error(`unknown stage ${setup.stageId}`);
-  const pd = setup.player ?? SWORDSMAN;
+  const pd = setup.player ?? (setup.weapon === 'bow' ? ARCHER : SWORDSMAN);
   const s: BattleState = {
     tick: 0, rngState: (setup.seed >>> 0) || 1, units: [], telegraphs: [], events: [], nextId: 1, arena: stage.arena,
     stageId: stage.id, outcome: 'running', timeLimitTicks: stage.timeLimitTicks, manualMove: null,
@@ -110,6 +112,7 @@ export function createBattle(setup: BattleSetup): BattleState {
   };
   // 打散初始種子
   for (let i = 0; i < 4; i++) nextRand(s);
+  if (setup.weapon === 'bow') s.weapon = 'bow'; // D-147
   if (stage.loot) {
     s.lootRng = ((setup.seed ^ 0x5bd1e995) >>> 0) || 1;
     s.ground = [];
@@ -328,7 +331,7 @@ function rollDrops(s: BattleState, e: Unit): void {
 function processPickup(s: BattleState): void {
   if (!s.ground?.length) return;
   const p = playerOf(s);
-  const carry = playerDef().potion.carry;
+  const carry = playerDef(s).potion.carry;
   s.ground = s.ground.filter((it) => {
     if (s.tick - it.tick > LOOT_RULES.expireTicks) return false;
     if (p.dead || s.tick - it.tick < LOOT_RULES.pickupDelayTicks || dist(p.x, p.y, it.x, it.y) > LOOT_RULES.pickupUnits * UNIT) return true;
@@ -471,7 +474,7 @@ function processChests(s: BattleState): void {
     (s.chestsOpened ??= []).push(c.id);
     for (const k of Object.keys(c.loot).sort() as LootId[]) {
       const n = c.loot[k] ?? 0;
-      if (k === 'potion') s.potions = Math.min(playerDef().potion.carry, s.potions + n);
+      if (k === 'potion') s.potions = Math.min(playerDef(s).potion.carry, s.potions + n);
       s.loot[k] = (s.loot[k] ?? 0) + n;
     }
     emit(s, { tick: s.tick, type: 'chest', chest: c.id, loot: { ...c.loot } });
@@ -518,7 +521,7 @@ function applyLevel(s: BattleState, p: Unit): void {
 export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; def: number }): void {
   if (!s.prog) return;
   const p = s.units[0]!;
-  const pd = playerDef();
+  const pd = playerDef(s);
   const ratio = p.maxHp > 0 ? p.hp / p.maxHp : 1;
   s.prog.baseHp = pd.hp + bonus.hp;
   s.prog.baseAtk = pd.atk + bonus.atk;
@@ -532,6 +535,7 @@ export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; d
 /** 這場戰鬥實際用的技能定義（有選技能變化就用變化版，D-112） */
 export function skillDef(s: BattleState, id: string): SkillDefinition | undefined {
   const v = s.skillVariants;
+  if (s.weapon === 'bow') return BOW_SKILLS[id]; // 長弓（D-147）：技能欄同一組 id，招式整組換掉；技能變化暫不適用
   if (!v) return SKILLS[id];
   if (v.includes(id)) return SKILL_VARIANTS[id] ?? SKILLS[id];
   if (v.includes(variantB(id))) return SKILL_VARIANTS_B[id] ?? SKILLS[id]; // 第二種變化（D-121）
@@ -657,7 +661,7 @@ function pickShards(s: BattleState, vs: readonly StageVent[], p: Unit): void {
     if (p.dead || dist(p.x, p.y, v.x, v.y) > UNIT + p.r) return true;
     const heal = Math.min(p.maxHp - p.hp, Math.round((p.maxHp * v.shard.healPct) / 100));
     p.hp += heal;
-    gainMp(p, v.shard.mp);
+    gainMp(s, p, v.shard.mp);
     emit(s, { tick: s.tick, type: 'shard', idx: sh.idx, x: v.x, y: v.y, mp: v.shard.mp, heal });
     return false;
   });
@@ -686,8 +690,9 @@ export function computeDamage(atk: number, mult: number, pool: number, def: numb
   return Math.max(1, Math.round(base * bonus * defMul * critMul));
 }
 
-function playerDef(): PlayerDefinition {
-  return SWORDSMAN;
+/** 目前武器的玩家定義（D-147：長弓；沒設＝劍士，舊關卡結果完全不變） */
+export function playerDef(s?: Pick<BattleState, 'weapon'>): PlayerDefinition {
+  return s?.weapon === 'bow' ? ARCHER : SWORDSMAN;
 }
 
 function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 'normal' | 'skill' | 'counter' | 'enemy', skill: string, reducePct = 0): number {
@@ -707,7 +712,7 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   let critMul = 1;
   let crit = false;
   if (src.side === 'player') {
-    const pd = playerDef();
+    const pd = playerDef(s);
     if (nextRand(s) * 100 < pd.critRate) {
       crit = true;
       critMul = pd.critDmg / 100;
@@ -729,9 +734,9 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
 }
 
 /** 玩家回 MP（上限 PlayerDefinition.mp） */
-function gainMp(p: Unit, n: number): void {
+function gainMp(s: BattleState, p: Unit, n: number): void {
   if (p.side !== 'player' || p.dead || n <= 0) return;
-  p.mp = Math.min(playerDef().mp, p.mp + n);
+  p.mp = Math.min(playerDef(s).mp, p.mp + n);
 }
 
 /** 扣血（先扣護盾）、記事件、處理死亡 */
@@ -744,8 +749,8 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
   }
   dst.hp = Math.max(0, dst.hp - (amount - absorbed));
   if (origin !== 'dot') {
-    if (src.side === 'player' && dst.side === 'enemy') gainMp(src, playerDef().mpGain.deal);
-    if (dst.side === 'player' && amount > absorbed) gainMp(dst, playerDef().mpGain.hurt);
+    if (src.side === 'player' && dst.side === 'enemy') gainMp(s, src, playerDef(s).mpGain.deal);
+    if (dst.side === 'player' && amount > absorbed) gainMp(s, dst, playerDef(s).mpGain.hurt);
   }
   emit(s, { tick: s.tick, type: 'damage', src: src.id, dst: dst.id, amount, crit, origin, skill, ...(absorbed ? { absorbed } : {}) });
   if (dst.hp <= 0 && !dst.dead) {
@@ -956,7 +961,7 @@ function startSkill(s: BattleState, p: Unit, id: string): boolean {
 }
 
 function startDodge(s: BattleState, p: Unit, dx: number, dy: number): boolean {
-  const pd = playerDef();
+  const pd = playerDef(s);
   if (p.dead || disabled(p, s.tick) || (p.ready['dodge'] ?? 0) > s.tick) return false;
   // 格擋有效窗口內不能用閃避取消
   const a = p.action;
@@ -1004,7 +1009,7 @@ function restAtCampfire(s: BattleState, p: Unit): boolean {
   if (!c || p.dead || s.units.some((e) => e.side === 'enemy' && !e.dead && e.mode === 'combat')) return false;
   p.hp = p.maxHp;
   p.statuses = [];
-  s.potions = Math.max(s.potions, playerDef().potion.carry);
+  s.potions = Math.max(s.potions, playerDef(s).potion.carry);
   s.campfireId = c.id;
   s.moveGoal = null;
   emit(s, { tick: s.tick, type: 'rest', id: p.id, campfire: c.id });
@@ -1053,7 +1058,7 @@ function setMoveGoal(s: BattleState, x: number, y: number): void {
 
 /** 喝藥水：瞬間回復、不打斷動作；滿血、沒藥、冷卻中、倒下或暈眩時無效 */
 function drinkPotion(s: BattleState, p: Unit): boolean {
-  const pt = playerDef().potion;
+  const pt = playerDef(s).potion;
   if (p.dead || disabled(p, s.tick) || s.potions <= 0 || p.hp >= p.maxHp) return false;
   if ((p.ready['potion'] ?? 0) > s.tick) return false;
   const heal = Math.min(p.maxHp - p.hp, Math.round((p.maxHp * pt.healPct) / 100));
@@ -1111,7 +1116,7 @@ function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillI
 function updatePlayer(s: BattleState): void {
   const p = playerOf(s);
   if (p.dead || disabled(p, s.tick)) return;
-  const pd = playerDef();
+  const pd = playerDef(s);
   const a = p.action;
   if (a) {
     const k = s.tick - a.start;
@@ -1344,7 +1349,7 @@ function enemyHit(s: BattleState, e: Unit, atk: AreaAttack, p: Unit): void {
   if (a && sk?.block && atk.blockable && !a.blocked && s.tick - a.start <= blockWindow(s, a.id)) {
     a.blocked = true;
     emit(s, { tick: s.tick, type: 'block', id: p.id, attack: atk.id });
-    gainMp(p, playerDef().mpGain.block);
+    gainMp(s, p, playerDef(s).mpGain.block);
     dealDamage(s, e, p, atk.damageMultiplier, 'enemy', atk.id, sk.block.reducePct);
     face(p, e);
     a.dirX = p.facingX;

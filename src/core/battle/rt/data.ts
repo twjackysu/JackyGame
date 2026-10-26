@@ -37,6 +37,49 @@ export const SKILLS: Record<string, SkillDefinition> = {
 };
 
 /**
+ * 長弓（D-147，第 32 輪）：第二種武器。技能欄沿用同一組 id（按鈕、技能點、裝備特效、冷卻顯示都共用），招式整組換成弓。
+ * 打法：普攻 5 格遠距、身板較薄；靠「後躍射擊」拉開距離、「穿雲箭」打一整排、「散射」清近身的狼群。
+ */
+export const BOW_SKILLS: Record<string, SkillDefinition> = {
+  // 穿雲箭：7 格直線穿透 200%；冷卻 4s
+  heavy_slash: {
+    id: 'heavy_slash', name: '穿雲箭', cooldownTicks: sec(4), castTicks: sec(0.35), moveFactor: 0, role: 'single', useRange: u(6.5),
+    hits: [{ atTick: sec(0.35) - 1, shape: { type: 'line', len: u(7), width: u(0.9) }, mult: 200 }],
+  },
+  // 散射：前方 4.5 格、70° 扇形三輪齊射 3×75%，射的時候能慢慢走（50%）；冷卻 7s
+  whirlwind: {
+    id: 'whirlwind', name: '散射', cooldownTicks: sec(7), castTicks: sec(0.75), moveFactor: 0.5, role: 'aoe', useRange: u(4),
+    hits: [0, 1, 2].map((k) => ({ atTick: sec(0.25) * (k + 1) - 1, shape: { type: 'sector' as const, r: u(4.5), deg: 70 }, mult: 75 })),
+  },
+  // 後躍射擊：先對前方 3 格扇形射一箭 130%＋減速 2 秒，再往後跳 3.5 格；冷卻 6s
+  charge: {
+    id: 'charge', name: '後躍射擊', cooldownTicks: sec(6), castTicks: sec(0.4), moveFactor: 0, role: 'gap', useRange: u(2.5),
+    dash: { fromTick: 2, ticks: sec(0.25), distance: -u(3.5) },
+    hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 90 }, mult: 130, status: { id: 'slow', ticks: sec(2) } }],
+  },
+  // 見切射擊：0.4 秒窗口、擋下完全不受傷，反擊 6 格直線 260%；冷卻 8s
+  parry: {
+    id: 'parry', name: '見切射擊', cooldownTicks: sec(8), castTicks: sec(0.6), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 12, reducePct: 100, counter: { atTick: 0, shape: { type: 'line', len: u(6), width: u(1.1) }, mult: 260 } },
+  },
+  // 星河貫射（大招）：蓄力瞄準 0.5 秒後 9 格寬光束 6×110%（共 660%）＋破甲；40 MP
+  blade_storm: {
+    id: 'blade_storm', name: '星河貫射', cooldownTicks: sec(45), castTicks: sec(1.7), moveFactor: 0, role: 'ult', useRange: u(6), mp: 40, aimTicks: sec(0.5),
+    hits: [0, 1, 2, 3, 4, 5].map((k) => ({ atTick: sec(0.5) + 6 * k + 5, shape: { type: 'line' as const, len: u(9), width: u(2.0) }, mult: 110, oncePerTarget: false, status: k === 5 ? { id: 'break' as const, ticks: sec(6) } : undefined })),
+  },
+};
+
+/** 長弓技能說明（技能點面板用） */
+export const BOW_DESC: Record<string, string> = {
+  heavy_slash: '往前射出 7 格穿透箭，整排 200%；冷卻 4 秒',
+  whirlwind: '前方 70° 扇形三輪齊射（每輪 75%），射的時候能慢慢走；冷卻 7 秒',
+  charge: '對近身的敵人射一箭 130%＋減速，同時往後跳 3.5 格；冷卻 6 秒',
+  parry: '0.4 秒見切窗口、擋下完全不受傷，反擊 6 格直線 260%；冷卻 8 秒',
+  blade_storm: '瞄準 0.5 秒後射出 9 格星光，6 段共 660%＋破甲；40 MP',
+};
+
+/**
  * 技能變化（D-112）：技能點滿 5 級後可以切換成這個版本。id 跟原技能相同（冷卻、按鈕、技能點與裝備特效都共用），
  * 只是招式本身不一樣——同一顆按鈕換一種打法。
  */
@@ -141,6 +184,22 @@ export const SWORDSMAN: PlayerDefinition = {
   skills: ['heavy_slash', 'whirlwind', 'charge', 'parry', 'blade_storm'],
   // 閃避：位移 2.5、動作 9 ticks、無敵 1～6、冷卻 5s
   dodge: { distance: u(2.5), ticks: 9, invulnFrom: 1, invulnTo: 6, cooldownTicks: sec(5) },
+};
+
+/** 長弓手（D-147）：HP／防禦比劍士低、普攻 5 格遠距、閃避冷卻短 1 秒；成長與裝備加成照百分比共用 */
+export const ARCHER: PlayerDefinition = {
+  ...SWORDSMAN,
+  id: 'archer',
+  hp: 540,
+  atk: 31,
+  def: 15,
+  speed: 3.6,
+  attackIntervalTicks: sec(0.8),
+  attackRange: u(5),
+  attackWindupTicks: sec(0.25),
+  attackRecoverTicks: sec(0.55) - 1,
+  critRate: 8,
+  dodge: { distance: u(2.8), ticks: 9, invulnFrom: 1, invulnTo: 6, cooldownTicks: sec(4) },
 };
 
 /**
