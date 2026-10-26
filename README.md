@@ -75,8 +75,10 @@
 | ![法杖技能](docs/screenshots/71-staff-skills.jpg) | ![冰霜新星](docs/screenshots/72-staff-nova.jpg) | ![落點圈](docs/screenshots/74-meteor-aim.jpg) |
 | **行囊：武器名與圖示跟著武器** | **虛空奇點（黑洞把光點吸進去）** | **時間凝滯（倒轉的時鐘）** |
 | ![法杖行囊](docs/screenshots/73-staff-bag.jpg) | ![虛空奇點](docs/screenshots/75-staff-void.jpg) | ![時間凝滯](docs/screenshots/76-staff-timestop.jpg) |
-| **討伐後的抉擇（取或還）** | | |
-| ![抉擇](docs/screenshots/77-boss-choice.jpg) | | |
+| **討伐後的抉擇（取或還）** | **路上的相遇（取或助）** | **選了「助」，下次回來對方會道謝** |
+| ![抉擇](docs/screenshots/77-boss-choice.jpg) | ![相遇](docs/screenshots/78-encounter.jpg) | ![回禮](docs/screenshots/79-encounter-thanks.jpg) |
+| **星隕高原：讓星星回到夜空（光柱與小星星）** | | |
+| ![星隕高原的抉擇](docs/screenshots/80-starfall-choice.jpg) | | |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面（以及燼紅裂谷的熔渣史萊姆、燼心岩王，星隕高原的晶殼魔像、星骸守望者）是程式繪製，每張 AI 圖都有程式備援。
 

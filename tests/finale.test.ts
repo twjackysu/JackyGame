@@ -22,6 +22,8 @@ describe('通關演出', () => {
     const st = finaleStats({});
     expect(st.level).toBe(1);
     expect(st.chests).toBe(0);
+    expect(st.helped).toBeUndefined();
+    expect(finaleStats({}, 0, 0, 2).helped).toBe(2);
   });
   it('遊玩時間格式', () => {
     expect(fmtPlay(42 * 60 + 5)).toBe('42 分');

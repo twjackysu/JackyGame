@@ -2,6 +2,7 @@
 import { WORLD_MAPS } from './worldMaps';
 import { loadRecord, type RtRecord } from './rtRecord';
 import { loadMemories, MEMORIES } from './memories';
+import { ENCOUNTERS, loadEncounters } from './encounters';
 
 /** 序章（D-134）：前世的設定，和結語前後呼應 */
 export const PROLOGUE_LINES: readonly string[] = [
@@ -42,10 +43,12 @@ export interface FinaleStats {
   cardsWon: number;
   /** 前世的記憶（D-137）想起幾個 */
   memories: number;
+  /** 路上的相遇（D-159）選了「助」幾次（沒給＝不顯示） */
+  helped?: number;
 }
 
 /** 從各地圖紀錄算出這趟旅程（純函式，有測試） */
-export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0, memories = 0): FinaleStats {
+export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0, memories = 0, helped?: number): FinaleStats {
   const home = recs[WORLD_MAPS[0]!.id] ?? {};
   return {
     // 通關後的挑戰地圖（D-138）：打倒過才列進旅程
@@ -59,6 +62,7 @@ export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0, memori
     chests: WORLD_MAPS.reduce((n, m) => n + (recs[m.id]?.chests?.length ?? 0), 0),
     cardsWon,
     memories,
+    ...(helped !== undefined ? { helped } : {}),
   };
 }
 
@@ -79,7 +83,8 @@ export function loadFinaleStats(): FinaleStats {
   } catch {
     /* 無痕模式 */
   }
-  return finaleStats(recs, won, loadMemories().length);
+  const en = loadEncounters();
+  return finaleStats(recs, won, loadMemories().length, ENCOUNTERS.filter((e) => en[e.id] === 'spare' || en[e.id] === 'thanked').length);
 }
 
 export function finaleSeen(): boolean {
