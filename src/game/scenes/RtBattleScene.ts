@@ -147,6 +147,8 @@ export class RtBattleScene extends Phaser.Scene {
   private flashUntil = new Map<number, number>();
   /** 命中停頓（hit-stop）剩餘毫秒：期間不推進模擬 */
   private hitStop = 0;
+  /** Boss 倒下的慢動作（第 29 輪）：剩餘毫秒，期間戰鬥以 0.3 倍速前進 */
+  private slowMs = 0;
   /** 鏡頭（世界座標，鏡頭中心） */
   private camX = 0;
   private camY = 0;
@@ -274,6 +276,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.flashUntil.clear();
     this.fxDone.clear();
     this.hitStop = 0;
+    this.slowMs = 0;
     this.engaged = false;
     this.idleHinted = false;
     this.zoneName = null;
@@ -527,7 +530,11 @@ export class RtBattleScene extends Phaser.Scene {
       return;
     }
     if (this.ended || this.menu) return;
-    const dt = Math.min(delta, 250);
+    let dt = Math.min(delta, 250);
+    if (this.slowMs > 0) {
+      this.slowMs = Math.max(0, this.slowMs - dt);
+      dt *= 0.3;
+    }
     if (this.hitStop > 0) this.hitStop = Math.max(0, this.hitStop - dt);
     else this.acc += dt;
     let n = 0;
@@ -1069,6 +1076,25 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
+  /** Boss 倒下（第 29 輪）：慢動作 1.4 秒＋從屍體放射出的光芒（地圖主色＋金色）慢慢轉、淡出 */
+  private bossRays(x: number, y: number, color: number): void {
+    this.slowMs = 1400;
+    const g = this.add.graphics().setDepth(60).setBlendMode(Phaser.BlendModes.ADD).setPosition(x, y);
+    const n = 12;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const len = 520 + (i % 3) * 140;
+      const w = 0.06 + (i % 2) * 0.04;
+      g.fillStyle(i % 2 ? color : 0xffe6a8, 0.32);
+      g.fillTriangle(0, 0, Math.cos(a - w) * len, Math.sin(a - w) * len, Math.cos(a + w) * len, Math.sin(a + w) * len);
+    }
+    g.fillStyle(0xfff4d8, 0.6).fillCircle(0, 0, 46);
+    g.setScale(0.2).setAlpha(0);
+    this.tweens.add({ targets: g, scale: 1, alpha: 1, duration: 260, ease: 'Cubic.easeOut' });
+    this.tweens.add({ targets: g, angle: 24, duration: 2200 });
+    this.tweens.add({ targets: g, alpha: 0, delay: 900, duration: 1300, onComplete: () => g.destroy() });
+  }
+
   /** 通關演出（D-133）：戰鬥暫停（當成 menu），按「繼續冒險」回到地圖；有面板開著就晚一點再播 */
   private showFinale(): void {
     if (this.ended) return;
@@ -1581,6 +1607,7 @@ export class RtBattleScene extends Phaser.Scene {
           if (this.ventHit.get(d.id) === e.tick) this.ventKill(d.x, d.y);
           this.ventHit.delete(d.id);
           if (d.defId === 'thorn_queen' || d.defId === 'thorn_mother') this.thornWither(d.x, d.y, d.defId === 'thorn_queen');
+          if (ENEMIES[d.defId]?.boss && !this.bot) this.bossRays(this.sx(d.x), this.sy(d.y), Phaser.Display.Color.HexStringToColor(worldMap(this.stageId)?.color ?? '#ffd27a').color);
           if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(`${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]!.name}`, !!d.fury);
           else if (d.defId === 'thorn_mother') {
             // 荊棘母樹倒下（D-107）：綠色衝擊波＋葉片＋大字
