@@ -9,6 +9,7 @@ import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { highFx } from '../settings';
 import { fmtSec } from '../rtRecord';
 import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, fmtPlay, markFinaleSeen, MEMORY_TOTAL, markPrologueSeen, type FinaleStats } from '../finaleStats';
+import { FINALE_MAP, worldMap } from '../worldMaps';
 export { finaleSeen, loadFinaleStats, prologueSeen } from '../finaleStats';
 
 const fmtDate = (at?: number): string => {
@@ -206,7 +207,8 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
     hint.setVisible(false);
     const t = scene.add.text(cx, 420, '感謝遊玩', { fontFamily: TITLE_FONT, fontSize: '80px', fontStyle: '900', color: '#ffe6a8', stroke: '#3a1a06', strokeThickness: 6 }).setOrigin(0.5).setAlpha(0);
     glow(t, 0xffb35a);
-    const more = scene.add.text(cx, 610, `冒險還沒結束：\n暴怒的 Boss・深夜的地圖・把裝備強化到 +10\n${stats && stats.memories < MEMORY_TOTAL ? `還有 ${MEMORY_TOTAL - stats.memories} 段沒想起來的前世記憶（紫色光點）\n` : ''}還有營火邊那位不輕易現身的說書人……`, { fontFamily: UI_FONT, fontSize: '26px', color: '#d8ccb0', align: 'center', lineSpacing: 12 }).setOrigin(0.5).setAlpha(0);
+    const postMap = worldMap(worldMap(FINALE_MAP)?.next ?? '')?.name ?? '新的地圖';
+    const more = scene.add.text(cx, 610, `冒險還沒結束：\n✦ 地圖的邊緣之外——「${postMap}」開放了 ✦\n暴怒的 Boss・深夜的地圖・把裝備強化到 +10\n${stats && stats.memories < MEMORY_TOTAL ? `還有 ${MEMORY_TOTAL - stats.memories} 段沒想起來的前世記憶（紫色光點）\n` : ''}還有營火邊那位不輕易現身的說書人……`, { fontFamily: UI_FONT, fontSize: '26px', color: '#d8ccb0', align: 'center', lineSpacing: 12 }).setOrigin(0.5).setAlpha(0);
     const btn = scene.add.container(cx, 860).setAlpha(0);
     const g = scene.add.graphics();
     g.fillStyle(0x2a1a08, 0.95).fillRoundedRect(-190, -46, 380, 92, 22);

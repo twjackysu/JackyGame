@@ -112,3 +112,29 @@ describe('星隕高原', () => {
     expect(kills).toBeGreaterThan(15);
   }, 240000);
 });
+
+describe('彗星巡者（D-138）', () => {
+  beforeAll(() => {
+    STAGES.starfall = makeStarfallStage();
+  });
+  afterAll(() => {
+    delete STAGES.starfall;
+  });
+  it('白天就在墜星原巡邏；Lv15＋裝備普通 Bot 打得倒、掉精良以上', async () => {
+    const { COMET_PATROL } = await import('../src/core/battle/rt/maps/starfall');
+    const s = createBattle({ stageId: 'starfall', seed: 2, level: 15, bonus: GEAR });
+    const c0 = s.units.find((x) => x.defId === 'comet_stalker' && !x.dead);
+    expect(c0).toBeTruthy();
+    const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: COMET_PATROL[1]! }, 'normal');
+    let t0 = -1;
+    while (s.outcome === 'running' && s.tick < sec(300)) {
+      step(s, bot.decide(s));
+      const c = s.units.find((x) => x.defId === 'comet_stalker');
+      if (t0 < 0 && c?.mode === 'combat') t0 = s.tick;
+      if (!c || c.dead) break;
+    }
+    const c = s.units.find((x) => x.defId === 'comet_stalker');
+    out(`彗星巡者：交戰 ${((s.tick - t0) / 30).toFixed(0)} 秒、倒下 ${s.revives ?? 0}`);
+    expect(!c || c.dead).toBe(true);
+  }, 120000);
+});

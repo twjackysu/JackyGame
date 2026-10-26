@@ -117,6 +117,11 @@ export const STARFALL_STARS: readonly StageVent[] = [
   star(24, 17, 1.7, 8, 5.3, 12),
 ];
 
+/** 彗星巡者（白天）的巡邏路線：墜星原繞一圈（經過好幾個落點，可以引牠去挨星星） */
+export const COMET_PATROL: readonly { x: number; y: number }[] = [
+  [18, 56], [30, 56], [31, 66], [18, 66],
+].map(([x, y]) => ({ x: c(x!), y: c(y!) }));
+
 export function makeStarfallStage(): StageDefinition {
   return {
     id: 'starfall', name: '星隕高原', timeLimitTicks: sec(60 * 60), player: { x: c(24), y: c(84) },
@@ -127,9 +132,10 @@ export function makeStarfallStage(): StageDefinition {
       star_shroom: { chance: 7, ilvl: 10, rarity: [64, 30, 6] },
       crystal_golem: { chance: 9, ilvl: 11, rarity: [58, 34, 8] },
       astral_alpha: { chance: 100, ilvl: 13, rarity: [0, 40, 60] },
+      comet_stalker: { chance: 100, ilvl: 13, rarity: [0, 35, 65] },
       star_sentinel: { chance: 100, ilvl: 13, rarity: [0, 20, 80], count: 2, firstRare: true },
     },
-    progression: { xp: { star_wolf: 18, star_shroom: 17, crystal_golem: 22, astral_alpha: 160, star_sentinel: 480 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
+    progression: { xp: { star_wolf: 18, star_shroom: 17, crystal_golem: 22, astral_alpha: 160, comet_stalker: 180, star_sentinel: 480 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '通關後的挑戰：打倒星骸守望者！\n藍圈＝星星要砸下來・建議 Lv14＋裝備',
     enemies: [{ enemyId: 'star_sentinel', x: STARFALL_SENTINEL.x, y: STARFALL_SENTINEL.y, hpPct: 80, atkPct: 30 }],
@@ -165,6 +171,8 @@ export function makeStarfallStage(): StageDefinition {
       { id: 'sf_hall_golems', enemyId: 'crystal_golem', cx: c(34), cy: c(51), spawnRadius: u(1.5), maxAlive: 2, respawnTicks: sec(35), hpPct: 20, atkPct: 10, lootPct: 30 },
       { id: 'sf_hall_alpha', enemyId: 'astral_alpha', cx: c(37), cy: c(45), spawnRadius: u(0.5), maxAlive: 1, respawnTicks: sec(180), tier: 'elite', lootPct: 100, aggroUnits: 5 },
       { id: 'sf_hall_shrooms', enemyId: 'star_shroom', cx: c(35), cy: c(38), spawnRadius: u(1), maxAlive: 2, respawnTicks: sec(40), hpPct: 40, atkPct: 20, lootPct: 40 },
+      // 彗星巡者（白天）：在墜星原繞圈，看得到橘藍色的仇恨圈與視線
+      { id: 'sf_comet', enemyId: 'comet_stalker', cx: COMET_PATROL[0]!.x, cy: COMET_PATROL[0]!.y, spawnRadius: u(0.3), maxAlive: 1, respawnTicks: sec(180), tier: 'elite', lootPct: 100, aggroUnits: 4, patrol: COMET_PATROL },
       { id: 'sf_stair_pack', enemyId: 'star_wolf', cx: c(24), cy: c(24), spawnRadius: u(1.2), maxAlive: 3, respawnTicks: sec(30), hpPct: 60, atkPct: 30, lootPct: 80 },
     ],
   };

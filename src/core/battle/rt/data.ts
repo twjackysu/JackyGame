@@ -367,6 +367,16 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
       { id: 'astral_nova', shape: { type: 'circle', r: u(2.3) }, warningTicks: sec(0.6), recoverTicks: sec(0.7), damageMultiplier: 125, cooldownTicks: 0, triggerRange: u(3), blockable: false, weight: 0 },
     ],
   },
+  // 彗星巡者（巡邏精英，D-138）：白天在墜星原繞圈；撕咬、超長衝鋒（拖著彗尾）、近身星爆（不能格擋）。把牠引到落星底下最划算
+  comet_stalker: {
+    id: 'comet_stalker', name: '彗星巡者', hp: 3400, atk: 40, def: 15, speed: 3.9, radius: u(0.62), hitstunTicks: 2,
+    drops: { gold: [60, 90], items: [{ id: 'dust', chance: 100, count: [3, 5] }, { id: 'crystal', chance: 100 }, { id: 'potion', chance: 60 }] },
+    attacks: [
+      { id: 'comet_bite', shape: { type: 'sector', r: u(1.9), deg: 100 }, warningTicks: sec(0.6), recoverTicks: sec(0.4), damageMultiplier: 115, cooldownTicks: sec(2.2), triggerRange: u(1.6), blockable: true, weight: 3 },
+      { id: 'comet_dash', shape: { type: 'line', len: u(8), width: u(1.3) }, warningTicks: sec(0.8), recoverTicks: sec(0.6), damageMultiplier: 145, cooldownTicks: sec(7), triggerRange: u(8), blockable: true, charge: { ticks: sec(0.5), wallStunTicks: sec(1.8) }, weight: 2 },
+      { id: 'comet_burst', shape: { type: 'circle', r: u(2.4) }, warningTicks: sec(0.9), recoverTicks: sec(0.8), damageMultiplier: 140, cooldownTicks: sec(9), triggerRange: u(2.0), blockable: false, weight: 2 },
+    ],
+  },
   // 星骸守望者（Boss）：墜星化成的晶石巨人。斬擊（扇形）、星槍（長直線）、瞬移到背後（一般版就會）、重踏；
   // 第二階段加星環＋招喚星痕狼；暴怒版：星槍連發、「星落」超大圓（預告長，跑出去就沒事）
   star_sentinel: {

@@ -7,9 +7,10 @@ import { createBattle, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
 import { makeThornvaleStage } from '../src/core/battle/rt/maps/thornvale';
 import { makeEmberriftStage } from '../src/core/battle/rt/maps/emberrift';
+import { makeStarfallStage } from '../src/core/battle/rt/maps/starfall';
 import { aggroUnitsOf, sec, UNIT, type StageDefinition } from '../src/core/battle/rt/types';
 
-const MAPS: Record<string, () => StageDefinition> = { mistwood: makeMistwoodStage, thornvale: makeThornvaleStage, emberrift: makeEmberriftStage };
+const MAPS: Record<string, () => StageDefinition> = { mistwood: makeMistwoodStage, thornvale: makeThornvaleStage, emberrift: makeEmberriftStage, starfall: makeStarfallStage };
 
 describe('巡邏路線走得完', () => {
   beforeAll(() => {
