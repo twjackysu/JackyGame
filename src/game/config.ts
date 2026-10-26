@@ -3,9 +3,11 @@ import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { RtBattleScene } from './scenes/RtBattleScene';
 
-/** Portrait 9:16 design resolution. Everything is laid out in these units. */
+import { GAME_HEIGHT } from './screen';
+
+/** Portrait design resolution: 720 wide, 1280 tall at 9:16, taller on long phones (D-142, see screen.ts). */
 export const GAME_WIDTH = 720;
-export const GAME_HEIGHT = 1280;
+export { GAME_HEIGHT, TALL } from './screen';
 
 export const COLORS = {
   bg: 0x0b0f1e,

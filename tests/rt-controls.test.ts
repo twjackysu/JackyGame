@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type RtControls, DEFAULT_KEYS, JOY_INDEX, buttonPos, buttonR, defaultControls, inStickZone, keyName, rebind, sanitize, setLeftHand, swapSlots } from '../src/game/rtControls';
+import { type RtControls, DEFAULT_KEYS, JOY_INDEX, buttonPos, buttonR, defaultControls, inStickZone, fitHeight, keyName, rebind, sanitize, setLeftHand, swapSlots } from '../src/game/rtControls';
 import { EMPTY_SNAP, furyUnlocked, mergeRun, recordBoss } from '../src/game/rtRecord';
 
 describe('即時戰鬥操作設定（D-088）', () => {
@@ -80,5 +80,16 @@ describe('暴怒狼王紀錄（D-099）', () => {
     expect(r.bossKills).toBe(4);
     expect(r.furyKills).toBe(1);
     expect(recordBoss(r, 90, 2).rec.furyKills).toBe(1);
+  });
+
+  it('長螢幕（D-142）：存檔的高度和現在不同時，下半部的自訂位置跟著下緣移動，上半部不動；舊存檔當 1280', () => {
+    const raw = { pos: { 0: { x: 470, y: 1190 }, 5: { x: 570, y: 400 } } };
+    const moved = fitHeight(raw, 1560) as typeof raw;
+    expect(moved.pos[0]).toEqual({ x: 470, y: 1470 });
+    expect(moved.pos[5]).toEqual({ x: 570, y: 400 });
+    expect(fitHeight({ ...raw, h: 1560 }, 1560)).toEqual({ ...raw, h: 1560 });
+    const back = fitHeight({ pos: { 0: { x: 470, y: 1470 } }, h: 1560 }, 1280) as typeof raw;
+    expect(back.pos[0]).toEqual({ x: 470, y: 1190 });
+    expect(fitHeight(null, 1560)).toBe(null);
   });
 });

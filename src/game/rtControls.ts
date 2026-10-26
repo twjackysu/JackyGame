@@ -1,5 +1,7 @@
 // 即時戰鬥的操作設定（D-088，Jacky 10/25：技能按鈕位置、技能排列、桌機快捷鍵都能自己調）。
 // 只存在 localStorage `jg_rt_controls`；純資料函式有測試（tests/rt-controls.test.ts）。
+// 長螢幕（D-142）：預設位置與觸控區都往下移 TALL，貼齊畫面下緣；存檔記下當時的高度，換高度時下半部的自訂位置跟著移。
+import { GAME_HEIGHT, TALL } from './screen';
 
 /** 右下按鈕的索引：0–3 技能欄、4 閃避、5 大招、6 藥水；7 是搖桿底座 */
 export const BTN_COUNT = 7;
@@ -38,11 +40,11 @@ export interface RtControls {
 const BASE: { x: number; y: number }[] = [
   { x: 470, y: 1190 }, { x: 470, y: 1080 }, { x: 570, y: 1010 }, { x: 660, y: 1075 }, { x: 640, y: 1185 }, { x: 570, y: 900 }, { x: 672, y: 948 },
   { x: 150, y: 1150 },
-];
+].map((b) => ({ x: b.x, y: b.y + TALL }));
 
 export const SCALES = [0.85, 1, 1.15] as const;
 const W = 720;
-const H = 1280;
+const H = GAME_HEIGHT;
 
 export function defaultControls(): RtControls {
   return { order: [...DEFAULT_ORDER], pos: {}, scale: 1, leftHand: false, keys: { ...DEFAULT_KEYS } };
@@ -99,7 +101,7 @@ export function buttonR(c: RtControls, i: number): number {
 /** 搖桿的觸控區：搖桿那一側的下方三分之一（左手模式在右邊） */
 export function inStickZone(c: RtControls, x: number, y: number): boolean {
   const j = buttonPos(c, JOY_INDEX);
-  return y > Math.min(980, j.y - 170) && (j.x < W / 2 ? x < W / 2 : x > W / 2);
+  return y > Math.min(980 + TALL, j.y - 170) && (j.x < W / 2 ? x < W / 2 : x > W / 2);
 }
 
 /** 交換兩個技能欄（a、b 是 0–3） */
@@ -140,9 +142,20 @@ export function keyName(code: number): string {
 
 const STORE = 'jg_rt_controls';
 
+/** 存檔時的畫面高度（舊存檔沒有＝1280）和現在不同：下半部的自訂位置跟著下緣移動，上半部不動 */
+export function fitHeight(raw: unknown, h: number): unknown {
+  if (!raw || typeof raw !== 'object') return raw;
+  const r = raw as { pos?: Record<string, { x: number; y: number }>; h?: unknown };
+  const from = typeof r.h === 'number' && r.h >= 1000 ? r.h : 1280;
+  if (from === h || !r.pos || typeof r.pos !== 'object') return raw;
+  const pos: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(r.pos)) pos[k] = v && typeof v.y === 'number' && v.y > from / 2 ? { ...v, y: v.y + h - from } : v;
+  return { ...r, pos };
+}
+
 export function loadControls(): RtControls {
   try {
-    return sanitize(JSON.parse(localStorage.getItem(STORE) ?? 'null'));
+    return sanitize(fitHeight(JSON.parse(localStorage.getItem(STORE) ?? 'null'), H));
   } catch {
     return defaultControls();
   }
@@ -150,7 +163,7 @@ export function loadControls(): RtControls {
 
 export function saveControls(c: RtControls): void {
   try {
-    localStorage.setItem(STORE, JSON.stringify(c));
+    localStorage.setItem(STORE, JSON.stringify({ ...c, h: H }));
   } catch {
     /* 無痕模式：這次有效，下次回到預設 */
   }

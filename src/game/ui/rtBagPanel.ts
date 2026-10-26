@@ -8,7 +8,7 @@ import { BAG_MAX, bonusOf, equipWith, isUpgrade, unequip, type BagState } from '
 
 export { BAG_MAX, bonusOf, isUpgrade, type BagState } from '../rtBag';
 
-import { GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 
 const PER_PAGE = 8;
@@ -32,7 +32,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
   let st = start;
   let page = 0;
   let detail: RtGear | null = null;
-  const root = scene.add.container(GAME_WIDTH / 2, 640).setDepth(960);
+  const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9).setInteractive({ useHandCursor: true });
@@ -67,7 +67,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
 
   function render(): void {
     root.removeAll(true);
-    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.86).setInteractive()];
+    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.86).setInteractive()];
     items.push(scene.add.text(0, -580, '行囊', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     items.push(scene.add.text(0, -528, stats(), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0' }).setOrigin(0.5));
     // 身上 6 格（3×2）
@@ -123,7 +123,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
   function detailCard(g: RtGear): Phaser.GameObjects.GameObject[] {
     const worn = st.equip[g.slot]?.uid === g.uid;
     const col = RARITY_COLOR[g.rarity];
-    const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.5).setInteractive()];
+    const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
     out.push(scene.add.rectangle(0, -60, 600, 560, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -300, gearTitle(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5));

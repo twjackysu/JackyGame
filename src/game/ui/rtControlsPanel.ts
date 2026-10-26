@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS } from '../../core/battle/rt/data';
-import { GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { ACTIONS, ACTION_LABEL, SCALES, defaultControls, keyName, rebind, setLeftHand, type RtAction, type RtControls } from '../rtControls';
 
@@ -10,7 +10,7 @@ import { ACTIONS, ACTION_LABEL, SCALES, defaultControls, keyName, rebind, setLef
 export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done: (c: RtControls, edit: boolean) => void): Phaser.GameObjects.Container {
   let c = start;
   let waiting: RtAction | null = null;
-  const root = scene.add.container(GAME_WIDTH / 2, 640).setDepth(960);
+  const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
   const kb = scene.input.keyboard;
   const onKey = (ev: KeyboardEvent): void => {
     if (!waiting) return;
@@ -37,7 +37,7 @@ export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done
 
   function render(): void {
     root.removeAll(true);
-    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.82).setInteractive()];
+    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.82).setInteractive()];
     items.push(scene.add.text(0, -570, '操作設定', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     items.push(btn(0, -480, '調整按鈕位置・交換技能 ▶', () => done(c, true), true, 28));
     items.push(label(-300, -400, '左手模式', '#ffffff', 26, 0));

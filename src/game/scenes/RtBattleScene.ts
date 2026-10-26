@@ -37,7 +37,7 @@ import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES, SWORDSMAN } from '../../core/battle/rt/data';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap, FINALE_MAP } from '../worldMaps';
-import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
@@ -58,7 +58,7 @@ const STAGE_IDS = Object.keys(STAGES);
 const VIEW_UNITS_W = 1050;
 /** 世界可視區：標題列下方到畫面底（操作鍵疊在上面） */
 const VIEW_TOP = 110;
-const VIEW_BOTTOM = 1280;
+const VIEW_BOTTOM = GAME_HEIGHT;
 /** 地面材質分塊大小（px） */
 const GROUND_CHUNK = 1024;
 /** 主角在可視區的垂直位置（偏上，留空間給下方操作鍵） */
@@ -755,7 +755,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.shopBtn = null;
     this.cardBtn = null;
     if (!this.tracked) return;
-    const b = this.add.text(GAME_WIDTH / 2 - 95, 960, '行囊・強化', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    const b = this.add.text(GAME_WIDTH / 2 - 95, 960 + TALL, '行囊・強化', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
     b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
       if (this.menu || this.editing || this.ended) return;
@@ -765,7 +765,7 @@ export class RtBattleScene extends Phaser.Scene {
     });
     this.fireBtn = b;
     // 營火行商（D-116）
-    const sb = this.add.text(GAME_WIDTH / 2 + 125, 960, '行商', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#9fe8a0' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    const sb = this.add.text(GAME_WIDTH / 2 + 125, 960 + TALL, '行商', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#9fe8a0' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
     sb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
       if (this.menu || this.editing || this.ended) return;
@@ -775,7 +775,7 @@ export class RtBattleScene extends Phaser.Scene {
     });
     this.shopBtn = sb;
     // 燼牌捷徑（D-129）：營火旁直接找人打牌（在地對手坐在營火另一邊）
-    const cb = this.add.text(88, 960, '燼牌', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffb36a' }).setOrigin(0.5).setPadding(16, 10, 16, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    const cb = this.add.text(88, 960 + TALL, '燼牌', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffb36a' }).setOrigin(0.5).setPadding(16, 10, 16, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
     cb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
       if (this.menu || this.editing || this.ended) return;
@@ -1175,7 +1175,7 @@ export class RtBattleScene extends Phaser.Scene {
   private openMemoryBook(): void {
     this.menu?.destroy();
     const have = loadMemories();
-    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x0a0614, 0.92).setInteractive()];
+    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0614, 0.92).setInteractive()];
     items.push(this.add.text(0, -540, `✦ 前世的記憶　${have.length}/${MEMORIES.length}`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#d8b0ff' }).setOrigin(0.5));
     items.push(this.add.text(0, -488, '地上浮著的紫色光點・走過去就會想起來（每段 +1 結晶）', { fontFamily: UI_FONT, fontSize: '19px', color: '#9a88b8' }).setOrigin(0.5));
     let y = -440;
@@ -1198,7 +1198,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.toggleMenu();
     });
     items.push(back);
-    this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
+    this.menu = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, items).setDepth(960);
   }
 
   /** 隱藏寶箱附近第一次靠近：「這個地方似乎有點熟悉……」（design/20 C2，只提示不指路） */
@@ -1394,7 +1394,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.tweens.killTweensOf(o);
       o.destroy();
     }
-    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.7).setInteractive()];
+    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setInteractive()];
     items.push(this.add.text(0, -440, '暫停', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     const mk = (y: number, label: string, fn: () => void, hi = false, x = 0) => {
       const t = this.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(24, 12, 24, 12).setInteractive({ useHandCursor: true });
@@ -1453,7 +1453,7 @@ export class RtBattleScene extends Phaser.Scene {
       }
       mk(y, '回標題', () => this.leave(() => this.scene.start('Title')));
       items.push(this.recordText(y + 80));
-      this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
+      this.menu = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, items).setDepth(960);
       return;
     }
     ctlBtn(-270);
@@ -1462,7 +1462,7 @@ export class RtBattleScene extends Phaser.Scene {
     STAGE_IDS.forEach((id, i) => mk(-60 + i * 72, `${id === this.stageId ? '▶ ' : ''}${STAGES[id]!.name}`, () => this.scene.restart({ stage: id, seed: this.seed + 1, bot: this.botName ?? '' })));
     mk(-60 + STAGE_IDS.length * 72 + 14, this.botName ? '改成自己操作' : '看 Bot 示範（熟練）', () => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'expert' }));
     mk(-60 + STAGE_IDS.length * 72 + 90, '回標題', () => this.scene.start('Title'));
-    this.menu = this.add.container(GAME_WIDTH / 2, 640, items).setDepth(960);
+    this.menu = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, items).setDepth(960);
   }
 
   private showHint(): void {
@@ -2467,13 +2467,13 @@ export class RtBattleScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.shake(260, 0.006);
     // 第 25 輪：不再推鏡頭（整個場景只有一台相機，HUD 會一起放大）；改成世界壓暗一下，HUD（depth ≥ 48）不受影響
-    const dim = this.add.rectangle(GAME_WIDTH / 2, 640, GAME_WIDTH + 40, 1320, 0x000000, 0).setDepth(47);
+    const dim = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH + 40, GAME_HEIGHT + 40, 0x000000, 0).setDepth(47);
     this.tweens.add({ targets: dim, fillAlpha: 0.38, duration: 300, ease: 'Cubic.easeOut', yoyo: true, hold: 1300, onComplete: () => dim.destroy() });
     const H = 110;
-    const bars = [this.add.rectangle(GAME_WIDTH / 2, -H / 2, GAME_WIDTH + 120, H, 0x000000, 1), this.add.rectangle(GAME_WIDTH / 2, 1280 + H / 2, GAME_WIDTH + 120, H, 0x000000, 1)];
+    const bars = [this.add.rectangle(GAME_WIDTH / 2, -H / 2, GAME_WIDTH + 120, H, 0x000000, 1), this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT + H / 2, GAME_WIDTH + 120, H, 0x000000, 1)];
     bars.forEach((b, i) => {
       b.setDepth(880);
-      this.tweens.add({ targets: b, y: i ? 1280 - H / 2 : H / 2, duration: 300, ease: 'Cubic.easeOut', yoyo: true, hold: 1500, onComplete: () => b.destroy() });
+      this.tweens.add({ targets: b, y: i ? GAME_HEIGHT - H / 2 : H / 2, duration: 300, ease: 'Cubic.easeOut', yoyo: true, hold: 1500, onComplete: () => b.destroy() });
     });
     const line = this.add.rectangle(-GAME_WIDTH / 2, 430, GAME_WIDTH * 0.9, 4, Phaser.Display.Color.HexStringToColor(col).color, 0.9).setDepth(881);
     const name = this.add.text(-GAME_WIDTH / 2, 392, `${d.fury ? '暴怒的' : ''}${def.name}`, { fontFamily: TITLE_FONT, fontSize: '58px', color: col, stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(882);
@@ -3067,12 +3067,12 @@ export class RtBattleScene extends Phaser.Scene {
       const px = this.sx(e.x);
       const py = this.sy(e.y);
       const M = 30;
-      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960) continue;
+      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960 + TALL) continue;
       const elite = e.tier === 'elite' || !!ENEMIES[e.defId]?.boss;
       // 有小地圖的大地圖：待機的一般怪只在小地圖上，箭頭只留給追過來的怪與精英／Boss（design/20 B6）
       if (this.mini && !elite && e.mode !== 'combat') continue;
       const cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
-      const cy = Math.max(VIEW_TOP + M, Math.min(960, py));
+      const cy = Math.max(VIEW_TOP + M, Math.min(960 + TALL, py));
       const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
       const hot = s.telegraphs.some((t) => t.ownerId === e.id);
       const col = hot ? (Math.floor(now / 100) % 2 ? 0xff3a3a : 0xffffff) : ENEMIES[e.defId]?.boss ? 0xffb0d0 : 0xffd27a;
@@ -3100,9 +3100,9 @@ export class RtBattleScene extends Phaser.Scene {
       if (it.kind !== 'gear' || (it.rarity ?? 1) < 2) continue;
       const px = this.sx(it.x);
       const py = this.sy(it.y);
-      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960) continue;
+      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960 + TALL) continue;
       const cx = Math.max(24, Math.min(GAME_WIDTH - 24, px));
-      const cy = Math.max(VIEW_TOP + 24, Math.min(950, py));
+      const cy = Math.max(VIEW_TOP + 24, Math.min(950 + TALL, py));
       const r = 11 + 2 * Math.sin(now / 140);
       g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 0.3).fillCircle(cx, cy, r + 8);
       g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 1).fillPoints([{ x: cx, y: cy - r }, { x: cx + r * 0.7, y: cy }, { x: cx, y: cy + r }, { x: cx - r * 0.7, y: cy }], true);
@@ -3375,7 +3375,7 @@ export class RtBattleScene extends Phaser.Scene {
     const r = summarize(this.s);
     const win = r.victory;
     // 結束：畫面變暗、勝利金光／倒下時主角淡出
-    const dim = this.add.rectangle(GAME_WIDTH / 2, 640, GAME_WIDTH, 1280, 0x000000, 0).setDepth(75);
+    const dim = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0).setDepth(75);
     this.tweens.add({ targets: dim, fillAlpha: 0.55, duration: 500 });
     this.add.rectangle(GAME_WIDTH / 2, 575, 560, 400, 0x120c06, 0.92).setStrokeStyle(3, win ? 0xffd27a : 0x8a5050, 0.9).setDepth(78);
     const pu = playerOf(this.s);

@@ -1,7 +1,7 @@
 // 即時戰鬥「技能點」面板（D-110）：每升一級 1 點，自由點、免費重置。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { SKILL_VARIANTS, SKILL_VARIANTS_B } from '../../core/battle/rt/data';
 import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, skillPoints, toggleVariant, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
@@ -10,7 +10,7 @@ import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, skillPoints, toggle
 export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVariants: readonly string[], level: number, change: (r: SkillRanks, v: string[]) => void, done: () => void): Phaser.GameObjects.Container {
   let r = start;
   let v = cleanVariants(startVariants, r);
-  const root = scene.add.container(GAME_WIDTH / 2, 640).setDepth(960);
+  const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 26, off = false): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: off ? '#8a8070' : hi ? '#1a0f08' : '#ffffff', backgroundColor: off ? '#2a2218' : hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9);
     if (!off) {
@@ -25,7 +25,7 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
   function render(): void {
     root.removeAll(true);
     const left = skillPoints(level) - usedPoints(r);
-    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.84).setInteractive()];
+    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.84).setInteractive()];
     items.push(scene.add.text(0, -520, '技能點', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     items.push(scene.add.text(0, -480, '技能滿 5 級可以切換兩種「變化」：同一顆按鈕換一種招式', { fontFamily: UI_FONT, fontSize: '19px', color: '#ffb6f0' }).setOrigin(0.5));
     items.push(scene.add.text(0, -448, `Lv ${level}・剩 ${left} 點（每升一級 +1，可以隨時免費重置）`, { fontFamily: UI_FONT, fontSize: '22px', color: left > 0 ? '#9fff9a' : '#c8d0f0' }).setOrigin(0.5));

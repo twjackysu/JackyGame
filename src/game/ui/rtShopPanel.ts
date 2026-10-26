@@ -6,7 +6,7 @@ import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, weakestSlot, type BagState } from '../rtBag';
 import { walletOf, type RtRecord } from '../rtRecord';
 import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, cleanShop, coinOf, isDeal, isPicked, stockPrice, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, withPick } from '../rtShop';
-import { GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { drawMerchant } from '../fx/merchant';
 
@@ -35,7 +35,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   const pickSlot = cleanShop(pickNow.shop).pick;
   const pickLeft = shopStock(pickNow, ctx.level, ctx.region).some((g) => isPicked(g));
   const line = pickSlot && pickLeft && Math.random() < 0.5 ? `「${SLOT_NAME[pickSlot]}該換了吧？特地幫你帶了一件。」` : LINES[Math.floor(Math.random() * LINES.length)]!;
-  const root = scene.add.container(GAME_WIDTH / 2, 640).setDepth(960);
+  const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24, off = false): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: off ? '#8a8070' : hi ? '#1a0f08' : '#ffffff', backgroundColor: off ? '#2a2218' : hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9);
@@ -89,7 +89,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     const rec = ctx.rec();
     const st = ctx.bag();
     const w = walletOf(rec);
-    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x080604, 0.95).setInteractive()];
+    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x080604, 0.95).setInteractive()];
     items.push(scene.add.text(0, -585, '營火行商', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     items.push(portrait);
     items.push(scene.add.text(0, -538, `旅商莫托：${line}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0' }).setOrigin(0.5));
@@ -211,7 +211,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   function detailCard(g: RtGear, buy: boolean): Phaser.GameObjects.GameObject[] {
     const st = ctx.bag();
     const col = RARITY_COLOR[g.rarity];
-    const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.5).setInteractive()];
+    const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
     out.push(scene.add.rectangle(0, -60, 600, 540, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -290, gearTitle(g), { fontFamily: TITLE_FONT, fontSize: '34px', color: hex(col) }).setOrigin(0.5));

@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
-import { GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 
@@ -92,7 +92,7 @@ function cardColor(id: string): { fill: number; edge: number } {
 }
 
 export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: () => void): Phaser.GameObjects.Container {
-  const root = scene.add.container(GAME_WIDTH / 2, 640).setDepth(960);
+  const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
   let g: CardGame | null = null;
   let staked = 0;
   let sel = -1;
@@ -130,7 +130,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
 
   // 牌桌（第 28 輪）：木板桌面＋四邊暗角（只畫一次）、桌子中央營火映過來的暖光（每幀閃）
   const table = scene.add.graphics();
-  for (let y = -640, i = 0; y < 640; y += 58, i++) {
+  for (let y = -GAME_HEIGHT / 2, i = 0; y < GAME_HEIGHT / 2; y += 58, i++) {
     table.fillStyle(i % 2 ? 0x1e140b : 0x23170d, 1).fillRect(-GAME_WIDTH / 2, y, GAME_WIDTH, 58);
     table.fillStyle(0x0c0704, 1).fillRect(-GAME_WIDTH / 2, y, GAME_WIDTH, 2);
     // 木紋與節眼（固定位置，不用亂數）
@@ -142,8 +142,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   for (let k = 0; k < 14; k++) {
     const b = 16 + k * 14;
     table.fillStyle(0x000000, 0.07);
-    table.fillRect(-GAME_WIDTH / 2, -640, GAME_WIDTH, b).fillRect(-GAME_WIDTH / 2, 640 - b, GAME_WIDTH, b);
-    table.fillRect(-GAME_WIDTH / 2, -640, b * 0.6, 1280).fillRect(GAME_WIDTH / 2 - b * 0.6, -640, b * 0.6, 1280);
+    table.fillRect(-GAME_WIDTH / 2, -GAME_HEIGHT / 2, GAME_WIDTH, b).fillRect(-GAME_WIDTH / 2, GAME_HEIGHT / 2 - b, GAME_WIDTH, b);
+    table.fillRect(-GAME_WIDTH / 2, -GAME_HEIGHT / 2, b * 0.6, GAME_HEIGHT).fillRect(GAME_WIDTH / 2 - b * 0.6, -GAME_HEIGHT / 2, b * 0.6, GAME_HEIGHT);
   }
   const glow = scene.add.graphics();
   const drawGlow = (): void => {
@@ -208,7 +208,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     root.remove(table);
     root.remove(glow);
     root.removeAll(true);
-    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x080604, 1).setInteractive()];
+    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x080604, 1).setInteractive()];
     items.push(table, glow, portrait);
     items.push(scene.add.text(30, -600, '營火燼牌', { fontFamily: TITLE_FONT, fontSize: '42px', color: '#ffd27a' }).setOrigin(0.5));
     if (!g) {
@@ -396,7 +396,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
         } else {
           if (using <= DECK_MIN) {
             SFX.uiTap();
-            bigText(scene, GAME_WIDTH / 2, 640, `至少要帶 ${DECK_MIN} 張`, '#ff9a8a', 34, 700).setDepth(990);
+            bigText(scene, GAME_WIDTH / 2, GAME_HEIGHT / 2, `至少要帶 ${DECK_MIN} 張`, '#ff9a8a', 34, 700).setDepth(990);
             return;
           }
           s2.off.push(id);
@@ -473,7 +473,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   /** 贏到新牌：暗幕＋旋轉光芒＋翻牌（點一下關掉） */
   function reveal(id: string): void {
     const ov = scene.add.container(0, 0);
-    const dim = scene.add.rectangle(0, 0, GAME_WIDTH, 1280, 0x000000, 0.78).setInteractive();
+    const dim = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.78).setInteractive();
     const rays = scene.add.graphics();
     const hero = CARDS[id]!.ability === 'hero';
     const rc = hero ? 0xffd27a : cardColor(id).edge;
@@ -660,7 +660,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       const n = g?.sides[side]?.rows[row].length ?? 0;
       const gap = Math.min(64, 480 / Math.max(1, n + 1));
       const x = cx - 200 + (n + k) * gap;
-      const y = 640 + rowY(side, row) + 6;
+      const y = GAME_HEIGHT / 2 + rowY(side, row) + 6;
       const ghost = scene.add.container(x, y).setDepth(995);
       ghost.add(scene.add.rectangle(0, 0, 56, 80, 0xff6a20, 1).setStrokeStyle(3, 0xffe0a0, 1));
       ghost.add(scene.add.text(0, 0, CARDS[id]!.name.slice(0, 2), { fontFamily: UI_FONT, fontSize: '16px', color: '#2a0a00' }).setOrigin(0.5));
@@ -678,8 +678,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     SFX.cardMagic();
     const rowY = (sd: number, r: Row): number => (sd === 1 ? (r === 1 ? -440 : -330) : r === 0 ? -200 : -90);
     const cx = GAME_WIDTH / 2;
-    const y = 640 + rowY(side, row) + 6;
-    const from = 640 + rowY(side, 1) + 6;
+    const y = GAME_HEIGHT / 2 + rowY(side, row) + 6;
+    const from = GAME_HEIGHT / 2 + rowY(side, 1) + 6;
     for (let k = 0; k < 3; k++) {
       const ring = scene.add.ellipse(cx, y, 80, 30).setStrokeStyle(4, 0xd89aff, 1).setDepth(995).setAlpha(0.9);
       scene.tweens.add({ targets: ring, scaleX: 6, scaleY: 3, alpha: 0, delay: k * 140, duration: 700, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });

@@ -8,7 +8,7 @@ import { playMusic } from '../../audio/music';
 import { finaleSeen, loadFinaleStats, playFinale } from '../ui/finale';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
-import { COLORS, GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { COLORS, GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 
 const TITLE_FONT =
   '"Noto Serif TC", "Noto Serif CJK TC", "Source Han Serif TC", "PingFang TC", "Songti TC", "Microsoft JhengHei", serif';
@@ -86,7 +86,7 @@ export class TitleScene extends Phaser.Scene {
       advance: 6000,
     });
     // Slow drifting sparks across the middle.
-    this.add.particles(cx, 640, 'spark', {
+    this.add.particles(cx, GAME_HEIGHT / 2, 'spark', {
       emitZone: {
         type: 'random',
         source: new Phaser.Geom.Rectangle(-cx, -500, GAME_WIDTH, 1000),
@@ -185,7 +185,7 @@ export class TitleScene extends Phaser.Scene {
     this.busy = false;
     this.menu = undefined;
     const prompt = (this.prompt = this.add
-      .text(cx, 1000, t('title.tapToStart'), {
+      .text(cx, 1000 + TALL, t('title.tapToStart'), {
         fontFamily: UI_FONT,
         fontSize: '44px',
         color: '#ffffff',
@@ -286,7 +286,7 @@ export class TitleScene extends Phaser.Scene {
     }]);
     const menu = (this.menu = this.add.container(0, 0));
     items.forEach(([label, fn], i) => {
-      const y = 1180 - (items.length - 1 - i) * 100 - (items.length > 4 ? 0 : 40);
+      const y = 1180 + TALL - (items.length - 1 - i) * 100 - (items.length > 4 ? 0 : 40);
       const c = this.add.container(cx, y);
       const g = this.add.graphics();
       g.fillStyle(0x0a0d1a, 0.85).fillRoundedRect(-200, -42, 400, 84, 20);
