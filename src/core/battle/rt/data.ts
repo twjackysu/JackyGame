@@ -70,6 +70,42 @@ export const BOW_SKILLS: Record<string, SkillDefinition> = {
   },
 };
 
+/** 長弓的技能變化（D-148）：滿 5 級切換；存檔沿用劍的 `skillVariants`（同一個 id＝第一種變化），弓沒有變化二 */
+export const BOW_VARIANTS: Record<string, SkillDefinition & { variantName: string; desc: string }> = {
+  // 貫星狙擊：蓄力 0.7 秒（前 0.4 秒自動瞄準）、9 格細長一箭 330%；冷卻 7s
+  heavy_slash: {
+    id: 'heavy_slash', name: '貫星狙擊', variantName: '貫星狙擊', desc: '蓄力 0.7 秒（自動瞄準），9 格穿透一箭 330%；冷卻 7 秒',
+    cooldownTicks: sec(7), castTicks: sec(0.7), moveFactor: 0, role: 'single', useRange: u(8.5), aimTicks: sec(0.4),
+    hits: [{ atTick: sec(0.7) - 1, shape: { type: 'line', len: u(9), width: u(0.8) }, mult: 330 }],
+  },
+  // 迴旋箭陣：繞身一圈 4 輪（每輪 60%、範圍 3），射的時候能全速跑；冷卻 9s
+  whirlwind: {
+    id: 'whirlwind', name: '迴旋箭陣', variantName: '迴旋箭陣', desc: '四面連射 4 輪（每輪 60%、3 格），可以全速跑；冷卻 9 秒',
+    cooldownTicks: sec(9), castTicks: sec(1.2), moveFactor: 1.0, role: 'aoe', useRange: u(2.8),
+    hits: [0, 1, 2, 3].map((k) => ({ atTick: sec(0.3) * (k + 1) - 1, shape: { type: 'circle' as const, r: u(3) }, mult: 60 })),
+  },
+  // 霜箭後躍：射一箭 110%＋冰凍 1.2 秒（Boss 改減速），往後跳 4 格；冷卻 8s
+  charge: {
+    id: 'charge', name: '霜箭後躍', variantName: '霜箭後躍', desc: '霜箭 110%＋冰凍 1.2 秒（Boss 減速），往後跳 4 格；冷卻 8 秒',
+    cooldownTicks: sec(8), castTicks: sec(0.45), moveFactor: 0, role: 'gap', useRange: u(2.5),
+    dash: { fromTick: 2, ticks: sec(0.28), distance: -u(4) },
+    hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 100 }, mult: 110, status: { id: 'freeze', ticks: sec(1.2) } }],
+  },
+  // 流光見切：窗口 0.8 秒、無傷，四面反擊 190%；冷卻 10s
+  parry: {
+    id: 'parry', name: '流光見切', variantName: '流光見切', desc: '見切 0.8 秒、擋下不受傷，四面反擊 190%；冷卻 10 秒',
+    cooldownTicks: sec(10), castTicks: sec(1.0), moveFactor: 0, role: 'block',
+    hits: [],
+    block: { windowTicks: 24, reducePct: 100, counter: { atTick: 0, shape: { type: 'circle', r: u(2.6) }, mult: 190 } },
+  },
+  // 天穹一矢：瞄準 0.7 秒、一箭 10 格寬 2.6 格 800%＋破甲；40 MP
+  blade_storm: {
+    id: 'blade_storm', name: '天穹一矢', variantName: '天穹一矢', desc: '瞄準 0.7 秒，一箭 10 格寬光 800%＋破甲 8 秒；40 MP',
+    cooldownTicks: sec(45), castTicks: sec(0.9), moveFactor: 0, role: 'ult', useRange: u(6), mp: 40, aimTicks: sec(0.7),
+    hits: [{ atTick: sec(0.9) - 1, shape: { type: 'line', len: u(10), width: u(2.6) }, mult: 800, status: { id: 'break', ticks: sec(8) } }],
+  },
+};
+
 /** 長弓技能說明（技能點面板用） */
 export const BOW_DESC: Record<string, string> = {
   heavy_slash: '往前射出 7 格穿透箭，整排 200%；冷卻 4 秒',

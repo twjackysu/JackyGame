@@ -1652,7 +1652,8 @@ export class RtBattleScene extends Phaser.Scene {
         const cs0 = pd?.block?.counter.shape;
         const cs = cs0 && skillShape(this.s, 'parry', cs0);
         const ang = Math.atan2(p.facingY, p.facingX);
-        if (cs?.type === 'sector') this.slash(p.x, p.y, ang, cs.r, cs.deg + 30, 0x7dffb0, 10);
+        if (cs && this.s.weapon === 'bow' && cs.type !== 'line') this.bowFx(p.x, p.y, ang, cs, false, false, false); // 流光見切（D-148）：四面射出
+        else if (cs?.type === 'sector') this.slash(p.x, p.y, ang, cs.r, cs.deg + 30, 0x7dffb0, 10);
         else if (cs?.type === 'circle') {
           this.spin(p.x, p.y, cs.r, 0xffd27a, (this.time.now / 90) % (Math.PI * 2));
           shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, cs.r * this.k * 1.1, 380, 8);
@@ -2257,7 +2258,7 @@ export class RtBattleScene extends Phaser.Scene {
       const big = h.mult >= 150;
       const hs = skillShape(this.s, a.id, h.shape); // 裝備的範圍特效（D-098）
       if (this.s.weapon === 'bow') {
-        this.bowFx(p.x, p.y, ang, hs, sk.role === 'ult', !!sk.dash, h.status?.id === 'break');
+        this.bowFx(p.x, p.y, ang, hs, sk.role === 'ult', !!sk.dash, h.status?.id === 'break', h.status?.id === 'freeze');
         return;
       }
       if (sk.dash) {
@@ -2770,7 +2771,7 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 長弓技能的畫面（D-147）：直線＝光箭、扇形＝一排扇形的箭（後躍射擊多一道往後的殘影）、圓＝四面射出 */
-  private bowFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, leap: boolean, brk: boolean): void {
+  private bowFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, leap: boolean, brk: boolean, frost = false): void {
     if (hs.type === 'line') {
       this.arrowBeam(x, y, ang, hs.len, hs.width, ult ? 0xff9ae0 : brk ? 0xff8a6a : 0x9fe0ff, ult);
       if (ult && brk) {
@@ -2786,7 +2787,15 @@ export class RtBattleScene extends Phaser.Scene {
       const a = hs.type === 'sector' ? ang - span / 2 + (span * i) / (n - 1) : ang + (span * i) / n;
       const ex = x + Math.cos(a) * r;
       const ey = y + Math.sin(a) * r;
-      this.time.delayedCall(i * 12, () => this.arrowShot(x, y, ex, ey, leap ? 0xc8f0a0 : 0x9fe0ff));
+      this.time.delayedCall(i * 12, () => this.arrowShot(x, y, ex, ey, frost ? 0xbff4ff : leap ? 0xc8f0a0 : 0x9fe0ff));
+    }
+    if (frost) {
+      // 霜箭後躍（D-148）：前方一團寒氣
+      const fx = this.sx(x) + Math.cos(ang) * r * 0.6 * this.k;
+      const fy = this.sy(y) + Math.sin(ang) * r * 0.6 * this.k;
+      shockRing(this, fx, fy, 0xbff4ff, r * 0.5 * this.k, 420, 8);
+      sparks(this, fx, fy, 18, 'spark', 0xd8fbff, 600);
+      this.cameras.main.flash(80, 190, 240, 255);
     }
     if (leap) {
       // 後躍：腳下一圈風壓

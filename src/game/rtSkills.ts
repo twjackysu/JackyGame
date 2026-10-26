@@ -68,11 +68,12 @@ export function variantIndex(v: readonly string[], id: string): 0 | 1 | 2 {
 }
 
 /** 切換一個技能的變化（原招 → 變化 → 變化二 → 原招；沒有變化二就在兩種之間切）；還沒滿級就回 null */
-export function toggleVariant(v: readonly string[], id: string, r: SkillRanks): string[] | null {
+export function toggleVariant(v: readonly string[], id: string, r: SkillRanks, bow = false): string[] | null {
   if (!SKILL_VARIANTS[id] || (r[id] ?? 0) < SKILL_MAX_RANK) return null;
   const i = variantIndex(v, id);
   const rest = v.filter((x) => x !== id && x !== variantB(id));
-  const next = i === 0 ? id : i === 1 && SKILL_VARIANTS_B[id] ? variantB(id) : null;
+  // 長弓（D-148）只有一種變化：原招 ⇄ 變化
+  const next = i === 0 || (bow && i === 2) ? id : i === 1 && !bow && SKILL_VARIANTS_B[id] ? variantB(id) : null;
   return (next ? [...rest, next] : rest).sort();
 }
 
