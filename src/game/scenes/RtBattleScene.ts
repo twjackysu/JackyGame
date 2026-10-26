@@ -50,7 +50,7 @@ import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
 import { openChoice } from '../ui/choicePanel';
-import { claimThanks, ENCOUNTER_RADIUS, encountersOf, loadEncounters, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
+import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, encountersOf, loadEncounters, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings } from '../settings';
@@ -243,6 +243,10 @@ export class RtBattleScene extends Phaser.Scene {
   private encThanks: Encounter[] = [];
   /** 這次已經道謝過的：還站在原地（高興的樣子、沒有氣泡），下次進地圖就不在了 */
   private encDone: Encounter[] = [];
+  /** 護送中（D-160）：跟在玩家身後的相遇人物（世界座標）；送到目的地就道謝。純畫面 */
+  private escort: { e: Encounter; x: number; y: number; t: number } | null = null;
+  /** 相遇人物畫在哪（世界座標；護送送到之後留在目的地） */
+  private encAt = new Map<string, { x: number; y: number }>();
   /** 小地圖（場地比畫面大很多時才有）：畫面座標與每世界單位的像素 */
   private mini: { x: number; y: number; w: number; h: number; s: number } | null = null;
   private idleHinted = false;
@@ -388,7 +392,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.paws = [];
     this.pawLast.clear();
-    { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; }
+    { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.escort = null; this.encAt.clear(); }
     { const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
@@ -1262,10 +1266,19 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 路上的相遇（D-159）：走到旁邊（附近沒有在打的怪）→ 還沒選的跳抉擇面板；選了「助」的 → 這次進地圖來道謝、給回禮 */
   private encounterCheck(): void {
-    if (!this.encOpen.length && !this.encThanks.length) return;
+    if (!this.encOpen.length && !this.encThanks.length && !this.escort) return;
     if (this.menu || this.editing || this.ended) return;
     const p = playerOf(this.s);
     if (p.dead || enemiesOf(this.s).some((e) => e.mode === 'combat')) return;
+    const es = this.escort;
+    if (es?.e.escort && Math.hypot(es.e.escort.tx * UNIT + UNIT / 2 - es.x, es.e.escort.ty * UNIT + UNIT / 2 - es.y) < ESCORT_RADIUS * UNIT) {
+      // 送到了：當場道謝，人留在目的地
+      this.escort = null;
+      this.encAt.set(es.e.id, { x: es.x, y: es.y });
+      this.encDone.push(es.e);
+      this.giveThanks(es.e);
+      return;
+    }
     const near = (e: Encounter): boolean => Math.hypot(e.tx * UNIT + UNIT / 2 - p.x, e.ty * UNIT + UNIT / 2 - p.y) < ENCOUNTER_RADIUS * UNIT;
     const th = this.encThanks.find(near);
     if (th) {
@@ -1296,6 +1309,10 @@ export class RtBattleScene extends Phaser.Scene {
         SFX.itemGet();
         extra = `\n${e.take.coin ? `+${e.take.coin} 金` : ''}${e.take.crystal ? `+${e.take.crystal} 結晶` : ''}`;
         sparks(this, x, y, 22, 'ember', 0xffd27a, 480);
+      } else if (e.escort) {
+        extra = `\n（她會跟在你身後——帶她到${e.escort.place}）`;
+        this.escort = { e, x: e.tx * UNIT + UNIT / 2, y: e.ty * UNIT + UNIT / 2, t: this.time.now };
+        sparks(this, x, y, 26, 'spark', 0xa8f0c8, 520);
       } else {
         extra = '\n（下次回到這裡，也許會有人記得你）';
         sparks(this, x, y, 26, 'spark', 0xa8f0c8, 520);
@@ -1316,8 +1333,9 @@ export class RtBattleScene extends Phaser.Scene {
     if (rec) saveRecord(this.stageId, rec);
     this.persist();
     SFX.perfect();
-    const x = this.sx(e.tx * UNIT + UNIT / 2);
-    const y = this.sy(e.ty * UNIT + UNIT / 2);
+    const at = this.encAt.get(e.id);
+    const x = this.sx(at?.x ?? e.tx * UNIT + UNIT / 2);
+    const y = this.sy(at?.y ?? e.ty * UNIT + UNIT / 2);
     sparks(this, x, y, 30, 'spark', 0xa8f0c8, 480);
     shockRing(this, x, y, 0x7dd8b0, 220, 700, 6);
     const c = this.add.container(GAME_WIDTH / 2, 300).setDepth(940).setAlpha(0);
@@ -1333,12 +1351,47 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: c, alpha: 0, delay: 7000, duration: 700, onComplete: () => c.destroy() });
   }
 
+  /** 護送中（D-160）：人跟在玩家身後（和小同伴同一種追法，慢一點）；目的地畫一圈呼吸的綠光 */
+  private drawEscort(g: Phaser.GameObjects.Graphics, now: number): void {
+    const es = this.escort;
+    if (!es?.e.escort) return;
+    const p = playerOf(this.s);
+    const dt = Math.min(0.1, Math.max(0, (now - es.t) / 1000));
+    es.t = now;
+    const fl = Math.hypot(p.facingX, p.facingY) || 1;
+    const tx = p.x - (p.facingX / fl) * UNIT * 1.4 - (p.facingY / fl) * UNIT * 0.4;
+    const ty = p.y - (p.facingY / fl) * UNIT * 1.4 + (p.facingX / fl) * UNIT * 0.4;
+    const d = Math.hypot(tx - es.x, ty - es.y);
+    if (d > UNIT * 14) {
+      es.x = tx;
+      es.y = ty;
+    } else if (d > UNIT * 0.3) {
+      const k0 = Math.min(1, dt * (d > UNIT * 3 ? 3 : 1.8));
+      es.x += (tx - es.x) * k0;
+      es.y += (ty - es.y) * k0;
+    }
+    const dx = this.sx(es.e.escort.tx * UNIT + UNIT / 2);
+    const dy = this.sy(es.e.escort.ty * UNIT + UNIT / 2);
+    if (dx > -200 && dx < GAME_WIDTH + 200 && dy > VIEW_TOP - 200 && dy < VIEW_BOTTOM + 200) {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 320);
+      const r = ESCORT_RADIUS * UNIT * this.k;
+      g.fillStyle(0x7dd8b0, 0.06 + 0.06 * pulse).fillEllipse(dx, dy, r * 2, r * 1.1);
+      g.lineStyle(3, 0xa8f0c8, 0.35 + 0.35 * pulse).strokeEllipse(dx, dy, r * 2, r * 1.1);
+    }
+    const cx = this.sx(es.x);
+    const cy = this.sy(es.y);
+    if (cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 160 || cy > VIEW_BOTTOM + 80) return;
+    drawEncounterNpc(g, es.e.npc, cx, cy, this.k * 2.1, now, true);
+  }
+
   /** 畫相遇的人（D-159）：還沒選＝遇到麻煩的樣子；等著道謝＝高興的樣子。純畫面、畫面外不畫 */
   private drawEncounters(g: Phaser.GameObjects.Graphics, now: number): void {
+    this.drawEscort(g, now);
     for (const [list, happy, bubble] of [[this.encOpen, false, true], [this.encThanks, true, true], [this.encDone, true, false]] as const) {
       for (const e of list) {
-        const cx = this.sx(e.tx * UNIT + UNIT / 2);
-        const cy = this.sy(e.ty * UNIT + UNIT / 2);
+        const at = this.encAt.get(e.id);
+        const cx = this.sx(at?.x ?? e.tx * UNIT + UNIT / 2);
+        const cy = this.sy(at?.y ?? e.ty * UNIT + UNIT / 2);
         if (cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 160 || cy > VIEW_BOTTOM + 80) continue;
         drawEncounterNpc(g, e.npc, cx, cy, this.k * 2.1, now, happy);
         if (!bubble) continue;

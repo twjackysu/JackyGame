@@ -22,6 +22,11 @@ describe('路上的相遇（D-159）', () => {
       expect(worth(e.take)).toBeGreaterThan(0);
       expect(e.take.label).not.toBe(e.spare.label);
       // 第 37 輪起的相遇：一般怪的重生點至少 8 格外（不在打架時才會觸發，太近會一直被打斷；第 36 輪三個刻意放在怪旁邊＝要先清怪）；和記憶／其他相遇至少 6 格
+      if (e.escort) {
+        // 護送的目的地：在地上、離出發點夠遠（至少 10 格，才有「一起走一段路」的感覺）
+        expect(isSolidAt(sol, e.escort.tx * 100 + 50, e.escort.ty * 100 + 50), `${e.id} escort`).toBe(false);
+        expect(Math.hypot(e.escort.tx - e.tx, e.escort.ty - e.ty)).toBeGreaterThanOrEqual(10);
+      }
       if (!['mw_hunter', 'tv_mule', 'er_miner'].includes(e.id)) for (const g of stages[e.map]!.spawnGroups ?? []) expect(Math.hypot(g.cx / 100 - e.tx, g.cy / 100 - e.ty), `${e.id}↔${g.id}`).toBeGreaterThan(8);
       for (const o of [...MEMORIES, ...ENCOUNTERS]) if (o !== e && o.map === e.map) expect(Math.hypot(o.tx - e.tx, o.ty - e.ty), `${e.id}↔${o.id}`).toBeGreaterThanOrEqual(6);
     }

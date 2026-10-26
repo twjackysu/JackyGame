@@ -21,7 +21,15 @@ export interface Encounter {
   thanks: { lines: string; coin?: number; crystal?: number };
   /** ☰ 紀錄裡怎麼稱呼你的選擇 */
   short: Record<ChoicePick, string>;
+  /**
+   * 護送（第 37 輪，D-160）：選「助」之後對方跟在你身後（純畫面），走到 (tx, ty) 附近就當場道謝；
+   * 半路離開地圖的話，照一般相遇下次回來在原地道謝。
+   */
+  escort?: { tx: number; ty: number; place: string };
 }
+
+/** 護送：跟著你的人走到目的地幾格內就算送到 */
+export const ESCORT_RADIUS = 2.5;
 
 export const ENCOUNTERS: readonly Encounter[] = [
   {
@@ -67,15 +75,16 @@ export const ENCOUNTERS: readonly Encounter[] = [
   {
     id: 'mw_herbs',
     map: 'mistwood',
-    tx: 31,
-    ty: 49,
+    tx: 19,
+    ty: 69,
     npc: 'herbalist',
     title: '翻倒的藥籃',
-    prompt: '採藥的婆婆跌了一跤，藥籃翻了一地。\n草堆裡有一株發著銀光的花——銀霧蘭，\n一株就值不少錢。婆婆還沒看到它。',
+    prompt: '採藥的婆婆跌了一跤，藥籃翻了一地，拐杖也斷了。\n草堆裡有一株發著銀光的花——銀霧蘭，\n一株就值不少錢。婆婆還沒看到它。',
     take: { label: '把銀霧蘭收進自己口袋', desc: '馬上得到 80 金', after: '婆婆一株一株撿著草藥，沒有發現少了什麼。', coin: 80 },
-    spare: { label: '幫她撿，銀霧蘭也放回籃子', desc: '下次回到霧語森林，婆婆會帶著熬好的藥來找你', after: '婆婆捧著銀霧蘭笑了：「好孩子，這株能救一整個村子。」' },
-    thanks: { lines: '採藥婆婆提著一個小陶罐，在路邊等你。\n「銀霧蘭熬的，打架受了傷就喝一口。」\n罐底還壓著幾枚銅板和發亮的結晶。', coin: 50, crystal: 2 },
-    short: { take: '收起銀霧蘭', spare: '幫婆婆撿回藥籃' },
+    spare: { label: '幫她撿好，陪她走回營火', desc: '她會跟在你身後；送到南邊的營火就會道謝', after: '婆婆捧著銀霧蘭笑了：「好孩子，這株能救一整個村子。」' },
+    thanks: { lines: '婆婆從籃底拿出一個小陶罐。\n「銀霧蘭熬的，打架受了傷就喝一口。」\n罐底還壓著幾枚銅板和發亮的結晶。', coin: 50, crystal: 2 },
+    short: { take: '收起銀霧蘭', spare: '陪婆婆走回營火' },
+    escort: { tx: 24, ty: 87, place: '南邊的營火' },
   },
   {
     id: 'tv_thief',
