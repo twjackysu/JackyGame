@@ -789,12 +789,8 @@ export class RtBattleScene extends Phaser.Scene {
       SFX.confirm();
       floatNumber(this, this.sx(p.x), this.sy(p.y) - 120, gearName(g), { color: col, size: rarity === 2 ? 28 : 24 });
     }
-    if (!this.gearTipShown) {
-      this.gearTipShown = true;
-      this.time.delayedCall(900, () => bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, '撿到裝備了！☰ → 行囊 可以換上', '#9fd8ff', 30, 1800));
-    }
+    // 第 38 輪：以前這裡還有一則「撿到裝備了！☰ → 行囊」大字（每場一次），和上面的 tipOnce 同時出現、疊成兩行重複的字 → 只留 tipOnce（忙的時候下一件再提示）
   }
-  private gearTipShown = false;
   /** 營火旁的「行囊・強化」捷徑（D-093） */
   private shopBtn: Phaser.GameObjects.Text | null = null;
   private fireBtn: Phaser.GameObjects.Text | null = null;

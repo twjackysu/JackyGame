@@ -1,6 +1,7 @@
 // Game feel 工具（05 §4）：hit-stop、慢動作、傷害數字、火花、衝擊環、大字。
 import { getSettings, highFx } from '../settings';
 import Phaser from 'phaser';
+import { stackY, type Band } from './bannerStack';
 
 export const UI_FONT =
   '"Noto Sans TC", "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif';
@@ -126,6 +127,8 @@ export function shockRing(scene: Phaser.Scene, x: number, y: number, color: numb
 }
 
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */
+const BANNERS = new WeakMap<Phaser.Scene, { t: Phaser.GameObjects.Text; h: number; fading: boolean }[]>();
+
 export function bigText(
   scene: Phaser.Scene, x: number, y: number, text: string, color: string, size = 72, hold = 450,
 ): Phaser.GameObjects.Text {
@@ -137,10 +140,23 @@ export function bigText(
     .setDepth(950)
     .setScale(2.2)
     .setAlpha(0);
+  let entry: { fading: boolean } | null = null;
+  // 置中的公告大字互相避開（D-162）：只看同一個場景、水平置中、還沒開始淡出的
+  if (Math.abs(x - scene.scale.width / 2) < 1 && hold >= 0) {
+    const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
+    const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
+    const h = t.height;
+    if (busy.length) t.setY(stackY(y, h, busy, scene.scale.height * 0.62));
+    const e = { t, h, fading: false };
+    entry = e;
+    live.push(e);
+    BANNERS.set(scene, live);
+  }
   if (scene.renderer.type === Phaser.WEBGL && highFx()) t.postFX?.addGlow(Phaser.Display.Color.HexStringToColor(color).color, 3, 0, false, 0.1, 12);
   scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 180, ease: 'Back.Out' });
   if (hold >= 0) {
-    scene.tweens.add({ targets: t, alpha: 0, scale: 1.15, delay: 180 + hold, duration: 260, onComplete: () => t.destroy() });
+    // 開始淡出就讓出位置（用補間自己的時鐘：掉幀時補間會比 scene.time 慢）
+    scene.tweens.add({ targets: t, alpha: 0, scale: 1.15, delay: 180 + hold, duration: 260, onStart: () => { if (entry) entry.fading = true; }, onComplete: () => t.destroy() });
   }
   return t;
 }
