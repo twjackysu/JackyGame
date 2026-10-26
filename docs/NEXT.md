@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 32 輪（10/26 14:45）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 33 輪（10/26 17:10）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,23 +10,24 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 32 輪）
+## 現況（第 33 輪）
 - 四張大地圖：霧語森林→荊棘谷→燼紅裂谷（打倒岩王＝通關演出）→ **星隕高原**（通關後的挑戰地圖，`postGame`，建議 Lv14＋裝備；墜星＝vents 換皮；Boss 星骸守望者 8200／41，第二階段「召喚墜星」（D-143）；白天巡邏精英彗星巡者、**深夜限定星蝕狼**（D-144））。
 - 營火行商、巡邏精英、技能變化二、營火燼牌（五位對手）。有頭有尾：序章 → 12 段前世的記憶 → 通關演出（`FINALE_MAP = 'emberrift'`）。
 - **長螢幕（D-142）**：`src/game/screen.ts` 開機時依 `#game` 比例算 `GAME_HEIGHT`（1280～1600）與 `TALL`。**新 UI 一律這樣排**：貼齊下緣的 y 加 `TALL`、置中的用 `GAME_HEIGHT / 2`、全螢幕遮罩高 `GAME_HEIGHT`；不要再寫死 640／1280。
 - 核心新招式欄位（D-143）：`AreaAttack.atTarget`（預告在玩家腳下）、`hitsEnemiesPct`（也砸範圍內追你的一般怪）。畫面上屬於 `METEOR_ATTACKS` 的招式畫成藍白墜星。
 - 換地圖會丟掉別張圖的地面材質（D-145）；Boss 慢動作只在第一次放滿（D-146）。
 - **截圖注意**：新的 localStorage 會先播序章——先 `localStorage.setItem('jg_prologue_seen','1')`；開放星隕高原要 `jg_rt_emberrift = {"bossKills":1}`；深夜要 `jg_rt_starfall = {"bossKills":1,"furyKills":1,"night":true}`。preview 網址 `http://localhost:4173/?debug`。進地圖：`__game.scene.getScene('Title').scene.start('RtBattle', { stage: 'starfall', bot: '' })`。傳送：`window.__rt.state().units[0].x/y = …`。**viewport 比例會改變畫面高度**：390×844 → `GAME_HEIGHT` 1558、頁面座標＝遊戲座標 × 390/720（不再有上下黑邊的 75.5 偏移）；360×640 → 1280（跟以前一樣）。預告圈的截圖可以直接 `s.telegraphs.push({...})`（第 31 輪 `screenshots/r31a.mjs`）。
-- **兩種武器（D-147）**：`weapon: 'bow'` → `playerDef(s)`＝`ARCHER`、`skillDef` 先查 `BOW_SKILLS`（同五個 id）。選擇存 `jg_weapon`（`src/game/weapon.ts`），標題「設定」右邊、☰「武器：長劍 ⇄」。弓的技能變化只有一種（`BOW_VARIANTS`，D-148）。截圖要用弓：`localStorage.setItem('jg_weapon','bow')`；特效可直接 `sc.bowFx(x, y, ang, shape, ult, leap, brk)`／`sc.arrowShot(...)`。
-- 通關機器人 `tests/rt-campaign.test.ts`（新存檔→三個 Boss，不含星隕高原；劍、弓各一趟）。stateHash 基準：第 32 輪最後的 commit（本輪 89 場與開頭相同）。
+- **兩種武器（D-147）**：`weapon: 'bow'` → `playerDef(s)`＝`ARCHER`、`skillDef` 先查 `BOW_SKILLS`（同五個 id）。選擇存 `jg_weapon`（`src/game/weapon.ts`），標題「設定」右邊、☰「武器：長劍 ⇄」、**新玩家序章後的選武器畫面**（`ui/weaponPick.ts`，D-150）。弓也有兩種變化（`BOW_VARIANTS`／`BOW_VARIANTS_B`，D-148／149），三段循環和劍一樣。武器目前是布林式寫法（`s.weapon === 'bow'` 散在約 15 處），加第三種武器前先改成查表。截圖要用弓：`localStorage.setItem('jg_weapon','bow')`（**不設 `jg_weapon` 的新存檔會在序章後跳選武器**）；凍結模擬只畫畫面用 `sc.editing = true`；特效可直接 `sc.bowFx(x, y, ang, shape, ult, leap, brk)`／`sc.arrowShot(...)`。
+- 通關機器人 `tests/rt-campaign.test.ts`（新存檔→三個 Boss，不含星隕高原；劍、弓各一趟）。stateHash 基準：第 33 輪最後的 commit（本輪 89 場與開頭相同）。
+- **畫面剔除（D-151）**：`draw()` 的單位迴圈、營火、掉落都會跳過畫面外的；新加的世界物件也要照做（`px/py` 超出 `GAME_WIDTH`／`VIEW_TOP`～`VIEW_BOTTOM`＋邊界就 `continue`）。量測腳本：Graphics `commandBuffer.length` 加總（第 33 輪 `screenshots/r33perf.mjs`）。
 
 ### 下一輪從這裡開始（依序）
-1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～17 題）。
-2. **長弓第三輪（D-147／148 後續，選做）**：①主角拿弓的樣子：現在是程式在身前畫一把弓（`hero_lian` 還拿著劍），可考慮 ART_REQUESTS 排一張拿弓的 Q 版（GPT 只剩 1，FOR_JACKY 第 17 題問）；②弓的變化二（劍有兩種）；③真機聽 `SFX.bowShot` 要不要更脆。**不要再試「Bot 放風箏」**（D-148：通關變慢一倍）。
-3. **打磨期（11/4 起功能凍結）之前**：手機效能（四張圖都開環境粒子＋晶簇材質）、README 截圖是否需要重拍（舊截圖是 9:16 有黑邊的版本，可接受）、通關演出在 412×915 完整播一次（名單捲到最後，第 32 輪沒看）。
-4. **星隕高原第三輪（選做）**：還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖；星蝕狼／彗星巡者是霧狼染色；Bot 撿星光碎片。
-5. **數值（等真人回饋）**：巡守太硬 → `mist_warden` HP 1050→900；巡獵者 1400→1200；岩王太難 → 6000／35（D-136）；守望者太難 → 8200→7400（D-138）；星蝕狼太硬 → 3600→3000（D-144）；長弓太強 → `ARCHER.atk` 31→30 或 HP 540→500（攻擊 30 時通關機器人在荊棘谷要 3 趟，變異很大，看 3 個種子以上再改）。
-6. 候選：第三種武器（雙手斧＝慢、重、霸體？）——先看 Jacky 對長弓的回饋再決定。
+1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～18 題）。
+2. **第三種武器（PLAN 11/01–03「職業選擇」，候選）**：先做重構——`weapon?: 'bow'` 改成武器表（`WEAPONS: Record<id, { player, skills, variants, variantsB, desc }>`），把散在 `RtBattleScene` 約 15 處的 `=== 'bow'` 換成查表（普攻特效、技能特效、拉弓畫法、提示），stateHash 必須不變；選武器畫面改成三張卡（或兩張＋左右滑）。候選武器：**星術法杖**（普攻 4.5 格魔彈；技能：星焰彈＝直線＋灼燒、冰霜新星＝自身圓＋冰凍、閃現＝往前瞬移 5 格落地小爆炸、星輝屏障＝長窗口格擋＋圓形反擊、隕星術＝蓄力 1.2 秒大圓 900%；HP 500、防禦 12、MP 上限高）——和劍／弓差異最大、特效最「炫」。雙手斧（慢、重）差異小，排後面。
+3. **打磨期（11/4 起功能凍結）之前**：DOT 數字太吵就合併（同一隻怪 1 秒內的灼燒＋中毒合成一個數字）；README 截圖是否需要重拍（舊截圖 9:16 有黑邊，可接受）；手機效能還可以做：小地圖的敵人點改 `fillRect`、旅商／燼牌對手烘成貼圖。
+4. **長弓（選做）**：主角拿弓的 Q 版圖（ART_REQUESTS，GPT 只剩 1，FOR_JACKY 第 17 題問）；真機聽 `SFX.bowShot`。**不要再試「Bot 放風箏」**（D-148）。
+5. **星隕高原第三輪（選做）**：還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖；星蝕狼／彗星巡者是霧狼染色；Bot 撿星光碎片。
+6. **數值（等真人回饋）**：巡守太硬 → `mist_warden` HP 1050→900；巡獵者 1400→1200；岩王太難 → 6000／35（D-136）；守望者太難 → 8200→7400（D-138）；星蝕狼太硬 → 3600→3000（D-144）；長弓太強 → `ARCHER.atk` 31→30 或 HP 540→500（攻擊 30 時通關機器人在荊棘谷要 3 趟，變異很大，看 3 個種子以上再改）；長弓變化二太強 → 灼燒 30→25%、中毒 20→15%（D-149）。
 
 ## 其他（空檔再做）
 - 操作設定後續：搖桿要不要「跟著手指」或固定、按鈕透明度（等 Jacky 回覆）。
@@ -36,7 +37,7 @@
 - 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 246 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 256 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
 - 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
 - **舊關卡雜湊比對**（核心改動必做）——**第 26 輪起的做法**：範本存在 `scripts/zz-hash.template.ts.txt`（90 場），複製成 `tests/zz-hash.test.ts`；`git worktree add /tmp/claude-0/old <本輪開頭 commit>`＋`ln -s $PWD/node_modules /tmp/claude-0/old/node_modules`，兩邊各跑一次（`HASH_OUT=/tmp/claude-0/hash-old.txt` / `hash-new.txt`）再 `diff`，最後 `git worktree remove --force`。以下是舊說明：（`tests/zz-hash.test.ts` 不在 git，新 session 要照範本重寫）：第 24 輪起含荊棘谷共 90 場（荊棘谷用 `level: 6`＋`advanceTo: THORNVALE_QUEEN`、300 秒）；第 19 輪的範本在 PROGRESS 第 19 輪；寫暫時的 vitest（檔名 `tests/zz-*.test.ts`，已 gitignore；第 21 輪的 `zz-hash` 範本見 PROGRESS 第 19 輪），把 `Object.keys(STAGES)`＋霧語森林／測試大地圖 × 種子 1–3 × novice／normal／expert 的 `stateHash` 寫進檔案（共 81 場），`git stash push -- <改過的核心檔>` 前後各跑一次 diff。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。
