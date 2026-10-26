@@ -48,6 +48,8 @@ import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, ni
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
+import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice } from '../choices';
+import { openChoice } from '../ui/choicePanel';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings } from '../settings';
@@ -294,6 +296,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.slowMs = 0;
     this.engaged = false;
     this.idleHinted = false;
+    this.afterChoice = [];
     this.zoneName = null;
     this.chestHinted = new Set();
     this.bossMemo = false;
@@ -1074,10 +1077,18 @@ export class RtBattleScene extends Phaser.Scene {
       best = r.best;
       if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `解鎖：深夜的${this.mw}！\n☰ 暫停選單・怪更兇、掉得更好`, '#9fb8ff', 34, 2600));
       const nx = worldMap(worldMap(this.stageId)?.next ?? '');
+      // 討伐後的抉擇（D-157）：還沒選過就跳抉擇面板（舊存檔已經打倒過的，下一次討伐時補問），新地圖／暴怒解鎖的提示等選完再出
+      const ch = !this.bot && !fury ? choiceOf(this.stageId) : undefined;
+      const pending = !!ch && !loadChoices()[this.stageId];
+      const later = (ms: number, fn: () => void): void => {
+        if (pending) this.afterChoice.push(fn);
+        else this.time.delayedCall(ms, fn);
+      };
+      if (pending && ch) this.time.delayedCall(4300, () => this.showChoice(ch));
       // 最後一張地圖第一次討伐 → 通關演出（D-133）
-      if (r.first && this.stageId === FINALE_MAP && !this.bot) this.time.delayedCall(5000, () => this.showFinale());
-      if (r.first && nx) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx.name}！\n回標題選「前往${nx.name}」${nx.recLevel ? `・建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000));
-      if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) this.time.delayedCall(4600, () => this.furyUnlockedToast());
+      if (r.first && this.stageId === FINALE_MAP && !this.bot) later(5000, () => this.showFinale());
+      if (r.first && nx) later(4600, () => bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx.name}！\n回標題選「前往${nx.name}」${nx.recLevel ? `・建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000));
+      if (r.rec.bossKills === FURY_UNLOCK.kills && (this.s.prog?.level ?? 1) < FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury) later(4600, () => this.furyUnlockedToast());
       this.persist();
     }
     const timed = !this.bossTimed;
@@ -1087,6 +1098,40 @@ export class RtBattleScene extends Phaser.Scene {
     const head = first ? (worldMap(this.stageId)?.firstKill ?? '首次討伐！') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
+  }
+
+  /** 抉擇選完之後才出的提示（新地圖開放等） */
+  private afterChoice: (() => void)[] = [];
+
+  /** 討伐後的抉擇（D-157）：戰鬥暫停（當成 menu）；取＝馬上拿結晶、還＝之後行商便宜。有面板開著就晚一點再跳 */
+  private showChoice(ch: BossChoice): void {
+    if (this.ended) return;
+    if (this.menu || this.editing) {
+      this.time.delayedCall(1200, () => this.showChoice(ch));
+      return;
+    }
+    if (this.hint) this.dismissHint();
+    this.menu = openChoice(this, ch, (pick) => {
+      this.menu = null;
+      this.acc = 0;
+      const c = makeChoice(loadChoices(), this.stageId, pick);
+      if (c) {
+        saveChoices(c);
+        if (pick === 'take' && this.tracked) {
+          const rec = spend(loadRecord(this.stageId), 0, -ch.take.crystal);
+          if (rec) saveRecord(this.stageId, rec);
+          SFX.itemGet();
+        }
+      }
+      const p = playerOf(this.s);
+      shockRing(this, this.sx(p.x), this.sy(p.y), pick === 'take' ? 0xffb35a : 0x7dd8b0, 260, 700, 8);
+      sparks(this, this.sx(p.x), this.sy(p.y), 26, pick === 'take' ? 'ember' : 'spark', pick === 'take' ? 0xffd27a : 0xa8f0c8, 520);
+      const extra = pick === 'take' ? `\n+${ch.take.crystal} 結晶` : `\n行商的裝備 −${c ? shopDiscountPct(c) : SPARE_DISCOUNT}%`;
+      bigText(this, GAME_WIDTH / 2, 560, `${ch[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 30, 2600);
+      const q = this.afterChoice;
+      this.afterChoice = [];
+      q.forEach((fn, i) => this.time.delayedCall(3600 + i * 3200, fn));
+    });
   }
 
   /** 開場：地圖說明大字＋操作說明框（序章播完才跑） */
@@ -1344,6 +1389,7 @@ export class RtBattleScene extends Phaser.Scene {
       `出發冒險 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
       `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${coinOf(rec)}（營火行商）`,
     ];
+    { const chs = choiceOf(this.stageId); const cp = loadChoices()[this.stageId]; if (chs && cp) lines.push(`你的抉擇：${chs.short[cp]}${cp === 'take' ? '' : `（行商 −${shopDiscountPct(loadChoices())}%）`}`); }
     if (memoriesOf(this.stageId).length) { const mh = loadMemories(); lines.push(`前世的記憶：這裡 ${memoriesOf(this.stageId).filter((m) => mh.includes(m.id)).length}/${memoriesOf(this.stageId).length}・全部 ${mh.length}/${MEMORIES.length}`); }
     const cs = cardSummary();
     if (cs.played || cs.have) lines.push(`營火燼牌 ${cs.won} 勝 / ${cs.played} 場・收集 ${cs.have}/${cs.total} 張`);
@@ -2551,6 +2597,7 @@ export class RtBattleScene extends Phaser.Scene {
       sparks(this, vx, vy, 18, 'spark', col, 420);
     } });
     this.cameras.main.flash(80, 170, 220, 255);
+    SFX.timeStop();
   }
 
   /**
@@ -2622,6 +2669,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.time.delayedCall(16, tick);
     };
     tick();
+    SFX.voidOpen();
     shockRing(this, this.sx(x), this.sy(y) - 30, 0x8a5aff, v.R, 400, 6);
     this.cameras.main.shake(120, 0.005);
   }

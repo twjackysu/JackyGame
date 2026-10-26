@@ -6,6 +6,7 @@ import { RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, type RtGear } from '..
 import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, weakestSlot, type BagState } from '../rtBag';
 import { walletOf, type RtRecord } from '../rtRecord';
+import { loadChoices, shopDiscountPct } from '../choices';
 import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, cleanShop, coinOf, isDeal, isPicked, stockPrice, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, withPick } from '../rtShop';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
@@ -119,10 +120,11 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     if (rec !== rec0) ctx.save(rec);
     const stock = shopStock(rec, ctx.level, ctx.region);
     const coin = coinOf(rec);
-    items.push(scene.add.text(0, -392, `今天的裝備（物品等級 ${stock[0]?.ilvl ?? '-'}・每次進地圖換一批）`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0' }).setOrigin(0.5));
+    const off = shopDiscountPct(loadChoices());
+    items.push(scene.add.text(0, -392, off ? `今天的裝備（物品等級 ${stock[0]?.ilvl ?? '-'}）・你的善意：裝備 −${off}%` : `今天的裝備（物品等級 ${stock[0]?.ilvl ?? '-'}・每次進地圖換一批）`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0' }).setOrigin(0.5));
     if (!stock.length) items.push(scene.add.text(0, -250, '全部賣光了！\n換一批，或下次進地圖再來', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center' }).setOrigin(0.5));
     stock.forEach((g, i) => {
-      const p = stockPrice(rec, g);
+      const p = stockPrice(rec, g, off);
       const deal = isDeal(rec, g);
       const y = -335 + i * 84;
       items.push(...row(y, 74, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `${p} 金`, coin >= p ? (deal ? '#7dffb0' : '#ffe08a') : '#ff8a7a', () => {
@@ -231,12 +233,12 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       render();
     };
     if (buy) {
-      const p = stockPrice(ctx.rec(), g);
+      const p = stockPrice(ctx.rec(), g, shopDiscountPct(loadChoices()));
       const coin = coinOf(ctx.rec());
       const full = st.bag.length >= BAG_MAX;
       const ok = coin >= p && !full;
       const doBuy = (wear: boolean) => {
-        const r = buyGear(ctx.rec(), g);
+        const r = buyGear(ctx.rec(), g, shopDiscountPct(loadChoices()));
         if (!r || ctx.bag().bag.length >= BAG_MAX) return;
         ctx.save(r);
         const cur = ctx.bag();

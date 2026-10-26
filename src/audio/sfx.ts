@@ -218,6 +218,17 @@ export const SFX = {
     playSfx({ wave: 'triangle', freq: 1320, freqEnd: 880, sustain: 0.02, release: 0.25, volume: 0.16, delay: 0.02 });
     playSfx({ wave: 'noise', freq: 2400, freqEnd: 600, sustain: 0.03, release: 0.25, volume: 0.2, lowpass: 5000 });
   },
+  /** 時間凝滯（第 35 輪）：滴答兩聲＋往下滑的玻璃鐘聲 */
+  timeStop: (): void => {
+    playSfx({ wave: 'square', freq: 3200, sustain: 0.005, release: 0.03, volume: 0.12, lowpass: 7000 });
+    playSfx({ wave: 'square', freq: 2600, sustain: 0.005, release: 0.03, volume: 0.12, lowpass: 7000, delay: 0.12 });
+    playSfx({ wave: 'sine', freq: 1760, freqEnd: 440, sustain: 0.08, release: 0.6, volume: 0.22, vibrato: 10, vibratoRate: 6, delay: 0.2 });
+  },
+  /** 虛空奇點（第 35 輪）：第一次開黑洞時的低沉吸入聲 */
+  voidOpen: (): void => {
+    playSfx({ wave: 'sawtooth', freq: 55, freqEnd: 110, attack: 0.05, sustain: 0.4, release: 0.5, volume: 0.25, lowpass: 600, vibrato: 6, vibratoRate: 7 });
+    playSfx({ wave: 'noise', freq: 400, freqEnd: 3000, attack: 0.2, sustain: 0.2, release: 0.3, volume: 0.15, lowpass: 2500 });
+  },
   hitHeavy: (): void => {
     playSfx({ wave: 'noise', freq: 700, freqEnd: 60, sustain: 0.04, release: 0.3, volume: 0.6, lowpass: 1800 });
     playSfx({ wave: 'sine', freq: 120, freqEnd: 35, sustain: 0.05, release: 0.35, volume: 0.6 });

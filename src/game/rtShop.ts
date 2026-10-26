@@ -108,9 +108,11 @@ export function isDeal(rec: RtRecord, g: RtGear): boolean {
   return g.uid.startsWith('s') && g.uid.endsWith(String(dealIndex(rec)));
 }
 /** 貨架上這件的實際售價（特價打折） */
-export function stockPrice(rec: RtRecord, g: RtGear): number {
+export function stockPrice(rec: RtRecord, g: RtGear, offPct = 0): number {
   const p = buyPrice(g);
-  return isDeal(rec, g) ? Math.round((p * DEAL_PCT) / 100) : p;
+  const d = isDeal(rec, g) ? Math.round((p * DEAL_PCT) / 100) : p;
+  // 討伐後的抉擇（D-157）：「還」的善意折扣，和特價疊乘
+  return offPct > 0 ? Math.max(1, Math.round((d * (100 - offPct)) / 100)) : d;
 }
 
 /** 付費換一批 */
@@ -122,8 +124,8 @@ export function rerollShop(rec: RtRecord): RtRecord | null {
 }
 
 /** 買下貨架上的一件（標成已售出）；錢不夠回 null。行囊滿不滿由呼叫端先檢查 */
-export function buyGear(rec: RtRecord, g: RtGear): RtRecord | null {
-  const r = spendCoin(rec, stockPrice(rec, g));
+export function buyGear(rec: RtRecord, g: RtGear, offPct = 0): RtRecord | null {
+  const r = spendCoin(rec, stockPrice(rec, g, offPct));
   if (!r) return null;
   const sh = shopBatch(rec);
   return { ...r, shop: { ...sh, sold: [...sh.sold, g.uid] } };

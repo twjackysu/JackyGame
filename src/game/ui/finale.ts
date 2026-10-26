@@ -10,6 +10,7 @@ import { highFx } from '../settings';
 import { fmtSec } from '../rtRecord';
 import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, fmtPlay, markFinaleSeen, MEMORY_TOTAL, markPrologueSeen, type FinaleStats } from '../finaleStats';
 import { FINALE_MAP, worldMap } from '../worldMaps';
+import { loadChoices, withEpilogue } from '../choices';
 export { finaleSeen, loadFinaleStats, prologueSeen } from '../finaleStats';
 
 const fmtDate = (at?: number): string => {
@@ -32,7 +33,7 @@ export function playPrologue(scene: Phaser.Scene, onDone: () => void): Phaser.Ga
 }
 
 function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => void, doneLabel: string): Phaser.GameObjects.Container {
-  const lines = stats ? FINALE_LINES : PROLOGUE_LINES;
+  const lines = stats ? withEpilogue(FINALE_LINES, loadChoices()) : PROLOGUE_LINES;
   if (stats) markFinaleSeen();
   else markPrologueSeen();
   const cx = GAME_WIDTH / 2;
