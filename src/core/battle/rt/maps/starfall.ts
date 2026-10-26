@@ -104,7 +104,9 @@ export const STARFALL_ROWS: readonly string[] = [
 export const STARFALL_SENTINEL = { x: c(24), y: c(10) };
 
 /** 墜星落點：墜星原六個（錯開、週期比噴發口長、預告也長）；隕星坑邊緣三個 */
-const star = (x: number, y: number, r: number, every: number, off: number, pct = 14): StageVent => ({ x: c(x), y: c(y), r: u(r), everyTicks: sec(every), warnTicks: sec(1.5), offsetTicks: sec(off), pct, nightEveryTicks: Math.round(sec(every) * 0.7) });
+/** 落地後留下星光碎片（D-141）：5 秒內走上去撿，回 8 MP、4% HP——躲開落星之後要不要冒險回去撿 */
+const SHARD = { ticks: sec(5), mp: 8, healPct: 4 };
+const star = (x: number, y: number, r: number, every: number, off: number, pct = 14): StageVent => ({ x: c(x), y: c(y), r: u(r), everyTicks: sec(every), warnTicks: sec(1.5), offsetTicks: sec(off), pct, nightEveryTicks: Math.round(sec(every) * 0.7), shard: SHARD });
 export const STARFALL_STARS: readonly StageVent[] = [
   star(24, 61, 1.8, 6, 0),
   star(19, 58, 1.5, 6, 1.5),

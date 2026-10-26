@@ -642,6 +642,24 @@ function processVents(s: BattleState): void {
       if (x.side === 'enemy' && (ENEMIES[x.defId]?.boss || (x.mode !== undefined && x.mode !== 'combat'))) continue; // 只燒追著你的怪（引怪踩噴口），待機的不會被燒光
       applyHp(s, p, x, Math.max(1, Math.round((x.maxHp * v.pct) / 100)), false, 'dot', 'vent');
     }
+    if (v.shard) s.shards = [...(s.shards ?? []).filter((sh) => sh.idx !== idx), { idx, until: s.tick + v.shard.ticks }];
+  });
+  if (s.shards?.length) pickShards(s, vs, p);
+}
+
+/** 星光碎片（D-141）：落星留下的碎片，玩家走到 1 格內撿起來回 MP 與 HP；過期就消失。撿的那一刻落地的那顆不算（要等下一個 tick） */
+function pickShards(s: BattleState, vs: readonly StageVent[], p: Unit): void {
+  s.shards = s.shards!.filter((sh) => {
+    if (sh.until <= s.tick) return false;
+    const v = vs[sh.idx];
+    if (!v?.shard) return false;
+    if (sh.until - v.shard.ticks >= s.tick) return true; // 剛落地的這個 tick 還不能撿
+    if (p.dead || dist(p.x, p.y, v.x, v.y) > UNIT + p.r) return true;
+    const heal = Math.min(p.maxHp - p.hp, Math.round((p.maxHp * v.shard.healPct) / 100));
+    p.hp += heal;
+    gainMp(p, v.shard.mp);
+    emit(s, { tick: s.tick, type: 'shard', idx: sh.idx, x: v.x, y: v.y, mp: v.shard.mp, heal });
+    return false;
   });
 }
 

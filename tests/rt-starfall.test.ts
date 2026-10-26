@@ -138,3 +138,42 @@ describe('彗星巡者（D-138）', () => {
     expect(!c || c.dead).toBe(true);
   }, 120000);
 });
+
+describe('星光碎片（D-141）', () => {
+  beforeAll(() => {
+    STAGES.starfall = makeStarfallStage();
+  });
+  afterAll(() => {
+    delete STAGES.starfall;
+  });
+  it('落星後留下碎片；落地那一刻不能撿、之後走上去回 MP 與 HP；過期就消失', async () => {
+    const { ventLeft } = await import('../src/core/battle/rt/engine');
+    const v = STARFALL_STARS[0]!;
+    const s = createBattle({ stageId: 'starfall', seed: 1, level: 15 });
+    const p = s.units[0]!;
+    p.x = v.x + u(6);
+    p.y = v.y;
+    while (ventLeft(s.tick + 1, v) !== 0) step(s, []);
+    step(s, []);
+    expect(s.shards?.some((q) => q.idx === 0)).toBe(true);
+    // 站上去：下一個 tick 撿到
+    p.x = v.x;
+    p.y = v.y;
+    p.mp = 0;
+    p.hp = Math.round(p.maxHp / 2);
+    const hp0 = p.hp;
+    step(s, []);
+    const ev = s.events.filter((e) => e.type === 'shard' && e.idx === 0);
+    expect(ev.length).toBe(1);
+    expect(p.mp).toBeGreaterThanOrEqual(8);
+    expect(p.hp).toBeGreaterThan(hp0);
+    expect(s.shards?.some((q) => q.idx === 0)).toBe(false);
+    // 下一次落星：不去撿，5 秒後消失
+    p.x = v.x + u(6);
+    while (ventLeft(s.tick + 1, v) !== 0) step(s, []);
+    step(s, []);
+    expect(s.shards?.some((q) => q.idx === 0)).toBe(true);
+    for (let i = 0; i < sec(5) + 1; i++) step(s, []);
+    expect(s.shards?.some((q) => q.idx === 0)).toBe(false);
+  });
+});

@@ -295,6 +295,8 @@ export interface StageVent {
   pct: number;
   /** 深夜時的週期（更頻繁） */
   nightEveryTicks?: number;
+  /** 星光碎片（D-141，星隕高原）：落地後留在落點 ticks 這麼久，玩家走上去撿到回 mp、回 healPct% HP */
+  shard?: { ticks: number; mp: number; healPct: number };
 }
 
 export interface Telegraph {
@@ -338,6 +340,7 @@ export type BattleEvent =
   | { tick: number; type: 'summon'; id: number; count: number }
   | { tick: number; type: 'hazard'; id: number }
   | { tick: number; type: 'vent'; idx: number; x: number; y: number; r: number }
+  | { tick: number; type: 'shard'; idx: number; x: number; y: number; mp: number; heal: number }
   | { tick: number; type: 'wallStun'; id: number }
   | { tick: number; type: 'blink'; id: number; fromX: number; fromY: number }
   | { tick: number; type: 'potion'; id: number; heal: number; left: number }
@@ -590,4 +593,6 @@ export interface BattleState {
   furyKills?: number;
   /** 重生排程：重生點 id → 到期 tick（遞增排序） */
   respawnAt?: Record<string, number[]>;
+  /** 星光碎片（D-141）：還留在地上的落點 idx 與消失的 tick（只有 vents 帶 shard 的關卡才會有） */
+  shards?: { idx: number; until: number }[];
 }

@@ -173,7 +173,17 @@ export class PlayerBot implements BattleController {
         const best = this.prof.safePull ? safestPull(s, this.prof.advanceTo, this.prof.huntStationary) : nearestSleeping(s);
         if (best) return [{ type: 'target', id: best.id }];
       }
-      if (p.hp * 100 < p.maxHp * want) return [{ type: 'stop' }];
+      if (p.hp * 100 < p.maxHp * want) {
+        // 第 30 輪：脫戰不會回血——附近（8 格內）有營火就去休息，不要原地等（以前會永遠站著）
+        let c = fires[0];
+        for (const f of fires) if (c && dist(f.x, f.y, p.x, p.y) < dist(c.x, c.y, p.x, p.y)) c = f;
+        if (c && dist(c.x, c.y, p.x, p.y) < 8 * UNIT) {
+          if (dist(c.x, c.y, p.x, p.y) <= CAMPFIRE_RULES.restUnits * UNIT - 10) return [{ type: 'rest' }];
+          if (!s.moveGoal || s.moveGoal.x !== c.x || s.moveGoal.y !== c.y + UNIT) return [{ type: 'moveTo', x: c.x, y: c.y + UNIT }];
+          return [];
+        }
+        return [{ type: 'stop' }];
+      }
     }
     // 0. 藥水（瞬間、不打斷動作）
     if (this.prof.potionAtPct !== undefined && s.potions > 0 && ready('potion') && p.hp * 100 < p.maxHp * this.prof.potionAtPct) out.push({ type: 'potion' });

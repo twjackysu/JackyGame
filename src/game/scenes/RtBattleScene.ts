@@ -1812,6 +1812,17 @@ export class RtBattleScene extends Phaser.Scene {
           else bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
         }
       }
+      else if (e.type === 'shard') {
+        // 撿到星光碎片（D-141）：藍色光點往主角身上收、+MP／+HP 飄字
+        const pl = playerOf(this.s);
+        const tx = this.sx(pl.x);
+        const ty = this.sy(pl.y) - 40;
+        sparks(this, this.sx(e.x), this.sy(e.y) - 18, 14, 'spark', 0xc8d8ff, 520);
+        shockRing(this, tx, ty + 40, 0x8aa8ff, 90, 320, 4);
+        floatNumber(this, tx, ty - 30, `+${e.mp} MP${e.heal ? `・+${e.heal}` : ''}`, { color: '#a8c8ff', size: 28 });
+        SFX.cardMagic();
+        if (!this.bot) this.tipOnce('jg_tip_shard', '星光碎片：落星之後地上會留 5 秒，撿起來回 MP 與 HP', '#c8d8ff');
+      }
       else if (e.type === 'summon') {
         const b = u(e.id);
         if (b) shockRing(this, this.sx(b.x), this.sy(b.y), 0xb080ff, 140, 400, 5);
@@ -2330,6 +2341,19 @@ export class RtBattleScene extends Phaser.Scene {
       // 墜星（D-138）用藍白色，其他是熔岩橘
       const C = this.starMap ? [0x8aa8ff, 0x6a86ff, 0xe0e8ff, 0xc8d8ff, 0xffffff] : [0xff7a2a, 0xff5a1a, 0xffc04a, 0xffd08a, 0xffe0b0];
       g.fillStyle(C[0]!, 0.12 + 0.06 * Math.sin(now / 300 + v.x)).fillEllipse(vx, vy, vr * 1.1, vr * 0.9);
+      if (this.starMap) {
+        // 星光碎片（D-141）：落點中央一塊發光的星晶，上下浮動、閃爍；最後 1.5 秒淡出
+        const sh = this.s.shards?.find((q) => vs[q.idx] === v);
+        if (sh) {
+          const life = sh.until - this.s.tick;
+          const a = Math.min(1, life / (1.5 * TICKS_PER_SEC));
+          const bob = Math.sin(now / 180 + v.x) * 6;
+          const sz = 16 + 3 * Math.sin(now / 120);
+          g.fillStyle(0x8aa8ff, 0.3 * a).fillCircle(vx, vy - 18 + bob, sz * 2.2);
+          g.fillStyle(0xc8d8ff, 0.95 * a).fillPoints([new Phaser.Math.Vector2(vx, vy - 18 + bob - sz * 1.4), new Phaser.Math.Vector2(vx + sz * 0.7, vy - 18 + bob), new Phaser.Math.Vector2(vx, vy - 18 + bob + sz), new Phaser.Math.Vector2(vx - sz * 0.7, vy - 18 + bob)], true);
+          g.fillStyle(0xffffff, a).fillCircle(vx - sz * 0.15, vy - 18 + bob - sz * 0.3, sz * 0.25);
+        }
+      }
       if (left > v.warnTicks) continue;
       const t = 1 - left / v.warnTicks; // 0 → 1
       g.fillStyle(C[1]!, 0.12 + 0.3 * t).fillCircle(vx, vy, vr);
