@@ -94,7 +94,8 @@ export function openWeaponPick(scene: Phaser.Scene, onPick: (w: WeaponId) => voi
       card.add(scene.add.text(100, by, txt, { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0' }).setOrigin(1, 0.5));
     });
     card.add(bars);
-    const names = def.skills.map((id) => WEAPONS[w].skills[id]?.name ?? id).join('・');
+    const nm = def.skills.map((id) => WEAPONS[w].skills[id]?.name ?? id);
+    const names = `${nm.slice(0, 3).join('・')}\n${nm.slice(3).join('・')}`; // 三＋二，不要從招式名中間斷行
     card.add(scene.add.text(0, 220, names, { fontFamily: UI_FONT, fontSize: '16px', color: '#b8a888', align: 'center', wordWrap: { width: 196, useAdvancedWrap: true } }).setOrigin(0.5));
     const pick = scene.add.text(0, 292, `選${WEAPON_NAME[w]}`, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: inf.css }).setOrigin(0.5).setPadding(24, 12, 24, 12);
     card.add(pick);
