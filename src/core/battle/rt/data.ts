@@ -315,7 +315,7 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
   },
   // 燼心岩王（Boss）：慢、重。拳擊（扇形）、熔岩裂地（長直線）、重踏（自身圓）；第二階段加震波環＋招喚熔渣史萊姆。
   ember_colossus: {
-    id: 'ember_colossus', name: '燼心岩王', hp: 6000, atk: 35, def: 15, speed: 2.6, radius: u(1.05), hitstunTicks: 0,
+    id: 'ember_colossus', name: '燼心岩王', hp: 6600, atk: 37, def: 15, speed: 2.6, radius: u(1.05), hitstunTicks: 0,
     drops: { gold: [140, 200], items: [{ id: 'dust', chance: 100, count: [6, 9] }, { id: 'crystal', chance: 100, count: [1, 2] }] },
     attacks: [
       { id: 'colossus_fist', shape: { type: 'sector', r: u(2.6), deg: 90 }, warningTicks: sec(0.8), recoverTicks: sec(0.5), damageMultiplier: 120, cooldownTicks: sec(3.2), triggerRange: u(2.3), blockable: true, weight: 3 },
