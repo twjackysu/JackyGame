@@ -1840,6 +1840,11 @@ export class RtBattleScene extends Phaser.Scene {
     fn();
   }
 
+  /** 手上的金幣＝存檔裡的＋這次撿到還沒存的（HUD 與暫停選單共用，第 51 輪：以前暫停選單只讀存檔，會比 HUD 少） */
+  private coinNow(): number {
+    return this.coinBase + Math.max(0, (this.s.loot?.gold ?? 0) - this.saved.coin);
+  }
+
   /** 暫停選單裡的「本次／累計」紀錄 */
   private recordText(y: number): Phaser.GameObjects.Text {
     const rec = loadRecord(this.stageId);
@@ -1852,7 +1857,7 @@ export class RtBattleScene extends Phaser.Scene {
       `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
       `${this.bw}討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
       `出發冒險 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
-      `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${coinOf(rec)}（營火行商）`,
+      `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${this.coinBase >= 0 ? this.coinNow() : coinOf(rec)}（營火行商）`,
     ];
     { const chs = choiceOf(this.stageId); const cp = loadChoices()[this.stageId]; if (chs && cp) lines.push(`你的抉擇：${chs.short[cp]}${cp === 'take' ? '' : `（行商 −${shopDiscountPct(loadChoices())}%）`}`); }
     { const en = loadEncounters(); for (const e of encountersOf(this.stageId)) { const v = en[e.id]; if (v) lines.push(`路上的相遇：${e.short[v === 'thanked' ? 'spare' : v]}${v === 'spare' ? '（對方會來道謝）' : v === 'thanked' ? '（收到回禮了）' : ''}`); } }
@@ -4734,7 +4739,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = !this.bot && es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
-    this.hud.setText(`${s.prog ? `Lv ${s.prog.level}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${this.coinBase >= 0 ? this.coinBase + Math.max(0, (s.loot.gold ?? 0) - this.saved.coin) : s.loot.gold ?? 0}　粉塵 ${this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
+    this.hud.setText(`${s.prog ? `Lv ${s.prog.level}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${this.coinBase >= 0 ? this.coinNow() : s.loot.gold ?? 0}　粉塵 ${this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
     if (this.goal) {
       const st = STAGES[this.stageId]!;
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
