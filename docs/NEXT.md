@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 45 輪（10/27 17:00）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 46 輪（10/27 18:45）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,10 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 45 輪）
+## 現況（第 46 輪）
+- **HUD／按鈕不互壓（D-177）**：目標字條 y 114（MP 條 96～104、經驗條 104～110、Boss 血條 113～133）；畫面外箭頭下緣照 `btnPos`／`btnR` 停在按鈕上方；開場說明框 500 寬、中心 (GAME_WIDTH/2＋50, 250)；大招鍵 `ultLabel`；墜星類預告不觸發「紅色範圍」提示；暴怒 Boss 第二階段喊「徹底失控了」。
+- **截 Boss 第二階段的方法**（第 46 輪；腳本沒進 git，照這段重寫）：`STAGE=starfall LS='{"jg_rt_mistwood":{"level":16,"bossKills":1},"jg_rt_thornvale":{"bossKills":1},"jg_rt_emberrift":{"bossKills":1}}'`，`SHOTS` 第一段（第 3 秒）的 JS：找 `s.units.find(u => u.defId === 'star_sentinel')`、玩家傳到 `b.y + 400`、`b.hp = b.maxHp * 0.52`、`s.potions = 20`、`sc().pending.push({ type: 'target', id: b.id })`；之後每段補 `p.hp = p.maxHp; s.potions = 20` 並在 `B.mode !== 'combat'` 時再推一次 target。**藥水 < 8 時 Bot 會跑去營火**（`campfireBelowPotions`），這就是以前「Bot 會離開巢穴」的原因。暴怒：`jg_rt_mistwood: {level:10, bossKills:3, fury:true}`。拿弓的 Bot 會放風箏把 Boss 拉出巢穴（Boss 回滿），截 Boss 用劍。
+- 燼牌截圖腳本（gitignored）：`sc.editing = true; sc.openCards()` → `sc.menu.getData('start')(true)` → `getData('end')(0|1|-1)`；存檔先給 `jg_rt_mistwood: {level:6, coin:500, bossKills:1}`。結算畫面的「第 1 局 勝…」是除錯鉤子假造的，局數寶石不會跟著變（不是 bug）。
 - **新存檔減噪（D-176）**：`arrowRules.ts` `showOffscreenArrow`（待機精英 25m 內才畫箭頭）；`tipOnce` 回傳 boolean、兩則間隔 `TIP_GAP_MS` 2.5 秒；一次性事件提示用 `tipSoon`（會重試）；`this.menu` 開著時場景 `menuBanners` 藏起 `BANNER_DEPTH` 大字（**面板上要顯示的大字一律 `setDepth(990)`**）；技能鍵冷卻顯示「名稱＋秒數」。
 - **快轉截圖 `scripts/shot-newsave.mjs`**（第 45 輪，進 git）：先 `setsid npx vite --port 5173`；`SHOTS='[[秒數, "JS"?], ...]' node scripts/shot-newsave.mjs 名稱 sword|bow|staff [W H]`。Bot 代打、遊戲 10 分鐘約 3 分鐘；印出每段出現的文字。要測別的地圖改腳本裡的 `stage: 'mistwood'` 與 `WORLD_MAPS[0]`。
 - **新存檔第一張懸賞＝野狼 ×12（D-175）**：`makeBounty(0)`。
@@ -47,17 +50,17 @@
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-3. **（下一輪建議主工作）「第一眼」第十一段收尾＋第十二段**：①星骸守望者第二階段「召喚墜星」與暴怒 Boss（Bot 會離開巢穴：試 `advanceTo` 設成 Boss 位置、或 `jg_rt_starfall` 帶 `bossKills` 後只截 `sc().bossIntro(...)`／直接改 Boss `hp` 觸發）；②390×844 長螢幕把第 45 輪的改動（冷卻鍵兩行字、燼牌面板打法行、箭頭）各看一次；③燼牌下注局輸贏結算畫面。只修看得到的問題。
-   - 第 45 輪已看完：新存檔霧語森林（三種武器）、荊棘谷／燼紅裂谷／星隕高原前 5 分鐘、岩王→通關演出、燼牌第一局開局。Bot 不會去行商／點技能點，新手會不會發現 ☰ 紅點等真人回饋。
-   - 快轉截圖的已知假象：受擊閃白 70ms 在低 fps 下幾乎每張都白；截圖前那 0.7 秒遊戲是即時跑的（同一組 SHOTS 兩次結果不會完全一樣）。
-   - 開場的操作說明框（`showHint`）在 360×640 會稍微壓到懸賞板第一行，點掉就沒了，可以不修。
+3. **（下一輪建議主工作）「第一眼」第十三段**：①標題畫面＋序章在 390×844（無頭瀏覽器直接截會逾時：照 `shot-newsave.mjs` 先藏相機再 `__game.step` 快轉，序章要清掉 `jg_prologue_seen`）；②燼牌**真的打一局**（不是除錯鉤子）在 390×844 的中盤畫面：點手牌（座標見驗證小抄）、看牌桌上有牌時的結算畫面；③行囊／技能點面板在 390×844 各開一次（第 44 輪只看過 360×640 的行商）。只修看得到的問題。
+   - 第 46 輪已看完：四個 Boss 第二階段（守望者、暴怒狼王、狼后、岩王）、燼牌下注局結算三種、新存檔前 90 秒（法杖、390×844）。
+   - 快轉截圖的已知假象：受擊閃白 70ms 在低 fps 下幾乎每張都白；截圖前那 0.7 秒遊戲是即時跑的。
+   - Bot 不會去行商／點技能點，新手會不會發現 ☰ 紅點等真人回饋。
    - **手機效能**：第 44 輪抽查過 JS（p50 約 1ms、p95 2.5～5.9ms），GPU 要等 Jacky 真機。
 4. **README 截圖（選做）**：第 44 輪補了 83～85（左手＋歡迎回來、道謝、善意折扣）；第 45 輪技能鍵冷卻改成「名稱＋秒數」，舊截圖的冷卻鍵只有數字（不影響理解，有空再換）。
 5. **打磨期（11/4 起功能凍結）之前**：新手引導第 35 輪看過程式，真人回饋再調。旅商／燼牌對手烘成貼圖**不做**。README 舊截圖 9:16 有黑邊，可接受。
 6. **長弓／法杖的主角圖（選做）**：拿弓／拿杖的 Q 版圖（ART_REQUESTS，GPT 只剩 1，FOR_JACKY 第 17／19 題問）；真機聽 `SFX.bowShot`／`magicBolt`／`timeStop`／`voidOpen`。**不要再試「Bot 放風箏」**（D-148）。
 7. **星隕高原第三輪（選做）**：還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖。
 8. **數值（等真人回饋）**：巡守太硬 → `mist_warden` HP 1050→900；巡獵者 1400→1200；岩王太難 → 6000／35（D-136）；守望者太難 → 8200→7400（D-138）；星蝕狼太硬 → 3600→3000（D-144）；長弓太強 → `ARCHER.atk` 31→30 或 HP 540→500（看 3 個種子以上再改）；長弓變化二太強 → 灼燒 30→25%、中毒 20→15%（D-149）；法杖太強 → `MAGE` HP 540→500 會讓通關機器人慢一倍（D-152），先降攻擊 33→31；抉擇的結晶 3／4／5 或折扣 10% 若真人覺得不平衡再調（`choices.ts`）。
-9. PROGRESS 現在約 235 行；超過 300 行再合併第 36～40 輪。
+9. PROGRESS 現在約 255 行；超過 300 行再合併第 36～40 輪。
 
 ## 其他（空檔再做）
 - 操作設定後續：搖桿要不要「跟著手指」或固定、按鈕透明度（等 Jacky 回覆）。
