@@ -56,9 +56,9 @@
 | ![霧語森林](docs/screenshots/26-mistwood.jpg) | ![狼王](docs/screenshots/23-realtime-boss.jpg) | ![即時戰鬥](docs/screenshots/22-realtime.jpg) |
 | **行囊（裝備圖示、▲ 比較好）** | **等級提升** | **操作設定（改鍵、左手、按鈕位置）** |
 | ![行囊](docs/screenshots/27-rt-bag.jpg) | ![升級](docs/screenshots/28-rt-levelup.jpg) | ![操作設定](docs/screenshots/29-rt-controls.jpg) |
-| **營火（怪不追進來、休息與復活）** | **繞石尋路、拉怪、大招與藥水** | **標題** |
+| **營火（怪不追進來、休息與復活）** | **石堆間旋風斬清狼群** | **標題** |
 | ![營火](docs/screenshots/25-camp-clearing.jpg) | ![碎石林道](docs/screenshots/24-rock-grove.jpg) | ![標題](docs/screenshots/01-title.jpg) |
-| **深夜的森林＋霧影狼** | **狼王暴怒開關（☰）** | **荊棘母樹** |
+| **深夜的森林：只剩身邊的光（狼王）** | **暫停選單：暴怒開關、紀錄、換武器** | **荊棘母樹** |
 | ![深夜](docs/screenshots/30-rt-night.jpg) | ![暴怒](docs/screenshots/31-rt-fury.jpg) | ![荊棘母樹](docs/screenshots/32-thorn-mother.jpg) |
 | **技能變化（滿 5 級換招）** | **星落一閃** | **荊棘谷・毒沼** |
 | ![技能變化](docs/screenshots/33-skill-variants.jpg) | ![星落一閃](docs/screenshots/34-starfall.jpg) | ![荊棘谷](docs/screenshots/35-thornvale-marsh.jpg) |
