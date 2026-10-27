@@ -316,7 +316,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       '輪流出一張牌到前排或後排，總點數高的贏這一局。',
       '覺得夠了就「放棄這一局」：對手還能繼續出，',
       '但你省下的牌留到下一局——什麼時候收手是關鍵。',
-      '',
+      // 第 43 輪：伊妲出現後多一行「回響」，空行就拿掉（以前最後一行壓到「你的牌組…」）
+      ...(secretOpen() ? [] : ['']),
       '同袍：同排的同名牌越多越強',
       '斥候：送到對手那邊，換你抽 2 張',
       '戰號：一排點數 ×2　傳奇：不受天候與戰號影響',
@@ -324,7 +325,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       '燼爆：燒掉場上點數最高的單位（雙方都算）',
       ...(secretOpen() ? ['回響：再複製一張自己場上最強的單位'] : []),
     ];
-    items.push(scene.add.text(0, -235, rules.join('\n'), { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', lineSpacing: 6 }).setOrigin(0.5));
+    items.push(scene.add.text(0, -380, rules.join('\n'), { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', lineSpacing: 4 }).setOrigin(0.5, 0));
     const nx = nextReward(st.cards, who);
     const stake = who.stake;
     items.push(scene.add.text(0, -50, `你的牌組 ${deckWith(st.cards, st.off).length + 1} 張（含晴空）・寶箱裡的燼牌 ${Object.values(CHEST_CARDS).filter((id) => st.cards.includes(id)).length}/${Object.keys(CHEST_CARDS).length}\n${nx ? `下注贏了，${who.short}會把「${CARDS[nx]!.name}」給你` : `${who.short}的牌你全都贏到了！`}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0', align: 'center', lineSpacing: 6, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
