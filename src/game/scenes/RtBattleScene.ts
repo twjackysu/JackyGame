@@ -950,7 +950,9 @@ export class RtBattleScene extends Phaser.Scene {
     if (!near) this.leftFire = true;
     else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie) {
       this.fireHinted = true;
-      bigText(this, GAME_WIDTH / 2, TIP_Y, '回到營火：點火堆＝休息回滿・補藥水\n「行囊・強化」換裝／強化　「行商」用金幣買賣', '#ffe0a0', 26, 2600);
+      // 說明期間先收起下面的「點怪物開打」（第 42 輪：兩行字疊在一起）
+      this.tipBusy = true;
+      bigText(this, GAME_WIDTH / 2, TIP_Y, '回到營火：點火堆＝休息回滿・補藥水\n「行囊・強化」換裝／強化　「行商」用金幣買賣', '#ffe0a0', 26, 2600).once('destroy', () => { if (this.scene.isActive()) this.tipBusy = false; });
     }
   }
 
@@ -1586,29 +1588,67 @@ export class RtBattleScene extends Phaser.Scene {
   private openMemoryBook(): void {
     this.menu?.destroy();
     const have = loadMemories();
+    const H2 = GAME_HEIGHT / 2;
     const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0614, 0.92).setInteractive()];
-    items.push(this.add.text(0, -540, `✦ 前世的記憶　${have.length}/${MEMORIES.length}`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#d8b0ff' }).setOrigin(0.5));
-    items.push(this.add.text(0, -488, '地上浮著的紫色光點・走過去就會想起來（每段 +1 結晶）', { fontFamily: UI_FONT, fontSize: '19px', color: '#9a88b8' }).setOrigin(0.5));
-    let y = -440;
+    const top = -H2 + 100;
+    items.push(this.add.text(0, top, `✦ 前世的記憶　${have.length}/${MEMORIES.length}`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#d8b0ff' }).setOrigin(0.5));
+    items.push(this.add.text(0, top + 52, '地上浮著的紫色光點・走過去就會想起來（每段 +1 結晶）', { fontFamily: UI_FONT, fontSize: '19px', color: '#9a88b8' }).setOrigin(0.5));
+    // 每張地圖一塊；放不下就分頁（第 42 輪：12 段全想起來時，360×640 最後一段會蓋到「返回」）
+    const y0 = top + 100;
+    const room = H2 - 130 - y0; // 下面留給返回／翻頁
+    const blocks: Phaser.GameObjects.Container[] = [];
     for (const wm of WORLD_MAPS) {
-      items.push(this.add.text(-310, y, wm.name, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: wm.color }).setOrigin(0, 0));
-      y += 38;
+      const c = this.add.container(0, 0);
+      c.add(this.add.text(-310, 0, wm.name, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: wm.color }).setOrigin(0, 0));
+      let y = 38;
       for (const m of memoriesOf(wm.id)) {
         const got = have.includes(m.id);
         const t = this.add.text(-290, y, got ? m.lines : '？？？（還沒想起來）', { fontFamily: got ? TITLE_FONT : UI_FONT, fontSize: '20px', color: got ? '#f0e6ff' : '#6a5a80', lineSpacing: 6, wordWrap: { width: 590, useAdvancedWrap: true } }).setOrigin(0, 0);
-        items.push(t);
+        c.add(t);
         y += t.height + 16;
       }
-      y += 14;
+      c.setData('h', y + 14);
+      blocks.push(c);
     }
-    const back = this.add.text(0, Math.min(y + 40, 580), '返回', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#d8b0ff' }).setOrigin(0.5).setPadding(28, 12, 28, 12).setInteractive({ useHandCursor: true });
-    back.on('pointerdown', () => {
+    const pages: Phaser.GameObjects.Container[][] = [[]];
+    let used = 0;
+    for (const c of blocks) {
+      const h = c.getData('h') as number;
+      if (used + h > room && pages[pages.length - 1]!.length) {
+        pages.push([]);
+        used = 0;
+      }
+      c.setY(y0 + used);
+      used += h;
+      pages[pages.length - 1]!.push(c);
+      items.push(c);
+    }
+    const lastY = Math.max(...pages.map((pg) => pg.reduce((n, c) => n + (c.getData('h') as number), 0)));
+    const by = Math.min(y0 + lastY + 40, H2 - 70);
+    let page = 0;
+    const btn = (x: number, label: string, fn: () => void, main = false): Phaser.GameObjects.Text => {
+      const t = this.add.text(x, by, label, { fontFamily: UI_FONT, fontSize: main ? '28px' : '24px', fontStyle: '700', color: '#1a0f08', backgroundColor: main ? '#d8b0ff' : '#a890c8' }).setOrigin(0.5).setPadding(main ? 28 : 18, 12, main ? 28 : 18, 12).setInteractive({ useHandCursor: true });
+      t.on('pointerdown', fn);
+      items.push(t);
+      return t;
+    };
+    const pageTxt = pages.length > 1 ? this.add.text(0, by - 52, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#9a88b8' }).setOrigin(0.5) : null;
+    if (pageTxt) items.push(pageTxt);
+    const show = (): void => {
+      pages.forEach((pg, i) => pg.forEach((c) => c.setVisible(i === page)));
+      pageTxt?.setText(`第 ${page + 1}／${pages.length} 頁`);
+    };
+    if (pages.length > 1) {
+      btn(-200, '‹ 上一頁', () => { SFX.uiTap(); page = (page + pages.length - 1) % pages.length; show(); });
+      btn(200, '下一頁 ›', () => { SFX.uiTap(); page = (page + 1) % pages.length; show(); });
+    }
+    show();
+    btn(0, '返回', () => {
       SFX.uiCancel();
       this.menu?.destroy();
       this.menu = null;
       this.toggleMenu();
-    });
-    items.push(back);
+    }, true);
     this.menu = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, items).setDepth(960);
   }
 
@@ -1967,7 +2007,8 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
   private tipOnce(key: string, text: string, color: string): void {
-    if (this.tipsDone.has(key) || this.hint || this.tipBusy) return;
+    // Bot 示範不提示、也不記成「看過了」（第 42 輪：以前先看 Bot 示範，格擋／撿裝備的教學就被 Bot 用掉了）
+    if (this.bot || this.tipsDone.has(key) || this.hint || this.tipBusy) return;
     this.tipsDone.add(key); // 記在記憶體：大招提示每幀都會呼叫，不要每幀讀 localStorage
     try {
       if (localStorage.getItem(key)) return;
@@ -4555,7 +4596,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
-    const calm = es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
+    const calm = !this.bot && es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
     this.hud.setText(`${s.prog ? `Lv ${s.prog.level}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${this.coinBase >= 0 ? this.coinBase + Math.max(0, (s.loot.gold ?? 0) - this.saved.coin) : s.loot.gold ?? 0}　粉塵 ${this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
     if (this.goal) {
       const st = STAGES[this.stageId]!;

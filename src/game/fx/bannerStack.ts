@@ -4,7 +4,7 @@
 
 export type Band = readonly [top: number, bottom: number];
 
-const GAP = 6;
+const GAP = 16; // 第 42 輪：6 太擠（兩則提示字邊貼在一起像一整塊，描邊＋光暈還會互相碰到）
 
 /**
  * 回傳新大字的中心 y；上下都放不下（往上會壓到左上角小地圖／懸賞板，ceil 以上）就回傳 null＝先排隊，
