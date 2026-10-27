@@ -2487,7 +2487,8 @@ export class RtBattleScene extends Phaser.Scene {
         this.tweens.add({ targets: col, scaleX: 0.1, alpha: 0, duration: 900, ease: 'Cubic.In', onComplete: () => col.destroy() });
         // 第 50 輪：以前「技能點 +1」和標題同一個 54px 大字（兩行很擠），主角頭上的「HP・攻擊」飄字剛好被第二行蓋住 → 標題一行大字＋數值／技能點一則小字（置中大字會自動錯開，D-162）
         bigText(this, GAME_WIDTH / 2, 430, `等級提升！Lv ${e.level}`, '#ffe08a', 54, 1000);
-        bigText(this, GAME_WIDTH / 2, 500, `HP ${e.maxHp}・攻擊 ${e.atk}${this.tracked ? '\n技能點 +1（☰ → 技能點）' : ''}`, '#fff2c8', 30, 1300);
+        // 第 51 輪：數值小字改排在主角腳下（360×640 時主角在畫面 y≈580，以前小字剛好蓋住主角頭上的傷害數字 1.3 秒）；x 偏 1px＝固定位置、不排隊
+        bigText(this, GAME_WIDTH / 2 + 1, Math.max(560, Math.min(this.sy(p.y) + 130, GAME_HEIGHT - 520)), `HP ${e.maxHp}・攻擊 ${e.atk}${this.tracked ? '\n技能點 +1（☰ → 技能點）' : ''}`, '#fff2c8', 30, 1300);
         sparks(this, this.sx(p.x), this.sy(p.y) - 30, 36, 'ember', 0xffe08a, 700);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffe08a, 200, 600, 8);
         this.persist();
