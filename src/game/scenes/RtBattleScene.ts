@@ -49,7 +49,7 @@ import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rt
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, returnIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
+import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
@@ -198,6 +198,8 @@ export class RtBattleScene extends Phaser.Scene {
   private fxDone = new Set<string>();
   /** 選單開著＝暫停 */
   private menu: Phaser.GameObjects.Container | null = null;
+  /** 面板開著時被藏起來的置中大字（面板關掉再放回來） */
+  private bannerHidden = new Set<Phaser.GameObjects.Text>();
   private botName: string | null = null;
   private lastWarnTick = -1;
   private blinkHinted = new Set<string>();
@@ -323,6 +325,10 @@ export class RtBattleScene extends Phaser.Scene {
     this.ended = false;
     this.pending = [];
     this.stick = null;
+    // 全螢幕面板（行囊、行商、技能點、☰…）開著時藏起置中大字（D-176，同 D-172 的抉擇面板）
+    this.bannerHidden.clear();
+    this.events.off('postupdate', this.menuBanners, this);
+    this.events.on('postupdate', this.menuBanners, this);
     // 鏡頭：畫面寬約 10.5 格（角色夠大、手機看得清楚），跟隨主角（D-067）
     this.k = GAME_WIDTH / (STAGES[this.stageId]?.viewUnits ?? VIEW_UNITS_W);
     this.prev.clear();
@@ -2040,6 +2046,20 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
+  private menuBanners(): void {
+    if (this.menu?.active) {
+      for (const o of this.children.list) {
+        if (o instanceof Phaser.GameObjects.Text && o.depth === BANNER_DEPTH && o.visible) {
+          o.setVisible(false);
+          this.bannerHidden.add(o);
+        }
+      }
+    } else if (this.bannerHidden.size) {
+      for (const t of this.bannerHidden) if (t.active) t.setVisible(true);
+      this.bannerHidden.clear();
+    }
+  }
+
   /** @returns 這則提示是否已經處理掉（剛顯示、以前看過、或 Bot 示範）；false＝現在太忙，呼叫端可以等一下再試 */
   private tipOnce(key: string, text: string, color: string): boolean {
     // Bot 示範不提示、也不記成「看過了」（第 42 輪：以前先看 Bot 示範，格擋／撿裝備的教學就被 Bot 用掉了）
