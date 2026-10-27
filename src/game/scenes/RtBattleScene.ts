@@ -4741,7 +4741,12 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / cd), false).fillPath();
       }
-      this.btnText[i]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : i === 4 ? '閃避' : skillDef(this.s, id)!.name);
+      // 冷卻中也留著招式名（第 45 輪：以前冷卻時只剩數字，新手打一陣子五顆鍵全是「4.8」「2.3」，記不住哪顆是哪招）
+      const nm = i === 4 ? '閃避' : skillDef(this.s, id)!.name;
+      const bt = this.btnText[i]!;
+      bt.setText(left > 0 ? `${nm}\n${(left / TICKS_PER_SEC).toFixed(1)}` : nm);
+      const bc = left > 0 ? '#a8a090' : '#ffffff';
+      if (bt.style.color !== bc) bt.setColor(bc);
     });
     // 大招：MP 環（滿 40 才亮）＋冷卻
     {
