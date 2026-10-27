@@ -56,6 +56,7 @@ import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_
 import { openChoice } from '../ui/choicePanel';
 import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, encountersOf, loadEncounters, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
+import { showOffscreenArrow } from '../arrowRules';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
@@ -64,6 +65,8 @@ import { tipMs, wrapTip } from '../ui/tipText';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
+/** 兩則教學提示之間至少安靜多久（D-176） */
+const TIP_GAP_MS = 2500;
 const STAGE_IDS = Object.keys(STAGES);
 /** 畫面橫向可見的世界格數 */
 const VIEW_UNITS_W = 1050;
@@ -212,6 +215,8 @@ export class RtBattleScene extends Phaser.Scene {
   private leftFire = false;
   /** true＝先不跳一次性提示：開場大字（y 760）還在、或上一個提示還沒消失（用場景時鐘，和 bigText 補間同步） */
   private tipBusy = false;
+  /** 上一則教學提示消失後先安靜一下（D-176：新存檔前 20 秒以前連續四則提示、每則只隔 0.2 秒） */
+  private tipCalmUntil = 0;
   /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
   private openRun = 0;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
@@ -406,6 +411,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 26 輪：開場一次只出一件事——有開場大字時，操作說明框等大字消失（3.6 秒）再出，不再五段文字疊在一起
     this.hint = null; // 場景重開時上一場的說明框已被銷毀
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
+    this.tipCalmUntil = 0;
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.escort = null; this.encAt.clear(); }
@@ -782,7 +788,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
-    this.time.delayedCall(900, () => this.tipOnce('jg_tip_gear', '撿到裝備了！☰「行囊」或營火旁可以換上', '#9fe8a0'));
+    this.time.delayedCall(900, () => this.tipSoon('jg_tip_gear', '撿到裝備了！☰「行囊」或營火旁可以換上', '#9fe8a0'));
     const p = playerOf(this.s);
     const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId });
     // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理
@@ -810,7 +816,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.salvageQ = { n: 0, dust: 0, name: '' };
         });
       this.salvageQ = { n: sq.n + 1, dust: sq.dust + r.dust, name: gearName(r.salvaged) };
-      this.tipOnce('jg_tip_salvage', '行囊滿了（60 件）：之後撿到裝備\n會自動分解最差的普通裝換粉塵', '#d8d0b8');
+      this.tipSoon('jg_tip_salvage', '行囊滿了（60 件）：之後撿到裝備\n會自動分解最差的普通裝換粉塵', '#d8d0b8');
       if (r.salvaged.uid === g.uid) return;
     }
     const col = `#${RARITY_COLOR[rarity].toString(16).padStart(6, '0')}`;
@@ -2034,25 +2040,37 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
-  private tipOnce(key: string, text: string, color: string): void {
+  /** @returns 這則提示是否已經處理掉（剛顯示、以前看過、或 Bot 示範）；false＝現在太忙，呼叫端可以等一下再試 */
+  private tipOnce(key: string, text: string, color: string): boolean {
     // Bot 示範不提示、也不記成「看過了」（第 42 輪：以前先看 Bot 示範，格擋／撿裝備的教學就被 Bot 用掉了）
-    if (this.bot || this.tipsDone.has(key) || this.hint || this.tipBusy) return;
+    if (this.bot || this.tipsDone.has(key)) return true;
+    if (this.hint || this.tipBusy || this.time.now < this.tipCalmUntil) return false;
     this.tipsDone.add(key); // 記在記憶體：大招提示每幀都會呼叫，不要每幀讀 localStorage
     try {
-      if (localStorage.getItem(key)) return;
+      if (localStorage.getItem(key)) return true;
       localStorage.setItem(key, '1');
     } catch {
-      return;
+      return true;
     }
     this.tipBusy = true;
     // 等大字真的消失才放下一則（第 37 輪：固定 2.2 秒計時在掉幀時比淡出 tween 快，兩則會疊在一起）；4 秒保底
     let freed = false;
     const free = (): void => {
-      if (!freed) this.tipBusy = false;
+      if (!freed) {
+        this.tipBusy = false;
+        this.tipCalmUntil = this.time.now + TIP_GAP_MS;
+      }
       freed = true;
     };
     this.time.delayedCall(4000, free);
     bigText(this, GAME_WIDTH / 2, TIP_Y, wrapTip(text), color, 30, 1600).once('destroy', () => { if (this.scene.isActive()) this.time.delayedCall(200, free); });
+    return true;
+  }
+
+  /** 只會發生一次的事件（撿到第一件裝備）的提示：太忙就每 1.5 秒再試，最多 8 次 */
+  private tipSoon(key: string, text: string, color: string, tries = 8): void {
+    if (this.tipOnce(key, text, color) || tries <= 1) return;
+    this.time.delayedCall(1500, () => this.tipSoon(key, text, color, tries - 1));
   }
 
   private dismissHint(): void {
@@ -2274,7 +2292,7 @@ export class RtBattleScene extends Phaser.Scene {
         // 新手引導（第 23 輪）：第一次看到敵人預告、第一次看到可格擋的黃框，各提示一次（每台裝置一次）
         if (!this.bot) {
           const tg0 = this.s.telegraphs.find((t) => t.ownerId === e.owner && t.attackId === e.attack);
-          if (tg0?.blockable) this.tipOnce('jg_tip_block', '黃框＝可以格擋！敵人打到前按「格擋反擊」', '#ffe08a');
+          if (tg0?.blockable) this.tipOnce('jg_tip_block', `黃框＝可以格擋！敵人打到前按「${skillDef(this.s, 'parry')?.name ?? '格擋反擊'}」`, '#ffe08a');
           else this.tipOnce('jg_tip_tele', '紅色範圍填滿就命中——走出去！', '#ff9a8a');
         }
         // 精英詞綴招式（D-118）：怪頭上飄招式名（詞綴顏色），一看就知道要閃還是格擋
@@ -4418,9 +4436,10 @@ export class RtBattleScene extends Phaser.Scene {
       const py = this.sy(e.y);
       const M = 30;
       if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960 + TALL) continue;
-      const elite = e.tier === 'elite' || !!ENEMIES[e.defId]?.boss;
-      // 有小地圖的大地圖：待機的一般怪只在小地圖上，箭頭只留給追過來的怪與精英／Boss（design/20 B6）
-      if (this.mini && !elite && e.mode !== 'combat') continue;
+      const boss = !!ENEMIES[e.defId]?.boss;
+      const elite = e.tier === 'elite' || boss;
+      // 有小地圖的大地圖：待機的一般怪只在小地圖上，箭頭只留給追過來的怪、附近的精英與 Boss（design/20 B6、D-176）
+      if (!showOffscreenArrow({ mini: !!this.mini, elite, boss, combat: e.mode === 'combat', distM: Math.hypot(e.x - p.x, e.y - p.y) / UNIT })) continue;
       let cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
       let cy = Math.max(VIEW_TOP + M, Math.min(960 + TALL, py));
       // 落在左上小地圖上的箭頭挪到小地圖右邊（第 41 輪：以前箭頭和距離字壓在小地圖上）
