@@ -141,6 +141,25 @@ export function safestPull(s: BattleState, advanceTo?: { x: number; y: number },
   return best;
 }
 
+/** 缺 MP（不夠放大招）或 HP 低於 80% 時，4 格內最近、已經可以撿的星光碎片 */
+function shardNear(s: BattleState, p: U): { x: number; y: number } | undefined {
+  const vs = STAGES[s.stageId]?.vents;
+  const ultMp = skillDef(s, 'blade_storm')?.mp ?? 0;
+  if (!vs || (p.mp >= ultMp && p.hp * 100 >= p.maxHp * 80)) return undefined;
+  let best: { x: number; y: number } | undefined;
+  let bd = 4 * UNIT;
+  for (const sh of s.shards ?? []) {
+    const v = vs[sh.idx];
+    if (!v?.shard || sh.until <= s.tick + 2 || sh.until - v.shard.ticks >= s.tick) continue;
+    const d0 = dist(p.x, p.y, v.x, v.y);
+    if (d0 < bd) {
+      bd = d0;
+      best = { x: v.x, y: v.y };
+    }
+  }
+  return best;
+}
+
 /**
  * 基礎玩家 Bot：自動追擊＋依情況放技能；看到預告（過了反應時間）就閃避或格擋。
  * 閃避方向：離開預告原點（直線攻擊改往側面）。
@@ -218,6 +237,11 @@ export class PlayerBot implements BattleController {
       }
     }
     if (busy) return out;
+    // 1.5 星光碎片（第 42 輪，D-170）：缺 MP 或 HP 時，4 格內的碎片走過去撿（只有會看預告的 Bot；預告閃避優先）
+    if (this.prof.reactTicks !== undefined && s.shards?.length) {
+      const sh = shardNear(s, p);
+      if (sh) return [...out, { type: 'move', dx: sh.x - p.x, dy: sh.y - p.y }];
+    }
     // 2. 技能
     const es = enemiesOf(s);
     if (es.length === 0) return out;
