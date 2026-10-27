@@ -132,7 +132,9 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -300, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -255, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}${worn ? '・裝備中' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
-    out.push(scene.add.text(0, -170, gearLines(g, skillNames()).join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5, 0.5));
+    // 第 48 輪：從上面往下排（以前置中在 -170，5 行以上的稀有裝第一行會壓到副標）
+    const gl = gearLines(g, skillNames());
+    out.push(scene.add.text(0, -226, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 10 }).setOrigin(0.5, 0));
     // 強化（D-092）：營火旁才能強化；+5 以內必成，之後有成功率，失敗只扣材料
     if (ctx) {
       const enh = g.enh ?? 0;
@@ -142,10 +144,10 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
         const wl = ctx.wallet();
         const ok = wl.dust >= c.dust && wl.crystal >= c.crystal;
         const fire = ctx.atFire();
-        out.push(scene.add.text(0, 72, `強化 +${enh}→+${enh + 1}：粉塵 ${c.dust}${c.crystal ? `・結晶 ${c.crystal}` : ''}・成功率 ${c.rate}%${c.rate < 100 ? '（失敗只扣材料）' : ''}`, { fontFamily: UI_FONT, fontSize: '20px', color: ok ? '#e8dcc0' : '#ff9a8a' }).setOrigin(0.5));
+        out.push(scene.add.text(0, 60, `強化 +${enh}→+${enh + 1}：粉塵 ${c.dust}${c.crystal ? `・結晶 ${c.crystal}` : ''}・成功率 ${c.rate}%${c.rate < 100 ? '（失敗只扣材料）' : ''}`, { fontFamily: UI_FONT, fontSize: '20px', color: ok ? '#e8dcc0' : '#ff9a8a' }).setOrigin(0.5));
         if (!fire) out.push(scene.add.text(0, 102, '到營火旁才能強化', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff' }).setOrigin(0.5));
         else
-          out.push(btn(0, 108, ok ? '強化！' : '材料不夠', () => {
+          out.push(btn(0, 114, ok ? '強化！' : '材料不夠', () => {
             if (!ok || !ctx.spend(c.dust, c.crystal)) return;
             const success = Math.random() * 100 < c.rate;
             if (success) {
@@ -163,8 +165,8 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
               detail = g;
             }
             render();
-            const msg = scene.add.text(GAME_WIDTH / 2, 1000, success ? `強化成功！+${enh + 1}` : '強化失敗……材料沒了', { fontFamily: TITLE_FONT, fontSize: '40px', color: success ? '#ffd27a' : '#c0c0d0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990);
-            scene.tweens.add({ targets: msg, y: 960, alpha: 0, delay: 700, duration: 700, onComplete: () => msg.destroy() });
+            const msg = scene.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 360, success ? `強化成功！+${enh + 1}` : '強化失敗……材料沒了', { fontFamily: TITLE_FONT, fontSize: '40px', color: success ? '#ffd27a' : '#c0c0d0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990);
+            scene.tweens.add({ targets: msg, y: GAME_HEIGHT / 2 + 320, alpha: 0, delay: 700, duration: 700, onComplete: () => msg.destroy() });
           }, ok, 24));
       }
     }

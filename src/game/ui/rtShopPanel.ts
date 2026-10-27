@@ -8,11 +8,14 @@ import { BAG_MAX, bonusOf, equipWith, isUpgrade, weakestSlot, type BagState } fr
 import { walletOf, type RtRecord } from '../rtRecord';
 import { loadChoices, shopDiscountPct } from '../choices';
 import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, cleanShop, coinOf, isDeal, isPicked, stockPrice, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, withPick } from '../rtShop';
-import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { drawMerchant } from '../fx/merchant';
 
 const PER_PAGE = 7;
+/** 長螢幕（D-142／178）：賣的頁多放幾列，下面的按鈕跟著往下；「離開」貼近拇指 */
+// （開機時才算：TALL 跟 config 有循環 import，不能在模組頂層讀）
+const extraRows = (): number => Math.max(0, Math.floor((TALL * 0.75) / 74));
 const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 const LINES = ['「金幣放著不會變多，拿來換點好東西吧。」', '「荊棘谷的貨？那可要多付點勇氣。」', '「賣我不要的，我轉手賣給下一個冒險者。」', '「深夜的貨特別亮，價錢也特別亮。」'];
 
@@ -30,6 +33,9 @@ export interface ShopCtx {
 
 export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () => void): Phaser.GameObjects.Container {
   let tab: 'buy' | 'sell' = 'buy';
+  const PER_SELL = PER_PAGE + extraRows();
+  const SELL_DY = extraRows() * 74;
+  const EXIT_Y = 560 + Math.round(TALL * 0.4);
   let page = 0;
   let detail: { g: RtGear; buy: boolean } | null = null;
   // 一半機率說出「為你挑選」的部位（第 25 輪：行商看得出你缺什麼）
@@ -115,7 +121,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     }, tab === 'sell', 26));
     if (tab === 'buy') buyTab(items, rec, st);
     else sellTab(items, st);
-    items.push(btn(0, 560, '離開', () => onClose(), true, 28));
+    items.push(btn(0, EXIT_Y, '離開', () => onClose(), true, 28));
     if (detail) items.push(...detailCard(detail.g, detail.buy));
     root.add(items);
   }
@@ -180,23 +186,23 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   }
 
   function sellTab(items: Phaser.GameObjects.GameObject[], st: BagState): void {
-    const pages = Math.max(1, Math.ceil(st.bag.length / PER_PAGE));
+    const pages = Math.max(1, Math.ceil(st.bag.length / PER_SELL));
     page = Math.min(page, pages - 1);
     items.push(scene.add.text(0, -392, '背包裡的裝備（身上穿的不能賣）', { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0' }).setOrigin(0.5));
     if (!st.bag.length) items.push(scene.add.text(0, -250, '背包是空的', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8' }).setOrigin(0.5));
-    st.bag.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE).forEach((g, i) => {
+    st.bag.slice(page * PER_SELL, page * PER_SELL + PER_SELL).forEach((g, i) => {
       items.push(...row(-335 + i * 74, 64, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `+${sellPrice(g)} 金`, '#ffe08a', () => {
         detail = { g, buy: false };
         render();
       }, isUpgrade(st, g) ? '▲ ' : ''));
     });
     if (pages > 1) {
-      items.push(btn(-150, 200, '◀', () => {
+      items.push(btn(-150, 200 + SELL_DY, '◀', () => {
         page = (page + pages - 1) % pages;
         render();
       }));
-      items.push(scene.add.text(0, 200, `${page + 1} / ${pages}`, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff' }).setOrigin(0.5));
-      items.push(btn(150, 200, '▶', () => {
+      items.push(scene.add.text(0, 200 + SELL_DY, `${page + 1} / ${pages}`, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff' }).setOrigin(0.5));
+      items.push(btn(150, 200 + SELL_DY, '▶', () => {
         page = (page + 1) % pages;
         render();
       }));
@@ -204,7 +210,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     // 一鍵賣掉普通裝（不含 ▲、不含強化過的）
     const junk = st.bag.filter((g) => g.rarity === 1 && !(g.enh ?? 0) && !isUpgrade(st, g));
     const sum = junk.reduce((n, g) => n + sellPrice(g), 0);
-    items.push(btn(0, 290, junk.length ? `賣掉全部普通裝 ×${junk.length}（+${sum} 金）` : '沒有可以一鍵賣的普通裝', () => {
+    items.push(btn(0, 290 + SELL_DY, junk.length ? `賣掉全部普通裝 ×${junk.length}（+${sum} 金）` : '沒有可以一鍵賣的普通裝', () => {
       const r = spendCoin(ctx.rec(), -sum);
       if (!r || !junk.length) return;
       ctx.save(r);
@@ -214,7 +220,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       toast(`+${sum} 金`);
       render();
     }, false, 22, !junk.length));
-    items.push(scene.add.text(0, 350, '▲ 的裝備比身上的好，賣之前想清楚', { fontFamily: UI_FONT, fontSize: '18px', color: '#8890a8' }).setOrigin(0.5));
+    items.push(scene.add.text(0, 350 + SELL_DY, '▲ 的裝備比身上的好，賣之前想清楚', { fontFamily: UI_FONT, fontSize: '18px', color: '#8890a8' }).setOrigin(0.5));
   }
 
   function detailCard(g: RtGear, buy: boolean): Phaser.GameObjects.GameObject[] {
@@ -225,7 +231,9 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -290, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '34px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -245, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
-    out.push(scene.add.text(0, -150, gearLines(g, skillNames()).join('\n'), { fontFamily: UI_FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5));
+    // 第 48 輪：從上面往下排，5 行以上的稀有裝不再壓到副標
+    const gl = gearLines(g, skillNames());
+    out.push(scene.add.text(0, -216, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 10 }).setOrigin(0.5, 0));
     const now = bonusOf(st);
     const after = bonusOf(equipWith(st, g));
     const d = (k: 'atk' | 'hp' | 'def', name: string) => {
