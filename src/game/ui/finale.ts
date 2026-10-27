@@ -144,11 +144,13 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
   // 3. 旅程紀錄
   steps.push(() => {
     clear();
-    const head = scene.add.text(cx, 190, '這趟旅程', { fontFamily: TITLE_FONT, fontSize: '50px', fontStyle: '900', color: '#ffd27a' }).setOrigin(0.5).setAlpha(0);
+    // 第 48 輪：長螢幕整頁往下挪一半的多出高度（以前擠在上半，下面空一大塊）
+    const dy = Math.round(TALL / 2);
+    const head = scene.add.text(cx, 190 + dy, '這趟旅程', { fontFamily: TITLE_FONT, fontSize: '50px', fontStyle: '900', color: '#ffd27a' }).setOrigin(0.5).setAlpha(0);
     layer.add(head);
     scene.tweens.add({ targets: head, alpha: 1, duration: 500 });
     stats.bosses.forEach((b, i) => {
-      const y = 300 + i * 150;
+      const y = 300 + dy + i * 150;
       const c = scene.add.container(cx - 40, y).setAlpha(0);
       const g = scene.add.graphics();
       g.fillStyle(0x140f0a, 0.85).fillRoundedRect(-300, -60, 600, 120, 18);
@@ -170,7 +172,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
       ...(stats.helped !== undefined ? ([['幫助過的人', `${stats.helped}/${STORY_ENCOUNTERS.length}`]] as [string, string][]) : []),
     ];
     // 四位 Boss（打倒過星隕高原）時卡片排到 ~810，統計往下移，不要疊在一起
-    const top = Math.max(790, 300 + stats.bosses.length * 150 + 40);
+    const top = Math.max(790, 300 + stats.bosses.length * 150 + 40) + dy;
     // 七格（多了「幫助過的人」）排成 4＋3 兩列：三列會在 360×640（GAME_HEIGHT 1280）壓到下方的「點一下畫面繼續」（第 37 輪）
     const per = sum.length > 6 ? 4 : 3;
     const gap = per === 4 ? 170 : 210;
@@ -181,6 +183,8 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
       const x = cx + (col - (inRow - 1) / 2) * gap;
       const y = top + row * 130;
       const kv = scene.add.text(x, y, v, { fontFamily: TITLE_FONT, fontSize: '40px', fontStyle: 'bold', color: '#fff4d6' }).setOrigin(0.5).setAlpha(0);
+      // 第 48 輪：「4 小時 24 分」比格子寬，會和隔壁的「Lv 17」「1832」黏成一串 → 縮到格子裡
+      if (kv.width > gap - 16) kv.setScale((gap - 16) / kv.width);
       const kk = scene.add.text(x, y + 42, k, { fontFamily: UI_FONT, fontSize: '22px', color: '#a89878' }).setOrigin(0.5).setAlpha(0);
       layer.add([kv, kk]);
       scene.tweens.add({ targets: [kv, kk], alpha: 1, delay: 1200 + i * 140, duration: 400 });
