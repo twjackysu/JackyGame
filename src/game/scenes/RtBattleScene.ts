@@ -48,7 +48,7 @@ import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
-import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, returnIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -1247,7 +1247,9 @@ export class RtBattleScene extends Phaser.Scene {
         this.tipBusy = false;
         if (!this.bot) this.showHint();
       };
-      const intro = st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）';
+      // 第 44 輪：這張圖的 Boss 打倒過的老存檔不再播第一次的教學，改成「歡迎回到○○！」＋下一個目標
+      const back = this.tracked && worldMap(this.stageId) ? returnIntro(this.stageId, loadRecord(this.stageId), this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? '')) : null;
+      const intro = back ?? st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）';
       this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760, intro, '#ffd27a', 30, 2600).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
       this.time.delayedCall(6000, after);
     } else if (!this.bot) this.showHint();
@@ -4407,6 +4409,7 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(s);
     let li = 0;
     const placed: { x: number; y: number; ax: number; ay: number }[] = [];
+    const gb = this.goal?.visible && this.goal.text ? this.goal.getBounds() : null;
     for (const e of enemiesOf(s)) {
       const px = this.sx(e.x);
       const py = this.sy(e.y);
@@ -4420,9 +4423,13 @@ export class RtBattleScene extends Phaser.Scene {
       // 落在左上小地圖上的箭頭挪到小地圖右邊（第 41 輪：以前箭頭和距離字壓在小地圖上）
       const mm = this.mini;
       if (mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M) cx = mm.x + mm.w + M;
+      // 上緣中間的「目標：…」字條（第 44 輪：以前大箭頭蓋在字條上，「打倒霧角狼王」看不清楚）→ 箭頭挪到字條下面
+      let top = VIEW_TOP + M;
+      const gy = gb ? gb.bottom + (elite ? 36 : 22) : 0; // 大箭頭尖端離中心約 31px
+      if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = top = gy;
       // 同方向好幾隻精英／Boss：大箭頭沿著邊緣錯開，不疊成一團
       if (elite) {
-        const onTop = cy <= VIEW_TOP + M + 1;
+        const onTop = cy <= top + 1;
         for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.ax - cx) < 40 && Math.abs(q.ay - cy) < 40); k++) {
           if (onTop) cx = Math.min(GAME_WIDTH - M, cx + 44);
           else cy = Math.min(960 + TALL, cy + 44);

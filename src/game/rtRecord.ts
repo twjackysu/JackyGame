@@ -222,3 +222,24 @@ export function fmtSec(sec: number): string {
   const s = Math.floor(sec % 60);
   return m ? `${m} 分 ${String(s).padStart(2, '0')} 秒` : `${s} 秒`;
 }
+
+/**
+ * 老玩家的開場大字（第 44 輪）：這張圖的 Boss 已經打倒過，就不再播第一次的教學（「往北穿過森林…撿到裝備去行囊換上」），
+ * 改成「歡迎回到○○！」＋下一個目標。目標太長就在「、」「，」之後或「（」之前斷行，每行不超過 maxLine 字（置中大字 30px 在 720 寬放得下）。
+ * 第一次（還沒打倒 Boss）回 null，照舊用地圖的 intro。
+ */
+export function returnIntro(stage: string, rec: RtRecord, level: number, otherKills: number, maxLine = 22): string | null {
+  const m = worldMap(stage);
+  if (!m || !(rec.bossKills ?? 0)) return null;
+  const goal = `▶ ${nextGoal(stage, rec, level, otherKills)}`;
+  const lines: string[] = [];
+  let cur = '';
+  for (const part of goal.split(/(?<=[、，])|(?=（)/)) {
+    if (cur && [...cur + part].length > maxLine) {
+      lines.push(cur.replace(/[、，]$/, ''));
+      cur = part;
+    } else cur += part;
+  }
+  if (cur) lines.push(cur);
+  return [`歡迎回到${m.name}！`, ...lines].join('\n');
+}
