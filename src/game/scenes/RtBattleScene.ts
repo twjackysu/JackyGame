@@ -4523,6 +4523,9 @@ export class RtBattleScene extends Phaser.Scene {
       // 落在左上小地圖上的箭頭挪到小地圖右邊（第 41 輪：以前箭頭和距離字壓在小地圖上）
       const mm = this.mini;
       if (mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M) cx = mm.x + mm.w + M;
+      // 小地圖下面的懸賞板也一樣（第 49 輪：左邊的箭頭距離字「17m」壓在「野狼 0/12」上）
+      const bb = this.bountyTxt?.visible && this.bountyTxt.text ? this.bountyTxt.getBounds() : null;
+      if (bb && cx < bb.right + M && cy > bb.top - M && cy < bb.bottom + M) cx = bb.right + M;
       // 上緣中間的「目標：…」字條（第 44 輪：以前大箭頭蓋在字條上，「打倒霧角狼王」看不清楚）→ 箭頭挪到字條下面
       let top = VIEW_TOP + M;
       const gy = gb ? gb.bottom + (elite ? 36 : 22) : 0; // 大箭頭尖端離中心約 31px
