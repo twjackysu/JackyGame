@@ -252,6 +252,8 @@ export class RtBattleScene extends Phaser.Scene {
   private ptsLeft = 0;
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
   private zoneName: string | null = null;
+  /** 上方的記憶卡／回禮卡（第 52 輪）：還在的時候地區名稱先不出，等卡片淡掉再出（以前地區名稱與危險說明被卡片整個蓋住） */
+  private topCard: Phaser.GameObjects.Container | null = null;
   /** 這場已經提示過隱藏精英 */
   private streakHinted = false;
   /** 這場已經提示過 Boss 弱點 */
@@ -349,6 +351,7 @@ export class RtBattleScene extends Phaser.Scene {
     { const p0 = playerOf(this.s); const kinds: Record<string, 'cub' | 'flower' | 'wisp' | 'star'> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp', starfall: 'star' }; const kind = kinds[this.stageId]; this.cub = this.tracked && !this.bot && kind && loadChoices()[this.stageId] === 'spare' ? { x: p0.x - UNIT, y: p0.y + UNIT, a: 0, t: 0, face: 1, kind } : null; }
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
+    this.topCard = null;
     this.chestHinted = new Set();
     this.bossMemo = false;
     this.cameras.main.setZoom(1); // 保險：舊版 Boss 登場會推鏡頭
@@ -756,7 +759,7 @@ export class RtBattleScene extends Phaser.Scene {
   private refreshBounty(): void {
     if (!this.bountyTxt) return;
     const st = cleanBounties(loadRecord(this.stageId).bounty);
-    // 懸賞三張地圖共用：這張地圖打不到的目標標「別張地圖」（例：燼紅裂谷沒有荊棘母樹）
+    // 懸賞三張地圖共用：這張地圖打不到的目標標「別圖」（例：燼紅裂谷沒有荊棘母樹；第 52 輪從「別張地圖」縮短，以前右緣伸到記憶卡底下）
     const stg = STAGES[this.stageId];
     const ids = [...(stg?.spawnGroups ?? []).map((g) => g.enemyId), ...(stg?.enemies ?? []).map((e) => e.enemyId)];
     const here = bountyTargetsOf(ids);
@@ -765,7 +768,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (t === 'alpha_wolf' || !here.has(t)) return BOUNTY_LABEL[t] ?? ENEMIES[t]?.name ?? t;
       return bountyIdsHere(t, ids).map((id) => ENEMIES[id]?.name ?? id).join('／');
     };
-    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${nameOf(b.target)} ${b.got}/${b.need}${here.has(b.target) ? '' : '（別張地圖）'}`)].join('\n'));
+    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${nameOf(b.target)} ${b.got}/${b.need}${here.has(b.target) ? '' : '（別圖）'}`)].join('\n'));
   }
 
   private bountyKill(defId: string): void {
@@ -1488,6 +1491,7 @@ export class RtBattleScene extends Phaser.Scene {
     const head = this.add.text(0, -32, `✦ 前世的記憶　${r.ids.length}/${MEMORIES.length}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#c8a0ff' }).setOrigin(0.5);
     const gain = this.add.text(0, h - 80, `+${r.crystal} 結晶${r.all ? '　——所有的記憶都想起來了！' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: r.all ? '#ffd27a' : '#a8e8ff' }).setOrigin(0.5);
     c.add([bg, head, body, gain]);
+    this.topCard = c;
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: r.all ? 8000 : 6000, duration: 700, onComplete: () => c.destroy() });
     if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
@@ -1578,6 +1582,7 @@ export class RtBattleScene extends Phaser.Scene {
     const head = this.add.text(0, -32, `✦ 回禮・${e.title}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#a8f0c8' }).setOrigin(0.5);
     const gain = this.add.text(0, h - 80, [e.thanks.coin ? `+${e.thanks.coin} 金` : '', e.thanks.crystal ? `+${e.thanks.crystal} 結晶` : ''].filter(Boolean).join('　'), { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' }).setOrigin(0.5);
     c.add([bg, head, body, gain]);
+    this.topCard = c;
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: 7000, duration: 700, onComplete: () => c.destroy() });
   }
@@ -1746,6 +1751,7 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(this.s);
     const z = zs.find((q) => p.x >= q.x0 && p.x < q.x1 && p.y >= q.y0 && p.y < q.y1);
     if (!z || z.name === this.zoneName) return;
+    if (this.topCard?.active) return;
     // 第 52 輪：走進第二個地區時開場說明框還在（荊棘谷 8 秒就進毒沼）→ 說明框、地區名稱、地區說明、「見切射擊！」四組字同時擠在上半部。
     // 已經走到下一區＝學會走路了，直接收起說明框，地區名稱照原本位置。開場那一區（zoneName 還是 null）不收。
     if (this.zoneName !== null && this.hint?.active) this.dismissHint();
