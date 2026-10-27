@@ -128,26 +128,31 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     const worn = st.equip[g.slot]?.uid === g.uid;
     const col = RARITY_COLOR[g.rarity];
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
-    out.push(scene.add.rectangle(0, -60, 600, 560, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -300, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -255, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}${worn ? '・裝備中' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     // 第 48 輪：從上面往下排（以前置中在 -170，5 行以上的稀有裝第一行會壓到副標）
     const gl = gearLines(g, skillNames());
-    out.push(scene.add.text(0, -226, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 10 }).setOrigin(0.5, 0));
+    const lines = scene.add.text(0, -226, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 10 }).setOrigin(0.5, 0);
+    out.push(lines);
+    // 第 50 輪：比較／強化／按鈕跟著數值行數往上收（以前固定 y，普通裝只有 1 行時中間空一大塊；行商第 49 輪已改）
+    const cmpY = Math.max(-150, -226 + lines.height + 44);
+    const btnY = cmpY + (ctx ? 160 : 90);
+    const cardBottom = btnY + 50;
+    out.splice(1, 0, scene.add.rectangle(0, (-340 + cardBottom) / 2, 600, cardBottom + 340, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     // 強化（D-092）：營火旁才能強化；+5 以內必成，之後有成功率，失敗只扣材料
     if (ctx) {
       const enh = g.enh ?? 0;
-      if (enh >= ENH_MAX) out.push(scene.add.text(0, 85, `已強化到 +${ENH_MAX}（最高）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' }).setOrigin(0.5));
+      if (enh >= ENH_MAX) out.push(scene.add.text(0, cmpY + 75, `已強化到 +${ENH_MAX}（最高）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' }).setOrigin(0.5));
       else {
         const c = enhanceCost(enh);
         const wl = ctx.wallet();
         const ok = wl.dust >= c.dust && wl.crystal >= c.crystal;
         const fire = ctx.atFire();
-        out.push(scene.add.text(0, 60, `強化 +${enh}→+${enh + 1}：粉塵 ${c.dust}${c.crystal ? `・結晶 ${c.crystal}` : ''}・成功率 ${c.rate}%${c.rate < 100 ? '（失敗只扣材料）' : ''}`, { fontFamily: UI_FONT, fontSize: '20px', color: ok ? '#e8dcc0' : '#ff9a8a' }).setOrigin(0.5));
-        if (!fire) out.push(scene.add.text(0, 102, '到營火旁才能強化', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff' }).setOrigin(0.5));
+        out.push(scene.add.text(0, cmpY + 50, `強化 +${enh}→+${enh + 1}：粉塵 ${c.dust}${c.crystal ? `・結晶 ${c.crystal}` : ''}・成功率 ${c.rate}%${c.rate < 100 ? '（失敗只扣材料）' : ''}`, { fontFamily: UI_FONT, fontSize: '20px', color: ok ? '#e8dcc0' : '#ff9a8a' }).setOrigin(0.5));
+        if (!fire) out.push(scene.add.text(0, cmpY + 92, '到營火旁才能強化', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff' }).setOrigin(0.5));
         else
-          out.push(btn(0, 114, ok ? '強化！' : '材料不夠', () => {
+          out.push(btn(0, cmpY + 104, ok ? '強化！' : '材料不夠', () => {
             if (!ok || !ctx.spend(c.dust, c.crystal)) return;
             const success = Math.random() * 100 < c.rate;
             if (success) {
@@ -179,28 +184,28 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     };
     const cmp = `${worn ? '卸下後' : st.equip[g.slot] ? `換掉「${gearName(st.equip[g.slot]!)}」` : '換上後'}：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`;
     const better = after.atk * 4 + after.hp * 0.25 + after.def * 3 > now.atk * 4 + now.hp * 0.25 + now.def * 3;
-    out.push(scene.add.text(0, 10, cmp, { fontFamily: UI_FONT, fontSize: '22px', color: worn ? '#c8d0f0' : better ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5));
+    out.push(scene.add.text(0, cmpY, cmp, { fontFamily: UI_FONT, fontSize: '22px', color: worn ? '#c8d0f0' : better ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5));
     if (worn) {
-      out.push(btn(-120, 170, '卸下', () => {
+      out.push(btn(-120, btnY, '卸下', () => {
         if (st.bag.length >= BAG_MAX) return;
         change(unequip(st, g.slot));
         detail = null;
         render();
       }));
     } else {
-      out.push(btn(-190, 170, '換上', () => {
+      out.push(btn(-190, btnY, '換上', () => {
         change(equipWith(st, g));
         detail = null;
         render();
       }, true, 28));
-      out.push(btn(0, 170, ctx ? `分解 +${salvageDust(g)} 粉塵` : '丟掉', () => {
+      out.push(btn(0, btnY, ctx ? `分解 +${salvageDust(g)} 粉塵` : '丟掉', () => {
         if (ctx) ctx.spend(-salvageDust(g), 0);
         change({ ...st, bag: st.bag.filter((x) => x.uid !== g.uid) });
         detail = null;
         render();
       }));
     }
-    out.push(btn(worn ? 120 : 200, 170, '返回', () => {
+    out.push(btn(worn ? 120 : 200, btnY, '返回', () => {
       detail = null;
       render();
     }));
