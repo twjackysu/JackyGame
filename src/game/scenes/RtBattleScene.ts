@@ -1150,6 +1150,26 @@ export class RtBattleScene extends Phaser.Scene {
     return key;
   }
 
+  /** 地圖下緣外的漸層（第 48 輪）：上＝地面色（略暗），下＝底色 */
+  private edgeFadeTexture(): string {
+    const P = (worldMap(this.stageId) ?? WORLD_MAPS[0]!).palette;
+    const key = `rt_edgefade_${P.ground.toString(16)}_${P.under.toString(16)}`;
+    if (this.textures.exists(key)) return key;
+    const tex = this.textures.createCanvas(key, 4, 256);
+    if (!tex) return '__DEFAULT';
+    const ctx = tex.getContext();
+    const a = Phaser.Display.Color.IntegerToColor(P.ground);
+    const b = Phaser.Display.Color.IntegerToColor(P.under);
+    const grd = ctx.createLinearGradient(0, 0, 0, 256);
+    grd.addColorStop(0, `rgb(${a.red * 0.85 | 0},${a.green * 0.85 | 0},${a.blue * 0.85 | 0})`);
+    grd.addColorStop(0.55, `rgb(${(a.red + b.red) / 2 | 0},${(a.green + b.green) / 2 | 0},${(a.blue + b.blue) / 2 | 0})`);
+    grd.addColorStop(1, `rgb(${b.red},${b.green},${b.blue})`);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, 4, 256);
+    tex.refresh();
+    return key;
+  }
+
   private glowTexture(): string {
     const key = 'rt_fire_glow';
     if (this.textures.exists(key)) return key;
@@ -1549,7 +1569,7 @@ export class RtBattleScene extends Phaser.Scene {
     const body = this.add.text(0, 6, e.thanks.lines, { fontFamily: TITLE_FONT, fontSize: '26px', color: '#e8fff0', align: 'center', lineSpacing: 10, wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0.5, 0);
     const h = body.height + 120;
     const bg = this.add.graphics();
-    bg.fillStyle(0x0a1a14, 0.92).fillRoundedRect(-320, -56, 640, h, 18);
+    bg.fillStyle(0x0a1a14, 0.98).fillRoundedRect(-320, -56, 640, h, 18); // 第 48 輪：0.92 時底下的地區名稱（「毒沼」）透出來
     bg.lineStyle(2, 0x7dd8b0, 0.9).strokeRoundedRect(-320, -56, 640, h, 18);
     const head = this.add.text(0, -32, `✦ 回禮・${e.title}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#a8f0c8' }).setOrigin(0.5);
     const gain = this.add.text(0, h - 80, [e.thanks.coin ? `+${e.thanks.coin} 金` : '', e.thanks.crystal ? `+${e.thanks.crystal} 結晶` : ''].filter(Boolean).join('　'), { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' }).setOrigin(0.5);
@@ -1724,11 +1744,13 @@ export class RtBattleScene extends Phaser.Scene {
     if (!z || z.name === this.zoneName) return;
     this.zoneName = z.name;
     // 第 42 輪：往下挪 55（以前 180 和畫面上緣的箭頭距離字「55m」擠在同一行）
-    const t = this.add.text(GAME_WIDTH / 2, 245, `— ${z.name} —`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#f4e6c0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(66).setAlpha(0);
-    this.tweens.add({ targets: t, alpha: 1, y: 235, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
+    // 第 48 輪：開場說明框（y 198～302）還在時整組往下挪，以前地區名稱和「綠色毒沼…」壓在說明框底下
+    const dy = this.hint?.active ? 100 : 0;
+    const t = this.add.text(GAME_WIDTH / 2, 245 + dy, `— ${z.name} —`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#f4e6c0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, y: 235 + dy, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
     if (!z.hint) return;
-    const h = this.add.text(GAME_WIDTH / 2, 292, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(66).setAlpha(0);
-    this.tweens.add({ targets: h, alpha: 1, y: 284, duration: 500, delay: 250, ease: 'Cubic.Out', hold: 1900, yoyo: true, onComplete: () => h.destroy() });
+    const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    this.tweens.add({ targets: h, alpha: 1, y: 284 + dy, duration: 500, delay: 250, ease: 'Cubic.Out', hold: 1900, yoyo: true, onComplete: () => h.destroy() });
     if (z.danger && !this.bot) SFX.uiTap();
   }
 
@@ -2583,6 +2605,9 @@ export class RtBattleScene extends Phaser.Scene {
       for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
         box.add(this.add.image(i * GROUND_CHUNK - PAD, j * GROUND_CHUNK - PAD, chunkKey(i, j)).setOrigin(0));
       }
+      // 第 48 輪：鏡頭可以往地圖下緣外多捲約 30%（讓主角不被按鈕擋住），長螢幕上那一大塊是硬切的純黑。
+      // 在下緣外接一條「地面色→底色」的漸層，像地圖邊緣沒入黑暗（材質只有 4×256，拉伸畫）
+      if (W > GAME_WIDTH || H > VIEW_BOTTOM - VIEW_TOP) box.add(this.add.image(-PAD, H + PAD - 2, this.edgeFadeTexture()).setOrigin(0).setDisplaySize(W + PAD * 2, 560));
       return box;
     };
     // 省記憶體（第 31 輪）：一張大地圖的地面材質約 50MB（GPU），以前四張圖都留著；換圖時把別張圖的地面丟掉，回來再畫
@@ -4030,7 +4055,7 @@ export class RtBattleScene extends Phaser.Scene {
     for (const im of this.ground.list as Phaser.GameObjects.Image[]) {
       const x = this.ox + im.x;
       const y = this.oy + im.y;
-      im.setVisible(x < GAME_WIDTH && x + im.width > 0 && y < VIEW_BOTTOM && y + im.height > 0);
+      im.setVisible(x < GAME_WIDTH && x + im.displayWidth > 0 && y < VIEW_BOTTOM && y + im.displayHeight > 0);
     }
     this.drawThorns(g, now);
     this.drawFrost(this.frostG.clear(), now);
