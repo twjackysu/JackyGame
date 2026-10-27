@@ -51,7 +51,7 @@
 
 ## 畫面
 
-| 霧語森林 | 霧角狼王 | 預告＋格擋反擊 |
+| 霧語森林 | 霧角狼王 | 紅色預告＋長弓 |
 |:-:|:-:|:-:|
 | ![霧語森林](docs/screenshots/26-mistwood.jpg) | ![狼王](docs/screenshots/23-realtime-boss.jpg) | ![即時戰鬥](docs/screenshots/22-realtime.jpg) |
 | **行囊（裝備圖示、▲ 比較好）** | **等級提升** | **操作設定（改鍵、左手、按鈕位置）** |
