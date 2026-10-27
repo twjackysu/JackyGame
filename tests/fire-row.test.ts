@@ -38,4 +38,20 @@ describe('營火捷徑排版', () => {
       });
     }
   }
+
+  // 第 44 輪：調整位置模式把技能鍵拖進營火捷徑那排（NEXT 第 3 項②）→ 捷徑要避開；整排放不下就往上挪
+  for (const i of [0, 1, 2, 5, JOY_INDEX]) {
+    for (const x of [90, 260, 360, 520, 640]) {
+      it(`按鈕 ${i} 拖到營火那排 x=${x}：捷徑仍不重疊、不出畫面`, () => {
+        const c = { ...defaultControls(), pos: { [i]: { x, y: 960 + TALL } } };
+        const { xs, y } = fireRowLayout(c, ITEMS, 960 + TALL, H);
+        expect(overlaps(c, xs, y)).toEqual([]);
+        xs.forEach((cx, k) => {
+          expect(cx - ITEMS[k]!.w / 2).toBeGreaterThanOrEqual(8);
+          expect(cx + ITEMS[k]!.w / 2).toBeLessThanOrEqual(712);
+        });
+        expect(y).toBeGreaterThan(960 + TALL - 160);
+      });
+    }
+  }
 });
