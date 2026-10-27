@@ -343,7 +343,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       view = 'deck';
       render();
     }, false, 24));
-    items.push(btn(0, 500, ctx.closeLabel ?? '回行商', () => onClose(), false, 26));
+    items.push(btn(0, 500 + btnDy(), ctx.closeLabel ?? '回行商', () => onClose(), false, 26));
   }
 
   /**
@@ -432,20 +432,20 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       items.push(scene.add.text(x + 30, y - 44, c.row === undefined ? '特' : c.row === 0 ? '前' : '後', { fontFamily: UI_FONT, fontSize: '14px', color: hexOf(col.edge) }).setOrigin(0.5).setAlpha(a));
       const tag = c.ability === 'bond' ? '同袍' : c.ability === 'scout' ? '斥候' : c.ability === 'hero' ? '傳奇' : c.ability === 'scorch' ? '燼爆' : c.ability === 'echo' ? '回響' : '';
       if (tag && !off && !cut) items.push(scene.add.text(x, y - 4, tag, { fontFamily: UI_FONT, fontSize: '14px', color: '#ffd27a' }).setOrigin(0.5).setAlpha(a));
-      items.push(scene.add.text(x, y + 32, c.name, { fontFamily: UI_FONT, fontSize: '15px', color: '#f0e6d8', align: 'center', wordWrap: { width: 80, useAdvancedWrap: true } }).setOrigin(0.5).setAlpha(a));
+      items.push(scene.add.text(x, y + 32, c.name, { fontFamily: UI_FONT, fontSize: '17px', color: '#f0e6d8', align: 'center', wordWrap: { width: 80, useAdvancedWrap: true } }).setOrigin(0.5).setAlpha(a));
       if (off) items.push(scene.add.text(x, y + 6, '箱子', { fontFamily: UI_FONT, fontSize: '16px', fontStyle: '700', color: '#a89880', backgroundColor: '#1a140e' }).setOrigin(0.5).setPadding(4, 2, 4, 2));
       else if (cut) items.push(scene.add.text(x, y + 6, '超額', { fontFamily: UI_FONT, fontSize: '14px', color: '#ff9a8a', backgroundColor: '#1a140e' }).setOrigin(0.5).setPadding(4, 2, 4, 2));
     });
     const rows = Math.ceil(owned.length / cols);
     const ty = -440 + rows * 132 + 10;
     items.push(scene.add.text(0, ty, `帶上 ${using} 張（${DECK_MIN}～${DECK_MAX} 張；超過時「超額」的最弱單位不會上場）\n另外每場都會多一張「晴空」${deckPeek ? `\n\n${CARDS[deckPeek]!.name}${CARDS[deckPeek]!.power ? `（${CARDS[deckPeek]!.power} 點・${CARDS[deckPeek]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[deckPeek]!.desc ? `：${CARDS[deckPeek]!.desc}` : ''}` : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: using > DECK_MAX ? '#ff9a8a' : '#ffe08a', align: 'center', lineSpacing: 6, wordWrap: { width: 660, useAdvancedWrap: true } }).setOrigin(0.5, 0));
-    items.push(btn(-130, 500, '全部帶上', () => {
+    items.push(btn(-130, 500 + btnDy(), '全部帶上', () => {
       const s2 = stats();
       s2.off = [];
       saveStats(s2);
       render();
     }, false, 22));
-    items.push(btn(120, 500, '完成', () => {
+    items.push(btn(120, 500 + btnDy(), '完成', () => {
       view = 'lobby';
       render();
     }, true, 26));
@@ -459,11 +459,11 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     const prize = (staked ? `${w === 0 ? `＋${staked * 2} 金` : w === -1 ? `退回 ${staked} 金` : `輸掉 ${staked} 金`}（手上 ${ctx.coin()} 金）` : '練習局') + (prizeCard ? `　＋新牌「${CARDS[prizeCard]!.name}」` : '');
     items.push(scene.add.text(0, 120, msg, { fontFamily: TITLE_FONT, fontSize: '64px', color: w === 0 ? '#ffd27a' : w === 1 ? '#ff9a8a' : '#c8d0f0', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5));
     items.push(scene.add.text(0, 200, `${game.results.map((r, i) => `第 ${i + 1} 局 ${r === 0 ? '勝' : r === 1 ? '負' : '平'}`).join('　')}\n${prize}\n${who.short}：${line}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
-    items.push(btn(-120, 470, '再來一局', () => {
+    items.push(btn(-120, 470 + btnDy(), '再來一局', () => {
       g = null;
       render();
     }, true, 26));
-    items.push(btn(120, 470, ctx.closeLabel ?? '回行商', () => onClose(), false, 26));
+    items.push(btn(120, 470 + btnDy(), ctx.closeLabel ?? '回行商', () => onClose(), false, 26));
     if (prizeCard && !revealed) {
       revealed = true;
       scene.time.delayedCall(450, () => {
