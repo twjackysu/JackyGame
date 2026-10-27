@@ -1787,16 +1787,28 @@ export class RtBattleScene extends Phaser.Scene {
       }
       // 兩張地圖之間直接移動（D-114）：等級、行囊共用，只是換地圖
       // 第 26 輪：改成走登記表（D-124）——其他已開放的大地圖都列出來
+      // 第 41 輪：換地圖＋回標題排成兩欄（以前一顆一列，360×640 下面的紀錄被切掉）
+      const nav: { label: string; fn: () => void }[] = [];
       if (!this.botName && worldMap(this.stageId)) {
         WORLD_MAPS.forEach((m, i) => {
           if (m.id === this.stageId || !mapOpen(m.id)) return;
-          mk(y, `${i ? '前往' : '回'}${m.name}`, () => this.leave(() => this.scene.start('RtBattle', { stage: m.id, bot: '' })));
-          y += 80;
+          nav.push({ label: `${i ? '前往' : '回'}${m.name}`, fn: () => this.leave(() => this.scene.start('RtBattle', { stage: m.id, bot: '' })) });
         });
       }
-      mk(y, '回標題', () => this.leave(() => this.scene.start('Title')));
-      items.push(this.recordText(y + 80));
-      this.menu = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, items).setDepth(960);
+      nav.push({ label: '回標題', fn: () => this.leave(() => this.scene.start('Title')) });
+      nav.forEach((b, i) => {
+        const last = i === nav.length - 1 && nav.length % 2 === 1;
+        mk(y + Math.floor(i / 2) * 80, b.label, b.fn, false, last ? 0 : i % 2 ? 170 : -170);
+      });
+      y += Math.ceil(nav.length / 2) * 80;
+      const rt = this.recordText(y);
+      items.push(rt);
+      // 紀錄太長超出畫面：先縮字，再把整個選單往上推（標題最多推到離頂端 60）
+      const room = () => GAME_HEIGHT / 2 - 12 - (y + rt.height);
+      if (room() < 0) rt.setFontSize(18).setLineSpacing(4);
+      const shift = Math.max(0, Math.min(GAME_HEIGHT / 2 - 440 - 60, -room()));
+      this.menu = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2 - shift, items).setDepth(960);
+      (items[0] as Phaser.GameObjects.Rectangle).setY(shift);
       return;
     }
     ctlBtn(-270);
@@ -4247,6 +4259,7 @@ export class RtBattleScene extends Phaser.Scene {
     const now = this.time.now;
     const p = playerOf(s);
     let li = 0;
+    const placed: { x: number; y: number; ax: number; ay: number }[] = [];
     for (const e of enemiesOf(s)) {
       const px = this.sx(e.x);
       const py = this.sy(e.y);
@@ -4255,8 +4268,19 @@ export class RtBattleScene extends Phaser.Scene {
       const elite = e.tier === 'elite' || !!ENEMIES[e.defId]?.boss;
       // 有小地圖的大地圖：待機的一般怪只在小地圖上，箭頭只留給追過來的怪與精英／Boss（design/20 B6）
       if (this.mini && !elite && e.mode !== 'combat') continue;
-      const cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
-      const cy = Math.max(VIEW_TOP + M, Math.min(960 + TALL, py));
+      let cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
+      let cy = Math.max(VIEW_TOP + M, Math.min(960 + TALL, py));
+      // 落在左上小地圖上的箭頭挪到小地圖右邊（第 41 輪：以前箭頭和距離字壓在小地圖上）
+      const mm = this.mini;
+      if (mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M) cx = mm.x + mm.w + M;
+      // 同方向好幾隻精英／Boss：大箭頭沿著邊緣錯開，不疊成一團
+      if (elite) {
+        const onTop = cy <= VIEW_TOP + M + 1;
+        for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.ax - cx) < 40 && Math.abs(q.ay - cy) < 40); k++) {
+          if (onTop) cx = Math.min(GAME_WIDTH - M, cx + 44);
+          else cy = Math.min(960 + TALL, cy + 44);
+        }
+      }
       const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
       const hot = s.telegraphs.some((t) => t.ownerId === e.id);
       const col = hot ? (Math.floor(now / 100) % 2 ? 0xff3a3a : 0xffffff) : ENEMIES[e.defId]?.boss ? 0xffb0d0 : 0xffd27a;
@@ -4275,7 +4299,12 @@ export class RtBattleScene extends Phaser.Scene {
           this.arrowLabels.push(tx);
         }
         li++;
-        tx.setVisible(true).setText(`${Math.round(Math.hypot(e.x - p.x, e.y - p.y) / UNIT)}m`).setPosition(cx - c * 40, cy - sn * 40);
+        // 兩個箭頭靠太近時距離字往下錯開，不疊成「50m10m」
+        const lx = cx - c * 40;
+        let ly = cy - sn * 40;
+        for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.x - lx) < 46 && Math.abs(q.y - ly) < 22); k++) ly += 24;
+        placed.push({ x: lx, y: ly, ax: cx, ay: cy });
+        tx.setVisible(true).setText(`${Math.round(Math.hypot(e.x - p.x, e.y - p.y) / UNIT)}m`).setPosition(lx, ly);
       }
     }
     for (let i = li; i < this.arrowLabels.length; i++) this.arrowLabels[i]!.setVisible(false);
