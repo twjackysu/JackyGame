@@ -47,11 +47,12 @@
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-3. **（下一輪建議主工作）「第一眼」第十段：第二～四張圖的前 5 分鐘**（用 `scripts/shot-newsave.mjs` 改 `stage`，帶 LS：前一張圖 `bossKills:1`、`level` 4／8／14）：荊棘谷（毒、棘背狼）、燼紅裂谷（熔岩、vents）、星隕高原（墜星）。看提示密度、箭頭、抉擇與相遇面板、Boss 登場。只修看得到的問題。
-   - 第 45 輪新存檔（霧語森林三種武器）已看完：剩下「Bot 不會去行商／點技能點」，新手會不會發現 ☰ 紅點等真人回饋。
+3. **（下一輪建議主工作）「第一眼」第十一段：通關前後的大場面**（`scripts/shot-newsave.mjs`，`STAGE`＋`LS`）：燼紅裂谷打倒岩王→通關演出（`playFinale`）→星隕高原開放；星骸守望者第二階段；燼牌第一局（新玩家，`sc().openCards(true)`）。看大字／面板有沒有互相蓋住、`menuBanners`（D-176）有沒有把該顯示的字藏掉（面板上的大字要 `setDepth(990)`）。只修看得到的問題。
+   - 第 45 輪已看完：新存檔霧語森林（三種武器）、荊棘谷／燼紅裂谷／星隕高原前 5 分鐘。Bot 不會去行商／點技能點，新手會不會發現 ☰ 紅點等真人回饋。
+   - 快轉截圖的已知假象：受擊閃白 70ms 在低 fps 下幾乎每張都白；截圖前那 0.7 秒遊戲是即時跑的（同一組 SHOTS 兩次結果不會完全一樣）。
    - 開場的操作說明框（`showHint`）在 360×640 會稍微壓到懸賞板第一行，點掉就沒了，可以不修。
    - **手機效能**：第 44 輪抽查過 JS（p50 約 1ms、p95 2.5～5.9ms），GPU 要等 Jacky 真機。
-4. **README 截圖（選做）**：第 44 輪補了 83～85（左手＋歡迎回來、道謝、善意折扣）；之後有大改再補。
+4. **README 截圖（選做）**：第 44 輪補了 83～85（左手＋歡迎回來、道謝、善意折扣）；第 45 輪技能鍵冷卻改成「名稱＋秒數」，舊截圖的冷卻鍵只有數字（不影響理解，有空再換）。
 5. **打磨期（11/4 起功能凍結）之前**：新手引導第 35 輪看過程式，真人回饋再調。旅商／燼牌對手烘成貼圖**不做**。README 舊截圖 9:16 有黑邊，可接受。
 6. **長弓／法杖的主角圖（選做）**：拿弓／拿杖的 Q 版圖（ART_REQUESTS，GPT 只剩 1，FOR_JACKY 第 17／19 題問）；真機聽 `SFX.bowShot`／`magicBolt`／`timeStop`／`voidOpen`。**不要再試「Bot 放風箏」**（D-148）。
 7. **星隕高原第三輪（選做）**：還要更好就等 Jacky 回 FOR_JACKY 第 15 題排 GPT 圖。
@@ -66,7 +67,7 @@
 - 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 321 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 322 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
 - 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
 - **舊關卡雜湊比對**（核心改動必做）——**第 26 輪起的做法**：範本存在 `scripts/zz-hash.template.ts.txt`（90 場），複製成 `tests/zz-hash.test.ts`；`git worktree add /tmp/claude-0/old <本輪開頭 commit>`＋`ln -s $PWD/node_modules /tmp/claude-0/old/node_modules`，兩邊各跑一次（`HASH_OUT=/tmp/claude-0/hash-old.txt` / `hash-new.txt`）再 `diff`，最後 `git worktree remove --force`（`tests/zz-hash.test.ts` 不在 git，新 session 照範本複製）。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。
