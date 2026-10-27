@@ -182,8 +182,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     const S = game.sides[side]!;
     const weather = game.weather[row];
     items.push(scene.add.rectangle(0, y, 680, 104, weather ? (row === 0 ? 0x1a2a3a : 0x2a2a30) : 0x0e0a06, 0.62).setStrokeStyle(2, side === 0 ? 0x8a6a3a : 0x5a4a6a, 0.8));
-    items.push(scene.add.text(-330, y - 36, `${side === 0 ? '你的' : who.short}${ROW_NAME[row]}${weather ? (row === 0 ? '・霜寒' : '・濃霧') : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: weather ? '#9fd8ff' : '#a89880' }).setOrigin(0, 0.5));
-    if (S.horn[row]) items.push(scene.add.text(-330, y + 10, '戰號×2', { fontFamily: UI_FONT, fontSize: '20px', color: '#ffd27a' }).setOrigin(0, 0.5));
+    // 第 47 輪：排名放大到 19px 後「莫托前排・霜寒」會壓到第一張牌 → 天候改成排名下面一行（和戰號同一欄）
+    items.push(scene.add.text(-330, y - 36, `${side === 0 ? '你的' : who.short}${ROW_NAME[row]}`, { fontFamily: UI_FONT, fontSize: '19px', color: weather ? '#9fd8ff' : '#a89880' }).setOrigin(0, 0.5));
+    if (S.horn[row]) items.push(scene.add.text(-330, y + 4, '戰號×2', { fontFamily: UI_FONT, fontSize: '20px', color: '#ffd27a' }).setOrigin(0, 0.5));
+    if (weather) items.push(scene.add.text(-330, y + (S.horn[row] ? 34 : 4), row === 0 ? '❄ 霜寒' : '☁ 濃霧', { fontFamily: UI_FONT, fontSize: '19px', color: '#9fd8ff' }).setOrigin(0, 0.5));
     const n = S.rows[row].length;
     const gap = Math.min(64, 480 / Math.max(1, n));
     S.rows[row].forEach((id, i) => {
