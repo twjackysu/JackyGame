@@ -2480,8 +2480,9 @@ export class RtBattleScene extends Phaser.Scene {
         this.cameras.main.flash(180, 255, 230, 160);
         const col = this.add.rectangle(this.sx(p.x), this.sy(p.y) - 200, 90, 420, 0xffe08a, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(44);
         this.tweens.add({ targets: col, scaleX: 0.1, alpha: 0, duration: 900, ease: 'Cubic.In', onComplete: () => col.destroy() });
-        bigText(this, GAME_WIDTH / 2, 470, `等級提升！Lv ${e.level}${this.tracked ? '\n技能點 +1（☰ → 技能點）' : ''}`, '#ffe08a', 54, 1000);
-        floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, `HP ${e.maxHp}・攻擊 ${e.atk}`, { color: '#ffe08a', size: 26 });
+        // 第 50 輪：以前「技能點 +1」和標題同一個 54px 大字（兩行很擠），主角頭上的「HP・攻擊」飄字剛好被第二行蓋住 → 標題一行大字＋數值／技能點一則小字（置中大字會自動錯開，D-162）
+        bigText(this, GAME_WIDTH / 2, 430, `等級提升！Lv ${e.level}`, '#ffe08a', 54, 1000);
+        bigText(this, GAME_WIDTH / 2, 500, `HP ${e.maxHp}・攻擊 ${e.atk}${this.tracked ? '\n技能點 +1（☰ → 技能點）' : ''}`, '#fff2c8', 30, 1300);
         sparks(this, this.sx(p.x), this.sy(p.y) - 30, 36, 'ember', 0xffe08a, 700);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffe08a, 200, 600, 8);
         this.persist();
