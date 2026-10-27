@@ -309,7 +309,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
           render();
         });
       items.push(t);
-      items.push(scene.add.text(x, -428, ok ? o.blurb : o.secret ? '三位都贏過一次後出現' : `在${worldMap(o.map ?? '')?.name ?? '別的地圖'}的營火`, { fontFamily: UI_FONT, fontSize: '14px', color: ok ? '#a89880' : '#6a6054', align: 'center', wordWrap: { width: step - 8, useAdvancedWrap: true } }).setOrigin(0.5, 0));
+      items.push(scene.add.text(x, -428, ok ? o.blurb : o.secret ? '贏過前三位後出現' : `在${worldMap(o.map ?? '')?.name ?? '別的地圖'}的營火`, { fontFamily: UI_FONT, fontSize: '14px', color: ok ? '#a89880' : '#6a6054', align: 'center', wordWrap: { width: step - 8, useAdvancedWrap: true } }).setOrigin(0.5, 0));
     });
     const rules = [
       '三局兩勝。雙方各抽 10 張牌，整場不補牌。',

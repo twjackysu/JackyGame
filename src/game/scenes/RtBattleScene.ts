@@ -113,7 +113,7 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   magma_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff6a3a },
   // 星隕高原（D-138）：守望者與魔像是程式美術（fx/starArt.ts），其他先用現有立繪染色
   star_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0x9ab8ff },
-  star_shroom: { key: 'enemy_thorn_shroom', h: 2.9, flip: false, tint: 0xb8a8ff },
+  star_shroom: { key: 'enemy_thorn_shroom', h: 2.9, flip: false, tint: 0x90a0ff },
   crystal_golem: { key: 'enemy_crystal_golem', h: 2.4, flip: false },
   astral_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xe0d0ff },
   star_sentinel: { key: 'enemy_star_sentinel', h: 3.1, flip: true },
@@ -1268,6 +1268,39 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 星隕高原的狼（第 40 輪，純畫面）：身上幾顆會閃的四芒星痕；彗星巡者身後拖三道彗尾；星蝕狼背上一輪黑日＋紫色日冕 */
+  /**
+   * 燼芯菇／星芒菇（第 41 輪，仿 D-166）：以前只是荊棘菇染色。
+   * 燼芯菇：傘蓋上三顆發亮的燼斑＋往上飄的火星；星芒菇：傘蓋上輪流閃的小星＋慢慢飄起的星塵。純畫面。
+   */
+  private drawShroomMarks(top: Phaser.GameObjects.Graphics, x: Unit, sp: Phaser.GameObjects.Image, r: number, now: number): void {
+    const ember = x.defId === 'ember_shroom';
+    const capY = sp.y - sp.displayHeight * 0.74;
+    if (!ember) top.fillStyle(0x6a8aff, 0.1 + 0.06 * Math.sin(now / 500 + x.id)).fillCircle(sp.x, capY, r * 1.1);
+    const spots: [number, number][] = [[-0.42, 0.02], [0.08, -0.12], [0.46, 0.06]];
+    spots.forEach(([ox, oy], q) => {
+      const sx = sp.x + ox * r;
+      const sy = capY + oy * r;
+      const tw = 0.5 + 0.5 * Math.sin(now / (ember ? 170 : 240) + q * 2.1 + x.id);
+      if (ember) {
+        top.fillStyle(0xff5a1a, 0.4 + 0.3 * tw).fillCircle(sx, sy, r * 0.32);
+        top.fillStyle(0xffe080, 0.8 + 0.2 * tw).fillCircle(sx, sy, r * 0.16);
+      } else if (tw > 0.25) {
+        const a = r * 0.5 * tw;
+        top.fillStyle(0x8ab0ff, 0.35 * tw).fillCircle(sx, sy, a * 0.6);
+        top.fillStyle(0xe8eeff, 0.9 * tw);
+        top.fillTriangle(sx - a, sy, sx + a, sy, sx, sy - a * 0.22).fillTriangle(sx - a, sy, sx + a, sy, sx, sy + a * 0.22);
+        top.fillTriangle(sx, sy - a, sx, sy + a, sx - a * 0.22, sy).fillTriangle(sx, sy - a, sx, sy + a, sx + a * 0.22, sy);
+      }
+    });
+    // 往上飄的火星／星塵
+    for (let q = 0; q < 3; q++) {
+      const t = (now / (ember ? 900 : 1600) + q / 3 + x.id * 0.137) % 1;
+      const mx = sp.x + Math.sin(t * 6 + q * 2 + x.id) * r * 0.35 + (q - 1) * r * 0.25;
+      const my = capY - r * 0.3 - t * r * (ember ? 1.8 : 1.4);
+      top.fillStyle(ember ? (q % 2 ? 0xffc04a : 0xff6a2a) : 0xc8d8ff, (1 - t) * 0.9).fillCircle(mx, my, r * (ember ? 0.11 : 0.1) * (1.2 - t * 0.5));
+    }
+  }
+
   private drawStarMarks(top: Phaser.GameObjects.Graphics, x: Unit, sp: Phaser.GameObjects.Image, r: number, now: number): void {
     const dir = sp.flipX ? -1 : 1;
     const bodyY = sp.y - sp.displayHeight * 0.45;
@@ -4061,6 +4094,7 @@ export class RtBattleScene extends Phaser.Scene {
           }
         }
         if (STAR_MARKS.has(x.defId) && !x.dead) this.drawStarMarks(top, x, sp, r, now);
+        if ((x.defId === 'ember_shroom' || x.defId === 'star_shroom') && !x.dead) this.drawShroomMarks(top, x, sp, r, now);
         const thorn = THORN_BACK[x.defId];
         if (thorn !== undefined && !x.dead) {
           // 背上一排往後彎的荊棘刺：深色刺身＋亮色刺尖，呼吸時微微起伏
