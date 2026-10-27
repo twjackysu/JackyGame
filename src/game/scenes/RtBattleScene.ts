@@ -1695,6 +1695,9 @@ export class RtBattleScene extends Phaser.Scene {
       this.menu = null;
       this.toggleMenu();
     }, true);
+    // 第 47 輪：長螢幕上整本擠在上半部、標題貼著 HUD，下半部空著 → 內容比畫面矮時整組往下挪到置中
+    const shift = Math.max(0, Math.floor((H2 - 70 - by) / 2));
+    if (shift) for (const o of items.slice(1)) (o as unknown as Phaser.GameObjects.Components.Transform).y += shift;
     this.menu = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, items).setDepth(960);
   }
 
@@ -1894,7 +1897,8 @@ export class RtBattleScene extends Phaser.Scene {
       this.tweens.killTweensOf(o);
       o.destroy();
     }
-    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7).setInteractive()];
+    // 第 47 輪：0.7 時長螢幕下方的紀錄字疊在透出來的技能鍵上，看起來很亂 → 0.84
+    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.84).setInteractive()];
     items.push(this.add.text(0, -440, '暫停', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     const mk = (y: number, label: string, fn: () => void, hi = false, x = 0) => {
       const t = this.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(24, 12, 24, 12).setInteractive({ useHandCursor: true });
