@@ -45,7 +45,7 @@ import { WORLD_MAPS, worldMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, fireRowLayout, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
-import { bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
+import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
@@ -740,8 +740,14 @@ export class RtBattleScene extends Phaser.Scene {
     const st = cleanBounties(loadRecord(this.stageId).bounty);
     // 懸賞三張地圖共用：這張地圖打不到的目標標「別張地圖」（例：燼紅裂谷沒有荊棘母樹）
     const stg = STAGES[this.stageId];
-    const here = bountyTargetsOf([...(stg?.spawnGroups ?? []).map((g) => g.enemyId), ...(stg?.enemies ?? []).map((e) => e.enemyId)]);
-    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${BOUNTY_LABEL[b.target] ?? ENEMIES[b.target]?.name ?? b.target} ${b.got}/${b.need}${here.has(b.target) ? '' : '（別張地圖）'}`)].join('\n'));
+    const ids = [...(stg?.spawnGroups ?? []).map((g) => g.enemyId), ...(stg?.enemies ?? []).map((e) => e.enemyId)];
+    const here = bountyTargetsOf(ids);
+    // 第 43 輪：這張圖打得到的只寫這張圖的怪名（以前一律「野狼／棘背狼／燼鬃狼／星痕狼」，小字又長又難讀）；精英類照舊寫「首領級精英」
+    const nameOf = (t: string): string => {
+      if (t === 'alpha_wolf' || !here.has(t)) return BOUNTY_LABEL[t] ?? ENEMIES[t]?.name ?? t;
+      return bountyIdsHere(t, ids).map((id) => ENEMIES[id]?.name ?? id).join('／');
+    };
+    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${nameOf(b.target)} ${b.got}/${b.need}${here.has(b.target) ? '' : '（別張地圖）'}`)].join('\n'));
   }
 
   private bountyKill(defId: string): void {

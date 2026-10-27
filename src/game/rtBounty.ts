@@ -37,6 +37,13 @@ export function bountyTargetsOf(enemyIds: Iterable<string>): Set<string> {
   return out;
 }
 
+/** 這張地圖上算進某個懸賞目標的敵人 id（第 43 輪：懸賞板只寫這張圖的怪名，不再列四張圖的全名） */
+export function bountyIdsHere(target: string, enemyIds: Iterable<string>): string[] {
+  const out: string[] = [];
+  for (const id of enemyIds) if ((BOUNTY_ALIAS[id] ?? id) === target && !out.includes(id)) out.push(id);
+  return out;
+}
+
 function hash(n: number): number {
   let x = (Math.imul(n + 1, 2654435761) ^ 0x5bd1e995) >>> 0;
   x ^= x >>> 15;

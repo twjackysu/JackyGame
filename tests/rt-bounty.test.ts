@@ -51,3 +51,13 @@ describe('營地懸賞（D-109）', () => {
     for (const p of BOUNTY_POOL) expect(all.has(p.target)).toBe(true);
   });
 });
+
+describe('懸賞板只寫這張圖的怪名（第 43 輪）', () => {
+  it('bountyIdsHere 依別名找出這張圖算數的怪、不重複', async () => {
+    const { bountyIdsHere } = await import('../src/game/rtBounty');
+    expect(bountyIdsHere('wolf', ['ember_wolf', 'ember_shroom', 'ember_wolf', 'ember_colossus'])).toEqual(['ember_wolf']);
+    expect(bountyIdsHere('wolf_king', ['ember_wolf', 'ember_colossus'])).toEqual(['ember_colossus']);
+    expect(bountyIdsHere('wolf', ['wolf', 'thorn_shooter'])).toEqual(['wolf']);
+    expect(bountyIdsHere('thorn_mother', ['ember_wolf'])).toEqual([]);
+  });
+});
