@@ -1204,7 +1204,7 @@ export class RtBattleScene extends Phaser.Scene {
       shockRing(this, this.sx(p.x), this.sy(p.y), pick === 'take' ? 0xffb35a : 0x7dd8b0, 260, 700, 8);
       sparks(this, this.sx(p.x), this.sy(p.y), 26, pick === 'take' ? 'ember' : 'spark', pick === 'take' ? 0xffd27a : 0xa8f0c8, 520);
       const extra = pick === 'take' ? `\n+${ch.take.crystal} 結晶` : `\n行商的裝備 −${c ? shopDiscountPct(c) : SPARE_DISCOUNT}%`;
-      bigText(this, GAME_WIDTH / 2, 560, `${ch[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 30, 2600);
+      bigText(this, GAME_WIDTH / 2, 560, `${wrapTip(ch[pick].after)}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 30, 2600);
       const q = this.afterChoice;
       this.afterChoice = [];
       q.forEach((fn, i) => this.time.delayedCall(3600 + i * 3200, fn));
@@ -1479,7 +1479,7 @@ export class RtBattleScene extends Phaser.Scene {
         sparks(this, x, y, 26, 'spark', 0xa8f0c8, 520);
         shockRing(this, x, y, 0x7dd8b0, 220, 700, 6);
       }
-      bigText(this, GAME_WIDTH / 2, 560, `${e[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 28, 3000);
+      bigText(this, GAME_WIDTH / 2, 560, `${wrapTip(e[pick].after)}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 28, 3000);
     }, { kicker: '相遇', spareTag: '助' });
   }
 

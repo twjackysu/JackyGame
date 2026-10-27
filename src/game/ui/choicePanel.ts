@@ -21,7 +21,8 @@ export function openChoice(scene: Phaser.Scene, ch: Pick<BossChoice, 'title' | '
   const cx = GAME_WIDTH / 2;
   const cy = GAME_HEIGHT / 2;
   const root = scene.add.container(0, 0).setDepth(1900).setAlpha(0);
-  const veil = scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x05040a, 0.88).setInteractive();
+  const veil = scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x05040a, 0.94).setInteractive();
+  // 第 42 輪：0.88 時後面的開場大字、地區名還透得出來，和選項卡片混在一起
   root.add(veil);
   scene.tweens.add({ targets: root, alpha: 1, duration: 500 });
   root.add(scene.add.text(cx, cy - 500, look.kicker ?? '抉擇', { fontFamily: UI_FONT, fontSize: '22px', color: '#a89878' }).setOrigin(0.5));
