@@ -216,6 +216,8 @@ export class RtBattleScene extends Phaser.Scene {
   private glows: Phaser.GameObjects.Image[] = [];
   /** 大地圖目標列（沒有就 null） */
   private goal: Phaser.GameObjects.Text | null = null;
+  /** Boss 大血條下的名稱＋剩餘％（第 52 輪：以前血條沒有名字，打起來不知道在打誰、還剩多少） */
+  private bossTxt: Phaser.GameObjects.Text | null = null;
   private goalDone = false;
   /** HUD 的金幣＝錢包（上次存檔時）＋這場還沒存的（D-116 行商之後金幣是能花的錢） */
   private coinBase = -1;
@@ -411,6 +413,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.breakSeen.clear(); this.ghostAt = 0;
     // 第 46 輪：95 會壓在 MP 條（96～104）與經驗條（104～110）上，往下挪到 Boss 血條的位置（打 Boss 時目標字條本來就藏起來）
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 114, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)', align: 'center', lineSpacing: 4 }).setPadding(12, 3, 12, 3).setOrigin(0.5, 0).setDepth(49) : null;
+    this.bossTxt = this.add.text(GAME_WIDTH / 2, 136, '', { fontFamily: UI_FONT, fontSize: '19px', fontStyle: '700', color: '#ffd0e4', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 0).setDepth(49).setVisible(false);
     this.makeButtons();
     this.makeMinimap();
     this.makeFireBtn();
@@ -4516,7 +4519,7 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(s);
     let li = 0;
     const placed: { x: number; y: number; ax: number; ay: number }[] = [];
-    const gb = this.goal?.visible && this.goal.text ? this.goal.getBounds() : null;
+    const gb = this.goal?.visible && this.goal.text ? this.goal.getBounds() : this.bossTxt?.visible ? this.bossTxt.getBounds() : null;
     for (const e of enemiesOf(s)) {
       const px = this.sx(e.x);
       const py = this.sy(e.y);
@@ -4771,6 +4774,10 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss && (!STAGES[this.stageId]?.mapAi || e.mode === 'combat'));
     this.goal?.setVisible(!boss);
+    if (this.bossTxt) {
+      this.bossTxt.setVisible(!!boss && !this.menu?.active);
+      if (boss) this.bossTxt.setText(`${boss.fury ? '暴怒的' : ''}${ENEMIES[boss.defId]?.name ?? ''}　${Math.max(1, Math.ceil((boss.hp / boss.maxHp) * 100))}%`).setColor(boss.phase === 2 ? '#ffb09a' : '#ffd0e4');
+    }
     if (boss) {
       const w = 600;
       const x0 = (GAME_WIDTH - w) / 2;
