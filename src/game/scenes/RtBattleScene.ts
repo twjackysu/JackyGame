@@ -2269,7 +2269,11 @@ export class RtBattleScene extends Phaser.Scene {
             bigText(this, GAME_WIDTH / 2, 470, '迷霧巡守 倒下了！', '#9af0e0', 44, 900);
           }
         }
-      } else if (e.type === 'phase2') bigText(this, GAME_WIDTH / 2, 520, (worldMap(this.stageId)?.phase2 ?? WORLD_MAPS[0]!.phase2)[0], (worldMap(this.stageId)?.phase2 ?? WORLD_MAPS[0]!.phase2)[1], 52, 700);
+      } else if (e.type === 'phase2') {
+        const [t2, c2] = worldMap(this.stageId)?.phase2 ?? WORLD_MAPS[0]!.phase2;
+        // 已經是暴怒的 Boss 再喊「狼王暴怒！」很怪（第 46 輪）：改說牠徹底失控
+        bigText(this, GAME_WIDTH / 2, 520, u(e.id)?.fury ? `${this.bw}徹底失控了！` : t2, c2, 52, 700);
+      }
       else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
       else if (e.type === 'blink') {
         // 暴怒狼王霧中瞬移（D-105）：原地與落點各冒一團霧、不做插值滑動
