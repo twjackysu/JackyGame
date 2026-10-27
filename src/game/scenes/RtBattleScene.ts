@@ -1301,6 +1301,36 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * 霧語森林的首領狼／霧影狼（第 41 輪，仿 D-166）：
+   * 首領狼：胸前三道發白的舊爪痕；霧影狼（深夜巡邏）：身後往上飄散的紫黑影子＋額頭一點發亮的紫光。純畫面。
+   */
+  private drawWolfMarks(top: Phaser.GameObjects.Graphics, x: Unit, sp: Phaser.GameObjects.Image, r: number, now: number): void {
+    const dir = sp.flipX ? -1 : 1;
+    const H = sp.displayHeight;
+    if (x.defId === 'alpha_wolf') {
+      top.lineStyle(Math.max(2, r * 0.09), 0xfff0d8, 0.85);
+      for (let q = 0; q < 3; q++) {
+        const bx = sp.x - dir * r * (0.05 + q * 0.2);
+        const by = sp.y - H * 0.4;
+        top.lineBetween(bx + dir * r * 0.18, by - r * 0.32, bx - dir * r * 0.12, by + r * 0.3);
+      }
+      return;
+    }
+    // 霧影狼：影子從背後一團一團往上飄、變淡
+    for (let q = 0; q < 5; q++) {
+      const t = (now / 1300 + q / 5 + x.id * 0.21) % 1;
+      const wx = sp.x - dir * r * (0.6 + t * 0.9) + Math.sin(t * 7 + q) * r * 0.15;
+      const wy = sp.y - H * (0.45 + t * 0.45);
+      top.fillStyle(q % 2 ? 0x2a1a4a : 0x6a4aaa, (1 - t) * 0.45).fillCircle(wx, wy, r * (0.38 - t * 0.18));
+    }
+    const ex = sp.x + dir * r * 0.95;
+    const ey = sp.y - H * 0.66;
+    const pulse = 0.6 + 0.4 * Math.sin(now / 300 + x.id);
+    top.fillStyle(0xc8a8ff, 0.35 * pulse).fillCircle(ex, ey, r * 0.22);
+    top.fillStyle(0xf0e8ff, 0.95).fillCircle(ex, ey, r * 0.08);
+  }
+
   private drawStarMarks(top: Phaser.GameObjects.Graphics, x: Unit, sp: Phaser.GameObjects.Image, r: number, now: number): void {
     const dir = sp.flipX ? -1 : 1;
     const bodyY = sp.y - sp.displayHeight * 0.45;
@@ -4095,6 +4125,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
         if (STAR_MARKS.has(x.defId) && !x.dead) this.drawStarMarks(top, x, sp, r, now);
         if ((x.defId === 'ember_shroom' || x.defId === 'star_shroom') && !x.dead) this.drawShroomMarks(top, x, sp, r, now);
+        if ((x.defId === 'alpha_wolf' || x.defId === 'shade_wolf') && !x.dead) this.drawWolfMarks(top, x, sp, r, now);
         const thorn = THORN_BACK[x.defId];
         if (thorn !== undefined && !x.dead) {
           // 背上一排往後彎的荊棘刺：深色刺身＋亮色刺尖，呼吸時微微起伏
