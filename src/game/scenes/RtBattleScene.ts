@@ -1477,12 +1477,14 @@ export class RtBattleScene extends Phaser.Scene {
     shockRing(this, x, y, 0xc89aff, 200, 700, 6);
     this.cameras.main.flash(220, 190, 150, 255);
     // 上方的回憶卡：標題、內容、獎勵；6 秒後淡出
-    const c = this.add.container(GAME_WIDTH / 2, 300).setDepth(940).setAlpha(0);
-    const body = this.add.text(0, 6, mem.lines, { fontFamily: TITLE_FONT, fontSize: '27px', color: '#f0e6ff', align: 'center', lineSpacing: 10, wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+    // 第 49 輪：640 寬會蓋住左上的小地圖與懸賞板 → 544 寬、往右挪、字小 2px（左緣 ≈ 160，一行 21 字不斷行，小地圖／懸賞板右緣約 120～130；回禮卡同）
+    const CW = 544;
+    const c = this.add.container(GAME_WIDTH - 16 - CW / 2, 300).setDepth(940).setAlpha(0);
+    const body = this.add.text(0, 6, mem.lines, { fontFamily: TITLE_FONT, fontSize: '25px', color: '#f0e6ff', align: 'center', lineSpacing: 10, wordWrap: { width: CW - 36, useAdvancedWrap: true } }).setOrigin(0.5, 0);
     const h = body.height + 120;
     const bg = this.add.graphics();
-    bg.fillStyle(0x140a22, 0.9).fillRoundedRect(-320, -56, 640, h, 18);
-    bg.lineStyle(2, 0xc89aff, 0.9).strokeRoundedRect(-320, -56, 640, h, 18);
+    bg.fillStyle(0x140a22, 0.9).fillRoundedRect(-CW / 2, -56, CW, h, 18);
+    bg.lineStyle(2, 0xc89aff, 0.9).strokeRoundedRect(-CW / 2, -56, CW, h, 18);
     const head = this.add.text(0, -32, `✦ 前世的記憶　${r.ids.length}/${MEMORIES.length}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#c8a0ff' }).setOrigin(0.5);
     const gain = this.add.text(0, h - 80, `+${r.crystal} 結晶${r.all ? '　——所有的記憶都想起來了！' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: r.all ? '#ffd27a' : '#a8e8ff' }).setOrigin(0.5);
     c.add([bg, head, body, gain]);
@@ -1565,12 +1567,14 @@ export class RtBattleScene extends Phaser.Scene {
     const y = this.sy(at?.y ?? e.ty * UNIT + UNIT / 2);
     sparks(this, x, y, 30, 'spark', 0xa8f0c8, 480);
     shockRing(this, x, y, 0x7dd8b0, 220, 700, 6);
-    const c = this.add.container(GAME_WIDTH / 2, 300).setDepth(940).setAlpha(0);
-    const body = this.add.text(0, 6, e.thanks.lines, { fontFamily: TITLE_FONT, fontSize: '26px', color: '#e8fff0', align: 'center', lineSpacing: 10, wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+    // 第 49 輪：640 寬會蓋住左上的小地圖與懸賞板 7 秒 → 544 寬、往右挪、字小 2px（左緣 ≈ 160，一行 21 字不斷行，小地圖／懸賞板右緣約 120～130）
+    const CW = 544;
+    const c = this.add.container(GAME_WIDTH - 16 - CW / 2, 300).setDepth(940).setAlpha(0);
+    const body = this.add.text(0, 6, e.thanks.lines, { fontFamily: TITLE_FONT, fontSize: '24px', color: '#e8fff0', align: 'center', lineSpacing: 10, wordWrap: { width: CW - 36, useAdvancedWrap: true } }).setOrigin(0.5, 0);
     const h = body.height + 120;
     const bg = this.add.graphics();
-    bg.fillStyle(0x0a1a14, 0.98).fillRoundedRect(-320, -56, 640, h, 18); // 第 48 輪：0.92 時底下的地區名稱（「毒沼」）透出來
-    bg.lineStyle(2, 0x7dd8b0, 0.9).strokeRoundedRect(-320, -56, 640, h, 18);
+    bg.fillStyle(0x0a1a14, 0.98).fillRoundedRect(-CW / 2, -56, CW, h, 18); // 第 48 輪：0.92 時底下的地區名稱（「毒沼」）透出來
+    bg.lineStyle(2, 0x7dd8b0, 0.9).strokeRoundedRect(-CW / 2, -56, CW, h, 18);
     const head = this.add.text(0, -32, `✦ 回禮・${e.title}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#a8f0c8' }).setOrigin(0.5);
     const gain = this.add.text(0, h - 80, [e.thanks.coin ? `+${e.thanks.coin} 金` : '', e.thanks.crystal ? `+${e.thanks.crystal} 結晶` : ''].filter(Boolean).join('　'), { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' }).setOrigin(0.5);
     c.add([bg, head, body, gain]);
