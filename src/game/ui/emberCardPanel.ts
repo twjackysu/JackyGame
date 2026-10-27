@@ -272,12 +272,13 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       items.push(scene.add.text(x, y + 44, c.name, { fontFamily: UI_FONT, fontSize: '17px', color: '#f0e6d8', align: 'center', wordWrap: { width: 92, useAdvancedWrap: true } }).setOrigin(0.5));
     });
     const sc = sel >= 0 ? me.hand[sel] : undefined;
-    const info = sc ? `${CARDS[sc]!.name}${CARDS[sc]!.power ? `（${CARDS[sc]!.power} 點・${CARDS[sc]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[sc]!.desc ? `：${CARDS[sc]!.desc}` : ''}` : myTurn ? (coach(game) ?? '點一張牌看說明，再點一次打出') : '';
+    // 第 48 輪：名稱一行、說明一行；以前「（1 點・後排）」的空格讓自動換行斷在「（1⏎點」
+    const info = sc ? `${CARDS[sc]!.name}${CARDS[sc]!.power ? `（${CARDS[sc]!.power}點・${CARDS[sc]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[sc]!.desc ? `\n${CARDS[sc]!.desc}` : ''}` : myTurn ? (coach(game) ?? '點一張牌看說明，再點一次打出') : '';
     items.push(scene.add.text(0, 420 + infoDy(), info, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
     const canPlay = myTurn && sel >= 0 && legalMoves(game, 0).some((m) => m.type === 'play' && m.card === sel);
     if (sc && myTurn && !canPlay && CARDS[sc]!.ability === 'horn') {
       // 戰號不能吹在空排（第 28 輪）：說明為什麼按不下去
-      items.push(scene.add.text(0, 452 + infoDy(), '現在沒有能加倍的牌（傳奇不吃戰號）——先出單位牌再吹', { fontFamily: UI_FONT, fontSize: '17px', color: '#ff9a8a' }).setOrigin(0.5));
+      items.push(scene.add.text(0, 462 + infoDy(), '現在沒有能加倍的牌（傳奇不吃戰號）——先出單位牌再吹', { fontFamily: UI_FONT, fontSize: '17px', color: '#ff9a8a' }).setOrigin(0.5));
     }
     items.push(btn(-200, 500 + btnDy(), '出牌', () => play(sel), true, 24, !canPlay));
     items.push(btn(20, 500 + btnDy(), '放棄這一局', () => pass(), false, 22, !myTurn));
@@ -440,7 +441,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     });
     const rows = Math.ceil(owned.length / cols);
     const ty = -440 + rows * 132 + 10;
-    items.push(scene.add.text(0, ty, `帶上 ${using} 張（${DECK_MIN}～${DECK_MAX} 張；超過時「超額」的最弱單位不會上場）\n另外每場都會多一張「晴空」${deckPeek ? `\n\n${CARDS[deckPeek]!.name}${CARDS[deckPeek]!.power ? `（${CARDS[deckPeek]!.power} 點・${CARDS[deckPeek]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[deckPeek]!.desc ? `：${CARDS[deckPeek]!.desc}` : ''}` : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: using > DECK_MAX ? '#ff9a8a' : '#ffe08a', align: 'center', lineSpacing: 6, wordWrap: { width: 660, useAdvancedWrap: true } }).setOrigin(0.5, 0));
+    items.push(scene.add.text(0, ty, `帶上 ${using} 張（${DECK_MIN}～${DECK_MAX} 張；超過時「超額」的最弱單位不會上場）\n另外每場都會多一張「晴空」${deckPeek ? `\n\n${CARDS[deckPeek]!.name}${CARDS[deckPeek]!.power ? `（${CARDS[deckPeek]!.power}點・${CARDS[deckPeek]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[deckPeek]!.desc ? `：${CARDS[deckPeek]!.desc}` : ''}` : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: using > DECK_MAX ? '#ff9a8a' : '#ffe08a', align: 'center', lineSpacing: 6, wordWrap: { width: 660, useAdvancedWrap: true } }).setOrigin(0.5, 0));
     items.push(btn(-130, 500 + btnDy(), '全部帶上', () => {
       const s2 = stats();
       s2.off = [];
