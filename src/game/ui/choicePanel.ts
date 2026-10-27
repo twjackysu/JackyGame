@@ -42,16 +42,24 @@ export function openChoice(scene: Phaser.Scene, ch: Pick<BossChoice, 'title' | '
     for (const t of hidden) if (t.active) t.setVisible(true);
   });
   scene.tweens.add({ targets: root, alpha: 1, duration: 500 });
-  root.add(scene.add.text(cx, cy - 500, look.kicker ?? '抉擇', { fontFamily: UI_FONT, fontSize: '22px', color: '#a89878' }).setOrigin(0.5));
-  root.add(scene.add.text(cx, cy - 450, ch.title, { fontFamily: TITLE_FONT, fontSize: '48px', color: '#ffe6a8', stroke: '#2a1404', strokeThickness: 6 }).setOrigin(0.5));
-  root.add(scene.add.text(cx, cy - 380, ch.prompt, { fontFamily: TITLE_FONT, fontSize: '26px', color: '#e8e0d0', align: 'center', lineSpacing: 12 }).setOrigin(0.5, 0));
+  // 第 49 輪：說明的高度不一，以前選項卡固定在 cy＋40 → 說明短時中間空一大塊。
+  // 改成由上往下排（說明下緣＋固定間距接選項卡），整塊再垂直置中。
+  const prompt = scene.add.text(cx, 0, ch.prompt, { fontFamily: TITLE_FONT, fontSize: '26px', color: '#e8e0d0', align: 'center', lineSpacing: 12 }).setOrigin(0.5, 0);
+  const cardY0 = 120 + prompt.height + 70 + 80; // 第一張卡中心（相對整塊頂端）
+  const goY = cardY0 + 200 + 80 + 110;
+  const total = goY + 70 + 14;
+  const top = Math.round(cy - total / 2);
+  root.add(scene.add.text(cx, top, look.kicker ?? '抉擇', { fontFamily: UI_FONT, fontSize: '22px', color: '#a89878' }).setOrigin(0.5));
+  root.add(scene.add.text(cx, top + 50, ch.title, { fontFamily: TITLE_FONT, fontSize: '48px', color: '#ffe6a8', stroke: '#2a1404', strokeThickness: 6 }).setOrigin(0.5));
+  prompt.setY(top + 120);
+  root.add(prompt);
   let sel: ChoicePick | null = null;
   let done = false;
   const paints: Record<ChoicePick, (hi: boolean) => void> = { take: () => {}, spare: () => {} };
-  const go = scene.add.text(cx, cy + 470, '就這麼做', { fontFamily: TITLE_FONT, fontSize: '34px', color: '#1a1006', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(36, 12, 36, 12).setAlpha(0.35);
+  const go = scene.add.text(cx, top + goY, '就這麼做', { fontFamily: TITLE_FONT, fontSize: '34px', color: '#1a1006', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(36, 12, 36, 12).setAlpha(0.35);
   (['take', 'spare'] as const).forEach((k, i) => {
     const opt = ch[k];
-    const y = cy + 40 + i * 200;
+    const y = top + cardY0 + i * 200;
     const c = COL[k];
     const card = scene.add.container(cx, y);
     const bg = scene.add.graphics();
@@ -87,6 +95,6 @@ export function openChoice(scene: Phaser.Scene, ch: Pick<BossChoice, 'title' | '
     } });
   });
   root.add(go);
-  root.add(scene.add.text(cx, cy + 540, '抉擇只有一次', { fontFamily: UI_FONT, fontSize: '18px', color: '#8a8070' }).setOrigin(0.5));
+  root.add(scene.add.text(cx, top + goY + 70, '抉擇只有一次', { fontFamily: UI_FONT, fontSize: '18px', color: '#8a8070' }).setOrigin(0.5));
   return root;
 }

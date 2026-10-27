@@ -227,21 +227,28 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     const st = ctx.bag();
     const col = RARITY_COLOR[g.rarity];
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
-    out.push(scene.add.rectangle(0, -60, 600, 540, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -290, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '34px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -245, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     // 第 48 輪：從上面往下排，5 行以上的稀有裝不再壓到副標
     const gl = gearLines(g, skillNames());
-    out.push(scene.add.text(0, -216, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 10 }).setOrigin(0.5, 0));
+    const lines = scene.add.text(0, -216, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 10 }).setOrigin(0.5, 0);
+    out.push(lines);
+    // 第 49 輪：卡片高度跟著行數走（以前固定 540，只有 3 行時中間空一大塊）
+    const linesBottom = -216 + lines.height;
+    const deltaY = linesBottom + 44;
+    const hasDelta = buy || isUpgrade(st, g);
+    const btnY = hasDelta ? deltaY + 100 : linesBottom + 90;
+    const cardBottom = btnY + 70;
+    out.splice(1, 0, scene.add.rectangle(0, (-330 + cardBottom) / 2, 600, cardBottom + 330, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     const now = bonusOf(st);
     const after = bonusOf(equipWith(st, g));
     const d = (k: 'atk' | 'hp' | 'def', name: string) => {
       const v = after[k] - now[k];
       return v === 0 ? `${name} ±0` : `${name} ${v > 0 ? '+' : ''}${v}`;
     };
-    if (buy) out.push(scene.add.text(0, 10, `${st.equip[g.slot] ? `換掉「${gearName(st.equip[g.slot]!)}」` : '換上後'}：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`, { fontFamily: UI_FONT, fontSize: '21px', color: isUpgrade(st, g) ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5));
-    else if (isUpgrade(st, g)) out.push(scene.add.text(0, 10, '這件比你身上的好！', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb07a' }).setOrigin(0.5));
+    if (buy) out.push(scene.add.text(0, deltaY, `${st.equip[g.slot] ? `換掉「${gearName(st.equip[g.slot]!)}」` : '換上後'}：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`, { fontFamily: UI_FONT, fontSize: '21px', color: isUpgrade(st, g) ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5));
+    else if (isUpgrade(st, g)) out.push(scene.add.text(0, deltaY, '這件比你身上的好！', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb07a' }).setOrigin(0.5));
     const back = () => {
       detail = null;
       render();
@@ -264,11 +271,11 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
         back();
       };
       const up = isUpgrade(st, g);
-      out.push(btn(up ? -170 : -130, 140, full ? '背包滿了' : coin >= p ? `購買（${p} 金）` : `金幣不夠（${p}）`, () => doBuy(false), ok && !up, 24, !ok));
-      if (up && ok) out.push(btn(60, 140, '買下並換上', () => doBuy(true), true, 24));
-      out.push(btn(up && ok ? 230 : 150, 140, '返回', back));
+      out.push(btn(up ? -170 : -130, btnY, full ? '背包滿了' : coin >= p ? `購買（${p} 金）` : `金幣不夠（${p}）`, () => doBuy(false), ok && !up, 24, !ok));
+      if (up && ok) out.push(btn(60, btnY, '買下並換上', () => doBuy(true), true, 24));
+      out.push(btn(up && ok ? 230 : 150, btnY, '返回', back));
     } else {
-      out.push(btn(-130, 140, `賣出（+${sellPrice(g)} 金）`, () => {
+      out.push(btn(-130, btnY, `賣出（+${sellPrice(g)} 金）`, () => {
         const r = spendCoin(ctx.rec(), -sellPrice(g));
         if (!r) return;
         ctx.save(r);
@@ -278,7 +285,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
         toast(`+${sellPrice(g)} 金`);
         back();
       }, true, 24));
-      out.push(btn(150, 140, '返回', back));
+      out.push(btn(150, btnY, '返回', back));
     }
     return out;
   }
