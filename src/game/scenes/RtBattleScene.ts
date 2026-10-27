@@ -1252,7 +1252,8 @@ export class RtBattleScene extends Phaser.Scene {
       // 選過「助」、這次會來道謝的人（以前只能剛好走過去才發現）→ 開場大字多一行提醒
       const wait = this.encThanks.length ? '\n✦ 你幫過的人在老地方等你' : '';
       const intro = (back ?? st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）') + wait;
-      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, intro.split('\n').length >= 4 ? 748 : 760, intro, '#ffd27a', intro.split('\n').length >= 4 ? 28 : 30, 2600).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
+      const nl = intro.split('\n').length; // 三行以上往上挪、四行字小一號（不壓到下方 MP 鍵）
+      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760 - Math.max(0, nl - 2) * 14, intro, '#ffd27a', nl >= 4 ? 28 : 30, tipMs(intro, 2600)).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
       this.time.delayedCall(6000, after);
     } else if (!this.bot) this.showHint();
   }
