@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 40 輪（10/27 06:50）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 41 輪（10/27 08:50）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,10 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 40 輪）
+## 現況（第 41 輪）
+- **畫面外箭頭／☰ 選單排版（D-168）**：`drawOffscreen` 的 `placed` 陣列（箭頭錯開、距離字錯開、避開 `this.mini`）；選單換地圖按鈕兩欄、紀錄太長縮字＋上推。**新增選單按鈕**時注意 360×640 的高度（GAME_HEIGHT 1280）。
+- **記號（D-169）**：`drawShroomMarks`（燼芯菇／星芒菇）、`drawWolfMarks`（首領狼／霧影狼）。霧狼圖是 3/4 正面。
+- 燼牌面板除錯鉤子：`sc.menu.getData('start')(true)`（下注開局）、`getData('end')(1)`（直接結束，0 你贏／1 輸／-1 平）。行囊自動分解合成一則（`salvageQ`）。
 - **染色立繪的記號（D-166）**：`THORN_BACK`（荊棘刺）、`STAR_MARKS`／`drawStarMarks`（星痕、彗尾、日蝕）、`FLAME_MANE`（火焰鬃毛）都在 `drawUnits` 立繪之後畫；霧狼圖朝右，前方 `dir = sp.flipX ? -1 : 1`。霧團（迷霧巡守）試過不好看，不要再試。
 - **護送遇敵（D-167）**：`escort.scared`（附近 `ESCORT_SCARED_TILES` 6 格有交戰中的怪就停）。
 - **提示停留時間**：`tipMs(text)`（`ui/tipText.ts`），長提示請用它算 `bigText` 的停留時間。
@@ -35,10 +38,11 @@
 
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
-2. （PROGRESS 約 240 行；超過 300 行就合併第 30～35 輪。）
+2. （PROGRESS 約 260 行；超過 300 行就合併第 30～35 輪。）
 3. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。護送遇敵已會停下（D-167）。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-4. **（下一輪建議主工作）「第一眼」第五段：中段的手感**。前四段已看完新存檔→狼王→抉擇→荊棘谷→裂谷 Boss→通關演出→星隕高原入口。還沒看過的：①**深夜**（暴怒狼王後解鎖）第一次進入的說明與畫面（壓暗層會不會太暗、HUD 字看不看得清楚，`jg_rt_mistwood = {"bossKills":1,"furyKills":1,"night":true}`）；②☰ 選單切暴怒版／深夜的說明文字在 360×640 會不會超出；③燼牌輸掉時的畫面與下注扣錢的提示；④行囊滿了自動分解時的提示。只修看得到的問題。截圖腳本照 PROGRESS 第 40 輪重寫 `screenshots/r40s.mjs`（最好用：參數帶 localStorage JSON 與要執行的 JS）。
-   - 其他還是染色立繪、沒有記號的怪：`wolf_pup`、`alpha_wolf`、`shade_wolf`（深夜）、`mist_warden`、`ember_shroom`、`star_shroom`、`thorn_queen`（狼王圖染綠，有鹿角，**不要**加荊棘王冠會和鹿角打架）。要加就仿 D-166，先截圖確認在深色地面看得到（霧團失敗過）。
+4. **（下一輪建議主工作）「第一眼」第六段：真的玩一段**。前五段看的是單一畫面；還沒看過的：①**Bot 示範**（☰ → 看 Bot 示範）時 HUD／提示會不會跟玩家模式一樣跳教學；②**死亡→營火醒來**在深夜與 Boss 戰中（Boss 戰死掉後 Boss 血條、慢動作會不會殘留）；③**技能變化二**（滿 5 級）面板在 360×640；④**記憶書**（☰ → 前世的記憶）翻頁在 360×640；⑤長弓／法杖在星隕高原的畫面（特效＋墜星會不會太亂）。只修看得到的問題。腳本用 `screenshots/r41s.mjs`（第 41 輪 PROGRESS 有用法；gitignored，新 session 要照著重寫）。
+   - 深夜的延遲大字在無頭瀏覽器等不到：要看就直接在頁面裡呼叫 `bigText`（從 `sc` 拿不到的話先跳過）。
+   - 還沒記號的：`wolf_pup`（小狼，可不做）、`mist_warden`（霧團失敗過，不要再試）、`thorn_queen`（不要加）。
 5. **README 截圖更新（選做，打磨期做也可以）**：抉擇、相遇的截圖已有；第一眼的修正（大字排隊）不用新截圖。
 6. **打磨期（11/4 起功能凍結）之前**：新手引導第 35 輪看過程式（`showHint`→開場大字→`tipOnce` 排隊，`tipBusy` 會擋重疊；升級大字已提示技能點），沒發現問題，真人回饋再調。旅商／燼牌對手烘成貼圖**不做**（有呼吸、眨眼動畫，而且已有畫面外剔除，只畫畫面內的 1～2 個）。README 舊截圖 9:16 有黑邊，可接受。
 7. **長弓／法杖的主角圖（選做）**：拿弓／拿杖的 Q 版圖（ART_REQUESTS，GPT 只剩 1，FOR_JACKY 第 17／19 題問）；真機聽 `SFX.bowShot`／`magicBolt`／`timeStop`／`voidOpen`。**不要再試「Bot 放風箏」**（D-148）。
