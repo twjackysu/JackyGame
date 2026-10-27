@@ -31,6 +31,11 @@ const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus
 /** 星骸守望者的召喚墜星（第 31 輪）：預告畫成藍白色＋從夜空落下的星星，落地時跟地圖的落星一樣爆開 */
 const METEOR_ATTACKS = new Set(['sentinel_meteor', 'sentinel_meteor2', 'eclipse_howl']);
 
+/** 大招鍵的字（第 46 輪）：四個字以上才拆兩行（「隕星術」以前會拆成「隕星／術」） */
+export function ultLabel(name: string): string {
+  return name.length >= 4 ? name.replace(/^(..)/, '$1\n') : name;
+}
+
 function lerpColor(a: number, b: number, t: number): number {
   const m = (sh: number) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t);
   return (m(16) << 16) | (m(8) << 8) | m(0);
@@ -4778,7 +4783,7 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / ult.cooldownTicks), false).fillPath();
       }
-      this.btnText[5]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : ok ? skillDef(s, 'blade_storm')!.name.replace(/^(..)/, '$1\n') : `MP\n${p.mp}/${need}`);
+      this.btnText[5]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : ok ? ultLabel(skillDef(s, 'blade_storm')!.name) : `MP\n${p.mp}/${need}`);
       this.btnText[5]!.setColor(ok ? '#ffffff' : '#c890b0');
     }
     // 藥水：剩餘數量＋冷卻；血少於 40% 時閃爍提醒
