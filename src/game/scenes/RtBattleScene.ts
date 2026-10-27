@@ -1140,10 +1140,10 @@ export class RtBattleScene extends Phaser.Scene {
     const ctx = tex.getContext();
     const gr = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
     gr.addColorStop(0, 'rgba(6,10,36,0)');
-    gr.addColorStop(0.1, 'rgba(6,10,36,0.04)');
-    gr.addColorStop(0.28, 'rgba(6,10,36,0.4)');
-    gr.addColorStop(0.5, 'rgba(6,10,36,0.58)');
-    gr.addColorStop(1, 'rgba(6,10,36,0.66)');
+    gr.addColorStop(0.1, 'rgba(6,10,36,0.05)');
+    gr.addColorStop(0.28, 'rgba(6,10,36,0.5)');
+    gr.addColorStop(0.5, 'rgba(6,10,36,0.68)');
+    gr.addColorStop(1, 'rgba(6,10,36,0.74)');
     ctx.fillStyle = gr;
     ctx.fillRect(0, 0, 512, 512);
     tex.refresh();
