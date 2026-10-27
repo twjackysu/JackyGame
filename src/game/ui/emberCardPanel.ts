@@ -6,7 +6,7 @@ import { loadEncounters, rivalEncounterEcho } from '../encounters';
 import { SFX } from '../../audio/sfx';
 import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
-import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 
@@ -271,15 +271,15 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     });
     const sc = sel >= 0 ? me.hand[sel] : undefined;
     const info = sc ? `${CARDS[sc]!.name}${CARDS[sc]!.power ? `（${CARDS[sc]!.power} 點・${CARDS[sc]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[sc]!.desc ? `：${CARDS[sc]!.desc}` : ''}` : myTurn ? (coach(game) ?? '點一張牌看說明，再點一次打出') : '';
-    items.push(scene.add.text(0, 420, info, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
+    items.push(scene.add.text(0, 420 + infoDy(), info, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
     const canPlay = myTurn && sel >= 0 && legalMoves(game, 0).some((m) => m.type === 'play' && m.card === sel);
     if (sc && myTurn && !canPlay && CARDS[sc]!.ability === 'horn') {
       // 戰號不能吹在空排（第 28 輪）：說明為什麼按不下去
-      items.push(scene.add.text(0, 452, '現在沒有能加倍的牌（傳奇不吃戰號）——先出單位牌再吹', { fontFamily: UI_FONT, fontSize: '17px', color: '#ff9a8a' }).setOrigin(0.5));
+      items.push(scene.add.text(0, 452 + infoDy(), '現在沒有能加倍的牌（傳奇不吃戰號）——先出單位牌再吹', { fontFamily: UI_FONT, fontSize: '17px', color: '#ff9a8a' }).setOrigin(0.5));
     }
-    items.push(btn(-200, 500, '出牌', () => play(sel), true, 24, !canPlay));
-    items.push(btn(20, 500, '放棄這一局', () => pass(), false, 22, !myTurn));
-    items.push(btn(230, 500, staked ? '認輸離開' : '離開', () => leave(), false, 22));
+    items.push(btn(-200, 500 + btnDy(), '出牌', () => play(sel), true, 24, !canPlay));
+    items.push(btn(20, 500 + btnDy(), '放棄這一局', () => pass(), false, 22, !myTurn));
+    items.push(btn(230, 500 + btnDy(), staked ? '認輸離開' : '離開', () => leave(), false, 22));
     root.add(items);
   }
 
@@ -485,7 +485,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     }
     box.add(scene.add.text(62 * k, -110 * k, c.row === undefined ? '特殊' : c.row === 0 ? '前排' : '後排', { fontFamily: UI_FONT, fontSize: `${20 * k}px`, color: hexOf(col.edge) }).setOrigin(0.5));
     // 中間的紋章：依能力畫不同的符號
-    const sym = c.ability === 'hero' ? '★' : c.ability === 'scorch' ? '✹' : c.ability === 'echo' ? '❖' : c.ability === 'bond' ? '∞' : c.ability === 'scout' ? '◎' : c.ability === 'horn' ? '♫' : c.row === 0 ? '⚔' : c.row === 1 ? '➶' : '❄';
+    const sym = c.ability === 'hero' ? '★' : c.ability === 'scorch' ? '✹' : c.ability === 'echo' ? '❖' : c.ability === 'bond' ? '∞' : c.ability === 'scout' ? '◎' : c.ability === 'horn' ? '♫' : c.row === 0 ? '⚔' : c.row === 1 ? (/術|先知|巫|法/.test(c.name) ? '✦' : '➶') : '❄'; // 第 47 輪：燼火術士、星語先知不再畫成弓箭
     box.add(scene.add.text(0, -30 * k, sym, { fontFamily: UI_FONT, fontSize: `${70 * k}px`, color: hexOf(col.edge) }).setOrigin(0.5).setAlpha(0.85));
     box.add(scene.add.text(0, 72 * k, c.name, { fontFamily: TITLE_FONT, fontSize: `${30 * k}px`, color: '#f8ecd8', stroke: '#000', strokeThickness: 4 * k }).setOrigin(0.5));
     if (c.desc) box.add(scene.add.text(0, 112 * k, c.desc.split('：')[0]!, { fontFamily: UI_FONT, fontSize: `${18 * k}px`, color: '#ffd27a' }).setOrigin(0.5));
@@ -495,7 +495,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   /** 贏到新牌：暗幕＋旋轉光芒＋翻牌（點一下關掉） */
   function reveal(id: string): void {
     const ov = scene.add.container(0, 0);
-    const dim = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.78).setInteractive();
+    // 第 47 輪：0.78 時底下結算的「你贏了！」大字會從說明字後面透出來
+    const dim = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.9).setInteractive();
     const rays = scene.add.graphics();
     const hero = CARDS[id]!.ability === 'hero';
     const rc = hero ? 0xffd27a : cardColor(id).edge;
@@ -506,7 +507,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     rays.setPosition(0, -140);
     const card = bigCard(0, -140, id, 1.25);
     const t1 = scene.add.text(0, -380, hero ? '傳奇卡！' : '獲得新牌！', { fontFamily: TITLE_FONT, fontSize: '54px', color: hero ? '#ffd27a' : '#ffffff', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5);
-    const t2 = scene.add.text(0, 120, `「${CARDS[id]!.name}」加進你的牌組\n點一下繼續`, { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc8', align: 'center', lineSpacing: 8 }).setOrigin(0.5);
+    const t2 = scene.add.text(0, 120, `「${CARDS[id]!.name}」加進你的牌組\n點一下繼續`, { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc8', align: 'center', lineSpacing: 8, stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
     ov.add([dim, rays, card, t1, t2]);
     root.add(ov);
     card.setScale(0.01, 1.25);
@@ -728,6 +729,11 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   });
   return root;
 }
+
+/** 長螢幕（第 47 輪）：出牌鍵往下挪到拇指好按的地方、說明字跟著往下一點（360×640 時都是 0） */
+// （寫成函式：模組載入時 config 可能還沒初始化——循環 import）
+const btnDy = (): number => Math.round(TALL * 0.45);
+const infoDy = (): number => Math.round(TALL * 0.25);
 
 function hexOf(n: number): string {
   return `#${n.toString(16).padStart(6, '0')}`;

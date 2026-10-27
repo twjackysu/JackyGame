@@ -9,7 +9,7 @@ import { BAG_MAX, bonusOf, equipWith, isUpgrade, unequip, type BagState } from '
 
 export { BAG_MAX, bonusOf, isUpgrade, type BagState } from '../rtBag';
 
-import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 
 const PER_PAGE = 8;
@@ -84,11 +84,14 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
       }, '', slot));
     });
     // 背包清單
-    const pages = Math.max(1, Math.ceil(st.bag.length / PER_PAGE));
+    // 長螢幕（第 47 輪）：多放幾列，翻頁鍵與按鈕跟著往下（以前 390×844 中間空一大塊、按鈕浮在畫面中央）
+    const per = PER_PAGE + Math.max(0, Math.floor((TALL * 0.9) / 68));
+    const dy = (per - PER_PAGE) * 68;
+    const pages = Math.max(1, Math.ceil(st.bag.length / per));
     page = Math.min(page, pages - 1);
     const w = ctx?.wallet();
     items.push(scene.add.text(0, -338, `背包 ${st.bag.length}/${BAG_MAX}　▲＝比身上的好${w ? `　粉塵 ${w.dust}・結晶 ${w.crystal}` : ''}`, { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));
-    const list = st.bag.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+    const list = st.bag.slice(page * per, page * per + per);
     if (!list.length) items.push(scene.add.text(0, -150, '還沒有裝備\n打倒怪物有機會掉落；首領常掉、狼王必掉', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
     list.forEach((g, i) => {
       items.push(...cell(0, -290 + i * 68, 640, 60, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}　Lv${g.ilvl}`, () => {
@@ -97,17 +100,17 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
       }, isUpgrade(st, g) ? '▲' : ''));
     });
     if (pages > 1) {
-      items.push(btn(-150, 270, '◀', () => {
+      items.push(btn(-150, 270 + dy, '◀', () => {
         page = (page + pages - 1) % pages;
         render();
       }));
-      items.push(scene.add.text(0, 270, `${page + 1} / ${pages}`, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff' }).setOrigin(0.5));
-      items.push(btn(150, 270, '▶', () => {
+      items.push(scene.add.text(0, 270 + dy, `${page + 1} / ${pages}`, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff' }).setOrigin(0.5));
+      items.push(btn(150, 270 + dy, '▶', () => {
         page = (page + 1) % pages;
         render();
       }));
     }
-    items.push(btn(-150, 360, '全部換成最好的', () => {
+    items.push(btn(-150, 360 + dy, '全部換成最好的', () => {
       let next = st;
       for (const slot of GEAR_SLOTS) {
         const best = next.bag.filter((g) => g.slot === slot).sort((a, b) => gearScore(b, SWORDSMAN.hp, SWORDSMAN.atk) - gearScore(a, SWORDSMAN.hp, SWORDSMAN.atk))[0];
@@ -116,7 +119,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
       if (next !== st) change(next);
       render();
     }));
-    items.push(btn(150, 360, '完成', () => onClose(), true, 28));
+    items.push(btn(150, 360 + dy, '完成', () => onClose(), true, 28));
     if (detail) items.push(...detailCard(detail));
     root.add(items);
   }
