@@ -286,7 +286,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     // 抉擇（D-157）與路上的相遇（D-159）的回聲：兩句都有的話隨機挑一句
     const echoes = [rivalEcho(who.id, loadChoices()), rivalEncounterEcho(who.id, loadEncounters())].filter((x): x is string => !!x);
     const echo = echoes.length ? echoes[Math.floor(echoPick * echoes.length)]! : null;
-    items.push(scene.add.text(30, -545, `${who.short}：${echo && helloEcho ? echo : who.hello}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', wordWrap: { width: 520, useAdvancedWrap: true } }).setOrigin(0.5));
+    const hello = scene.add.text(30, -545, `${who.short}：${echo && helloEcho ? echo : who.hello}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', wordWrap: { width: 520, useAdvancedWrap: true } }).setOrigin(0.5);
+    // 招呼語兩行時整組往上挪，打法那行不壓到頁籤
+    if (hello.height > 40) hello.setY(-545 - (hello.height - 28) / 2);
+    items.push(hello, scene.add.text(30, -514, `打法：${who.blurb}`, { fontFamily: UI_FONT, fontSize: '17px', color: '#b8a890' }).setOrigin(0.5));
     // 對手：三個頁籤；不在這張地圖的對手顯示去哪裡找（D-129）
     here = opponentsAt(ctx.map, secretOpen());
     // 通關後地圖的對手（D-139）：在他的營火、或交手過才列出來；五個頁籤時縮窄一點
@@ -309,7 +312,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
           render();
         });
       items.push(t);
-      items.push(scene.add.text(x, -428, ok ? o.blurb : o.secret ? '贏過前三位後出現' : `在${worldMap(o.map ?? '')?.name ?? '別的地圖'}的營火`, { fontFamily: UI_FONT, fontSize: '14px', color: ok ? '#a89880' : '#6a6054', align: 'center', wordWrap: { width: step - 8, useAdvancedWrap: true } }).setOrigin(0.5, 0));
+      // 第 45 輪：以前每個頁籤下面都塞一行 14px 說明（手機上約 7px、互相黏在一起）→ 只有還沒解鎖的寫「在哪」，選中的對手打法寫在招呼語下面
+      if (!ok) items.push(scene.add.text(x, -431, o.secret ? '贏過前三位' : `${worldMap(o.map ?? '')?.name ?? '別的地圖'}營火`, { fontFamily: UI_FONT, fontSize: '16px', color: '#7a7064', align: 'center', wordWrap: { width: step - 8, useAdvancedWrap: true } }).setOrigin(0.5, 0));
     });
     const rules = [
       '三局兩勝。雙方各抽 10 張牌，整場不補牌。',
