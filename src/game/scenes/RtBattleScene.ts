@@ -338,6 +338,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.cameras.main.setZoom(1); // 保險：舊版 Boss 登場會推鏡頭
     this.blinkHinted = new Set(); // 場景重開不會重跑欄位初始值
     this.rareQueue = [];
+    this.salvageQ = { n: 0, dust: 0, name: '' };
     this.afterFinale = [];
     this.streakHinted = false;
     this.arrowLabels = [];
@@ -767,6 +768,8 @@ export class RtBattleScene extends Phaser.Scene {
   /** 撿到裝備：用種子產生數值、放進行囊、立刻存檔；稀有以上大字 */
   /** 等著合成一則「稀有裝備！」大字的（250ms 內撿到的） */
   private rareQueue: { name: string; night: boolean; col: string }[] = [];
+  /** 250ms 內自動分解的普通裝（合成一則） */
+  private salvageQ = { n: 0, dust: 0, name: '' };
 
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
@@ -777,6 +780,7 @@ export class RtBattleScene extends Phaser.Scene {
     const r = addWithAutoSalvage(this.bagSt, g);
     if (!r) {
       floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, '行囊滿了！（☰ → 行囊整理）', { color: '#ff9a8a', size: 24 });
+      this.tipOnce('jg_tip_bagfull', '行囊滿了，裝備撿不起來！\n☰ → 行囊：把用不到的精良／稀有分解換粉塵', '#ff9a8a');
       return;
     }
     this.bagSt = r.st;
@@ -787,7 +791,17 @@ export class RtBattleScene extends Phaser.Scene {
         saveRecord(this.stageId, w);
         this.dustBase = walletOf(w).dust;
       }
-      floatNumber(this, this.sx(p.x), this.sy(p.y) - 150, `行囊滿・自動分解 ${gearName(r.salvaged)} +${r.dust} 粉塵`, { color: '#c8c0a8', size: 20 });
+      // 第 41 輪：Boss 一次掉好幾件時合成一則（以前每件一行、疊成一團）；第一次說明規則
+      const sq = this.salvageQ;
+      if (!sq.n)
+        this.time.delayedCall(250, () => {
+          const q = this.salvageQ;
+          const pp = playerOf(this.s);
+          floatNumber(this, this.sx(pp.x), this.sy(pp.y) - 150, q.n > 1 ? `行囊滿・自動分解普通裝 ×${q.n}　+${q.dust} 粉塵` : `行囊滿・自動分解 ${q.name} +${q.dust} 粉塵`, { color: '#c8c0a8', size: 22 });
+          this.salvageQ = { n: 0, dust: 0, name: '' };
+        });
+      this.salvageQ = { n: sq.n + 1, dust: sq.dust + r.dust, name: gearName(r.salvaged) };
+      this.tipOnce('jg_tip_salvage', '行囊滿了（60 件）：之後撿到裝備\n會自動分解最差的普通裝換粉塵', '#d8d0b8');
       if (r.salvaged.uid === g.uid) return;
     }
     const col = `#${RARITY_COLOR[rarity].toString(16).padStart(6, '0')}`;

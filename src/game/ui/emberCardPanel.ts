@@ -448,7 +448,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     const w = game.winner;
     const msg = w === 0 ? '你贏了！' : w === 1 ? `${who.short}贏了` : '平手';
     const line = prizeCard ? '「這張牌歸你了……好好用它。」' : w === 0 ? who.lose : w === 1 ? who.win : '「勢均力敵，再來？」';
-    const prize = (staked ? (w === 0 ? `＋${staked * 2} 金` : w === -1 ? `退回 ${staked} 金` : `輸掉 ${staked} 金`) : '練習局') + (prizeCard ? `　＋新牌「${CARDS[prizeCard]!.name}」` : '');
+    // 第 41 輪：下注局附上手上剩多少金幣（輸了才知道還能不能再賭）
+    const prize = (staked ? `${w === 0 ? `＋${staked * 2} 金` : w === -1 ? `退回 ${staked} 金` : `輸掉 ${staked} 金`}（手上 ${ctx.coin()} 金）` : '練習局') + (prizeCard ? `　＋新牌「${CARDS[prizeCard]!.name}」` : '');
     items.push(scene.add.text(0, 120, msg, { fontFamily: TITLE_FONT, fontSize: '64px', color: w === 0 ? '#ffd27a' : w === 1 ? '#ff9a8a' : '#c8d0f0', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5));
     items.push(scene.add.text(0, 200, `${game.results.map((r, i) => `第 ${i + 1} 局 ${r === 0 ? '勝' : r === 1 ? '負' : '平'}`).join('　')}\n${prize}\n${who.short}：${line}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
     items.push(btn(-120, 470, '再來一局', () => {
@@ -532,7 +533,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     prizeCard = undefined;
     revealed = false;
     sel = -1;
-    lastLog = g.turn === 0 ? '擲硬幣：你先手' : `擲硬幣：${who.short}先手`;
+    lastLog = `${staked ? `付出賭注 ${staked} 金・` : ''}${g.turn === 0 ? '擲硬幣：你先手' : `擲硬幣：${who.short}先手`}`;
     fresh = null;
     render();
     if (g.turn === 1) aiTurn(1000);
@@ -708,6 +709,16 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   root.setData('echo', echoFx);
   root.setData('reveal', reveal); // 截圖／除錯用
   root.setData('burn', burnFx);
+  // 截圖用：直接開局／直接結束（w：0 你贏、1 對手贏、-1 平手）
+  root.setData('start', start);
+  root.setData('end', (w: number) => {
+    if (!g) return;
+    g.over = true;
+    g.winner = w;
+    g.results = w === -1 ? [0, 1, -1] : [w, 1 - w, w];
+    finishIfOver();
+    render();
+  });
   return root;
 }
 
