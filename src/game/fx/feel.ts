@@ -138,7 +138,7 @@ export function bigText(
 ): Phaser.GameObjects.Text {
   const t = scene.add
     .text(x, y, text, {
-      fontFamily: TITLE_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: '#140a04', strokeThickness: 10,
+      fontFamily: TITLE_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: '#140a04', strokeThickness: 10, align: 'center', // 第 43 輪：多行大字以前靠左（第二行短的時候歪一邊）
     })
     .setOrigin(0.5)
     .setDepth(BANNER_DEPTH)

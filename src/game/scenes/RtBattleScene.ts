@@ -753,7 +753,8 @@ export class RtBattleScene extends Phaser.Scene {
     let out: RtRecord = { ...rec, bounty: r.st };
     r.completed.forEach((b, i) => {
       out = spend(out, -b.reward.dust, -b.reward.crystal) ?? out;
-      const name = ENEMIES[b.target]?.name ?? b.target;
+      // 第 43 輪：以前一律寫懸賞池的原名（在燼紅裂谷打完燼芯菇卻顯示「荊棘射手」）→ 用這張圖剛打倒的那種；精英類照懸賞板寫「首領級精英」
+      const name = b.target === 'alpha_wolf' ? BOUNTY_LABEL.alpha_wolf! : ENEMIES[defId]?.name ?? ENEMIES[b.target]?.name ?? b.target;
       const got = [b.reward.dust ? `粉塵 +${b.reward.dust}` : '', b.reward.crystal ? `結晶 +${b.reward.crystal}` : ''].filter(Boolean).join('・');
       this.time.delayedCall(600 + i * 1400, () => {
         SFX.itemGet();
