@@ -166,8 +166,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   const portrait = scene.add.graphics();
   const drawPortrait = (): void => {
     portrait.clear();
-    if (who.id === 'merchant') drawMerchant(portrait, -282, -560, 96, scene.time.now);
-    else drawCardRival(portrait, who.id, -282, -560, 90, scene.time.now);
+    // 360×640（GAME_HEIGHT 1280）時 -560 會讓頭頂超出畫面上緣（第 46 輪）：腳的位置至少離上緣 108
+    const py = Math.max(-560, -GAME_HEIGHT / 2 + 108);
+    if (who.id === 'merchant') drawMerchant(portrait, -282, py, 96, scene.time.now);
+    else drawCardRival(portrait, who.id, -282, py, 90, scene.time.now);
   };
   scene.events.on('update', drawPortrait);
   root.once('destroy', () => {
@@ -313,7 +315,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
         });
       items.push(t);
       // 第 45 輪：以前每個頁籤下面都塞一行 14px 說明（手機上約 7px、互相黏在一起）→ 只有還沒解鎖的寫「在哪」，選中的對手打法寫在招呼語下面
-      if (!ok) items.push(scene.add.text(x, -431, o.secret ? '贏過前三位' : `${worldMap(o.map ?? '')?.name ?? '別的地圖'}營火`, { fontFamily: UI_FONT, fontSize: '16px', color: '#7a7064', align: 'center', wordWrap: { width: step - 8, useAdvancedWrap: true } }).setOrigin(0.5, 0));
+      if (!ok) items.push(scene.add.text(x, -431, o.secret ? '贏過前三位' : `${worldMap(o.map ?? '')?.name ?? '別的地圖'}營火`, { fontFamily: UI_FONT, fontSize: '18px', color: '#9a8e80', align: 'center', wordWrap: { width: step - 8, useAdvancedWrap: true } }).setOrigin(0.5, 0));
     });
     const rules = [
       '三局兩勝。雙方各抽 10 張牌，整場不補牌。',

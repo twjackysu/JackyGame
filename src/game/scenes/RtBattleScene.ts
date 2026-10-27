@@ -2315,7 +2315,8 @@ export class RtBattleScene extends Phaser.Scene {
         if (!this.bot) {
           const tg0 = this.s.telegraphs.find((t) => t.ownerId === e.owner && t.attackId === e.attack);
           if (tg0?.blockable) this.tipOnce('jg_tip_block', `黃框＝可以格擋！敵人打到前按「${skillDef(this.s, 'parry')?.name ?? '格擋反擊'}」`, '#ffe08a');
-          else this.tipOnce('jg_tip_tele', '紅色範圍填滿就命中——走出去！', '#ff9a8a');
+          // 墜星類畫成藍白色（D-177）：不要拿它講「紅色範圍」，等第一次真的紅圈再說
+          else if (!METEOR_ATTACKS.has(e.attack)) this.tipOnce('jg_tip_tele', '紅色範圍填滿就命中——走出去！', '#ff9a8a');
         }
         // 精英詞綴招式（D-118）：怪頭上飄招式名（詞綴顏色），一看就知道要閃還是格擋
         if (e.attack.startsWith('affix_')) {
