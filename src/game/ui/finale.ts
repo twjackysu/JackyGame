@@ -190,6 +190,9 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
   // 4. 製作名單（往上捲）
   steps.push(() => {
     clear();
+    // 第 47 輪：名單從畫面下緣捲上來，會一路壓過「點一下畫面繼續」→ 捲動時先淡掉（點一下照樣能跳過）
+    scene.tweens.killTweensOf(hint);
+    scene.tweens.add({ targets: hint, alpha: 0, duration: 300 });
     const roll = scene.add.container(0, GAME_HEIGHT + 40 - TALL / 2);
     let y = 0;
     const add = (t: Phaser.GameObjects.Text, gap: number): void => {
