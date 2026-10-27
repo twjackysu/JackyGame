@@ -2056,6 +2056,8 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
   private menuBanners(): void {
+    // 第 47 輪：開場操作說明框（depth 70）會透過面板的半透明遮罩疊在「技能點」標題上 → 面板開著時一起藏起
+    if (this.hint?.active) this.hint.setVisible(!this.menu?.active);
     if (this.menu?.active) {
       for (const o of this.children.list) {
         if (o instanceof Phaser.GameObjects.Text && o.depth === BANNER_DEPTH && o.visible) {

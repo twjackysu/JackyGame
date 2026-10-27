@@ -208,7 +208,7 @@ export class TitleScene extends Phaser.Scene {
 
     // Version.
     this.add
-      .text(cx, GAME_HEIGHT - 48, t('title.version', { version: __APP_VERSION__ }), {
+      .text(cx, GAME_HEIGHT - 30, t('title.version', { version: __APP_VERSION__ }), {
         fontFamily: UI_FONT,
         fontSize: '22px',
         color: '#8a8fb5',

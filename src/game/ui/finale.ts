@@ -41,7 +41,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
   const fx = highFx();
   const veil = scene.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x05040a, 1).setAlpha(0).setInteractive();
   root.add(veil);
-  scene.tweens.add({ targets: veil, alpha: 0.94, duration: 1400 });
+  scene.tweens.add({ targets: veil, alpha: 0.985, duration: 1400 }); // 第 47 輪：0.94 時底下的懸賞板、技能鍵字會透出來
   playMusic('title', 2);
 
   // 背景：緩慢旋轉的星印＋往上飄的星燼

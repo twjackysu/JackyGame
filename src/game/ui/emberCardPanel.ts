@@ -182,7 +182,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     const S = game.sides[side]!;
     const weather = game.weather[row];
     items.push(scene.add.rectangle(0, y, 680, 104, weather ? (row === 0 ? 0x1a2a3a : 0x2a2a30) : 0x0e0a06, 0.62).setStrokeStyle(2, side === 0 ? 0x8a6a3a : 0x5a4a6a, 0.8));
-    items.push(scene.add.text(-330, y - 36, `${side === 0 ? '你的' : who.short}${ROW_NAME[row]}${weather ? (row === 0 ? '・霜寒' : '・濃霧') : ''}`, { fontFamily: UI_FONT, fontSize: '15px', color: weather ? '#9fd8ff' : '#a89880' }).setOrigin(0, 0.5));
+    items.push(scene.add.text(-330, y - 36, `${side === 0 ? '你的' : who.short}${ROW_NAME[row]}${weather ? (row === 0 ? '・霜寒' : '・濃霧') : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: weather ? '#9fd8ff' : '#a89880' }).setOrigin(0, 0.5));
     if (S.horn[row]) items.push(scene.add.text(-330, y + 10, '戰號×2', { fontFamily: UI_FONT, fontSize: '20px', color: '#ffd27a' }).setOrigin(0, 0.5));
     const n = S.rows[row].length;
     const gap = Math.min(64, 480 / Math.max(1, n));
@@ -195,7 +195,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
       const p = cardPower(game, side, row, id);
       const base = CARDS[id]!.power;
       card.add(scene.add.text(0, -10, `${p}`, { fontFamily: TITLE_FONT, fontSize: '28px', color: p > base ? '#7dffb0' : p < base ? '#ff8a7a' : '#ffffff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5));
-      card.add(scene.add.text(0, 30, CARDS[id]!.name.slice(0, 2), { fontFamily: UI_FONT, fontSize: '14px', color: '#e8dcc8' }).setOrigin(0.5));
+      card.add(scene.add.text(0, 30, CARDS[id]!.name.slice(0, 2), { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc8' }).setOrigin(0.5));
       items.push(card);
       if (pop) {
         // 莫托的牌從上方（他的手）飛進來；你的牌從下方手牌區彈上來
