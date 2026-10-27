@@ -1,5 +1,23 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-10-27 10:12–10:50（台北）第 42 輪 — 「第一眼」第六段：Bot 示範不用掉教學（D-171）、記憶書分頁、Bot 撿星光碎片（D-170）
+**背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠。照 NEXT 第 4 項（第一眼・第六段）。
+
+**做了什麼**
+- **①Bot 示範**：發現 `tipOnce` 在 Bot 示範也會觸發並寫進 localStorage → 玩家先看 Bot 示範，格擋／撿裝備等教學之後就不會再出現。改成 Bot 示範完全不提示；「點怪物開打」也不在 Bot 示範顯示。
+- **②Boss 戰中死亡→營火醒來**：Boss 血條會收掉、沒有慢動作殘留；但「黃框＝可以格擋」和 Boss 攻略提示上下貼在一起（間距 6px）→ 置中大字間距 16；回營火說明和「點怪物開打」疊在一起 → 說明期間收起後者。
+- **③技能變化面板**（三種武器，360×640）：沒問題。
+- **④前世的記憶**：12 段全想起時 360×640 最後一段蓋到「返回」→ 分頁（D-171）。
+- **⑤長弓／法杖在星隕高原**（Bot expert）：特效＋墜星不算太亂；地區名大字和上緣箭頭距離字擠在同一行 → 往下挪 55。
+- **D-170**：Bot 會撿星光碎片（NEXT 第 8 項）。
+- **路上的相遇（360×640，採藥婆婆護送）**：選「助」後的大字一行 26 字，左右被切掉 → 相遇與抉擇的 `after` 都先 `wrapTip`，新測試 `tests/encounter-text.test.ts` 鎖住每行 ≤ 22 字；抉擇面板遮罩 0.88→0.94（後面的開場大字、地區名透出來和卡片混在一起）。護送的婆婆跟著走正常；少年獵人的道謝卡（下次進地圖）也看過，沒問題。
+
+**驗證**：每次提交前 build＋`npx vitest run --exclude 'tests/zz-*'`（280 → **282 項**）。核心只改了 `sim.ts` 的 Bot（只在有碎片時生效＝星隕高原），沒重跑 90 場 stateHash；`tests/zz-shard.test.ts`（gitignored）跑新舊兩版各 18 場比較（數字在 D-170）。Playwright（vite preview）`screenshots/r42s.mjs <WxH> <out> <stage|title> <localStorage JSON> <evaluate JS> [間隔ms] [張數] [進場等待ms]`：會清 localStorage、設 `jg_prologue_seen`（**不再自動設劍**，要自己帶 `jg_weapon`）。Boss 戰死亡：傳送到 `wolf_king` 旁＋`p.hp=1`＋timeScale 6；Bot 示範：`__game.scene.getScene('RtBattle').scene.restart({stage, bot:'expert'})`；記憶書：`jg_memories` 填 id 陣列後 `sc.openMemoryBook()`；技能點：等級最高 20（19 點），點數超過會整個退回。相遇：`screenshots/r42e.mjs`（傳送到 `mw_herbs` 旁 (19,69) → 點「助」頁面 (55,440)、「就這麼做」(180,555)，360×640）。
+
+**問題**：最後一個程式 commit（ac37086）的 CI 收尾時還在跑（Pages／APK 已綠），下一輪開頭確認。`pkill -x node -f` 把 vite preview 也殺了（NEXT 早就寫了不要 pkill，又踩到）。
+
+**「好玩嗎？」**：先看 Bot 示範再自己玩的新玩家，教學提示不會被 Bot 吃掉；Bot 示範打星隕高原會主動撿碎片回魔，看起來更像「會玩的人」。
+
 ## 2026-10-27 08:14–08:50（台北）第 41 輪 — 「第一眼」第五段：深夜、☰ 選單、燼牌輸局、行囊滿；箭頭避開小地圖（D-168）、菇與森林狼的記號（D-169）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠。照 NEXT 第 4 項（第一眼・第五段）。
 
