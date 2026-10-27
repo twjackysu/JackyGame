@@ -4533,9 +4533,10 @@ export class RtBattleScene extends Phaser.Scene {
       // 同方向好幾隻精英／Boss：大箭頭沿著邊緣錯開，不疊成一團
       if (elite) {
         const onTop = cy <= top + 1;
-        for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.ax - cx) < 40 && Math.abs(q.ay - cy) < 40); k++) {
-          if (onTop) cx = Math.min(GAME_WIDTH - M, cx + 44);
-          else cy = Math.min(yMax, cy + 44);
+        // 第 49 輪：40／44 → 56／60（大箭頭含光圈直徑約 52，被小地圖推過來的兩個箭頭以前幾乎貼在一起）
+        for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.ax - cx) < 56 && Math.abs(q.ay - cy) < 56); k++) {
+          if (onTop) cx = Math.min(GAME_WIDTH - M, cx + 60);
+          else cy = Math.min(yMax, cy + 60);
         }
       }
       const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
