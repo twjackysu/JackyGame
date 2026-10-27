@@ -64,8 +64,8 @@
 | ![技能變化](docs/screenshots/33-skill-variants.jpg) | ![星落一閃](docs/screenshots/34-starfall.jpg) | ![荊棘谷](docs/screenshots/35-thornvale-marsh.jpg) |
 | **棘冠狼后（根系環預告）** | **營火行商（自由買賣）** | **狼后登場＋地面荊棘** |
 | ![棘冠狼后](docs/screenshots/36-thorn-queen.jpg) | ![行商](docs/screenshots/37-rt-shop.jpg) | ![狼后登場](docs/screenshots/38-queen-thorns.jpg) |
-| **荊棘巡獵者（巡邏的精英＋視線範圍）** | **營火旁的旅商莫托** | |
-| ![荊棘巡獵者](docs/screenshots/39-thorn-stalker.jpg) | ![旅商](docs/screenshots/40-camp-merchant.jpg) | |
+| **荊棘巡獵者（巡邏的精英＋視線範圍）** | **營火旁的旅商莫托** | **狼后衝鋒撞牆：暈眩，趁現在！** |
+| ![荊棘巡獵者](docs/screenshots/39-thorn-stalker.jpg) | ![旅商](docs/screenshots/40-camp-merchant.jpg) | ![撞牆暈眩](docs/screenshots/86-queen-wall-stun.jpg) |
 | **迷霧巡守（霧語森林白天的巡邏精英）** | **行商「為你挑選」** | **霜旋（冰凍狼群）** |
 | ![迷霧巡守](docs/screenshots/41-mist-warden.jpg) | ![為你挑選](docs/screenshots/42-shop-pick.jpg) | ![霜旋](docs/screenshots/43-frost-whirl.jpg) |
 | **技能第二種變化** | **燼紅裂谷・熔岩口噴發** | **燼心岩王的熔岩裂地** |
