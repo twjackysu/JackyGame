@@ -1746,6 +1746,9 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(this.s);
     const z = zs.find((q) => p.x >= q.x0 && p.x < q.x1 && p.y >= q.y0 && p.y < q.y1);
     if (!z || z.name === this.zoneName) return;
+    // 第 52 輪：走進第二個地區時開場說明框還在（荊棘谷 8 秒就進毒沼）→ 說明框、地區名稱、地區說明、「見切射擊！」四組字同時擠在上半部。
+    // 已經走到下一區＝學會走路了，直接收起說明框，地區名稱照原本位置。開場那一區（zoneName 還是 null）不收。
+    if (this.zoneName !== null && this.hint?.active) this.dismissHint();
     this.zoneName = z.name;
     // 第 42 輪：往下挪 55（以前 180 和畫面上緣的箭頭距離字「55m」擠在同一行）
     // 第 48 輪：開場說明框（y 198～302）還在時整組往下挪，以前地區名稱和「綠色毒沼…」壓在說明框底下
