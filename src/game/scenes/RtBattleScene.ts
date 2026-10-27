@@ -1425,6 +1425,8 @@ export class RtBattleScene extends Phaser.Scene {
   private streakHint(): void {
     const h = STAGES[this.stageId]?.hiddenElite;
     if (!h || this.streakHinted || this.bot || (this.s.streak ?? 0) < Math.ceil((h.streak * 2) / 3)) return;
+    // 打 Boss 時先不提（第 45 輪：燼紅裂谷打岩王打到一半跳出「首領會被引出來」，和 Boss 提示同一個高度）
+    if (enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat')) return;
     this.streakHinted = true;
     bigText(this, GAME_WIDTH / 2, 600, '（記得……不倒下一直打下去，首領會被引出來……）', '#d8c8ff', 26, 2200);
   }
@@ -2391,7 +2393,8 @@ export class RtBattleScene extends Phaser.Scene {
           this.cameras.main.shake(110, 0.004);
           SFX.hitHeavy();
         }
-        if (!this.ventHinted && near && !this.bot) {
+        // 開場大字還在時先不說（第 45 輪：星隕高原開場 4 秒內就砸第一顆星，兩段大字疊在一起）；下一次噴發再說
+        if (!this.ventHinted && near && !this.bot && !this.tipBusy) {
           this.ventHinted = true;
           if (this.starMap) bigText(this, GAME_WIDTH / 2, 470, '星星砸下來了！地上出現藍圈就快走開\n（閃避可以躲・把追你的怪引過來砸）', '#c8d8ff', 30, 1800);
           else bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
