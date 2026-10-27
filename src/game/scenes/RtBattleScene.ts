@@ -1674,11 +1674,12 @@ export class RtBattleScene extends Phaser.Scene {
     const z = zs.find((q) => p.x >= q.x0 && p.x < q.x1 && p.y >= q.y0 && p.y < q.y1);
     if (!z || z.name === this.zoneName) return;
     this.zoneName = z.name;
-    const t = this.add.text(GAME_WIDTH / 2, 190, `— ${z.name} —`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#f4e6c0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(66).setAlpha(0);
-    this.tweens.add({ targets: t, alpha: 1, y: 180, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
+    // 第 42 輪：往下挪 55（以前 180 和畫面上緣的箭頭距離字「55m」擠在同一行）
+    const t = this.add.text(GAME_WIDTH / 2, 245, `— ${z.name} —`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#f4e6c0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, y: 235, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
     if (!z.hint) return;
-    const h = this.add.text(GAME_WIDTH / 2, 240, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(66).setAlpha(0);
-    this.tweens.add({ targets: h, alpha: 1, y: 232, duration: 500, delay: 250, ease: 'Cubic.Out', hold: 1900, yoyo: true, onComplete: () => h.destroy() });
+    const h = this.add.text(GAME_WIDTH / 2, 292, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    this.tweens.add({ targets: h, alpha: 1, y: 284, duration: 500, delay: 250, ease: 'Cubic.Out', hold: 1900, yoyo: true, onComplete: () => h.destroy() });
     if (z.danger && !this.bot) SFX.uiTap();
   }
 
