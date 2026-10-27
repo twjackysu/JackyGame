@@ -1995,9 +1995,10 @@ export class RtBattleScene extends Phaser.Scene {
     }
     // 第 23 輪縮成兩行：紅框、黃框、大招、裝備改成第一次遇到時才提示（tipOnce）
     const lines = ['左下拖曳走路・放開＝自動追擊＋普攻', '點怪物開打・右下：技能與閃避'];
-    const bg = this.add.rectangle(0, 0, 600, 112, 0x000000, 0.72).setStrokeStyle(2, 0xffd27a, 0.8);
+    // 第 46 輪：以前 600 寬、置中在 y 300，蓋到左上小地圖右半與懸賞板第一行 → 窄一點、往右挪、往上挪（小地圖右緣約 120、懸賞板從 VIEW_TOP＋212 開始）
+    const bg = this.add.rectangle(0, 0, 500, 104, 0x000000, 0.72).setStrokeStyle(2, 0xffd27a, 0.8);
     const t = this.add.text(0, 0, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
-    this.hint = this.add.container(GAME_WIDTH / 2, 300, [bg, t]).setDepth(70);
+    this.hint = this.add.container(GAME_WIDTH / 2 + 50, 250, [bg, t]).setDepth(70);
     this.time.delayedCall(6000, () => this.dismissHint());
   }
 
