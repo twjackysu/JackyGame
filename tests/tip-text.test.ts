@@ -13,6 +13,11 @@ describe('提示大字換行（第 37 輪）', () => {
     }
     expect(wrapTip('長弓：站遠一點射！狼貼過來就按「後躍射擊」拉開距離')).toBe('長弓：站遠一點射！\n狼貼過來就按「後躍射擊」拉開距離');
   });
+  it('不會斷出只有標點的一行（第 45 輪）；四張圖的 Boss 提示每行都有字', async () => {
+    expect(wrapTip('（記得……狼后衝鋒撞到岩壁會暈很久！）')).toBe('（記得……\n狼后衝鋒撞到岩壁會暈很久！）');
+    const { WORLD_MAPS } = await import('../src/game/worldMaps');
+    for (const m of WORLD_MAPS) for (const l of wrapTip(m.bossTip).split('\n')) expect(l.replace(/[！，：。、…—（）「」？]/g, '').length, m.bossTip).toBeGreaterThanOrEqual(2);
+  });
   it('提示停留時間：短的 2.2 秒、長的隨字數加長，最多 4 秒（第 40 輪）', () => {
     expect(tipMs('（記得……牠衝鋒撞到樹或石頭會暈！）')).toBe(2200);
     const long = tipMs('（記得……岩王很慢！紅圈跑出去，黃框的拳頭能格擋！）');
