@@ -374,6 +374,8 @@ export class RtBattleScene extends Phaser.Scene {
       if (STAGES[this.stageId]?.hazards?.some((h) => h.nightOnly || h.nightR)) this.time.delayedCall(5600, () => bigText(this, GAME_WIDTH / 2, 600, '深夜的毒沼擴散了\n荊棘坡與迴廊也冒出新的毒沼', '#a8f08a', 30, 2200));
       // 深夜的裂谷（D-125）：噴發口更頻繁＋熔核巡者
       // 深夜的高原（D-138）：星星落得更頻繁
+      // 深夜的森林（第 41 輪）：以前只說寶箱，沒提霧影狼巡邏
+      if (STAGES[this.stageId]?.spawnGroups?.some((gr) => gr.nightOnly && gr.enemyId === 'shade_wolf')) this.time.delayedCall(5600, () => bigText(this, GAME_WIDTH / 2, 600, '深夜的森林有「霧影狼」在巡邏\n別走進牠面前的扇形視線', '#c8a8ff', 30, 2200));
       if (STAGES[this.stageId]?.vents?.some((v) => v.nightEveryTicks)) this.time.delayedCall(5600, () => (this.starMap ? bigText(this, GAME_WIDTH / 2, 600, '深夜的星星落得更頻繁\n晶簇林有「星蝕狼」在巡邏', '#c8d8ff', 30, 2200) : bigText(this, GAME_WIDTH / 2, 600, '深夜的熔岩口噴得更頻繁\n熔渣坡有「熔核巡者」在巡邏', '#ffb36a', 30, 2200)));
     }
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
