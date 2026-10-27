@@ -44,6 +44,8 @@ describe('大地圖登記表', () => {
     expect(nextGoal('thornvale', {}, 1, 0)).toBe('沿著山谷往北，打倒棘冠狼后');
     expect(nextGoal('thornvale', { bossKills: 1 }, 1, 0)).toBe('前往燼紅裂谷，打倒燼心岩王');
     expect(nextGoal('thornvale', { bossKills: 1 }, 1, 1)).toContain('開啟狼后暴怒');
+    expect(nextGoal('mistwood', { bossKills: 3 }, 10, 1)).toBe('☰ 開啟「狼王暴怒」並打倒牠（解鎖深夜的森林）');
+    expect(nextGoal('mistwood', { bossKills: 3, fury: true }, 10, 1)).toBe('打倒暴怒的狼王（解鎖深夜的森林）');
     expect(nextGoal('thornvale', { bossKills: 9, furyKills: 1, fury: true }, 20, 1)).toBe('刷深夜的山谷、把裝備強化到 +10、挑戰最快討伐');
   });
   it('等級不夠的小提示（第 30 輪）：沒有建議等級的第一張、已經打倒過 Boss、等級夠了都不出現', () => {

@@ -188,7 +188,8 @@ export function nextGoal(stage: string, rec: RtRecord, level: number, otherKills
   if (!(rec.bossKills ?? 0)) return m?.firstGoal ?? '';
   if (nx && !otherKills) return `前往${nx.name}，打倒${nx.boss}`;
   if (!furyUnlocked(rec, level)) return `升到 Lv${FURY_UNLOCK.level} 或討伐 ${boss} ${FURY_UNLOCK.kills} 次，開啟${bw}暴怒`;
-  if (!(rec.furyKills ?? 0)) return `☰ 開啟「${bw}暴怒」並打倒牠（解鎖深夜的${mw}）`;
+  // 第 51 輪：暴怒已經開著還叫人「☰ 開啟」很怪 → 直接說打倒暴怒版
+  if (!(rec.furyKills ?? 0)) return rec.fury ? `打倒暴怒的${bw}（解鎖深夜的${mw}）` : `☰ 開啟「${bw}暴怒」並打倒牠（解鎖深夜的${mw}）`;
   return `刷深夜的${mw}、把裝備強化到 +10、挑戰最快討伐`;
 }
 
