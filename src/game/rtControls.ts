@@ -168,3 +168,73 @@ export function saveControls(c: RtControls): void {
     /* 無痕模式：這次有效，下次回到預設 */
   }
 }
+
+/**
+ * 營火旁那排捷徑（燼牌／行囊・強化／行商）的位置（第 43 輪）：以前寫死 x，左手模式或按鈕放大時會蓋在技能鍵上。
+ * 依序試：原本的 x（撞到就往右推）→ 從左邊排 → 從右邊排；這一列都放不下就往上挪 30 再試（最多 5 次）。
+ * items：每顆捷徑的寬與原本的中心 x（由左到右）；回傳每顆的中心 x 與共用的 y。
+ */
+export function fireRowLayout(c: RtControls, items: { w: number; x: number }[], y0: number, h: number, gap = 12): { xs: number[]; y: number } {
+  const circles: { x: number; y: number; r: number }[] = [];
+  for (let i = 0; i < BTN_COUNT; i++) circles.push({ ...buttonPos(c, i), r: buttonR(c, i) + 8 });
+  circles.push({ ...buttonPos(c, JOY_INDEX), r: Math.round(90 * c.scale) });
+  const tryRow = (y: number): number[] | null => {
+    // 這一列被圓擋住的 x 區間
+    const blocked: [number, number][] = [];
+    for (const k of circles) {
+      const dy = Math.max(0, Math.abs(k.y - y) - h / 2);
+      if (dy >= k.r) continue;
+      const half = Math.sqrt(k.r * k.r - dy * dy);
+      blocked.push([k.x - half, k.x + half]);
+    }
+    const free = (a: number, b: number): boolean => a >= 8 && b <= W - 8 && blocked.every(([l, r]) => b <= l || a >= r);
+    const pushRight = (a: number, w: number): number => {
+      let x = a;
+      for (let n = 0; n < 20; n++) {
+        const hit = blocked.find(([l, r]) => !(x + w <= l || x >= r));
+        if (!hit) return x;
+        x = hit[1] + 1;
+      }
+      return x;
+    };
+    const pushLeft = (b: number, w: number): number => {
+      let x = b;
+      for (let n = 0; n < 20; n++) {
+        const hit = blocked.find(([l, r]) => !(x <= l || x - w >= r));
+        if (!hit) return x;
+        x = hit[0] - 1;
+      }
+      return x;
+    };
+    // 1) 原位往右推　2) 從左排
+    for (const start of [null, 8]) {
+      const xs: number[] = [];
+      let cur = 8;
+      let ok = true;
+      for (const it of items) {
+        const a = pushRight(Math.max(cur, start === null ? it.x - it.w / 2 : cur), it.w);
+        if (!free(a, a + it.w)) { ok = false; break; }
+        xs.push(a + it.w / 2);
+        cur = a + it.w + gap;
+      }
+      if (ok) return xs;
+    }
+    // 3) 從右排
+    const xs: number[] = [];
+    let cur = W - 8;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i]!;
+      const b = pushLeft(cur, it.w);
+      if (!free(b - it.w, b)) return null;
+      xs.unshift(b - it.w / 2);
+      cur = b - it.w - gap;
+    }
+    return xs;
+  };
+  for (let k = 0; k < 6; k++) {
+    const y = y0 - k * 30;
+    const xs = tryRow(y);
+    if (xs) return { xs, y };
+  }
+  return { xs: items.map((it) => it.x), y: y0 };
+}

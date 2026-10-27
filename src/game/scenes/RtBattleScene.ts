@@ -43,7 +43,7 @@ import { gearName, loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME 
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
+import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, fireRowLayout, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
@@ -870,8 +870,21 @@ export class RtBattleScene extends Phaser.Scene {
       this.openCards(true);
     });
     this.cardBtn = cb;
+    this.placeFireBtns();
   }
   private cardBtn: Phaser.GameObjects.Text | null = null;
+
+  /** 營火捷徑避開技能鍵／搖桿（第 43 輪：左手模式、按鈕放大時以前會蓋在技能鍵上） */
+  private placeFireBtns(): void {
+    const row = [this.cardBtn, this.fireBtn, this.shopBtn];
+    if (row.some((t) => !t || !t.active)) return;
+    const ts = row as Phaser.GameObjects.Text[];
+    const PREF = [88, GAME_WIDTH / 2 - 95, GAME_WIDTH / 2 + 125];
+    // 「行囊・強化 ▲」比較寬：用加了 ▲ 的寬度排，免得之後變寬又撞到
+    const wide = [ts[0]!.width, ts[1]!.width + 30, ts[2]!.width];
+    const lay = fireRowLayout(this.ctl, ts.map((_, i) => ({ w: wide[i]!, x: PREF[i]! })), 960 + TALL, Math.max(...ts.map((t) => t.height)));
+    ts.forEach((t, i) => t.setPosition(Math.round(lay.xs[i]!), lay.y));
+  }
 
   private openShop(): void {
     this.persist(); // 這場剛撿的金幣先算進錢包
@@ -1044,6 +1057,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.editing.ui.destroy();
     this.editing = null;
     saveControls(this.ctl);
+    this.placeFireBtns();
     this.acc = 0;
     this.toggleMenu();
   }
@@ -1866,12 +1880,13 @@ export class RtBattleScene extends Phaser.Scene {
         this.ctl = c;
         saveControls(c);
         this.makeButtons();
+        this.placeFireBtns();
         this.bindKeys();
         this.menu?.destroy();
         this.menu = null;
         if (edit) this.startEdit();
         else this.toggleMenu();
-      });
+      }, (id) => ((this.s ? skillDef(this.s, id) : undefined) ?? SKILLS[id])?.name ?? id);
     }, false, x);
     if (this.tracked || worldMap(this.stageId)) {
       // 正式大地圖（標題入口）：不列試玩關

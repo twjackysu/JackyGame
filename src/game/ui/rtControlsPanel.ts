@@ -7,7 +7,8 @@ import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { ACTIONS, ACTION_LABEL, SCALES, defaultControls, keyName, rebind, setLeftHand, type RtAction, type RtControls } from '../rtControls';
 
 /** 開面板；關閉時呼叫 done（edit=true 代表要進「調整按鈕位置」模式）。回傳的容器由呼叫端在 done 裡銷毀 */
-export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done: (c: RtControls, edit: boolean) => void): Phaser.GameObjects.Container {
+/** nameOf：技能欄 id → 顯示名稱（第 43 輪：拿弓／杖時以前還是列出長劍的招式名，要用呼叫端的 skillDef） */
+export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done: (c: RtControls, edit: boolean) => void, nameOf: (id: string) => string = (id) => SKILLS[id]?.name ?? id): Phaser.GameObjects.Container {
   let c = start;
   let waiting: RtAction | null = null;
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
@@ -52,14 +53,14 @@ export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done
         render();
       }, c.scale === SCALES[i]));
     });
-    items.push(label(0, -262, `技能欄：${c.order.map((id, i) => `${i + 1} ${SKILLS[id]?.name ?? id}`).join('　')}`, '#e8dcc0', 21));
+    items.push(label(0, -262, `技能欄：${c.order.map((id, i) => `${i + 1} ${nameOf(id)}`).join('　')}`, '#e8dcc0', 21));
     items.push(label(0, -215, waiting ? `請按下「${ACTION_LABEL[waiting]}」的新按鍵（Esc 取消）` : '桌機快捷鍵：點一下，再按想要的鍵（手機不用設）', waiting ? '#7dffb0' : '#c8d0f0', 22));
     ACTIONS.forEach((a, i) => {
       const col = i < 4 ? 0 : 1; // 左欄：走路四鍵；右欄：技能與其他
       const row = col === 0 ? i : i - 4;
       const x = col === 0 ? -170 : 170;
       const y = -160 + row * 58;
-      const sk = a.startsWith('slot') ? SKILLS[c.order[Number(a.slice(4)) - 1]!]?.name : null;
+      const sk = a.startsWith('slot') ? nameOf(c.order[Number(a.slice(4)) - 1]!) : null;
       items.push(label(x - 150, y, sk ? `${ACTION_LABEL[a]}（${sk}）` : ACTION_LABEL[a], '#ffffff', 19, 0));
       items.push(btn(x + 110, y, waiting === a ? '…' : keyName(c.keys[a]), () => {
         waiting = waiting === a ? null : a;
