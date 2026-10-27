@@ -60,4 +60,10 @@ describe('懸賞板只寫這張圖的怪名（第 43 輪）', () => {
     expect(bountyIdsHere('wolf', ['wolf', 'thorn_shooter'])).toEqual(['wolf']);
     expect(bountyIdsHere('thorn_mother', ['ember_wolf'])).toEqual([]);
   });
+
+  it('新存檔的第一張懸賞是最簡單的野狼（第 44 輪）', () => {
+    const st = cleanBounties(undefined);
+    expect(st.list[0]).toMatchObject({ n: 0, target: 'wolf', need: 12, got: 0 });
+    expect(new Set(st.list.map((b) => b.target)).size).toBe(st.list.length);
+  });
 });

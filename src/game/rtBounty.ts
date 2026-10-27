@@ -54,6 +54,9 @@ function hash(n: number): number {
 
 /** 第 n 張懸賞；avoid 裡的目標跳過（同時掛著的三張不重複） */
 export function makeBounty(n: number, avoid: readonly string[] = []): Bounty {
+  // 第 44 輪：新存檔的第一張一定是最簡單的「野狼 ×12」（以前雜湊排到「荊棘射手、首領級精英、荊棘母樹」，Lv1 新手一張都打不動）
+  const first = n === 0 && !avoid.includes('wolf') ? BOUNTY_POOL.find((p) => p.target === 'wolf') : undefined;
+  if (first) return { n, target: first.target, need: first.need[0], got: 0, reward: { ...first.reward } };
   const h = hash(n);
   const pool = BOUNTY_POOL.filter((p) => !avoid.includes(p.target));
   const p = (pool.length ? pool : BOUNTY_POOL)[h % (pool.length || BOUNTY_POOL.length)]!;
