@@ -3382,9 +3382,11 @@ export class RtBattleScene extends Phaser.Scene {
       b.setDepth(880);
       this.tweens.add({ targets: b, y: i ? GAME_HEIGHT - H / 2 : H / 2, duration: 300, ease: 'Cubic.easeOut', yoyo: true, hold: 1500, onComplete: () => b.destroy() });
     });
-    const line = this.add.rectangle(-GAME_WIDTH / 2, 430, GAME_WIDTH * 0.9, 4, Phaser.Display.Color.HexStringToColor(col).color, 0.9).setDepth(881);
-    const name = this.add.text(-GAME_WIDTH / 2, 392, `${d.fury ? '暴怒的' : ''}${def.name}`, { fontFamily: TITLE_FONT, fontSize: '58px', color: col, stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(882);
-    const subT = this.add.text(GAME_WIDTH * 1.5, 466, sub, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#f4e6c0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(882);
+    // 第 43 輪：整組往下挪 70（以前名字壓在左上角懸賞板的字上，懸賞板到 y≈425）
+    const IY = 70;
+    const line = this.add.rectangle(-GAME_WIDTH / 2, 430 + IY, GAME_WIDTH * 0.9, 4, Phaser.Display.Color.HexStringToColor(col).color, 0.9).setDepth(881);
+    const name = this.add.text(-GAME_WIDTH / 2, 392 + IY, `${d.fury ? '暴怒的' : ''}${def.name}`, { fontFamily: TITLE_FONT, fontSize: '58px', color: col, stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(882);
+    const subT = this.add.text(GAME_WIDTH * 1.5, 466 + IY, sub, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#f4e6c0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(882);
     [line, name].forEach((o) => this.tweens.add({ targets: o, x: GAME_WIDTH / 2, duration: 420, ease: 'Cubic.easeOut' }));
     this.tweens.add({ targets: subT, x: GAME_WIDTH / 2, duration: 420, delay: 120, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: [line, name, subT], alpha: 0, delay: 1800, duration: 400, onComplete: () => [line, name, subT].forEach((o) => o.destroy()) });
