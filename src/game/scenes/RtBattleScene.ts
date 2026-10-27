@@ -4475,7 +4475,15 @@ export class RtBattleScene extends Phaser.Scene {
       // 有小地圖的大地圖：待機的一般怪只在小地圖上，箭頭只留給追過來的怪、附近的精英與 Boss（design/20 B6、D-176）
       if (!showOffscreenArrow({ mini: !!this.mini, elite, boss, combat: e.mode === 'combat', distM: Math.hypot(e.x - p.x, e.y - p.y) / UNIT })) continue;
       let cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
-      let cy = Math.max(VIEW_TOP + M, Math.min(960 + TALL, py));
+      // 技能鍵／藥水鍵（照操作設定的位置，左手模式也算）：箭頭與距離字不要壓在按鈕上，挪到按鈕上方（第 46 輪）
+      let yMax = 960 + TALL;
+      for (let pass = 0; pass < 2; pass++)
+        for (let i = 0; i <= 6; i++) {
+          const b = this.btnPos(i);
+          const r = this.btnR(i) + 34;
+          if (Math.abs(cx - b.x) < r && yMax > b.y - r) yMax = b.y - r;
+        }
+      let cy = Math.max(VIEW_TOP + M, Math.min(yMax, py));
       // 落在左上小地圖上的箭頭挪到小地圖右邊（第 41 輪：以前箭頭和距離字壓在小地圖上）
       const mm = this.mini;
       if (mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M) cx = mm.x + mm.w + M;
@@ -4488,7 +4496,7 @@ export class RtBattleScene extends Phaser.Scene {
         const onTop = cy <= top + 1;
         for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.ax - cx) < 40 && Math.abs(q.ay - cy) < 40); k++) {
           if (onTop) cx = Math.min(GAME_WIDTH - M, cx + 44);
-          else cy = Math.min(960 + TALL, cy + 44);
+          else cy = Math.min(yMax, cy + 44);
         }
       }
       const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
