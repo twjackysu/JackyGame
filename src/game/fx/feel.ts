@@ -128,6 +128,8 @@ export function shockRing(scene: Phaser.Scene, x: number, y: number, color: numb
 
 /** 往上排的大字不能高過這裡（左上角小地圖＋懸賞板到 y≈425、目標字在 95～150） */
 const BANNER_CEIL = 430;
+/** 置中大字的深度（抉擇面板開著時會把這一層藏起來，第 43 輪） */
+export const BANNER_DEPTH = 950;
 const BANNERS = new WeakMap<Phaser.Scene, { t: Phaser.GameObjects.Text; h: number; fading: boolean }[]>();
 
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */
@@ -139,7 +141,7 @@ export function bigText(
       fontFamily: TITLE_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: '#140a04', strokeThickness: 10,
     })
     .setOrigin(0.5)
-    .setDepth(950)
+    .setDepth(BANNER_DEPTH)
     .setScale(2.2)
     .setAlpha(0);
   let entry: { fading: boolean } | null = null;

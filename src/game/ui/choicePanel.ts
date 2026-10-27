@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { TITLE_FONT, UI_FONT } from '../fx/feel';
+import { BANNER_DEPTH, TITLE_FONT, UI_FONT } from '../fx/feel';
 import type { BossChoice, ChoiceOption, ChoicePick } from '../choices';
 
 const COL: Record<ChoicePick, { line: number; css: string; tag: string }> = {
@@ -24,6 +24,23 @@ export function openChoice(scene: Phaser.Scene, ch: Pick<BossChoice, 'title' | '
   const veil = scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x05040a, 0.94).setInteractive();
   // 第 42 輪：0.88 時後面的開場大字、地區名還透得出來，和選項卡片混在一起
   root.add(veil);
+  // 第 43 輪：遮罩 0.94 也擋不住發光的置中大字（例：星隕高原開場的「建議 Lv14」整段夾在兩張卡片中間）
+  // → 面板開著時把置中大字（depth 950）藏起來，關掉再放回來；面板期間才冒出來的也一樣
+  const hidden = new Set<Phaser.GameObjects.Text>();
+  const hideBanners = (): void => {
+    for (const o of scene.children.list) {
+      if (o instanceof Phaser.GameObjects.Text && o.depth === BANNER_DEPTH && o.visible) {
+        o.setVisible(false);
+        hidden.add(o);
+      }
+    }
+  };
+  hideBanners();
+  scene.events.on('postupdate', hideBanners);
+  root.once('destroy', () => {
+    scene.events.off('postupdate', hideBanners);
+    for (const t of hidden) if (t.active) t.setVisible(true);
+  });
   scene.tweens.add({ targets: root, alpha: 1, duration: 500 });
   root.add(scene.add.text(cx, cy - 500, look.kicker ?? '抉擇', { fontFamily: UI_FONT, fontSize: '22px', color: '#a89878' }).setOrigin(0.5));
   root.add(scene.add.text(cx, cy - 450, ch.title, { fontFamily: TITLE_FONT, fontSize: '48px', color: '#ffe6a8', stroke: '#2a1404', strokeThickness: 6 }).setOrigin(0.5));
