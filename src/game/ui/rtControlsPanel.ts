@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { SKILLS } from '../../core/battle/rt/data';
-import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { ACTIONS, ACTION_LABEL, SCALES, defaultControls, keyName, rebind, setLeftHand, type RtAction, type RtControls } from '../rtControls';
 
@@ -67,12 +67,12 @@ export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done
         render();
       }, waiting === a, 20));
     });
-    items.push(btn(-150, 300, '全部恢復預設', () => {
+    items.push(btn(-150, 300 + Math.round(TALL * 0.45), '全部恢復預設', () => {
       c = defaultControls();
       waiting = null;
       render();
     }));
-    items.push(btn(150, 300, '完成', () => done(c, false), true, 28));
+    items.push(btn(150, 300 + Math.round(TALL * 0.45), '完成', () => done(c, false), true, 28));
     root.add(items);
   }
   render();
