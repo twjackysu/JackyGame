@@ -2,6 +2,7 @@
 import { getSettings, highFx } from '../settings';
 import Phaser from 'phaser';
 import { stackY, type Band } from './bannerStack';
+import { numberSlot, type NumRect } from './numberSlot';
 
 export const UI_FONT =
   '"Noto Sans TC", "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif';
@@ -59,10 +60,17 @@ export interface NumberStyle {
   label?: string;
 }
 
+/** 最近跳出的數字（第 51 輪）：同一刻打中並排的兩隻怪，兩個「105」會黏成「105105」→ 新數字碰到還很新的就往上疊一層 */
+const recentNums = new WeakMap<Phaser.Scene, NumRect[]>();
+
 /** 彈跳傷害數字 */
-export function floatNumber(scene: Phaser.Scene, x: number, y: number, text: string, st: NumberStyle): Phaser.GameObjects.Text {
+export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: string, st: NumberStyle): Phaser.GameObjects.Text {
+  const nx = x + Phaser.Math.Between(-18, 18);
+  let list = recentNums.get(scene);
+  if (!list) { list = []; recentNums.set(scene, list); }
+  const y = numberSlot(list, nx, y0, text.length * st.size * 0.62 + 8, st.size * 0.95, scene.time.now);
   const t = scene.add
-    .text(x + Phaser.Math.Between(-18, 18), y, text, {
+    .text(nx, y, text, {
       fontFamily: UI_FONT,
       fontSize: `${st.size}px`,
       fontStyle: '900',
