@@ -256,6 +256,8 @@ export class RtBattleScene extends Phaser.Scene {
   private zoneName: string | null = null;
   /** 上方的記憶卡／回禮卡（第 52 輪）：還在的時候地區名稱先不出，等卡片淡掉再出（以前地區名稱與危險說明被卡片整個蓋住） */
   private topCard: Phaser.GameObjects.Container | null = null;
+  /** 正在顯示的地區名稱／地區說明（Boss 登場時收掉，D-184） */
+  private zoneTexts: Phaser.GameObjects.Text[] = [];
   /** 開場說明框出現的時間（第 52 輪） */
   private hintAt = 0;
   /** 這場已經提示過隱藏精英 */
@@ -356,6 +358,7 @@ export class RtBattleScene extends Phaser.Scene {
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
     this.topCard = null;
+    this.zoneTexts = [];
     this.chestHinted = new Set();
     this.bossMemo = false;
     this.cameras.main.setZoom(1); // 保險：舊版 Boss 登場會推鏡頭
@@ -1769,9 +1772,11 @@ export class RtBattleScene extends Phaser.Scene {
     const dy = this.hint?.active ? 100 : 0;
     const t = this.add.text(GAME_WIDTH / 2, 245 + dy, `— ${z.name} —`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#f4e6c0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(66).setAlpha(0);
     this.tweens.add({ targets: t, alpha: 1, y: 235 + dy, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
+    this.zoneTexts = [t];
     if (!z.hint) return;
     const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(66).setAlpha(0);
     this.tweens.add({ targets: h, alpha: 1, y: 284 + dy, duration: 500, delay: 250, ease: 'Cubic.Out', hold: 1900, yoyo: true, onComplete: () => h.destroy() });
+    this.zoneTexts.push(h);
     if (z.danger && !this.bot) SFX.uiTap();
   }
 
@@ -3520,6 +3525,13 @@ export class RtBattleScene extends Phaser.Scene {
     });
     // 第 43 輪：整組往下挪 70（以前名字壓在左上角懸賞板的字上，懸賞板到 y≈425）
     const IY = 70;
+    // 走進 Boss 巢穴那一刻地區名稱（「— 熔心王座 —」＋說明）也剛好出來，兩行字壓在 Boss 身上、和登場名字搶 → 先收掉（D-184）
+    for (const z of this.zoneTexts) {
+      if (!z.active) continue;
+      this.tweens.killTweensOf(z);
+      this.tweens.add({ targets: z, alpha: 0, duration: 180, onComplete: () => z.destroy() });
+    }
+    this.zoneTexts = [];
     // 名字＋稱號這一塊（y 約 420～556）在淡出前不讓其他置中大字（大招名、升級…）壓上來（D-184）
     reserveBanner(this, 488 + IY - 70, 150, 1800);
     const line = this.add.rectangle(-GAME_WIDTH / 2, 430 + IY, GAME_WIDTH * 0.9, 4, Phaser.Display.Color.HexStringToColor(col).color, 0.9).setDepth(881);
