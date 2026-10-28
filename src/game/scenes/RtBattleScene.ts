@@ -1497,6 +1497,7 @@ export class RtBattleScene extends Phaser.Scene {
     const gain = this.add.text(0, h - 80, `+${r.crystal} 結晶${r.all ? '　——所有的記憶都想起來了！' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: r.all ? '#ffd27a' : '#a8e8ff' }).setOrigin(0.5);
     c.add([bg, head, body, gain]);
     this.topCard = c;
+    this.hideBountyUnder(c, CW);
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: r.all ? 8000 : 6000, duration: 700, onComplete: () => c.destroy() });
     if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
@@ -1588,6 +1589,7 @@ export class RtBattleScene extends Phaser.Scene {
     const gain = this.add.text(0, h - 80, [e.thanks.coin ? `+${e.thanks.coin} 金` : '', e.thanks.crystal ? `+${e.thanks.crystal} 結晶` : ''].filter(Boolean).join('　'), { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' }).setOrigin(0.5);
     c.add([bg, head, body, gain]);
     this.topCard = c;
+    this.hideBountyUnder(c, CW);
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: 7000, duration: 700, onComplete: () => c.destroy() });
   }
@@ -3484,6 +3486,18 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** Boss 登場（第 23 輪）：上下黑邊＋世界壓暗＋名牌從左滑入，每場第一次交戰演一次 */
+  /**
+   * 上方的記憶卡／回禮卡會蓋住懸賞板較長的那行（「荊棘母樹 0/1（別圖）」右緣約 225，卡片左緣 160），
+   * 字被切一半很難看 → 卡片在的時候懸賞板先淡出，卡片消失再回來（第 53 輪，D-184）
+   */
+  private hideBountyUnder(c: Phaser.GameObjects.Container, cw: number): void {
+    const bt = this.bountyTxt;
+    if (!bt?.visible || !bt.text) return;
+    if (bt.getBounds().right <= GAME_WIDTH - 16 - cw) return;
+    this.tweens.add({ targets: bt, alpha: 0, duration: 250 });
+    c.once('destroy', () => { if (bt.active) this.tweens.add({ targets: bt, alpha: 1, duration: 300 }); });
+  }
+
   private bossIntro(d: Unit): void {
     const def = ENEMIES[d.defId];
     if (!def) return;
