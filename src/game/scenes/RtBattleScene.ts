@@ -46,7 +46,7 @@ import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES } from '../../core/battle/rt/data';
 import { gearName, loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME } from '../weapon';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
-import { WORLD_MAPS, worldMap, FINALE_MAP } from '../worldMaps';
+import { WORLD_MAPS, worldMap, prevMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, fireRowLayout, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
@@ -161,9 +161,9 @@ export class RtBattleScene extends Phaser.Scene {
   /** 每個地區上次報名稱的時間（D-185：60 秒內不重報） */
   private zoneSeenAt = new Map<string, number>();
   /** 往下一張地圖的光門（D-186）：打倒這張圖的 Boss 後出現在巢穴北邊，走進去就換地圖 */
-  private gate: { x: number; y: number; to: string; name: string; label: Phaser.GameObjects.Text } | null = null;
-  /** 光門要等玩家先離開它一次才會觸發（剛換完地圖、或站在上面讀檔時不會一進場就被傳走） */
-  private gateArmed = false;
+  /** 這趟進地圖的出生點（回程光門放在它南邊） */
+  private spawnAt = { x: 0, y: 0 };
+  private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean }[] = [];
   private ox = 0;
   private oy = 0;
   private pending: BattleCommand[] = [];
@@ -368,7 +368,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneName = null;
     this.zoneSeenAt.clear();
     this.leashToldAt = -1e9;
-    this.gate = null;
+    this.gates = [];
+    { const p0 = playerOf(this.s); this.spawnAt = { x: p0.x, y: p0.y }; }
     this.setupGate();
     this.topCard = null;
     this.zoneTexts = [];
@@ -4728,65 +4729,88 @@ export class RtBattleScene extends Phaser.Scene {
     this.mini = { x, y, w, h, s };
   }
 
-  /** 光門（D-186）：這張圖有下一張、下一張已開放（＝這張的 Boss 打倒過）才放；位置在巢穴中心往北 55% 半徑附近的空地 */
+  /**
+   * 光門（D-186）：
+   * - 往下一張：這張圖有下一張、下一張已開放（＝這張的 Boss 打倒過）才放；巢穴中心往北 55% 半徑的空地。
+   * - 回上一張：有上一張的地圖，在出生點南邊 2.5 格放一座（像從那邊走過來的路口）。
+   * 每座門要等玩家先離開它 2 格才會觸發（剛換完地圖、站在上面讀檔不會一進場就被傳走）。
+   */
   private setupGate(): void {
-    if (this.gate || this.bot || !this.tracked) return;
-    const nx = worldMap(worldMap(this.stageId)?.next ?? '');
-    const bz = STAGES[this.stageId]?.bossZone;
-    if (!nx || !bz || !mapOpen(nx.id)) return;
-    const at = this.freeNear(bz.x, bz.y - bz.r * 0.55) ?? this.freeNear(bz.x, bz.y - bz.r * 0.3);
-    if (!at) return;
-    const label = this.add.text(0, 0, `▲ 前往${nx.name}`, { fontFamily: TITLE_FONT, fontSize: '24px', color: '#d8f8ff', stroke: '#0a1a2a', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(46).setVisible(false);
-    this.gate = { x: at[0], y: at[1], to: nx.id, name: nx.name, label };
+    if (this.bot || !this.tracked) return;
     const p = playerOf(this.s);
-    this.gateArmed = Math.hypot(p.x - at[0], p.y - at[1]) > UNIT * 2;
+    const add = (to: string, at: [number, number] | null, back: boolean): void => {
+      const m = worldMap(to);
+      if (!m || !at || this.gates.some((q) => q.to === to)) return;
+      const label = this.add.text(0, 0, back ? `▼ 回${m.name}` : `▲ 前往${m.name}`, { fontFamily: TITLE_FONT, fontSize: '24px', color: back ? '#ffe8c0' : '#d8f8ff', stroke: '#0a1a2a', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(46).setVisible(false);
+      this.gates.push({ x: at[0], y: at[1], to, label, back, armed: Math.hypot(p.x - at[0], p.y - at[1]) > UNIT * 2 });
+    };
+    const nx = worldMap(this.stageId)?.next;
+    const bz = STAGES[this.stageId]?.bossZone;
+    if (nx && bz && mapOpen(nx)) add(nx, this.freeNear(bz.x, bz.y - bz.r * 0.55) ?? this.freeNear(bz.x, bz.y - bz.r * 0.3), false);
+    const pv = prevMap(this.stageId);
+    if (pv && !this.gates.some((q) => q.back)) {
+      // 出生點南邊優先（像從那邊走過來的路口），太靠地圖邊或是石頭就換東／西／北；四周都要是空地（門不能半截卡在牆裡）
+      const { x, y } = this.spawnAt;
+      const sol = this.s.arena.solid;
+      const ok = (px: number, py: number): boolean => px > UNIT * 1.5 && py > UNIT * 1.5 && px < this.s.arena.w - UNIT * 1.5 && py < this.s.arena.h - UNIT * 1.5
+        && (!sol || [[0, 0], [UNIT * 0.6, 0], [-UNIT * 0.6, 0], [0, UNIT * 0.4], [0, -UNIT * 0.4]].every(([dx, dy]) => !isSolidAt(sol, px + dx!, py + dy!)));
+      const spot = ([[0, 2.2], [2.4, 0], [-2.4, 0], [0, -2.4], [2, 2], [-2, 2]] as const).map(([dx, dy]) => [x + dx * UNIT, y + dy * UNIT] as [number, number]).find(([px, py]) => ok(px, py));
+      add(pv.id, spot ?? null, true);
+    }
   }
 
   private drawGate(g: Phaser.GameObjects.Graphics, now: number): void {
-    const gt = this.gate;
-    if (!gt) return;
-    const cx = this.sx(gt.x);
-    const cy = this.sy(gt.y);
-    const vis = !(cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 260 || cy > VIEW_BOTTOM + 120);
-    gt.label.setVisible(vis && !this.menu);
-    if (!vis) return;
-    const k = this.k * 2.2;
-    const t = now / 1000;
-    const pulse = 0.5 + 0.5 * Math.sin(t * 2.6);
-    // 地上的光圈＋往上的光柱＋兩根石柱：遠遠就看得出是「出口」
-    g.fillStyle(0x7ad8ff, 0.16 + 0.1 * pulse).fillEllipse(cx, cy, 120 * k, 40 * k);
-    g.lineStyle(3, 0xbff0ff, 0.55 + 0.35 * pulse).strokeEllipse(cx, cy, 96 * k, 30 * k);
-    g.fillStyle(0x9fe8ff, 0.1 + 0.06 * pulse).fillRect(cx - 30 * k, cy - 150 * k, 60 * k, 150 * k);
-    g.fillStyle(0xe8fbff, 0.18 + 0.12 * pulse).fillRect(cx - 9 * k, cy - 150 * k, 18 * k, 150 * k);
-    for (const sx of [-1, 1]) {
-      g.fillStyle(0x3a4250, 1).fillRect(cx + sx * 42 * k - 7 * k, cy - 70 * k, 14 * k, 72 * k);
-      g.fillStyle(0x5a6474, 1).fillRect(cx + sx * 42 * k - 9 * k, cy - 76 * k, 18 * k, 8 * k);
-      g.fillStyle(0x9fe8ff, 0.6 + 0.4 * pulse).fillCircle(cx + sx * 42 * k, cy - 50 * k, 3.5 * k);
+    for (const gt of this.gates) {
+      const cx = this.sx(gt.x);
+      const cy = this.sy(gt.y);
+      const vis = !(cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 260 || cy > VIEW_BOTTOM + 120);
+      if (!vis) {
+        gt.label.setVisible(false);
+        continue;
+      }
+      const k = this.k * (gt.back ? 1.7 : 2.2);
+      const t = now / 1000;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2.6);
+      // 地上的光圈＋往上的光柱＋兩根石柱：遠遠就看得出是「出口」；回程的門小一點、暖色
+      const glow = gt.back ? 0xffc88a : 0x7ad8ff;
+      const rim = gt.back ? 0xffe8c0 : 0xbff0ff;
+      const beam = gt.back ? 0xffd8a8 : 0x9fe8ff;
+      g.fillStyle(glow, 0.16 + 0.1 * pulse).fillEllipse(cx, cy, 120 * k, 40 * k);
+      g.lineStyle(3, rim, 0.55 + 0.35 * pulse).strokeEllipse(cx, cy, 96 * k, 30 * k);
+      g.fillStyle(beam, 0.1 + 0.06 * pulse).fillRect(cx - 30 * k, cy - 150 * k, 60 * k, 150 * k);
+      g.fillStyle(0xfffbf0, 0.18 + 0.12 * pulse).fillRect(cx - 9 * k, cy - 150 * k, 18 * k, 150 * k);
+      for (const sx of [-1, 1]) {
+        g.fillStyle(0x3a4250, 1).fillRect(cx + sx * 42 * k - 7 * k, cy - 70 * k, 14 * k, 72 * k);
+        g.fillStyle(0x5a6474, 1).fillRect(cx + sx * 42 * k - 9 * k, cy - 76 * k, 18 * k, 8 * k);
+        g.fillStyle(beam, 0.6 + 0.4 * pulse).fillCircle(cx + sx * 42 * k, cy - 50 * k, 3.5 * k);
+      }
+      for (let i = 0; i < 4; i++) {
+        const ph = (t * 0.6 + i / 4) % 1;
+        g.fillStyle(0xfffbf0, 0.8 * (1 - ph)).fillCircle(cx + Math.sin(i * 2.1 + t) * 24 * k, cy - ph * 140 * k, 2.5 * k);
+      }
+      // 字在石柱頂上；太靠上會壓到 HUD／Boss 血條（y 170 以內）就先不寫
+      gt.label.setPosition(cx, cy - 84 * k).setVisible(!this.menu && cy - 84 * k - 30 > 170);
     }
-    for (let i = 0; i < 4; i++) {
-      const ph = (t * 0.6 + i / 4) % 1;
-      g.fillStyle(0xe8fbff, 0.8 * (1 - ph)).fillCircle(cx + Math.sin(i * 2.1 + t) * 24 * k, cy - ph * 140 * k, 2.5 * k);
-    }
-    // 字在石柱頂上；太靠上會壓到 HUD／Boss 血條（y 170 以內）就先不寫
-    gt.label.setPosition(cx, cy - 84 * k).setVisible(!this.menu && cy - 84 * k - 30 > 170);
   }
 
-  /** 走進光門（沒開面板）→ 存檔後換到下一張地圖 */
+  /** 走進光門（沒開面板）→ 存檔後換地圖。交戰中也可以走（巢穴是死路、Boss 重生後光門在牠背後；和 ☰ 直接前往一樣，等於脫離戰鬥） */
   private gateCheck(): void {
-    const gt = this.gate;
-    if (!gt || this.menu || this.editing || this.ended) return;
+    if (!this.gates.length || this.menu || this.editing || this.ended) return;
     const p = playerOf(this.s);
-    const d = Math.hypot(p.x - gt.x, p.y - gt.y);
-    if (!this.gateArmed) {
-      if (d > UNIT * 2) this.gateArmed = true;
+    if (p.dead) return;
+    for (const gt of this.gates) {
+      const d = Math.hypot(p.x - gt.x, p.y - gt.y);
+      if (!gt.armed) {
+        if (d > UNIT * 2) gt.armed = true;
+        continue;
+      }
+      if (d > UNIT * 0.9) continue;
+      this.gates = [];
+      SFX.uiTap();
+      this.cameras.main.flash(260, 200, 240, 255);
+      this.leave(() => this.scene.start('RtBattle', { stage: gt.to, bot: '' }));
       return;
     }
-    // 交戰中也可以走（巢穴是死路，Boss 重生後光門在牠背後；和 ☰ 直接前往一樣，等於脫離戰鬥）
-    if (p.dead || d > UNIT * 0.9) return;
-    this.gate = null;
-    SFX.uiTap();
-    this.cameras.main.flash(260, 200, 240, 255);
-    this.leave(() => this.scene.start('RtBattle', { stage: gt.to, bot: '' }));
   }
 
   /** 小地圖點在石頭上時，找最近的空地（格中心，最多 3 格外） */
