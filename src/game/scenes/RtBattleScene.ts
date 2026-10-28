@@ -156,6 +156,8 @@ export class RtBattleScene extends Phaser.Scene {
   private ui!: Phaser.GameObjects.Graphics;
   private evIdx = 0;
   private k = 0.4;
+  /** 上次說明「跑出巢穴 Boss 回滿」的時間（D-185） */
+  private leashToldAt = -1e9;
   private ox = 0;
   private oy = 0;
   private pending: BattleCommand[] = [];
@@ -178,6 +180,7 @@ export class RtBattleScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text;
   /** 單位圖層（HP 條等疊在 sprite 上方） */
   private top!: Phaser.GameObjects.Graphics;
+  private ringG!: Phaser.GameObjects.Graphics;
   /** 靜態地面（只畫一次，每幀只移動位置）；大地圖切成多塊材質（手機 GPU 單張上限常是 4096px） */
   private ground!: Phaser.GameObjects.Container;
   private calmText!: Phaser.GameObjects.Text;
@@ -379,6 +382,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.g = this.add.graphics();
     this.frostG = this.add.graphics().setDepth(9); // 霜旋的冰晶（在單位底下、地面之上）
     this.top = this.add.graphics().setDepth(45);
+    this.ringG = this.add.graphics().setDepth(46); // 巢穴邊界（D-185）：要蓋過樹冠與霧
     this.ui = this.add.graphics().setDepth(50);
     // 頂部標題列（蓋在世界之上；底部漸層避免硬切）
     const hdr = this.add.graphics().setDepth(48);
@@ -2255,6 +2259,15 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'leash') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '脫戰', { color: '#c8d0f0', size: 22 });
+        // 第 54 輪（D-185）：Boss 因為玩家跑出巢穴而回家 → 講清楚為什麼（8 秒內只講一次）
+        if (d && ENEMIES[d.defId]?.boss && !this.bot && this.time.now > this.leashToldAt + 8000) {
+          const bz = STAGES[this.stageId]?.bossZone;
+          const pl = playerOf(this.s);
+          if (bz && !pl.dead && Math.hypot(pl.x - bz.x, pl.y - bz.y) > bz.r && !(STAGES[this.stageId]?.campfires ?? []).some((c) => Math.hypot(pl.x - c.x, pl.y - c.y) < UNIT * 6)) {
+            this.leashToldAt = this.time.now;
+            bigText(this, GAME_WIDTH / 2, TIP_Y, `跑出巢穴的紅圈了——\n${ENEMIES[d.defId]?.name ?? 'Boss'}回巢穴回滿！`, '#ff9a7a', 30, 2200);
+          }
+        }
       } else if (e.type === 'reset') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 50, '回滿', { color: '#7dffb0', size: 22 });
@@ -3312,6 +3325,34 @@ export class RtBattleScene extends Phaser.Scene {
     g.lineStyle(5 * k, 0xd8e8ff, a).lineBetween(cx - f * 13 * k, cy - 14 * k - hop, cx - f * 24 * k, cy - 24 * k - hop + sw);
     g.fillStyle(0x6ab8ff, Math.min(1, a * 1.8)).fillCircle(cx + f * 16 * k, cy - 26 * k - hop, 1.8 * k);
   }
+  /**
+   * 巢穴邊界（第 54 輪，D-185）：Boss 交戰中、玩家走到巢穴外圈（> 55% 半徑）時，地上浮出紅色虛線圈，越靠近邊越亮。
+   * 以前只有進巢穴那一刻的地區說明，打到一半被擊退或追小狼跑出去，Boss 就默默回家回滿，新玩家看不出為什麼。
+   */
+  private drawBossRing(g: Phaser.GameObjects.Graphics, now: number): void {
+    const bz = STAGES[this.stageId]?.bossZone;
+    if (!bz || this.bot) return;
+    const p = playerOf(this.s);
+    if (p.dead || !enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat')) return;
+    const near = Math.hypot(p.x - bz.x, p.y - bz.y) / bz.r;
+    const a = Math.min(1, (near - 0.55) / 0.25);
+    if (a <= 0) return;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 160);
+    const n = Math.max(48, Math.round((bz.r * this.k) / 9));
+    const drift = (now / 4000) % 1;
+    for (let i = 0; i < n; i += 2) {
+      const a0 = ((i + drift * 2) / n) * Math.PI * 2;
+      const a1 = ((i + 1 + drift * 2) / n) * Math.PI * 2;
+      const x0 = this.sx(bz.x + Math.cos(a0) * bz.r);
+      const y0 = this.sy(bz.y + Math.sin(a0) * bz.r);
+      if (x0 < -40 || x0 > GAME_WIDTH + 40 || y0 < VIEW_TOP - 40 || y0 > VIEW_BOTTOM + 40) continue;
+      const x1 = this.sx(bz.x + Math.cos(a1) * bz.r);
+      const y1 = this.sy(bz.y + Math.sin(a1) * bz.r);
+      g.lineStyle(16, 0xff3a2a, 0.2 * a * (0.6 + 0.4 * pulse)).lineBetween(x0, y0, x1, y1);
+      g.lineStyle(5, 0xff6a4a, (0.55 + 0.35 * pulse) * a).lineBetween(x0, y0, x1, y1);
+    }
+  }
+
   private drawChoiceMark(g: Phaser.GameObjects.Graphics, now: number): void {
     if (!this.choiceMark) return;
     const { x, y, map, pick } = this.choiceMark;
@@ -4179,6 +4220,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (!opened && (now / 500) % 2 < 0.25) g.fillStyle(0xfff0c0, a).fillCircle(cx + 18 * k, cy - 18 * k, 3 * k);
     }
     this.drawChoiceMark(g, now);
+    this.drawBossRing(this.ringG.clear(), now);
     this.drawEncounters(g, now);
     this.drawCub(g, now);
     // 前世的記憶（D-137）：紫色的光點在原地浮著，遠遠就看得到
