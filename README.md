@@ -76,7 +76,7 @@
 | ![燼牌對手](docs/screenshots/50-card-rivals.jpg) | ![新牌](docs/screenshots/51-card-reveal.jpg) | ![組牌](docs/screenshots/52-card-deck.jpg) |
 | **序章：前世是冷門手遊的全成就玩家** | **前世的記憶（紫色光點）** | **通關：這趟旅程** |
 | ![序章](docs/screenshots/53-prologue.jpg) | ![前世的記憶](docs/screenshots/54-memory.jpg) | ![這趟旅程](docs/screenshots/55-finale-journey.jpg) |
-| **星隕高原：星星砸下來了** | **星骸守望者登場** | **觀星者索爾（第五位燼牌對手）** |
+| **星隕高原：星星砸下來了** | **星骸守望者登場** | **觀星者索爾（第五位燼牌對手）：落後太多就先放棄這局、留牌下一局** |
 | ![星隕高原](docs/screenshots/56-starfall-meteor.jpg) | ![星骸守望者](docs/screenshots/57-star-sentinel.jpg) | ![觀星者索爾](docs/screenshots/58-card-sol.jpg) |
 | **長螢幕手機：畫面填滿、按鈕貼齊下緣** | **深夜限定：星蝕狼** | **守望者召喚墜星（藍圈在你腳下）** |
 | ![長螢幕](docs/screenshots/59-tall-screen.jpg) | ![星蝕狼](docs/screenshots/60-eclipse-wolf.jpg) | ![召喚墜星](docs/screenshots/61-sentinel-meteor.jpg) |
