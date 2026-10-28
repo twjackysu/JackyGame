@@ -4048,9 +4048,11 @@ export class RtBattleScene extends Phaser.Scene {
     const px = this.sx(x);
     const py = this.sy(y);
     const g = this.add.graphics().setDepth(695).setBlendMode(Phaser.BlendModes.ADD);
-    const H = 900;
-    g.fillStyle(0xff7ad0, 0.35).fillRect(px - 46, py - H, 92, H);
-    g.fillStyle(0xffe0f6, 0.8).fillRect(px - 14, py - H, 28, H);
+    // 第 53 輪（D-184）：光柱從畫面上緣的 HUD 底下開始（以前一路畫到頂，把地圖名稱和 HP／MP 那行洗成一片白）
+    const top = Math.max(VIEW_TOP, py - 900);
+    const H = Math.max(0, py - top);
+    g.fillStyle(0xff7ad0, 0.35).fillRect(px - 46, top, 92, H);
+    g.fillStyle(0xffe0f6, 0.8).fillRect(px - 14, top, 28, H);
     this.tweens.add({ targets: g, alpha: 0, duration: 420, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
     shockRing(this, px, py, 0xff7ad0, r * this.k * 1.3, 520, 14);
     sparks(this, px, py, 28, 'spark', 0xffd0f0, 620);
