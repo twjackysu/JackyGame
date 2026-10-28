@@ -158,6 +158,8 @@ export class RtBattleScene extends Phaser.Scene {
   private k = 0.4;
   /** 上次說明「跑出巢穴 Boss 回滿」的時間（D-185） */
   private leashToldAt = -1e9;
+  /** 每個地區上次報名稱的時間（D-185：60 秒內不重報） */
+  private zoneSeenAt = new Map<string, number>();
   private ox = 0;
   private oy = 0;
   private pending: BattleCommand[] = [];
@@ -360,6 +362,8 @@ export class RtBattleScene extends Phaser.Scene {
     { const p0 = playerOf(this.s); const kinds: Record<string, 'cub' | 'flower' | 'wisp' | 'star'> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp', starfall: 'star' }; const kind = kinds[this.stageId]; this.cub = this.tracked && !this.bot && kind && loadChoices()[this.stageId] === 'spare' ? { x: p0.x - UNIT, y: p0.y + UNIT, a: 0, t: 0, face: 1, kind } : null; }
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
+    this.zoneSeenAt.clear();
+    this.leashToldAt = -1e9;
     this.topCard = null;
     this.zoneTexts = [];
     this.chestHinted = new Set();
@@ -1771,6 +1775,10 @@ export class RtBattleScene extends Phaser.Scene {
     // 但霧語森林南營地走 6 格就出去了：說明框至少留 3 秒（兩行字讀得完；不到 3 秒照舊整組往下挪）
     if (this.zoneName !== null && this.hint?.active && this.time.now - this.hintAt >= 3000) this.dismissHint();
     this.zoneName = z.name;
+    // 第 54 輪（D-185）：在兩區交界來回（打一打退回營火、追怪又走回來）每跨一次就跳一次大字，很吵 → 同一區 60 秒內不再報
+    const seen = this.zoneSeenAt.get(z.name);
+    this.zoneSeenAt.set(z.name, this.time.now);
+    if (seen !== undefined && this.time.now - seen < 60000) return;
     // 第 42 輪：往下挪 55（以前 180 和畫面上緣的箭頭距離字「55m」擠在同一行）
     // 第 48 輪：開場說明框（y 198～302）還在時整組往下挪，以前地區名稱和「綠色毒沼…」壓在說明框底下
     const dy = this.hint?.active ? 100 : 0;
