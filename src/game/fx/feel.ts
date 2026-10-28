@@ -138,7 +138,19 @@ export function shockRing(scene: Phaser.Scene, x: number, y: number, color: numb
 const BANNER_CEIL = 430;
 /** 置中大字的深度（抉擇面板開著時會把這一層藏起來，第 43 輪） */
 export const BANNER_DEPTH = 950;
-const BANNERS = new WeakMap<Phaser.Scene, { t: Phaser.GameObjects.Text; h: number; fading: boolean }[]>();
+const BANNERS = new WeakMap<Phaser.Scene, { t: { active: boolean; y: number }; h: number; fading: boolean }[]>();
+
+/**
+ * 把一塊不是 bigText 的置中大字（例如 Boss 登場的名字＋稱號）登記成「佔用中」，ms 毫秒後讓出（第 53 輪，D-184）：
+ * 以前 Boss 登場那一刻 Bot／玩家放大招，「星河貫射！」會直接蓋在「星骸守望者」上面。
+ */
+export function reserveBanner(scene: Phaser.Scene, cy: number, h: number, ms: number): void {
+  const e = { t: { active: true, y: cy }, h, fading: false };
+  const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
+  live.push(e);
+  BANNERS.set(scene, live);
+  scene.tweens.addCounter({ from: 0, to: 1, duration: ms, onComplete: () => { e.fading = true; e.t.active = false; } });
+}
 
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */
 export function bigText(

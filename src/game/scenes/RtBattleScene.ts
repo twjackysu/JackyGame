@@ -54,7 +54,7 @@ import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rt
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, returnIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bigText, floatNumber, shockRing, sparks } from '../fx/feel';
+import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bigText, floatNumber, reserveBanner, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
@@ -3506,6 +3506,8 @@ export class RtBattleScene extends Phaser.Scene {
     });
     // 第 43 輪：整組往下挪 70（以前名字壓在左上角懸賞板的字上，懸賞板到 y≈425）
     const IY = 70;
+    // 名字＋稱號這一塊（y 約 420～556）在淡出前不讓其他置中大字（大招名、升級…）壓上來（D-184）
+    reserveBanner(this, 488 + IY - 70, 150, 1800);
     const line = this.add.rectangle(-GAME_WIDTH / 2, 430 + IY, GAME_WIDTH * 0.9, 4, Phaser.Display.Color.HexStringToColor(col).color, 0.9).setDepth(881);
     const name = this.add.text(-GAME_WIDTH / 2, 392 + IY, `${d.fury ? '暴怒的' : ''}${def.name}`, { fontFamily: TITLE_FONT, fontSize: '58px', color: col, stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(882);
     const subT = this.add.text(GAME_WIDTH * 1.5, 466 + IY, sub, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#f4e6c0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(882);
