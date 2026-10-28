@@ -160,6 +160,10 @@ export class RtBattleScene extends Phaser.Scene {
   private leashToldAt = -1e9;
   /** 每個地區上次報名稱的時間（D-185：60 秒內不重報） */
   private zoneSeenAt = new Map<string, number>();
+  /** 往下一張地圖的光門（D-186）：打倒這張圖的 Boss 後出現在巢穴北邊，走進去就換地圖 */
+  private gate: { x: number; y: number; to: string; name: string; label: Phaser.GameObjects.Text } | null = null;
+  /** 光門要等玩家先離開它一次才會觸發（剛換完地圖、或站在上面讀檔時不會一進場就被傳走） */
+  private gateArmed = false;
   private ox = 0;
   private oy = 0;
   private pending: BattleCommand[] = [];
@@ -364,6 +368,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneName = null;
     this.zoneSeenAt.clear();
     this.leashToldAt = -1e9;
+    this.gate = null;
+    this.setupGate();
     this.topCard = null;
     this.zoneTexts = [];
     this.chestHinted = new Set();
@@ -671,6 +677,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.chestHint();
     this.memoryCheck();
     this.encounterCheck();
+    this.gateCheck();
     this.streakHint();
     if (this.s.tick % (10 * TICKS_PER_SEC) === 0) this.persist();
     if (this.s.outcome !== 'running') this.finish();
@@ -1233,9 +1240,10 @@ export class RtBattleScene extends Phaser.Scene {
       if (pending && ch) this.time.delayedCall(4300, () => this.showChoice(ch));
       // 最後一張地圖第一次討伐 → 通關演出（D-133）
       if (r.first && this.stageId === FINALE_MAP && !this.bot) later(5000, () => this.showFinale());
-      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！\n回標題選「前往${nx?.name}」${nx?.recLevel ? `\n建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000);
+      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！\n走進巢穴北邊的光門就到了\n（☰ 也可以直接前往）${nx?.recLevel ? `\n建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000);
       // 通關那張圖：新地圖開放（星隕高原）等通關演出看完才出，以前會在演出（depth 2000）底下播完、玩家看不到（第 39 輪）
       if (r.first && nx) {
+        this.setupGate();
         if (this.stageId === FINALE_MAP && !this.bot) this.afterFinale.push(opened);
         else later(4600, opened);
       }
@@ -4229,6 +4237,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.drawChoiceMark(g, now);
     this.drawBossRing(this.ringG.clear(), now);
+    this.drawGate(this.ringG, now);
     this.drawEncounters(g, now);
     this.drawCub(g, now);
     // 前世的記憶（D-137）：紫色的光點在原地浮著，遠遠就看得到
@@ -4717,6 +4726,67 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.add.image(x - 2, y - 2, key).setOrigin(0).setDepth(49).setAlpha(0.9);
     this.mini = { x, y, w, h, s };
+  }
+
+  /** 光門（D-186）：這張圖有下一張、下一張已開放（＝這張的 Boss 打倒過）才放；位置在巢穴中心往北 55% 半徑附近的空地 */
+  private setupGate(): void {
+    if (this.gate || this.bot || !this.tracked) return;
+    const nx = worldMap(worldMap(this.stageId)?.next ?? '');
+    const bz = STAGES[this.stageId]?.bossZone;
+    if (!nx || !bz || !mapOpen(nx.id)) return;
+    const at = this.freeNear(bz.x, bz.y - bz.r * 0.55) ?? this.freeNear(bz.x, bz.y - bz.r * 0.3);
+    if (!at) return;
+    const label = this.add.text(0, 0, `▲ 前往${nx.name}`, { fontFamily: TITLE_FONT, fontSize: '24px', color: '#d8f8ff', stroke: '#0a1a2a', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(46).setVisible(false);
+    this.gate = { x: at[0], y: at[1], to: nx.id, name: nx.name, label };
+    const p = playerOf(this.s);
+    this.gateArmed = Math.hypot(p.x - at[0], p.y - at[1]) > UNIT * 2;
+  }
+
+  private drawGate(g: Phaser.GameObjects.Graphics, now: number): void {
+    const gt = this.gate;
+    if (!gt) return;
+    const cx = this.sx(gt.x);
+    const cy = this.sy(gt.y);
+    const vis = !(cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 260 || cy > VIEW_BOTTOM + 120);
+    gt.label.setVisible(vis && !this.menu);
+    if (!vis) return;
+    const k = this.k * 2.2;
+    const t = now / 1000;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 2.6);
+    // 地上的光圈＋往上的光柱＋兩根石柱：遠遠就看得出是「出口」
+    g.fillStyle(0x7ad8ff, 0.16 + 0.1 * pulse).fillEllipse(cx, cy, 120 * k, 40 * k);
+    g.lineStyle(3, 0xbff0ff, 0.55 + 0.35 * pulse).strokeEllipse(cx, cy, 96 * k, 30 * k);
+    g.fillStyle(0x9fe8ff, 0.1 + 0.06 * pulse).fillRect(cx - 30 * k, cy - 150 * k, 60 * k, 150 * k);
+    g.fillStyle(0xe8fbff, 0.18 + 0.12 * pulse).fillRect(cx - 9 * k, cy - 150 * k, 18 * k, 150 * k);
+    for (const sx of [-1, 1]) {
+      g.fillStyle(0x3a4250, 1).fillRect(cx + sx * 42 * k - 7 * k, cy - 70 * k, 14 * k, 72 * k);
+      g.fillStyle(0x5a6474, 1).fillRect(cx + sx * 42 * k - 9 * k, cy - 76 * k, 18 * k, 8 * k);
+      g.fillStyle(0x9fe8ff, 0.6 + 0.4 * pulse).fillCircle(cx + sx * 42 * k, cy - 50 * k, 3.5 * k);
+    }
+    for (let i = 0; i < 4; i++) {
+      const ph = (t * 0.6 + i / 4) % 1;
+      g.fillStyle(0xe8fbff, 0.8 * (1 - ph)).fillCircle(cx + Math.sin(i * 2.1 + t) * 24 * k, cy - ph * 140 * k, 2.5 * k);
+    }
+    // 字在石柱頂上；太靠上會壓到 HUD／Boss 血條（y 170 以內）就先不寫
+    gt.label.setPosition(cx, cy - 84 * k).setVisible(!this.menu && cy - 84 * k - 30 > 170);
+  }
+
+  /** 走進光門（沒開面板）→ 存檔後換到下一張地圖 */
+  private gateCheck(): void {
+    const gt = this.gate;
+    if (!gt || this.menu || this.editing || this.ended) return;
+    const p = playerOf(this.s);
+    const d = Math.hypot(p.x - gt.x, p.y - gt.y);
+    if (!this.gateArmed) {
+      if (d > UNIT * 2) this.gateArmed = true;
+      return;
+    }
+    // 交戰中也可以走（巢穴是死路，Boss 重生後光門在牠背後；和 ☰ 直接前往一樣，等於脫離戰鬥）
+    if (p.dead || d > UNIT * 0.9) return;
+    this.gate = null;
+    SFX.uiTap();
+    this.cameras.main.flash(260, 200, 240, 255);
+    this.leave(() => this.scene.start('RtBattle', { stage: gt.to, bot: '' }));
   }
 
   /** 小地圖點在石頭上時，找最近的空地（格中心，最多 3 格外） */
