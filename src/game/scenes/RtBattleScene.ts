@@ -4848,6 +4848,12 @@ export class RtBattleScene extends Phaser.Scene {
     for (const c of STAGES[this.stageId]?.campfires ?? []) {
       g.fillStyle(0xffa040, 0.6 + 0.4 * Math.sin(now / 200)).fillCircle(m.x + c.x * m.s, m.y + c.y * m.s, 4);
     }
+    // 光門（D-186）：小菱形，往下一張青色、回程暖色
+    for (const gt of this.gates) {
+      const gx = m.x + gt.x * m.s;
+      const gy = m.y + gt.y * m.s;
+      g.fillStyle(gt.back ? 0xffd8a8 : 0x9fe8ff, 0.75 + 0.25 * Math.sin(now / 250)).fillTriangle(gx, gy - 4, gx + 3, gy, gx - 3, gy).fillTriangle(gx, gy + 4, gx + 3, gy, gx - 3, gy);
+    }
     // Boss 巢穴：骷髏記號（圓＋叉），暴怒版是紅色
     const bz = STAGES[this.stageId]?.bossZone;
     if (bz) {
