@@ -262,6 +262,8 @@ export class RtBattleScene extends Phaser.Scene {
   private goalAt = 0;
   private goalNext = '';
   private gateAhead = '';
+  /** 這張圖以前就打倒過 Boss（舊玩家回來）：目標字條改寫「下一個目標」，不再寫「打倒○○」（第 58 輪） */
+  private goalBefore = false;
   /** 地面長出的荊棘（狼后／母樹的毒刺、根系環、綻放命中時；只是畫面） */
   private thornFx: { x: number; y: number; born: number; size: number; seed: number; wither?: number }[] = [];
   /** 霜旋（D-121）在地上留下的冰晶與結霜圈（純畫面，世界座標） */
@@ -482,7 +484,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
     this.refreshBounty();
     this.ptsLeft = this.tracked ? this.skillPointsLeft() : 0;
-    this.goalDone = false; this.goalAt = 0; this.goalNext = '';
+    this.goalDone = false; this.goalAt = 0; this.goalNext = ''; this.goalBefore = false;
     this.coinBase = this.tracked ? coinOf(loadRecord(this.stageId)) : -1;
     this.leftFire = false;
     this.fireHinted = false;
@@ -5193,8 +5195,10 @@ export class RtBattleScene extends Phaser.Scene {
       const done = !!bossDef && (s.bossKills ?? []).includes(bossDef.id);
       // 已討伐：第二行顯示「下一個目標」（每 2 秒或狀態改變才重算，避免每幀讀存檔）
       const big = !!worldMap(this.stageId);
-      if (done && big && (this.goalDone !== done || this.time.now - this.goalAt > 2000)) {
+      if (big && (this.goalDone !== done || this.time.now - this.goalAt > 2000)) {
         this.goalAt = this.time.now;
+        const rec0 = loadRecord(this.stageId);
+        this.goalBefore = (rec0.bossKills ?? 0) > 0;
         this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''));
       }
       this.goalDone = done;
@@ -5202,7 +5206,7 @@ export class RtBattleScene extends Phaser.Scene {
       // 以前打倒過、光門已經開著（第 55 輪）：舊玩家回來時目標字條也提光門，不只說「往北打狼王」
       const fwd = this.gates.find((q) => !q.back);
       this.gateAhead = fwd ? worldMap(fwd.to)?.name ?? '' : '';
-      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${this.gateWaits ? '' : big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : this.gateAhead ? `目標：打倒${bossDef.name}・光門通往${this.gateAhead}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
+      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${this.gateWaits ? '' : big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : this.goalBefore && this.goalNext ? `${this.gateAhead ? `光門通往${this.gateAhead}・` : ''}${bossDef.name}可以再挑戰\n▶ ${this.goalNext}` : this.gateAhead ? `目標：打倒${bossDef.name}・光門通往${this.gateAhead}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
