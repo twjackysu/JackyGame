@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 55 輪（10/30 01:00）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 56 輪（10/30 02:45）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,9 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 55 輪）
+## 現況（第 56 輪）
+- **經光門抵達（D-188）**：`via==='gate'` → 主角放在回程門往 `spawnAt` 方向 1.9 格、`arriveAt`＋`arrivePose()`（`draw()` 之後改精靈，warpPose 倒過來）；`'gateBack'` 只有降臨（回營火）。回程門的字 `gateLabelFrom`（抵達＋1.4 秒）與 `chapterUntil` 之後淡入。`chestHint` 在 `tipBusy`／`chapterUntil`／`topCard` 期間不跑；「點怪物開打」字條 y 跟主角腳下。
+- **截圖假象（第 56 輪）**：快轉截圖後那 700ms 真實等待，場景時鐘會退回真實時間 → 依 `time.now` 比較的東西（回程門的字、幕名卡）在截圖裡可能消失；要確認就在 JS 裡讀 `label.alpha`／`visible`。標題場景開始的腳本 `screenshots/r56t.mjs`（gitignored）同樣有這問題（`scene.start` 後第一次 ff 時間跳很大，開場大字會提早出），**新存檔流程改用 shot-newsave**。選武器卡＝找 `選長弓` Text 的 parentContainer 裡有 `pointerup` 的 Rectangle，`emit('pointerup')`。
 - **光門第二輪（D-187）**：首次討伐的門等抉擇／通關演出結束才亮（`gateWaits`＋`revealGate()`）；畫面外青色箭頭在 `drawOffscreen` 尾段（`gateArrow`）；過場 `warpGate`／`warpPose`（`warpAt>=0` 時 update 只畫），新場景 `init` 的 `via`（`gate`／`gateBack`）決定淡入顏色。目標字條的 `gateAhead`。
 - **幕名卡（D-187）**：`ui/chapterCard.ts`（畫面）＋ `chapters.ts`（文字、`jg_chapter_<id>`），在 `opening()` 開頭；`chapterUntil` 期間 `memoryCheck`／`zoneBanner` 先等。**加新地圖**要在 `chapters.ts` 的 `LINES` 補一句（測試會檢查）。
 - **截圖小抄（第 55 輪）**：幕名卡＝`localStorage.removeItem('jg_chapter_<id>'); sc().opening(); ff(0.9)`（開場 3 秒真實時間跑，自然的那次截不到）。清怪別用 filter（留下舊精靈）→ `u.y = p.y - 30000`。光門過場＝主角傳到門南 3 格、`ff(0.3)` 再放到門上 `ff(0.25)`。腳本在 scratchpad 寫 `tp.js`／`fz.js`（傳送＋凍結），內容見本輪 PROGRESS。
@@ -85,7 +87,8 @@
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-3. **（下一輪建議主工作）「第一眼」第二十一段：新存檔整段走一次第一章的節奏**：①新存檔（不設 `jg_weapon`、不設 `jg_prologue_seen`）序章→選武器→**幕名卡「第一幕」**→地圖說明→前 2 分鐘（390×844），看幕名卡和選武器／說明框有沒有互壓（選了非劍會 `scene.restart`，幕名卡應該只播一次）；②打狼王→抉擇→光門亮起→走進光門→荊棘谷幕名卡→說明（360×640 也看一次），只修看得到的問題；③可以考慮第一次經光門抵達時，回程門的字晚一點才出（現在抵達瞬間就在主角旁邊）。
+3. **（下一輪建議主工作）「第一眼」第二十二段：第三幕到番外**：①燼紅裂谷新到（Lv10、法杖、390×844）前 2 分鐘：熔岩口提示、地區名稱、相遇（礦工）、寶箱提示有沒有互壓；②打倒岩王（`B.hp=maxHp*0.12` 傳過去，同第 56 輪 `s1.js` 做法）→ 抉擇 → 通關演出（自動點）→ 光門亮起 → 走進去 → 星隕高原「番外」幕名卡 → 開場說明（360×640 也看一次）；③只修看得到的問題。
+   - 第 56 輪已做：新存檔序章→選武器（劍／弓）→第一幕幕名卡只播一次（選弓 `scene.restart` 後才播）；Lv8 狼王討伐→抉擇→光門→荊棘谷第二幕（360×640）；荊棘谷→燼紅裂谷、燼紅裂谷→星隕高原、回程門。修了：寶箱提示和幕名卡疊字、回程門字太早、長螢幕字條蓋主角；新增從門前降臨（D-188）。
    - 第 55 輪已做：光門延後亮起、箭頭、過場、幕名卡（D-187）。燼紅裂谷討伐→演出→門的順序已用 Playwright 確認。
    - 第 54 輪已看完：新存檔前 3 分鐘三把武器（390×844）、Lv4 第一次打狼王→討伐→抉擇面板。舊的第 3 項標題：「新玩家前 10 分鐘」。①新存檔（不設 `jg_weapon`）走一次序章→選武器→霧語森林前 3 分鐘，三把武器各一次（390×844），看教學提示、第一次升級、第一張懸賞、第一次撿裝備有沒有互壓或太吵（快轉截圖每 15 秒一張）。②第一次打狼王（Lv 4～6、劍）看登場→預告→第二階段→討伐→抉擇面板整段。③只修看得到的問題。
    - 第 53 輪已看完：長弓／法杖打燼心岩王、星骸守望者（登場＋第二階段，390×844）、星隕高原開場、燼牌（索爾、傳奇卡、整理牌組）、序章、通關旅程、技能變化面板。
