@@ -380,7 +380,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.idleHinted = false;
     this.afterChoice = [];
     this.choiceMarkSaid = false;
-    { const p0 = playerOf(this.s); const kinds: Record<string, 'cub' | 'flower' | 'wisp' | 'star'> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp', starfall: 'star' }; const kind = kinds[this.stageId]; this.cub = this.tracked && !this.bot && kind && loadChoices()[this.stageId] === 'spare' ? { x: p0.x - UNIT, y: p0.y + UNIT, a: 0, t: 0, face: 1, kind } : null; }
+    { const p0 = playerOf(this.s); this.cub = null; if (loadChoices()[this.stageId] === 'spare') this.spawnCub(p0.x - UNIT, p0.y + UNIT); }
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
     this.zoneSeenAt.clear();
@@ -1356,6 +1356,13 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       const p = playerOf(this.s);
+      if (pick === 'spare' && !this.cub) {
+        // 選了「還」：小跟班當場從巢穴（Boss 倒下的地方）出來，不用等下次進地圖
+        const bz = STAGES[this.stageId]?.bossZone;
+        const ox = bz && Math.hypot(bz.x - p.x, bz.y - p.y) < UNIT * 10 ? bz.x : p.x + UNIT * 3;
+        const oy = bz && Math.hypot(bz.x - p.x, bz.y - p.y) < UNIT * 10 ? bz.y : p.y - UNIT * 3;
+        if (this.spawnCub(ox, oy)) sparks(this, this.sx(ox), this.sy(oy), 18, 'spark', 0xa8f0c8, 480);
+      }
       shockRing(this, this.sx(p.x), this.sy(p.y), pick === 'take' ? 0xffb35a : 0x7dd8b0, 260, 700, 8);
       sparks(this, this.sx(p.x), this.sy(p.y), 26, pick === 'take' ? 'ember' : 'spark', pick === 'take' ? 0xffd27a : 0xa8f0c8, 520);
       const extra = pick === 'take' ? `\n+${ch.take.crystal} 結晶` : `\n行商的裝備 −${c ? shopDiscountPct(c) : SPARE_DISCOUNT}%`;
@@ -3362,6 +3369,14 @@ export class RtBattleScene extends Phaser.Scene {
   private choiceMarkSaid = false;
   /** 霧中小狼（D-157：霧語森林選了「還」）：半透明、跟在你身後，戰鬥時躲進霧裡（變淡）。純畫面 */
   private cub: { x: number; y: number; a: number; t: number; face: number; kind: 'cub' | 'flower' | 'wisp' | 'star' } | null = null;
+  /** 「還」的小跟班（D-158）：重進地圖時在主角旁；剛選完「還」就從 Boss 倒下的地方飛過來（D-190） */
+  private spawnCub(x: number, y: number): boolean {
+    const kinds: Record<string, 'cub' | 'flower' | 'wisp' | 'star'> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp', starfall: 'star' };
+    const kind = kinds[this.stageId];
+    if (!this.tracked || this.bot || !kind) return false;
+    this.cub = { x, y, a: 0, t: this.time.now, face: 1, kind };
+    return true;
+  }
   private drawCub(g: Phaser.GameObjects.Graphics, now: number): void {
     const c = this.cub;
     if (!c) return;
