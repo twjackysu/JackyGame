@@ -67,7 +67,7 @@ import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip } from '../ui/tipText';
-import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard } from '../ui/chapterCard';
+import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -1346,14 +1346,12 @@ export class RtBattleScene extends Phaser.Scene {
       this.time.delayedCall(1500, () => this.postGameEnd());
       return;
     }
-    const lab = chapterLabel(this.stageId);
+    const lab = postGameEndLabel(this.stageId, loadChoices()[this.stageId]);
     if (!lab) return;
     markChapterSeen(key);
-    const pick = loadChoices()[this.stageId];
-    const line = pick === 'take' ? '星核在你掌心發燙——下一個故事，也許已經開始' : '夜空完整了。你的故事，在星光下落幕';
     if (this.hint) this.dismissHint();
     this.chapterUntil = this.time.now + 3200;
-    playChapterCard(this, { ...lab, kicker: '番　外　完', line }, Math.round(VIEW_TOP + (VIEW_BOTTOM - VIEW_TOP) * 0.24), VIEW_TOP, VIEW_BOTTOM);
+    playChapterCard(this, lab, Math.round(VIEW_TOP + (VIEW_BOTTOM - VIEW_TOP) * 0.24), VIEW_TOP, VIEW_BOTTOM);
     SFX.itemGet();
   }
 

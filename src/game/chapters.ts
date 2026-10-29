@@ -23,6 +23,14 @@ export function chapterLabel(id: string): ChapterLabel | null {
   return { kicker, title: m.name, line: LINES[id] ?? '', color: m.color };
 }
 
+/** 番外（postGame 地圖）第一次討伐、選完抉擇後的收尾卡（第 58 輪）：kicker「番　外　完」＋依取／還一句話 */
+export function postGameEndLabel(id: string, pick: 'take' | 'spare' | undefined): ChapterLabel | null {
+  const lab = chapterLabel(id);
+  if (!lab || !worldMap(id)?.postGame) return null;
+  const line = pick === 'take' ? '星核在你掌心發燙——下一個故事，也許已經開始' : '夜空完整了。你的故事，在星光下落幕';
+  return { ...lab, kicker: '番　外　完', line };
+}
+
 export function chapterSeen(id: string): boolean {
   try {
     return localStorage.getItem(`jg_chapter_${id}`) === '1';

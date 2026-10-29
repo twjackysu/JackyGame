@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { GAME_WIDTH } from '../config';
 import { BANNER_DEPTH, TITLE_FONT, UI_FONT, reserveBanner } from '../fx/feel';
 import type { ChapterLabel } from '../chapters';
-export { chapterLabel, chapterSeen, markChapterSeen } from '../chapters';
+export { chapterLabel, chapterSeen, markChapterSeen, postGameEndLabel } from '../chapters';
 
 /** 播幕名卡；回傳整段（含淡出）的毫秒數，呼叫端可以等它播完再出地圖說明 */
 export function playChapterCard(scene: Phaser.Scene, lab: ChapterLabel, cy: number, barTop: number, barBottom: number): number {

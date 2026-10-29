@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chapterLabel } from '../src/game/chapters';
+import { chapterLabel, postGameEndLabel } from '../src/game/chapters';
 import { WORLD_MAPS } from '../src/game/worldMaps';
 
 describe('幕名卡（D-187）', () => {
@@ -16,5 +16,13 @@ describe('幕名卡（D-187）', () => {
       expect(l?.line.length).toBeGreaterThan(4);
     }
     expect(chapterLabel('forest_entry')).toBeNull();
+  });
+  it('番外打完有收尾卡（第 58 輪）：取／還各一句、一行放得下；故事地圖沒有', () => {
+    const t = postGameEndLabel('starfall', 'take');
+    const sp = postGameEndLabel('starfall', 'spare');
+    expect(t?.kicker).toBe('番　外　完');
+    expect(t?.line).not.toBe(sp?.line);
+    for (const l of [t, sp]) expect(l!.line.length).toBeLessThanOrEqual(24);
+    for (const m of WORLD_MAPS.filter((w) => !w.postGame)) expect(postGameEndLabel(m.id, 'spare')).toBeNull();
   });
 });
