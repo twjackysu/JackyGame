@@ -4729,6 +4729,12 @@ export class RtBattleScene extends Phaser.Scene {
       let top = VIEW_TOP + M;
       const gy = gb ? gb.bottom + (elite ? 36 : 22) : 0; // 大箭頭尖端離中心約 31px
       if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = top = gy;
+      // 第 57 輪：剛走進一區的地區名稱（「— 熔渣坡 —」，y 約 235～290）被上緣的 Boss 大箭頭與距離字壓住 → 箭頭挪到字的旁邊
+      for (const z of this.zoneTexts) {
+        if (!z.active || z.alpha < 0.05) continue;
+        const zb = z.getBounds();
+        if (cx > zb.left - M && cx < zb.right + M && cy > zb.top - M - 30 && cy < zb.bottom + M + 30) cx = cx < zb.centerX ? Math.max(M, zb.left - M) : Math.min(GAME_WIDTH - M, zb.right + M);
+      }
       // 同方向好幾隻精英／Boss：大箭頭沿著邊緣錯開，不疊成一團
       if (elite) {
         const onTop = cy <= top + 1;
@@ -5154,10 +5160,11 @@ export class RtBattleScene extends Phaser.Scene {
         this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''));
       }
       this.goalDone = done;
+      // 第 57 輪：光門還沒亮（等抉擇／通關演出）時不寫下一個目標——通關那張圖的「▶ 前往星隕高原」會在演出前就爆雷
       // 以前打倒過、光門已經開著（第 55 輪）：舊玩家回來時目標字條也提光門，不只說「往北打狼王」
       const fwd = this.gates.find((q) => !q.back);
       this.gateAhead = fwd ? worldMap(fwd.to)?.name ?? '' : '';
-      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : this.gateAhead ? `目標：打倒${bossDef.name}・光門通往${this.gateAhead}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
+      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${this.gateWaits ? '' : big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : this.gateAhead ? `目標：打倒${bossDef.name}・光門通往${this.gateAhead}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);

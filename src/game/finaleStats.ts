@@ -26,6 +26,13 @@ export const FINALE_LINES: readonly string[] = [
   '——這個世界，還在等你。',
 ];
 
+/** 結語跟著武器換字（第 57 輪）：拿長弓／法杖通關不再寫「倒在你的劍下」 */
+const FINALE_WEAPON: Record<string, string> = { sword: '劍下', bow: '箭下', staff: '法杖之下' };
+export function finaleLinesFor(weapon: string): string[] {
+  const w = FINALE_WEAPON[weapon] ?? '劍下';
+  return FINALE_LINES.map((l) => l.replace('你的劍下', `你的${w}`));
+}
+
 export const FINALE_CREDITS: readonly [string, string][] = [
   ['企劃・試玩・美術（AI 繪圖）', 'Jacky'],
   ['程式・關卡・數值・程式美術', 'Claude（Anthropic）\n每兩小時一輪的自動開發迴圈'],

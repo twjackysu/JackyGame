@@ -87,3 +87,15 @@ describe('燼牌對手的回聲（D-157）', () => {
     expect(rivalEcho('sol', { starfall: 'spare' })).toBeTruthy();
   });
 });
+
+describe('結語跟著武器換字（第 57 輪）', () => {
+  it('長劍不變、長弓／法杖不寫「劍下」', async () => {
+    const { finaleLinesFor } = await import('../src/game/finaleStats');
+    expect(finaleLinesFor('sword')).toEqual([...FINALE_LINES]);
+    for (const w of ['bow', 'staff']) {
+      const l = finaleLinesFor(w);
+      expect(l.join('')).not.toContain('劍下');
+      expect(l.length).toBe(FINALE_LINES.length);
+    }
+  });
+});

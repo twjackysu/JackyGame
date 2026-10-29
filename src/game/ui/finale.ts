@@ -8,9 +8,10 @@ import { GAME_WIDTH, GAME_HEIGHT, TALL } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { highFx } from '../settings';
 import { fmtSec } from '../rtRecord';
-import { FINALE_CREDITS, FINALE_LINES, PROLOGUE_LINES, fmtPlay, markFinaleSeen, MEMORY_TOTAL, markPrologueSeen, STORY_ENCOUNTERS, type FinaleStats } from '../finaleStats';
+import { FINALE_CREDITS, finaleLinesFor, PROLOGUE_LINES, fmtPlay, markFinaleSeen, MEMORY_TOTAL, markPrologueSeen, STORY_ENCOUNTERS, type FinaleStats } from '../finaleStats';
 import { FINALE_MAP, worldMap } from '../worldMaps';
 import { loadChoices, withEpilogue } from '../choices';
+import { loadWeapon } from '../weapon';
 export { finaleSeen, loadFinaleStats, prologueSeen } from '../finaleStats';
 
 const fmtDate = (at?: number): string => {
@@ -33,7 +34,7 @@ export function playPrologue(scene: Phaser.Scene, onDone: () => void): Phaser.Ga
 }
 
 function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => void, doneLabel: string): Phaser.GameObjects.Container {
-  const lines = stats ? withEpilogue(FINALE_LINES, loadChoices()) : PROLOGUE_LINES;
+  const lines = stats ? withEpilogue(finaleLinesFor(loadWeapon()), loadChoices()) : PROLOGUE_LINES;
   if (stats) markFinaleSeen();
   else markPrologueSeen();
   const cx = GAME_WIDTH / 2;
