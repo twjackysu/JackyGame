@@ -615,9 +615,12 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     if (g.results.length > rounds) {
       // 一局結束：大字＋多停一下
       const r = g.results[g.results.length - 1]!;
+      // 第 58 輪：最後一局不再出「第 3 局　伊妲贏了」大字——結算畫面已經列出每局結果，大字會壓在結算的標題上
+      if (g.over) { if (r === 0) SFX.itemGet(); } else {
       const t = bigText(scene, GAME_WIDTH / 2, 560, r === 0 ? `第 ${rounds + 1} 局　你贏了！` : r === 1 ? `第 ${rounds + 1} 局　${who.short}贏了` : `第 ${rounds + 1} 局　平手`, r === 0 ? '#ffd27a' : r === 1 ? '#ff9a8a' : '#c8d0f0', 46, 1100);
       t.setDepth(990);
       if (r === 0) SFX.itemGet();
+      }
       wait = 1700;
     }
     finishIfOver();
