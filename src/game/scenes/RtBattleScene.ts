@@ -246,6 +246,8 @@ export class RtBattleScene extends Phaser.Scene {
   private openRun = 0;
   /** 幕名卡播到什麼時候（這之前不出地區名稱與前世的記憶） */
   private chapterUntil = 0;
+  /** 第 56 輪：剛經光門抵達，回程門的字晚一點才淡入（不然一落地就貼在主角旁邊） */
+  private gateLabelFrom = 0;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
   private paws: { x: number; y: number; a: number; t: number; side: number }[] = [];
   /** 每隻巡邏怪上一個腳印的位置（unit id → 位置） */
@@ -408,6 +410,7 @@ export class RtBattleScene extends Phaser.Scene {
       const [r, g, b] = this.via === 'gateBack' ? [255, 236, 210] : [215, 245, 255];
       this.cameras.main.fadeIn(700, r, g, b);
     }
+    this.gateLabelFrom = this.via ? this.time.now + 1400 : 0;
     this.ground = this.makeGround();
     this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, this.glowTexture()).setBlendMode(Phaser.BlendModes.ADD));
     this.g = this.add.graphics();
@@ -1802,12 +1805,17 @@ export class RtBattleScene extends Phaser.Scene {
   private chestHint(): void {
     const list = STAGES[this.stageId]?.chests;
     if (!list?.length || this.bot) return;
+    // 第 56 輪：荊棘谷出生點旁就有一個寶箱 → 幕名卡／開場說明還在播時先不提示（不然三組字疊在一起），播完再說
+    if (this.tipBusy || this.time.now < this.chapterUntil || this.topCard?.active) return;
     const p = playerOf(this.s);
     for (const c of list) {
       if (c.nightOnly || this.chestHinted.has(c.id) || this.s.chestsOpened?.includes(c.id)) continue;
       if (Math.hypot(c.x - p.x, c.y - p.y) > CHEST_RULES.hintUnits * UNIT) continue;
       this.chestHinted.add(c.id);
-      const t = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '這個地方似乎有點熟悉……', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: 'italic', color: '#d8c8ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(66).setAlpha(0);
+      // 畫面正中間常是主角頭上（回程門的字也在那）→ 往上挪一點，並佔位讓其他置中大字避開
+      const hy = GAME_HEIGHT / 2 - 190;
+      reserveBanner(this, hy, 50, 3200);
+      const t = this.add.text(GAME_WIDTH / 2, hy, '這個地方似乎有點熟悉……', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: 'italic', color: '#d8c8ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(66).setAlpha(0);
       this.tweens.add({ targets: t, alpha: 0.9, duration: 700, hold: 1800, yoyo: true, onComplete: () => t.destroy() });
     }
   }
@@ -4906,7 +4914,10 @@ export class RtBattleScene extends Phaser.Scene {
         const top = ct.y - ct.height / 2;
         if (Math.abs(cx - ct.x) < (ct.width + gt.label.width) / 2 && ly > top && ly - gt.label.height < ct.y + ct.height / 2) ly = top - 4;
       }
-      gt.label.setPosition(cx, ly).setVisible(!this.menu && ly - 30 > 170);
+      // 第 56 輪：幕名卡播放中、剛經光門抵達的 1.4 秒內先不寫，之後 0.5 秒淡入
+      const from = Math.max(this.gateLabelFrom, this.chapterUntil);
+      const la = Phaser.Math.Clamp((this.time.now - from) / 500, 0, 1);
+      gt.label.setPosition(cx, ly).setAlpha(la).setVisible(!this.menu && ly - 30 > 170 && la > 0);
     }
   }
 
