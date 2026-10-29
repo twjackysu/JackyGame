@@ -251,6 +251,7 @@ export class RtBattleScene extends Phaser.Scene {
   private dustBase = 0;
   private goalAt = 0;
   private goalNext = '';
+  private gateAhead = '';
   /** 地面長出的荊棘（狼后／母樹的毒刺、根系環、綻放命中時；只是畫面） */
   private thornFx: { x: number; y: number; born: number; size: number; seed: number; wither?: number }[] = [];
   /** 霜旋（D-121）在地上留下的冰晶與結霜圈（純畫面，世界座標） */
@@ -4833,21 +4834,49 @@ export class RtBattleScene extends Phaser.Scene {
       const glow = gt.back ? 0xffc88a : 0x7ad8ff;
       const rim = gt.back ? 0xffe8c0 : 0xbff0ff;
       const beam = gt.back ? 0xffd8a8 : 0x9fe8ff;
-      g.fillStyle(glow, 0.16 + 0.1 * pulse).fillEllipse(cx, cy, 120 * k, 40 * k);
+      // 第 55 輪：地上多疊幾層光暈（假 bloom）＋旋轉的符文刻痕；光柱由寬到窄三層；兩根石柱上架一道門楣，門裡一層會流動的光幕
+      for (let i = 3; i >= 1; i--) g.fillStyle(glow, (0.07 + 0.04 * pulse) * (4 - i) / 3).fillEllipse(cx, cy, (100 + i * 34) * k, (32 + i * 12) * k);
       g.lineStyle(3, rim, 0.55 + 0.35 * pulse).strokeEllipse(cx, cy, 96 * k, 30 * k);
-      g.fillStyle(beam, 0.1 + 0.06 * pulse).fillRect(cx - 30 * k, cy - 150 * k, 60 * k, 150 * k);
-      g.fillStyle(0xfffbf0, 0.18 + 0.12 * pulse).fillRect(cx - 9 * k, cy - 150 * k, 18 * k, 150 * k);
-      for (const sx of [-1, 1]) {
-        g.fillStyle(0x3a4250, 1).fillRect(cx + sx * 42 * k - 7 * k, cy - 70 * k, 14 * k, 72 * k);
-        g.fillStyle(0x5a6474, 1).fillRect(cx + sx * 42 * k - 9 * k, cy - 76 * k, 18 * k, 8 * k);
-        g.fillStyle(beam, 0.6 + 0.4 * pulse).fillCircle(cx + sx * 42 * k, cy - 50 * k, 3.5 * k);
+      g.lineStyle(2, rim, 0.3 + 0.2 * pulse).strokeEllipse(cx, cy, 128 * k, 42 * k);
+      for (let i = 0; i < 10; i++) {
+        const a = t * 0.5 + (i / 10) * Math.PI * 2;
+        const rx = Math.cos(a) * 56 * k;
+        const ry = Math.sin(a) * 18 * k;
+        g.fillStyle(rim, 0.45 + 0.4 * Math.sin(t * 3 + i)).fillRect(cx + rx - 3 * k, cy + ry - 1.2 * k, 6 * k, 2.4 * k);
       }
+      g.fillStyle(beam, 0.06 + 0.04 * pulse).fillRect(cx - 44 * k, cy - 190 * k, 88 * k, 190 * k);
+      g.fillStyle(beam, 0.1 + 0.06 * pulse).fillRect(cx - 28 * k, cy - 170 * k, 56 * k, 170 * k);
+      g.fillStyle(0xfffbf0, 0.22 + 0.14 * pulse).fillRect(cx - 8 * k, cy - 170 * k, 16 * k, 170 * k);
+      // 門裡的光幕：幾道往上流的亮帶
+      for (let i = 0; i < 3; i++) {
+        const ph = (t * 0.45 + i / 3) % 1;
+        g.fillStyle(0xffffff, 0.16 * Math.sin(ph * Math.PI)).fillRect(cx - 34 * k, cy - 8 * k - ph * 66 * k, 68 * k, 7 * k);
+      }
+      for (const sx of [-1, 1]) {
+        g.fillStyle(0x2a303c, 1).fillRect(cx + sx * 42 * k - 8 * k, cy - 74 * k, 16 * k, 76 * k);
+        g.fillStyle(0x4a5262, 1).fillRect(cx + sx * 42 * k - 7 * k, cy - 74 * k, 6 * k, 76 * k);
+        g.fillStyle(0x5a6474, 1).fillRect(cx + sx * 42 * k - 10 * k, cy - 80 * k, 20 * k, 8 * k);
+        g.fillStyle(beam, 0.25 * pulse).fillCircle(cx + sx * 42 * k, cy - 50 * k, 9 * k);
+        g.fillStyle(beam, 0.6 + 0.4 * pulse).fillCircle(cx + sx * 42 * k, cy - 50 * k, 3.5 * k);
+        g.fillStyle(beam, 0.5 + 0.4 * pulse).fillCircle(cx + sx * 42 * k, cy - 26 * k, 2.5 * k);
+      }
+      // 門楣
+      g.fillStyle(0x3a4250, 1).fillRect(cx - 56 * k, cy - 90 * k, 112 * k, 11 * k);
+      g.fillStyle(0x5a6474, 1).fillRect(cx - 56 * k, cy - 90 * k, 112 * k, 3.5 * k);
+      g.fillStyle(beam, 0.7 + 0.3 * pulse).fillPoints([{ x: cx, y: cy - 93 * k }, { x: cx + 6 * k, y: cy - 84.5 * k }, { x: cx, y: cy - 76 * k }, { x: cx - 6 * k, y: cy - 84.5 * k }], true);
       for (let i = 0; i < 4; i++) {
         const ph = (t * 0.6 + i / 4) % 1;
         g.fillStyle(0xfffbf0, 0.8 * (1 - ph)).fillCircle(cx + Math.sin(i * 2.1 + t) * 24 * k, cy - ph * 140 * k, 2.5 * k);
       }
       // 字在石柱頂上；太靠上會壓到 HUD／Boss 血條（y 170 以內）就先不寫
-      gt.label.setPosition(cx, cy - 84 * k).setVisible(!this.menu && cy - 84 * k - 30 > 170);
+      let ly = cy - 98 * k;
+      // 第 55 輪：回程門就在出生點旁，門上的字常和畫面中間的「點怪物開打」字條疊在一起 → 字往上讓開
+      const ct = this.calmText;
+      if (ct?.visible && ct.text) {
+        const top = ct.y - ct.height / 2;
+        if (Math.abs(cx - ct.x) < (ct.width + gt.label.width) / 2 && ly > top && ly - gt.label.height < ct.y + ct.height / 2) ly = top - 4;
+      }
+      gt.label.setPosition(cx, ly).setVisible(!this.menu && ly - 30 > 170);
     }
   }
 
@@ -5006,7 +5035,10 @@ export class RtBattleScene extends Phaser.Scene {
         this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''));
       }
       this.goalDone = done;
-      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
+      // 以前打倒過、光門已經開著（第 55 輪）：舊玩家回來時目標字條也提光門，不只說「往北打狼王」
+      const fwd = this.gates.find((q) => !q.back);
+      this.gateAhead = fwd ? worldMap(fwd.to)?.name ?? '' : '';
+      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : this.gateAhead ? `目標：打倒${bossDef.name}・光門通往${this.gateAhead}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);

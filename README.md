@@ -96,6 +96,8 @@
 | ![星隕高原的抉擇](docs/screenshots/80-starfall-choice.jpg) | ![更多相遇](docs/screenshots/81-encounters-2.jpg) | ![護送](docs/screenshots/82-escort.jpg) |
 | **老玩家回來：「歡迎回到○○！」＋下一個目標（左手模式・大按鈕）** | **幫過的人在老地方等你道謝** | **行商記得你的善意：裝備 −40%** |
 | ![歡迎回來](docs/screenshots/83-left-hand-return.jpg) | ![道謝](docs/screenshots/84-return-thanks.jpg) | ![善意折扣](docs/screenshots/85-shop-goodwill.jpg) |
+| **打倒 Boss 後巢穴深處亮起光門：走進去就到下一張地圖** | **每張圖的出生點旁有回上一張的小門** | **抉擇完光門才亮，畫面外有青色箭頭指路** |
+| ![光門](docs/screenshots/87-gate.jpg) | ![回程光門](docs/screenshots/88-gate-back.jpg) | ![新地圖開放](docs/screenshots/89-gate-open.jpg) |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面（以及燼紅裂谷的熔渣史萊姆、燼心岩王，星隕高原的晶殼魔像、星骸守望者）是程式繪製，每張 AI 圖都有程式備援。
 
