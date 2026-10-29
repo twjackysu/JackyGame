@@ -67,6 +67,7 @@ import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip } from '../ui/tipText';
+import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -243,6 +244,8 @@ export class RtBattleScene extends Phaser.Scene {
   private tipCalmUntil = 0;
   /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
   private openRun = 0;
+  /** 幕名卡播到什麼時候（這之前不出地區名稱與前世的記憶） */
+  private chapterUntil = 0;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
   private paws: { x: number; y: number; a: number; t: number; side: number }[] = [];
   /** 每隻巡邏怪上一個腳印的位置（unit id → 位置） */
@@ -304,6 +307,7 @@ export class RtBattleScene extends Phaser.Scene {
   init(data: { stage?: string; seed?: number; bot?: string; via?: string }): void {
     this.via = data.via ?? '';
     this.warpAt = -1;
+    this.chapterUntil = 0;
     const q = new URLSearchParams(window.location.search);
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
     // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
@@ -1325,6 +1329,17 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 開場：地圖說明大字＋操作說明框（序章播完才跑） */
   private opening(): void {
+    // 第一次踏進這張大地圖：先播幕名卡（D-187），播完才出地圖說明
+    const lab = !this.bot && this.tracked && !chapterSeen(this.stageId) ? chapterLabel(this.stageId) : null;
+    if (lab) {
+      markChapterSeen(this.stageId);
+      this.tipBusy = true;
+      this.chapterUntil = this.time.now + 3000;
+      const ms = playChapterCard(this, lab, Math.round(VIEW_TOP + (VIEW_BOTTOM - VIEW_TOP) * 0.24), VIEW_TOP, VIEW_BOTTOM);
+      const run0 = this.openRun;
+      this.time.delayedCall(ms - 450, () => { if (run0 === this.openRun && this.scene.isActive()) this.opening(); });
+      return;
+    }
     const run = ++this.openRun;
     // 刷怪關的開場說明（怪會重生、營火是安全區）
     const st0 = STAGES[this.stageId];
@@ -1513,7 +1528,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 前世的記憶（D-137）：走到記憶點旁邊 → 想起一段事、拿結晶（不暫停戰鬥） */
   private memoryCheck(): void {
-    if (!this.memLeft.length) return;
+    if (!this.memLeft.length || this.time.now < this.chapterUntil) return; // 幕名卡播完再想起（不然兩張卡疊在一起）
     const p = playerOf(this.s);
     if (p.dead) return;
     const i = this.memLeft.findIndex((m) => Math.hypot(m.tx * UNIT + UNIT / 2 - p.x, m.ty * UNIT + UNIT / 2 - p.y) < MEMORY_RADIUS * UNIT);
@@ -1804,7 +1819,7 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(this.s);
     const z = zs.find((q) => p.x >= q.x0 && p.x < q.x1 && p.y >= q.y0 && p.y < q.y1);
     if (!z || z.name === this.zoneName) return;
-    if (this.topCard?.active) return;
+    if (this.topCard?.active || this.time.now < this.chapterUntil) return;
     // 第 52 輪：走進第二個地區時開場說明框還在（荊棘谷 8 秒就進毒沼）→ 說明框、地區名稱、地區說明、「見切射擊！」四組字同時擠在上半部。
     // 已經走到下一區＝學會走路了，直接收起說明框，地區名稱照原本位置。開場那一區（zoneName 還是 null）不收。
     // 但霧語森林南營地走 6 格就出去了：說明框至少留 3 秒（兩行字讀得完；不到 3 秒照舊整組往下挪）
