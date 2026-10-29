@@ -163,7 +163,10 @@ export class RtBattleScene extends Phaser.Scene {
   /** 往下一張地圖的光門（D-186）：打倒這張圖的 Boss 後出現在巢穴北邊，走進去就換地圖 */
   /** 這趟進地圖的出生點（回程光門放在它南邊） */
   private spawnAt = { x: 0, y: 0 };
-  private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean }[] = [];
+  /** 首次討伐後的光門在等哪個面板關掉（抉擇／通關演出）才出現 */
+  private gateWaits: '' | 'choice' | 'finale' = '';
+  private gateArrow: Phaser.GameObjects.Text | null = null;
+  private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean; revealAt?: number }[] = [];
   private ox = 0;
   private oy = 0;
   private pending: BattleCommand[] = [];
@@ -369,6 +372,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneSeenAt.clear();
     this.leashToldAt = -1e9;
     this.gates = [];
+    this.gateWaits = '';
+    this.gateArrow = null;
     { const p0 = playerOf(this.s); this.spawnAt = { x: p0.x, y: p0.y }; }
     this.setupGate();
     this.topCard = null;
@@ -1244,7 +1249,10 @@ export class RtBattleScene extends Phaser.Scene {
       const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！\n走進巢穴北邊的光門就到了\n（☰ 也可以直接前往）${nx?.recLevel ? `\n建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000);
       // 通關那張圖：新地圖開放（星隕高原）等通關演出看完才出，以前會在演出（depth 2000）底下播完、玩家看不到（第 39 輪）
       if (r.first && nx) {
-        this.setupGate();
+        // 光門等抉擇／通關演出結束才亮（第 55 輪：以前討伐當下就出現，等面板的 4～5 秒內走進去會跳過抉擇或結局）
+        if (this.stageId === FINALE_MAP && !this.bot) this.gateWaits = 'finale';
+        else if (pending) this.gateWaits = 'choice';
+        else this.revealGate();
         if (this.stageId === FINALE_MAP && !this.bot) this.afterFinale.push(opened);
         else later(4600, opened);
       }
@@ -1292,6 +1300,7 @@ export class RtBattleScene extends Phaser.Scene {
       sparks(this, this.sx(p.x), this.sy(p.y), 26, pick === 'take' ? 'ember' : 'spark', pick === 'take' ? 0xffd27a : 0xa8f0c8, 520);
       const extra = pick === 'take' ? `\n+${ch.take.crystal} 結晶` : `\n行商的裝備 −${c ? shopDiscountPct(c) : SPARE_DISCOUNT}%`;
       bigText(this, GAME_WIDTH / 2, 560, `${wrapTip(ch[pick].after)}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 30, 2600);
+      if (this.gateWaits === 'choice') this.revealGate();
       const q = this.afterChoice;
       this.afterChoice = [];
       q.forEach((fn, i) => this.time.delayedCall(3600 + i * 3200, fn));
@@ -1358,6 +1367,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.menu = null;
       this.acc = 0;
       bigText(this, GAME_WIDTH / 2, 560, '地上的戰利品別忘了撿！', '#f4e6c0', 32, 1800);
+      if (this.gateWaits === 'finale') this.revealGate();
       const q = this.afterFinale.splice(0);
       q.forEach((fn, i) => this.time.delayedCall(2400 + i * 3200, fn));
     });
@@ -4679,6 +4689,37 @@ export class RtBattleScene extends Phaser.Scene {
       }
     }
     for (let i = li; i < this.arrowLabels.length; i++) this.arrowLabels[i]!.setVisible(false);
+    // 往下一張的光門在畫面外（第 55 輪）：剛亮起的 25 秒內、或 40 公尺內，邊緣一個青色箭頭＋「光門 Nm」
+    let gateShown = false;
+    const bossFight = enemiesOf(s).some((e) => e.mode === 'combat' && !!ENEMIES[e.defId]?.boss);
+    for (const gt of this.gates) {
+      if (bossFight) break;
+      if (gt.back || this.menu) continue;
+      const px = this.sx(gt.x);
+      const py = this.sy(gt.y) - 60 * this.k;
+      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960 + TALL) continue;
+      const dm = Math.hypot(gt.x - p.x, gt.y - p.y) / UNIT;
+      if (dm > 40 && !(gt.revealAt !== undefined && now - gt.revealAt < 25000)) continue;
+      const M = 34;
+      let cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
+      let cy = Math.max(VIEW_TOP + M, Math.min(900 + TALL, py));
+      const mm = this.mini;
+      if (mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M) cx = mm.x + mm.w + M;
+      const gy = gb ? gb.bottom + 36 : 0;
+      if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = gy;
+      for (let k = 0; k < 3 && placed.some((q) => Math.abs(q.ax - cx) < 56 && Math.abs(q.ay - cy) < 56); k++) cx = cx > GAME_WIDTH / 2 ? cx - 60 : cx + 60;
+      const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
+      const c = Math.cos(an);
+      const sn = Math.sin(an);
+      const z = 1.6;
+      g.fillStyle(0x7ad8ff, 0.22 + 0.14 * Math.sin(now / 200)).fillCircle(cx, cy, 26);
+      g.fillStyle(0xbff0ff, 0.95).fillTriangle(cx + c * 18 * z, cy + sn * 18 * z, cx - c * 10 * z - sn * 12 * z, cy - sn * 10 * z + c * 12 * z, cx - c * 10 * z + sn * 12 * z, cy - sn * 10 * z - c * 12 * z);
+      if (!this.gateArrow) this.gateArrow = this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: '#bff0ff', stroke: '#06121e', strokeThickness: 4 }).setOrigin(0.5).setDepth(51);
+      this.gateArrow.setVisible(true).setText(`光門 ${Math.round(dm)}m`).setPosition(Math.max(46, Math.min(GAME_WIDTH - 46, cx - c * 46)), cy - sn * 40);
+      gateShown = true;
+      break;
+    }
+    if (!gateShown) this.gateArrow?.setVisible(false);
     // 畫面外地上的精良以上裝備（D-100）：邊緣閃爍菱形（稀有度顏色），提醒回去撿
     for (const it of s.ground ?? []) {
       if (it.kind !== 'gear' || (it.rarity ?? 1) < 2) continue;
@@ -4757,6 +4798,23 @@ export class RtBattleScene extends Phaser.Scene {
       const spot = ([[0, 2.2], [2.4, 0], [-2.4, 0], [0, -2.4], [2, 2], [-2, 2]] as const).map(([dx, dy]) => [x + dx * UNIT, y + dy * UNIT] as [number, number]).find(([px, py]) => ok(px, py));
       add(pv.id, spot ?? null, true);
     }
+  }
+
+  /** 首次討伐後光門亮起：門的位置一圈光環＋火花（畫面外由 drawOffscreen 的青色箭頭指過去） */
+  private revealGate(): void {
+    this.gateWaits = '';
+    this.setupGate();
+    const gt = this.gates.find((q) => !q.back);
+    if (!gt) return;
+    gt.revealAt = this.time.now;
+    SFX.itemGet();
+    const go = (): void => {
+      if (!this.scene.isActive()) return;
+      shockRing(this, this.sx(gt.x), this.sy(gt.y), 0x9fe8ff, 220, 900, 6);
+      sparks(this, this.sx(gt.x), this.sy(gt.y) - 60 * this.k, 22, 'spark', 0xd8f8ff, 600);
+    };
+    go();
+    this.time.delayedCall(450, go);
   }
 
   private drawGate(g: Phaser.GameObjects.Graphics, now: number): void {
