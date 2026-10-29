@@ -414,6 +414,15 @@ export class RtBattleScene extends Phaser.Scene {
           sparks(this, this.sx(pp.x), this.sy(pp.y) - 50 * this.k, 18, 'spark', 0xfff4d8, 600);
         });
       }
+    } else if (this.via === 'gateBack' && !playerOf(this.s).dead) {
+      // 從回程門回來（gateBack）：回到營火旁（光門在巢穴，可能有 Boss），一樣從光裡降下，不要憑空出現
+      this.arriveAt = this.time.now;
+      this.time.delayedCall(260, () => {
+        if (!this.scene.isActive()) return;
+        const pp = playerOf(this.s);
+        shockRing(this, this.sx(pp.x), this.sy(pp.y), 0xffe8c0, 170, 650, 5);
+        sparks(this, this.sx(pp.x), this.sy(pp.y) - 50 * this.k, 16, 'spark', 0xfff4d8, 600);
+      });
     }
     this.topCard = null;
     this.zoneTexts = [];
