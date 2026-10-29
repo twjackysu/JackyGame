@@ -168,6 +168,8 @@ export class RtBattleScene extends Phaser.Scene {
   private gateWaits: '' | 'choice' | 'finale' = '';
   /** 走進光門的時間（-1＝沒在過場）、這次是不是從光門過來的 */
   private warpAt = -1;
+  /** 第 56 輪：經光門抵達＝從回程門走出來（主角從光柱裡降下、淡入），-1＝沒有 */
+  private arriveAt = -1;
   private via = '';
   private gateArrow: Phaser.GameObjects.Text | null = null;
   private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean; revealAt?: number }[] = [];
@@ -388,6 +390,31 @@ export class RtBattleScene extends Phaser.Scene {
     this.gateArrow = null;
     { const p0 = playerOf(this.s); this.spawnAt = { x: p0.x, y: p0.y }; }
     this.setupGate();
+    this.arriveAt = -1;
+    // 第 56 輪：走光門過來的，就站在這張圖的回程門前（像剛從門裡走出來），不是憑空出現在營火旁
+    if (this.via === 'gate') {
+      const bg = this.gates.find((q) => q.back);
+      const p0 = playerOf(this.s);
+      if (bg && !p0.dead) {
+        // 從門往出生點（營火）那側走出 1.9 格：站在門裡或門南會被石柱、門楣蓋住，而且太貼地圖下緣。
+        // 回程門可能在出生點的東／西／北（setupGate 的備選），所以沿「門→出生點」的方向算，不寫死往北
+        const dx = this.spawnAt.x - bg.x;
+        const dy = this.spawnAt.y - bg.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const t = Math.min(1, (UNIT * 1.9) / d);
+        p0.x = bg.x + dx * t;
+        p0.y = bg.y + dy * t;
+        bg.armed = false; // 要先離開 2 格才會再觸發
+        this.arriveAt = this.time.now;
+        this.time.delayedCall(260, () => {
+          if (!this.scene.isActive()) return;
+          const pp = playerOf(this.s);
+          shockRing(this, this.sx(bg.x), this.sy(bg.y), 0xffe8c0, 200, 700, 6);
+          shockRing(this, this.sx(pp.x), this.sy(pp.y), 0xd8f8ff, 150, 600, 5);
+          sparks(this, this.sx(pp.x), this.sy(pp.y) - 50 * this.k, 18, 'spark', 0xfff4d8, 600);
+        });
+      }
+    }
     this.topCard = null;
     this.zoneTexts = [];
     this.chestHinted = new Set();
@@ -700,6 +727,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.updateCamera(Math.min(1, dt / 120));
     this.ambient?.update(dt, this.ox, this.oy);
     this.draw();
+    if (this.arriveAt >= 0) this.arrivePose();
     this.idleHint();
     this.zoneBanner();
     this.updateFireBtn();
@@ -4965,6 +4993,21 @@ export class RtBattleScene extends Phaser.Scene {
     sp.y -= 70 * k * k;
     sp.setAlpha(1 - k * 0.9);
     sp.scaleX *= 1 - 0.6 * k;
+  }
+
+  /** 經光門抵達（第 56 輪）：主角從門上的光柱降下、由細變寬、淡入（warpPose 倒過來） */
+  private arrivePose(): void {
+    const k = (this.time.now - this.arriveAt) / 700;
+    if (k >= 1 || k < 0) {
+      this.arriveAt = -1;
+      return;
+    }
+    const sp = this.sprites.get(playerOf(this.s).id);
+    if (!sp) return;
+    const r = 1 - k;
+    sp.y -= 70 * r * r;
+    sp.setAlpha(0.1 + 0.9 * k);
+    sp.scaleX *= 0.4 + 0.6 * k;
   }
 
   /** 小地圖點在石頭上時，找最近的空地（格中心，最多 3 格外） */
