@@ -5021,10 +5021,22 @@ export class RtBattleScene extends Phaser.Scene {
         const top = ct.y - ct.height / 2;
         if (Math.abs(cx - ct.x) < (ct.width + gt.label.width) / 2 && ly > top && ly - gt.label.height < ct.y + ct.height / 2) ly = top - 4;
       }
+      // 第 58 輪：右下技能鍵蓋住門上的字（390×844 燼紅裂谷出生點的「▼ 回荊棘谷」）→ 字往左移到按鈕群外面
+      let lx = cx;
+      const lw = gt.label.width;
+      const lh = gt.label.height;
+      for (let i = 0; i < 7; i++) {
+        const b = this.btnPos(i);
+        const r = this.btnR(i) + 6;
+        const nx = Phaser.Math.Clamp(b.x, lx - lw / 2, lx + lw / 2);
+        const ny = Phaser.Math.Clamp(b.y, ly - lh, ly);
+        if (Math.hypot(b.x - nx, b.y - ny) < r) lx = Math.min(lx, b.x - r - lw / 2);
+      }
+      lx = Math.max(lx, lw / 2 + 8);
       // 第 56 輪：幕名卡播放中、剛經光門抵達的 1.4 秒內先不寫，之後 0.5 秒淡入
       const from = Math.max(this.gateLabelFrom, this.chapterUntil);
       const la = Phaser.Math.Clamp((this.time.now - from) / 500, 0, 1);
-      gt.label.setPosition(cx, ly).setAlpha(la).setVisible(!this.menu && ly - 30 > 170 && la > 0);
+      gt.label.setPosition(lx, ly).setAlpha(la).setVisible(!this.menu && ly - 30 > 170 && la > 0);
     }
   }
 
