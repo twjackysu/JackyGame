@@ -165,6 +165,9 @@ export class RtBattleScene extends Phaser.Scene {
   private spawnAt = { x: 0, y: 0 };
   /** 首次討伐後的光門在等哪個面板關掉（抉擇／通關演出）才出現 */
   private gateWaits: '' | 'choice' | 'finale' = '';
+  /** 走進光門的時間（-1＝沒在過場）、這次是不是從光門過來的 */
+  private warpAt = -1;
+  private via = '';
   private gateArrow: Phaser.GameObjects.Text | null = null;
   private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean; revealAt?: number }[] = [];
   private ox = 0;
@@ -298,7 +301,9 @@ export class RtBattleScene extends Phaser.Scene {
     super('RtBattle');
   }
 
-  init(data: { stage?: string; seed?: number; bot?: string }): void {
+  init(data: { stage?: string; seed?: number; bot?: string; via?: string }): void {
+    this.via = data.via ?? '';
+    this.warpAt = -1;
     const q = new URLSearchParams(window.location.search);
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
     // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
@@ -394,6 +399,11 @@ export class RtBattleScene extends Phaser.Scene {
     this.updateCamera(1);
     // 地圖外（鏡頭往下多捲、讓主角不被按鈕擋住時看得到）用這張圖的密林／岩壁底色，看起來像牆延伸出去，不是黑洞（第 39 輪）
     this.cameras.main.setBackgroundColor(worldMap(this.stageId)?.palette.under ?? 0x0b1410);
+    this.cameras.main.resetFX();
+    if (this.via) {
+      const [r, g, b] = this.via === 'gateBack' ? [255, 236, 210] : [215, 245, 255];
+      this.cameras.main.fadeIn(700, r, g, b);
+    }
     this.ground = this.makeGround();
     this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, this.glowTexture()).setBlendMode(Phaser.BlendModes.ADD));
     this.g = this.add.graphics();
@@ -648,6 +658,11 @@ export class RtBattleScene extends Phaser.Scene {
   update(_t: number, delta: number): void {
     if (this.editing) {
       this.draw();
+      return;
+    }
+    if (this.warpAt >= 0) {
+      this.draw();
+      this.warpPose();
       return;
     }
     if (this.ended || this.menu) return;
@@ -4892,12 +4907,38 @@ export class RtBattleScene extends Phaser.Scene {
         continue;
       }
       if (d > UNIT * 0.9) continue;
-      this.gates = [];
-      SFX.uiTap();
-      this.cameras.main.flash(260, 200, 240, 255);
-      this.leave(() => this.scene.start('RtBattle', { stage: gt.to, bot: '' }));
+      this.warpGate(gt); // 過場中 update 不再呼叫 gateCheck，門留著繼續畫
       return;
     }
+  }
+
+  /**
+   * 走進光門的過場（第 55 輪）：以前是 0.26 秒閃白就直接換場景，像切 bug。
+   * 現在 0.75 秒：戰鬥停住、門爆一圈光、主角往上化進光柱、整個畫面淡成青白，下一張圖從青白淡入。
+   */
+  private warpGate(gt: { x: number; y: number; to: string; back: boolean }): void {
+    this.warpAt = this.time.now;
+    SFX.itemGet();
+    for (const z of this.zoneTexts) if (z.active) this.tweens.add({ targets: z, alpha: 0, duration: 160 });
+    const col = gt.back ? 0xffd8a8 : 0x9fe8ff;
+    const gx = this.sx(gt.x);
+    const gy = this.sy(gt.y);
+    shockRing(this, gx, gy, col, 260, 700, 8);
+    sparks(this, gx, gy - 60 * this.k, 30, 'spark', 0xffffff, 700);
+    const [r, g, b] = gt.back ? [255, 236, 210] : [215, 245, 255];
+    this.time.delayedCall(180, () => this.cameras.main.fadeOut(520, r, g, b));
+    this.persist();
+    this.time.delayedCall(760, () => this.leave(() => this.scene.start('RtBattle', { stage: gt.to, bot: '', via: gt.back ? 'gateBack' : 'gate' })));
+  }
+
+  /** 過場中：主角往上飄、變細、淡掉（draw() 每幀會把精靈放回原位，所以畫完再改） */
+  private warpPose(): void {
+    const sp = this.sprites.get(playerOf(this.s).id);
+    if (!sp) return;
+    const k = Math.min(1, (this.time.now - this.warpAt) / 600);
+    sp.y -= 70 * k * k;
+    sp.setAlpha(1 - k * 0.9);
+    sp.scaleX *= 1 - 0.6 * k;
   }
 
   /** 小地圖點在石頭上時，找最近的空地（格中心，最多 3 格外） */
