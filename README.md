@@ -100,6 +100,8 @@
 | ![光門](docs/screenshots/87-gate.jpg) | ![回程光門](docs/screenshots/88-gate-back.jpg) | ![新地圖開放](docs/screenshots/89-gate-open.jpg) |
 | **第一次踏進每張地圖：電影黑條＋幕名卡** | **走進光門：主角化進光柱、畫面淡成青白** | **下一張地圖從同一道光裡淡入，主角從門前的光裡降下** |
 | ![幕名卡](docs/screenshots/90-chapter-card.jpg) | ![光門過場](docs/screenshots/91-gate-warp.jpg) | ![抵達](docs/screenshots/92-gate-arrive.jpg) |
+| **打倒番外的星骸守望者：「番外　完」收尾卡（依取／還一句話）** | **選了「還」，小星星當場從巢穴飛到你身邊** | |
+| ![番外完](docs/screenshots/93-postgame-end.jpg) | ![小星星](docs/screenshots/94-star-companion.jpg) | |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面（以及燼紅裂谷的熔渣史萊姆、燼心岩王，星隕高原的晶殼魔像、星骸守望者）是程式繪製，每張 AI 圖都有程式備援。
 
