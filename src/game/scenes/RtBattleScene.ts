@@ -248,6 +248,8 @@ export class RtBattleScene extends Phaser.Scene {
   private openRun = 0;
   /** 幕名卡播到什麼時候（這之前不出地區名稱與前世的記憶） */
   private chapterUntil = 0;
+  /** 上一則「稀有裝備！」大字出現的時間（番外收尾卡等它淡掉） */
+  private rareAt = -1e9;
   /** 第 56 輪：剛經光門抵達，回程門的字晚一點才淡入（不然一落地就貼在主角旁邊） */
   private gateLabelFrom = 0;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
@@ -313,7 +315,7 @@ export class RtBattleScene extends Phaser.Scene {
   init(data: { stage?: string; seed?: number; bot?: string; via?: string }): void {
     this.via = data.via ?? '';
     this.warpAt = -1;
-    this.chapterUntil = 0;
+    this.chapterUntil = 0; this.rareAt = -1e9;
     const q = new URLSearchParams(window.location.search);
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
     // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
@@ -941,6 +943,7 @@ export class RtBattleScene extends Phaser.Scene {
           if (this.scene.isActive() && this.time.now < this.chapterUntil) { this.time.delayedCall(this.chapterUntil - this.time.now + 100, flush); return; }
           const list = this.rareQueue.splice(0);
           if (!list.length || !this.scene.isActive()) return;
+          this.rareAt = this.time.now;
           const f = list[0]!;
           const head = f.night ? '深夜的稀有！' : '稀有裝備！';
           bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.slice(0, 3).map((x) => x.name).join('\n')}`, f.night ? '#b8a8ff' : f.col, 44, 1200 + 400 * (Math.min(3, list.length) - 1));
@@ -1339,7 +1342,7 @@ export class RtBattleScene extends Phaser.Scene {
   private postGameEnd(): void {
     const key = `${this.stageId}_end`;
     if (!this.scene.isActive() || this.ended || chapterSeen(key)) return;
-    if (this.menu || this.editing) {
+    if (this.menu || this.editing || this.rareQueue.length || this.time.now - this.rareAt < 2200) {
       this.time.delayedCall(1500, () => this.postGameEnd());
       return;
     }
