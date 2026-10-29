@@ -13,7 +13,7 @@
 | ![隕星術](docs/screenshots/70-staff-meteor.jpg) | ![星骸守望者](docs/screenshots/57-star-sentinel.jpg) | ![抉擇](docs/screenshots/77-boss-choice.jpg) | ![營火燼牌](docs/screenshots/47-ember-cards.jpg) |
 
 ## 一眼看懂
-- **自由走的四張大地圖**：森林、荊棘谷、熔岩裂谷、通關後的星隕高原，整張地圖就是一場無縫的即時戰鬥——沒有切畫面、沒有時間限制；打倒 Boss 後巢穴深處亮起**光門**，走進去就到下一張地圖（每張圖的出生點旁也有回上一張的門）。
+- **自由走的四張大地圖**：森林、荊棘谷、熔岩裂谷、通關後的星隕高原，整張地圖就是一場無縫的即時戰鬥——沒有切畫面、沒有時間限制；打倒 Boss 後巢穴深處亮起**光門**，走進去化成一道光就到下一張地圖（每張圖的出生點旁也有回上一張的門）；第一次踏進每張地圖會播「第二幕　荊棘谷」這樣的幕名卡。
 - **簡單但吃技巧**：搖桿走路、放開自動攻擊；看地上的紅色預告閃開、黃框的攻擊格擋反擊。三種武器（長劍／長弓／法杖），每招滿級還能換兩種變化。
 - **越刷越強**：經驗、6 格裝備與詞綴、營火強化、技能點自由搭配；營火行商自由買賣；Boss 有暴怒版與深夜版。
 - **營火燼牌**：昆特牌風格的三局兩勝卡牌小遊戲，五位個性不同的對手，贏到他們的牌、自己組牌組。
@@ -98,6 +98,8 @@
 | ![歡迎回來](docs/screenshots/83-left-hand-return.jpg) | ![道謝](docs/screenshots/84-return-thanks.jpg) | ![善意折扣](docs/screenshots/85-shop-goodwill.jpg) |
 | **打倒 Boss 後巢穴深處亮起光門：走進去就到下一張地圖** | **每張圖的出生點旁有回上一張的小門** | **抉擇完光門才亮，畫面外有青色箭頭指路** |
 | ![光門](docs/screenshots/87-gate.jpg) | ![回程光門](docs/screenshots/88-gate-back.jpg) | ![新地圖開放](docs/screenshots/89-gate-open.jpg) |
+| **第一次踏進每張地圖：電影黑條＋幕名卡** | **走進光門：主角化進光柱、畫面淡成青白** | **下一張地圖從同一道光裡淡入** |
+| ![幕名卡](docs/screenshots/90-chapter-card.jpg) | ![光門過場](docs/screenshots/91-gate-warp.jpg) | ![抵達](docs/screenshots/92-gate-arrive.jpg) |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面（以及燼紅裂谷的熔渣史萊姆、燼心岩王，星隕高原的晶殼魔像、星骸守望者）是程式繪製，每張 AI 圖都有程式備援。
 
