@@ -936,13 +936,16 @@ export class RtBattleScene extends Phaser.Scene {
       const q = this.rareQueue;
       q.push({ name: gearName(g), night: !!g.night, col });
       if (q.length === 1) {
-        this.time.delayedCall(250, () => {
+        const flush = (): void => {
+          // 幕名卡（含「番外　完」）播放中：等卡片收起再出，不然稀有大字壓在卡片上（第 58 輪）
+          if (this.scene.isActive() && this.time.now < this.chapterUntil) { this.time.delayedCall(this.chapterUntil - this.time.now + 100, flush); return; }
           const list = this.rareQueue.splice(0);
           if (!list.length || !this.scene.isActive()) return;
           const f = list[0]!;
           const head = f.night ? '深夜的稀有！' : '稀有裝備！';
           bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.slice(0, 3).map((x) => x.name).join('\n')}`, f.night ? '#b8a8ff' : f.col, 44, 1200 + 400 * (Math.min(3, list.length) - 1));
-        });
+        };
+        this.time.delayedCall(250, flush);
       }
     } else {
       SFX.confirm();
@@ -1308,6 +1311,8 @@ export class RtBattleScene extends Phaser.Scene {
       if (pending && ch) this.time.delayedCall(4300, () => this.showChoice(ch));
       // 最後一張地圖第一次討伐 → 通關演出（D-133）
       if (r.first && this.stageId === FINALE_MAP && !this.bot) later(5000, () => this.showFinale());
+      // 番外（通關後的挑戰地圖）第一次討伐 → 選完抉擇播「番外　完」幕名卡，給最後一個 Boss 一個收尾（第 58 輪）
+      if (r.first && worldMap(this.stageId)?.postGame && !this.bot) later(4600, () => this.postGameEnd());
       const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！\n走進巢穴北邊的光門就到了\n（☰ 也可以直接前往）${nx?.recLevel ? `\n建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000);
       // 通關那張圖：新地圖開放（星隕高原）等通關演出看完才出，以前會在演出（depth 2000）底下播完、玩家看不到（第 39 輪）
       if (r.first && nx) {
@@ -1328,6 +1333,25 @@ export class RtBattleScene extends Phaser.Scene {
     const head = first ? (worldMap(this.stageId)?.firstKill ?? '首次討伐！') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
+  }
+
+  /** 番外收尾：電影黑條＋「番外　完」＋依抉擇一句話；只播一次（jg_chapter_<id>_end） */
+  private postGameEnd(): void {
+    const key = `${this.stageId}_end`;
+    if (!this.scene.isActive() || this.ended || chapterSeen(key)) return;
+    if (this.menu || this.editing) {
+      this.time.delayedCall(1500, () => this.postGameEnd());
+      return;
+    }
+    const lab = chapterLabel(this.stageId);
+    if (!lab) return;
+    markChapterSeen(key);
+    const pick = loadChoices()[this.stageId];
+    const line = pick === 'take' ? '星核在你掌心發燙——下一個故事，也許已經開始' : '夜空完整了。你的故事，在星光下落幕';
+    if (this.hint) this.dismissHint();
+    this.chapterUntil = this.time.now + 3200;
+    playChapterCard(this, { ...lab, kicker: '番　外　完', line }, Math.round(VIEW_TOP + (VIEW_BOTTOM - VIEW_TOP) * 0.24), VIEW_TOP, VIEW_BOTTOM);
+    SFX.itemGet();
   }
 
   /** 抉擇選完之後才出的提示（新地圖開放等） */
