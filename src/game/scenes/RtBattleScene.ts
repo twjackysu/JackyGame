@@ -1599,6 +1599,8 @@ export class RtBattleScene extends Phaser.Scene {
     c.add([bg, head, body, gain]);
     this.topCard = c;
     this.hideBountyUnder(c, CW);
+    this.hideHintUnder(c);
+    this.clearZoneTexts(); // 第 57 輪：星隕高原開場記憶卡蓋在「— 高原營地 —」上，字從卡片底下露出半截
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: r.all ? 8000 : 6000, duration: 700, onComplete: () => c.destroy() });
     if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
@@ -1691,6 +1693,8 @@ export class RtBattleScene extends Phaser.Scene {
     c.add([bg, head, body, gain]);
     this.topCard = c;
     this.hideBountyUnder(c, CW);
+    this.hideHintUnder(c);
+    this.clearZoneTexts(); // 第 57 輪：星隕高原開場記憶卡蓋在「— 高原營地 —」上，字從卡片底下露出半截
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: 7000, duration: 700, onComplete: () => c.destroy() });
   }
@@ -2156,6 +2160,12 @@ export class RtBattleScene extends Phaser.Scene {
       if (localStorage.getItem(HINT_KEY)) return;
     } catch {
       /* 無痕模式 */
+    }
+    if (this.hint?.active) return;
+    // 第 57 輪：星隕高原出生點就有記憶光點，記憶卡和說明框同時出現、說明框從卡片底下露出來 → 卡片收起再出
+    if (this.topCard?.active) {
+      this.time.delayedCall(700, () => this.showHint());
+      return;
     }
     // 第 23 輪縮成兩行：紅框、黃框、大招、裝備改成第一次遇到時才提示（tipOnce）
     const lines = ['左下拖曳走路・放開＝自動追擊＋普攻', '點怪物開打・右下：技能與閃避'];
@@ -3639,6 +3649,24 @@ export class RtBattleScene extends Phaser.Scene {
    * 上方的記憶卡／回禮卡會蓋住懸賞板較長的那行（「荊棘母樹 0/1（別圖）」右緣約 225，卡片左緣 160），
    * 字被切一半很難看 → 卡片在的時候懸賞板先淡出，卡片消失再回來（第 53 輪，D-184）
    */
+  /** 收掉正在顯示的地區名稱＋說明（Boss 登場、上方卡片出現時） */
+  private clearZoneTexts(): void {
+    for (const z of this.zoneTexts) {
+      if (!z.active) continue;
+      this.tweens.killTweensOf(z);
+      this.tweens.add({ targets: z, alpha: 0, duration: 180, onComplete: () => z.destroy() });
+    }
+    this.zoneTexts = [];
+  }
+
+  /** 上方卡片出現時開場說明框先淡出，卡片消失再回來（第 57 輪） */
+  private hideHintUnder(c: Phaser.GameObjects.Container): void {
+    const h = this.hint;
+    if (!h?.active) return;
+    this.tweens.add({ targets: h, alpha: 0, duration: 200 });
+    c.once('destroy', () => { if (h.active && this.hint === h) this.tweens.add({ targets: h, alpha: 1, duration: 300 }); });
+  }
+
   private hideBountyUnder(c: Phaser.GameObjects.Container, cw: number): void {
     const bt = this.bountyTxt;
     if (!bt?.visible || !bt.text) return;
@@ -3670,12 +3698,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 43 輪：整組往下挪 70（以前名字壓在左上角懸賞板的字上，懸賞板到 y≈425）
     const IY = 70;
     // 走進 Boss 巢穴那一刻地區名稱（「— 熔心王座 —」＋說明）也剛好出來，兩行字壓在 Boss 身上、和登場名字搶 → 先收掉（D-184）
-    for (const z of this.zoneTexts) {
-      if (!z.active) continue;
-      this.tweens.killTweensOf(z);
-      this.tweens.add({ targets: z, alpha: 0, duration: 180, onComplete: () => z.destroy() });
-    }
-    this.zoneTexts = [];
+    this.clearZoneTexts();
     // 名字＋稱號這一塊（y 約 420～556）在淡出前不讓其他置中大字（大招名、升級…）壓上來（D-184）
     reserveBanner(this, 488 + IY - 70, 150, 1800);
     const line = this.add.rectangle(-GAME_WIDTH / 2, 430 + IY, GAME_WIDTH * 0.9, 4, Phaser.Display.Color.HexStringToColor(col).color, 0.9).setDepth(881);
