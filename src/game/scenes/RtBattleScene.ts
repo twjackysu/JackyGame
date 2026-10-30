@@ -4393,7 +4393,7 @@ export class RtBattleScene extends Phaser.Scene {
     const elem = st === 'burn' ? 0xff8a3a : st === 'poison' ? 0xa8ff6a : st === 'weak' ? 0xc8a0ff : 0;
     if (hs.type === 'ring' || (ult && hs.type === 'circle')) {
       // 環形箭雨／流星箭雨（D-149）：箭從天上落進範圍
-      this.arrowRain(x, y, hs.type === 'ring' ? hs.rIn : 0, hs.type === 'ring' ? hs.rOut : hs.r, ult ? 0xff9ae0 : 0x9fe0ff, ult ? 5 : 12, ult);
+      this.arrowRain(x, y, hs.type === 'ring' ? hs.rIn : 0, hs.type === 'ring' ? hs.rOut : hs.r, ult ? 0xff9ae0 : 0x9fe0ff, ult ? 8 : 12, ult);
       return;
     }
     if (hs.type === 'line') {
@@ -4471,6 +4471,15 @@ export class RtBattleScene extends Phaser.Scene {
       } });
     }
     if (rIn > 0) shockRing(this, this.sx(x), this.sy(y), color, rOut * this.k, 360, 3);
+    else if (star) {
+      // 第 69 輪：流星箭雨每一波地上亮一圈粉光（以前一波只有 5 支細箭，整招看起來稀稀落落）
+      const R = rOut * this.k;
+      const gl = this.add.graphics().setDepth(4).setBlendMode(Phaser.BlendModes.ADD).setPosition(this.sx(x), this.sy(y));
+      gl.fillStyle(color, 0.13).fillCircle(0, 0, R);
+      gl.fillStyle(0xffffff, 0.08).fillCircle(0, 0, R * 0.55);
+      gl.lineStyle(3, color, 0.55).strokeCircle(0, 0, R);
+      this.tweens.add({ targets: gl, alpha: 0, duration: 340, ease: 'Quad.easeOut', onComplete: () => gl.destroy() });
+    }
   }
 
   /** 星落一閃（D-112）：天上落下的光柱＋落地衝擊環 */
