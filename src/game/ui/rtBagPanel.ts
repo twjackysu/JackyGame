@@ -190,7 +190,10 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     };
     const cmp = `${worn ? '卸下後' : st.equip[g.slot] ? `換掉「${gearName(st.equip[g.slot]!)}」` : '換上後'}：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`;
     const better = after.atk * 4 + after.hp * 0.25 + after.def * 3 > now.atk * 4 + now.hp * 0.25 + now.def * 3;
-    out.push(scene.add.text(0, cmpY, cmp, { fontFamily: UI_FONT, fontSize: '22px', color: worn ? '#c8d0f0' : better ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5));
+    const cmpT = scene.add.text(0, cmpY, cmp, { fontFamily: UI_FONT, fontSize: '22px', color: worn ? '#c8d0f0' : better ? '#7dffb0' : '#ff9a8a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5);
+    // 第 62 輪：長名字換行會剩「±0」一個人在第二行、貼到強化說明 → 改寫「換掉身上的」
+    if (cmpT.height > 40 && !worn && st.equip[g.slot]) cmpT.setText(`換掉身上的：${d('atk', '攻擊')}・${d('hp', 'HP')}・${d('def', '防禦')}`);
+    out.push(cmpT);
     if (worn) {
       out.push(btn(-120, btnY, '卸下', () => {
         if (st.bag.length >= BAG_MAX) return;
