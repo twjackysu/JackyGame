@@ -251,6 +251,7 @@ export class RtBattleScene extends Phaser.Scene {
   private chapterUntil = 0;
   /** 上一則「稀有裝備！」大字出現的時間（番外收尾卡等它淡掉） */
   private rareAt = -1e9;
+  private holdRun = 0;
   /** 第 56 輪：剛經光門抵達，回程門的字晚一點才淡入（不然一落地就貼在主角旁邊） */
   private gateLabelFrom = 0;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
@@ -1305,7 +1306,7 @@ export class RtBattleScene extends Phaser.Scene {
       saveRecord(this.stageId, r.rec);
       first = r.first;
       best = r.best;
-      if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => bigText(this, GAME_WIDTH / 2, 600, `解鎖：深夜的${this.mw}！\n☰ 暫停選單・怪更兇、掉得更好`, '#9fb8ff', 34, 2600));
+      if (fury && r.rec.furyKills === 1 && STAGES[this.stageId]?.night) this.time.delayedCall(4600, () => this.announce(`解鎖：深夜的${this.mw}！\n☰ 暫停選單・怪更兇、掉得更好`, '#9fb8ff'));
       const nx = worldMap(worldMap(this.stageId)?.next ?? '');
       // 討伐後的抉擇（D-157）：還沒選過就跳抉擇面板（舊存檔已經打倒過的，下一次討伐時補問），新地圖／暴怒解鎖的提示等選完再出
       const ch = !this.bot && !fury ? choiceOf(this.stageId) : undefined;
@@ -2060,7 +2061,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 第一次達成暴怒狼王解鎖條件（D-099） */
   private furyUnlockedToast(): void {
     SFX.warn(true);
-    bigText(this, GAME_WIDTH / 2, 600, `解鎖：${this.bw}暴怒！\n☰ 暫停選單可以開啟・掉落更好`, '#ff7a5a', 34, 2600);
+    this.announce(`解鎖：${this.bw}暴怒！\n☰ 暫停選單可以開啟・掉落更好`, '#ff7a5a');
   }
 
   /** 暫停選單的「狼王暴怒」開關（D-099）：沒解鎖時顯示條件 */
@@ -2278,9 +2279,35 @@ export class RtBattleScene extends Phaser.Scene {
         return;
       }
       const [text, color] = tips[0]!;
-      bigText(this, GAME_WIDTH / 2, 600, text, color, 30, 2200);
+      this.holdTips(bigText(this, GAME_WIDTH / 2, 600, text, color, 30, 2200));
       this.nightTipsRun(tips.slice(1), run, 2600, waited);
     });
+  }
+
+  /** 公告大字顯示期間擋住 tipOnce 的教學小字（第 60 輪：「撿到裝備了！」和「解鎖：深夜的山谷！」上下貼在一起） */
+  private holdTips(t: Phaser.GameObjects.Text): void {
+    this.tipBusy = true;
+    const run = ++this.holdRun;
+    let freed = false;
+    const free = (): void => {
+      if (freed || !this.scene.isActive() || run !== this.holdRun) return;
+      freed = true;
+      this.tipBusy = false;
+      this.tipCalmUntil = this.time.now + TIP_GAP_MS;
+    };
+    this.time.delayedCall(4500, free);
+    t.once('destroy', () => this.time.delayedCall(200, free));
+  }
+
+  /** 討伐後的解鎖公告（第 60 輪）：等稀有裝備大字、教學小字、幕名卡、上方卡片、面板都收掉才出，最多等 12 秒 */
+  private announce(text: string, color: string, waited = 0): void {
+    if (!this.scene.isActive() || this.ended) return;
+    const busy = this.tipBusy || this.time.now < this.chapterUntil || !!this.topCard?.active || !!this.menu?.active || this.rareQueue.length > 0 || this.time.now - this.rareAt < 2200;
+    if (busy && waited < 12000) {
+      this.time.delayedCall(400, () => this.announce(text, color, waited + 400));
+      return;
+    }
+    this.holdTips(bigText(this, GAME_WIDTH / 2, 600, text, color, 34, 2600));
   }
 
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
