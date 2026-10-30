@@ -94,6 +94,8 @@ const VIEW_BOTTOM = GAME_HEIGHT;
 const GROUND_CHUNK = 1024;
 /** 主角在可視區的垂直位置（偏上，留空間給下方操作鍵） */
 const FOCUS_Y = 0.42;
+/** 鏡頭可以往地圖上緣外多捲的世界單位（第 63 輪） */
+const TOP_EXTRA = 150;
 /** 第一次提示／回營火說明的高度（第 38 輪，D-163）：以前寫死 700＝正好蓋在主角身上（主角在 VIEW_TOP＋可視高×0.42：844 高的手機約 718），
  *  黃框格擋提示一出來就把正在打你的狼蓋住。改排在主角下方 250，下排操作鍵上面。 */
 const TIP_Y = Math.round(Math.min(VIEW_TOP + (GAME_HEIGHT - VIEW_TOP) * FOCUS_Y + 250, GAME_HEIGHT - 470)); // 360×640（高 1280）不壓到 MP 球
@@ -2049,7 +2051,8 @@ export class RtBattleScene extends Phaser.Scene {
     else left = Math.max(-m, Math.min(a.w + m - viewW, left));
     // 下方被操作鍵蓋住約 35%，允許往下多捲一點，讓主角不會被按鈕擋住
     if (a.h + 2 * m <= viewH) topY = (a.h - viewH) / 2;
-    else topY = Math.max(-m, Math.min(a.h + m + viewH * 0.3 - viewH, topY));
+    // 第 63 輪：Boss 巢穴都在地圖北緣，以前鏡頭夾在上緣，打 Boss 時主角和 Boss 擠在 HUD／Boss 血條底下 → 上緣也多捲 150（外面接漸層）
+    else topY = Math.max(-m - TOP_EXTRA, Math.min(a.h + m + viewH * 0.3 - viewH, topY));
     this.ox = -left * this.k;
     this.oy = VIEW_TOP - topY * this.k;
   }
@@ -2912,7 +2915,11 @@ export class RtBattleScene extends Phaser.Scene {
       }
       // 第 48 輪：鏡頭可以往地圖下緣外多捲約 30%（讓主角不被按鈕擋住），長螢幕上那一大塊是硬切的純黑。
       // 在下緣外接一條「地面色→底色」的漸層，像地圖邊緣沒入黑暗（材質只有 4×256，拉伸畫）
-      if (W > GAME_WIDTH || H > VIEW_BOTTOM - VIEW_TOP) box.add(this.add.image(-PAD, H + PAD - 2, this.edgeFadeTexture()).setOrigin(0).setDisplaySize(W + PAD * 2, 560));
+      if (W > GAME_WIDTH || H > VIEW_BOTTOM - VIEW_TOP) {
+        box.add(this.add.image(-PAD, H + PAD - 2, this.edgeFadeTexture()).setOrigin(0).setDisplaySize(W + PAD * 2, 560));
+        // 第 63 輪：上緣外也接一條（鏡頭可以往上多捲 TOP_EXTRA）
+        box.add(this.add.image(-PAD, -PAD + 2 - 360, this.edgeFadeTexture()).setOrigin(0).setFlipY(true).setDisplaySize(W + PAD * 2, 360));
+      }
       return box;
     };
     // 省記憶體（第 31 輪）：一張大地圖的地面材質約 50MB（GPU），以前四張圖都留著；換圖時把別張圖的地面丟掉，回來再畫
@@ -5371,7 +5378,7 @@ export class RtBattleScene extends Phaser.Scene {
     const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < playerDef(this.s).potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
     // 第 56 輪：長螢幕（390×844）主角在畫面較下面，固定 y 850 的字條會蓋在主角頭上 → 至少在主角腳下 95
     if (calm) this.calmText.y = Phaser.Math.Clamp(this.sy(p.y) + 95, 850, VIEW_BOTTOM - 60);
-    this.calmText.setVisible(calm && !this.tipBusy && !this.hint).setText(calm ? restTip || (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
+    this.calmText.setVisible(calm && !this.tipBusy && !this.hint && this.time.now >= this.slainUntil) /* 第 63 輪：討伐大字期間不寫「打不過就退回營火」 */.setText(calm ? restTip || (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // Boss 大血條（畫面上方）
     // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss && (!STAGES[this.stageId]?.mapAi || e.mode === 'combat'));
