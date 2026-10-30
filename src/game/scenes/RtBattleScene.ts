@@ -3284,16 +3284,22 @@ export class RtBattleScene extends Phaser.Scene {
     const a = p.action;
     if (!a || a.kind !== 'skill' || p.dead) return;
     const sk = skillDef(this.s, a.id);
-    if (!sk || sk.role !== 'ult' || sk.aimTicks) return;
-    const h0 = sk.hits[0]!;
+    if (!sk || sk.aimTicks) return;
+    const h0 = sk.hits[0];
+    if (!h0) return;
     const hs = skillShape(this.s, a.id, h0.shape);
     if (hs.type !== 'circle') return;
     const k = this.s.tick - a.start;
+    // 旋風斬／霜旋（原地轉的多段圓）：小一號、藍（霜旋冰青）、三把刃；龍捲（全速移動）與衝鋒類另有畫法
+    const mini = sk.role !== 'ult';
+    if (mini && (this.s.weapon === 'staff' || sk.dash || sk.moveFactor >= 1 || sk.hits.length < 3)) return;
+    const icy = h0.status?.id === 'freeze';
+    const C = mini ? (icy ? [0x8ae8ff, 0xd8fbff, 0xbff4ff] : [0x6ab8ff, 0xd0ecff, 0x9fd8ff]) : [0xff7ad0, 0xffe0f6, 0xffc0ec];
     if (this.s.weapon === 'staff') {
       if (sk.hits.length >= 4 && !h0.status && !h0.ahead) this.drawMeteorSky(lo, hi, p, hs.r, k, sk.castTicks, now);
       return;
     }
-    if (sk.hits.length === 1) {
+    if (!mini && sk.hits.length === 1) {
       this.drawStarCharge(lo, hi, p, hs.r, k, h0.atTick, now);
       return;
     }
@@ -3306,28 +3312,28 @@ export class RtBattleScene extends Phaser.Scene {
     const lowFx = getSettings().lowFx;
     // 地上：粉色光暈（兩層）＋邊緣一圈閃爍
     // 外圈較亮的「風牆」（中心留暗，看得到主角）
-    for (let q = 0; q < 4; q++) lo.lineStyle(R * 0.08, 0xff7ad0, (0.05 + q * 0.035) * grow).strokeCircle(cx, cy, R * (0.66 + q * 0.09));
-    lo.lineStyle(3, 0xffc0ec, (0.45 + 0.25 * Math.sin(now / 45)) * grow).strokeCircle(cx, cy, R);
+    for (let q = mini ? 2 : 0; q < 4; q++) lo.lineStyle(R * 0.08, C[0]!, (0.05 + q * 0.035) * grow).strokeCircle(cx, cy, R * (0.66 + q * 0.09));
+    lo.lineStyle(3, C[2]!, (0.45 + 0.25 * Math.sin(now / 45)) * grow).strokeCircle(cx, cy, R);
     // 地上的螺旋風痕（跟著轉）
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < (mini ? 0 : 8); i++) {
       const t = -now / 120 + (i * Math.PI) / 4;
       lo.lineStyle(2, 0xffb0e8, 0.3 * grow).beginPath().arc(cx, cy, R * (0.35 + 0.06 * (i % 3)), t, t + 0.7).strokePath();
     }
     // 三道彗尾氣流（越外圈越慢），尾巴淡出
     const rot = now / 85;
     const seg = lowFx ? 5 : 9;
-    for (let j = 0; j < 3; j++) {
+    for (let j = mini ? 1 : 0; j < 3; j++) {
       const rr = R * (0.45 + 0.22 * j);
       const base = rot * (1.25 - j * 0.2) + (j * Math.PI * 2) / 3;
       // 疊幾層同一個起點、越長越細越淡的弧 → 一條沒有接縫的彗尾
       for (let q = 0; q < seg; q++) {
         const len = 1.9 * ((q + 1) / seg);
-        hi.lineStyle(12 * (1 - q / seg) + 1.5, j === 1 ? 0xffe0f6 : 0xff8ad8, (0.16 + 0.1 * (1 - q / seg)) * grow).beginPath().arc(cx, cy, rr, base - len, base).strokePath();
+        hi.lineStyle(12 * (1 - q / seg) + 1.5, j === 1 ? C[1]! : C[0]!, (0.16 + 0.1 * (1 - q / seg)) * grow).beginPath().arc(cx, cy, rr, base - len, base).strokePath();
       }
       hi.lineStyle(2, 0xffffff, 0.85 * grow).beginPath().arc(cx, cy, rr, base - 0.5, base).strokePath();
     }
     // 六把繞身的光刃：沿切線方向的細長菱形
-    const n = 6;
+    const n = mini ? 3 : 6;
     const br = R * 0.82;
     const ba = now / 70;
     for (let i = 0; i < n; i++) {
@@ -3347,11 +3353,11 @@ export class RtBattleScene extends Phaser.Scene {
         new Phaser.Math.Vector2(bx - nx * W, by - ny * W),
       ];
       // 刀身後面拖一段殘光（往旋轉的反方向）
-      for (let q = 0; q < 4; q++) hi.lineStyle(W * (2.4 - q * 0.5), 0xff8ad8, 0.22 * grow).beginPath().arc(cx, cy, br, t - 0.15 - q * 0.15, t).strokePath();
+      for (let q = 0; q < 4; q++) hi.lineStyle(W * (2.4 - q * 0.5), C[0]!, 0.22 * grow).beginPath().arc(cx, cy, br, t - 0.15 - q * 0.15, t).strokePath();
       hi.fillStyle(0xffffff, 0.95 * grow).fillPoints(pts, true);
     }
     // 收尾那一擊之前（最後 20%）中心越來越亮，蓄力感
-    if (f > 0.8) hi.fillStyle(0xfff0fa, (f - 0.8) * 2.2 * grow).fillCircle(cx, cy, R * 0.3);
+    if (!mini && f > 0.8) hi.fillStyle(0xfff0fa, (f - 0.8) * 2.2 * grow).fillCircle(cx, cy, R * 0.3);
   }
 
   /**
@@ -5186,7 +5192,8 @@ export class RtBattleScene extends Phaser.Scene {
         }
         const h = sk?.hits[0] ?? sk?.block?.counter;
         // 劍的圓形大招（劍刃風暴／星落一閃）由 drawStorm 畫，不再蓋一層平平的藍
-        if (h && !(sk?.role === 'ult' && s.weapon !== 'bow' && h.shape.type === 'circle' && !h.ahead && (s.weapon !== 'staff' || (sk.hits.length >= 4 && !h.status)))) {
+        const stormed = !!sk && s.weapon !== 'bow' && h?.shape.type === 'circle' && !h.ahead && (sk.role === 'ult' ? s.weapon !== 'staff' || (sk.hits.length >= 4 && !h.status) : s.weapon !== 'staff' && !sk.dash && sk.moveFactor < 1 && sk.hits.length >= 3);
+        if (h && !stormed) {
           g.fillStyle(0x7dc8ff, 0.2);
           this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x, pos.y, x.action.dirX, x.action.dirY, g, true);
         }
