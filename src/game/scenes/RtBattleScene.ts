@@ -519,7 +519,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.coinBase = this.tracked ? coinOf(loadRecord(this.stageId)) : -1;
     this.leftFire = false;
     this.fireHinted = false;
-    this.newbie = this.tracked && (loadRecord(this.stageId).runs ?? 0) <= 3;
+    // 第 66 輪：打倒過這張圖的 Boss 就不算新手（以前通關後從回程門回霧語森林，runs 還不到 3，Lv16 老玩家又被教一次營火）
+    const recN = loadRecord(this.stageId);
+    this.newbie = this.tracked && (recN.runs ?? 0) <= 3 && !recN.bossKills;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.thornFx = []; this.thornPending = []; this.frostFx = [];
     this.breakSeen.clear(); this.ghostAt = 0;
@@ -925,7 +927,6 @@ export class RtBattleScene extends Phaser.Scene {
 
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
-    this.time.delayedCall(900, () => this.tipSoon('jg_tip_gear', '撿到裝備了！☰「行囊」或營火旁可以換上', '#9fe8a0'));
     const p = playerOf(this.s);
     const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId });
     // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理
@@ -956,6 +957,8 @@ export class RtBattleScene extends Phaser.Scene {
       this.tipSoon('jg_tip_salvage', '行囊滿了（60 件）：之後撿到裝備\n會自動分解最差的普通裝換粉塵', '#d8d0b8');
       if (r.salvaged.uid === g.uid) return;
     }
+    // 第 66 輪：真的放進行囊才教「去換上」（以前行囊滿撿不起來，5 秒後還說「撿到裝備了！」）
+    this.time.delayedCall(900, () => this.tipSoon('jg_tip_gear', '撿到裝備了！☰「行囊」或營火旁可以換上', '#9fe8a0'));
     const col = `#${RARITY_COLOR[rarity].toString(16).padStart(6, '0')}`;
     // 撿到的裝備圖示從主角頭上飄起來（D-101）
     const icon = this.add.container(this.sx(p.x), this.sy(p.y) - 70, gearIcon(this, 0, 0, g.slot, rarity, rarity >= 3 ? 64 : 48)).setDepth(70);
