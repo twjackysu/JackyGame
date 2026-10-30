@@ -1699,7 +1699,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.tipBusy && this.introRun === this.busyRun) return; // 開場大字還在：等它收掉（已經記下來，走開也會想起）
     // 第 68 輪：星隕高原的記憶點就在守望者巢穴邊，記憶卡以前蓋在 Boss 登場名字上 → Boss 開打、抉擇面板、討伐大字期間先記著，打完再想起
     // （還沒開打但站在 Boss 發現範圍附近也先等：不然記憶卡和登場名字同一刻出現）
-    if (this.menu || this.time.now < this.slainUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
+    if (this.menu || this.time.now < this.slainUntil || this.time.now < this.reviveUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
     const mem = this.memQ;
     this.memQ = null;
     const r = recall(loadMemories(), mem.id);
