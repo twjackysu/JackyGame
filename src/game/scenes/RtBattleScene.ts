@@ -260,6 +260,9 @@ export class RtBattleScene extends Phaser.Scene {
   private busyRun = 0;
   /** 討伐大字（「暴怒的○○倒下了！…」）還在畫面上的時間，解鎖公告等它淡出 */
   private slainUntil = 0;
+  /** 第 65 輪：Boss 第二階段大字（「狼后怒放・荊棘綻放！」）顯示期間，深夜說明／公告大字先排隊，不疊在上面 */
+  private phaseUntil = 0;
+  private nightTip?: Phaser.GameObjects.Text;
   /** 第 56 輪：剛經光門抵達，回程門的字晚一點才淡入（不然一落地就貼在主角旁邊） */
   private gateLabelFrom = 0;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
@@ -2346,13 +2349,14 @@ export class RtBattleScene extends Phaser.Scene {
   private nightTipsRun(tips: [string, string][], run: number, wait: number, waited = 0): void {
     this.time.delayedCall(wait, () => {
       if (run !== this.nightRun || !this.scene.isActive() || !tips.length) return;
-      const busy = this.tipBusy || this.time.now < this.chapterUntil || !!this.topCard?.active || !!this.menu?.active || this.s.outcome !== 'running';
+      const busy = this.tipBusy || this.time.now < this.chapterUntil || this.time.now < this.phaseUntil || !!this.topCard?.active || !!this.menu?.active || this.s.outcome !== 'running';
       if (busy) {
         if (waited < 20000) this.nightTipsRun(tips, run, 400, waited + 400);
         return;
       }
       const [text, color] = tips[0]!;
-      this.holdTips(bigText(this, GAME_WIDTH / 2, 600, text, color, 30, 2200));
+      this.nightTip = bigText(this, GAME_WIDTH / 2, 600, text, color, 30, 2200);
+      this.holdTips(this.nightTip);
       this.nightTipsRun(tips.slice(1), run, 2600, waited);
     });
   }
@@ -2376,7 +2380,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 討伐後的解鎖公告（第 60 輪）：等稀有裝備大字、教學小字、幕名卡、上方卡片、面板都收掉才出，最多等 12 秒 */
   private announce(text: string, color: string, waited = 0): void {
     if (!this.scene.isActive() || this.ended) return;
-    const busy = this.tipBusy || this.time.now < this.chapterUntil || this.time.now < this.slainUntil || !!this.topCard?.active || !!this.menu?.active || this.rareQueue.length > 0 || this.time.now - this.rareAt < 2200;
+    const busy = this.tipBusy || this.time.now < this.chapterUntil || this.time.now < this.slainUntil || this.time.now < this.phaseUntil || !!this.topCard?.active || !!this.menu?.active || this.rareQueue.length > 0 || this.time.now - this.rareAt < 2200;
     if (busy && waited < 12000) {
       this.time.delayedCall(400, () => this.announce(text, color, waited + 400));
       return;
@@ -2513,7 +2517,8 @@ export class RtBattleScene extends Phaser.Scene {
         floatNumber(this, this.sx(p.x) + 30, this.sy(p.y) - 40, `+${e.heal}`, { color: '#9affc0', size: 18 });
       } else if (e.type === 'aggro') {
         const d = u(e.id);
-        if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '!', { color: '#ff5a5a', size: 40 });
+        // 第 65 輪：畫面上緣外（HUD 後面）的怪發現你時，紅「!」以前浮在 HUD 字上 → 只畫在戰場範圍內的
+        if (d && this.sy(d.y) - 60 > VIEW_TOP + 20) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '!', { color: '#ff5a5a', size: 40 });
         // 巡邏的精英發現你（D-117）：橘色衝擊環＋警告音＋「被發現了！」
         if (d?.patrol && !this.bot) {
           shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 60, 260, 5);
@@ -2629,6 +2634,11 @@ export class RtBattleScene extends Phaser.Scene {
         const [t2, c2] = worldMap(this.stageId)?.phase2 ?? WORLD_MAPS[0]!.phase2;
         // 已經是暴怒的 Boss 再喊「狼王暴怒！」很怪（第 46 輪）：改說牠徹底失控
         bigText(this, GAME_WIDTH / 2, 520, u(e.id)?.fury ? `${this.bw}徹底失控了！` : t2, c2, 52, 700);
+        this.phaseUntil = this.time.now + 3200;
+        this.tipCalmUntil = Math.max(this.tipCalmUntil, this.phaseUntil);
+        // 剛好正在顯示的深夜說明讓位（同一秒出現時三層大字疊成一疊）
+        const nt = this.nightTip;
+        if (nt?.active) { this.tweens.killTweensOf(nt); this.tweens.add({ targets: nt, alpha: 0, duration: 160, onComplete: () => nt.destroy() }); }
       }
       else if (e.type === 'wallStun') {
         // 第 60 輪：熔渣史萊姆、詞綴小怪一撞牆就跳置中大字，燼紅裂谷幾秒一次、蓋在別的公告上 → 大字只給 Boss／精英，其他在怪頭上小字
