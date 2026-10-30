@@ -38,7 +38,7 @@ export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done
 
   function render(): void {
     root.removeAll(true);
-    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.88).setInteractive()];
+    const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.94).setInteractive()];
     items.push(scene.add.text(0, -570, '操作設定', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     items.push(btn(0, -480, '調整按鈕位置・交換技能 ▶', () => done(c, true), true, 28));
     items.push(label(-300, -400, '左手模式', '#ffffff', 26, 0));
