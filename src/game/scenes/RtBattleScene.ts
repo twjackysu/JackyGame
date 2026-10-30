@@ -5128,12 +5128,19 @@ export class RtBattleScene extends Phaser.Scene {
       let lx = cx;
       const lw = gt.label.width;
       const lh = gt.label.height;
-      for (let i = 0; i < 7; i++) {
-        const b = this.btnPos(i);
-        const r = this.btnR(i) + 6;
-        const nx = Phaser.Math.Clamp(b.x, lx - lw / 2, lx + lw / 2);
-        const ny = Phaser.Math.Clamp(b.y, ly - lh, ly);
-        if (Math.hypot(b.x - nx, b.y - ny) < r) lx = Math.min(lx, b.x - r - lw / 2);
+      // 第 63 輪：往左讓開後可能又壓到已經檢查過的按鈕（荊棘谷 360×640 的「▼ 回霧語森林」被重斬蓋住）→ 重檢到沒有再移動
+      for (let pass = 0, moved = true; moved && pass < 4; pass++) {
+        moved = false;
+        for (let i = 0; i < 7; i++) {
+          const b = this.btnPos(i);
+          const r = this.btnR(i) + 6;
+          const nx = Phaser.Math.Clamp(b.x, lx - lw / 2, lx + lw / 2);
+          const ny = Phaser.Math.Clamp(b.y, ly - lh, ly);
+          if (Math.hypot(b.x - nx, b.y - ny) < r && b.x - r - lw / 2 < lx) {
+            lx = b.x - r - lw / 2;
+            moved = true;
+          }
+        }
       }
       lx = Math.max(lx, lw / 2 + 8);
       // 第 56 輪：幕名卡播放中、剛經光門抵達的 1.4 秒內先不寫，之後 0.5 秒淡入

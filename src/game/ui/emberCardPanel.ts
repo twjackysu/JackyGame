@@ -444,14 +444,19 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     });
     const rows = Math.ceil(owned.length / cols);
     const ty = -440 + rows * 132 + 10;
-    items.push(scene.add.text(0, ty, `帶上 ${using} 張（${DECK_MIN}～${DECK_MAX} 張；超過時「超額」的最弱單位不會上場）\n另外每場都會多一張「晴空」${deckPeek ? `\n\n${CARDS[deckPeek]!.name}${CARDS[deckPeek]!.power ? `（${CARDS[deckPeek]!.power}點・${CARDS[deckPeek]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[deckPeek]!.desc ? `：${CARDS[deckPeek]!.desc}` : ''}` : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: using > DECK_MAX ? '#ff9a8a' : '#ffe08a', align: 'center', lineSpacing: 6, wordWrap: { width: 660, useAdvancedWrap: true } }).setOrigin(0.5, 0));
-    items.push(btn(-130, 500 + btnDy(), '全部帶上', () => {
+    // 第 63 輪：說明字以名稱開頭的（戰號、燼爆）不要再重複一次名稱；說明字長時按鈕跟著往下（最多到畫面下緣上方 70）
+    const pc = deckPeek ? CARDS[deckPeek]! : undefined;
+    const peekDesc = pc?.desc?.startsWith(`${pc.name}：`) ? pc.desc.slice(pc.name.length + 1) : pc?.desc;
+    const info = scene.add.text(0, ty, `帶上 ${using} 張（${DECK_MIN}～${DECK_MAX} 張；超過時「超額」的最弱單位不會上場）\n另外每場都會多一張「晴空」${pc ? `\n\n${pc.name}${pc.power ? `（${pc.power}點・${pc.row === 0 ? '前排' : '後排'}）` : ''}${peekDesc ? `：${peekDesc}` : ''}` : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: using > DECK_MAX ? '#ff9a8a' : '#ffe08a', align: 'center', lineSpacing: 6, wordWrap: { width: 660, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+    items.push(info);
+    const by = Math.min(Math.max(500 + btnDy(), ty + info.height + 50), GAME_HEIGHT / 2 - 70);
+    items.push(btn(-130, by, '全部帶上', () => {
       const s2 = stats();
       s2.off = [];
       saveStats(s2);
       render();
     }, false, 22));
-    items.push(btn(120, 500 + btnDy(), '完成', () => {
+    items.push(btn(120, by, '完成', () => {
       view = 'lobby';
       render();
     }, true, 26));
