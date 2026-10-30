@@ -2091,6 +2091,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.fireBtn?.setVisible(false); // 營火按鈕不要從選單底下透出來（關掉後下一幀會再顯示）
     this.shopBtn?.setVisible(false);
     this.cardBtn?.setVisible(false);
+    for (const gt of this.gates) gt.label.setVisible(false); // 第 60 輪：門上的「▼ 回荊棘谷」從選單遮罩底下透出來（暫停時不會重畫）
     if (this.menu) {
       this.menu.destroy();
       this.menu = null;
