@@ -4895,8 +4895,11 @@ export class RtBattleScene extends Phaser.Scene {
         const onTop = cy <= top + 1;
         // 第 49 輪：40／44 → 56／60（大箭頭含光圈直徑約 52，被小地圖推過來的兩個箭頭以前幾乎貼在一起）
         for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.ax - cx) < 56 && Math.abs(q.ay - cy) < 56); k++) {
-          if (onTop) cx = Math.min(GAME_WIDTH - M, cx + 60);
-          else cy = Math.min(yMax, cy + 60);
+          if (onTop) {
+            cx = Math.min(GAME_WIDTH - M, cx + 60);
+            // 第 61 輪：錯開後滑進「目標：…」字條底下（第二個箭頭和距離字蓋在字條上）→ 一樣挪到字條下面
+            if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = gy;
+          } else cy = Math.min(yMax, cy + 60);
         }
       }
       const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
