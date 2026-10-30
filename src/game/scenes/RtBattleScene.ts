@@ -2550,7 +2550,13 @@ export class RtBattleScene extends Phaser.Scene {
         // 已經是暴怒的 Boss 再喊「狼王暴怒！」很怪（第 46 輪）：改說牠徹底失控
         bigText(this, GAME_WIDTH / 2, 520, u(e.id)?.fury ? `${this.bw}徹底失控了！` : t2, c2, 52, 700);
       }
-      else if (e.type === 'wallStun') bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
+      else if (e.type === 'wallStun') {
+        // 第 60 輪：熔渣史萊姆、詞綴小怪一撞牆就跳置中大字，燼紅裂谷幾秒一次、蓋在別的公告上 → 大字只給 Boss／精英，其他在怪頭上小字
+        const w = u(e.id);
+        const big = !w || w.tier === 'elite' || !!ENEMIES[w.defId]?.boss;
+        if (big) bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
+        else floatNumber(this, this.sx(w.x), this.sy(w.y) - 90, '暈眩！', { color: '#ffd27a', size: 24 });
+      }
       else if (e.type === 'blink') {
         // 暴怒狼王霧中瞬移（D-105）：原地與落點各冒一團霧、不做插值滑動
         const b = u(e.id);
