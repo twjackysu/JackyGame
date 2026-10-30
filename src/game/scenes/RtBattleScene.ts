@@ -4572,6 +4572,39 @@ export class RtBattleScene extends Phaser.Scene {
     if (heavy) this.cameras.main.shake(110, 0.005);
   }
 
+  /**
+   * 破甲的大招箭（天穹一矢、星河貫射最後一箭；第 70 輪，D-202）：以前只有一條細白線，凍結看很單薄。
+   * 加一道和判定一樣寬的光帶（外粉內白、從箭道往外淡）、沿途三圈衝擊環、起點一團光。純畫面。
+   */
+  private skyLance(x: number, y: number, ang: number, len: number, width: number): void {
+    const px = this.sx(x);
+    const py = this.sy(y) - 20;
+    const L = len * this.k;
+    const W = (width * this.k) / 2;
+    const c = Math.cos(ang);
+    const sn = Math.sin(ang);
+    const g = this.add.graphics().setDepth(689).setBlendMode(Phaser.BlendModes.ADD);
+    const band = (w: number, col: number, a: number): void => {
+      g.fillStyle(col, a).fillPoints([
+        new Phaser.Math.Vector2(px - sn * w, py + c * w),
+        new Phaser.Math.Vector2(px + c * L - sn * w * 0.7, py + sn * L + c * w * 0.7),
+        new Phaser.Math.Vector2(px + c * L + sn * w * 0.7, py + sn * L - c * w * 0.7),
+        new Phaser.Math.Vector2(px + sn * w, py - c * w),
+      ], true);
+    };
+    band(W, 0xff7ad0, 0.18);
+    band(W * 0.62, 0xff9ae0, 0.28);
+    band(W * 0.3, 0xffe0f6, 0.55);
+    band(W * 0.1, 0xffffff, 0.95);
+    g.fillStyle(0xffd0f0, 0.45).fillCircle(px, py, W * 0.55);
+    g.fillStyle(0xffffff, 0.8).fillCircle(px, py, W * 0.2);
+    this.tweens.add({ targets: g, alpha: 0, duration: 650, ease: 'Quad.easeIn', onComplete: () => g.destroy() });
+    for (let i = 1; i <= 3; i++) {
+      const f = i / 3.4;
+      this.time.delayedCall(i * 40, () => shockRing(this, px + c * L * f, py + sn * L * f, 0xff9ae0, W * 1.3, 420, 5));
+    }
+  }
+
   /** 長弓技能的畫面（D-147）：直線＝光箭、扇形＝一排扇形的箭（後躍射擊多一道往後的殘影）、圓＝四面射出 */
   private bowFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, leap: boolean, brk: boolean, frost = false, st?: string): void {
     // 變化二的箭（D-149）：灼燒＝火箭、中毒＝綠毒箭、虛弱＝紫色殘月
@@ -4591,6 +4624,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       if (ult && brk) {
+        this.skyLance(x, y, ang, hs.len, hs.width);
         this.cameras.main.flash(120, 255, 180, 240);
         this.hitStop = Math.max(this.hitStop, 120);
       }
