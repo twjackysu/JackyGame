@@ -2521,7 +2521,11 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'aggro') {
         const d = u(e.id);
         // 第 65 輪：畫面上緣外（HUD 後面）的怪發現你時，紅「!」以前浮在 HUD 字上 → 只畫在戰場範圍內的
-        if (d && this.sy(d.y) - 60 > VIEW_TOP + 20) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '!', { color: '#ff5a5a', size: 40 });
+        // 第 66 輪：也不壓在地區名稱大字上（以前偶爾疊一瞬間）
+        const ax = d ? this.sx(d.x) : 0;
+        const ay = d ? this.sy(d.y) - 60 : 0;
+        const onZone = this.zoneTexts.some((z) => z.active && z.alpha > 0.05 && z.getBounds().contains(ax, ay));
+        if (d && ay > VIEW_TOP + 20 && !onZone) floatNumber(this, ax, ay, '!', { color: '#ff5a5a', size: 40 });
         // 巡邏的精英發現你（D-117）：橘色衝擊環＋警告音＋「被發現了！」
         if (d?.patrol && !this.bot) {
           shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 60, 260, 5);
