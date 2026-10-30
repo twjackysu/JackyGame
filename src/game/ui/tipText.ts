@@ -38,3 +38,14 @@ export function zoneHintBreak(text: string): string | null {
   if (best <= 0 || best >= text.length - 1) return null;
   return `${text.slice(0, best)}\n${text.slice(best + 1)}`;
 }
+
+/** 在最靠近中間的標點（。，？！、……——）後面換一行；找不到就原樣回傳 */
+export function breakAtPunct(t: string): string {
+  const mid = t.length / 2;
+  let best = -1;
+  for (let i = 1; i < t.length - 2; i++) {
+    if (!'。，？！、…—'.includes(t[i]!) || '…—'.includes(t[i + 1]!)) continue;
+    if (best < 0 || Math.abs(i - mid) < Math.abs(best - mid)) best = i;
+  }
+  return best < 0 ? t : `${t.slice(0, best + 1)}\n${t.slice(best + 1)}`;
+}

@@ -3,6 +3,7 @@
 import Phaser from 'phaser';
 import { loadChoices, rivalEcho } from '../choices';
 import { loadEncounters, rivalEncounterEcho } from '../encounters';
+import { breakAtPunct } from './tipText';
 import { SFX } from '../../audio/sfx';
 import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, maxReach, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
@@ -291,7 +292,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     // 抉擇（D-157）與路上的相遇（D-159）的回聲：兩句都有的話隨機挑一句
     const echoes = [rivalEcho(who.id, loadChoices()), rivalEncounterEcho(who.id, loadEncounters())].filter((x): x is string => !!x);
     const echo = echoes.length ? echoes[Math.floor(echoPick * echoes.length)]! : null;
-    const hello = scene.add.text(30, -545, `${who.short}：${echo && helloEcho ? echo : who.hello}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', wordWrap: { width: 520, useAdvancedWrap: true } }).setOrigin(0.5);
+    const hello = scene.add.text(30, -545, `${who.short}：${echo && helloEcho ? echo : who.hello}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', align: 'center' }).setOrigin(0.5);
+    // 一行放不下時在靠中間的標點後面換行（第 70 輪，D-202：以前自動換行會把「。」」孤零零擠到第二行）
+    if (hello.width > 520) hello.setText(breakAtPunct(hello.text));
+    if (hello.width > 520) hello.setWordWrapWidth(520, true);
     // 招呼語兩行時整組往上挪，打法那行不壓到頁籤
     if (hello.height > 40) hello.setY(-545 - (hello.height - 28) / 2);
     items.push(hello, scene.add.text(30, -514, `打法：${who.blurb}`, { fontFamily: UI_FONT, fontSize: '17px', color: '#b8a890' }).setOrigin(0.5));
