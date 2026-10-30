@@ -129,7 +129,11 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     const col = RARITY_COLOR[g.rarity];
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
     out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
-    out.push(scene.add.text(0, -300, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5));
+    const title = scene.add.text(0, -300, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5);
+    // 第 62 輪：長名字（「+4 嗜血的王牙大劍・霧語」）縮字＋往右挪，不壓到左邊的圖示（圖示右緣 x≈−204）
+    if (title.width > 400) title.setFontSize(Math.max(24, Math.floor((36 * 400) / title.width)));
+    if (title.width / 2 > 180) title.setX(Math.min(84, title.width / 2 - 180)); // 太寬就往右挪（卡片右緣 300）
+    out.push(title);
     out.push(scene.add.text(0, -255, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}${worn ? '・裝備中' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     // 第 48 輪：從上面往下排（以前置中在 -170，5 行以上的稀有裝第一行會壓到副標）
     const gl = gearLines(g, skillNames());
@@ -170,8 +174,10 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
               detail = g;
             }
             render();
-            const msg = scene.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 360, success ? `強化成功！+${enh + 1}` : '強化失敗……材料沒了', { fontFamily: TITLE_FONT, fontSize: '40px', color: success ? '#ffd27a' : '#c0c0d0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990);
-            scene.tweens.add({ targets: msg, y: GAME_HEIGHT / 2 + 320, alpha: 0, delay: 700, duration: 700, onComplete: () => msg.destroy() });
+            // 第 62 輪：結果字放在卡片正下方（以前固定 +360，落在「全部換成最好的／完成」上面、透出底下按鈕）
+            const msgY = GAME_HEIGHT / 2 + cardBottom + 56;
+            const msg = scene.add.text(GAME_WIDTH / 2, msgY, success ? `強化成功！+${enh + 1}` : '強化失敗……材料沒了', { fontFamily: TITLE_FONT, fontSize: '40px', color: success ? '#ffd27a' : '#c0c0d0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990);
+            scene.tweens.add({ targets: msg, y: msgY - 30, alpha: 0, delay: 700, duration: 700, onComplete: () => msg.destroy() });
           }, ok, 24));
       }
     }

@@ -72,9 +72,10 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
           render();
           // 剛滿 5 級：提示可以切換變化（D-112）
           if (alt0 && (r[t.id] ?? 0) >= SKILL_MAX_RANK) {
-            const tip = scene.add.text(0, y, `解鎖「${alt0.variantName}」${altB ? `「${altB.variantName}」` : ''}！點右邊切換`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffb6f0', stroke: '#2a0a20', strokeThickness: 6 }).setOrigin(0.5);
+            // 第 62 輪：底色蓋住左邊（右邊切換鈕留著；以前粉紅字直接疊在「重斬」標題與說明上，往上飄還壓到上一列）
+            const tip = scene.add.text(-71, y, `解鎖「${alt0.variantName}」${altB ? `「${altB.variantName}」` : ''}！點右邊 →`, { fontFamily: TITLE_FONT, fontSize: '24px', color: '#ffb6f0', stroke: '#2a0a20', strokeThickness: 5, backgroundColor: '#1a0814', align: 'center', fixedWidth: 494 }).setOrigin(0.5).setPadding(0, 38, 0, 38);
             root.add(tip);
-            scene.tweens.add({ targets: tip, y: y - 50, alpha: 0, delay: 700, duration: 900, onComplete: () => tip.destroy() });
+            scene.tweens.add({ targets: tip, alpha: 0, delay: 1100, duration: 500, onComplete: () => tip.destroy() });
           }
         }, can, 30, !can));
       }
