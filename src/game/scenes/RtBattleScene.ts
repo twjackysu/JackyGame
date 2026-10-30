@@ -339,7 +339,7 @@ export class RtBattleScene extends Phaser.Scene {
   private encDone: Encounter[] = [];
   /** 第 69 輪：選「取」的人留在原地（垂頭喪氣、沒有氣泡）；選「助」的慢慢走開、淡出（以前一選完人就當場消失） */
   private encStay: Encounter[] = [];
-  private encLeave: { e: Encounter; born: number; dir: number }[] = [];
+  private encLeave: { e: Encounter; born: number; dir: number; sad?: boolean }[] = [];
   private encLeaveG?: Phaser.GameObjects.Graphics;
   /** 護送中（D-160）：跟在玩家身後的相遇人物（世界座標）；送到目的地就道謝。純畫面 */
   private escort: { e: Encounter; x: number; y: number; t: number; scared?: boolean; check?: number } | null = null;
@@ -1788,7 +1788,9 @@ export class RtBattleScene extends Phaser.Scene {
         SFX.itemGet();
         extra = `\n${e.take.coin ? `+${e.take.coin} 金` : ''}${e.take.crystal ? `+${e.take.crystal} 結晶` : ''}`;
         sparks(this, x, y, 22, 'ember', 0xffd27a, 480);
-        this.encStay.push(e);
+        // 台詞寫他走了的（盜賊、朝聖者）：慢慢走開、不跳（第 70 輪，D-202）；其他留在原地
+        if (e.takeLeaves) this.encLeave.push({ e, born: this.time.now, dir: e.tx * UNIT + UNIT / 2 >= p.x ? 1 : -1, sad: true });
+        else this.encStay.push(e);
       } else if (e.escort) {
         extra = `\n（她會跟在你身後——帶她到${e.escort.place}）`;
         this.escort = { e, x: e.tx * UNIT + UNIT / 2, y: e.ty * UNIT + UNIT / 2, t: this.time.now };
@@ -1922,9 +1924,11 @@ export class RtBattleScene extends Phaser.Scene {
     for (const l of this.encLeave) {
       const t = (now - l.born) / 1000;
       const walk = Math.max(0, t - 0.5); // 先站 0.5 秒（火花／光圈），再走
-      const wx = l.e.tx * UNIT + UNIT / 2 + l.dir * UNIT * 1.4 * walk;
-      const hop = Math.abs(Math.sin(walk * 9)) * 6 * this.k;
-      drawEncounterNpc(lg, l.e.npc, this.sx(wx), this.sy(l.e.ty * UNIT + UNIT / 2) - hop, this.k * 2.1, now, true, true);
+      const wx = l.e.tx * UNIT + UNIT / 2 + l.dir * UNIT * (l.sad ? 0.8 : 1.4) * walk;
+      // 選「取」走開的：一拐一拐（左右晃、不跳）
+      const hop = l.sad ? 0 : Math.abs(Math.sin(walk * 9)) * 6 * this.k;
+      const sway = l.sad ? Math.sin(walk * 5) * 3 * this.k : 0;
+      drawEncounterNpc(lg, l.e.npc, this.sx(wx) + sway, this.sy(l.e.ty * UNIT + UNIT / 2) - hop, this.k * 2.1, now, !l.sad, true);
       alpha = Math.min(alpha, t < 1.3 ? 1 : Math.max(0, 1 - (t - 1.3) / 1.3));
     }
     lg.setAlpha(alpha);

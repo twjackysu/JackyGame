@@ -26,6 +26,8 @@ export interface Encounter {
    * 半路離開地圖的話，照一般相遇下次回來在原地道謝。
    */
   escort?: { tx: number; ty: number; place: string };
+  /** 選「取」之後對方也會離開（台詞寫他走了的：盜賊爬進荊棘、朝聖者往深處走；第 70 輪，D-202）；沒寫就留在原地 */
+  takeLeaves?: boolean;
 }
 
 /** 護送：跟著你的人走到目的地幾格內就算送到 */
@@ -97,6 +99,7 @@ export const ENCOUNTERS: readonly Encounter[] = [
     title: '受傷的盜賊',
     prompt: '荊棘叢裡躺著一個蒙面人，大腿被棘刺劃開了。\n他懷裡緊抱著一個錢袋，上面繡著村子的徽記。\n「別過來……這是我的……」',
     take: { label: '搶走他偷來的錢袋', desc: '馬上得到 120 金', after: '蒙面人咒罵了一聲，拖著腿爬進了荊棘裡。', coin: 120 },
+    takeLeaves: true,
     spare: { label: '替他包紮，要他把東西還回去', desc: '下次回到荊棘谷，他會來找你', after: '他愣了很久，才低聲說：「……我會還的。」' },
     thanks: { lines: '那個蒙面人摘下了面巾，在路邊等你。\n「村裡的東西都還了，他們還留我吃了頓飯。」\n「這是我自己存的——別嫌少。」', coin: 90, crystal: 2 },
     short: { take: '搶走盜賊的錢袋', spare: '替盜賊包紮' },
@@ -110,6 +113,7 @@ export const ENCOUNTERS: readonly Encounter[] = [
     title: '口渴的朝聖者',
     prompt: '一個披著灰袍的朝聖者跪在路邊，水壺早就空了。\n他看著你腰上的水袋，取下胸前的護身燼石：\n「這是我唯一值錢的東西……換一口水，好嗎？」',
     take: { label: '收下燼石，再給他水', desc: '馬上得到 4 顆結晶', after: '朝聖者喝了水，摸著空空的胸口，繼續往裂谷深處走。', crystal: 4 },
+    takeLeaves: true,
     spare: { label: '把水給他，燼石不用了', desc: '下次回到燼紅裂谷，他會從聖地回來', after: '朝聖者把燼石握在手心，對你深深一鞠躬。' },
     thanks: { lines: '朝聖者從裂谷深處回來了，灰袍上沾滿了燼灰。\n「我在聖火前替你祈了福。」\n他手上的燼石，比之前更亮了。', coin: 60, crystal: 5 },
     short: { take: '收下朝聖者的燼石', spare: '把水給朝聖者' },
