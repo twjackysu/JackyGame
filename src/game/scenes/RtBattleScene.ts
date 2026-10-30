@@ -5374,7 +5374,8 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / pt.cooldownTicks), false).fillPath();
       }
-      this.btnText[6]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(0)}` : `藥水\n×${s.potions}`);
+      // 第 59 輪：冷卻中以前只剩一個數字「5」，看不出還剩幾瓶 → 秒數＋瓶數
+      this.btnText[6]!.setText(left > 0 ? `${Math.ceil(left / TICKS_PER_SEC)} 秒\n×${s.potions}` : `藥水\n×${s.potions}`);
     }
     // MP 條（HP 文字下方）
     {
