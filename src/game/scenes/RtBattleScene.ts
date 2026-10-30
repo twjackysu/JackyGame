@@ -1697,6 +1697,9 @@ export class RtBattleScene extends Phaser.Scene {
       this.memQ = this.memLeft.splice(i, 1)[0]!;
     }
     if (this.tipBusy && this.introRun === this.busyRun) return; // 開場大字還在：等它收掉（已經記下來，走開也會想起）
+    // 第 68 輪：星隕高原的記憶點就在守望者巢穴邊，記憶卡以前蓋在 Boss 登場名字上 → Boss 開打、抉擇面板、討伐大字期間先記著，打完再想起
+    // （還沒開打但站在 Boss 發現範圍附近也先等：不然記憶卡和登場名字同一刻出現）
+    if (this.menu || this.time.now < this.slainUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
     const mem = this.memQ;
     this.memQ = null;
     const r = recall(loadMemories(), mem.id);
@@ -1983,6 +1986,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (!list?.length || this.bot) return;
     // 第 56 輪：荊棘谷出生點旁就有一個寶箱 → 幕名卡／開場說明還在播時先不提示（不然三組字疊在一起），播完再說
     if (this.tipBusy || this.time.now < this.chapterUntil || this.topCard?.active || this.time.now < this.reviveUntil) return;
+    // 第 68 輪：巢穴邊的寶箱（星隕高原）提示以前和 Boss 登場名字疊在一起 → Boss 開打期間不提示
+    if (enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat')) return;
     const p = playerOf(this.s);
     for (const c of list) {
       if (c.nightOnly || this.chestHinted.has(c.id) || this.s.chestsOpened?.includes(c.id)) continue;
@@ -3790,7 +3795,8 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0x24201e, 1).fillRoundedRect(cx - 20 * k, cy - 30 * k, 40 * k, 32 * k, 8 * k);
       g.lineStyle(2 * k, 0x5a524c, 1).lineBetween(cx - 8 * k, cy - 24 * k, cx + 2 * k, cy - 12 * k).lineBetween(cx + 2 * k, cy - 12 * k, cx - 4 * k, cy - 2 * k);
     }
-    if (!this.choiceMarkSaid && !this.bot) {
+    // 第 68 輪：痕跡就在巢穴旁，走過去常常正好驚動 Boss → 那句話以前浮在 Boss 登場名字上；Boss 開打期間先不說，脫戰或討伐後再走近才說
+    if (!this.choiceMarkSaid && !this.bot && !enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat')) {
       const p = playerOf(this.s);
       if (Math.hypot(p.x - x, p.y - y) < UNIT * 2.5) {
         this.choiceMarkSaid = true;
