@@ -3643,8 +3643,12 @@ export class RtBattleScene extends Phaser.Scene {
     for (let i = 0; i < n; i += 2) {
       const a0 = ((i + drift * 2) / n) * Math.PI * 2;
       const a1 = ((i + 1 + drift * 2) / n) * Math.PI * 2;
-      const x0 = this.sx(bz.x + Math.cos(a0) * bz.r);
-      const y0 = this.sy(bz.y + Math.sin(a0) * bz.r);
+      // 第 64 輪：巢穴圓圈超出地圖的那段（北緣外的漸層裡）不畫——以前會在黑暗裡飄著一段段紅線
+      const wx0 = bz.x + Math.cos(a0) * bz.r;
+      const wy0 = bz.y + Math.sin(a0) * bz.r;
+      if (wx0 < 0 || wy0 < 0 || wx0 > this.s.arena.w || wy0 > this.s.arena.h) continue;
+      const x0 = this.sx(wx0);
+      const y0 = this.sy(wy0);
       if (x0 < -40 || x0 > GAME_WIDTH + 40 || y0 < VIEW_TOP - 40 || y0 > VIEW_BOTTOM + 40) continue;
       const x1 = this.sx(bz.x + Math.cos(a1) * bz.r);
       const y1 = this.sy(bz.y + Math.sin(a1) * bz.r);
