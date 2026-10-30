@@ -1793,7 +1793,7 @@ export class RtBattleScene extends Phaser.Scene {
         sparks(this, x, y, 26, 'spark', 0xa8f0c8, 520);
         shockRing(this, x, y, 0x7dd8b0, 220, 700, 6);
         // 往離主角遠的那一側走開
-        this.encLeave.push({ e, born: this.time.now, dir: e.npc === 'mule' || e.tx * UNIT + UNIT / 2 >= p.x ? 1 : -1 }); // 騾子頭朝右，只往右走
+        this.encLeave.push({ e, born: this.time.now, dir: e.npc === 'mule' || e.npc === 'hunter' || e.tx * UNIT + UNIT / 2 >= p.x ? 1 : -1 }); // 騾子頭朝右只往右走；少年獵人往東邊的營火走
       }
       bigText(this, GAME_WIDTH / 2, 560, `${wrapTip(e[pick].after)}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 28, 3000);
     }, { kicker: '相遇', spareTag: '助' });
