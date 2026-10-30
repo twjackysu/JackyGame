@@ -65,7 +65,11 @@ const recentNums = new WeakMap<Phaser.Scene, NumRect[]>();
 
 /** 彈跳傷害數字 */
 export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: string, st: NumberStyle): Phaser.GameObjects.Text {
-  const nx = x + Phaser.Math.Between(-18, 18);
+  // 第 64 輪：畫面內的怪貼著左右邊時，長字（「被發現了！」）被切掉一半 → 夾回畫面內（畫面外的不動）
+  const sw = scene.scale.width;
+  const half = (text.length * st.size * 0.62) / 2 + 6;
+  let nx = x + Phaser.Math.Between(-18, 18);
+  if (x >= 0 && x <= sw && half * 2 < sw) nx = Math.max(half, Math.min(sw - half, nx));
   let list = recentNums.get(scene);
   if (!list) { list = []; recentNums.set(scene, list); }
   const y = numberSlot(list, nx, y0, text.length * st.size * 0.62 + 8, st.size * 0.95, scene.time.now);

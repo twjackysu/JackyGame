@@ -40,9 +40,11 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
   const cx = GAME_WIDTH / 2;
   const root = scene.add.container(0, 0).setDepth(2000);
   const fx = highFx();
-  const veil = scene.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x05040a, 1).setAlpha(0).setInteractive();
+  // 第 64 輪：序章是從標題淡出（全黑）直接接上的——以前遮罩從 0 淡入，新玩家點「進入」後會先閃一下還沒定位的地圖和 HUD 再變暗；
+  // 序章一開始就蓋滿，只有通關演出（從遊戲畫面接過來）才淡入
+  const veil = scene.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x05040a, 1).setAlpha(stats ? 0 : 0.985).setInteractive();
   root.add(veil);
-  scene.tweens.add({ targets: veil, alpha: 0.985, duration: 1400 }); // 第 47 輪：0.94 時底下的懸賞板、技能鍵字會透出來
+  if (stats) scene.tweens.add({ targets: veil, alpha: 0.985, duration: 1400 }); // 第 47 輪：0.94 時底下的懸賞板、技能鍵字會透出來
   playMusic('title', 2);
 
   // 背景：緩慢旋轉的星印＋往上飄的星燼
