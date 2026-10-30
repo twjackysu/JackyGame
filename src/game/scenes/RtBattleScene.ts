@@ -2492,7 +2492,11 @@ export class RtBattleScene extends Phaser.Scene {
         if (d && ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length && !this.bossMemo) {
           this.bossMemo = true;
           this.bossIntro(d);
-          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, 600, wrapTip(this.bossTipText()), '#d8c8ff', 28, tipMs(this.bossTipText())));
+          // 第 63 輪：等級還不夠就碰上 Boss（新存檔 Lv2 直奔狼王要打兩分多鐘）→ 攻略提示多一行建議等級
+          const wm = worldMap(this.stageId);
+          const lv = this.s.prog?.level ?? 1;
+          const tip = `${wrapTip(this.bossTipText())}${wm && lv < wm.bossLv ? `\n建議 Lv${wm.bossLv} 以上・打不過就先回去練功` : ''}`;
+          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, 600, tip, '#d8c8ff', 28, tipMs(tip)));
         }
       } else if (e.type === 'leash') {
         const d = u(e.id);
