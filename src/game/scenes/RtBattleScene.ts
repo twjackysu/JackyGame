@@ -5122,7 +5122,7 @@ export class RtBattleScene extends Phaser.Scene {
       const ct = this.calmText;
       if (ct?.visible && ct.text) {
         const top = ct.y - ct.height / 2;
-        if (Math.abs(cx - ct.x) < (ct.width + gt.label.width) / 2 && ly > top && ly - gt.label.height < ct.y + ct.height / 2) ly = top - 4;
+        if (Math.abs(cx - ct.x) < (ct.width + gt.label.width) / 2 && ly > top - 16 && ly - gt.label.height < ct.y + ct.height / 2) ly = top - 16; // 第 62 輪：4 → 16，兩行字貼太近
       }
       // 第 58 輪：右下技能鍵蓋住門上的字（390×844 燼紅裂谷出生點的「▼ 回荊棘谷」）→ 字往左移到按鈕群外面
       let lx = cx;
