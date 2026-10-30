@@ -2544,7 +2544,8 @@ export class RtBattleScene extends Phaser.Scene {
         const ax = d ? this.sx(d.x) : 0;
         const ay = d ? this.sy(d.y) - 60 : 0;
         const onZone = this.zoneTexts.some((z) => z.active && z.alpha > 0.05 && z.getBounds().contains(ax, ay));
-        if (d && ay > VIEW_TOP + 20 && !onZone) floatNumber(this, ax, ay, '!', { color: '#ff5a5a', size: 40 });
+        // 第 68 輪：怪躲在左上小地圖／懸賞板底下時，紅「!」以前浮在小地圖和懸賞字上 → 不畫
+        if (d && ay > VIEW_TOP + 20 && !onZone && !this.overHudPanel(ax, ay)) floatNumber(this, ax, ay, '!', { color: '#ff5a5a', size: 40 });
         // 巡邏的精英發現你（D-117）：橘色衝擊環＋警告音＋「被發現了！」
         if (d?.patrol && !this.bot) {
           shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 60, 260, 5);
@@ -5103,6 +5104,16 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.add.image(x - 2, y - 2, key).setOrigin(0).setDepth(49).setAlpha(0.9);
     this.mini = { x, y, w, h, s };
+  }
+
+  /** 第 68 輪：(x, y) 在左上小地圖或懸賞板上（含一點邊距）→ 浮字不要畫在那裡 */
+  private overHudPanel(x: number, y: number): boolean {
+    const m = this.mini;
+    if (m && x < m.x + m.w + 24 && y > m.y - 24 && y < m.y + m.h + 70) return true;
+    const b = this.bountyTxt;
+    // 浮字會往上飄約 50px → 板子下面 70px 內也算
+    if (b?.visible && b.text) { const r = b.getBounds(); if (x < r.right + 24 && y > r.top - 24 && y < r.bottom + 70) return true; }
+    return false;
   }
 
   /**
