@@ -2529,7 +2529,8 @@ export class RtBattleScene extends Phaser.Scene {
           const wm = worldMap(this.stageId);
           const lv = this.s.prog?.level ?? 1;
           const tip = `${wrapTip(this.bossTipText())}${wm && lv < wm.bossLv ? `\n建議 Lv${wm.bossLv} 以上・打不過就先回去練功` : ''}`;
-          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, 600, tip, '#d8c8ff', 28, tipMs(tip)));
+          // 第 64 輪：放在主角腳下（TIP_Y），以前 y 600 正好蓋在 Boss 和牠的第一個紅圈預告上
+          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, TIP_Y, tip, '#d8c8ff', 28, tipMs(tip)));
         }
       } else if (e.type === 'leash') {
         const d = u(e.id);
