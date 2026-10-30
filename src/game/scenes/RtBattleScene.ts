@@ -303,6 +303,8 @@ export class RtBattleScene extends Phaser.Scene {
   private memLeft: Memory[] = [];
   /** 走到了、但開場大字還在 → 先記著，大字收掉再想起（第 61 輪：星隕高原從光門抵達，記憶卡和開場大字同時出現） */
   private memQ: Memory | null = null;
+  /** 倒下後在營火旁醒來的那幾秒（第 61 輪）：不報地區名稱、不出「似乎有點熟悉」，只留「在營火旁醒來」 */
+  private reviveUntil = 0;
   /** 開場大字佔著 tipBusy 時的 busyRun（-1＝沒有） */
   private introRun = -1;
   /** 路上的相遇（D-159）：還沒選的、選了「助」等著道謝的 */
@@ -528,7 +530,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.escort = null; this.encAt.clear(); }
-    { this.memQ = null; this.introRun = -1; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
+    { this.memQ = null; this.introRun = -1; this.reviveUntil = 0; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
       this.tipBusy = true;
@@ -1906,7 +1908,7 @@ export class RtBattleScene extends Phaser.Scene {
     const list = STAGES[this.stageId]?.chests;
     if (!list?.length || this.bot) return;
     // 第 56 輪：荊棘谷出生點旁就有一個寶箱 → 幕名卡／開場說明還在播時先不提示（不然三組字疊在一起），播完再說
-    if (this.tipBusy || this.time.now < this.chapterUntil || this.topCard?.active) return;
+    if (this.tipBusy || this.time.now < this.chapterUntil || this.topCard?.active || this.time.now < this.reviveUntil) return;
     const p = playerOf(this.s);
     for (const c of list) {
       if (c.nightOnly || this.chestHinted.has(c.id) || this.s.chestsOpened?.includes(c.id)) continue;
@@ -1927,6 +1929,12 @@ export class RtBattleScene extends Phaser.Scene {
     const p = playerOf(this.s);
     const z = zs.find((q) => p.x >= q.x0 && p.x < q.x1 && p.y >= q.y0 && p.y < q.y1);
     if (!z || z.name === this.zoneName) return;
+    if (this.time.now < this.reviveUntil) {
+      // 第 61 輪：醒來的營地不用再報一次（以前地區名稱、地區說明、「似乎有點熟悉」、「在營火旁醒來」四行字一起出）
+      this.zoneName = z.name;
+      this.zoneSeenAt.set(z.name, this.time.now);
+      return;
+    }
     if (this.topCard?.active || this.time.now < this.chapterUntil) return;
     // 第 52 輪：走進第二個地區時開場說明框還在（荊棘谷 8 秒就進毒沼）→ 說明框、地區名稱、地區說明、「見切射擊！」四組字同時擠在上半部。
     // 已經走到下一區＝學會走路了，直接收起說明框，地區名稱照原本位置。開場那一區（zoneName 還是 null）不收。
@@ -2827,6 +2835,7 @@ export class RtBattleScene extends Phaser.Scene {
         const p = playerOf(this.s);
         // 倒下→黑幕 1 秒淡入（像真的昏過去再醒來），再出字
         this.cameras.main.fadeIn(1000, 0, 0, 0);
+        this.reviveUntil = this.time.now + 3500;
         this.time.delayedCall(450, () => bigText(this, GAME_WIDTH / 2, 520, '在營火旁醒來', '#ffd27a', 40, 1100));
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 160, 600, 6);
       }
