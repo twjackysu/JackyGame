@@ -252,6 +252,8 @@ export class RtBattleScene extends Phaser.Scene {
   /** 上一則「稀有裝備！」大字出現的時間（番外收尾卡等它淡掉） */
   private rareAt = -1e9;
   private holdRun = 0;
+  /** 討伐大字（「暴怒的○○倒下了！…」）還在畫面上的時間，解鎖公告等它淡出 */
+  private slainUntil = 0;
   /** 第 56 輪：剛經光門抵達，回程門的字晚一點才淡入（不然一落地就貼在主角旁邊） */
   private gateLabelFrom = 0;
   /** 荊棘巡獵者的腳印（D-117，純畫面）：世界座標＋朝向＋留下的時間 */
@@ -317,7 +319,7 @@ export class RtBattleScene extends Phaser.Scene {
   init(data: { stage?: string; seed?: number; bot?: string; via?: string }): void {
     this.via = data.via ?? '';
     this.warpAt = -1;
-    this.chapterUntil = 0; this.rareAt = -1e9;
+    this.chapterUntil = 0; this.rareAt = -1e9; this.slainUntil = 0;
     const q = new URLSearchParams(window.location.search);
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
     // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
@@ -1339,6 +1341,7 @@ export class RtBattleScene extends Phaser.Scene {
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
     const head = first ? (worldMap(this.stageId)?.firstKill ?? '首次討伐！') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
     const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
+    this.slainUntil = this.time.now + 1900 + 180 + 2600;
     this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
   }
 
@@ -2302,7 +2305,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 討伐後的解鎖公告（第 60 輪）：等稀有裝備大字、教學小字、幕名卡、上方卡片、面板都收掉才出，最多等 12 秒 */
   private announce(text: string, color: string, waited = 0): void {
     if (!this.scene.isActive() || this.ended) return;
-    const busy = this.tipBusy || this.time.now < this.chapterUntil || !!this.topCard?.active || !!this.menu?.active || this.rareQueue.length > 0 || this.time.now - this.rareAt < 2200;
+    const busy = this.tipBusy || this.time.now < this.chapterUntil || this.time.now < this.slainUntil || !!this.topCard?.active || !!this.menu?.active || this.rareQueue.length > 0 || this.time.now - this.rareAt < 2200;
     if (busy && waited < 12000) {
       this.time.delayedCall(400, () => this.announce(text, color, waited + 400));
       return;
