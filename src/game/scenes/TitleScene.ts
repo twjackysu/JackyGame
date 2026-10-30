@@ -263,7 +263,10 @@ export class TitleScene extends Phaser.Scene {
     const fresh = new Set<number>(); // 第一次看到開放的地圖按鈕（第 27 輪）：金色脈動＋「NEW」
 
     // 大地圖（D-097／D-114／D-124）：第一張一開始就開；之後每張要先打倒前一張的 Boss 一次。等級、行囊、技能點共用
+    const last = lastMap();
+    let lastIdx = 0; // 第 63 輪：上次玩的地圖亮金框＋▶（沒紀錄就是第一顆）
     WORLD_MAPS.forEach((m, i) => {
+      if (mapOpen(m.id) && m.id === last) lastIdx = items.length;
       if (mapOpen(m.id) && i > 0 && !seenMap(m.id)) fresh.add(items.length);
       if (mapOpen(m.id)) items.push([`${i ? '前往' : '進入'}${m.name}`, () => this.go(() => this.scene.start('RtBattle', { stage: m.id, bot: '' }))]);
       else items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
@@ -291,9 +294,11 @@ export class TitleScene extends Phaser.Scene {
       const c = this.add.container(cx, y);
       const g = this.add.graphics();
       g.fillStyle(0x0a0d1a, 0.85).fillRoundedRect(-200, -42, 400, 84, 20);
-      g.lineStyle(2, 0xffd27a, i === 0 ? 1 : 0.5).strokeRoundedRect(-200, -42, 400, 84, 20);
+      g.lineStyle(i === lastIdx ? 3 : 2, 0xffd27a, i === lastIdx ? 1 : 0.5).strokeRoundedRect(-200, -42, 400, 84, 20);
       const tx = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: '34px', color: label.includes('未開放') ? '#7a7f90' : '#ffffff' }).setOrigin(0.5).setLetterSpacing(6);
-      c.add([g, tx]).setSize(400, 84).setInteractive({ useHandCursor: true }).setAlpha(0);
+      c.add([g, tx]);
+      if (i === lastIdx && lastIdx > 0) c.add(this.add.text(-172, 0, '▶', { fontFamily: UI_FONT, fontSize: '26px', color: '#ffd27a' }).setOrigin(0.5));
+      c.setSize(400, 84).setInteractive({ useHandCursor: true }).setAlpha(0);
       this.tweens.add({ targets: c, alpha: 1, y: y - 10, delay: 100 + i * 80, duration: 300, ease: 'Cubic.Out' });
       c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
         ev.stopPropagation();
@@ -459,6 +464,14 @@ export class TitleScene extends Phaser.Scene {
   }
 }
 
+/** 上次玩的大地圖（第 63 輪）；沒紀錄或讀不到回 null */
+function lastMap(): string | null {
+  try {
+    return localStorage.getItem('jg_last_map');
+  } catch {
+    return null;
+  }
+}
 /** 新開放地圖按鈕看過了沒（每台裝置一次；localStorage 不能用時當作看過，不重複演出） */
 function seenMap(id: string): boolean {
   try {

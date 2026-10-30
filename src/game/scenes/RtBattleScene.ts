@@ -340,6 +340,14 @@ export class RtBattleScene extends Phaser.Scene {
     const b = (data.bot !== undefined ? data.bot : q.get('bot')) as keyof typeof BOT_PROFILES | null;
     this.bot = b && BOT_PROFILES[b] ? new PlayerBot({ ...BOT_PROFILES[b], ult: true, potionAtPct: b === 'auto' ? undefined : 35, ...(wm ? { campfireBelowPotions: 8, advanceTo: wm.bossAt } : {}) }, b) : null;
     this.botName = this.bot ? b : null;
+    // 第 63 輪：記住上次玩的大地圖，標題那顆按鈕會亮金框＋▶
+    if (wm && !this.bot) {
+      try {
+        localStorage.setItem('jg_last_map', wm.id);
+      } catch {
+        /* 無痕模式等：略過 */
+      }
+    }
     this.ventHit.clear();
     this.ventKills = 0;
   }
