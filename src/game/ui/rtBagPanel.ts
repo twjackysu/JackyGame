@@ -178,6 +178,20 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
             const msgY = GAME_HEIGHT / 2 + cardBottom + 56;
             const msg = scene.add.text(GAME_WIDTH / 2, msgY, success ? `強化成功！+${enh + 1}` : '強化失敗……材料沒了', { fontFamily: TITLE_FONT, fontSize: '40px', color: success ? '#ffd27a' : '#c0c0d0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990);
             scene.tweens.add({ targets: msg, y: msgY - 30, alpha: 0, delay: 700, duration: 700, onComplete: () => msg.destroy() });
+            // 第 62 輪：成功時金色火花從裝備圖示迸出（+6 以上要賭成功率的，火花更多更遠）
+            if (success) {
+              const ix = GAME_WIDTH / 2 - 240;
+              const iy = GAME_HEIGHT / 2 - 300;
+              const n = enh + 1 > 5 ? 22 : 12;
+              for (let i = 0; i < n; i++) {
+                const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+                const d = (enh + 1 > 5 ? 110 : 70) + Math.random() * 50;
+                const sp = scene.add.circle(ix, iy, 3 + Math.random() * 4, i % 3 ? 0xffd27a : 0xfff4d0, 1).setDepth(995).setBlendMode(Phaser.BlendModes.ADD);
+                scene.tweens.add({ targets: sp, x: ix + Math.cos(a) * d, y: iy + Math.sin(a) * d, alpha: 0, scale: 0.3, duration: 450 + Math.random() * 250, ease: 'Cubic.easeOut', onComplete: () => sp.destroy() });
+              }
+              const ring = scene.add.circle(ix, iy, 30, 0xffd27a, 0).setStrokeStyle(4, 0xffd27a, 1).setDepth(995);
+              scene.tweens.add({ targets: ring, scale: 2.6, alpha: 0, duration: 500, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+            }
           }, ok, 24));
       }
     }
