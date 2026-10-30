@@ -301,6 +301,10 @@ export class RtBattleScene extends Phaser.Scene {
   private chestHinted = new Set<string>();
   /** 前世的記憶（D-137）：這張圖還沒想起來的記憶點 */
   private memLeft: Memory[] = [];
+  /** 走到了、但開場大字還在 → 先記著，大字收掉再想起（第 61 輪：星隕高原從光門抵達，記憶卡和開場大字同時出現） */
+  private memQ: Memory | null = null;
+  /** 開場大字佔著 tipBusy 時的 busyRun（-1＝沒有） */
+  private introRun = -1;
   /** 路上的相遇（D-159）：還沒選的、選了「助」等著道謝的 */
   private encOpen: Encounter[] = [];
   private encThanks: Encounter[] = [];
@@ -524,7 +528,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.escort = null; this.encAt.clear(); }
-    { const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
+    { this.memQ = null; this.introRun = -1; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
       this.tipBusy = true;
@@ -1435,6 +1439,7 @@ export class RtBattleScene extends Phaser.Scene {
       // 以前用固定 3.8 秒計時，掉幀時大字的淡出 tween 比計時慢，「黃框＝可以格擋」會疊在大字上）。6 秒保底。
       this.tipBusy = true;
       const own = ++this.busyRun;
+      this.introRun = own;
       const after = (): void => {
         if (run !== this.openRun || !this.tipBusy || own !== this.busyRun) return;
         this.tipBusy = false;
@@ -1617,12 +1622,17 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 前世的記憶（D-137）：走到記憶點旁邊 → 想起一段事、拿結晶（不暫停戰鬥） */
   private memoryCheck(): void {
-    if (!this.memLeft.length || this.time.now < this.chapterUntil) return; // 幕名卡播完再想起（不然兩張卡疊在一起）
+    if ((!this.memLeft.length && !this.memQ) || this.time.now < this.chapterUntil) return; // 幕名卡播完再想起（不然兩張卡疊在一起）
     const p = playerOf(this.s);
     if (p.dead) return;
-    const i = this.memLeft.findIndex((m) => Math.hypot(m.tx * UNIT + UNIT / 2 - p.x, m.ty * UNIT + UNIT / 2 - p.y) < MEMORY_RADIUS * UNIT);
-    if (i < 0) return;
-    const mem = this.memLeft.splice(i, 1)[0]!;
+    if (!this.memQ) {
+      const i = this.memLeft.findIndex((m) => Math.hypot(m.tx * UNIT + UNIT / 2 - p.x, m.ty * UNIT + UNIT / 2 - p.y) < MEMORY_RADIUS * UNIT);
+      if (i < 0) return;
+      this.memQ = this.memLeft.splice(i, 1)[0]!;
+    }
+    if (this.tipBusy && this.introRun === this.busyRun) return; // 開場大字還在：等它收掉（已經記下來，走開也會想起）
+    const mem = this.memQ;
+    this.memQ = null;
     const r = recall(loadMemories(), mem.id);
     if (!r) return;
     saveMemories(r.ids);
@@ -2705,7 +2715,8 @@ export class RtBattleScene extends Phaser.Scene {
           SFX.hitHeavy();
         }
         // 開場大字還在時先不說（第 45 輪：星隕高原開場 4 秒內就砸第一顆星，兩段大字疊在一起）；下一次噴發再說
-        if (!this.ventHinted && near && !this.bot && !this.tipBusy) {
+        // 第 61 輪：上方的記憶卡還在也先不說（y 470 剛好貼在卡片下緣）
+        if (!this.ventHinted && near && !this.bot && !this.tipBusy && !this.topCard?.active) {
           this.ventHinted = true;
           if (this.starMap) bigText(this, GAME_WIDTH / 2, 470, '星星砸下來了！地上出現藍圈就快走開\n（閃避可以躲・把追你的怪引過來砸）', '#c8d8ff', 30, 1800);
           else bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
