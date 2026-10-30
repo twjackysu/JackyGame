@@ -524,8 +524,12 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 66 輪：打倒過這張圖的 Boss 就不算新手（以前通關後從回程門回霧語森林，runs 還不到 3，Lv16 老玩家又被教一次營火）
     const recN = loadRecord(this.stageId);
     this.newbie = this.tracked && (recN.runs ?? 0) <= 3 && !recN.bossKills;
-    // 第 67 輪：打倒過這張圖 Boss 的老玩家不再每次進圖（或倒下醒來）都被教一次「熔岩口噴發／星星砸下來了」
-    this.ventHinted = this.tracked && !!recN.bossKills;
+    // 第 67 輪：打倒過這張圖 Boss 的老玩家不再每次開遊戲進圖都被教一次「熔岩口噴發／星星砸下來了／毒沼」
+    // （兩個旗標都是場景欄位、不重設＝新玩家每次開遊戲說一次，維持原樣）
+    if (this.tracked && recN.bossKills) {
+      this.ventHinted = true;
+      this.hazardHinted = true;
+    }
     this.veteran = this.tracked && bossKillsOf(WORLD_MAPS[0]!.id) > 0;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.thornFx = []; this.thornPending = []; this.frostFx = [];
@@ -2025,7 +2029,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 地圖怪關卡：開場 30 秒都沒點怪也沒按技能 → 提示「點狼開打」並在最近的怪身上打光圈 */
   private idleHint(): void {
-    if (this.idleHinted || this.bot || this.engaged) return;
+    if (this.idleHinted || this.bot || this.engaged || this.veteran) return; // 第 67 輪：老玩家不教「點一下怪物」
     const st = STAGES[this.stageId];
     if (!st?.mapAi || this.s.tick < 30 * TICKS_PER_SEC) return;
     this.idleHinted = true;
