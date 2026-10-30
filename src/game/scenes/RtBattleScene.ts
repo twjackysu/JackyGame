@@ -252,6 +252,8 @@ export class RtBattleScene extends Phaser.Scene {
   /** 上一則「稀有裝備！」大字出現的時間（番外收尾卡等它淡掉） */
   private rareAt = -1e9;
   private holdRun = 0;
+  /** 誰最後把 tipBusy 設成 true（第 61 輪）：舊的放行計時／destroy 回呼只有在還是自己的時候才放行，不會把開場大字的「忙」解掉 */
+  private busyRun = 0;
   /** 討伐大字（「暴怒的○○倒下了！…」）還在畫面上的時間，解鎖公告等它淡出 */
   private slainUntil = 0;
   /** 第 56 輪：剛經光門抵達，回程門的字晚一點才淡入（不然一落地就貼在主角旁邊） */
@@ -1092,11 +1094,13 @@ export class RtBattleScene extends Phaser.Scene {
     this.cardBtn?.setVisible(near && !this.menu);
     // 新手引導（第 23 輪）：前幾次進地圖、第一次離開營火又回來時說明營火能做什麼（開場就在營火旁，所以等「回來」才提示）
     if (!near) this.leftFire = true;
-    else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie) {
+    else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie && !this.tipBusy && this.time.now >= this.chapterUntil) {
       this.fireHinted = true;
       // 說明期間先收起下面的「點怪物開打」（第 42 輪：兩行字疊在一起）
+      // 第 61 輪：開場大字還在（tipBusy）就先等；以前這則一收掉就把 tipBusy 解開，「長弓：站遠一點射！」直接疊在開場大字上
+      const run = ++this.busyRun;
       this.tipBusy = true;
-      bigText(this, GAME_WIDTH / 2, TIP_Y, '回到營火：點火堆＝休息回滿・補藥水\n「行囊・強化」換裝／強化　「行商」用金幣買賣', '#ffe0a0', 26, 2600).once('destroy', () => { if (this.scene.isActive()) this.tipBusy = false; });
+      bigText(this, GAME_WIDTH / 2, TIP_Y, '回到營火：點火堆＝休息回滿・補藥水\n「行囊・強化」換裝／強化　「行商」用金幣買賣', '#ffe0a0', 26, 2600).once('destroy', () => { if (this.scene.isActive() && run === this.busyRun) this.tipBusy = false; });
     }
   }
 
@@ -1415,6 +1419,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (lab) {
       markChapterSeen(this.stageId);
       this.tipBusy = true;
+      this.busyRun++;
       this.chapterUntil = this.time.now + 3000;
       const ms = playChapterCard(this, lab, Math.round(VIEW_TOP + (VIEW_BOTTOM - VIEW_TOP) * 0.24), VIEW_TOP, VIEW_BOTTOM);
       const run0 = this.openRun;
@@ -1429,8 +1434,9 @@ export class RtBattleScene extends Phaser.Scene {
       // 開場大字 0.4 秒出現、約 3.4 秒消失；操作說明框與提示（y 700）等大字**真的消失**才出（第 37 輪：
       // 以前用固定 3.8 秒計時，掉幀時大字的淡出 tween 比計時慢，「黃框＝可以格擋」會疊在大字上）。6 秒保底。
       this.tipBusy = true;
+      const own = ++this.busyRun;
       const after = (): void => {
-        if (run !== this.openRun || !this.tipBusy) return;
+        if (run !== this.openRun || !this.tipBusy || own !== this.busyRun) return;
         this.tipBusy = false;
         if (!this.bot) this.showHint();
       };
@@ -2292,9 +2298,10 @@ export class RtBattleScene extends Phaser.Scene {
   private holdTips(t: Phaser.GameObjects.Text): void {
     this.tipBusy = true;
     const run = ++this.holdRun;
+    const own = ++this.busyRun;
     let freed = false;
     const free = (): void => {
-      if (freed || !this.scene.isActive() || run !== this.holdRun) return;
+      if (freed || !this.scene.isActive() || run !== this.holdRun || own !== this.busyRun) return;
       freed = true;
       this.tipBusy = false;
       this.tipCalmUntil = this.time.now + TIP_GAP_MS;
@@ -2346,10 +2353,11 @@ export class RtBattleScene extends Phaser.Scene {
       return true;
     }
     this.tipBusy = true;
+    const own = ++this.busyRun;
     // 等大字真的消失才放下一則（第 37 輪：固定 2.2 秒計時在掉幀時比淡出 tween 快，兩則會疊在一起）；4 秒保底
     let freed = false;
     const free = (): void => {
-      if (!freed) {
+      if (!freed && own === this.busyRun) {
         this.tipBusy = false;
         this.tipCalmUntil = this.time.now + TIP_GAP_MS;
       }

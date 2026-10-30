@@ -1,12 +1,13 @@
 // 新存檔＋Bot 代打快轉截圖（第 45 輪）。要先 `npx vite --port 5173`（用 dev server 才能 import Bot）。
 // 用法：SHOTS='[[遊戲秒數, "要執行的 JS"?], ...]' node scripts/shot-newsave.mjs 名稱 sword|bow|staff [W H] → screenshots/名稱-00.png…
 // 快轉：藏起相機（無頭瀏覽器慢在軟體 WebGL）＋ __game.step 手動推進＋假的 Date.now（Phaser 3.60+ 的 tween 用 Date.now 算時間）。
-// 每段印出這段時間出現過的文字（教學提示、大字…）。抉擇／相遇面板自動選「還」／「助」。環境變數 STAGE（地圖 id）、LS（先寫進 localStorage 的 JSON）。
+// 每段印出這段時間出現過的文字（教學提示、大字…）。抉擇／相遇面板自動選「還」／「助」。環境變數 STAGE（地圖 id）、VIA（gate＝光門抵達）、LS（先寫進 localStorage 的 JSON）。
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots', { recursive: true });
 const [name='b', weapon='sword', W='360', H='640'] = process.argv.slice(2);
 const STAGE = process.env.STAGE || 'mistwood';
+const VIA = process.env.VIA || ''; // 'gate'＝從上一張圖的光門抵達（D-188）
 const shots = JSON.parse(process.env.SHOTS || '[[5],[30],[60]]');
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const pg = await b.newPage({ viewport: { width: +W, height: +H } });
@@ -16,7 +17,7 @@ await pg.goto('http://localhost:5173/?debug');
 await pg.evaluate(([w, ls]) => { localStorage.clear(); localStorage.setItem('jg_prologue_seen','1'); localStorage.setItem('jg_weapon', w); for (const [k, v] of Object.entries(JSON.parse(ls))) localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); }, [weapon, process.env.LS || '{}']);
 await pg.reload();
 await pg.waitForFunction(() => window.__game?.scene?.getScene('Title')?.sys?.isActive(), null, { timeout: 60000 });
-await pg.evaluate((st) => __game.scene.getScene('Title').scene.start('RtBattle', { stage: st, bot: '' }), STAGE);
+await pg.evaluate(([st, via]) => __game.scene.getScene('Title').scene.start('RtBattle', via ? { stage: st, bot: '', via } : { stage: st, bot: '' }), [STAGE, VIA]);
 await pg.waitForTimeout(3000);
 await pg.evaluate(async (st) => {
   const { PlayerBot, BOT_PROFILES } = await import('/src/core/battle/rt/sim.ts');
