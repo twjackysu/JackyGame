@@ -26,3 +26,15 @@ export function tipMs(text: string, base = 2200): number {
   const n = [...text.replace(/\n/g, '')].length;
   return Math.min(4000, Math.max(base, n * 110));
 }
+
+/**
+ * 地區說明太長時的換行（第 61 輪）：在最靠近中間的「・」斷成兩行（「・」本身拿掉）；沒有「・」或只有一段就回傳 null。
+ * 例：「危險：狼群首領出沒・東邊有荊棘母樹・西側有巡守巡邏」→「危險：狼群首領出沒\n東邊有荊棘母樹・西側有巡守巡邏」（一樣近就取前面的）
+ */
+export function zoneHintBreak(text: string): string | null {
+  const mid = text.length / 2;
+  let best = -1;
+  for (let i = 0; i < text.length; i++) if (text[i] === '・' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
+  if (best <= 0 || best >= text.length - 1) return null;
+  return `${text.slice(0, best)}\n${text.slice(best + 1)}`;
+}

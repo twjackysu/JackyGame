@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TIP_LINE_MAX, tipMs, wrapTip } from '../src/game/ui/tipText';
+import { TIP_LINE_MAX, tipMs, wrapTip, zoneHintBreak } from '../src/game/ui/tipText';
 
 describe('提示大字換行（第 37 輪）', () => {
   it('短的不動、長的在標點後斷成兩行，每行不超過一行的寬度', () => {
@@ -24,5 +24,13 @@ describe('提示大字換行（第 37 輪）', () => {
     expect(long).toBeGreaterThan(2200);
     expect(long).toBeLessThanOrEqual(4000);
     expect(tipMs('字'.repeat(100))).toBe(4000);
+  });
+});
+
+describe('地區說明換行（第 61 輪）', () => {
+  it('在最靠近中間的「・」斷開、拿掉那個「・」；沒有「・」回傳 null', () => {
+    expect(zoneHintBreak('危險：狼群首領出沒・東邊有荊棘母樹・西側有巡守巡邏')).toBe('危險：狼群首領出沒\n東邊有荊棘母樹・西側有巡守巡邏');
+    expect(zoneHintBreak('岔路：西邊近但會噴發、東邊遠但有精英')).toBeNull();
+    expect(zoneHintBreak('棘背狼成群・咬傷會中毒')).toBe('棘背狼成群\n咬傷會中毒');
   });
 });

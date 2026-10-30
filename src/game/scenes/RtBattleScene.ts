@@ -66,7 +66,7 @@ import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories
 import { getSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
-import { tipMs, wrapTip } from '../ui/tipText';
+import { tipMs, wrapTip, zoneHintBreak } from '../ui/tipText';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
@@ -1934,8 +1934,20 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 1, y: 235 + dy, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
     this.zoneTexts = [t];
     if (!z.hint) return;
-    const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(66).setAlpha(0);
-    this.tweens.add({ targets: h, alpha: 1, y: 284 + dy, duration: 500, delay: 250, ease: 'Cubic.Out', hold: 1900, yoyo: true, onComplete: () => h.destroy() });
+    const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5, align: 'center' }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    // 第 61 輪：長的地區說明（「危險：狼群首領出沒・東邊有荊棘母樹・西側有巡守巡邏」）比兩側小地圖之間還寬，左端壓在小地圖上
+    // → 在最靠近中間的「・」換行，兩行字從地區名稱下方往下排
+    let hy = 284 + dy;
+    const mmR = this.mini ? this.mini.x + this.mini.w + 10 : 12;
+    if (h.width > GAME_WIDTH - mmR * 2) {
+      const cut = zoneHintBreak(z.hint);
+      if (cut) {
+        h.setText(cut).setOrigin(0.5, 0);
+        hy = 266 + dy;
+        h.y = hy + 8;
+      }
+    }
+    this.tweens.add({ targets: h, alpha: 1, y: hy, duration: 500, delay: 250, ease: 'Cubic.Out', hold: 1900, yoyo: true, onComplete: () => h.destroy() });
     this.zoneTexts.push(h);
     if (z.danger && !this.bot) SFX.uiTap();
   }
