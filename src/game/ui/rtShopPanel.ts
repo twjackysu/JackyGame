@@ -76,8 +76,10 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   let lastToast: Phaser.GameObjects.Text | null = null;
   const toast = (msg: string, col = '#ffd27a'): void => {
     lastToast?.destroy();
-    const t = (lastToast = scene.add.text(GAME_WIDTH / 2, 1010, msg, { fontFamily: TITLE_FONT, fontSize: '36px', color: col, stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990));
-    scene.tweens.add({ targets: t, y: 970, alpha: 0, delay: 600, duration: 700, onComplete: () => t.destroy() });
+    // 第 61 輪：以前固定在 y 1010，360×640 會壓在「▲＝比身上同部位的好」說明字上 → 放在說明字和「離開」之間（跟著面板置中、長螢幕的賣頁往下）
+    const y0 = GAME_HEIGHT / 2 + 420 + (tab === 'sell' ? SELL_DY : 0);
+    const t = (lastToast = scene.add.text(GAME_WIDTH / 2, y0, msg, { fontFamily: TITLE_FONT, fontSize: '36px', color: col, stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990));
+    scene.tweens.add({ targets: t, y: y0 - 40, alpha: 0, delay: 600, duration: 700, onComplete: () => t.destroy() });
   };
   const coinFx = (): void => {
     SFX.itemGet();
@@ -220,7 +222,8 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       toast(`+${sum} 金`);
       render();
     }, false, 22, !junk.length));
-    items.push(scene.add.text(0, 350 + SELL_DY, '▲ 的裝備比身上的好，賣之前想清楚', { fontFamily: UI_FONT, fontSize: '18px', color: '#8890a8' }).setOrigin(0.5));
+    // 第 61 輪：背包裡沒有 ▲ 的裝備就不用提醒（以前背包是空的也寫著）
+    if (st.bag.some((g) => isUpgrade(st, g))) items.push(scene.add.text(0, 350 + SELL_DY, '▲ 的裝備比身上的好，賣之前想清楚', { fontFamily: UI_FONT, fontSize: '18px', color: '#8890a8' }).setOrigin(0.5));
   }
 
   function detailCard(g: RtGear, buy: boolean): Phaser.GameObjects.GameObject[] {
