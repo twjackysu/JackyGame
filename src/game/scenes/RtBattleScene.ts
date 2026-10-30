@@ -96,6 +96,8 @@ const GROUND_CHUNK = 1024;
 const FOCUS_Y = 0.42;
 /** 鏡頭可以往地圖上緣外多捲的世界單位（第 63 輪） */
 const TOP_EXTRA = 150;
+/** 地圖上下緣內側陰影的高度（畫面 px，第 64 輪） */
+const EDGE_SHADE = 90;
 /** 第一次提示／回營火說明的高度（第 38 輪，D-163）：以前寫死 700＝正好蓋在主角身上（主角在 VIEW_TOP＋可視高×0.42：844 高的手機約 718），
  *  黃框格擋提示一出來就把正在打你的狼蓋住。改排在主角下方 250，下排操作鍵上面。 */
 const TIP_Y = Math.round(Math.min(VIEW_TOP + (GAME_HEIGHT - VIEW_TOP) * FOCUS_Y + 250, GAME_HEIGHT - 470)); // 360×640（高 1280）不壓到 MP 球
@@ -1292,6 +1294,26 @@ export class RtBattleScene extends Phaser.Scene {
     grd.addColorStop(1, `rgb(${b.red},${b.green},${b.blue})`);
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, 4, 256);
+    tex.refresh();
+    return key;
+  }
+
+  /** 地圖上下緣內側的陰影（第 64 輪）：上＝漸層起點色（地面色略暗）不透明，下＝透明；接得上 edgeFadeTexture */
+  private edgeShadeTexture(): string {
+    const P = (worldMap(this.stageId) ?? WORLD_MAPS[0]!).palette;
+    const key = `rt_edgeshade_${P.ground.toString(16)}`;
+    if (this.textures.exists(key)) return key;
+    const tex = this.textures.createCanvas(key, 4, 128);
+    if (!tex) return '__DEFAULT';
+    const ctx = tex.getContext();
+    const a = Phaser.Display.Color.IntegerToColor(P.ground);
+    const c = `${a.red * 0.85 | 0},${a.green * 0.85 | 0},${a.blue * 0.85 | 0}`;
+    const grd = ctx.createLinearGradient(0, 0, 0, 128);
+    grd.addColorStop(0, `rgba(${c},1)`);
+    grd.addColorStop(0.3, `rgba(${c},0.7)`);
+    grd.addColorStop(1, `rgba(${c},0)`);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, 4, 128);
     tex.refresh();
     return key;
   }
@@ -2919,6 +2941,10 @@ export class RtBattleScene extends Phaser.Scene {
         box.add(this.add.image(-PAD, H + PAD - 2, this.edgeFadeTexture()).setOrigin(0).setDisplaySize(W + PAD * 2, 560));
         // 第 63 輪：上緣外也接一條（鏡頭可以往上多捲 TOP_EXTRA）
         box.add(this.add.image(-PAD, -PAD + 2 - 360, this.edgeFadeTexture()).setOrigin(0).setFlipY(true).setDisplaySize(W + PAD * 2, 360));
+        // 第 64 輪：地圖上下緣的牆被材質邊硬切成一條亮線（星隕高原的水晶最明顯）→ 邊緣內側壓一層「底色→透明」的陰影，牆沒入黑暗
+        const shade = this.edgeShadeTexture();
+        box.add(this.add.image(-PAD, -PAD, shade).setOrigin(0).setDisplaySize(W + PAD * 2, EDGE_SHADE + PAD));
+        box.add(this.add.image(-PAD, H + PAD, shade).setOrigin(0, 0).setFlipY(true).setDisplaySize(W + PAD * 2, EDGE_SHADE + PAD).setY(H + PAD - (EDGE_SHADE + PAD)));
       }
       return box;
     };
