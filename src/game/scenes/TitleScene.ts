@@ -3,6 +3,7 @@ import { fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
 import { SFX } from '../../audio/sfx';
 import { bossKillsOf, mapOpen } from '../rtRecord';
+import { chapterSeen } from '../chapters';
 import { prevMap, WORLD_MAPS, FINALE_MAP } from '../worldMaps';
 import { loadWeapon, nextWeapon, saveWeapon, WEAPON_NAME } from '../weapon';
 import { playMusic } from '../../audio/music';
@@ -267,7 +268,8 @@ export class TitleScene extends Phaser.Scene {
     let lastIdx = 0; // 第 63 輪：上次玩的地圖亮金框＋▶（沒紀錄就是第一顆）
     WORLD_MAPS.forEach((m, i) => {
       if (mapOpen(m.id) && m.id === last) lastIdx = items.length;
-      if (mapOpen(m.id) && i > 0 && !seenMap(m.id)) fresh.add(items.length);
+      // 第 66 輪：走光門進去玩過的地圖不算新的（以前通關回標題，荊棘谷、燼紅裂谷都還掛著 NEW）
+      if (mapOpen(m.id) && i > 0 && !seenMap(m.id) && !chapterSeen(m.id) && !bossKillsOf(m.id)) fresh.add(items.length);
       if (mapOpen(m.id)) items.push([`${i ? '前往' : '進入'}${m.name}`, () => this.go(() => this.scene.start('RtBattle', { stage: m.id, bot: '' }))]);
       else items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
     });
