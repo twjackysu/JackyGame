@@ -53,7 +53,7 @@ import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
-import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, returnIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bigText, floatNumber, reserveBanner, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -246,6 +246,7 @@ export class RtBattleScene extends Phaser.Scene {
   private tipCalmUntil = 0;
   /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
   private openRun = 0;
+  private nightRun = 0;
   /** 幕名卡播到什麼時候（這之前不出地區名稱與前世的記憶） */
   private chapterUntil = 0;
   /** 上一則「稀有裝備！」大字出現的時間（番外收尾卡等它淡掉） */
@@ -473,14 +474,16 @@ export class RtBattleScene extends Phaser.Scene {
     // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
     const stG = STAGES[this.stageId];
     if (this.s.night && this.tracked && STAGES[this.stageId]?.chests?.some((c) => c.nightOnly)) {
-      this.time.delayedCall(3200, () => bigText(this, GAME_WIDTH / 2, 600, '深夜：遠處的藍色光柱是夜光寶箱\n（每次進深夜都會補滿）', '#bfe0ff', 30, 2200));
+      // 第 59 輪：以前用固定 3.2／5.6 秒，和開場大字、幕名卡、記憶卡疊成四層 → 排隊，等開場那些都收掉才一則一則出（nightTipsRun）
+      const tips: [string, string][] = [['深夜：遠處的藍色光柱是夜光寶箱\n（每次進深夜都會補滿）', '#bfe0ff']];
       // 深夜的山谷（D-115）：毒沼擴散＋多兩灘
-      if (STAGES[this.stageId]?.hazards?.some((h) => h.nightOnly || h.nightR)) this.time.delayedCall(5600, () => bigText(this, GAME_WIDTH / 2, 600, '深夜的毒沼擴散了\n荊棘坡與迴廊也冒出新的毒沼', '#a8f08a', 30, 2200));
+      if (STAGES[this.stageId]?.hazards?.some((h) => h.nightOnly || h.nightR)) tips.push(['深夜的毒沼擴散了\n荊棘坡與迴廊也冒出新的毒沼', '#a8f08a']);
       // 深夜的裂谷（D-125）：噴發口更頻繁＋熔核巡者
       // 深夜的高原（D-138）：星星落得更頻繁
       // 深夜的森林（第 41 輪）：以前只說寶箱，沒提霧影狼巡邏
-      if (STAGES[this.stageId]?.spawnGroups?.some((gr) => gr.nightOnly && gr.enemyId === 'shade_wolf')) this.time.delayedCall(5600, () => bigText(this, GAME_WIDTH / 2, 600, '深夜的森林有「霧影狼」在巡邏\n別走進牠面前的扇形視線', '#c8a8ff', 30, 2200));
-      if (STAGES[this.stageId]?.vents?.some((v) => v.nightEveryTicks)) this.time.delayedCall(5600, () => (this.starMap ? bigText(this, GAME_WIDTH / 2, 600, '深夜的星星落得更頻繁\n晶簇林有「星蝕狼」在巡邏', '#c8d8ff', 30, 2200) : bigText(this, GAME_WIDTH / 2, 600, '深夜的熔岩口噴得更頻繁\n熔渣坡有「熔核巡者」在巡邏', '#ffb36a', 30, 2200)));
+      if (STAGES[this.stageId]?.spawnGroups?.some((gr) => gr.nightOnly && gr.enemyId === 'shade_wolf')) tips.push(['深夜的森林有「霧影狼」在巡邏\n別走進牠面前的扇形視線', '#c8a8ff']);
+      if (STAGES[this.stageId]?.vents?.some((v) => v.nightEveryTicks)) tips.push(this.starMap ? ['深夜的星星落得更頻繁\n晶簇林有「星蝕狼」在巡邏', '#c8d8ff'] : ['深夜的熔岩口噴得更頻繁\n熔渣坡有「熔核巡者」在巡邏', '#ffb36a']);
+      this.nightTipsRun(tips, ++this.nightRun, 3200);
     }
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
@@ -1428,7 +1431,9 @@ export class RtBattleScene extends Phaser.Scene {
         if (!this.bot) this.showHint();
       };
       // 第 44 輪：這張圖的 Boss 打倒過的老存檔不再播第一次的教學，改成「歡迎回到○○！」＋下一個目標
-      const back = this.tracked && worldMap(this.stageId) ? returnIntro(this.stageId, loadRecord(this.stageId), this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? '')) : null;
+      // 第 59 輪：從 ☰ 切到深夜重新進入，開場不再說「歡迎回到○○！」（人根本沒離開），改成點出深夜
+      const back0 = this.tracked && worldMap(this.stageId) ? returnIntro(this.stageId, loadRecord(this.stageId), this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? '')) : null;
+      const back = back0 && this.s.night ? nightIntro(back0, STAGES[this.stageId]!.name) : back0;
       // 選過「助」、這次會來道謝的人（以前只能剛好走過去才發現）→ 開場大字多一行提醒
       const wait = this.encThanks.length ? '\n✦ 你幫過的人在老地方等你' : '';
       const intro = (back ?? st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）') + wait;
@@ -2263,10 +2268,27 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
+  /** 深夜的說明（第 59 輪）：開場大字、幕名卡、上方卡片、暫停中都先等；一則出完 2.6 秒再下一則，最多等 20 秒就放棄 */
+  private nightTipsRun(tips: [string, string][], run: number, wait: number, waited = 0): void {
+    this.time.delayedCall(wait, () => {
+      if (run !== this.nightRun || !this.scene.isActive() || !tips.length) return;
+      const busy = this.tipBusy || this.time.now < this.chapterUntil || !!this.topCard?.active || !!this.menu?.active || this.s.outcome !== 'running';
+      if (busy) {
+        if (waited < 20000) this.nightTipsRun(tips, run, 400, waited + 400);
+        return;
+      }
+      const [text, color] = tips[0]!;
+      bigText(this, GAME_WIDTH / 2, 600, text, color, 30, 2200);
+      this.nightTipsRun(tips.slice(1), run, 2600, waited);
+    });
+  }
+
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
   private menuBanners(): void {
     // 第 47 輪：開場操作說明框（depth 70）會透過面板的半透明遮罩疊在「技能點」標題上 → 面板開著時一起藏起
     if (this.hint?.active) this.hint.setVisible(!this.menu?.active);
+    // 第 59 輪：上方的記憶卡／回禮卡（depth 940）從暫停選單（960、遮罩 0.84）底下透出來，「暫停」標題壓在半透明的卡片字上 → 一起藏起
+    if (this.topCard?.active) this.topCard.setVisible(!this.menu?.active);
     if (this.menu?.active) {
       for (const o of this.children.list) {
         if (o instanceof Phaser.GameObjects.Text && o.depth === BANNER_DEPTH && o.visible) {

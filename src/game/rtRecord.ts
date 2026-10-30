@@ -244,3 +244,8 @@ export function returnIntro(stage: string, rec: RtRecord, level: number, otherKi
   if (cur) lines.push(cur);
   return [`歡迎回到${m.name}！`, ...lines].join('\n');
 }
+
+/** 從 ☰ 切到深夜重新進入（第 59 輪）：第一行「歡迎回到○○！」換成「深夜的○○・怪更兇、掉得更好」，目標照舊 */
+export function nightIntro(intro: string, mapName: string): string {
+  return intro.replace(/^[^\n]*/, `深夜的${mapName}・怪更兇、掉得更好`);
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { returnIntro } from '../src/game/rtRecord';
+import { nightIntro, returnIntro } from '../src/game/rtRecord';
 import { WORLD_MAPS } from '../src/game/worldMaps';
 
 describe('老玩家的開場大字（第 44 輪）', () => {
@@ -30,6 +30,16 @@ describe('老玩家的開場大字（第 44 輪）', () => {
           expect(lines.some((l) => /[、，]$/.test(l))).toBe(false);
         }
       }
+    }
+  });
+
+  it('切到深夜重新進入（第 59 輪）：第一行換成深夜，目標照舊，每行不超過 22 字', () => {
+    for (const m of WORLD_MAPS) {
+      const back = returnIntro(m.id, { bossKills: 1, furyKills: 1, night: true }, 12, 0)!;
+      const n = nightIntro(back, m.name).split('\n');
+      expect(n[0]).toBe(`深夜的${m.name}・怪更兇、掉得更好`);
+      expect(n.slice(1)).toEqual(back.split('\n').slice(1));
+      for (const l of n) expect([...l].length).toBeLessThanOrEqual(22);
     }
   });
 });
