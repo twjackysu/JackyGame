@@ -273,6 +273,8 @@ export class RtBattleScene extends Phaser.Scene {
   private fireHinted = false;
   /** 前 3 次進大地圖才顯示的引導 */
   private newbie = false;
+  /** 第 67 輪：打倒過第一隻 Boss（霧角狼王）的老玩家——閒下來時不再一直顯示「點怪物開打」 */
+  private veteran = false;
   private dustBase = 0;
   private goalAt = 0;
   private goalNext = '';
@@ -524,6 +526,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.newbie = this.tracked && (recN.runs ?? 0) <= 3 && !recN.bossKills;
     // 第 67 輪：打倒過這張圖 Boss 的老玩家不再每次進圖（或倒下醒來）都被教一次「熔岩口噴發／星星砸下來了」
     this.ventHinted = this.tracked && !!recN.bossKills;
+    this.veteran = this.tracked && bossKillsOf(WORLD_MAPS[0]!.id) > 0;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.thornFx = []; this.thornPending = []; this.frostFx = [];
     this.breakSeen.clear(); this.ghostAt = 0;
@@ -5440,7 +5443,9 @@ export class RtBattleScene extends Phaser.Scene {
     const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < playerDef(this.s).potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
     // 第 56 輪：長螢幕（390×844）主角在畫面較下面，固定 y 850 的字條會蓋在主角頭上 → 至少在主角腳下 95
     if (calm) this.calmText.y = Phaser.Math.Clamp(this.sy(p.y) + 95, 850, VIEW_BOTTOM - 60);
-    this.calmText.setVisible(calm && !this.tipBusy && !this.hint && this.time.now >= this.slainUntil) /* 第 63 輪：討伐大字期間不寫「打不過就退回營火」 */.setText(calm ? restTip || (p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '').setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
+    const calmMsg = calm ? restTip || (this.veteran ? (p.hp < p.maxHp ? '休息中・自動回血' : '') : p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '';
+    // 第 63 輪：討伐大字期間不寫「打不過就退回營火」；第 67 輪：沒字就整條藏起（字條有底色）
+    this.calmText.setVisible(!!calmMsg && !this.tipBusy && !this.hint && this.time.now >= this.slainUntil).setText(calmMsg).setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // Boss 大血條（畫面上方）
     // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss && (!STAGES[this.stageId]?.mapAi || e.mode === 'combat'));
