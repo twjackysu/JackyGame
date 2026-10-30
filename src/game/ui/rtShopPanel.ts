@@ -191,7 +191,8 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     const pages = Math.max(1, Math.ceil(st.bag.length / PER_SELL));
     page = Math.min(page, pages - 1);
     items.push(scene.add.text(0, -392, '背包裡的裝備（身上穿的不能賣）', { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0' }).setOrigin(0.5));
-    if (!st.bag.length) items.push(scene.add.text(0, -250, '背包是空的', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8' }).setOrigin(0.5));
+    // 第 67 輪：賣到空的時候說明一下裝備從哪來（以前只有一行「背包是空的」＋底下一顆反灰的「沒有可以一鍵賣的普通裝」）
+    if (!st.bag.length) items.push(scene.add.text(0, -250, '背包是空的\n打怪撿到的裝備，不要的可以拿來這裡換金幣', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
     st.bag.slice(page * PER_SELL, page * PER_SELL + PER_SELL).forEach((g, i) => {
       items.push(...row(-335 + i * 74, 64, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `+${sellPrice(g)} 金`, '#ffe08a', () => {
         detail = { g, buy: false };
@@ -212,7 +213,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     // 一鍵賣掉普通裝（不含 ▲、不含強化過的）
     const junk = st.bag.filter((g) => g.rarity === 1 && !(g.enh ?? 0) && !isUpgrade(st, g));
     const sum = junk.reduce((n, g) => n + sellPrice(g), 0);
-    items.push(btn(0, 290 + SELL_DY, junk.length ? `賣掉全部普通裝 ×${junk.length}（+${sum} 金）` : '沒有可以一鍵賣的普通裝', () => {
+    if (st.bag.length) items.push(btn(0, 290 + SELL_DY, junk.length ? `賣掉全部普通裝 ×${junk.length}（+${sum} 金）` : '沒有可以一鍵賣的普通裝', () => {
       const r = spendCoin(ctx.rec(), -sum);
       if (!r || !junk.length) return;
       ctx.save(r);

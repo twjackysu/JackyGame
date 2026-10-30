@@ -522,6 +522,8 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 66 輪：打倒過這張圖的 Boss 就不算新手（以前通關後從回程門回霧語森林，runs 還不到 3，Lv16 老玩家又被教一次營火）
     const recN = loadRecord(this.stageId);
     this.newbie = this.tracked && (recN.runs ?? 0) <= 3 && !recN.bossKills;
+    // 第 67 輪：打倒過這張圖 Boss 的老玩家不再每次進圖（或倒下醒來）都被教一次「熔岩口噴發／星星砸下來了」
+    this.ventHinted = this.tracked && !!recN.bossKills;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.thornFx = []; this.thornPending = []; this.frostFx = [];
     this.breakSeen.clear(); this.ghostAt = 0;
@@ -1878,7 +1880,9 @@ export class RtBattleScene extends Phaser.Scene {
     const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0614, 0.92).setInteractive()];
     const top = -H2 + 100;
     items.push(this.add.text(0, top, `✦ 前世的記憶　${have.length}/${MEMORIES.length}`, { fontFamily: TITLE_FONT, fontSize: '40px', color: '#d8b0ff' }).setOrigin(0.5));
-    items.push(this.add.text(0, top + 52, '地上浮著的紫色光點・走過去就會想起來（每段 +1 結晶）', { fontFamily: UI_FONT, fontSize: '19px', color: '#9a88b8' }).setOrigin(0.5));
+    const all = have.length >= MEMORIES.length;
+    // 第 67 輪：全部想起來之後副標換成收尾的一句（以前 12/12 還在教「走過去就會想起來」）
+    items.push(this.add.text(0, top + 52, all ? '全部想起來了・這一世的故事，換你自己寫下去' : '地上浮著的紫色光點・走過去就會想起來（每段 +1 結晶）', { fontFamily: UI_FONT, fontSize: '19px', color: all ? '#d8b0ff' : '#9a88b8' }).setOrigin(0.5));
     // 每張地圖一塊；放不下就分頁（第 42 輪：12 段全想起來時，360×640 最後一段會蓋到「返回」）
     const y0 = top + 100;
     const room = H2 - 130 - y0; // 下面留給返回／翻頁
@@ -1894,6 +1898,14 @@ export class RtBattleScene extends Phaser.Scene {
         y += t.height + 16;
       }
       c.setData('h', y + 14);
+      blocks.push(c);
+    }
+    if (all) {
+      // 第 67 輪：12 段全收集的小結語（接在最後一張地圖後面，最後一頁原本空一大塊）
+      const c = this.add.container(0, 0);
+      const t = this.add.text(0, 10, '——停服那一晚，最後一個念頭是「好想再玩一次」。\n現在不用登入，也不會再停服了。', { fontFamily: TITLE_FONT, fontSize: '20px', color: '#ffd8a0', align: 'center', lineSpacing: 8, wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0.5, 0);
+      c.add(t);
+      c.setData('h', t.height + 40);
       blocks.push(c);
     }
     const pages: Phaser.GameObjects.Container[][] = [[]];
