@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 69 輪（10/31 04:45）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 70 輪（10/31 07:10）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`、`bossLv`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,8 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 69 輪）
+## 現況（第 70 輪）
+- **D-202**：劍刃風暴／旋風斬施放中的持續旋風在 `drawStorm`（`stormLo`／`stormHi`，旋風斬是 `mini`）、星落一閃蓄力 `drawStarCharge`、流星雨星空 `drawMeteorSky`（一波 3 顆）、破甲大招箭 `skyLance`；這些招不再蓋平面藍範圍（`stormed`）。**加新的圓形大招**時看一下 `drawStorm` 的條件會不會誤套。相遇 `takeLeaves`（「取」的台詞寫他走了 → 一拐一拐走開）。燼牌招呼語 `breakAtPunct`（`ui/tipText.ts`）。截圖腳本見第 70 輪 PROGRESS（`run.sh`／`enc.sh`）。
 - **D-201**：相遇選完：「取」的人留在原地（`encStay`）、「助」的走開淡出（`encLeave`／`drawEncLeave`，`drawEncounterNpc` 第 8 個參數 `solo` 不畫獵犬／商隊老闆）；**加新相遇**時想一下牠走開的方向（`encLeave` 的 `dir`：頭朝右的固定往右）。行商 `shopStock` 四件部位不重複（`tests/rt-shop.test.ts` 鎖住）。流星箭雨每波 8 支＋地上粉光。截圖凍結多 `tweens.pauseAll(); time.paused=true`（短命特效就留得住），腳本見第 69 輪 PROGRESS。
 - **D-200**：Boss 開打期間抉擇痕跡那句話／寶箱「有點熟悉」不說、記憶卡在 Boss 附近／開打／`menu`／`slainUntil`／`reviveUntil` 時留在 `memQ`；**新的「每次進圖都可能講」的說明用 `timesDue(key, 次數)`**（深夜說明 2 次、隱藏精英連殺提示 3 次）；紅「!」不畫在小地圖／懸賞板上（`overHudPanel`）。大招／Boss 登場凍結截圖方法見第 68 輪 PROGRESS。
 - **D-199**：`ventHinted`／`hazardHinted` 進圖時看這張圖 `bossKills`；`idleHint` 不對 `veteran` 說；`veteran`（打倒過霧角狼王）不顯示「點怪物開打」字條，`calmText` 沒字整條藏起；行商賣空的說明；記憶 12/12 副標＋收尾（最後一頁）。
@@ -102,7 +103,9 @@
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-3. **（下一輪建議主工作）「第一眼」第三十五段＋準備 11/4 打磨期**：①README 截圖剩下還沒用凍結法對過的：01～64 裡第 6x 輪以前拍的戰鬥圖（看有沒有舊的開場大字／教學大字壓在畫面中間、下緣硬切黑邊；第 69 輪 PROGRESS 有凍結＋`tweens.pauseAll()` 的腳本）。②還沒看過的：燼紅裂谷礦工／朝聖者、荊棘谷盜賊、星隕高原信差相遇在 360×640「取」「助」都點一次（新的走開／留下畫面，看會不會走進牆或壓在大字上）；燼牌對手講相遇回聲那段在 360×640。③大招／技能特效凍結截圖時順便看「好不好看」：第 69 輪發現流星箭雨太稀才加量，其他大招（劍刃風暴、星河貫射、虛空奇點、時間凝滯…）同樣用 `cast.js` 凍結在中段看一次，太單薄就加量（純畫面、數值不動）。只修看得到的問題。
+3. **（下一輪建議主工作）「第一眼」第三十六段＋準備 11/4 打磨期**：①README 60（深夜星蝕狼）開場大字＋寶箱提示疊在一起 → 重拍（第 70 輪試過把主角傳到星蝕狼南方 520，結果站進晶柱林、畫面亂；改成等牠巡邏到空地、或傳到牠**巡邏路線上**的空格，`stage.patrols`／`u.patrol` 看路線）。②沒凍結看過的一般技能（非大招）：長弓散射／迴旋箭陣、法杖星焰彈／雷暴／灼熱領域、劍衝鋒／流星衝、各招變化二——凍結在中段看「好不好看」，太單薄就加量（純畫面、數值不動；第 70 輪大招／旋風斬的做法見 D-202）。③新存檔長劍 360×640 前 3 分鐘再走一次，看新旋風在小螢幕和教學字會不會互壓。只修看得到的問題。
+   - 第 70 輪已做（第三十五段）：大招全部凍結看過（劍刃風暴、星落一閃、流星雨、天穹一矢／星河貫射加量）、旋風斬持續旋風、四個相遇 360×640 取／助（盜賊、朝聖者「取」改成走開）、燼牌相遇回聲 360×640（標點換行）；README 24 重拍、新增 95～97。
+   - 小問題（不改）：盜賊相遇旁 2 格是隱藏寶箱（選完連著出寶箱大字，有錯開）；相遇 after 大字壓在 NPC 上（上方沒空間）；兩個畫面外箭頭的距離字貼很近。
    - 第 68 輪已做（第三十三段）：README 62／75（大招，下緣硬切）、38／57（Boss 登場）、31（暫停選單）重拍；深夜荊棘谷老玩家 2 分鐘（長劍 390×844）、燼牌整理牌組 38 張（兩種尺寸）、回顧結局（360×640）、四張圖 Boss 登場。修了：深夜說明／隱藏精英提示每次開遊戲都講、Boss 登場疊字、紅「!」壓小地圖（D-200）。
    - 小問題（不改）：設定面板沒有音量（只有開關）；傷害數字可能落在懸賞板上（怪在那裡）；快轉截圖的受擊閃白讓深夜畫面偏粉紅（假象）。
    - 第 67 輪已做（第三十二段）：深夜燼紅裂谷老玩家前 2 分鐘（法杖 360×640）、行商賣到 0（兩種尺寸）、技能點重置後再點（長弓 390×844）、記憶 12/12（兩種尺寸）。修了：老玩家每次被教噴發、老玩家一直掛「點怪物開打」、行商賣空、記憶 12/12 收尾（D-199）。
@@ -147,7 +150,7 @@
 - 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 336 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 338 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
 - 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
 - **舊關卡雜湊比對**（核心改動必做）——**第 26 輪起的做法**：範本存在 `scripts/zz-hash.template.ts.txt`（90 場），複製成 `tests/zz-hash.test.ts`；`git worktree add /tmp/claude-0/old <本輪開頭 commit>`＋`ln -s $PWD/node_modules /tmp/claude-0/old/node_modules`，兩邊各跑一次（`HASH_OUT=/tmp/claude-0/hash-old.txt` / `hash-new.txt`）再 `diff`，最後 `git worktree remove --force`（`tests/zz-hash.test.ts` 不在 git，新 session 照範本複製）。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。
