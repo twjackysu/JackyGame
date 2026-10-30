@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 58 輪（10/30 07:05）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 59 輪（10/30 08:40）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,9 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 58 輪）
+## 現況（第 59 輪）
+- **D-191**：深夜說明大字改由 `nightTipsRun(tips, ++this.nightRun, 3200)` 排隊（等 `tipBusy`／`chapterUntil`／`topCard`／`menu`）；**新的深夜說明**就 `tips.push([字, 顏色])`，不要再寫固定 delayedCall。深夜開場第一行 `nightIntro`（`rtRecord.ts`，測試在 `return-intro.test.ts`）。`menuBanners` 也藏 `topCard`。藥水鍵冷卻「N 秒／×瓶數」。
+- 截圖小抄（第 59 輪）：☰ 切深夜＝`[[3,"window.AUTOPICK=null;sc().toggleMenu();1"],[3.5,"clk('🌙')"],[4,"mkBot();1"]]`（restart 後要重新 `mkBot()`；兩步不能寫在同一段，toggle 關掉後 clk 找不到）。暴怒 Boss 快打：LS `jg_rt_mistwood {level:10,bossKills:3,fury:true}`＋`jg_choices {mistwood:'spare'}`，第 3 秒傳到 Boss 南 400、`B.hp=B.maxHp*0.025`，約 8 秒倒下，15 秒出「解鎖：深夜的森林！」。
 - **D-190**：番外收尾卡 `postGameEnd()`（`postGameEndLabel`，`chapters.ts`；`jg_chapter_starfall_end`）；「還」的跟班 `spawnCub(x,y)`（選完當場從巢穴出來）；`goalBefore`（存檔打倒過 Boss → 目標字條寫 `nextGoal`）；燼牌最後一局不跳回合大字；門字避開按鈕。截圖要看番外完：清掉 `jg_chapter_starfall_end`，打倒守望者、選完後約 3.6 秒（`afterChoice`）播，卡片是真實時間補間，要在出現後 0.3 秒內截。
 - **D-189**：結語 `finaleLinesFor(weapon)`（`finaleStats.ts`，新結語句提到武器就照這樣換字）；`gateWaits` 期間目標字條只寫「✔ 已討伐」；`drawOffscreen` 的箭頭避開 `zoneTexts`；**新的上方卡片**（`this.topCard = c`）要一起呼叫 `hideBountyUnder`＋`hideHintUnder`＋`clearZoneTexts`；`showHint` 遇到 `topCard` 會延後。
 - 截圖小抄（第 57 輪）：通關演出點一下＝`sc().children.list.find(o=>o.depth===2000&&o.list).list[0].emit('pointerdown')`；直接播＝`(await import('/src/game/ui/finale.ts')).playFinale(sc(), (await import('/src/game/finaleStats.ts')).loadFinaleStats(), ()=>{}, '繼續冒險')`；面板要截圖先 `window.AUTOPICK=null`。
@@ -90,7 +92,8 @@
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-3. **（下一輪建議主工作）「第一眼」第二十四段：深夜與暴怒**：①霧語森林 Lv10 開「狼王暴怒」（☰）打一次 → 「解鎖：深夜的森林」大字 → ☰ 切深夜 → 深夜的畫面／提示／掉落「深夜的稀有！」（390×844）；②星隕高原深夜（`jg_rt_starfall {"bossKills":1,"furyKills":1,"night":true}`）星蝕狼登場與提示；③☰ 選單（360×640）的暴怒／深夜開關、換地圖按鈕字有沒有擠；④只修看得到的問題。
+3. **（下一輪建議主工作）「第一眼」第二十五段：其他三張圖的暴怒與深夜**：①荊棘谷／燼紅裂谷／星隕高原各開暴怒（LS `jg_rt_<id> {bossKills:3, fury:true}`）快打一次 → 「解鎖：深夜的…」大字和抉擇面板（沒設 `jg_choices` 會跳）／記憶卡／稀有大字的先後（390×844）；②暴怒 Boss 登場名字＋第二階段「徹底失控了」；③深夜打精英看「深夜的稀有！」大字；④只修看得到的問題。也可以順手看小問題：抉擇後「墜星慢慢升起…」和「撞牆暈眩！趁現在！」上下貼很近。
+   - 第 59 輪已做（第二十四段）：霧語森林 Lv10 暴怒狼王討伐 → 解鎖深夜 → ☰（390×844、360×640）切深夜 → 深夜開場；星隕高原／荊棘谷／燼紅裂谷深夜開場（390×844、360×640）；星蝕狼巡邏。修了：深夜說明和開場大字／記憶卡四層疊字、切深夜還說「歡迎回到」、暫停選單透出記憶卡、藥水鍵冷卻看不到瓶數（D-191）。沒修：暫停選單底下透出「▼ 回荊棘谷」門字（遮罩 0.84，很淡，不影響）。
    - 第 58 輪已做：星隕高原 Lv15 守望者討伐→抉擇（還）→小星星→**番外　完**（新加）；三道回程門回霧語森林、「歡迎回到…」與目標字條；少年獵人回禮卡（360×640）；燼牌對伊妲一局（360×640）。修了：跟班當場出現、舊玩家目標字條、燼牌最後一局大字、門字被技能鍵蓋住（D-190）。
    - 小問題沒修：抉擇後的「墜星慢慢升起…」大字和「撞牆暈眩！趁現在！」上下貼很近（沒重疊）。剛經回程門抵達的畫面在快轉截圖裡偏白（淡入是真實時間，假象）。
    - 第 57 輪已做：燼紅裂谷新到前 2 分鐘（法杖）、礦工相遇面板、岩王討伐→抉擇→通關演出→光門→星隕高原番外幕名卡＋開場（長弓 360×640）、旅程／名單（360×640）。修了：結語「劍下」跟武器換字、通關前爆雷的「▶ 前往星隕高原」、箭頭壓地區名稱、星隕高原開場三組字疊在一起（D-189）。
