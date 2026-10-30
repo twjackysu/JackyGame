@@ -97,4 +97,16 @@ describe('營火行商', () => {
     // 存檔壞掉的 pick 丟掉
     expect(cleanShop({ batch: 1, sold: [], pick: 'boots' }).pick).toBeUndefined();
   });
+  it('一批貨四件部位都不一樣（第 69 輪：以前常常一批三條項鍊），有「為你挑選」時也一樣', () => {
+    for (let runs = 0; runs < 120; runs++) {
+      for (const lv of [1, 6, 12]) {
+        const st = shopStock({ runs }, lv, 'mistwood');
+        expect(new Set(st.map((g) => g.slot)).size).toBe(4);
+        const pk = withPick({ runs }, 'hands');
+        const st2 = shopStock(pk, lv, 'mistwood');
+        expect(new Set(st2.map((g) => g.slot)).size).toBe(4);
+        expect(st2.filter(isPicked)[0]?.slot).toBe('hands');
+      }
+    }
+  });
 });

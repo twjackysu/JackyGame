@@ -88,10 +88,19 @@ export function shopStock(rec: RtRecord, level: number, region: string): RtGear[
   const sh = shopBatch(rec);
   const pick = sh.pick;
   const il = shopIlvl(level);
+  // 第 69 輪：四件不重複部位（種子相鄰，以前常常一批三條項鍊）。抽到重複的才改成還沒出現的部位，其他照舊
+  const used = new Set<GearSlot>(pick ? [pick] : []);
   return STOCK_RARITY.map((r, i) => {
     const picked = !!pick && r === 3;
     const ilv = picked ? Math.min(12, il + PICK_ILVL_PLUS) : il;
-    const g = genGear(((sh.batch + 1) * 2654435761 + i * 40503 + il * 97) >>> 0, r, ilv, picked ? { region, slot: pick } : { region });
+    const seed = ((sh.batch + 1) * 2654435761 + i * 40503 + il * 97) >>> 0;
+    let g = genGear(seed, r, ilv, picked ? { region, slot: pick } : { region });
+    if (!picked && used.has(g.slot)) {
+      const free = GEAR_SLOTS.filter((x) => !used.has(x));
+      const slot = free[seed % free.length];
+      if (slot) g = genGear(seed, r, ilv, { region, slot });
+    }
+    used.add(g.slot);
     return { ...g, uid: `s${g.uid}${i}${picked ? 'p' : ''}` };
   }).filter((g) => !sh.sold.includes(g.uid));
 }
