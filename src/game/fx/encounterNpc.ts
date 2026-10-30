@@ -1,14 +1,14 @@
 // 路上的相遇（D-159）的人物：程式美術，腳底在 (x, y)，s＝每個設計單位幾像素（人約 100 高）。
-// happy=false：遇到麻煩的樣子；happy=true：回來道謝的樣子。
+// happy=false：遇到麻煩的樣子；happy=true：回來道謝的樣子；solo＝剛被救、自己走開（不畫獵犬／商隊老闆，第 69 輪）。
 import type Phaser from 'phaser';
 import type { EncounterNpc } from '../encounters';
 
-export function drawEncounterNpc(g: Phaser.GameObjects.Graphics, kind: EncounterNpc, x: number, y: number, s: number, now: number, happy: boolean): void {
+export function drawEncounterNpc(g: Phaser.GameObjects.Graphics, kind: EncounterNpc, x: number, y: number, s: number, now: number, happy: boolean, solo = false): void {
   const breath = Math.sin(now / 700) * 1.2 * s;
   const blink = now % 3600 < 130;
   g.fillStyle(0x000000, 0.35).fillEllipse(x, y, 80 * s, 16 * s);
   if (kind === 'hunter') {
-    if (happy) {
+    if (happy && !solo) {
       // 灰色獵犬（右邊，尾巴搖）
       const wag = Math.sin(now / 90) * 6 * s;
       g.fillStyle(0x8a8e96, 1).fillEllipse(x + 34 * s, y - 16 * s, 38 * s, 18 * s);
@@ -69,7 +69,7 @@ export function drawEncounterNpc(g: Phaser.GameObjects.Graphics, kind: Encounter
         g.lineBetween(x + (lx - 8) * s, y - 4 * s, x + (lx + 8) * s, y - 18 * s).lineBetween(x + (lx - 8) * s, y - 18 * s, x + (lx + 8) * s, y - 6 * s);
       }
       g.fillStyle(0x6a8a3a, 1).fillTriangle(x - 30 * s, y - 2 * s, x - 26 * s, y - 14 * s, x - 22 * s, y - 2 * s).fillTriangle(x + 32 * s, y - 2 * s, x + 36 * s, y - 16 * s, x + 40 * s, y - 2 * s);
-    } else {
+    } else if (!solo) {
       // 商隊老闆：寬簷帽、紅背心，站在騾子左邊揮手
       const ox = x - 56 * s;
       g.fillStyle(0x3a2a1a, 1).fillRect(ox - 8 * s, y - 30 * s, 6 * s, 30 * s).fillRect(ox + 2 * s, y - 30 * s, 6 * s, 30 * s);
