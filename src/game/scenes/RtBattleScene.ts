@@ -134,6 +134,19 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   eclipse_wolf: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0x7a5aff },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
+/** 第 68 輪：深夜說明每張圖只講前 NIGHT_TIP_TIMES 次（`jg_night_tips_<stage>` 記次數）；讀不到 localStorage 就照講 */
+const NIGHT_TIP_TIMES = 2;
+function nightTipsDue(stage: string): boolean {
+  try {
+    const key = `jg_night_tips_${stage}`;
+    const n = Number(localStorage.getItem(key) ?? 0) || 0;
+    if (n >= NIGHT_TIP_TIMES) return false;
+    localStorage.setItem(key, String(n + 1));
+  } catch {
+    /* 無痕模式等：照講 */
+  }
+  return true;
+}
 /** 巡邏怪的仇恨圈／視線顏色（D-117） */
 const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0, magma_stalker: 0xff5a2a, comet_stalker: 0x8ab0ff, eclipse_wolf: 0x9a7aff };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
@@ -511,7 +524,8 @@ export class RtBattleScene extends Phaser.Scene {
       // 深夜的森林（第 41 輪）：以前只說寶箱，沒提霧影狼巡邏
       if (STAGES[this.stageId]?.spawnGroups?.some((gr) => gr.nightOnly && gr.enemyId === 'shade_wolf')) tips.push(['深夜的森林有「霧影狼」在巡邏\n別走進牠面前的扇形視線', '#c8a8ff']);
       if (STAGES[this.stageId]?.vents?.some((v) => v.nightEveryTicks)) tips.push(this.starMap ? ['深夜的星星落得更頻繁\n晶簇林有「星蝕狼」在巡邏', '#c8d8ff'] : ['深夜的熔岩口噴得更頻繁\n熔渣坡有「熔核巡者」在巡邏', '#ffb36a']);
-      this.nightTipsRun(tips, ++this.nightRun, 3200);
+      // 第 68 輪：深夜說明（寶箱、毒沼擴散、巡邏怪）每張圖只講前 2 次進深夜；老玩家每次開遊戲都被講一輪太囉嗦
+      if (!this.bot && nightTipsDue(this.stageId)) this.nightTipsRun(tips, ++this.nightRun, 3200);
     }
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
