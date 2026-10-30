@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { loadChoices, rivalEcho } from '../choices';
 import { loadEncounters, rivalEncounterEcho } from '../encounters';
 import { SFX } from '../../audio/sfx';
-import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
+import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, maxReach, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
@@ -360,6 +360,9 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     const lead = totalScore(game, 0) - totalScore(game, 1);
     const n = who.short;
     if (op.passed && lead > 0) return `提示：${n}放棄了，你已經領先——現在放棄就贏下這局，還省下手牌`;
+    // 第 62 輪：手上的牌全出也追不上，就別叫人「出剛好超過的小牌」（以前落後 8 分、只剩一張 3 點也這樣講）
+    const reach = op.passed && lead < 0 ? maxReach(game, 0) : null;
+    if (reach !== null && reach < totalScore(game, 1)) return op.wins < 1 && game.round < 3 ? `提示：手上的牌全出也追不上${n}了——放棄這一局，把牌留到下一局` : `提示：手上的牌全出也追不上${n}了，這局只能認了`;
     if (op.passed && lead <= 0) return `提示：${n}放棄了：出「剛好超過」的小牌就好，別浪費大牌`;
     if (game.round === 1 && lead <= -12 && me.hand.length >= op.hand.length) return `提示：落後太多？放棄這一局，把好牌留到後兩局（${n}已經多花了牌）`;
     if (game.round === 1 && me.hand.length <= 5) return '提示：第一局就快把牌打光了——三局兩勝，留點牌給後面';

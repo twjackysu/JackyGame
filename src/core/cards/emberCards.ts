@@ -253,6 +253,19 @@ export function totalScore(g: CardGame, side: number): number {
   return rowScore(g, side, 0) + rowScore(g, side, 1);
 }
 
+/**
+ * 這一局最多還能拿到幾分（第 62 輪，新手教練用）：手上的單位牌全部上場的總分。
+ * 手上有戰號／晴空／燼爆／斥候／回響這類會改變局面的牌就算不出來，回 null。
+ */
+export function maxReach(g: CardGame, side: number): number | null {
+  const S = g.sides[side]!;
+  const units = S.hand.filter((id) => CARDS[id]?.row !== undefined);
+  if (S.hand.some((id) => { const a = CARDS[id]?.ability; return CARDS[id]?.row === undefined ? a !== 'frost' && a !== 'fog' : a === 'scout' || a === 'echo' || a === 'scorch'; })) return null;
+  const c = cloneGame(g);
+  for (const id of units) c.sides[side]!.rows[CARDS[id]!.row as Row].push(id);
+  return totalScore(c, side);
+}
+
 /** 戰號放哪一排（對自己最有利；兩排都沒有能加倍的牌回 -1，第 28 輪起不能吹在空排） */
 export function hornRow(g: CardGame, side: number): Row | -1 {
   const S = g.sides[side]!;

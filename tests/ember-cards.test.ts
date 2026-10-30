@@ -1,6 +1,6 @@
 // 營火燼牌（D-127）：規則與 AI。
 import { describe, expect, it } from 'vitest';
-import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, DECK_MAX, deckWith, legalMoves, MERCHANT_DECK, newCardGame, nextReward, OPPONENTS, opponentsAt, PLAYER_DECK, rowScore, echoTarget, scorchTargets, totalScore, type CardGame, type Opponent } from '../src/core/cards/emberCards';
+import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, DECK_MAX, deckWith, legalMoves, maxReach, MERCHANT_DECK, newCardGame, nextReward, OPPONENTS, opponentsAt, PLAYER_DECK, rowScore, echoTarget, scorchTargets, totalScore, type CardGame, type Opponent } from '../src/core/cards/emberCards';
 
 function bare(): CardGame {
   const g = newCardGame(1);
@@ -257,5 +257,21 @@ describe('回響（D-135，伊妲的招牌）', () => {
   });
   it('牌組超過上限時不會被當成最弱的牌拿掉', () => {
     expect(deckWith(OPPONENTS.flatMap((o) => o.rewards))).toContain('echo');
+  });
+});
+
+describe('新手教練：追不上（第 62 輪）', () => {
+  it('maxReach＝手上單位牌全上場的總分；有戰號等特殊牌算不出來', () => {
+    const g = newCardGame(1);
+    const S = g.sides[0]!;
+    S.rows = [['militia'], []];
+    S.hand = ['archer', 'militia'];
+    // 民兵 2 張同袍 2×2×2＝8＋弓手 3
+    expect(maxReach(g, 0)).toBe(11);
+    expect(totalScore(g, 0)).toBe(2); // 沒有真的出牌
+    S.hand = ['archer', 'horn'];
+    expect(maxReach(g, 0)).toBeNull();
+    S.hand = [];
+    expect(maxReach(g, 0)).toBe(2);
   });
 });
