@@ -55,6 +55,16 @@ describe('大地圖登記表', () => {
     expect(levelTip('thornvale', { bossKills: 1 }, 3)).toBeNull();
     expect(levelTip('starfall', {}, 12)).toContain('Lv14');
   });
+  it('打 Boss 的建議等級（第 63 輪）：每張圖都有、照開放順序遞增、和開放建議一致（不要比通關機器人需要的高太多）', () => {
+    let prev = 0;
+    for (const m of WORLD_MAPS) {
+      expect(m.bossLv).toBeGreaterThan(prev);
+      if (m.recLevel !== undefined) expect(m.bossLv).toBe(m.recLevel);
+      prev = m.bossLv;
+    }
+    expect(WORLD_MAPS[0]!.bossLv).toBeLessThanOrEqual(4);
+  });
+
   it('通關演出的地圖（D-133）是登記表裡的大地圖', () => {
     expect(worldMap(FINALE_MAP)).toBeTruthy();
   });
