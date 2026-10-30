@@ -5086,6 +5086,8 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   private drawGate(g: Phaser.GameObjects.Graphics, now: number): void {
+    // 第 63 輪：再挑戰 Boss 時往下一張圖的門就在巢穴裡，門上的字蓋在 Boss 身上 → Boss 交戰中先不寫（門照畫）
+    const bossFight = this.gates.some((q) => !q.back) && enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat');
     for (const gt of this.gates) {
       const cx = this.sx(gt.x);
       const cy = this.sy(gt.y);
@@ -5165,7 +5167,7 @@ export class RtBattleScene extends Phaser.Scene {
       // 第 56 輪：幕名卡播放中、剛經光門抵達的 1.4 秒內先不寫，之後 0.5 秒淡入
       const from = Math.max(this.gateLabelFrom, this.chapterUntil);
       const la = Phaser.Math.Clamp((this.time.now - from) / 500, 0, 1);
-      gt.label.setPosition(lx, ly).setAlpha(la).setVisible(!this.menu && ly - 30 > 170 && la > 0);
+      gt.label.setPosition(lx, ly).setAlpha(la).setVisible(!this.menu && ly - 30 > 170 && la > 0 && !(bossFight && !gt.back));
     }
   }
 
