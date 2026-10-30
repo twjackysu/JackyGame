@@ -264,6 +264,7 @@ export class TitleScene extends Phaser.Scene {
     const fresh = new Set<number>(); // 第一次看到開放的地圖按鈕（第 27 輪）：金色脈動＋「NEW」
 
     // 大地圖（D-097／D-114／D-124）：第一張一開始就開；之後每張要先打倒前一張的 Boss 一次。等級、行囊、技能點共用
+    const locked = new Map<number, string>(); // 第 66 輪：未開放的按鈕點了，條件直接寫在按鈕上
     const last = lastMap();
     let lastIdx = 0; // 第 63 輪：上次玩的地圖亮金框＋▶（沒紀錄就是第一顆）
     WORLD_MAPS.forEach((m, i) => {
@@ -271,7 +272,10 @@ export class TitleScene extends Phaser.Scene {
       // 第 66 輪：走光門進去玩過的地圖不算新的（以前通關回標題，荊棘谷、燼紅裂谷都還掛著 NEW）
       if (mapOpen(m.id) && i > 0 && !seenMap(m.id) && !chapterSeen(m.id) && !bossKillsOf(m.id)) fresh.add(items.length);
       if (mapOpen(m.id)) items.push([`${i ? '前往' : '進入'}${m.name}`, () => this.go(() => this.scene.start('RtBattle', { stage: m.id, bot: '' }))]);
-      else items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
+      else {
+        locked.set(items.length, m.id);
+        items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
+      }
     });
     // 通關後（D-133）：可以重看通關演出
     // 舊存檔已經打倒過最後一張圖的 Boss（通關演出做出來之前）也看得到
@@ -305,7 +309,9 @@ export class TitleScene extends Phaser.Scene {
       c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
         ev.stopPropagation();
         SFX.confirm();
-        fn();
+        const lid = locked.get(i);
+        if (lid) this.lockedHint(lid, c, tx, label);
+        else fn();
       });
       menu.add(c);
       if (fresh.has(i)) this.unlockPulse(c, 100 + i * 80 + 320);
@@ -364,10 +370,31 @@ export class TitleScene extends Phaser.Scene {
   }
 
   /** 荊棘谷未開放時點一下：提示開放條件 */
-  private lockedHint(id: string): void {
+  /**
+   * 點了未開放的地圖（第 66 輪）：條件直接換在那顆按鈕上、輕輕左右晃一下，1.8 秒後換回原名。
+   * 以前固定在 y 860 跳一行小字，長螢幕時離按鈕很遠、壓在主角立繪上。
+   */
+  private lockedHint(id: string, c?: Phaser.GameObjects.Container, tx?: Phaser.GameObjects.Text, label?: string): void {
     const pv = prevMap(id);
-    const tx = this.add.text(GAME_WIDTH / 2, 860, pv ? `在${pv.name}打倒${pv.boss}後開放` : '尚未開放', { fontFamily: UI_FONT, fontSize: '28px', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.6)' }).setPadding(16, 8, 16, 8).setOrigin(0.5).setDepth(100);
-    this.tweens.add({ targets: tx, alpha: 0, delay: 1600, duration: 400, onComplete: () => tx.destroy() });
+    const msg = pv ? `在${pv.name}打倒${pv.boss}後開放` : '尚未開放';
+    if (!c || !tx || label === undefined) {
+      const t = this.add.text(GAME_WIDTH / 2, 860, msg, { fontFamily: UI_FONT, fontSize: '28px', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.6)' }).setPadding(16, 8, 16, 8).setOrigin(0.5).setDepth(100);
+      this.tweens.add({ targets: t, alpha: 0, delay: 1600, duration: 400, onComplete: () => t.destroy() });
+      return;
+    }
+    const run = ((c.getData('lockRun') as number | undefined) ?? 0) + 1;
+    c.setData('lockRun', run);
+    tx.setText(msg).setFontSize(msg.length > 14 ? 23 : 26).setLetterSpacing(1).setColor('#ffd27a');
+    const x0 = (c.getData('x0') as number | undefined) ?? c.x;
+    c.setData('x0', x0);
+    if (!c.getData('shaking')) {
+      c.setData('shaking', true);
+      this.tweens.add({ targets: c, x: x0 + 8, duration: 50, yoyo: true, repeat: 2, ease: 'Sine.easeInOut', onComplete: () => { c.x = x0; c.setData('shaking', false); } });
+    }
+    this.time.delayedCall(1800, () => {
+      if (c.getData('lockRun') !== run || !tx.active) return;
+      tx.setText(label).setFontSize(34).setLetterSpacing(6).setColor('#7a7f90');
+    });
   }
 
   private go(fn: () => void): void {
