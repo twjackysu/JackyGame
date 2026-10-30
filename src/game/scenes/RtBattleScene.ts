@@ -134,13 +134,14 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   eclipse_wolf: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0x7a5aff },
 };
 const HINT_KEY = 'jg_rt_hint_seen';
-/** 第 68 輪：深夜說明每張圖只講前 NIGHT_TIP_TIMES 次（`jg_night_tips_<stage>` 記次數）；讀不到 localStorage 就照講 */
-const NIGHT_TIP_TIMES = 2;
-function nightTipsDue(stage: string): boolean {
+/**
+ * 第 68 輪：每次進圖都可能重講的說明，只講前 times 次（`key` 記次數，呼叫一次算一次）；讀不到 localStorage 就照講。
+ * 用在深夜說明（每張圖前 2 次進深夜）、隱藏精英的連殺提示（每張圖前 3 次）。
+ */
+function timesDue(key: string, times: number): boolean {
   try {
-    const key = `jg_night_tips_${stage}`;
     const n = Number(localStorage.getItem(key) ?? 0) || 0;
-    if (n >= NIGHT_TIP_TIMES) return false;
+    if (n >= times) return false;
     localStorage.setItem(key, String(n + 1));
   } catch {
     /* 無痕模式等：照講 */
@@ -525,7 +526,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (STAGES[this.stageId]?.spawnGroups?.some((gr) => gr.nightOnly && gr.enemyId === 'shade_wolf')) tips.push(['深夜的森林有「霧影狼」在巡邏\n別走進牠面前的扇形視線', '#c8a8ff']);
       if (STAGES[this.stageId]?.vents?.some((v) => v.nightEveryTicks)) tips.push(this.starMap ? ['深夜的星星落得更頻繁\n晶簇林有「星蝕狼」在巡邏', '#c8d8ff'] : ['深夜的熔岩口噴得更頻繁\n熔渣坡有「熔核巡者」在巡邏', '#ffb36a']);
       // 第 68 輪：深夜說明（寶箱、毒沼擴散、巡邏怪）每張圖只講前 2 次進深夜；老玩家每次開遊戲都被講一輪太囉嗦
-      if (!this.bot && nightTipsDue(this.stageId)) this.nightTipsRun(tips, ++this.nightRun, 3200);
+      if (!this.bot && timesDue(`jg_night_tips_${this.stageId}`, 2)) this.nightTipsRun(tips, ++this.nightRun, 3200);
     }
     // 營地懸賞（D-109）：小地圖下方小字，完成自動領獎
     this.bountyTxt = this.tracked ? this.add.text(10, VIEW_TOP + 212, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#e8dcc0', backgroundColor: 'rgba(0,0,0,0.5)', lineSpacing: 2 }).setPadding(8, 4, 8, 4).setOrigin(0, 0).setDepth(49) : null;
@@ -1680,6 +1681,8 @@ export class RtBattleScene extends Phaser.Scene {
     // 打 Boss 時先不提（第 45 輪：燼紅裂谷打岩王打到一半跳出「首領會被引出來」，和 Boss 提示同一個高度）
     if (enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat')) return;
     this.streakHinted = true;
+    // 第 68 輪：老玩家每次開遊戲連殺到一半都被提醒一次 → 每張圖只提醒前 3 次
+    if (!timesDue(`jg_streak_hint_${this.stageId}`, 3)) return;
     bigText(this, GAME_WIDTH / 2, 600, '（記得……不倒下一直打下去，首領會被引出來……）', '#d8c8ff', 26, 2200);
   }
 
