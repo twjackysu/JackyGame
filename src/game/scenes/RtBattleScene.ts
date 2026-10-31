@@ -4635,7 +4635,7 @@ export class RtBattleScene extends Phaser.Scene {
     const elem = st === 'burn' ? 0xff8a3a : st === 'poison' ? 0xa8ff6a : st === 'weak' ? 0xc8a0ff : 0;
     if (hs.type === 'ring' || (ult && hs.type === 'circle')) {
       // 環形箭雨／流星箭雨（D-149）：箭從天上落進範圍
-      this.arrowRain(x, y, hs.type === 'ring' ? hs.rIn : 0, hs.type === 'ring' ? hs.rOut : hs.r, ult ? 0xff9ae0 : 0x9fe0ff, ult ? 8 : 12, ult);
+      this.arrowRain(x, y, hs.type === 'ring' ? hs.rIn : 0, hs.type === 'ring' ? hs.rOut : hs.r, ult ? 0xff9ae0 : 0x9fe0ff, ult ? 8 : getSettings().lowFx ? 12 : 16, ult);
       return;
     }
     if (hs.type === 'line') {
@@ -4703,8 +4703,8 @@ export class RtBattleScene extends Phaser.Scene {
       const ty = this.sy(y + Math.sin(a) * d);
       const g = this.add.graphics().setDepth(692).setBlendMode(Phaser.BlendModes.ADD);
       const H = 260 + Math.random() * 80;
-      g.lineStyle(star ? 7 : 4, color, star ? 0.5 : 0.4).lineBetween(0, 0, 70, -H * 0.5);
-      g.lineStyle(2, 0xffffff, 0.95).lineBetween(0, 0, 40, -H * 0.28);
+      g.lineStyle(star ? 7 : 6, color, star ? 0.5 : 0.45).lineBetween(0, 0, 70, -H * 0.5);
+      g.lineStyle(star ? 2 : 2.5, 0xffffff, 0.95).lineBetween(0, 0, 40, -H * 0.28);
       g.fillStyle(0xffffff, 1).fillCircle(0, 0, star ? 6 : 3.5);
       g.setPosition(tx + H * 0.25, ty - H * 0.9).setAlpha(0.2);
       this.tweens.add({ targets: g, x: tx, y: ty, alpha: 1, duration: 150 + i * 14, delay: i * 26, ease: 'Quad.easeIn', onComplete: () => {
@@ -5246,8 +5246,29 @@ export class RtBattleScene extends Phaser.Scene {
           }
           top.lineStyle(3, 0xb8a8ff, 0.45).strokeCircle(px, cy0, R);
         }
+        // 第 71 輪：蓄力型的單發圓（霜旋、冰霜新星）蓄力中＝寒氣從外圈往內收、冰晶繞圈（以前只有平平的藍圈）
+        const frostCharge = !!h && sk?.role === 'aoe' && sk.hits.length === 1 && h.shape.type === 'circle' && h.status?.id === 'freeze' && h.atTick >= 8;
+        if (frostCharge && h && h.shape.type === 'circle') {
+          const fs = skillShape(this.s, x.action.id, h.shape);
+          const R = (fs.type === 'circle' ? fs.r : h.shape.r) * this.k;
+          const t = Math.min(1, (s.tick - x.action.start) / h.atTick);
+          const rr = R * (1 - 0.55 * t);
+          top.lineStyle(8, 0xbff4ff, 0.18 + 0.3 * t).strokeCircle(px, py, rr);
+          top.lineStyle(2, 0xffffff, 0.5 + 0.4 * t).strokeCircle(px, py, rr);
+          for (let q = 0; q < 10; q++) {
+            const a = (q / 10) * Math.PI * 2 - t * 2.4;
+            const sx0 = px + Math.cos(a) * rr;
+            const sy0 = py + Math.sin(a) * rr;
+            top.fillStyle(0xe8fcff, 0.85).fillTriangle(sx0 + Math.cos(a) * 10, sy0 + Math.sin(a) * 10, sx0 - Math.sin(a) * 4, sy0 + Math.cos(a) * 4, sx0 + Math.sin(a) * 4, sy0 - Math.cos(a) * 4);
+          }
+        }
         if (h && !stormed) {
-          g.fillStyle(elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : 0x7dc8ff, elem ? 0.11 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.2);
+          // 環形箭雨：以前一大片 0.2 的藍甜甜圈蓋掉整個畫面 → 淡一點＋內外兩圈細線
+          const bowRing = s.weapon === 'bow' && h.shape.type === 'ring';
+          if (bowRing && h.shape.type === 'ring') {
+            top.lineStyle(2, 0xbfe8ff, 0.55).strokeCircle(px, py, h.shape.rOut * this.k).strokeCircle(px, py, h.shape.rIn * this.k);
+          }
+          g.fillStyle(elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, elem || bowRing || frostCharge ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.2);
           this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x, pos.y, x.action.dirX, x.action.dirY, g, true);
         }
       }
