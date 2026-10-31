@@ -1,7 +1,7 @@
 // Game feel 工具（05 §4）：hit-stop、慢動作、傷害數字、火花、衝擊環、大字。
 import { getSettings, highFx } from '../settings';
 import Phaser from 'phaser';
-import { stackY, type Band } from './bannerStack';
+import { pinY, stackY, type Band } from './bannerStack';
 import { numberSlot, type NumRect } from './numberSlot';
 
 export const UI_FONT =
@@ -160,6 +160,17 @@ export function reserveBanner(scene: Phaser.Scene, cy: number, h: number, ms: nu
   live.push(e);
   BANNERS.set(scene, live);
   scene.tweens.addCounter({ from: 0, to: 1, duration: ms, onComplete: () => { e.fading = true; e.t.active = false; } });
+}
+
+/**
+ * 固定位置的大字（x 偏 1px、不排隊）出現時讓開正在顯示的置中大字，並登記成佔用中（第 76 輪）：
+ * 升級數值小字以前蓋在「撿到裝備了！」教學上；之後出的提示也會避開它。
+ */
+export function pinBanner(scene: Phaser.Scene, t: Phaser.GameObjects.Text, ms: number): void {
+  const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
+  const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
+  t.setY(pinY(t.y, t.height, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene)));
+  reserveBanner(scene, t.y, t.height, ms);
 }
 
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */

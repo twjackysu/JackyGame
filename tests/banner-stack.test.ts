@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stackY } from '../src/game/fx/bannerStack';
+import { pinY, stackY } from '../src/game/fx/bannerStack';
 
 describe('置中大字不重疊（D-162）', () => {
   it('沒有其他大字就照原位', () => {
@@ -51,5 +51,23 @@ describe('置中大字不重疊（D-162）', () => {
     expect(Math.min(cy2 + 50, 630) - Math.max(cy2 - 50, 490)).toBeLessThanOrEqual(50);
     // 主角下方被提示佔滿：不因為讓位而排隊，照原位出（Boss 警告不能晚）
     expect(stackY(520, 56, [[691, 779]], 794, 430, [490, 630])).toBe(520);
+  });
+
+  it('固定位置的大字讓開正在顯示的大字（第 76 輪）', () => {
+    // 360×640：升級標題 430、撿裝備教學 735（TIP_Y）、主角 470～610；數值小字原位 710 高 80
+    const busy: [number, number][] = [[395, 465], [710, 760]];
+    const cy = pinY(710, 80, busy, 794, 430, [470, 610]);
+    expect(cy + 40 + 16).toBeLessThanOrEqual(710); // 排到教學上方
+    expect(Math.min(cy + 40, 610) - Math.max(cy - 40, 470)).toBeLessThanOrEqual(50);
+    expect(pinY(710, 80, [], 794, 430, [470, 610])).toBe(710); // 沒人就原位
+    expect(pinY(710, 80, [[700, 760]], 900, 430)).toBe(760 + 16 + 40); // 下方放得下先往下
+    expect(pinY(710, 80, [[460, 1000]], 900, 430, [470, 610])).toBe(710); // 都不行照原位
+  });
+
+  it('被別的大字往下推到主角身上時改排到主角下方（第 76 輪）', () => {
+    // 荊棘谷 360×640：「毒沼！」原位 470（只擦到主角頭頂），前面有大字 → 以前被推到 546 整塊蓋住主角
+    expect(stackY(470, 100, [[400, 480]], 794, 430, [470, 610])).toBe(610 + 16 + 50);
+    // 主角下方放不下 → 照舊（不因此排隊）
+    expect(stackY(470, 100, [[400, 480]], 700, 430, [470, 610])).toBe(546);
   });
 });

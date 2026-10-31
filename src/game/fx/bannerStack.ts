@@ -36,12 +36,53 @@ function stackFrom(y: number, half: number, busy: readonly Band[], limit: number
     if (!b) break;
     cy = b[1] + GAP + half;
   }
-  if (cy + half <= limit && !hits(cy)) return cy;
-  // 下面放不下：排到全部的上方；上方也不夠（會超過 ceil）就排隊
   const top = Math.min(...busy.map(([t]) => t));
   const up = top - GAP - half;
   // 第 74 輪：往上排會蓋住主角（avoid＝主角在畫面上的範圍）也排隊——360×640 打 Boss 時兩則提示疊起來正好壓在主角身上
   const onHero = avoid !== undefined && up - half < avoid[1] && up + half > avoid[0];
-  if (up - half >= ceil && !hits(up) && !onHero) return up;
+  const upOk = up - half >= ceil && !hits(up) && !onHero;
+  if (cy + half <= limit && !hits(cy)) {
+    // 第 76 輪：原位沒壓主角、被別的大字往下推之後才壓到（荊棘谷 360×640「毒沼！」被推到主角身上）→ 先試主角下方、再試全部的上方，都不行才照舊
+    const over = (c: number): number => (avoid ? Math.min(c + half, avoid[1]) - Math.max(c - half, avoid[0]) : 0);
+    if (avoid && over(cy) > HERO_OVERLAP && over(y) <= HERO_OVERLAP) {
+      let c2 = Math.max(cy, avoid[1] + GAP + half);
+      for (let i = 0; i <= busy.length; i++) {
+        const b = hits(c2);
+        if (!b) break;
+        c2 = b[1] + GAP + half;
+      }
+      if (c2 + half <= limit && !hits(c2)) return c2;
+      if (upOk) return up;
+    }
+    return cy;
+  }
+  // 下面放不下：排到全部的上方；上方也不夠（會超過 ceil）就排隊
+  if (upOk) return up;
   return null;
+}
+
+/**
+ * 固定位置（不排隊）的大字找空位（第 76 輪）：升級數值小字以前直接蓋在剛出的「撿到裝備了！」教學上（360×640）。
+ * 先往下讓過重疊的大字（不超過 limit），不行再往上讓（不超過 ceil、不蓋主角超過 HERO_OVERLAP），都不行就照原位。
+ */
+export function pinY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band): number {
+  const half = h / 2;
+  const hits = (cy: number): Band | undefined => busy.find(([t, b]) => cy - half < b + GAP && cy + half > t - GAP);
+  if (!hits(y)) return y;
+  let cy = y;
+  for (let i = 0; i <= busy.length; i++) {
+    const b = hits(cy);
+    if (!b) break;
+    cy = b[1] + GAP + half;
+  }
+  if (cy + half <= limit && !hits(cy)) return cy;
+  cy = y;
+  for (let i = 0; i <= busy.length; i++) {
+    const b = hits(cy);
+    if (!b) break;
+    cy = b[0] - GAP - half;
+  }
+  const onHero = avoid !== undefined && Math.min(cy + half, avoid[1]) - Math.max(cy - half, avoid[0]) > HERO_OVERLAP;
+  if (cy - half >= ceil && !hits(cy) && !onHero) return cy;
+  return y;
 }
