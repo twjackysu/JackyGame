@@ -39,4 +39,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 第 80 輪（D-212）：WebView 的 navigator.vibrate 要這個權限（一般權限，不會跳詢問）；以前受擊震動在 App 裡沒作用 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

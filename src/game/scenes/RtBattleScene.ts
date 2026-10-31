@@ -2295,6 +2295,16 @@ export class RtBattleScene extends Phaser.Scene {
     }, on);
   }
 
+  /** 手機震動（Android 支援；iOS Safari 沒有 vibrate 就略過）。Bot 示範不震（第 80 輪 D-212 抽出來） */
+  private buzz(pattern: number | number[]): void {
+    if (this.bot) return;
+    try {
+      navigator.vibrate?.(pattern);
+    } catch {
+      /* 不支援 */
+    }
+  }
+
   private toggleMenu(): void {
     if (this.hint) this.dismissHint(); // 說明框不要壓在暫停選單上
     this.fireBtn?.setVisible(false); // 營火按鈕不要從選單底下透出來（關掉後下一幀會再顯示）
@@ -2662,13 +2672,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (toPlayer) {
           this.cameras.main.shake(90, 0.004);
           // Android／部分瀏覽器支援震動；iOS Safari 不支援就略過
-          if (!this.bot && e.amount > (e.absorbed ?? 0)) {
-            try {
-              navigator.vibrate?.(e.amount >= d.maxHp * 0.12 ? 60 : 25);
-            } catch {
-              /* 不支援 */
-            }
-          }
+          if (e.amount > (e.absorbed ?? 0)) this.buzz(e.amount >= d.maxHp * 0.12 ? 60 : 25);
         }
       } else if (e.type === 'potion') {
         const p = playerOf(this.s);
@@ -2727,6 +2731,7 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'dodge') SFX.dodge();
       else if (e.type === 'block') {
         SFX.parry();
+        this.buzz(18); // 第 80 輪：格擋成功輕震一下（D-212）
         this.hitStop = Math.max(this.hitStop, 110);
         const p = playerOf(this.s);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0x7dffb0, 90, 300, 6);
@@ -2780,6 +2785,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.ventHit.delete(d.id);
           if (d.defId === 'thorn_queen' || d.defId === 'thorn_mother') this.thornWither(d.x, d.y, d.defId === 'thorn_queen');
           if (ENEMIES[d.defId]?.boss && !this.bot) {
+            this.buzz([50, 40, 90]); // 第 80 輪：Boss 倒下震兩下（D-212）
             const rec = this.tracked ? loadRecord(this.stageId) : {};
             const long = d.fury ? !rec.furyKills : !rec.bossKills;
             this.bossRays(this.sx(d.x), this.sy(d.y), Phaser.Display.Color.HexStringToColor(worldMap(this.stageId)?.color ?? '#ffd27a').color, long);
