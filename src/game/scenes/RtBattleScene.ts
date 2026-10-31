@@ -1013,7 +1013,8 @@ export class RtBattleScene extends Phaser.Scene {
           this.rareAt = this.time.now;
           const f = list[0]!;
           const head = f.night ? '深夜的稀有！' : '稀有裝備！';
-          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.slice(0, 3).map((x) => x.name).join('\n')}`, f.night ? '#b8a8ff' : f.col, 44, 1200 + 400 * (Math.min(3, list.length) - 1));
+          // 第 76 輪：兩件以上改 30px、兩件名稱排同一行（3 行 44px 在 360×640 主角下方放不下、整塊蓋住主角）
+          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [list.slice(0, 2).map((x) => x.name).join('・'), ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night ? '#b8a8ff' : f.col, list.length > 1 ? 30 : 44, 1200 + 400 * (Math.min(3, list.length) - 1));
         };
         this.time.delayedCall(250, flush);
       }
