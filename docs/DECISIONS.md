@@ -2,6 +2,13 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-214 2026-11-01 面板在第一幀前打開時先畫一次地圖；返回鍵補燼牌出口與回顧結局
+- **問題 1**：`RtBattleScene.update` 在 `this.menu` 開著時直接 return，序章（新存檔第一次進霧語森林）在第一幀前就打開 → 地圖、主角、HUD 從沒畫過，序章淡出、「霧語森林」字卡、選武器面板背後都是**地圖左上角的空樹林**（相機偏移還是 0,0），選完武器才跳到營火。
+- **做法**：`drawnOnce` 旗標——面板開著但這個場景還沒畫過，就先 `ambient.update(0)`＋`draw()` 一次（`draw` 只畫圖、沒有音效或狀態副作用）。之後所有「場景一開就有面板」的情況都受惠。
+- **問題 2**：返回鍵在燼牌大廳／結算按了沒反應（出口字是「回行商」「回營火」，不在 `BACK_LABELS`）→ 加進清單（下注局的「認輸離開」仍然不算）。
+- **問題 3**：標題「回顧結局」整段五頁按返回都沒反應 → `playFinale` 的 root 帶 `finish`，標題返回鍵直接收掉（重看，沒有損失）。序章／選武器按返回仍然不動作（第一次看的劇情，不讓手滑跳掉；右上有「略過」）。
+- 替代方案：序章改在第一幀後才打開（`delayedCall(0)`）→ 會有一幀閃地圖（第 64 輪修過的問題），不採用。
+
 ## D-213 2026-11-01 原生 App 圖示與啟動畫面
 - **問題**：Android APK 的桌面圖示和啟動畫面、iOS 的 AppIcon／Splash 從第 1 輪起一直是 Capacitor 預設（藍色 X＋白底格線），PWA 圖示才是遊戲的劍與星。Jacky 裝 APK 第一眼看到的就是預設圖示＋白底一閃。
 - **做法**：`scripts/gen-native-icons.mjs`（`npm run icons:native`）從 `public/icons/icon.svg` 拆出背景（漸層方塊）與前景（光暈、星、劍、火星）：Android 自適應圖示＝`mipmap-*/ic_launcher_background.png`＋`ic_launcher_foreground.png`（劍縮到 66dp 安全區內）、舊版 `ic_launcher`（圓角）／`ic_launcher_round`（圓）；啟動畫面＝深色底 `#0b0f1e`＋短邊 30% 的圓角圖示（Android 11 張、iOS 3 張 2732）；iOS AppIcon 1024 不透明。`styles.xml` 加 `windowSplashScreenBackground`（Android 12+ 系統啟動畫面）。
