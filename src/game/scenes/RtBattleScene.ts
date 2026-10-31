@@ -1405,7 +1405,8 @@ export class RtBattleScene extends Phaser.Scene {
       if (r.first && this.stageId === FINALE_MAP && !this.bot) later(5000, () => this.showFinale());
       // 番外（通關後的挑戰地圖）第一次討伐 → 選完抉擇播「番外　完」幕名卡，給最後一個 Boss 一個收尾（第 58 輪）
       if (r.first && worldMap(this.stageId)?.postGame && !this.bot) later(4600, () => this.postGameEnd());
-      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！\n走進巢穴北邊的光門就到了\n（☰ 也可以直接前往）${nx?.recLevel ? `\n建議 Lv${nx.recLevel}` : ''}`, '#a8f08a', 34, 3000);
+      // 第 76 輪：4 行縮成 2 行（4 行在 360×640 上下都放不下、整塊蓋主角約 3 秒；2 行放得進主角下方）
+      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！${nx?.recLevel ? `（建議 Lv${nx.recLevel}）` : ''}\n走進巢穴北邊的光門・☰ 也能直接前往`, '#a8f08a', 30, 3000);
       // 通關那張圖：新地圖開放（星隕高原）等通關演出看完才出，以前會在演出（depth 2000）底下播完、玩家看不到（第 39 輪）
       if (r.first && nx) {
         // 光門等抉擇／通關演出結束才亮（第 55 輪：以前討伐當下就出現，等面板的 4～5 秒內走進去會跳過抉擇或結局）
