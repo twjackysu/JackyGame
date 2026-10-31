@@ -4,6 +4,7 @@
 // 標題畫面按一次提示「再按一次返回鍵離開」，2 秒內再按才離開。
 // 網頁版（PWA／瀏覽器）用 history.pushState 擋一層：返回手勢一樣先交給遊戲處理。
 import Phaser from 'phaser';
+import { setAudioPaused } from '../audio/sfx';
 
 /** 'handled'＝遊戲處理掉了；'exit'＝讓系統離開（App 關閉／網頁上一頁） */
 export type BackResult = 'handled' | 'exit';
@@ -67,18 +68,27 @@ export function clickBackButton(root: readonly Phaser.GameObjects.GameObject[]):
 
 let installed = false;
 
+/** App 縮到背景時在 window 上發的事件（場景聽它存檔） */
+export const APP_HIDDEN = 'jg-app-hidden';
+
 /** main.ts 開機時呼叫一次 */
 export function installBackButton(): void {
   if (installed || typeof window === 'undefined') return;
   installed = true;
+  // 切到背景：暫停聲音＋通知場景存檔（網頁靠 visibilitychange；App 另外聽 appStateChange，WebView 不一定發 visibilitychange）
+  document.addEventListener('visibilitychange', () => setAudioPaused(document.visibilityState === 'hidden'));
   const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
   if (cap?.isNativePlatform?.()) {
     void import('@capacitor/app')
-      .then(({ App }) =>
-        App.addListener('backButton', () => {
+      .then(({ App }) => {
+        void App.addListener('backButton', () => {
           if (pressBack() === 'exit') void App.exitApp();
-        }),
-      )
+        });
+        void App.addListener('appStateChange', ({ isActive }) => {
+          setAudioPaused(!isActive);
+          if (!isActive) window.dispatchEvent(new Event(APP_HIDDEN));
+        });
+      })
       .catch(() => {
         /* 外掛沒裝：維持系統預設 */
       });

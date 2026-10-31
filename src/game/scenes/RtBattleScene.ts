@@ -67,7 +67,7 @@ import { getSettings, updateSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip, zoneHintBreak } from '../ui/tipText';
-import { clickBackButton, setBackHandler } from '../backButton';
+import { APP_HIDDEN, clickBackButton, setBackHandler } from '../backButton';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
@@ -416,9 +416,12 @@ export class RtBattleScene extends Phaser.Scene {
         if (document.visibilityState === 'hidden') this.persist();
       };
       document.addEventListener('visibilitychange', onHide);
+      const onAppHide = (): void => this.persist(); // 第 80 輪：Android App 縮到背景（D-212）
+      window.addEventListener(APP_HIDDEN, onAppHide);
       this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
         this.persist();
         document.removeEventListener('visibilitychange', onHide);
+        window.removeEventListener(APP_HIDDEN, onAppHide);
       });
     }
     this.acc = 0;

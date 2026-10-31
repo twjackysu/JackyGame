@@ -88,6 +88,20 @@ export function installAudioUnlock(target: EventTarget = window): void {
   events.forEach((e) => target.addEventListener(e, unlock, true));
 }
 
+/**
+ * 切到背景（第 80 輪，D-212）：App 縮到背景／鎖屏時暫停整個 AudioContext（以前 Android App 背景音樂會繼續播），
+ * 回來時接著播；iOS 需要手勢才能恢復的話，重新掛一次解鎖。
+ */
+export function setAudioPaused(paused: boolean): void {
+  if (!ctx) return;
+  if (paused) {
+    if (ctx.state === 'running') void ctx.suspend().catch(() => undefined);
+  } else if (ctx.state !== 'running') {
+    void ctx.resume().catch(() => undefined);
+    installAudioUnlock();
+  }
+}
+
 /** 整體音量（音效＋背景音樂共用 master，0～1，第 73 輪） */
 export function setVolume(v: number): void {
   volume = Math.max(0, Math.min(1, v));
