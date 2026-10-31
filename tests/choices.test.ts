@@ -105,4 +105,15 @@ describe('結語跟著武器換字（第 57 輪）', () => {
     expect(epilogueLine({ emberrift: 'take' })!).not.toContain('霧角');
     expect(epilogueLine({ mistwood: 'take', emberrift: 'spare' })).toContain('有些');
   });
+  it('結語每一行 ≤ 19 字（360×640 的結局頁一行約 19 字，多一個字就會剩「還在。」孤字一行，第 79 輪）', () => {
+    const M = ['mistwood', 'thornvale', 'emberrift'];
+    const combos: Record<string, 'take' | 'spare'>[] = [{}];
+    for (const m of M) for (const c of [...combos]) for (const p of ['take', 'spare'] as const) combos.push({ ...c, [m]: p });
+    const lines = new Set<string>();
+    for (const c of combos) for (const sf of [undefined, 'take', 'spare'] as const) {
+      const all = sf ? { ...c, starfall: sf } : c;
+      for (const t of [epilogueLine(all), codaLine(all)]) if (t) t.split('\n').forEach((l) => lines.add(l));
+    }
+    for (const l of lines) expect([...l].length, l).toBeLessThanOrEqual(19);
+  });
 });

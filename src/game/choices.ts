@@ -118,7 +118,7 @@ export function epilogueLine(c: Record<string, ChoicePick>): string | null {
     if (spare === picks.length) return '你把能還的，都還了回去。\n這片土地，會用它自己的方式記得你。';
     if (spare === 0) return '你帶走了牠們留下的東西。\n這片土地的主人，從此只剩下你。';
   }
-  if (spare === picks.length) return '你沒有從牠們身上拿走任何東西。\n霧裡的小狼、母樹的白花、裂谷的火——都還在。';
+  if (spare === picks.length) return '你沒有從牠們身上拿走任何東西。\n小狼、白花、燼心的火——都還在。';
   if (spare === 0) return '霧角、王冠、燼心，都收在你的行囊裡。\n這片土地的主人，從此只剩下你。';
   return '有些東西你帶走了，有些你留了下來。\n這片土地，會用它自己的方式記得你。';
 }
