@@ -3448,10 +3448,19 @@ export class RtBattleScene extends Phaser.Scene {
         const L = 90 * this.k;
         const px = this.sx(p.x);
         const py = this.sy(p.y);
-        for (let j = -1; j <= 1; j++) {
-          g.lineStyle(4 - Math.abs(j), h.status?.id === 'weak' ? 0xc0a0ff : 0x9fd8ff, 0.8).lineBetween(px - Math.sin(ang) * j * 14, py + Math.cos(ang) * j * 14, px - Math.cos(ang) * L - Math.sin(ang) * j * 14, py - Math.sin(ang) * L + Math.cos(ang) * j * 14);
+        const dc = h.status?.id === 'weak' ? 0xc0a0ff : 0x9fd8ff;
+        // 第 71 輪：衝鋒多一道身後的風壓尾（寬的淡光＋亮芯），以前只有三條細線
+        const L2 = L * 3.2;
+        g.fillStyle(dc, 0.22).fillTriangle(px - Math.sin(ang) * 30, py + Math.cos(ang) * 30, px + Math.sin(ang) * 30, py - Math.cos(ang) * 30, px - Math.cos(ang) * L2, py - Math.sin(ang) * L2);
+        g.fillStyle(0xffffff, 0.35).fillTriangle(px - Math.sin(ang) * 10, py + Math.cos(ang) * 10, px + Math.sin(ang) * 10, py - Math.cos(ang) * 10, px - Math.cos(ang) * L2 * 0.7, py - Math.sin(ang) * L2 * 0.7);
+        for (let j = -2; j <= 2; j++) {
+          g.lineStyle(4 - Math.abs(j), dc, 0.85).lineBetween(px - Math.sin(ang) * j * 14, py + Math.cos(ang) * j * 14, px - Math.cos(ang) * L * (1.4 - Math.abs(j) * 0.2) - Math.sin(ang) * j * 14, py - Math.sin(ang) * L * (1.4 - Math.abs(j) * 0.2) + Math.cos(ang) * j * 14);
         }
-        this.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
+        if (i === 0) {
+          sparks(this, px, py, 8, 'spark', 0xd8f0ff, 320);
+          shockRing(this, px, py, dc, 60, 220, 5);
+        }
+        this.tweens.add({ targets: g, alpha: 0, duration: 320, onComplete: () => g.destroy() });
         // 流星衝（D-112）：衝到底的落地爆炸（非 oncePerTarget 的圓）
         if (hs.type === 'circle' && !h.oncePerTarget) {
           shockRing(this, this.sx(p.x), this.sy(p.y), 0x9fd8ff, hs.r * this.k * 1.2, 380, 10);
@@ -3640,9 +3649,14 @@ export class RtBattleScene extends Phaser.Scene {
     const a = p.action;
     if (!a || a.kind !== 'skill' || now - this.ghostAt < 45) return;
     const sk = skillDef(this.s, a.id);
-    if (!sk?.dash || !sk.hits.some((h) => h.status?.id === 'weak')) return;
+    if (!sk?.dash || this.s.weapon === 'staff') return;
+    // 第 71 輪：所有劍／弓的位移招（衝鋒、流星衝、後躍…）都留殘影；以前只有影步，衝鋒凍結看只有腳下三條細線
+    const k = this.s.tick - a.start;
+    if (k < sk.dash.fromTick || k > sk.dash.fromTick + sk.dash.ticks) return;
+    const weak = sk.hits.some((h) => h.status?.id === 'weak');
     this.ghostAt = now;
-    const gh = this.add.image(sp.x, sp.y, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setDepth(sp.depth - 0.5).setTint(0x7a4aff).setAlpha(0.5);
+    const gh = this.add.image(sp.x, sp.y, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setDepth(sp.depth - 0.5).setTint(weak ? 0x7a4aff : this.s.weapon === 'bow' ? 0x8ad870 : 0x5ab0ff).setAlpha(weak ? 0.5 : 0.42);
+    if (!weak) gh.setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: gh, alpha: 0, scaleX: sp.scaleX * 1.08, duration: 350, ease: 'Cubic.easeOut', onComplete: () => gh.destroy() });
   }
 
@@ -4359,8 +4373,11 @@ export class RtBattleScene extends Phaser.Scene {
     const by = this.sy(y1) - 20;
     const ang = Math.atan2(by - ay, bx - ax);
     const tail = this.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
-    tail.lineStyle(3, color, 0.7).lineBetween(ax, ay, bx, by);
-    this.tweens.add({ targets: tail, alpha: 0, duration: 200, onComplete: () => tail.destroy() });
+    // 第 71 輪：箭道多一層寬光（以前只有 3px 細線，散射凍結看幾乎看不到箭）
+    tail.lineStyle(10, color, 0.22).lineBetween(ax, ay, bx, by);
+    tail.lineStyle(3, color, 0.8).lineBetween(ax, ay, bx, by);
+    tail.lineStyle(1.5, 0xffffff, 0.9).lineBetween(ax + (bx - ax) * 0.4, ay + (by - ay) * 0.4, bx, by);
+    this.tweens.add({ targets: tail, alpha: 0, duration: 260, onComplete: () => tail.destroy() });
     const arrow = this.add.graphics().setDepth(691).setPosition(ax, ay).setRotation(ang);
     arrow.lineStyle(4, 0x8a6a40, 1).lineBetween(-34, 0, 8, 0);
     arrow.fillStyle(0xf4f8ff, 1).fillTriangle(16, 0, 4, -7, 4, 7);
@@ -4517,8 +4534,9 @@ export class RtBattleScene extends Phaser.Scene {
         const bolt = this.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
         const pts: { x: number; y: number }[] = [];
         for (let q = 0; q <= 6; q++) pts.push({ x: tx + (q === 6 ? 0 : (Math.random() - 0.5) * 34), y: ty - 320 + (320 * q) / 6 });
-        bolt.lineStyle(9, 0x8ab0ff, 0.35).strokePoints(pts, false).lineStyle(3, 0xffffff, 1).strokePoints(pts, false);
-        this.tweens.add({ targets: bolt, alpha: 0, duration: 180, onComplete: () => bolt.destroy() });
+        bolt.lineStyle(16, 0x8a7aff, 0.2).strokePoints(pts, false).lineStyle(9, 0x8ab0ff, 0.4).strokePoints(pts, false).lineStyle(3, 0xffffff, 1).strokePoints(pts, false);
+        bolt.fillStyle(0xe8f0ff, 0.5).fillEllipse(tx, ty, 70, 30);
+        this.tweens.add({ targets: bolt, alpha: 0, duration: 260, onComplete: () => bolt.destroy() });
         sparks(this, tx, ty, 6, 'spark', 0xc8d8ff, 300);
         shockRing(this, tx, ty, 0x9fc0ff, 34, 200, 3);
       }
@@ -5180,7 +5198,24 @@ export class RtBattleScene extends Phaser.Scene {
           top.fillStyle(0xffd27a, 0.12).fillCircle(px, py - r * 0.6, r * 1.9);
         }
         // 龍捲（D-112）：施放中可以全速移動的旋轉技能 → 腳下往上收窄的旋風
-        if (sk && sk.role === 'aoe' && sk.moveFactor >= 1) {
+        if (sk && sk.role === 'aoe' && sk.moveFactor >= 1 && s.weapon === 'bow') {
+          // 迴旋箭陣（第 71 輪）：繞身轉的光箭環（以前借用劍的龍捲線＋一大塊平平的藍圈）
+          const k0 = s.tick - x.action.start;
+          const R = (sk.hits[0]?.shape.type === 'circle' ? sk.hits[0].shape.r : UNIT * 3) * this.k * 0.62;
+          const cy = py - r * 0.4;
+          top.lineStyle(10, 0x9fe0ff, 0.12).strokeCircle(px, cy, R);
+          top.lineStyle(2, 0xd8f4ff, 0.5).strokeCircle(px, cy, R);
+          for (let q = 0; q < 8; q++) {
+            const a = k0 * 0.28 + (q * Math.PI) / 4;
+            const ax = px + Math.cos(a) * R;
+            const ay = cy + Math.sin(a) * R * 0.8;
+            const tx = -Math.sin(a);
+            const ty = Math.cos(a) * 0.8;
+            top.lineStyle(5, 0x9fe0ff, 0.35).lineBetween(ax, ay, ax - tx * 46, ay - ty * 46);
+            top.lineStyle(2, 0xffffff, 0.9).lineBetween(ax, ay, ax - tx * 26, ay - ty * 26);
+            top.fillStyle(0xffffff, 1).fillTriangle(ax + tx * 12, ay + ty * 12, ax - ty * 6, ay + tx * 6, ax + ty * 6, ay - tx * 6);
+          }
+        } else if (sk && sk.role === 'aoe' && sk.moveFactor >= 1) {
           const k0 = s.tick - x.action.start;
           top.lineStyle(3, 0xbfe8ff, 0.7);
           for (let q = 0; q < 5; q++) {
@@ -5193,8 +5228,26 @@ export class RtBattleScene extends Phaser.Scene {
         const h = sk?.hits[0] ?? sk?.block?.counter;
         // 劍的圓形大招（劍刃風暴／星落一閃）由 drawStorm 畫，不再蓋一層平平的藍
         const stormed = !!sk && s.weapon !== 'bow' && h?.shape.type === 'circle' && !h.ahead && (sk.role === 'ult' ? s.weapon !== 'staff' || (sk.hits.length >= 4 && !h.status) : s.weapon !== 'staff' && !sk.dash && sk.moveFactor < 1 && sk.hits.length >= 3);
+        // 第 71 輪：法杖的持續範圍招染成元素色（灼熱領域＝橘、雷暴＝紫），邊緣冒電弧；以前一律平平的藍
+        const elem = s.weapon === 'staff' && sk?.role === 'aoe' && sk.hits.length >= 2 ? h?.status?.id : undefined;
+        if (h && elem === 'slow' && h.shape.type === 'circle') {
+          const hs2 = skillShape(this.s, x.action.id, h.shape);
+          const R = hs2.type === 'circle' ? hs2.r * this.k : 0;
+          const cy0 = py;
+          for (let q = 0; q < 4; q++) {
+            const a0 = Math.random() * Math.PI * 2;
+            const pts: { x: number; y: number }[] = [];
+            for (let z = 0; z <= 4; z++) {
+              const a = a0 + z * 0.12;
+              const rr = R * (0.94 + Math.random() * 0.12);
+              pts.push({ x: px + Math.cos(a) * rr, y: cy0 + Math.sin(a) * rr });
+            }
+            top.lineStyle(5, 0x9a8aff, 0.3).strokePoints(pts, false).lineStyle(2, 0xf0ecff, 0.9).strokePoints(pts, false);
+          }
+          top.lineStyle(3, 0xb8a8ff, 0.45).strokeCircle(px, cy0, R);
+        }
         if (h && !stormed) {
-          g.fillStyle(0x7dc8ff, 0.2);
+          g.fillStyle(elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : 0x7dc8ff, elem ? 0.11 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.2);
           this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x, pos.y, x.action.dirX, x.action.dirY, g, true);
         }
       }
