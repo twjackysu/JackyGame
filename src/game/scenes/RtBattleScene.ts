@@ -262,8 +262,8 @@ export class RtBattleScene extends Phaser.Scene {
   private tipBusy = false;
   /** 上一則教學提示消失後先安靜一下（D-176：新存檔前 20 秒以前連續四則提示、每則只隔 0.2 秒） */
   private tipCalmUntil = 0;
-  /** 第 78 輪：燼紅裂谷首次討伐後等著播通關演出——教學小字先不講（以前「大招充滿了！」在結語和演出之間冒出來，馬上被演出蓋掉） */
-  private finaleSoon = false;
+  /** 第 78 輪：燼紅裂谷首次討伐後等著播通關演出（星隕高原等「番外　完」卡）——教學小字先不講（以前「大招充滿了！」在結語和演出之間冒出來，馬上被演出蓋掉） */
+  private storySoon = false;
   /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
   private openRun = 0;
   private nightRun = 0;
@@ -585,7 +585,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.hint = null; // 場景重開時上一場的說明框已被銷毀
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.tipCalmUntil = 0;
-    this.finaleSoon = false;
+    this.storySoon = false;
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
@@ -1412,9 +1412,9 @@ export class RtBattleScene extends Phaser.Scene {
       };
       if (pending && ch) this.time.delayedCall(4300, () => this.showChoice(ch));
       // 最後一張地圖第一次討伐 → 通關演出（D-133）
-      if (r.first && this.stageId === FINALE_MAP && !this.bot) { this.finaleSoon = true; later(5000, () => this.showFinale()); }
+      if (r.first && this.stageId === FINALE_MAP && !this.bot) { this.storySoon = true; later(5000, () => this.showFinale()); }
       // 番外（通關後的挑戰地圖）第一次討伐 → 選完抉擇播「番外　完」幕名卡，給最後一個 Boss 一個收尾（第 58 輪）
-      if (r.first && worldMap(this.stageId)?.postGame && !this.bot) later(4600, () => this.postGameEnd());
+      if (r.first && worldMap(this.stageId)?.postGame && !this.bot) { this.storySoon = true; later(4600, () => this.postGameEnd()); }
       // 第 76 輪：4 行縮成 2 行（4 行在 360×640 上下都放不下、整塊蓋主角約 3 秒；2 行放得進主角下方）
       const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！${nx?.recLevel ? `（建議 Lv${nx.recLevel}）` : ''}\n走進巢穴北邊的光門・☰ 也能直接前往`, '#a8f08a', 30, 3000, true); // 第 77 輪：patient（主角下方被教學小字佔住時不照原位蓋主角）
       // 通關那張圖：新地圖開放（星隕高原）等通關演出看完才出，以前會在演出（depth 2000）底下播完、玩家看不到（第 39 輪）
@@ -1447,11 +1447,12 @@ export class RtBattleScene extends Phaser.Scene {
   /** 番外收尾：電影黑條＋「番外　完」＋依抉擇一句話；只播一次（jg_chapter_<id>_end） */
   private postGameEnd(): void {
     const key = `${this.stageId}_end`;
-    if (!this.scene.isActive() || this.ended || chapterSeen(key)) return;
+    if (!this.scene.isActive() || this.ended || chapterSeen(key)) { this.storySoon = false; return; }
     if (this.menu || this.editing || this.rareQueue.length || this.time.now - this.rareAt < 2200) {
       this.time.delayedCall(1500, () => this.postGameEnd());
       return;
     }
+    this.storySoon = false;
     const lab = postGameEndLabel(this.stageId, loadChoices()[this.stageId]);
     if (!lab) return;
     markChapterSeen(key);
@@ -1589,7 +1590,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.time.delayedCall(1500, () => this.showFinale());
       return;
     }
-    this.finaleSoon = false;
+    this.storySoon = false;
     this.fireBtn?.setVisible(false);
     this.shopBtn?.setVisible(false);
     this.cardBtn?.setVisible(false);
@@ -2539,7 +2540,7 @@ export class RtBattleScene extends Phaser.Scene {
   private tipOnce(key: string, text: string, color: string): boolean {
     // Bot 示範不提示、也不記成「看過了」（第 42 輪：以前先看 Bot 示範，格擋／撿裝備的教學就被 Bot 用掉了）
     if (this.bot || this.tipsDone.has(key)) return true;
-    if (this.hint || this.tipBusy || this.menu || this.finaleSoon || this.time.now < this.tipCalmUntil) return false; // 第 76 輪：面板開著（大字被藏起）不講，等關掉
+    if (this.hint || this.tipBusy || this.menu || this.storySoon || this.time.now < this.tipCalmUntil || this.time.now < this.slainUntil) return false; // 第 78 輪：討伐大字期間也不講（「大招充滿了！」以前在抉擇面板開的前一刻冒出來） // 第 76 輪：面板開著（大字被藏起）不講，等關掉
     this.tipsDone.add(key); // 記在記憶體：大招提示每幀都會呼叫，不要每幀讀 localStorage
     try {
       if (localStorage.getItem(key)) return true;
@@ -2943,7 +2944,7 @@ export class RtBattleScene extends Phaser.Scene {
         // 第 77 輪：Boss 剛倒下（討伐大字）／第二階段大字／抉擇面板期間也先不說——岩王巢穴旁就有熔岩口，討伐那一刻會冒出噴發說明
         // 第 78 輪（D-210）：Boss 戰打到一半也先不說——傳到巢穴打岩王時，說明 2 行大字整塊壓在 Boss 和主角身上，接著就是討伐大字
         const bossFight = enemiesOf(this.s).some((u) => u.tier === 'boss' && !u.dead && u.mode === 'combat');
-        if (!this.ventHinted && near && !bossFight && !this.bot && !this.tipBusy && !this.topCard?.active && !this.menu?.active && this.time.now >= this.slainUntil && this.time.now >= this.phaseUntil && this.time.now >= this.chapterUntil) {
+        if (!this.ventHinted && near && !bossFight && !this.storySoon && this.time.now >= this.tipCalmUntil && !this.bot && !this.tipBusy && !this.topCard?.active && !this.menu?.active && this.time.now >= this.slainUntil && this.time.now >= this.phaseUntil && this.time.now >= this.chapterUntil) {
           this.ventHinted = true;
           const vt = this.starMap
             ? bigText(this, GAME_WIDTH / 2, 470, '星星砸下來了！地上出現藍圈就快走開\n（閃避可以躲・把追你的怪引過來砸）', '#c8d8ff', 30, 1800)
