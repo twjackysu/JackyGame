@@ -37,6 +37,7 @@ let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noiseBuffer: AudioBuffer | null = null;
 let muted = false;
+let volume = 1;
 
 function getCtx(): AudioContext | null {
   if (ctx) return ctx;
@@ -46,7 +47,7 @@ function getCtx(): AudioContext | null {
   if (!Ctor) return null;
   ctx = new Ctor();
   master = ctx.createGain();
-  master.gain.value = 0.6;
+  master.gain.value = 0.6 * volume;
   master.connect(ctx.destination);
   return ctx;
 }
@@ -85,6 +86,12 @@ export function installAudioUnlock(target: EventTarget = window): void {
     silent.start(0);
   };
   events.forEach((e) => target.addEventListener(e, unlock, true));
+}
+
+/** 整體音量（音效＋背景音樂共用 master，0～1，第 73 輪） */
+export function setVolume(v: number): void {
+  volume = Math.max(0, Math.min(1, v));
+  if (master) master.gain.value = 0.6 * volume;
 }
 
 export function setMuted(value: boolean): void {

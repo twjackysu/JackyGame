@@ -63,7 +63,7 @@ import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, enco
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { showOffscreenArrow } from '../arrowRules';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
-import { getSettings } from '../settings';
+import { getSettings, updateSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip, zoneHintBreak } from '../ui/tipText';
@@ -2270,6 +2270,15 @@ export class RtBattleScene extends Phaser.Scene {
       items.push(t);
     };
     mk(-350, '繼續', () => this.toggleMenu(), true);
+    // 第 73 輪：遊戲中也能調音量（以前只能回標題的設定，手機外放太大聲只能關掉）
+    const volLabel = (): string => `音量 ${getSettings().sfx || getSettings().bgm ? `${Math.round(getSettings().volume * 100)}%` : '關'}`;
+    mk(-350, volLabel(), () => {
+      const v = getSettings().volume;
+      const order = [1, 0.75, 0.5, 0.25];
+      updateSettings({ volume: order[(order.indexOf(v) + 1) % order.length] ?? 1 });
+      volTxt.setText(volLabel());
+    }, false, 235);
+    const volTxt = items[items.length - 1] as Phaser.GameObjects.Text;
     const ctlBtn = (y: number, x = 0) => mk(y, '操作設定', () => {
       this.menu?.destroy();
       this.menu = null;

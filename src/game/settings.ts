@@ -1,5 +1,5 @@
 // 玩家設定（每台裝置一份，存在 localStorage；讀寫失敗時用預設值）。
-import { setMuted } from '../audio/sfx';
+import { setMuted, setVolume } from '../audio/sfx';
 import { setMusicEnabled } from '../audio/music';
 
 export interface Settings {
@@ -7,6 +7,8 @@ export interface Settings {
   autoTiming: boolean;
   bgm: boolean;
   sfx: boolean;
+  /** 整體音量 0.25／0.5／0.75／1（第 73 輪） */
+  volume: number;
   /** 文字速度：每字毫秒 */
   textSpeed: 'normal' | 'fast';
   /** 省電畫質：粒子減量、關閉逐物件光暈濾鏡（中低階手機） */
@@ -16,7 +18,7 @@ export interface Settings {
 }
 
 const KEY = 'jackygame.settings';
-const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, textSpeed: 'normal', autoTipShown: false, lowFx: false };
+const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, volume: 1, textSpeed: 'normal', autoTipShown: false, lowFx: false };
 let cache: Settings | null = null;
 
 export function getSettings(): Settings {
@@ -45,6 +47,7 @@ export function updateSettings(patch: Partial<Settings>): Settings {
 export function applySettings(): void {
   const s = getSettings();
   setMuted(!s.sfx);
+  setVolume(s.volume);
   setMusicEnabled(s.bgm);
 }
 

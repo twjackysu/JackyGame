@@ -7,7 +7,10 @@ import { getSettings, updateSettings, type Settings } from '../settings';
 
 type Row = { label: string; desc: string; value: (s: Settings) => string; toggle: (s: Settings) => Partial<Settings> };
 
+const VOLS = [1, 0.75, 0.5, 0.25];
 const ROWS: Row[] = [
+  // 第 73 輪：以前只有開關，手機外放太大聲只能整個關掉
+  { label: '音量', desc: '', value: (s) => `${Math.round(s.volume * 100)}%`, toggle: (s) => ({ volume: VOLS[(VOLS.indexOf(s.volume) + 1) % VOLS.length] ?? 1 }) },
   { label: '背景音樂', desc: '', value: (s) => (s.bgm ? '開' : '關'), toggle: (s) => ({ bgm: !s.bgm }) },
   { label: '音效', desc: '', value: (s) => (s.sfx ? '開' : '關'), toggle: (s) => ({ sfx: !s.sfx }) },
   { label: '省電畫質', desc: '粒子減量、關閉光暈濾鏡（手機發燙或卡頓時開）', value: (s) => (s.lowFx ? '開' : '關'), toggle: (s) => ({ lowFx: !s.lowFx }) },
