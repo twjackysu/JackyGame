@@ -116,4 +116,7 @@ describe('結語跟著武器換字（第 57 輪）', () => {
     }
     for (const l of lines) expect([...l].length, l).toBeLessThanOrEqual(19);
   });
+  it('抉擇選項說明每行 ≤ 22 字（面板 470 寬 20px，多了會把「10%」擠到下一行開頭，第 79 輪）', () => {
+    for (const b of BOSS_CHOICES) for (const o of [b.take, b.spare]) for (const l of o.desc.split('\n')) expect([...l].length, l).toBeLessThanOrEqual(22);
+  });
 });

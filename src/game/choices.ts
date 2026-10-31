@@ -57,7 +57,7 @@ export const BOSS_CHOICES: readonly BossChoice[] = [
     title: '星骸守望者倒下了',
     prompt: '守望者的胸口，嵌著一顆墜落的星。\n它在這片高原上守了多久，沒有人知道。\n星星還在微微發亮，像在等誰。',
     take: { label: '取下墜星核', desc: '馬上得到 6 顆結晶', after: '星光在你掌心熄滅了。高原的夜，暗了一點。', crystal: 6 },
-    spare: { label: '讓星星回到夜空', desc: '高原會記得你：行商的裝備再便宜 10%，還有一顆小星星跟著你', after: '墜星慢慢升起，回到了星座的缺口。夜空完整了。' },
+    spare: { label: '讓星星回到夜空', desc: '高原會記得你：行商的裝備再便宜 10%\n還有一顆小星星會跟著你', after: '墜星慢慢升起，回到了星座的缺口。夜空完整了。' },
     short: { take: '取下墜星核', spare: '讓星星回到夜空' },
     postGame: true,
   },
