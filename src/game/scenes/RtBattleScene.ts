@@ -2934,8 +2934,11 @@ export class RtBattleScene extends Phaser.Scene {
         // 第 77 輪：Boss 剛倒下（討伐大字）／第二階段大字／抉擇面板期間也先不說——岩王巢穴旁就有熔岩口，討伐那一刻會冒出噴發說明
         if (!this.ventHinted && near && !this.bot && !this.tipBusy && !this.topCard?.active && !this.menu?.active && this.time.now >= this.slainUntil && this.time.now >= this.phaseUntil && this.time.now >= this.chapterUntil) {
           this.ventHinted = true;
-          if (this.starMap) bigText(this, GAME_WIDTH / 2, 470, '星星砸下來了！地上出現藍圈就快走開\n（閃避可以躲・把追你的怪引過來砸）', '#c8d8ff', 30, 1800);
-          else bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
+          const vt = this.starMap
+            ? bigText(this, GAME_WIDTH / 2, 470, '星星砸下來了！地上出現藍圈就快走開\n（閃避可以躲・把追你的怪引過來砸）', '#c8d8ff', 30, 1800)
+            : bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
+          // 第 77 輪：深夜說明／教學小字等它講完（以前深夜高原 18 秒時和「深夜的星星落得更頻繁…」同一刻出，兩則 2 行疊滿畫面中段）
+          this.holdTips(vt);
         }
       }
       else if (e.type === 'shard') {
