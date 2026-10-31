@@ -262,6 +262,8 @@ export class RtBattleScene extends Phaser.Scene {
   private tipBusy = false;
   /** 上一則教學提示消失後先安靜一下（D-176：新存檔前 20 秒以前連續四則提示、每則只隔 0.2 秒） */
   private tipCalmUntil = 0;
+  /** 第 78 輪：燼紅裂谷首次討伐後等著播通關演出——教學小字先不講（以前「大招充滿了！」在結語和演出之間冒出來，馬上被演出蓋掉） */
+  private finaleSoon = false;
   /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
   private openRun = 0;
   private nightRun = 0;
@@ -583,6 +585,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.hint = null; // 場景重開時上一場的說明框已被銷毀
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.tipCalmUntil = 0;
+    this.finaleSoon = false;
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
@@ -1409,7 +1412,7 @@ export class RtBattleScene extends Phaser.Scene {
       };
       if (pending && ch) this.time.delayedCall(4300, () => this.showChoice(ch));
       // 最後一張地圖第一次討伐 → 通關演出（D-133）
-      if (r.first && this.stageId === FINALE_MAP && !this.bot) later(5000, () => this.showFinale());
+      if (r.first && this.stageId === FINALE_MAP && !this.bot) { this.finaleSoon = true; later(5000, () => this.showFinale()); }
       // 番外（通關後的挑戰地圖）第一次討伐 → 選完抉擇播「番外　完」幕名卡，給最後一個 Boss 一個收尾（第 58 輪）
       if (r.first && worldMap(this.stageId)?.postGame && !this.bot) later(4600, () => this.postGameEnd());
       // 第 76 輪：4 行縮成 2 行（4 行在 360×640 上下都放不下、整塊蓋主角約 3 秒；2 行放得進主角下方）
@@ -1509,6 +1512,7 @@ export class RtBattleScene extends Phaser.Scene {
       const extra = pick === 'take' ? `\n+${ch.take.crystal} 結晶` : `\n行商的裝備 −${c ? shopDiscountPct(c) : SPARE_DISCOUNT}%`;
       // 第 77 輪：以前 3 行 30px（高 147），360×640 主角下方差幾 px 放不下 → 照原位整塊蓋住主角；改成結語一行（最長 22 字 26px ≈ 572 寬）＋後果一行
       bigText(this, GAME_WIDTH / 2, 560, `${ch[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 26, 2600);
+      this.tipCalmUntil = Math.max(this.tipCalmUntil, this.time.now + 2800); // 第 78 輪：結語還在時教學小字（例如「大招充滿了！」）先等，不疊在結語上
       if (this.gateWaits === 'choice') this.revealGate();
       const q = this.afterChoice;
       this.afterChoice = [];
@@ -1585,6 +1589,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.time.delayedCall(1500, () => this.showFinale());
       return;
     }
+    this.finaleSoon = false;
     this.fireBtn?.setVisible(false);
     this.shopBtn?.setVisible(false);
     this.cardBtn?.setVisible(false);
@@ -1832,6 +1837,7 @@ export class RtBattleScene extends Phaser.Scene {
       }
       // 第 78 輪（D-210）：以前 wrapTip 成 2 行＋後果＝3 行 28px，360×640 主角下方放不下 → 照原位蓋主角；改成結語一行（≤ 22 字 26px）＋後果一行
       bigText(this, GAME_WIDTH / 2, 560, `${e[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 26, 3000);
+      this.tipCalmUntil = Math.max(this.tipCalmUntil, this.time.now + 3200);
     }, { kicker: '相遇', spareTag: '助' });
   }
 
@@ -2533,7 +2539,7 @@ export class RtBattleScene extends Phaser.Scene {
   private tipOnce(key: string, text: string, color: string): boolean {
     // Bot 示範不提示、也不記成「看過了」（第 42 輪：以前先看 Bot 示範，格擋／撿裝備的教學就被 Bot 用掉了）
     if (this.bot || this.tipsDone.has(key)) return true;
-    if (this.hint || this.tipBusy || this.menu || this.time.now < this.tipCalmUntil) return false; // 第 76 輪：面板開著（大字被藏起）不講，等關掉
+    if (this.hint || this.tipBusy || this.menu || this.finaleSoon || this.time.now < this.tipCalmUntil) return false; // 第 76 輪：面板開著（大字被藏起）不講，等關掉
     this.tipsDone.add(key); // 記在記憶體：大招提示每幀都會呼叫，不要每幀讀 localStorage
     try {
       if (localStorage.getItem(key)) return true;
