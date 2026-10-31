@@ -1,5 +1,17 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-01 06:12–06:45（台北）第 82 輪 — 離線驗收、通關機器人入口、手機橫拿提示（D-215／216）
+**背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 81 輪最後的 98e8f30）、APK `latest` 正常（5.9MB）。照 NEXT 第 3 項①②。
+
+**做了什麼**
+- ① **離線**（很久沒驗）：build 後 precache 18 項（JS、5 張 AI 圖、圖示、manifest），產物裡沒有任何外部網址。Playwright 裝好 service worker → `setOffline(true)` → reload：標題、霧語森林、燼牌都正常，零失敗請求。**不用改**（D-215）。
+- ② 390×844 新存檔長劍／長弓前 30 秒（`shot-newsave.mjs`）：開場大字、操作說明、格擋教學、休息字條依序出現，沒有互壓。長弓第 4 秒 Bot 衝到狼群旁、開場大字蓋到狼（Bot 走太快，真人站營火不會），不改。序章揭幕的 README 候選圖沒拍（現在的 53 序章圖還可以）。
+- **補回 `scripts/playthrough.mjs`**（`npm run playthrough`）：排程規格的指令在 D-097 刪掉後一直不存在 → 包裝 `tests/rt-campaign.test.ts`，三把武器從新存檔打到燼心岩王、印出每趟紀錄（D-215）。README 開發指令加一行；iOS 側載補「開發者模式」步驟。
+- **手機橫拿（D-216）**：瀏覽器／iOS PWA 不鎖方向，橫過來畫面縮成中間一條、戰鬥照跑；橫著開機的話轉回直式上下留一大截黑邊（`GAME_HEIGHT` 鎖 1280）→ 觸控手機橫向時蓋「請把手機轉回直式」（金色線條圖示）、遊戲迴圈＋聲音暫停，轉回來繼續；橫著開機照直式算高度。桌機、平板橫放不受影響。
+
+**驗證**：build＋`npx vitest run --exclude 'tests/zz-*'`（356 → **359 項**全過，新增 `orientation.test.ts`）。Playwright 行動裝置模擬（`isMobile`＋`hasTouch`）：844×390 開機→轉 390×844＝`GAME_HEIGHT` 1558、滿版；戰鬥中轉橫 3 秒 tick 只走 1（暫停）、轉回繼續。核心沒動。
+- 腳本（gitignored）：`screenshots/offline.mjs`（preview 4173：等 `serviceWorker.ready` 3 秒 → `ctx.setOffline(true)` → reload → 標題／`scene.start('RtBattle')`／`openCards()` 截圖、印 requestfailed）、`screenshots/rot.mjs`（`newContext({viewport:{844,390}, isMobile:true, hasTouch:true})`，`setViewportSize` 模擬轉向，比 `__rt.state().tick`）。
+
 ## 2026-11-01 04:11–04:55（台北）第 81 輪 — 「第一眼」第四十六段：序章背後的地圖、返回鍵補洞（D-214）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 80 輪最後的 e989f4c）。照 NEXT 第 3 項①②。
 

@@ -2,6 +2,17 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-216 2026-11-01 手機橫拿：轉回直式提示＋暫停；橫著開機照直式算高度
+- **問題**：原生 App 已鎖直式，但手機瀏覽器（與 iOS 的 PWA，不照 manifest 鎖方向）橫過來時畫面縮成中間一條、戰鬥照跑；而且 `GAME_HEIGHT` 開機時算一次，**橫著開機**會鎖在 1280，轉回直式後上下各留一大截黑邊（390×844 實測）。
+- **做法**：`src/game/orientation.ts`——`(orientation: landscape) and (pointer: coarse) and (max-height: 600px)` 成立時蓋一層 DOM 提示（金色直式手機＋旋轉箭頭、「請把手機轉回直式／遊戲已暫停」），`game.loop.sleep()`＋`setAudioPaused(true)`；轉回來 `wake()`、聲音照可見狀態恢復。`screen.ts` 的 `portraitHeight(w, h, touch)`：觸控裝置橫著開機時寬高對調算（轉回直式就是正確的 1558）。桌機（細指標）與平板橫放（高 > 600）不受影響，照舊左右留黑邊可玩。測試 `tests/orientation.test.ts`。
+- 替代方案：轉向時 `location.reload()` 重算高度 → 戰鬥中會丟掉沒存的進度，不採用；橫向也讓它玩（左右黑邊）→ 手機橫拿時按鈕極小、搖桿難按，不如提示轉回。
+
+## D-215 2026-11-01 補回 `scripts/playthrough.mjs`（包裝即時戰鬥的通關機器人）；離線已驗
+- **問題**：排程規格寫「通關機器人 `scripts/playthrough.mjs` 要能從新遊戲跑到結局」，D-097 刪掉舊回合制版本後改由 `tests/rt-campaign.test.ts` 取代，但檔名指令已不存在，Jacky 照規格跑會找不到。
+- **做法**：`scripts/playthrough.mjs`（`npm run playthrough`）只是包裝：跑 `tests/rt-campaign.test.ts`，印出長劍／長弓／法杖每趟紀錄與 ✔／✘，結束碼照結果。機器人本體仍在測試裡（CI 每次都跑）。
+- **離線驗證**（排程要求完全離線）：build 後 precache 18 項（JS、5 張 AI 圖、圖示、manifest），沒有任何外部網址（字型用系統字、音效程序生成）；Playwright 裝好 service worker → `setOffline(true)` → reload：標題、霧語森林、燼牌都正常、沒有失敗的請求。`@capacitor/app` 的動態 import 只在原生 App 跑（打包在 APK 內），換版不會在網頁中途載入舊 chunk。不用改。
+- 替代方案：把機器人搬回獨立腳本（重寫一份 Bot 迴圈）→ 和測試重複，不採用。
+
 ## D-214 2026-11-01 面板在第一幀前打開時先畫一次地圖；返回鍵補燼牌出口與回顧結局
 - **問題 1**：`RtBattleScene.update` 在 `this.menu` 開著時直接 return，序章（新存檔第一次進霧語森林）在第一幀前就打開 → 地圖、主角、HUD 從沒畫過，序章淡出、「霧語森林」字卡、選武器面板背後都是**地圖左上角的空樹林**（相機偏移還是 0,0），選完武器才跳到營火。
 - **做法**：`drawnOnce` 旗標——面板開著但這個場景還沒畫過，就先 `ambient.update(0)`＋`draw()` 一次（`draw` 只畫圖、沒有音效或狀態副作用）。之後所有「場景一開就有面板」的情況都受惠。
