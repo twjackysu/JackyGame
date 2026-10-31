@@ -232,6 +232,7 @@ export class RtBattleScene extends Phaser.Scene {
   private slowMs = 0;
   /** 鏡頭（世界座標，鏡頭中心） */
   private camX = 0;
+  private drawnOnce = false;
   private camY = 0;
   private dotNum = new Map<number, { t: Phaser.GameObjects.Text; at: number; sum: number; skill: string }>();
   private lastBowSfx = 0;
@@ -504,6 +505,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.camX = p0.x;
     this.camY = p0.y;
     this.updateCamera(1);
+    this.drawnOnce = false;
     // 地圖外（鏡頭往下多捲、讓主角不被按鈕擋住時看得到）用這張圖的密林／岩壁底色，看起來像牆延伸出去，不是黑洞（第 39 輪）
     this.cameras.main.setBackgroundColor(worldMap(this.stageId)?.palette.under ?? 0x0b1410);
     this.cameras.main.resetFX();
@@ -797,7 +799,16 @@ export class RtBattleScene extends Phaser.Scene {
       this.warpPose();
       return;
     }
-    if (this.ended || this.menu) return;
+    if (this.ended || this.menu) {
+      // 第 81 輪：序章／選武器在第一幀前就打開，以前地圖從沒畫過——序章淡出、幕名卡、選武器背後是地圖左上角的空樹林（沒有主角、營火），選完才跳過去
+      if (!this.drawnOnce) {
+        this.drawnOnce = true;
+        this.ambient?.update(0, this.ox, this.oy);
+        this.draw();
+      }
+      return;
+    }
+    this.drawnOnce = true;
     let dt = Math.min(delta, 250);
     if (this.slowMs > 0) {
       this.slowMs = Math.max(0, this.slowMs - dt);
