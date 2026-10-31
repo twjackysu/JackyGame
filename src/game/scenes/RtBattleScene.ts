@@ -100,7 +100,7 @@ const TOP_EXTRA = 150;
 const EDGE_SHADE = 90;
 /** 第一次提示／回營火說明的高度（第 38 輪，D-163）：以前寫死 700＝正好蓋在主角身上（主角在 VIEW_TOP＋可視高×0.42：844 高的手機約 718），
  *  黃框格擋提示一出來就把正在打你的狼蓋住。改排在主角下方 250，下排操作鍵上面。 */
-const TIP_Y = Math.round(Math.min(VIEW_TOP + (GAME_HEIGHT - VIEW_TOP) * FOCUS_Y + 250, GAME_HEIGHT - 470)); // 360×640（高 1280）不壓到 MP 球
+const TIP_Y = Math.round(Math.min(VIEW_TOP + (GAME_HEIGHT - VIEW_TOP) * FOCUS_Y + 250, GAME_HEIGHT - 545)); // 360×640（高 1280）不壓到 MP 球；第 72 輪 470→545：兩行提示（巡守、大招充滿）的下緣以前壓到大招鍵
 /** 立繪對應（D-067；沒有圖就退回程式圓形） */
 const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: number }> = {
   swordsman: { key: 'hero_lian', h: 3.6, flip: true },
