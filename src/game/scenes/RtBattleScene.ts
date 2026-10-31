@@ -1511,7 +1511,7 @@ export class RtBattleScene extends Phaser.Scene {
       sparks(this, this.sx(p.x), this.sy(p.y), 26, pick === 'take' ? 'ember' : 'spark', pick === 'take' ? 0xffd27a : 0xa8f0c8, 520);
       const extra = pick === 'take' ? `\n+${ch.take.crystal} 結晶` : `\n行商的裝備 −${c ? shopDiscountPct(c) : SPARE_DISCOUNT}%`;
       // 第 77 輪：以前 3 行 30px（高 147），360×640 主角下方差幾 px 放不下 → 照原位整塊蓋住主角；改成結語一行（最長 22 字 26px ≈ 572 寬）＋後果一行
-      bigText(this, GAME_WIDTH / 2, 560, `${ch[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 26, 2600);
+      bigText(this, GAME_WIDTH / 2, 560, `${ch[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 26, 2600, true); // 第 78 輪 patient：稀有裝備大字佔住主角下方時等它（以前照原位整塊蓋主角）
       this.tipCalmUntil = Math.max(this.tipCalmUntil, this.time.now + 2800); // 第 78 輪：結語還在時教學小字（例如「大招充滿了！」）先等，不疊在結語上
       if (this.gateWaits === 'choice') this.revealGate();
       const q = this.afterChoice;
@@ -1836,7 +1836,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.encLeave.push({ e, born: this.time.now, dir: e.npc === 'mule' || e.npc === 'hunter' || e.tx * UNIT + UNIT / 2 >= p.x ? 1 : -1 }); // 騾子頭朝右只往右走；少年獵人往東邊的營火走
       }
       // 第 78 輪（D-210）：以前 wrapTip 成 2 行＋後果＝3 行 28px，360×640 主角下方放不下 → 照原位蓋主角；改成結語一行（≤ 22 字 26px）＋後果一行
-      bigText(this, GAME_WIDTH / 2, 560, `${e[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 26, 3000);
+      bigText(this, GAME_WIDTH / 2, 560, `${e[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 26, 3000, true);
       this.tipCalmUntil = Math.max(this.tipCalmUntil, this.time.now + 3200);
     }, { kicker: '相遇', spareTag: '助' });
   }
