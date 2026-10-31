@@ -1018,8 +1018,9 @@ export class RtBattleScene extends Phaser.Scene {
           const f = list[0]!;
           const head = f.night ? '深夜的稀有！' : '稀有裝備！';
           const pair = list.slice(0, 2).map((x) => x.name).join('／'); // 名稱自己可能有「・霧語」，用斜線分開；兩件最長 27 字 → 縮字放得進 720
+          // 第 77 輪：patient——360×640 主角下方被地區說明佔住時，以前照原位 560 整塊蓋住主角（荊棘谷討伐後撿到稀有）；稍等一下沒關係
           // 第 76 輪：兩件以上改 ≤30px、兩件名稱排同一行（3 行 44px 在 360×640 主角下方放不下、整塊蓋住主角）
-          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [pair, ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night ? '#b8a8ff' : f.col, list.length > 1 ? Math.min(30, Math.floor(680 / pair.length)) : 44, 1200 + 400 * (Math.min(3, list.length) - 1));
+          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [pair, ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night ? '#b8a8ff' : f.col, list.length > 1 ? Math.min(30, Math.floor(680 / pair.length)) : 44, 1200 + 400 * (Math.min(3, list.length) - 1), true);
         };
         this.time.delayedCall(250, flush);
       }
@@ -1412,7 +1413,7 @@ export class RtBattleScene extends Phaser.Scene {
       // 番外（通關後的挑戰地圖）第一次討伐 → 選完抉擇播「番外　完」幕名卡，給最後一個 Boss 一個收尾（第 58 輪）
       if (r.first && worldMap(this.stageId)?.postGame && !this.bot) later(4600, () => this.postGameEnd());
       // 第 76 輪：4 行縮成 2 行（4 行在 360×640 上下都放不下、整塊蓋主角約 3 秒；2 行放得進主角下方）
-      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！${nx?.recLevel ? `（建議 Lv${nx.recLevel}）` : ''}\n走進巢穴北邊的光門・☰ 也能直接前往`, '#a8f08a', 30, 3000);
+      const opened = (): void => void bigText(this, GAME_WIDTH / 2, 600, `新地圖開放：${nx?.name}！${nx?.recLevel ? `（建議 Lv${nx.recLevel}）` : ''}\n走進巢穴北邊的光門・☰ 也能直接前往`, '#a8f08a', 30, 3000, true); // 第 77 輪：patient（主角下方被教學小字佔住時不照原位蓋主角）
       // 通關那張圖：新地圖開放（星隕高原）等通關演出看完才出，以前會在演出（depth 2000）底下播完、玩家看不到（第 39 輪）
       if (r.first && nx) {
         // 光門等抉擇／通關演出結束才亮（第 55 輪：以前討伐當下就出現，等面板的 4～5 秒內走進去會跳過抉擇或結局）
@@ -1506,8 +1507,8 @@ export class RtBattleScene extends Phaser.Scene {
       shockRing(this, this.sx(p.x), this.sy(p.y), pick === 'take' ? 0xffb35a : 0x7dd8b0, 260, 700, 8);
       sparks(this, this.sx(p.x), this.sy(p.y), 26, pick === 'take' ? 'ember' : 'spark', pick === 'take' ? 0xffd27a : 0xa8f0c8, 520);
       const extra = pick === 'take' ? `\n+${ch.take.crystal} 結晶` : `\n行商的裝備 −${c ? shopDiscountPct(c) : SPARE_DISCOUNT}%`;
-      // 第 77 輪：3 行 30px（高 147）在 360×640 主角下方差 2px 放不下 → 照原位整塊蓋住主角；27px（高 ≈133）就排得到主角下方
-      bigText(this, GAME_WIDTH / 2, 560, `${wrapTip(ch[pick].after)}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 27, 2600);
+      // 第 77 輪：以前 3 行 30px（高 147），360×640 主角下方差幾 px 放不下 → 照原位整塊蓋住主角；改成結語一行（最長 22 字 26px ≈ 572 寬）＋後果一行
+      bigText(this, GAME_WIDTH / 2, 560, `${ch[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 26, 2600);
       if (this.gateWaits === 'choice') this.revealGate();
       const q = this.afterChoice;
       this.afterChoice = [];
@@ -2504,7 +2505,8 @@ export class RtBattleScene extends Phaser.Scene {
       this.time.delayedCall(400, () => this.announce(text, color, waited + 400));
       return;
     }
-    this.holdTips(bigText(this, GAME_WIDTH / 2, 600, text, color, 34, 2600));
+    // 第 77 輪：patient——同一刻重講的教學小字佔住主角下方時，以前照原位 600 蓋住主角（360×640 荊棘谷「新地圖開放」）
+    this.holdTips(bigText(this, GAME_WIDTH / 2, 600, text, color, 34, 2600, true));
   }
 
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
