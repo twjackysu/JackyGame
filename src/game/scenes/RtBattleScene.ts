@@ -1506,7 +1506,8 @@ export class RtBattleScene extends Phaser.Scene {
       shockRing(this, this.sx(p.x), this.sy(p.y), pick === 'take' ? 0xffb35a : 0x7dd8b0, 260, 700, 8);
       sparks(this, this.sx(p.x), this.sy(p.y), 26, pick === 'take' ? 'ember' : 'spark', pick === 'take' ? 0xffd27a : 0xa8f0c8, 520);
       const extra = pick === 'take' ? `\n+${ch.take.crystal} 結晶` : `\n行商的裝備 −${c ? shopDiscountPct(c) : SPARE_DISCOUNT}%`;
-      bigText(this, GAME_WIDTH / 2, 560, `${wrapTip(ch[pick].after)}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 30, 2600);
+      // 第 77 輪：3 行 30px（高 147）在 360×640 主角下方差 2px 放不下 → 照原位整塊蓋住主角；27px（高 ≈133）就排得到主角下方
+      bigText(this, GAME_WIDTH / 2, 560, `${wrapTip(ch[pick].after)}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 27, 2600);
       if (this.gateWaits === 'choice') this.revealGate();
       const q = this.afterChoice;
       this.afterChoice = [];
@@ -2930,7 +2931,8 @@ export class RtBattleScene extends Phaser.Scene {
         }
         // 開場大字還在時先不說（第 45 輪：星隕高原開場 4 秒內就砸第一顆星，兩段大字疊在一起）；下一次噴發再說
         // 第 61 輪：上方的記憶卡還在也先不說（y 470 剛好貼在卡片下緣）
-        if (!this.ventHinted && near && !this.bot && !this.tipBusy && !this.topCard?.active) {
+        // 第 77 輪：Boss 剛倒下（討伐大字）／第二階段大字／抉擇面板期間也先不說——岩王巢穴旁就有熔岩口，討伐那一刻會冒出噴發說明
+        if (!this.ventHinted && near && !this.bot && !this.tipBusy && !this.topCard?.active && !this.menu?.active && this.time.now >= this.slainUntil && this.time.now >= this.phaseUntil && this.time.now >= this.chapterUntil) {
           this.ventHinted = true;
           if (this.starMap) bigText(this, GAME_WIDTH / 2, 470, '星星砸下來了！地上出現藍圈就快走開\n（閃避可以躲・把追你的怪引過來砸）', '#c8d8ff', 30, 1800);
           else bigText(this, GAME_WIDTH / 2, 470, '熔岩口噴發！地上發亮就快走開\n（閃避可以躲・把追你的怪引過來燒）', '#ffb36a', 30, 1800);
