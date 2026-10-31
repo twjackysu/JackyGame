@@ -5,6 +5,8 @@
 export type Band = readonly [top: number, bottom: number];
 
 const GAP = 16; // 第 42 輪：6 太擠（兩則提示字邊貼在一起像一整塊，描邊＋光暈還會互相碰到）
+/** 原位和主角重疊超過這麼多（px）才挪；只擦到頭頂的不動（第 75 輪） */
+const HERO_OVERLAP = 50;
 
 /**
  * 回傳新大字的中心 y；上下都放不下（往上會壓到左上角小地圖／懸賞板，ceil 以上）就回傳 null＝先排隊，
@@ -12,6 +14,21 @@ const GAP = 16; // 第 42 輪：6 太擠（兩則提示字邊貼在一起像一�
  */
 export function stackY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band): number | null {
   const half = h / 2;
+  // 第 75 輪：原位就壓在主角身上（重疊超過 HERO_OVERLAP）→ 先試主角下方（放得下才挪），再照常避開其他大字；
+  // 挪下去反而要排隊（下面被提示佔滿）就退回原位的排法——Boss 的「跑出圈外！」這種警告不能因為讓位而晚出。
+  // 360×640 主角約在 490～630，560 的相遇結語、升級字以前整塊蓋住主角；390×844 主角在 630～770，原位不受影響
+  if (avoid && Math.min(y + half, avoid[1]) - Math.max(y - half, avoid[0]) > HERO_OVERLAP) {
+    const below = avoid[1] + GAP + half;
+    if (below + half <= limit) {
+      const r = stackFrom(below, half, busy, limit, ceil, avoid);
+      if (r !== null) return r;
+    }
+  }
+  return stackFrom(y, half, busy, limit, ceil, avoid);
+}
+
+function stackFrom(y: number, half: number, busy: readonly Band[], limit: number, ceil: number, avoid?: Band): number | null {
+  if (!busy.length) return y;
   const hits = (cy: number): Band | undefined => busy.find(([t, b]) => cy - half < b + GAP && cy + half > t - GAP);
   let cy = y;
   for (let i = 0; i <= busy.length; i++) {

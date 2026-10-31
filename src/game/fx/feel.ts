@@ -193,7 +193,7 @@ export function bigText(
       if (!t.active || !scene.sys.isActive()) return;
       const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
       const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
-      const cy = busy.length ? stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene)) : y;
+      const cy = stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene));
       if (cy === null && tries++ < 24) {
         scene.tweens.addCounter({ from: 0, to: 1, duration: 250, onComplete: place });
         return;
