@@ -17,6 +17,7 @@
     "icons": "node scripts/gen-icons.mjs",
     "icons:native": "node scripts/gen-native-icons.mjs",
     "screenshot": "node scripts/screenshot.mjs",
+    "playthrough": "node scripts/playthrough.mjs",
     "sim:rt": "RT_REPORT=1 vitest run tests/rt-report.test.ts"
   },
   "dependencies": {

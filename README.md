@@ -129,6 +129,7 @@ npm run dev       # 開發伺服器
 npm test          # vitest
 npm run build     # typecheck + 產出 dist/
 npm run sim:rt    # 即時戰鬥無畫面模擬報表
+npm run playthrough  # 通關機器人：新存檔三把武器各打到結局
 ```
 技術：TypeScript、Vite、Phaser 3、vite-plugin-pwa、Capacitor 8。戰鬥核心是純 TypeScript（`src/core/battle/rt/`，30 ticks/秒、可重現），畫面層在 `src/game/`。
 
