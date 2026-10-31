@@ -1,5 +1,18 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-10-31 18:12–18:40（台北）第 76 輪 — 「第一眼」第四十一段：360×640 大字不蓋主角／不蓋教學（D-208）
+**背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 75 輪最後的 ece9159）。照 NEXT 第 3 項①②③。
+
+**做了什麼**
+- ① 360×640 新存檔長弓／法杖前 3 分鐘（每 15 秒＋撿裝備／升級時凍結）：法杖 31 秒撿裝備＋升級同一秒，**升級數值小字整塊壓在「撿到裝備了！」上**（數值是固定位置大字，不在避讓名單）→ `pinBanner`＋`pinY`；360×640 常常沒空位 → 正在顯示的教學小字讓位（`yieldTip`），1.7 秒後重講（驗證：約 2.75 秒後回到 TIP_Y）。
+- ② 荊棘谷盜賊「取」360×640：觸發了（要把附近交戰中的怪搬走）。結語＋「熟悉」＋寶箱＋戰利品四則錯開沒疊；但「毒沼！」原位 470 被前面的大字推到 546，**整塊蓋住主角** → `stackFrom` 被推到主角身上時改排主角下方／上方（不排隊）。
+- 「新地圖開放」4 行（D-207 已知限制）→ 2 行 30px，360×640 排到主角下方（截圖確認 y 696）；同時多件稀有 3～4 行 44px → 兩件一行 30px（最長名稱 10 字，兩件 21 字放得下）。
+- ③ README 賣點四張都是 390 寬，沒有 360×640 大字蓋主角，不重拍。
+
+**驗證**：build＋`npx vitest run --exclude 'tests/zz-*'`（343 項全過，`banner-stack` 加 `pinY`、被推到主角身上兩條）。核心沒動（只動畫面）。
+- 踩坑：在頁面裡 `import('/src/game/fx/feel.ts')` 拿到的不是場景用的那份（vite 加了 `?t=`），避讓失效——要先 fetch 場景原始碼找出正確網址（NEXT 現況有寫法）。
+- 盜賊相遇腳本（`STAGE=thornvale`、LS `jg_rt_thornvale {level:6}`、`jg_rt_mistwood {level:6,bossKills:1}`、`jg_chapter_thornvale`；第 4、5.5 秒各跑一次）：`(()=>{const s=sc(); const p=s.s.units[0]; window.AUTOPICK=()=>(clk('取')&&clk('就這麼做'))||clk('繼續'); s.commands=()=>[]; for(const u of s.s.units.slice(1)){ if(Math.hypot(u.x-p.x,u.y-p.y)<4000||Math.hypot(u.x-4250,u.y-4750)<2000){u.y-=30000; u.mode='idle';} } p.x=42*100+50; p.y=47*100+150; s.prev&&s.prev.clear&&s.prev.clear(); return [s.encOpen.map(e=>e.id), s.s.units.filter(u=>u.mode==='combat').length]})()`
+
 ## 2026-10-31 16:12–16:50（台北）第 75 輪 — 「第一眼」第四十段：原位大字不蓋主角（D-207）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 74 輪最後的 ed4523d）。照 NEXT 第 3 項①②③。
 
