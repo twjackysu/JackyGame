@@ -3511,6 +3511,14 @@ export class RtBattleScene extends Phaser.Scene {
         const fx = this.sx(p.x) + Math.cos(ang) * UNIT * 1.4 * this.k;
         const fy = this.sy(p.y) + Math.sin(ang) * UNIT * 1.4 * this.k;
         sparks(this, fx, fy, sk.role === 'ult' ? 30 : 16, 'ember', 0xff6a4a, 560);
+        if (hs.type === 'sector' && sk.role !== 'ult') {
+          // 第 72 輪：碎甲斬命中以前只有一道細金弧＋幾點火星 → 疊一道寬的赤紅月牙、前方裂甲衝擊環、短頓幀
+          this.slash(p.x, p.y, ang, hs.r * 1.12, hs.deg + 44, 0xff5a3a, 16);
+          shockRing(this, fx, fy, 0xff8a5a, UNIT * 1.6 * this.k, 300, 7);
+          sparks(this, fx, fy, 10, 'spark', 0xffd0b0, 420);
+          this.cameras.main.shake(110, 0.006);
+          this.hitStop = Math.max(this.hitStop, 60);
+        }
         if (sk.role === 'ult') {
           if (hs.type === 'line') this.moonArc(p.x, p.y, ang, hs.len, hs.width);
           this.cameras.main.shake(220, 0.01);
@@ -5283,7 +5291,22 @@ export class RtBattleScene extends Phaser.Scene {
           if (bowRing && h.shape.type === 'ring') {
             top.lineStyle(2, 0xbfe8ff, 0.55).strokeCircle(px, py, h.shape.rOut * this.k).strokeCircle(px, py, h.shape.rIn * this.k);
           }
-          g.fillStyle(elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, elem || bowRing || frostCharge ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.2);
+          // 第 72 輪：法杖的毒系直線（蝕魂彈）以前是一條平平的藍白長方形 → 淡毒綠＋中間一條會流動的亮綠細線
+          const venom = s.weapon === 'staff' && h.shape.type === 'line' && h.status?.id === 'poison' && sk?.role !== 'ult';
+          if (venom && h.shape.type === 'line') {
+            const vs = skillShape(this.s, x.action.id, h.shape);
+            const L = (vs.type === 'line' ? vs.len : h.shape.len) * this.k;
+            const dx = x.action.dirX / 1000;
+            const dy = x.action.dirY / 1000;
+            const t = Math.min(1, (s.tick - x.action.start) / Math.max(1, h.atTick));
+            top.lineStyle(6, 0x9aff6a, 0.22).lineBetween(px, py, px + dx * L * t, py + dy * L * t);
+            top.lineStyle(2, 0xe8ffd0, 0.85).lineBetween(px, py, px + dx * L * t, py + dy * L * t);
+            for (let q = 0; q < 5; q++) {
+              const f = ((q / 5 + s.tick * 0.07) % 1) * t;
+              top.fillStyle(0xc8ff9a, 0.8).fillCircle(px + dx * L * f - dy * Math.sin(q * 2.1) * 8, py + dy * L * f + dx * Math.sin(q * 2.1) * 8, 2.5);
+            }
+          }
+          g.fillStyle(venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.2);
           this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x, pos.y, x.action.dirX, x.action.dirY, g, true);
         }
       }
