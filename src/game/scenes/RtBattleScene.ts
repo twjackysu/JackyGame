@@ -1742,7 +1742,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 68 輪：星隕高原的記憶點就在守望者巢穴邊，記憶卡以前蓋在 Boss 登場名字上 → Boss 開打、抉擇面板、討伐大字期間先記著，打完再想起
     // （還沒開打但站在 Boss 發現範圍附近也先等：不然記憶卡和登場名字同一刻出現）
     // 第 79 輪：星隕高原選完「還」0.5 秒就跳記憶卡（＋相機閃紫光），結語只露 1 秒 → 結語期間、等「番外　完」卡時也先記著
-    if (this.menu || this.storySoon || this.time.now < this.tipCalmUntil || this.time.now < this.slainUntil || this.time.now < this.reviveUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
+    if (this.menu || this.topCard?.active || this.storySoon || this.time.now < this.tipCalmUntil || this.time.now < this.slainUntil || this.time.now < this.reviveUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
     const mem = this.memQ;
     this.memQ = null;
     const r = recall(loadMemories(), mem.id);
@@ -1784,8 +1784,10 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.menu || this.editing || this.ended) return;
     const p = playerOf(this.s);
     if (p.dead || enemiesOf(this.s).some((e) => e.mode === 'combat')) return;
+    // 第 79 輪：記憶卡和回禮卡同一個位置（星隕高原信差就在記憶點旁，兩張卡疊在一起）→ 上方卡片還在就先等
+    const cardUp = !!this.topCard?.active;
     const es = this.escort;
-    if (es?.e.escort && Math.hypot(es.e.escort.tx * UNIT + UNIT / 2 - es.x, es.e.escort.ty * UNIT + UNIT / 2 - es.y) < ESCORT_RADIUS * UNIT) {
+    if (!cardUp && es?.e.escort && Math.hypot(es.e.escort.tx * UNIT + UNIT / 2 - es.x, es.e.escort.ty * UNIT + UNIT / 2 - es.y) < ESCORT_RADIUS * UNIT) {
       // 送到了：當場道謝，人留在目的地
       this.escort = null;
       this.encAt.set(es.e.id, { x: es.x, y: es.y });
@@ -1794,7 +1796,7 @@ export class RtBattleScene extends Phaser.Scene {
       return;
     }
     const near = (e: Encounter): boolean => Math.hypot(e.tx * UNIT + UNIT / 2 - p.x, e.ty * UNIT + UNIT / 2 - p.y) < ENCOUNTER_RADIUS * UNIT;
-    const th = this.encThanks.find(near);
+    const th = cardUp ? undefined : this.encThanks.find(near);
     if (th) {
       this.encThanks = this.encThanks.filter((e) => e !== th);
       this.encDone.push(th);
