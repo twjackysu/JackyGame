@@ -2066,7 +2066,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 1, y: 235 + dy, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
     this.zoneTexts = [t];
     if (!z.hint) return;
-    const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5, align: 'center' }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    // 第 73 輪：危險說明（紅字）壓在噴發中的熔岩口／毒沼上很難讀 → 加半透明黑底（像目標字條），四張圖共用
+    const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5, align: 'center', ...(z.danger ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}) }).setOrigin(0.5).setDepth(66).setAlpha(0);
+    if (z.danger) h.setPadding(12, 4, 12, 4);
     // 第 61 輪：長的地區說明（「危險：狼群首領出沒・東邊有荊棘母樹・西側有巡守巡邏」）比兩側小地圖之間還寬，左端壓在小地圖上
     // → 在最靠近中間的「・」換行，兩行字從地區名稱下方往下排
     let hy = 284 + dy;
@@ -5423,7 +5425,12 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0x7ad8ff, 0.22 + 0.14 * Math.sin(now / 200)).fillCircle(cx, cy, 26);
       g.fillStyle(0xbff0ff, 0.95).fillTriangle(cx + c * 18 * z, cy + sn * 18 * z, cx - c * 10 * z - sn * 12 * z, cy - sn * 10 * z + c * 12 * z, cx - c * 10 * z + sn * 12 * z, cy - sn * 10 * z - c * 12 * z);
       if (!this.gateArrow) this.gateArrow = this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: '#bff0ff', stroke: '#06121e', strokeThickness: 4 }).setOrigin(0.5).setDepth(51);
-      this.gateArrow.setVisible(true).setText(`光門 ${Math.round(dm)}m`).setPosition(Math.max(46, Math.min(GAME_WIDTH - 46, cx - c * 46)), cy - sn * 40);
+      // 第 73 輪：360×640 上緣「光門 31m」和精英／Boss 的「25m」以前貼在一起、又貼著目標字條 → 碰到別的距離字就往下錯開，也不進字條
+      const glx = Math.max(46, Math.min(GAME_WIDTH - 46, cx - c * 46));
+      let gly = cy - sn * 40;
+      if (gb && glx > gb.left - 40 && glx < gb.right + 40 && gly - 11 < gb.bottom + 4) gly = gb.bottom + 15;
+      for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.x - glx) < 72 && Math.abs(q.y - gly) < 24); k++) gly += 26;
+      this.gateArrow.setVisible(true).setText(`光門 ${Math.round(dm)}m`).setPosition(glx, gly);
       gateShown = true;
       break;
     }
