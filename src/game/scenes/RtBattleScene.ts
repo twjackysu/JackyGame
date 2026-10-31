@@ -1830,7 +1830,8 @@ export class RtBattleScene extends Phaser.Scene {
         // 往離主角遠的那一側走開
         this.encLeave.push({ e, born: this.time.now, dir: e.npc === 'mule' || e.npc === 'hunter' || e.tx * UNIT + UNIT / 2 >= p.x ? 1 : -1 }); // 騾子頭朝右只往右走；少年獵人往東邊的營火走
       }
-      bigText(this, GAME_WIDTH / 2, 560, `${wrapTip(e[pick].after)}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 28, 3000);
+      // 第 78 輪（D-210）：以前 wrapTip 成 2 行＋後果＝3 行 28px，360×640 主角下方放不下 → 照原位蓋主角；改成結語一行（≤ 22 字 26px）＋後果一行
+      bigText(this, GAME_WIDTH / 2, 560, `${e[pick].after}${extra}`, pick === 'take' ? '#ffd27a' : '#a8f0c8', 26, 3000);
     }, { kicker: '相遇', spareTag: '助' });
   }
 
