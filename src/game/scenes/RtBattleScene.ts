@@ -2935,7 +2935,9 @@ export class RtBattleScene extends Phaser.Scene {
         // 開場大字還在時先不說（第 45 輪：星隕高原開場 4 秒內就砸第一顆星，兩段大字疊在一起）；下一次噴發再說
         // 第 61 輪：上方的記憶卡還在也先不說（y 470 剛好貼在卡片下緣）
         // 第 77 輪：Boss 剛倒下（討伐大字）／第二階段大字／抉擇面板期間也先不說——岩王巢穴旁就有熔岩口，討伐那一刻會冒出噴發說明
-        if (!this.ventHinted && near && !this.bot && !this.tipBusy && !this.topCard?.active && !this.menu?.active && this.time.now >= this.slainUntil && this.time.now >= this.phaseUntil && this.time.now >= this.chapterUntil) {
+        // 第 78 輪（D-210）：Boss 戰打到一半也先不說——傳到巢穴打岩王時，說明 2 行大字整塊壓在 Boss 和主角身上，接著就是討伐大字
+        const bossFight = enemiesOf(this.s).some((u) => u.tier === 'boss' && !u.dead && u.mode === 'combat');
+        if (!this.ventHinted && near && !bossFight && !this.bot && !this.tipBusy && !this.topCard?.active && !this.menu?.active && this.time.now >= this.slainUntil && this.time.now >= this.phaseUntil && this.time.now >= this.chapterUntil) {
           this.ventHinted = true;
           const vt = this.starMap
             ? bigText(this, GAME_WIDTH / 2, 470, '星星砸下來了！地上出現藍圈就快走開\n（閃避可以躲・把追你的怪引過來砸）', '#c8d8ff', 30, 1800)
