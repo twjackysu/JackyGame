@@ -13,6 +13,8 @@ const ROWS: Row[] = [
   { label: '音量', desc: '', value: (s) => `${Math.round(s.volume * 100)}%`, toggle: (s) => ({ volume: VOLS[(VOLS.indexOf(s.volume) + 1) % VOLS.length] ?? 1 }) },
   { label: '背景音樂', desc: '', value: (s) => (s.bgm ? '開' : '關'), toggle: (s) => ({ bgm: !s.bgm }) },
   { label: '音效', desc: '', value: (s) => (s.sfx ? '開' : '關'), toggle: (s) => ({ sfx: !s.sfx }) },
+  // 第 80 輪（D-212）：Android 受擊／格擋／Boss 倒下會震動，不喜歡可以關（iPhone 瀏覽器不支援震動）
+  { label: '震動', desc: '受擊、格擋、Boss 倒下（Android）', value: (s) => (s.vibrate ? '開' : '關'), toggle: (s) => ({ vibrate: !s.vibrate }) },
   { label: '省電畫質', desc: '粒子減量、關閉光暈濾鏡（手機發燙或卡頓時開）', value: (s) => (s.lowFx ? '開' : '關'), toggle: (s) => ({ lowFx: !s.lowFx }) },
 ];
 

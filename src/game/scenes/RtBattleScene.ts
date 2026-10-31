@@ -2297,7 +2297,7 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 手機震動（Android 支援；iOS Safari 沒有 vibrate 就略過）。Bot 示範不震（第 80 輪 D-212 抽出來） */
   private buzz(pattern: number | number[]): void {
-    if (this.bot) return;
+    if (this.bot || !getSettings().vibrate) return;
     try {
       navigator.vibrate?.(pattern);
     } catch {

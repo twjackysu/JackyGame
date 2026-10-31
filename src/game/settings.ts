@@ -13,12 +13,14 @@ export interface Settings {
   textSpeed: 'normal' | 'fast';
   /** 省電畫質：粒子減量、關閉逐物件光暈濾鏡（中低階手機） */
   lowFx: boolean;
+  /** 手機震動（受擊、格擋、Boss 倒下；Android 才有，第 80 輪 D-212） */
+  vibrate: boolean;
   /** 已顯示過「防守太難？可開自動時機」提示 */
   autoTipShown: boolean;
 }
 
 const KEY = 'jackygame.settings';
-const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, volume: 1, textSpeed: 'normal', autoTipShown: false, lowFx: false };
+const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, volume: 1, textSpeed: 'normal', autoTipShown: false, lowFx: false, vibrate: true };
 let cache: Settings | null = null;
 
 export function getSettings(): Settings {

@@ -15,4 +15,10 @@ describe('settings', () => {
     updateSettings({ volume: 0.5 });
     expect(getSettings().volume).toBe(0.5);
   });
+
+  it('震動預設開，可以關（第 80 輪，D-212）', () => {
+    expect(getSettings().vibrate).toBe(true);
+    updateSettings({ vibrate: false });
+    expect(getSettings().vibrate).toBe(false);
+  });
 });
