@@ -1,16 +1,18 @@
 # 進度紀錄（新的在最上面）
 
-## 2026-10-31 18:12–18:40（台北）第 76 輪 — 「第一眼」第四十一段：360×640 大字不蓋主角／不蓋教學（D-208）
+## 2026-10-31 18:12–18:40（台北）第 76 輪 — 「第一眼」第四十一段：360×640 大字不蓋主角／不蓋教學、討伐那一刻（D-208）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 75 輪最後的 ece9159）。照 NEXT 第 3 項①②③。
 
 **做了什麼**
 - ① 360×640 新存檔長弓／法杖前 3 分鐘（每 15 秒＋撿裝備／升級時凍結）：法杖 31 秒撿裝備＋升級同一秒，**升級數值小字整塊壓在「撿到裝備了！」上**（數值是固定位置大字，不在避讓名單）→ `pinBanner`＋`pinY`；360×640 常常沒空位 → 正在顯示的教學小字讓位（`yieldTip`），1.7 秒後重講（驗證：約 2.75 秒後回到 TIP_Y）。
 - ② 荊棘谷盜賊「取」360×640：觸發了（要把附近交戰中的怪搬走）。結語＋「熟悉」＋寶箱＋戰利品四則錯開沒疊；但「毒沼！」原位 470 被前面的大字推到 546，**整塊蓋住主角** → `stackFrom` 被推到主角身上時改排主角下方／上方（不排隊）。
 - 「新地圖開放」4 行（D-207 已知限制）→ 2 行 30px，360×640 排到主角下方（截圖確認 y 696）；同時多件稀有 3～4 行 44px → 兩件一行 30px（最長名稱 10 字，兩件 21 字放得下）。
+- 360×640 Lv10 打狼王討伐那一刻（傳到巢穴、Boss 血 6%、每 0.25 秒記錄大字位置）：「首次討伐！…」3 行在 540 整塊蓋主角（主角下方被「稀有裝備 ×2」佔住）→ 2 行＋`patient` 排隊（約 1.3 秒後排到主角下方），抉擇面板等它顯示 2.2 秒；「撿到裝備了！」在面板開的前一刻出現就被藏掉 → 面板開著不講＋讓位重講（面板關掉約 1 秒後重講，已確認）。稀有名稱有「・霧語」→ 改用「／」。
 - ③ README 賣點四張都是 390 寬，沒有 360×640 大字蓋主角，不重拍。
 
-**驗證**：build＋`npx vitest run --exclude 'tests/zz-*'`（343 項全過，`banner-stack` 加 `pinY`、被推到主角身上兩條）。核心沒動（只動畫面）。
+**驗證**：build＋`npx vitest run --exclude 'tests/zz-*'`（344 項全過，`banner-stack` 加 `pinY`、被推到主角身上、`patient` 三條；通關機器人三把武器照樣通關）。核心沒動（只動畫面）。
 - 踩坑：在頁面裡 `import('/src/game/fx/feel.ts')` 拿到的不是場景用的那份（vite 加了 `?t=`），避讓失效——要先 fetch 場景原始碼找出正確網址（NEXT 現況有寫法）。
+- 討伐那一刻腳本（LS `jg_rt_mistwood {level:10,bossKills:0}`＋`jg_chapter_mistwood`；`SHOTS=[[3,k1],[4,k2]]`）：k1＝`(()=>{const s=sc(); const B=s.s.units.find(u=>u.tier==='boss'&&!u.dead); const p=s.s.units[0]; p.x=B.x; p.y=B.y+420; B.hp=B.maxHp*0.06; s.s.potions=20; s.pending.push({type:'target',id:B.id}); return B.defId})()`；k2＝`(()=>{const s=sc(); const B=s.s.units.find(u=>u.tier==='boss'); const seen=[]; for(let i=0;i<300&&!B.dead;i++){ff(0.1); s.s.units[0].hp=s.s.units[0].maxHp; if(B.mode!=='combat') s.pending.push({type:'target',id:B.id});} const out=[]; for(let i=0;i<60;i++){ff(0.25); const t=(sc().menu?"MENU ":"")+s.children.list.filter(o=>o.type==="Text"&&o.depth===950&&o.alpha>0.05).map(o=>o.text.slice(0,7)+'@'+Math.round(o.y)).join(','); out.push((i*0.25).toFixed(2)+' '+t); if(i===40&&sc().menu){AUTOPICK()} } s.flashUntil.clear(); s.cameras.main.flashEffect.reset(); s.tweens.pauseAll(); s.time.paused=true; return [B.dead, Math.round(s.sy(s.s.units[0].y)), out]})()`
 - 盜賊相遇腳本（`STAGE=thornvale`、LS `jg_rt_thornvale {level:6}`、`jg_rt_mistwood {level:6,bossKills:1}`、`jg_chapter_thornvale`；第 4、5.5 秒各跑一次）：`(()=>{const s=sc(); const p=s.s.units[0]; window.AUTOPICK=()=>(clk('取')&&clk('就這麼做'))||clk('繼續'); s.commands=()=>[]; for(const u of s.s.units.slice(1)){ if(Math.hypot(u.x-p.x,u.y-p.y)<4000||Math.hypot(u.x-4250,u.y-4750)<2000){u.y-=30000; u.mode='idle';} } p.x=42*100+50; p.y=47*100+150; s.prev&&s.prev.clear&&s.prev.clear(); return [s.encOpen.map(e=>e.id), s.s.units.filter(u=>u.mode==='combat').length]})()`
 
 ## 2026-10-31 16:12–16:50（台北）第 75 輪 — 「第一眼」第四十段：原位大字不蓋主角（D-207）
