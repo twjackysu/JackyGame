@@ -10,7 +10,7 @@ const GAP = 16; // 第 42 輪：6 太擠（兩則提示字邊貼在一起像一�
  * 回傳新大字的中心 y；上下都放不下（往上會壓到左上角小地圖／懸賞板，ceil 以上）就回傳 null＝先排隊，
  * 等前面的大字淡出再出（第 39 輪：Boss 倒下、抉擇、稀有裝備、新地圖開放同時出，以前會被推到 HUD 上）。
  */
-export function stackY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120): number | null {
+export function stackY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band): number | null {
   const half = h / 2;
   const hits = (cy: number): Band | undefined => busy.find(([t, b]) => cy - half < b + GAP && cy + half > t - GAP);
   let cy = y;
@@ -23,6 +23,8 @@ export function stackY(y: number, h: number, busy: readonly Band[], limit: numbe
   // 下面放不下：排到全部的上方；上方也不夠（會超過 ceil）就排隊
   const top = Math.min(...busy.map(([t]) => t));
   const up = top - GAP - half;
-  if (up - half >= ceil && !hits(up)) return up;
+  // 第 74 輪：往上排會蓋住主角（avoid＝主角在畫面上的範圍）也排隊——360×640 打 Boss 時兩則提示疊起來正好壓在主角身上
+  const onHero = avoid !== undefined && up - half < avoid[1] && up + half > avoid[0];
+  if (up - half >= ceil && !hits(up) && !onHero) return up;
   return null;
 }

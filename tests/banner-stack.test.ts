@@ -29,4 +29,11 @@ describe('置中大字不重疊（D-162）', () => {
     expect(cy).not.toBeNull();
     expect(cy! - 45).toBeGreaterThanOrEqual(430);
   });
+  it('往上排會蓋住主角（avoid）就排隊；原位不受影響（第 74 輪）', () => {
+    // 360×640：提示在 735，主角在 601 附近
+    const busy: [number, number][] = [[680, 790]];
+    expect(stackY(735, 110, busy, 794, 430)).not.toBeNull();
+    expect(stackY(735, 110, busy, 794, 430, [490, 630])).toBeNull();
+    expect(stackY(735, 110, [], 794, 430, [490, 630])).toBe(735);
+  });
 });

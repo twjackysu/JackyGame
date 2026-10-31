@@ -54,7 +54,7 @@ import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rt
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bigText, floatNumber, reserveBanner, shockRing, sparks } from '../fx/feel';
+import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bigText, floatNumber, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
@@ -2161,6 +2161,8 @@ export class RtBattleScene extends Phaser.Scene {
     else topY = Math.max(-m - TOP_EXTRA, Math.min(a.h + m + viewH * 0.3 - viewH, topY));
     this.ox = -left * this.k;
     this.oy = VIEW_TOP - topY * this.k;
+    const hy = this.sy(p.y);
+    setBannerAvoid(this, [hy - 110, hy + 30]);
   }
 
   /** 離開森林前先把紀錄寫好 */

@@ -142,6 +142,12 @@ export function shockRing(scene: Phaser.Scene, x: number, y: number, color: numb
 const BANNER_CEIL = 430;
 /** 置中大字的深度（抉擇面板開著時會把這一層藏起來，第 43 輪） */
 export const BANNER_DEPTH = 950;
+const AVOID = new WeakMap<Phaser.Scene, Band>();
+/** 主角在畫面上的上下範圍（場景每幀更新）；往上疊的置中大字不蓋在這裡，改排隊（第 74 輪） */
+export function setBannerAvoid(scene: Phaser.Scene, band: Band | null): void {
+  if (band) AVOID.set(scene, band);
+  else AVOID.delete(scene);
+}
 const BANNERS = new WeakMap<Phaser.Scene, { t: { active: boolean; y: number }; h: number; fading: boolean }[]>();
 
 /**
@@ -187,7 +193,7 @@ export function bigText(
       if (!t.active || !scene.sys.isActive()) return;
       const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
       const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
-      const cy = busy.length ? stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL) : y;
+      const cy = busy.length ? stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene)) : y;
       if (cy === null && tries++ < 24) {
         scene.tweens.addCounter({ from: 0, to: 1, duration: 250, onComplete: place });
         return;
