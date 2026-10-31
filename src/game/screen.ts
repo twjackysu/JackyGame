@@ -6,14 +6,29 @@
 export const BASE_HEIGHT = 1280;
 const MAX_HEIGHT = 1600;
 
+/**
+ * 依容器大小算 720 寬座標下的畫面高度（1280～1600）。
+ * 觸控裝置橫著開機（瀏覽器分頁、手機剛好橫拿）時當作直式算（D-216）：遊戲只支援直式，
+ * 轉回直式後才不會被 1280 高鎖住、上下留一大截黑邊；橫著的時候 orientation.ts 會蓋「請轉成直式」。
+ */
+export function portraitHeight(w: number, hh: number, touch: boolean): number {
+  if (touch && w > hh) [w, hh] = [hh, w];
+  const h = Math.round((720 * hh) / w / 2) * 2;
+  return Math.max(BASE_HEIGHT, Math.min(MAX_HEIGHT, h));
+}
+
+/** 手機／平板（粗指標）才算觸控；桌機橫向視窗照舊 1280 */
+export function isTouchScreen(): boolean {
+  return typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+}
+
 function computeHeight(): number {
   if (typeof window === 'undefined' || !window.innerWidth || !window.innerHeight) return BASE_HEIGHT;
   // 用遊戲容器（#game，已扣掉瀏海／底部橫條的安全區）的大小；拿不到才用整個視窗
   const el = typeof document !== 'undefined' ? document.getElementById('game') : null;
   const w = el?.clientWidth || window.innerWidth;
   const hh = el?.clientHeight || window.innerHeight;
-  const h = Math.round((720 * hh) / w / 2) * 2;
-  return Math.max(BASE_HEIGHT, Math.min(MAX_HEIGHT, h));
+  return portraitHeight(w, hh, isTouchScreen());
 }
 
 /** 這次開機的畫面高度（720 寬的座標） */
