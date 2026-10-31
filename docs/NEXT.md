@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 79 輪（11/1 00:45）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 80 輪（11/1 03:00）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`、`bossLv`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,8 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 79 輪）
+## 現況（第 80 輪）
+- **D-212／213（原生 App）**：`src/game/backButton.ts`（`setBackHandler(scene, fn)`；**新面板的關閉鈕字要是 `BACK_LABELS` 之一**＝返回／關閉／離開／完成／繼續，有後果的按鈕不要用這幾個字）；切背景 `setAudioPaused`、`APP_HIDDEN` 存檔；震動一律走場景 `buzz(pattern)`（看 `Settings.vibrate`、Bot 不震）；原生圖示 `npm run icons:native`（改 icon.svg 後和 `npm run icons` 一起跑）。測返回鍵用 `history.back()`（vite 改過檔後頁面 import 拿到另一份模組）。
 - **D-211**：回禮卡／記憶卡顯示時 `reserveBanner` 佔位（之後的置中大字排到卡片下面）；記憶卡等面板／`storySoon`／`tipCalmUntil`／`topCard`；回禮卡也等記憶卡。**結語／尾聲每行 ≤ 19 字、抉擇選項說明每行 ≤ 22 字**（測試會擋）；只選過一部分抉擇時結局換不點名的句子。截圖：`shot-kill.sh` 可帶 `CH`、`shot-enc.sh` 可帶 `ENC`（第 79 輪 PROGRESS）。
 - **D-210**：相遇結語也是一行（**新相遇 `after` ≤ 22 字**，測試會擋）＋後果一行 26px、`patient`；抉擇結語也 `patient`。第一次噴發說明在 Boss 戰中／結語期間／`storySoon`（等通關演出或番外卡）不說；`tipOnce` 在 `slainUntil`／結語／`storySoon` 期間不講。截圖：`scripts/shot-kill.sh`、`scripts/shot-enc.sh`（第 78 輪 PROGRESS）。
 - **D-209**：抉擇結語＝`after` 一行＋後果一行 26px（**新抉擇 `after` ≤ 22 字**）；稀有大字／新地圖開放／`announce` 都是 `patient`；第一次噴發說明避開討伐／第二階段／幕名卡／面板，說了就 `holdTips`。凍結截圖要 `editing=true`（不然 Bot 在截圖前走動）。
@@ -113,7 +114,7 @@
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-3. **（下一輪建議主工作）「第一眼」第四十五段＋11/4 打磨期準備**：①390×844 走一次今天修的三件事（回禮卡＋寶箱、星隕高原「還」→番外完→記憶卡、結局頁「都還在」）確認長螢幕也乾淨；②360×640 選「取」的結局頁（三個都取／混合）每行不孤字（測試已擋 19 字，截圖確認實際換行）；③通關後「回顧結局」（標題）在 360×640 帶星隕高原尾聲；④**11/4 起功能凍結**：跑 `bash scripts/stats.sh`，把 commit 數、輪數、程式行數、測試數寫進 README（README 不放開發日誌，只放一行統計，D-097）。
+3. **（下一輪建議主工作）「第一眼」第四十六段＋11/4 打磨期準備**：第 79／80 輪的結局／回禮卡／番外都看過了，沒問題。①**還沒看過的原生／長螢幕畫面**：390×844 與 360×640 的序章第一頁到選武器（新存檔，`shot-newsave` 不設 `jg_prologue_seen`）、暫停選單各按鈕的返回鍵行為（記憶本、操作設定、技能點、燼牌大廳：`history.back()` 後 `sc().menu` 應該回到暫停選單或關掉）；②燼牌對局中（下注）按返回鍵＝不動作，確認畫面上沒有誤觸；③**11/4 起功能凍結**：跑 `bash scripts/stats.sh`，把 commit 數、輪數、程式行數、測試數寫進 README（README 不放開發日誌，只放一行統計，D-097）；④（e989f4c 的 Android APK 已綠：外掛、震動權限、新圖示都編得過。）
    - 第 79 輪已做：360×640 四張圖選「還」、七個回禮卡、星隕高原／霧語森林抉擇面板；修了記憶卡搶在結語／回禮卡上、回禮卡被寶箱大字蓋、結局孤字、只選部分抉擇的結局句、星隕高原選項說明斷行（D-211）；`scripts/stats.sh`；FOR_JACKY「回國先看」；PROGRESS 第 66～71 輪合併。
    - 第 78 輪已做：相遇結語一行＋四句改短、360×640 四張圖選「取」討伐整段（結語 patient、Boss 戰中不講噴發說明、劇情前後不講教學）、390×844 長弓狼后討伐（D-210）；新存檔長劍 360×640 前 3 分鐘教學照常出現（格擋 15 秒、營火 36 秒、大招 67.5 秒、撿裝備 105.5 秒）。
    - 第 77 輪已做：荊棘谷／燼紅裂谷／星隕高原 360×640 討伐那一刻、深夜星隕高原前 2 分鐘、390×844 新存檔長劍前 3 分鐘＋Lv4 討伐（D-209）。

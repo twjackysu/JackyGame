@@ -114,7 +114,7 @@
 ## 怎麼玩
 - **PWA（任何手機瀏覽器）**：https://twjackysu.github.io/JackyGame/ 
   - iOS Safari：分享 → 加入主畫面；Android Chrome：選單 → 安裝應用程式。之後可離線遊玩。
-- **Android APK**：[Releases → latest](https://github.com/twjackysu/JackyGame/releases/tag/latest) 下載 `jackygame-debug.apk`，允許「安裝未知來源應用程式」後安裝。
+- **Android APK**：[Releases → latest](https://github.com/twjackysu/JackyGame/releases/tag/latest) 下載 `jackygame-debug.apk`，允許「安裝未知來源應用程式」後安裝。返回鍵＝關面板／暫停（標題按兩次離開），受擊、格擋、Boss 倒下會震動（設定可關）。
 - **iOS（原生，需 Mac）**：
   1. 安裝 Xcode、Node 22+。
   2. `npm ci && npm run build && npx cap sync ios && npx cap open ios`

@@ -1,5 +1,19 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-01 02:11–03:00（台北）第 80 輪 — 「第一眼」第四十五段＋原生 App：返回鍵、震動、圖示（D-212／213）
+**背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 79 輪最後的 d2889fe）。照 NEXT 第 3 項①②③，再補原生 App 從沒驗過的地方。
+
+**做了什麼**
+- ① 390×844：荊棘谷盜賊回禮卡＋隱藏寶箱（寶箱大字排在卡片下面，OK；傳送進毒沼旁同時冒出「毒沼！」是傳送假象）；星隕高原「還」→ 結語 → 「番外　完」（22.7 秒）乾淨；記憶卡沒出現是因為主角站在 Boss 巢穴，離最近記憶點 1786（要走過去才想起，不是 bug）。結局頁「都還在」390×844 OK。
+- ② 360×640 結局頁：全取（法杖）、混合（長弓、星隕高原還）每行都沒有孤字；③ 回顧結局帶星隕高原尾聲（多一顆星／少一顆星）在 360×640 排得下。**沒有要修的。**
+- **Android 返回鍵（D-212）**：以前 Capacitor 沒裝 `@capacitor/app`，按返回鍵＝直接關掉 App。加 `@capacitor/app@8.1.2`＋`src/game/backButton.ts`：遊戲中關掉最上層面板（點「返回／關閉／離開／完成／繼續」）或開暫停選單；抉擇（取／還）、燼牌認輸不會被按到；標題按兩次才離開。網頁用 `history.pushState` 擋一層，返回手勢一樣處理。
+- **切到背景（D-212）**：App 縮到背景時 AudioContext 暫停（以前背景音樂繼續播），回來接著播；App 背景時另外存檔（`appStateChange`）。
+- **震動（D-212）**：Manifest 少了 `VIBRATE` 權限，App 裡受擊震動一直沒作用 → 加上；格擋成功輕震、Boss 倒下震兩下；設定加「震動」開關（360×640／390×844 截圖確認排得下）。
+- **App 圖示／啟動畫面（D-213）**：APK 和 iOS 一直是 Capacitor 預設藍色 X＋白底 → `scripts/gen-native-icons.mjs` 從 icon.svg 產生自適應圖示（劍在 66dp 安全區）、圓角／圓形舊版圖示、深色啟動畫面、iOS 1024 圖示與 2732 啟動圖；Android 12+ 啟動底色改深色。
+
+**驗證**：每次提交前 build＋`npx vitest run --exclude 'tests/zz-*'`（350 → **355 項**全過；新增 `back-button.test.ts` 4 項、settings 1 項）。Playwright：`history.back()` 觸發 popstate → 開暫停／關暫停／關行商／關行囊都對；標題 `pressBack()` 兩次＝handled→exit。CI Android APK 加了外掛後 build 成功（a5bad51）。原生返回鍵／震動／圖示要真機看（FOR_JACKY 第 3 段）。
+- 截圖腳本（gitignored）：`screenshots/fin.mjs`（標題直接播通關演出逐頁截：`LS='{…jg_choices…}' N=頁數 node screenshots/fin.mjs 名稱 W H`；快轉時藏相機才不會慢到逾時）、`screenshots/back.mjs`（返回鍵）、`screenshots/set.mjs`（設定面板）。
+
 ## 2026-11-01 00:12–00:45（台北）第 79 輪 — 「第一眼」第四十四段：選「還」的四張圖、回禮卡、結局句子（D-211）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 78 輪最後的 87d67d9）。照 NEXT 第 3 項①②。
 

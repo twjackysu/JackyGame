@@ -2,6 +2,22 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-213 2026-11-01 原生 App 圖示與啟動畫面
+- **問題**：Android APK 的桌面圖示和啟動畫面、iOS 的 AppIcon／Splash 從第 1 輪起一直是 Capacitor 預設（藍色 X＋白底格線），PWA 圖示才是遊戲的劍與星。Jacky 裝 APK 第一眼看到的就是預設圖示＋白底一閃。
+- **做法**：`scripts/gen-native-icons.mjs`（`npm run icons:native`）從 `public/icons/icon.svg` 拆出背景（漸層方塊）與前景（光暈、星、劍、火星）：Android 自適應圖示＝`mipmap-*/ic_launcher_background.png`＋`ic_launcher_foreground.png`（劍縮到 66dp 安全區內）、舊版 `ic_launcher`（圓角）／`ic_launcher_round`（圓）；啟動畫面＝深色底 `#0b0f1e`＋短邊 30% 的圓角圖示（Android 11 張、iOS 3 張 2732）；iOS AppIcon 1024 不透明。`styles.xml` 加 `windowSplashScreenBackground`（Android 12+ 系統啟動畫面）。
+- **改 icon.svg 後**：`npm run icons`（PWA）＋`npm run icons:native`（原生）都要跑。背景 rect 改寫法腳本會報錯提醒。
+- 替代方案：用 `@capacitor/assets` 產生（要再多一個套件、它的預設排版是白底）→ 不採用。
+
+## D-212 2026-11-01 Android 返回鍵、切到背景暫停聲音、震動權限（加 @capacitor/app 8.1.2）
+- **問題**：Capacitor 核心沒有處理返回鍵，沒裝 `@capacitor/app` 時按返回鍵（或返回手勢）＝直接關掉 App；打到一半手滑就跳出去。App 縮到背景時 WebAudio 也不會停，背景音樂繼續播。
+- **返回鍵**（`src/game/backButton.ts`）：場景用 `setBackHandler(scene, fn)` 登記（場景關掉自動清）。遊戲中：調整按鈕位置時＝完成；面板開著＝點面板上看得到的「返回／關閉／離開／完成／繼續」（`BACK_LABELS`，依序、上層先）；抉擇／相遇（取／還）、燼牌「認輸離開」、序章／結局**不會被返回鍵按到**；沒有面板＝開暫停選單。標題：設定開著＝關閉；否則提示「再按一次返回鍵離開遊戲」，2 秒內再按才 `App.exitApp()`。
+- **網頁（PWA／瀏覽器）**：`history.pushState` 多推一層，返回手勢觸發 `popstate` → 一樣交給遊戲，處理掉就再推一層。
+- **切到背景**：`visibilitychange`＋App `appStateChange` → `setAudioPaused`（`ctx.suspend()`／回來 `resume()`＋重新掛手勢解鎖）；App 背景時發 `APP_HIDDEN` 事件，RtBattle 存檔（WebView 不一定發 visibilitychange）。
+- **震動**：Android WebView 的 `navigator.vibrate` 要 `android.permission.VIBRATE`（以前 Manifest 沒寫，受擊震動在 App 裡沒作用）→ 加上（一般權限，不跳詢問）。場景 `buzz(pattern)`：受擊 25／60ms（原本就有）、格擋成功 18ms、Boss 倒下 50-40-90ms；Bot 示範不震；設定加「震動」開關（預設開，`Settings.vibrate`）。
+- **新面板**：返回鍵要能關，就讓關閉按鈕的字是 `BACK_LABELS` 其中之一（完全相同）；有後果的按鈕不要用這幾個字。
+- 截圖測試小提醒：vite 改過 `backButton.ts` 後，頁面裡 `import('/src/game/backButton.ts')` 拿到另一份（`pressBack()` 回 exit）；改用 `history.back()` 走 popstate 測。
+- 替代方案：自己寫 MainActivity `onBackPressed`（要改 Java、iOS 用不到）、返回鍵一律開暫停選單（面板開著時會疊兩層）→ 不採用。
+
 ## D-211 2026-11-01 上方卡片（回禮卡／記憶卡）佔位、記憶卡等劇情、結局句子長度（360×640）
 - **回禮卡／記憶卡範圍 `reserveBanner`**（卡片顯示時間＋0.5 秒）：荊棘谷盜賊回禮卡旁 2 格就是隱藏寶箱，「找到隱藏寶箱！」「藥水 ×5…」直接蓋在卡上 → 之後出的置中大字排到卡片下面。
 - **記憶卡等**：抉擇面板、`storySoon`（等通關演出／「番外　完」卡）、結語期間（`tipCalmUntil`）、上方卡片還在（`topCard`）時先記著。以前星隕高原選「還」0.5 秒就跳記憶卡（＋相機閃紫光），結語只露 1 秒；信差回禮卡和「前世的記憶」同一刻疊在同一個位置。**回禮卡也等記憶卡收掉**（`encounterCheck` 的回禮／護送到達；相遇面板不受影響）。
