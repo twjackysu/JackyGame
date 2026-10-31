@@ -11,6 +11,7 @@ import { finaleSeen, loadFinaleStats, playFinale } from '../ui/finale';
 import { mulberry32, randRange } from '../../core/rng';
 import { t } from '../../i18n';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
+import { clickBackButton, setBackHandler } from '../backButton';
 
 const TITLE_FONT =
   '"Noto Serif TC", "Noto Serif CJK TC", "Source Han Serif TC", "PingFang TC", "Songti TC", "Microsoft JhengHei", serif';
@@ -182,6 +183,22 @@ export class TitleScene extends Phaser.Scene {
       this.tweens.add({ targets: badge, alpha: 0.9, delay: skipIntro ? 0 : 1300, duration: 900 });
       this.tweens.add({ targets: badge, scale: 1.04, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
+
+    // 第 80 輪（D-212）：返回鍵——面板開著就關面板；標題按一次提示、2 秒內再按才離開
+    let armedAt = -1e9;
+    let toast: Phaser.GameObjects.Text | null = null;
+    setBackHandler(this, () => {
+      if (this.busy) {
+        clickBackButton(this.children.list);
+        return 'handled';
+      }
+      if (this.time.now - armedAt < 2000) return 'exit';
+      armedAt = this.time.now;
+      toast?.destroy();
+      toast = this.add.text(cx, GAME_HEIGHT - 160, '再按一次返回鍵離開遊戲', { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.7)' }).setPadding(20, 10, 20, 10).setOrigin(0.5).setDepth(3000);
+      this.tweens.add({ targets: toast, alpha: 0, delay: 1500, duration: 400, onComplete: (_tw, t) => (t[0] as Phaser.GameObjects.Text)?.destroy() });
+      return 'handled';
+    });
 
     // Pulsing tap prompt.
     this.busy = false;

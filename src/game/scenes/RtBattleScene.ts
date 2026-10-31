@@ -67,6 +67,7 @@ import { getSettings, updateSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip, zoneHintBreak } from '../ui/tipText';
+import { clickBackButton, setBackHandler } from '../backButton';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
@@ -573,6 +574,14 @@ export class RtBattleScene extends Phaser.Scene {
     this.makeMinimap();
     this.makeFireBtn();
     this.menu = null;
+    // 第 80 輪（D-212）：Android 返回鍵／返回手勢＝關掉最上層面板，沒有面板就開暫停選單（以前直接關掉 App）
+    setBackHandler(this, () => {
+      if (this.editing) this.endEdit();
+      else if (this.warpAt >= 0) { /* 光門過場中 */ }
+      else if (this.menu) clickBackButton([this.menu]);
+      else if (!this.ended) { SFX.uiTap(); this.toggleMenu(); }
+      return 'handled';
+    });
     // 右上角選單（手機上不用改網址就能換關、重來、看 Bot 示範）
     const mb = this.add.text(GAME_WIDTH - 44, 40, '☰', { fontFamily: UI_FONT, fontSize: '40px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49).setInteractive({ useHandCursor: true });
     mb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
