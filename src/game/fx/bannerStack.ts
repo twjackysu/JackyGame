@@ -12,7 +12,7 @@ const HERO_OVERLAP = 50;
  * 回傳新大字的中心 y；上下都放不下（往上會壓到左上角小地圖／懸賞板，ceil 以上）就回傳 null＝先排隊，
  * 等前面的大字淡出再出（第 39 輪：Boss 倒下、抉擇、稀有裝備、新地圖開放同時出，以前會被推到 HUD 上）。
  */
-export function stackY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band): number | null {
+export function stackY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band, patient = false): number | null {
   const half = h / 2;
   // 第 75 輪：原位就壓在主角身上（重疊超過 HERO_OVERLAP）→ 先試主角下方（放得下才挪），再照常避開其他大字；
   // 挪下去反而要排隊（下面被提示佔滿）就退回原位的排法——Boss 的「跑出圈外！」這種警告不能因為讓位而晚出。
@@ -23,6 +23,8 @@ export function stackY(y: number, h: number, busy: readonly Band[], limit: numbe
       const r = stackFrom(below, half, busy, limit, ceil, avoid);
       if (r !== null) return r;
     }
+    // 第 76 輪：不急的說明（討伐後「首次討伐！…」）寧可等一下也不蓋主角：主角下方暫時被佔住就排隊
+    if (patient) return null;
   }
   return stackFrom(y, half, busy, limit, ceil, avoid);
 }

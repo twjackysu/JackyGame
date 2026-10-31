@@ -272,6 +272,10 @@ export class RtBattleScene extends Phaser.Scene {
   private holdRun = 0;
   /** 誰最後把 tipBusy 設成 true（第 61 輪）：舊的放行計時／destroy 回呼只有在還是自己的時候才放行，不會把開場大字的「忙」解掉 */
   private busyRun = 0;
+  /** 討伐後「首次討伐！…」那則字（抉擇面板等它出現一陣子再開，第 76 輪） */
+  private slainSub: Phaser.GameObjects.Text | null = null;
+  private slainSubAt = 0;
+  private choiceWait = 0;
   /** 正在顯示的教學小字（第 76 輪：升級數值要用那個位置時讓它晚一點重講） */
   private liveTip: { t: Phaser.GameObjects.Text; key: string; text: string; color: string } | null = null;
   /** 討伐大字（「暴怒的○○倒下了！…」）還在畫面上的時間，解鎖公告等它淡出 */
@@ -1013,8 +1017,9 @@ export class RtBattleScene extends Phaser.Scene {
           this.rareAt = this.time.now;
           const f = list[0]!;
           const head = f.night ? '深夜的稀有！' : '稀有裝備！';
-          // 第 76 輪：兩件以上改 30px、兩件名稱排同一行（3 行 44px 在 360×640 主角下方放不下、整塊蓋住主角）
-          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [list.slice(0, 2).map((x) => x.name).join('・'), ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night ? '#b8a8ff' : f.col, list.length > 1 ? 30 : 44, 1200 + 400 * (Math.min(3, list.length) - 1));
+          const pair = list.slice(0, 2).map((x) => x.name).join('／'); // 名稱自己可能有「・霧語」，用斜線分開；兩件最長 27 字 → 縮字放得進 720
+          // 第 76 輪：兩件以上改 ≤30px、兩件名稱排同一行（3 行 44px 在 360×640 主角下方放不下、整塊蓋住主角）
+          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [pair, ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night ? '#b8a8ff' : f.col, list.length > 1 ? Math.min(30, Math.floor(680 / pair.length)) : 44, 1200 + 400 * (Math.min(3, list.length) - 1));
         };
         this.time.delayedCall(250, flush);
       }
@@ -1425,9 +1430,14 @@ export class RtBattleScene extends Phaser.Scene {
     this.time.delayedCall(300, () => bigText(this, GAME_WIDTH / 2, 440, `${name} 討伐！`, '#ffd27a', 60, 1800));
     const again = STAGES[this.stageId]?.bossZone?.respawnTicks ? '離開巢穴一會兒，牠會再回來' : '可以繼續刷怪，或從 ☰ 離開';
     const head = first ? (worldMap(this.stageId)?.firstKill ?? '首次討伐！') : fury ? `暴怒的${this.bw}倒下了！看看掉了什麼` : best ? `最快紀錄！${fmtSec(sec)}` : '再次討伐！';
-    const sub = `${head}${timed && !best && this.tracked ? `\n本次 ${fmtSec(sec)}` : ''}\n${again}`;
+    // 第 76 輪：3 行→2 行（本次秒數接在第二行），且 patient：360×640 稀有大字佔住主角下方時等它淡出，不再整塊蓋住主角
+    const shortSec = sec >= 60 ? `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}` : fmtSec(sec); // 第二行最長 23 字 × 30px
+    const sub = `${head}\n${again}${timed && !best && this.tracked ? `・本次 ${shortSec}` : ''}`;
     this.slainUntil = this.time.now + 1900 + 180 + 2600;
-    this.time.delayedCall(1900, () => bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 32, 2600));
+    this.slainSub = null;
+    this.slainSubAt = 0;
+    this.choiceWait = 0;
+    this.time.delayedCall(1900, () => { this.slainSub = bigText(this, GAME_WIDTH / 2, 540, sub, '#f4e6c0', 30, 2600, true); });
   }
 
   /** 番外收尾：電影黑條＋「番外　完」＋依抉擇一句話；只播一次（jg_chapter_<id>_end） */
@@ -1458,7 +1468,18 @@ export class RtBattleScene extends Phaser.Scene {
       this.time.delayedCall(1200, () => this.showChoice(ch));
       return;
     }
+    // 第 76 輪：「首次討伐！…」可能在排隊（等稀有大字讓出主角下方）→ 讓它至少顯示 2.2 秒再開抉擇面板（最多多等約 4 秒）
+    const sb = this.slainSub;
+    if (sb?.active && this.choiceWait < 14) {
+      if (sb.alpha > 0.5 && !this.slainSubAt) this.slainSubAt = this.time.now;
+      if (!this.slainSubAt || this.time.now - this.slainSubAt < 2200) {
+        this.choiceWait++;
+        this.time.delayedCall(300, () => this.showChoice(ch));
+        return;
+      }
+    }
     if (this.hint) this.dismissHint();
+    if (this.liveTip?.t.active) this.yieldTip(this.liveTip); // 面板會把教學小字藏起來 → 關掉後再講
     this.menu = openChoice(this, ch, (pick) => {
       this.menu = null;
       this.acc = 0;
@@ -1773,6 +1794,7 @@ export class RtBattleScene extends Phaser.Scene {
     const e = this.encOpen.find(near);
     if (!e) return;
     if (this.hint) this.dismissHint();
+    if (this.liveTip?.t.active) this.yieldTip(this.liveTip);
     this.menu = openChoice(this, e, (pick) => {
       this.menu = null;
       this.acc = 0;
@@ -2507,7 +2529,7 @@ export class RtBattleScene extends Phaser.Scene {
   private tipOnce(key: string, text: string, color: string): boolean {
     // Bot 示範不提示、也不記成「看過了」（第 42 輪：以前先看 Bot 示範，格擋／撿裝備的教學就被 Bot 用掉了）
     if (this.bot || this.tipsDone.has(key)) return true;
-    if (this.hint || this.tipBusy || this.time.now < this.tipCalmUntil) return false;
+    if (this.hint || this.tipBusy || this.menu || this.time.now < this.tipCalmUntil) return false; // 第 76 輪：面板開著（大字被藏起）不講，等關掉
     this.tipsDone.add(key); // 記在記憶體：大招提示每幀都會呼叫，不要每幀讀 localStorage
     try {
       if (localStorage.getItem(key)) return true;

@@ -176,6 +176,8 @@ export function pinBanner(scene: Phaser.Scene, t: Phaser.GameObjects.Text, ms: n
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */
 export function bigText(
   scene: Phaser.Scene, x: number, y: number, text: string, color: string, size = 72, hold = 450,
+  /** 不急的說明：原位壓主角、主角下方又暫時被佔住時排隊等（不照原位蓋主角，第 76 輪） */
+  patient = false,
 ): Phaser.GameObjects.Text {
   const t = scene.add
     .text(x, y, text, {
@@ -204,7 +206,7 @@ export function bigText(
       if (!t.active || !scene.sys.isActive()) return;
       const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
       const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
-      const cy = stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene));
+      const cy = stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene), patient);
       if (cy === null && tries++ < 24) {
         scene.tweens.addCounter({ from: 0, to: 1, duration: 250, onComplete: place });
         return;
