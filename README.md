@@ -104,6 +104,8 @@
 | ![番外完](docs/screenshots/93-postgame-end.jpg) | ![小星星](docs/screenshots/94-star-companion.jpg) | |
 | **劍刃風暴：繞身旋轉的光刃與風牆** | **天穹一矢：一箭劃開整條路** | **流星雨：腳下一片星空，流星一波波砸下** |
 | ![劍刃風暴](docs/screenshots/95-blade-storm.jpg) | ![天穹一矢](docs/screenshots/96-sky-lance.jpg) | ![流星雨](docs/screenshots/97-meteor-rain.jpg) |
+| **雷暴：範圍染成紫色、邊緣冒電弧，閃電一道道劈下** | **迴旋箭陣：八支光箭繞著身體轉，可以邊跑邊射** | **霜旋：寒氣從外圈往內收，收到底一口氣凍住** |
+| ![雷暴](docs/screenshots/98-thunderstorm.jpg) | ![迴旋箭陣](docs/screenshots/99-arrow-orbit.jpg) | ![霜旋](docs/screenshots/100-frost-spin.jpg) |
 
 > 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面（以及燼紅裂谷的熔渣史萊姆、燼心岩王，星隕高原的晶殼魔像、星骸守望者）是程式繪製，每張 AI 圖都有程式備援。
 
