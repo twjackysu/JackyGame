@@ -2619,7 +2619,8 @@ export class RtBattleScene extends Phaser.Scene {
           // 第 63 輪：等級還不夠就碰上 Boss（新存檔 Lv2 直奔狼王要打兩分多鐘）→ 攻略提示多一行建議等級
           const wm = worldMap(this.stageId);
           const lv = this.s.prog?.level ?? 1;
-          const tip = `${wrapTip(this.bossTipText())}${wm && lv < wm.bossLv ? `\n建議 Lv${wm.bossLv} 以上・打不過就先回去練功` : ''}`;
+          // 第 73 輪：建議等級搬到 Boss 血條字（`建議 LvN`），這裡只留一句短的，提示最多兩～三行不蓋主角
+          const tip = `${wrapTip(this.bossTipText())}${wm && lv < wm.bossLv ? '\n打不過就先回去練功' : ''}`;
           // 第 64 輪：放在主角腳下（TIP_Y），以前 y 600 正好蓋在 Boss 和牠的第一個紅圈預告上
           this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, TIP_Y, tip, '#d8c8ff', 28, tipMs(tip)));
         }
@@ -5858,7 +5859,10 @@ export class RtBattleScene extends Phaser.Scene {
     this.goal?.setVisible(!boss);
     if (this.bossTxt) {
       this.bossTxt.setVisible(!!boss && !this.menu?.active);
-      if (boss) this.bossTxt.setText(`${boss.fury ? '暴怒的' : ''}${ENEMIES[boss.defId]?.name ?? ''}　${Math.max(1, Math.ceil((boss.hp / boss.maxHp) * 100))}%`).setColor(boss.phase === 2 ? '#ffb09a' : '#ffd0e4');
+      // 第 73 輪：等級不夠的建議等級從攻略提示（三行，360×640 疊上別的提示會蓋住主角）搬到 Boss 血條字的後面，打的時候一直看得到
+      const wmB = boss ? worldMap(this.stageId) : undefined;
+      const lowLv = !!wmB && !boss?.fury && (this.s.prog?.level ?? 1) < wmB.bossLv ? `　建議 Lv${wmB.bossLv}` : '';
+      if (boss) this.bossTxt.setText(`${boss.fury ? '暴怒的' : ''}${ENEMIES[boss.defId]?.name ?? ''}　${Math.max(1, Math.ceil((boss.hp / boss.maxHp) * 100))}%${lowLv}`).setColor(boss.phase === 2 ? '#ffb09a' : '#ffd0e4');
     }
     if (boss) {
       const w = 600;
