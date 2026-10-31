@@ -120,6 +120,7 @@
   2. `npm ci && npm run build && npx cap sync ios && npx cap open ios`
   3. Xcode → Signing & Capabilities → Team 選你的（免費）Apple ID，Bundle ID 若衝突就改一個。
   4. 接上 iPhone，按 ▶︎ 執行。iPhone 上到「設定 → 一般 → VPN 與裝置管理」信任開發者。免費帳號簽署 7 天有效。
+  5. iOS 16 以後第一次側載還要開「設定 → 隱私權與安全性 → 開發者模式」（開了會重開機），再按一次 ▶︎。
 - 開發用試玩小關卡：`?debug&scene=RtBattle&stage=wolf_king`（`forest_entry`／`wolf_den`／`forest_deep`／`elite_pack`／`rock_grove`／`camp_clearing`，☰ 可換關；加 `&bot=expert` 看 Bot 自己打）。
 
 ## 開發
