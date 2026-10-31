@@ -50,4 +50,11 @@ describe('返回鍵', () => {
     expect(hit).toEqual([]);
     for (const l of BACK_LABELS) expect(['取', '還', '認輸離開', '就這麼做', '回標題', '重來']).not.toContain(l);
   });
+
+  it('燼牌大廳／結算的「回行商」「回營火」也算（第 81 輪）；「再來一局」不算', () => {
+    const hit: string[] = [];
+    expect(clickBackButton([btn('再來一局', hit), btn('回營火', hit)] as never)).toBe(true);
+    expect(clickBackButton([btn('下注 50 金開局（贏了拿 100）', hit), btn('回行商', hit)] as never)).toBe(true);
+    expect(hit).toEqual(['回營火', '回行商']);
+  });
 });
