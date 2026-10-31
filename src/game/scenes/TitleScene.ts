@@ -26,6 +26,7 @@ const UI_FONT =
 export class TitleScene extends Phaser.Scene {
   private sigil?: Phaser.GameObjects.Container;
   private busy = false;
+  private replay: Phaser.GameObjects.Container | null = null;
   private prompt?: Phaser.GameObjects.Text;
   private menu?: Phaser.GameObjects.Container;
 
@@ -189,7 +190,10 @@ export class TitleScene extends Phaser.Scene {
     let toast: Phaser.GameObjects.Text | null = null;
     setBackHandler(this, () => {
       if (this.busy) {
-        clickBackButton(this.children.list);
+        // 回顧結局是重看，按返回直接收掉（第 81 輪）
+        const fin = this.replay?.active ? (this.replay.getData('finish') as (() => void) | undefined) : undefined;
+        if (fin) fin();
+        else clickBackButton(this.children.list);
         return 'handled';
       }
       if (this.time.now - armedAt < 2000) return 'exit';
@@ -202,6 +206,7 @@ export class TitleScene extends Phaser.Scene {
 
     // Pulsing tap prompt.
     this.busy = false;
+    this.replay = null;
     this.menu = undefined;
     const prompt = (this.prompt = this.add
       .text(cx, 1000 + TALL, t('title.tapToStart'), {
@@ -300,8 +305,9 @@ export class TitleScene extends Phaser.Scene {
     if (cleared) items.push([finaleSeen() ? '✦ 回顧結局' : '✦ 觀看結局', () => {
       if (this.busy) return;
       this.busy = true;
-      playFinale(this, loadFinaleStats(), () => {
+      this.replay = playFinale(this, loadFinaleStats(), () => {
         this.busy = false;
+        this.replay = null;
       }, '回到標題');
     }]);
     items.push(['設定', () => {

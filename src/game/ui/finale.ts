@@ -282,5 +282,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
     root.add(skip);
   }
   timer = scene.time.delayedCall(1500, next);
+  // 第 81 輪：返回鍵用（標題「回顧結局」按返回＝直接收掉，以前要點完五段）
+  root.setData('finish', finish);
   return root;
 }
