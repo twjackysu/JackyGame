@@ -2648,6 +2648,21 @@ export class RtBattleScene extends Phaser.Scene {
         const cs = cs0 && skillShape(this.s, 'parry', cs0);
         const ang = Math.atan2(p.facingY, p.facingX);
         if (this.s.weapon === 'staff') this.hexShield(p.x, p.y);
+        else {
+          // 第 71 輪：劍／弓擋下的瞬間，面前迸出一朵白金星芒＋火花（以前凍結看只有綠圈和字，「鏘」的感覺不夠）
+          const bx = this.sx(p.x) + Math.cos(ang) * 46;
+          const by = this.sy(p.y) - 34 + Math.sin(ang) * 46;
+          const st = this.add.graphics().setDepth(702).setBlendMode(Phaser.BlendModes.ADD).setPosition(bx, by);
+          for (let q = 0; q < 8; q++) {
+            const a = (q / 8) * Math.PI * 2 + 0.2;
+            const L = q % 2 ? 34 : 64;
+            st.lineStyle(q % 2 ? 3 : 5, 0xfff2c0, 0.95).lineBetween(Math.cos(a) * 8, Math.sin(a) * 8, Math.cos(a) * L, Math.sin(a) * L);
+          }
+          st.fillStyle(0xffffff, 1).fillCircle(0, 0, 12).fillStyle(0xffe08a, 0.45).fillCircle(0, 0, 26);
+          this.tweens.add({ targets: st, scale: 1.5, alpha: 0, angle: 20, delay: 90, duration: 300, ease: 'Cubic.easeOut', onComplete: () => st.destroy() });
+          sparks(this, bx, by, 16, 'spark', 0xffe08a, 420);
+          this.cameras.main.shake(90, 0.005);
+        }
         if (cs && this.s.weapon === 'staff') this.staffFx(p.x, p.y, ang, cs, false, true, 0, pd?.block?.counter.status?.id); // 法杖：屏障炸開／鏡像光束（D-152）
         else if (cs && this.s.weapon === 'bow' && cs.type !== 'line') this.bowFx(p.x, p.y, ang, cs, false, false, false, false, pd?.block?.counter.status?.id); // 流光見切（D-148）：四面射出；殘月見切（D-149）：紫色扇形
         else if (cs?.type === 'sector') this.slash(p.x, p.y, ang, cs.r, cs.deg + 30, 0x7dffb0, 10);
