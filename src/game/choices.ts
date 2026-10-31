@@ -112,6 +112,12 @@ export function epilogueLine(c: Record<string, ChoicePick>): string | null {
   const picks = BOSS_CHOICES.filter((b) => !b.postGame).map((b) => c[b.map]).filter((v): v is ChoicePick => !!v);
   if (!picks.length) return null;
   const spare = picks.filter((v) => v === 'spare').length;
+  // 只選過一部分（舊存檔打倒的 Boss 沒被問過）：不能說「三樣都還在／都在行囊」，換不點名的句子（第 79 輪）
+  const mains = BOSS_CHOICES.filter((b) => !b.postGame).length;
+  if (picks.length < mains) {
+    if (spare === picks.length) return '你把能還的，都還了回去。\n這片土地，會用它自己的方式記得你。';
+    if (spare === 0) return '你帶走了牠們留下的東西。\n這片土地的主人，從此只剩下你。';
+  }
   if (spare === picks.length) return '你沒有從牠們身上拿走任何東西。\n霧裡的小狼、母樹的白花、裂谷的火——都還在。';
   if (spare === 0) return '霧角、王冠、燼心，都收在你的行囊裡。\n這片土地的主人，從此只剩下你。';
   return '有些東西你帶走了，有些你留了下來。\n這片土地，會用它自己的方式記得你。';

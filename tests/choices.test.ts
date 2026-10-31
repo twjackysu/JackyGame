@@ -98,4 +98,11 @@ describe('結語跟著武器換字（第 57 輪）', () => {
       expect(l.length).toBe(FINALE_LINES.length);
     }
   });
+  it('只選過一部分（舊存檔）時不點名三樣東西', () => {
+    const one = epilogueLine({ emberrift: 'spare' })!;
+    expect(one).not.toContain('小狼');
+    expect(one).not.toContain('都還在');
+    expect(epilogueLine({ emberrift: 'take' })!).not.toContain('霧角');
+    expect(epilogueLine({ mistwood: 'take', emberrift: 'spare' })).toContain('有些');
+  });
 });

@@ -1741,7 +1741,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.tipBusy && this.introRun === this.busyRun) return; // 開場大字還在：等它收掉（已經記下來，走開也會想起）
     // 第 68 輪：星隕高原的記憶點就在守望者巢穴邊，記憶卡以前蓋在 Boss 登場名字上 → Boss 開打、抉擇面板、討伐大字期間先記著，打完再想起
     // （還沒開打但站在 Boss 發現範圍附近也先等：不然記憶卡和登場名字同一刻出現）
-    if (this.menu || this.time.now < this.slainUntil || this.time.now < this.reviveUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
+    // 第 79 輪：星隕高原選完「還」0.5 秒就跳記憶卡（＋相機閃紫光），結語只露 1 秒 → 結語期間、等「番外　完」卡時也先記著
+    if (this.menu || this.storySoon || this.time.now < this.tipCalmUntil || this.time.now < this.slainUntil || this.time.now < this.reviveUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
     const mem = this.memQ;
     this.memQ = null;
     const r = recall(loadMemories(), mem.id);
@@ -1773,6 +1774,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.clearZoneTexts(); // 第 57 輪：星隕高原開場記憶卡蓋在「— 高原營地 —」上，字從卡片底下露出半截
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: r.all ? 8000 : 6000, duration: 700, onComplete: () => c.destroy() });
+    reserveBanner(this, 290 - 56 + h / 2, h, (r.all ? 8000 : 6000) + 500); // 第 79 輪：之後出的置中大字（寶箱…）排開，不壓在卡片上
     if (r.all) this.time.delayedCall(600, () => bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, '前世的記憶　全部想起來了', '#d8b0ff', 40, 2200));
   }
 
@@ -1875,6 +1877,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.clearZoneTexts(); // 第 57 輪：星隕高原開場記憶卡蓋在「— 高原營地 —」上，字從卡片底下露出半截
     this.tweens.add({ targets: c, alpha: 1, y: 290, duration: 500, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, delay: 7000, duration: 700, onComplete: () => c.destroy() });
+    // 第 79 輪：荊棘谷盜賊回禮卡旁 2 格就是隱藏寶箱，「找到隱藏寶箱！」「藥水 ×5…」直接蓋在卡上 → 卡片範圍登記成佔用中
+    reserveBanner(this, 290 - 56 + h / 2, h, 7500);
   }
 
   /** 護送中（D-160）：人跟在玩家身後（和小同伴同一種追法，慢一點）；目的地畫一圈呼吸的綠光 */
