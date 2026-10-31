@@ -5795,6 +5795,18 @@ export class RtBattleScene extends Phaser.Scene {
     const calmMsg = calm ? restTip || (this.veteran ? (p.hp < p.maxHp ? '休息中・自動回血' : '') : p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '';
     // 第 63 輪：討伐大字期間不寫「打不過就退回營火」；第 67 輪：沒字就整條藏起（字條有底色）
     this.calmText.setVisible(!!calmMsg && !this.tipBusy && !this.hint && this.time.now >= this.slainUntil).setText(calmMsg).setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
+    // 第 71 輪：窄螢幕（360×640）字條右端「開打」壓到大招鍵 → 碰到任何按鈕就在全形空白處換成兩行
+    if (calmMsg.includes('　') && this.calmText.visible) {
+      const cb = this.calmText.getBounds();
+      for (let i = 0; i <= 6; i++) {
+        const b = this.btnPos(i);
+        const r = this.btnR(i) + 6;
+        if (b.x - r < cb.right && b.x + r > cb.left && b.y - r < cb.bottom && b.y + r > cb.top) {
+          this.calmText.setText(calmMsg.replace('　', '\n')).setAlign('center');
+          break;
+        }
+      }
+    }
     // Boss 大血條（畫面上方）
     // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss && (!STAGES[this.stageId]?.mapAi || e.mode === 'combat'));
