@@ -29,6 +29,16 @@ export function stackY(
     const r = underBoss();
     if (r !== null) return r;
   }
+  // 第 94 輪（D-235）：交戰中的對手在主角上方、原位正好壓在牠身上（狼群暴動 420／490、隱藏首領等固定原位的大字）
+  // → 先試主角下方（放得下、不用排隊才挪），不行照舊。以前用長弓和迷霧巡守拉開距離時，「狼群暴動！」整塊蓋住巡守
+  const over = (a: Band, c: number): number => Math.min(c + half, a[1]) - Math.max(c - half, a[0]);
+  if (keep !== undefined && !keepBelow && avoid && over(keep, y) > Math.min(HERO_OVERLAP, h * 0.4) && over(avoid, y) <= HERO_OVERLAP) {
+    const below = avoid[1] + GAP + half;
+    if (below + half <= limit) {
+      const r = stackFrom(below, half, busy, limit, ceil, avoid);
+      if (r !== null && r - half >= avoid[1]) return r;
+    }
+  }
   // 第 75 輪：原位就壓在主角身上（重疊超過 HERO_OVERLAP）→ 先試主角下方（放得下才挪），再照常避開其他大字；
   // 挪下去反而要排隊（下面被提示佔滿）就退回原位的排法——Boss 的「跑出圈外！」這種警告不能因為讓位而晚出。
   // 360×640 主角約在 490～630，560 的相遇結語、升級字以前整塊蓋住主角；390×844 主角在 630～770，原位不受影響
@@ -127,4 +137,16 @@ export function hiddenEliteBannerY(ey: number | null, hy: number, H: number): nu
   const HALF = 60; // 兩行 38px 大字約 120 高
   const y = hy + 30 + 20 + HALF;
   return y + HALF <= H * 0.62 ? y : DEFAULT;
+}
+
+/**
+ * 交戰中的對手那一帶不排置中大字（D-231／232；第 94 輪 D-235 擴到巡邏精英）。
+ * hy＝主角畫面 y、by＝對手畫面 y；top／bottom＝可視區上下緣。對手在主角上方 → [對手頭上, 主角頭頂]；
+ * 在主角下方 → [主角腳下, 對手腳下]。精英比 Boss 小，上方那段只留 160（Boss 230）。
+ */
+export function fightKeep(hy: number, by: number | null, top: number, bottom: number, boss = true): Band | null {
+  if (by === null) return null;
+  if (by < hy - 10 && by > top - 200) return [by - (boss ? 230 : 160), hy - 110];
+  if (by > hy + 10 && by < bottom + 100) return [hy + 30, by + 40];
+  return null;
 }

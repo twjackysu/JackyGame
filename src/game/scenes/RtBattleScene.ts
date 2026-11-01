@@ -71,7 +71,7 @@ import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
-import { hiddenEliteBannerY } from '../fx/bannerStack';
+import { fightKeep, hiddenEliteBannerY } from '../fx/bannerStack';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
@@ -2299,11 +2299,10 @@ export class RtBattleScene extends Phaser.Scene {
     const hy = this.sy(p0.y);
     // 第 90 輪：交戰中的 Boss 在主角上方 → 那一帶（Boss 本身＋腳下的紅圈預告）也不排大字（D-231）
     const boss = this.s.units.find((u) => u.tier === 'boss' && !u.dead && u.mode === 'combat');
-    const by = boss ? this.sy(boss.y) : 0;
+    // 第 94 輪（D-235）：沒有 Boss 時，正在纏鬥的巡邏精英（掉血、12 格內，同 eliteFighting）也一樣——狼群暴動、隱藏首領的大字以前直接蓋在牠身上
+    const foe = boss ?? this.s.units.find((u) => u.tier === 'elite' && !u.dead && u.mode === 'combat' && u.hp < u.maxHp && !ENEMIES[u.defId]?.boss && Math.hypot(u.x - p0.x, u.y - p0.y) <= 12 * UNIT);
     // 第 91 輪：Boss 在主角下方（守望者瞬移到背後）→ 主角腳下到 Boss 腳下 40 這一帶也不壓（stackY 先試排到 Boss 腳下）
-    const keep: [number, number] | null = !boss ? null
-      : by < hy - 10 && by > VIEW_TOP - 200 ? [by - 230, hy - 110]
-      : by > hy + 10 && by < VIEW_BOTTOM + 100 ? [hy + 30, by + 40] : null;
+    const keep = fightKeep(hy, foe ? this.sy(foe.y) : null, VIEW_TOP, VIEW_BOTTOM, !!boss);
     setBannerAvoid(this, [hy - 110, hy + 30], keep);
   }
 

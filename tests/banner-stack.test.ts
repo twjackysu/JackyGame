@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pinY, stackY } from '../src/game/fx/bannerStack';
+import { pinY, stackY, fightKeep } from '../src/game/fx/bannerStack';
 
 describe('置中大字不重疊（D-162）', () => {
   it('沒有其他大字就照原位', () => {
@@ -113,5 +113,38 @@ describe('置中大字不重疊（D-162）', () => {
     expect(stackY(560, 60, [], 1280 * 0.62, 430, [456, 596], false, [596, 700])).toBe(700 + 16 + 30);
     // 原位沒壓到主角也沒壓到 Boss → 不動
     expect(stackY(400 + 30, 60, [], 1280 * 0.62, 300, [456, 596], false, [596, 700])).toBe(430);
+  });
+});
+
+describe('fightKeep（D-235）', () => {
+  it('Boss 在上方留 230、精英留 160', () => {
+    expect(fightKeep(700, 400, 110, 1280, true)).toEqual([170, 590]);
+    expect(fightKeep(700, 400, 110, 1280, false)).toEqual([240, 590]);
+  });
+  it('對手在下方 → 主角腳下到對手腳下', () => {
+    expect(fightKeep(700, 900, 110, 1280, false)).toEqual([730, 940]);
+  });
+  it('沒有對手、或同一高度、或遠在畫面外 → null', () => {
+    expect(fightKeep(700, null, 110, 1280)).toBeNull();
+    expect(fightKeep(700, 705, 110, 1280)).toBeNull();
+    expect(fightKeep(700, -200, 110, 1280)).toBeNull();
+  });
+});
+
+describe('原位壓在主角上方的對手 → 挪到主角下方（D-235）', () => {
+  const avoid: [number, number] = [491, 631];
+  const keep: [number, number] = [356, 491];
+  it('狼群暴動兩行都排到主角下方', () => {
+    const a = stackY(420, 74, [], 793, 430, avoid, false, keep)!;
+    expect(a - 37).toBeGreaterThanOrEqual(631);
+    const b = stackY(490, 46, [[a - 37, a + 37]], 793, 430, avoid, false, keep)!;
+    expect(b - 23).toBeGreaterThanOrEqual(a + 37);
+    expect(b + 23).toBeLessThanOrEqual(793);
+  });
+  it('主角下方放不下 → 照原位', () => {
+    expect(stackY(420, 74, [], 700, 430, avoid, false, keep)).toBe(420);
+  });
+  it('沒碰到對手就不動', () => {
+    expect(stackY(300, 40, [], 793, 120, avoid, false, keep)).toBe(300);
   });
 });
