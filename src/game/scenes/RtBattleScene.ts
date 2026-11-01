@@ -70,6 +70,7 @@ import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip, zoneHintBreak } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, setBackHandler } from '../backButton';
+import { PEEK_IN, PEEK_TOTAL, peekFocus, peekWeight } from '../cameraPeek';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
@@ -188,6 +189,8 @@ export class RtBattleScene extends Phaser.Scene {
   private spawnAt = { x: 0, y: 0 };
   /** 首次討伐後的光門在等哪個面板關掉（抉擇／通關演出）才出現 */
   private gateWaits: '' | 'choice' | 'finale' = '';
+  /** 第 85 輪（D-219）：鏡頭「看一眼」畫面外剛亮起的光門（世界座標＋開始時間），null＝沒有 */
+  private camPeek: { x: number; y: number; at: number } | null = null;
   /** 走進光門的時間（-1＝沒在過場）、這次是不是從光門過來的 */
   private warpAt = -1;
   /** 第 56 輪：經光門抵達＝從回程門走出來（主角從光柱裡降下、淡入），-1＝沒有 */
@@ -457,6 +460,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.gateShutToldAt = -1e9;
     this.gates = [];
     this.gateWaits = '';
+    this.camPeek = null;
     this.gateArrow = null;
     { const p0 = playerOf(this.s); this.spawnAt = { x: p0.x, y: p0.y }; }
     this.setupGate();
@@ -2213,7 +2217,19 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 鏡頭平滑跟隨主角，並夾在場地範圍內（場地比畫面小就置中） */
   private updateCamera(t: number): void {
-    const p = this.lerpPos(playerOf(this.s));
+    const p0 = this.lerpPos(playerOf(this.s));
+    let p = p0;
+    let peekW = 0;
+    let peekGy = 0;
+    if (this.camPeek) {
+      const w = this.menu || this.warpAt >= 0 ? 0 : peekWeight(this.time.now - this.camPeek.at);
+      if (this.time.now - this.camPeek.at >= PEEK_TOTAL) this.camPeek = null;
+      else {
+        p = peekFocus(p0.x, p0.y, this.camPeek.x, this.camPeek.y, w);
+        peekW = w;
+        peekGy = this.camPeek.y;
+      }
+    }
     this.camX += (p.x - this.camX) * t;
     this.camY += (p.y - this.camY) * t;
     const a = this.s.arena;
@@ -2227,10 +2243,15 @@ export class RtBattleScene extends Phaser.Scene {
     // 下方被操作鍵蓋住約 35%，允許往下多捲一點，讓主角不會被按鈕擋住
     if (a.h + 2 * m <= viewH) topY = (a.h - viewH) / 2;
     // 第 63 輪：Boss 巢穴都在地圖北緣，以前鏡頭夾在上緣，打 Boss 時主角和 Boss 擠在 HUD／Boss 血條底下 → 上緣也多捲 150（外面接漸層）
-    else topY = Math.max(-m - TOP_EXTRA, Math.min(a.h + m + viewH * 0.3 - viewH, topY));
+    else {
+      // 看一眼時上緣夾限跟著權重平滑放開：門在地圖北緣、平常鏡頭已經夾住捲不上去 → 放到門在 HUD 下方約 340 的位置
+      const lo = -m - TOP_EXTRA;
+      const lim = lo - peekW * Math.max(0, lo - (peekGy - 340 / this.k));
+      topY = Math.max(lim, Math.min(a.h + m + viewH * 0.3 - viewH, topY));
+    }
     this.ox = -left * this.k;
     this.oy = VIEW_TOP - topY * this.k;
-    const hy = this.sy(p.y);
+    const hy = this.sy(p0.y);
     setBannerAvoid(this, [hy - 110, hy + 30]);
   }
 
@@ -5674,12 +5695,24 @@ export class RtBattleScene extends Phaser.Scene {
     const gt = this.gates.find((q) => !q.back);
     if (!gt) return;
     gt.revealAt = this.time.now;
-    SFX.itemGet();
     const go = (): void => {
       if (!this.scene.isActive()) return;
       shockRing(this, this.sx(gt.x), this.sy(gt.y), 0x9fe8ff, 220, 900, 6);
       sparks(this, this.sx(gt.x), this.sy(gt.y) - 60 * this.k, 22, 'spark', 0xd8f8ff, 600);
     };
+    // 第 85 輪（D-219）：360×640 門在主角北邊約 9 公尺、剛好在畫面外，以前亮起的光環畫在畫面外、玩家只看到一個箭頭
+    // → 門在畫面外（而且不太遠）就把鏡頭帶過去看它亮、再回到主角；光環等鏡頭到了才放（特效是畫面座標）
+    const cy = this.sy(gt.y);
+    const cx = this.sx(gt.x);
+    const off = cy < VIEW_TOP + 140 || cy > VIEW_BOTTOM - 200 || cx < 40 || cx > GAME_WIDTH - 40;
+    const p = playerOf(this.s);
+    if (off && Math.hypot(gt.x - p.x, gt.y - p.y) < UNIT * 18) {
+      this.camPeek = { x: gt.x, y: gt.y, at: this.time.now };
+      this.time.delayedCall(PEEK_IN, () => { if (this.scene.isActive()) SFX.itemGet(); go(); });
+      this.time.delayedCall(PEEK_IN + 450, go);
+      return;
+    }
+    SFX.itemGet();
     go();
     this.time.delayedCall(450, go);
   }
