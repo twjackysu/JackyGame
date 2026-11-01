@@ -45,6 +45,7 @@ function lerpColor(a: number, b: number, t: number): number {
 const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf6a, frenzy: 0xff5a4a };
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES } from '../../core/battle/rt/data';
+import { gateSealed } from '../gateRules';
 import { gearName, loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME } from '../weapon';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap, prevMap, FINALE_MAP } from '../worldMaps';
@@ -5659,7 +5660,9 @@ export class RtBattleScene extends Phaser.Scene {
   private drawGate(g: Phaser.GameObjects.Graphics, now: number): void {
     // 第 63 輪：再挑戰 Boss 時往下一張圖的門就在巢穴裡，門上的字蓋在 Boss 身上 → Boss 交戰中先不寫（門照畫）
     const bossFight = this.gates.some((q) => !q.back) && enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat');
+    const shut = bossFight && this.bossEngaged();
     for (const gt of this.gates) {
+      const sealed = shut && !gt.back; // D-218：交戰中門封住＝光暗下來、變灰
       const cx = this.sx(gt.x);
       const cy = this.sy(gt.y);
       const vis = !(cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 260 || cy > VIEW_BOTTOM + 120);
@@ -5669,11 +5672,11 @@ export class RtBattleScene extends Phaser.Scene {
       }
       const k = this.k * (gt.back ? 1.7 : 2.2);
       const t = now / 1000;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 2.6);
+      const pulse = (0.5 + 0.5 * Math.sin(t * 2.6)) * (sealed ? 0.25 : 1);
       // 地上的光圈＋往上的光柱＋兩根石柱：遠遠就看得出是「出口」；回程的門小一點、暖色
-      const glow = gt.back ? 0xffc88a : 0x7ad8ff;
-      const rim = gt.back ? 0xffe8c0 : 0xbff0ff;
-      const beam = gt.back ? 0xffd8a8 : 0x9fe8ff;
+      const glow = gt.back ? 0xffc88a : sealed ? 0x56607a : 0x7ad8ff;
+      const rim = gt.back ? 0xffe8c0 : sealed ? 0x8a94a8 : 0xbff0ff;
+      const beam = gt.back ? 0xffd8a8 : sealed ? 0x6a7488 : 0x9fe8ff;
       // 第 55 輪：地上多疊幾層光暈（假 bloom）＋旋轉的符文刻痕；光柱由寬到窄三層；兩根石柱上架一道門楣，門裡一層會流動的光幕
       for (let i = 3; i >= 1; i--) g.fillStyle(glow, (0.07 + 0.04 * pulse) * (4 - i) / 3).fillEllipse(cx, cy, (100 + i * 34) * k, (32 + i * 12) * k);
       g.lineStyle(3, rim, 0.55 + 0.35 * pulse).strokeEllipse(cx, cy, 96 * k, 30 * k);
@@ -5742,7 +5745,13 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
-  /** 走進光門（沒開面板）→ 存檔後換地圖。交戰中也可以走（巢穴是死路、Boss 重生後光門在牠背後；和 ☰ 直接前往一樣，等於脫離戰鬥） */
+  /** Boss 交戰中、而且已經被打掉血（D-218：往前的光門封住）。只是從牠旁邊跑過去（滿血）門照常能走——巢穴是死路、Boss 重生後光門在牠背後 */
+  private bossEngaged(): boolean {
+    return gateSealed(enemiesOf(this.s).map((e) => ({ dead: e.dead, hp: e.hp, maxHp: e.maxHp, mode: e.mode, boss: !!ENEMIES[e.defId]?.boss })));
+  }
+
+  /** 走進光門（沒開面板）→ 存檔後換地圖。Boss 交戰中只要還沒開打（牠滿血）也可以走（和 ☰ 直接前往一樣，等於脫離戰鬥）；打掉血之後封住，免得追打／衝鋒踩到門被傳走（D-218） */
+
   private gateCheck(): void {
     if (!this.gates.length || this.menu || this.editing || this.ended) return;
     const p = playerOf(this.s);
@@ -5751,6 +5760,12 @@ export class RtBattleScene extends Phaser.Scene {
       const d = Math.hypot(p.x - gt.x, p.y - gt.y);
       if (!gt.armed) {
         if (d > UNIT * 2) gt.armed = true;
+        continue;
+      }
+      // 第 84 輪（D-218）：再挑戰 Boss 時往前的門就在巢穴裡，追打／衝鋒／閃避踩到門會被傳走（暴怒戰白打）→ Boss 交戰中先封住，
+      // 而且要先離門 2 格再回來才會觸發（不然 Boss 倒下那一刻站在門上就直接被傳走）
+      if (!gt.back && this.bossEngaged()) {
+        gt.armed = false;
         continue;
       }
       if (d > UNIT * 0.9) continue;
