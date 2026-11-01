@@ -1,5 +1,16 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-01 08:12–08:50（台北）第 83 輪 — 法杖新存檔前 30 秒、手機效能：HUD 文字不再每幀重畫（D-217）
+**背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 82 輪最後的 fcc2906）。照 NEXT 第 3 項①，再做中階手機 60fps 的量測。
+
+**做了什麼**
+- ① 390×844 新存檔**法杖**前 30 秒（`shot-newsave.mjs staff staff 390 844`，每 3～5 秒一張）：開場大字、操作說明、法杖提示（12.5 秒）、休息字條、格擋教學依序出現，沒有互壓、沒蓋主角。「大招充滿了」17.5 秒就出（冰霜新星一次打中整群狼，每下 +1 MP，設計如此），不改。
+- **效能量測**（`screenshots/perf.mjs`，gitignored）：藏相機只跑邏輯，每 20 秒量 3 秒（180 幀）每幀時間＋各方法耗時＋CDP 取樣＋`updateText` 計數。三張圖邏輯平均都 < 1ms（桌機），但 CPU 第一名是文字貼圖上傳：目標字條／Boss 名稱／大招鍵每幀 `setColor`（Phaser 每次都重畫）、技能鍵冷卻每 0.1 秒換字 → `textColor`／`cdText`（D-217），文字重畫 −80%。技能鍵現在 3 秒以上顯示「7」、最後 3 秒「2.9」。
+- 也量了標題、行商、燼牌、暫停選單：沒有每幀重畫的文字。傷害數字／火花物件池效益太小，不做（D-217）。
+
+**驗證**：build＋`npx vitest run --exclude 'tests/zz-*'`（359 → **361 項**全過，新增 `hud-text.test.ts`）。390×844 截圖確認冷卻字（「7」「2.2」「0.6」）。核心沒動。CI／Pages／APK 全綠（45dc164）。
+- 腳本（gitignored，照這段重寫）：`perf.mjs 地圖`（`LS` 環境變數；包住場景方法 `commands`／`draw`／`playEvents`… 記超過 6ms 的幀由誰造成；`Object.getPrototypeOf(sc().add)` 包 `text`／`graphics`／`particles` 記呼叫來源；`Profiler.start`／`stop` 統計 self time）、`perf2.mjs`（其他場景 `updateText` 計數，量測時要藏相機不然 2 分鐘逾時）、`perf3.mjs`（`floatNumber`／`sparks`／新建 vs 重用 Text 的單次成本）。
+
 ## 2026-11-01 06:12–06:45（台北）第 82 輪 — 離線驗收、通關機器人入口、手機橫拿提示（D-215／216）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 81 輪最後的 98e8f30）、APK `latest` 正常（5.9MB）。照 NEXT 第 3 項①②。
 

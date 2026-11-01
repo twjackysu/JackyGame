@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 82 輪（11/1 06:45）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 83 輪（11/1 08:50）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`、`bossLv`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,8 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 82 輪）
+## 現況（第 83 輪）
+- **D-217（效能）**：每幀跑的程式改文字顏色用 `textColor(t, c)`（`src/game/hudText.ts`），**不要直接 `setColor`／`setStyle`**（Phaser 每次都重畫＋重傳貼圖）；冷卻秒數用 `cdText`。量測腳本見第 83 輪 PROGRESS。
 - **D-216**：`src/game/orientation.ts`（觸控手機橫向＝DOM 提示＋`game.loop.sleep()`＋聲音暫停）；`screen.ts` 的 `portraitHeight(w,h,touch)`。**截圖腳本要模擬手機就用 `isMobile:true, hasTouch:true` 且直式 viewport**，不然橫的會被蓋。
 - **D-215**：`npm run playthrough`＝跑 `tests/rt-campaign.test.ts`（通關機器人）；離線第 82 輪驗過（precache 18 項、零外部網址），**新增 public/ 素材記得副檔名在 workbox `globPatterns` 裡**。
 - **D-214**：`RtBattleScene` 的 `drawnOnce`——面板在第一幀前打開（序章）也先畫一次地圖；**新的「一進場就開面板」不用另外處理**。返回清單多了「回行商」「回營火」；標題回顧結局按返回＝`root.getData('finish')()`。序章／選武器按返回不動作（設計）。
@@ -117,7 +118,8 @@
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-3. **（下一輪建議主工作）「第一眼」第四十八段＋11/4 打磨期準備**：①390×844 新存檔**法杖**前 30 秒（長劍／長弓第 82 輪看過）；②**11/4 起功能凍結**：跑 `bash scripts/stats.sh`，把 commit 數、輪數、程式行數、測試數寫進 README（只放一行統計，D-097），README 開頭「🚧 開發中」改成成果發表版；③只修看得到的問題。
+3. **（下一輪建議主工作）「第一眼」第四十八段＋11/4 打磨期準備**：①360×640 三把武器新存檔前 30 秒各看一次（技能鍵冷卻字改成整數後，看小螢幕排得下、不怪）；②**11/4 起功能凍結**：跑 `bash scripts/stats.sh`，把 commit 數、輪數、程式行數、測試數寫進 README（只放一行統計，D-097），README 開頭「🚧 開發中」改成成果發表版；③只修看得到的問題。
+   - 第 83 輪已做：390×844 法杖新存檔前 30 秒（不用改）；效能量測＋HUD 文字不再每幀重畫（D-217）。
    - 第 82 輪已做：iOS 網址列收合（390×844→760：FIT 左右各留 19px、不跳動，不改；standalone PWA 沒有網址列）、切背景回來 tick 正常；離線（不用改）、390×844 新存檔長劍／長弓前 30 秒（不用改）、`npm run playthrough`、手機橫拿提示（D-215／216）。
    - 第 81 輪已做：新存檔序章→選武器兩種尺寸（修序章背後空樹林，D-214）、暫停選單五顆按鈕返回鍵、燼牌四種情況返回鍵（修大廳／結算沒反應）、回顧結局返回鍵。
    - 第 80 輪已做：返回鍵／切背景／震動／原生圖示（D-212／213）、結局頁 360×640。

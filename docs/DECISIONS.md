@@ -2,6 +2,12 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-217 2026-11-01 HUD 文字只在真的變了才重畫；技能冷卻 3 秒以上顯示整數（手機效能）
+- **起因**：第 83 輪量測（Playwright 藏相機只跑邏輯、`Text.prototype.updateText` 計數＋CDP 取樣）：霧語森林戰鬥中 CPU 自身時間第一名是 `texImage2D`（文字貼圖上傳）。Phaser 3.90 的 `Text.setColor` **每次都** `updateText`（重量字＋重畫 canvas＋重傳貼圖），而目標字條、Boss 名稱％、大招鍵每幀都 `setColor` → 每秒 60×3 次；技能鍵冷卻每 0.1 秒換字（每顆鍵每秒 10 次）。18 秒戰鬥共約 2900 次文字重畫。
+- **決定**：`src/game/hudText.ts` 的 `textColor(t, c)`（顏色不同才設）與 `cdText(ticks)`（≥ 3 秒整數無條件進位、最後 3 秒小數一位，常見的手遊／MMO 寫法）。結果：同一段 18 秒約 500 次（−80%），邏輯每幀平均 0.9 → 0.65ms（桌機）。標題、行商、燼牌、暫停選單量過沒有每幀重畫的文字。
+- **規則**：**每幀跑的程式不要直接 `setColor`／`setStyle`／`setFontSize`**，用 `textColor`（或先比對）；`setText` 同字串 Phaser 會自己跳過，所以內容要盡量少變（秒數別到小數，除非最後幾秒）。
+- **沒做**：傷害數字 Text 物件池（量過：新建 0.18ms vs 重用 0.04ms，每秒約 2 個，效益小，且 `dotNum` 依 `t.active` 判斷，池化有風險）、`sparks` 粒子池（0.07ms／次）。無頭瀏覽器開相機量渲染沒有意義（SwiftShader 的 `bufferData` 佔一半）。
+
 ## D-216 2026-11-01 手機橫拿：轉回直式提示＋暫停；橫著開機照直式算高度
 - **問題**：原生 App 已鎖直式，但手機瀏覽器（與 iOS 的 PWA，不照 manifest 鎖方向）橫過來時畫面縮成中間一條、戰鬥照跑；而且 `GAME_HEIGHT` 開機時算一次，**橫著開機**會鎖在 1280，轉回直式後上下各留一大截黑邊（390×844 實測）。
 - **做法**：`src/game/orientation.ts`——`(orientation: landscape) and (pointer: coarse) and (max-height: 600px)` 成立時蓋一層 DOM 提示（金色直式手機＋旋轉箭頭、「請把手機轉回直式／遊戲已暫停」），`game.loop.sleep()`＋`setAudioPaused(true)`；轉回來 `wake()`、聲音照可見狀態恢復。`screen.ts` 的 `portraitHeight(w, h, touch)`：觸控裝置橫著開機時寬高對調算（轉回直式就是正確的 1558）。桌機（細指標）與平板橫放（高 > 600）不受影響，照舊左右留黑邊可玩。測試 `tests/orientation.test.ts`。
