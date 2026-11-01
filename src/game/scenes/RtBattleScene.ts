@@ -5477,7 +5477,17 @@ export class RtBattleScene extends Phaser.Scene {
       for (const z of this.zoneTexts) {
         if (!z.active || z.alpha < 0.05) continue;
         const zb = z.getBounds();
-        if (cx > zb.left - M && cx < zb.right + M && cy > zb.top - M - 30 && cy < zb.bottom + M + 30) cx = cx < zb.centerX ? Math.max(M, zb.left - M) : Math.min(GAME_WIDTH - M, zb.right + M);
+        if (cx > zb.left - M && cx < zb.right + M && cy > zb.top - M - 30 && cy < zb.bottom + M + 30) {
+          const cx0 = cx;
+          cx = cx < zb.centerX ? Math.max(M, zb.left - M) : Math.min(GAME_WIDTH - M, zb.right + M);
+          // 第 84 輪：往左讓開又躲回小地圖／懸賞板底下（360×640 深夜裂谷「岔路：…」字從畫面左邊開始）→ 箭頭被板子蓋住、只剩距離字 → 改成留在原處、讓到字的下面
+          const underMini = mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M;
+          const underBounty = bb && cx < bb.right + M && cy > bb.top - M && cy < bb.bottom + M;
+          if (underMini || underBounty) {
+            cx = cx0;
+            cy = Math.min(yMax, zb.bottom + M + 31);
+          }
+        }
       }
       // 同方向好幾隻精英／Boss：大箭頭沿著邊緣錯開，不疊成一團
       if (elite) {
@@ -5513,7 +5523,7 @@ export class RtBattleScene extends Phaser.Scene {
         let lx = cx - c * 40;
         let ly = cy - sn * 40;
         // 第 84 輪：箭頭被推到小地圖／懸賞板右邊後，距離字放在「箭頭內側」＝又回到板子上（360×640「44m」壓小地圖、「21m」壓「懸賞」）→ 改放箭頭外側
-        lx = this.clearOfHudPanels(lx, ly, cx);
+        lx = Math.max(26, Math.min(GAME_WIDTH - 26, this.clearOfHudPanels(lx, ly, cx)));
         for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.x - lx) < 46 && Math.abs(q.y - ly) < 22); k++) ly += 24;
         placed.push({ x: lx, y: ly, ax: cx, ay: cy });
         tx.setVisible(true).setText(`${Math.round(Math.hypot(e.x - p.x, e.y - p.y) / UNIT)}m`).setPosition(lx, ly);
