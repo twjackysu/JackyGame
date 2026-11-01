@@ -3147,11 +3147,13 @@ export class RtBattleScene extends Phaser.Scene {
         shockRing(this, x, y, 0xffd27a, 160, 520, 7);
         sparks(this, x, y - 20, 30, 'ember', 0xffe08a, 620);
         const got = Object.entries(e.loot).map(([k, n]) => `${LOOT_NAMES[k] ?? k} ×${n}`).join('　');
-        bigText(this, GAME_WIDTH / 2, 390, c?.nightOnly ? '夜光寶箱！' : '找到隱藏寶箱！', c?.nightOnly ? '#bfe0ff' : '#ffd27a', 46, 1000);
-        this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, 446, got, '#f4e6c0', 30, 1400));
+        const head = bigText(this, GAME_WIDTH / 2, 390, c?.nightOnly ? '夜光寶箱！' : '找到隱藏寶箱！', c?.nightOnly ? '#bfe0ff' : '#ffd27a', 46, 1000);
+        // 第 88 輪（D-227）：標題被別的東西（記憶卡、大字）推到主角下方時，內容以前還是排在原位 446 → 「結晶 ×3…」跑到「夜光寶箱！」上面，順序顛倒 → 內容跟著標題排
+        const below = (dy: number, y0: number): number => (head.active && Math.abs(head.y - 390) > 1 ? head.y + dy : y0);
+        this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, below(56, 446), got, '#f4e6c0', 30, 1400));
         // 寶箱裡的燼牌（D-131）：第一次拿到才出字
         const card = this.tracked ? CHEST_CARDS[e.chest] : undefined;
-        if (card && grantCard(card)) this.time.delayedCall(1300, () => bigText(this, GAME_WIDTH / 2, 500, `＋燼牌「${EMBER_CARDS[card]?.name ?? card}」\n營火行商的「燼牌」可以用`, '#ffb36a', 28, 1800));
+        if (card && grantCard(card)) this.time.delayedCall(1300, () => bigText(this, GAME_WIDTH / 2, below(110, 500), `＋燼牌「${EMBER_CARDS[card]?.name ?? card}」\n營火行商的「燼牌」可以用`, '#ffb36a', 28, 1800));
       } else if (e.type === 'rest') {
         const p = playerOf(this.s);
         SFX.itemGet();
