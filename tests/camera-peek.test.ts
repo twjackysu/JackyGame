@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PEEK_IN, PEEK_HOLD, PEEK_TOTAL, peekFocus, peekWeight } from '../src/game/cameraPeek';
+import { PEEK_IN, PEEK_HOLD, PEEK_TOTAL, peekFocus, peekWeight, peekBlocked } from '../src/game/cameraPeek';
 
 describe('鏡頭看一眼（D-219）', () => {
   it('前後平滑、中間停住、結束歸零', () => {
@@ -16,5 +16,15 @@ describe('鏡頭看一眼（D-219）', () => {
     expect(peekFocus(0, 1000, 0, 0, 0)).toEqual({ x: 0, y: 1000 });
     const f = peekFocus(0, 1000, 0, 0, 1);
     expect(f.y).toBeCloseTo(300);
+  });
+});
+
+describe('peekBlocked（D-220）', () => {
+  it('身邊有交戰中的敵人才擋；死的、巡邏中的、遠的不算', () => {
+    expect(peekBlocked([], 0, 0, 900)).toBe(false);
+    expect(peekBlocked([{ x: 300, y: 0, mode: 'combat' }], 0, 0, 900)).toBe(true);
+    expect(peekBlocked([{ x: 300, y: 0, mode: 'combat', dead: true }], 0, 0, 900)).toBe(false);
+    expect(peekBlocked([{ x: 300, y: 0, mode: 'patrol' }], 0, 0, 900)).toBe(false);
+    expect(peekBlocked([{ x: 1300, y: 0, mode: 'combat' }], 0, 0, 900)).toBe(false);
   });
 });

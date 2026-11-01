@@ -70,7 +70,7 @@ import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip, zoneHintBreak } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, setBackHandler } from '../backButton';
-import { PEEK_IN, PEEK_TOTAL, peekFocus, peekWeight } from '../cameraPeek';
+import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
@@ -5718,19 +5718,50 @@ export class RtBattleScene extends Phaser.Scene {
     };
     // 第 85 輪（D-219）：360×640 門在主角北邊約 9 公尺、剛好在畫面外，以前亮起的光環畫在畫面外、玩家只看到一個箭頭
     // → 門在畫面外（而且不太遠）就把鏡頭帶過去看它亮、再回到主角；光環等鏡頭到了才放（特效是畫面座標）
-    const cy = this.sy(gt.y);
-    const cx = this.sx(gt.x);
-    const off = cy < VIEW_TOP + 140 || cy > VIEW_BOTTOM - 200 || cx < 40 || cx > GAME_WIDTH - 40;
+    // 第 86 輪（D-220）：通關演出按「繼續冒險」回來時，身邊常常還有被 Boss 戰拖來的小怪在打你
+    // → 交戰中不把鏡頭帶走（看不到自己在掉血），先只放音效＋箭頭，等身邊安靜了（最多 12 秒）再帶去看門
     const p = playerOf(this.s);
-    if (off && Math.hypot(gt.x - p.x, gt.y - p.y) < UNIT * 18) {
-      this.camPeek = { x: gt.x, y: gt.y, at: this.time.now };
-      this.time.delayedCall(PEEK_IN, () => { if (this.scene.isActive()) SFX.itemGet(); go(); });
-      this.time.delayedCall(PEEK_IN + 450, go);
+    if (this.gateOffView(gt) && Math.hypot(gt.x - p.x, gt.y - p.y) < UNIT * 18) {
+      if (this.peekCalm()) {
+        this.peekGate(gt, go);
+        return;
+      }
+      SFX.itemGet();
+      this.waitPeekGate(gt, go, this.time.now + 12000);
       return;
     }
     SFX.itemGet();
     go();
     this.time.delayedCall(450, go);
+  }
+
+  private gateOffView(gt: { x: number; y: number }): boolean {
+    const cy = this.sy(gt.y);
+    const cx = this.sx(gt.x);
+    return cy < VIEW_TOP + 140 || cy > VIEW_BOTTOM - 200 || cx < 40 || cx > GAME_WIDTH - 40;
+  }
+
+  /** 身邊 9 格內沒有交戰中的敵人、沒有面板、主角活著 → 可以把鏡頭帶走一下 */
+  private peekCalm(): boolean {
+    const p = playerOf(this.s);
+    return !p.dead && !this.menu && !peekBlocked(enemiesOf(this.s), p.x, p.y, UNIT * 9);
+  }
+
+  private peekGate(gt: { x: number; y: number }, go: () => void, sfx = true): void {
+    this.camPeek = { x: gt.x, y: gt.y, at: this.time.now };
+    this.time.delayedCall(PEEK_IN, () => { if (this.scene.isActive() && sfx) SFX.itemGet(); go(); });
+    this.time.delayedCall(PEEK_IN + 450, go);
+  }
+
+  private waitPeekGate(gt: { x: number; y: number }, go: () => void, until: number): void {
+    this.time.delayedCall(600, () => {
+      if (!this.scene.isActive() || this.ended || !this.gates.includes(gt as never)) return;
+      if (!this.gateOffView(gt)) { go(); return; } // 打一打自己走到看得到門的地方了：直接放光環
+      const p = playerOf(this.s);
+      if (Math.hypot(gt.x - p.x, gt.y - p.y) >= UNIT * 18) return; // 走遠了：交給箭頭
+      if (this.peekCalm() && !this.camPeek) { this.peekGate(gt, go, false); return; }
+      if (this.time.now < until) this.waitPeekGate(gt, go, until);
+    });
   }
 
   private drawGate(g: Phaser.GameObjects.Graphics, now: number): void {

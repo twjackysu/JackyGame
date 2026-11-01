@@ -24,3 +24,8 @@ export function peekWeight(ms: number): number {
 export function peekFocus(px: number, py: number, tx: number, ty: number, w: number, share = 0.7): { x: number; y: number } {
   return { x: px + (tx - px) * share * w, y: py + (ty - py) * share * w };
 }
+
+/** 主角附近（radius 世界單位內）有活著、正在交戰的敵人 → 這時不要把鏡頭帶走（第 86 輪，D-220） */
+export function peekBlocked(enemies: readonly { x: number; y: number; dead?: boolean; mode?: string }[], px: number, py: number, radius: number): boolean {
+  return enemies.some((e) => !e.dead && e.mode === 'combat' && Math.hypot(e.x - px, e.y - py) < radius);
+}
