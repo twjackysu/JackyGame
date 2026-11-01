@@ -5506,8 +5506,10 @@ export class RtBattleScene extends Phaser.Scene {
         }
         li++;
         // 兩個箭頭靠太近時距離字往下錯開，不疊成「50m10m」
-        const lx = cx - c * 40;
+        let lx = cx - c * 40;
         let ly = cy - sn * 40;
+        // 第 84 輪：箭頭被推到小地圖／懸賞板右邊後，距離字放在「箭頭內側」＝又回到板子上（360×640「44m」壓小地圖、「21m」壓「懸賞」）→ 改放箭頭外側
+        lx = this.clearOfHudPanels(lx, ly, cx);
         for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.x - lx) < 46 && Math.abs(q.y - ly) < 22); k++) ly += 24;
         placed.push({ x: lx, y: ly, ax: cx, ay: cy });
         tx.setVisible(true).setText(`${Math.round(Math.hypot(e.x - p.x, e.y - p.y) / UNIT)}m`).setPosition(lx, ly);
@@ -5541,8 +5543,8 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0xbff0ff, 0.95).fillTriangle(cx + c * 18 * z, cy + sn * 18 * z, cx - c * 10 * z - sn * 12 * z, cy - sn * 10 * z + c * 12 * z, cx - c * 10 * z + sn * 12 * z, cy - sn * 10 * z - c * 12 * z);
       if (!this.gateArrow) this.gateArrow = this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: '#bff0ff', stroke: '#06121e', strokeThickness: 4 }).setOrigin(0.5).setDepth(51);
       // 第 73 輪：360×640 上緣「光門 31m」和精英／Boss 的「25m」以前貼在一起、又貼著目標字條 → 碰到別的距離字就往下錯開，也不進字條
-      const glx = Math.max(46, Math.min(GAME_WIDTH - 46, cx - c * 46));
       let gly = cy - sn * 40;
+      const glx = this.clearOfHudPanels(Math.max(46, Math.min(GAME_WIDTH - 46, cx - c * 46)), gly, cx, 72);
       if (gb && glx > gb.left - 40 && glx < gb.right + 40 && gly - 11 < gb.bottom + 4) gly = gb.bottom + 15;
       for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.x - glx) < 72 && Math.abs(q.y - gly) < 24); k++) gly += 26;
       this.gateArrow.setVisible(true).setText(`光門 ${Math.round(dm)}m`).setPosition(glx, gly);
@@ -5601,6 +5603,17 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 第 68 輪：(x, y) 在左上小地圖或懸賞板上（含一點邊距）→ 浮字不要畫在那裡 */
+  /** 距離字（寬約 w、中心 (x, y)）壓到左上小地圖或懸賞板 → 挪到箭頭 ax 的右邊（第 84 輪） */
+  private clearOfHudPanels(x: number, y: number, ax: number, w = 48): number {
+    const boxes: { l: number; t: number; r: number; b: number }[] = [];
+    const m = this.mini;
+    if (m) boxes.push({ l: m.x, t: m.y, r: m.x + m.w, b: m.y + m.h });
+    const bt = this.bountyTxt;
+    if (bt?.visible && bt.text) { const r = bt.getBounds(); boxes.push({ l: r.left, t: r.top, r: r.right, b: r.bottom }); }
+    for (const q of boxes) if (x - w / 2 < q.r + 4 && x + w / 2 > q.l && y + 11 > q.t && y - 11 < q.b) return Math.max(x, q.r + 4 + w / 2, ax + 22 + w / 2);
+    return x;
+  }
+
   private overHudPanel(x: number, y: number): boolean {
     const m = this.mini;
     if (m && x < m.x + m.w + 24 && y > m.y - 24 && y < m.y + m.h + 70) return true;
