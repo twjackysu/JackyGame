@@ -1785,6 +1785,8 @@ export class RtBattleScene extends Phaser.Scene {
     // （還沒開打但站在 Boss 發現範圍附近也先等：不然記憶卡和登場名字同一刻出現）
     // 第 79 輪：星隕高原選完「還」0.5 秒就跳記憶卡（＋相機閃紫光），結語只露 1 秒 → 結語期間、等「番外　完」卡時也先記著
     if (this.menu || this.topCard?.active || this.storySoon || this.time.now < this.tipCalmUntil || this.time.now < this.slainUntil || this.time.now < this.reviveUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
+    // 第 86 輪（D-222）：被狼群圍著時跳記憶卡，兩行字要邊打邊讀、傷害數字鑽到卡片底下 → 身邊 7 格內的小怪也打完再想起（已經記下來，不會漏）
+    if (peekBlocked(enemiesOf(this.s), p.x, p.y, UNIT * 7)) return;
     const mem = this.memQ;
     this.memQ = null;
     const r = recall(loadMemories(), mem.id);
