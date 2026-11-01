@@ -185,6 +185,8 @@ export class RtBattleScene extends Phaser.Scene {
   private gateShutToldAt = -1e9;
   /** 每個地區上次報名稱的時間（D-185：60 秒內不重報） */
   private zoneSeenAt = new Map<string, number>();
+  /** 第 94 輪（D-236）：這次進圖已經講過說明（第二行）的地區——再走進來只報地名 */
+  private zoneHinted = new Set<string>();
   /** 往下一張地圖的光門（D-186）：打倒這張圖的 Boss 後出現在巢穴北邊，走進去就換地圖 */
   /** 這趟進地圖的出生點（回程光門放在它南邊） */
   private spawnAt = { x: 0, y: 0 };
@@ -461,6 +463,7 @@ export class RtBattleScene extends Phaser.Scene {
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
     this.zoneSeenAt.clear();
+    this.zoneHinted.clear();
     this.leashToldAt = -1e9;
     this.gateShutToldAt = -1e9;
     this.gates = [];
@@ -2177,6 +2180,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 1, y: 235 + dy, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
     this.zoneTexts = [t];
     if (!z.hint) return;
+    // 第 94 輪（D-236）：打 Boss 打不過退回營火、隔一分多鐘再走進巢穴，以前又跳一次「霧角狼王的地盤／跑出巢穴牠會回去回滿」→ 說明每次進圖只講一次
+    if (this.zoneHinted.has(z.name)) return;
+    this.zoneHinted.add(z.name);
     // 第 86 輪（D-221）：開場大字還在、而且講的是同一件事（「咬傷會中毒」）→ 地區說明不再講一次，只報地名
     if (this.introLive() && hintRepeats(z.hint, this.introStr)) return;
     // 第 73 輪：危險說明（紅字）壓在噴發中的熔岩口／毒沼上很難讀 → 加半透明黑底（像目標字條），四張圖共用
