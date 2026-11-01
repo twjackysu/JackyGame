@@ -68,7 +68,7 @@ import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories
 import { getSettings, updateSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
-import { tipMs, wrapTip, zoneHintBreak } from '../ui/tipText';
+import { tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
@@ -507,6 +507,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.rareQueue = [];
     this.salvageQ = { n: 0, dust: 0, name: '' };
     this.afterFinale = [];
+    this.introText = null;
+    this.introStr = '';
     this.streakHinted = false;
     this.arrowLabels = [];
     const p0 = playerOf(this.s);
@@ -1558,6 +1560,7 @@ export class RtBattleScene extends Phaser.Scene {
     const lab = !this.bot && this.tracked && !chapterSeen(this.stageId) ? chapterLabel(this.stageId) : null;
     if (lab) {
       markChapterSeen(this.stageId);
+      this.introStr = STAGES[this.stageId]?.intro ?? ''; // D-221：幕名卡播完才出開場大字，這段時間走進的地區也算
       this.tipBusy = true;
       this.busyRun++;
       this.chapterUntil = this.time.now + 3000;
@@ -1589,7 +1592,8 @@ export class RtBattleScene extends Phaser.Scene {
       const wait = this.encThanks.length ? '\n✦ 你幫過的人在老地方等你' : '';
       const intro = (back ?? st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）') + wait;
       const nl = intro.split('\n').length; // 三行以上往上挪、四行字小一號（不壓到下方 MP 鍵）
-      this.time.delayedCall(400, () => bigText(this, GAME_WIDTH / 2, 760 - Math.max(0, nl - 2) * 14, intro, '#ffd27a', nl >= 4 ? 28 : 30, tipMs(intro, 2600)).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
+      this.introStr = intro;
+      this.time.delayedCall(400, () => (this.introText = bigText(this, GAME_WIDTH / 2, 760 - Math.max(0, nl - 2) * 14, intro, '#ffd27a', nl >= 4 ? 28 : 30, tipMs(intro, 2600))).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
       this.time.delayedCall(6000, after);
     } else if (!this.bot) this.showHint();
   }
@@ -1746,6 +1750,13 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 通關演出看完才出的提示（新地圖開放：星隕高原） */
   private afterFinale: (() => void)[] = [];
+  /** 開場大字（D-221：地區說明和它重複時不講） */
+  private introText: Phaser.GameObjects.Text | null = null;
+  private introStr = '';
+  /** 開場大字已排定（0.4 秒後出）或還在畫面上 */
+  private introLive(): boolean {
+    return !!this.introStr && (this.introText === null || this.introText.active);
+  }
 
   /** 隱藏精英的「遊戲記憶」提示：第一次連殺到門檻的 2/3 時出現一次 */
   private streakHint(): void {
@@ -2139,6 +2150,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 1, y: 235 + dy, duration: 500, ease: 'Cubic.Out', hold: 1400, yoyo: true, onComplete: () => t.destroy() });
     this.zoneTexts = [t];
     if (!z.hint) return;
+    // 第 86 輪（D-221）：開場大字還在、而且講的是同一件事（「咬傷會中毒」）→ 地區說明不再講一次，只報地名
+    if (this.introLive() && hintRepeats(z.hint, this.introStr)) return;
     // 第 73 輪：危險說明（紅字）壓在噴發中的熔岩口／毒沼上很難讀 → 加半透明黑底（像目標字條），四張圖共用
     const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5, align: 'center', ...(z.danger ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}) }).setOrigin(0.5).setDepth(66).setAlpha(0);
     if (z.danger) h.setPadding(12, 4, 12, 4);

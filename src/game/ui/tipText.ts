@@ -49,3 +49,14 @@ export function breakAtPunct(t: string): string {
   }
   return best < 0 ? t : `${t.slice(0, best + 1)}\n${t.slice(best + 1)}`;
 }
+
+/**
+ * 地區說明和畫面上還在的開場大字講同一件事（第 86 輪，D-221）：兩段字有 5 個字以上連續相同就算重複
+ * （荊棘谷「咬傷會中毒」、星隕高原「＝星星要砸下來」：光門抵達後 3 秒走進第一區，兩組字同時講一次）。
+ */
+export function hintRepeats(hint: string, live: string, min = 5): boolean {
+  const a = hint.replace(/\s/g, '');
+  const b = live.replace(/\s/g, '');
+  for (let i = 0; i + min <= a.length; i++) if (b.includes(a.slice(i, i + min))) return true;
+  return false;
+}

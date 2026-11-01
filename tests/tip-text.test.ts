@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { TIP_LINE_MAX, tipMs, wrapTip, zoneHintBreak } from '../src/game/ui/tipText';
+import { TIP_LINE_MAX, tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../src/game/ui/tipText';
+import { makeEmberriftStage } from '../src/core/battle/rt/maps/emberrift';
+import { makeStarfallStage } from '../src/core/battle/rt/maps/starfall';
+import { makeThornvaleStage } from '../src/core/battle/rt/maps/thornvale';
 
 describe('提示大字換行（第 37 輪）', () => {
   it('短的不動、長的在標點後斷成兩行，每行不超過一行的寬度', () => {
@@ -32,5 +35,20 @@ describe('地區說明換行（第 61 輪）', () => {
     expect(zoneHintBreak('危險：狼群首領出沒・東邊有荊棘母樹・西側有巡守巡邏')).toBe('危險：狼群首領出沒\n東邊有荊棘母樹・西側有巡守巡邏');
     expect(zoneHintBreak('岔路：西邊近但會噴發、東邊遠但有精英')).toBeNull();
     expect(zoneHintBreak('棘背狼成群・咬傷會中毒')).toBe('棘背狼成群\n咬傷會中毒');
+  });
+});
+
+describe('地區說明和開場大字重複（D-221）', () => {
+  const STAGES = { thornvale: makeThornvaleStage(), starfall: makeStarfallStage(), emberrift: makeEmberriftStage() };
+  const zone = (st: keyof typeof STAGES, name: string): string => STAGES[st].zones!.find((z) => z.name === name)!.hint!;
+  it('荊棘坡／墜星原和開場說明講同一件事；熔渣坡、營地不算', () => {
+    expect(hintRepeats(zone('thornvale', '荊棘坡'), STAGES.thornvale.intro!)).toBe(true);
+    expect(hintRepeats(zone('starfall', '墜星原'), STAGES.starfall.intro!)).toBe(true);
+    expect(hintRepeats(zone('emberrift', '熔渣坡'), STAGES.emberrift.intro!)).toBe(false);
+    expect(hintRepeats(zone('thornvale', '谷口營地'), STAGES.thornvale.intro!)).toBe(false);
+  });
+  it('短於 5 字的巧合不算', () => {
+    expect(hintRepeats('會噴發', '熔岩口會噴發')).toBe(false);
+    expect(hintRepeats('', 'abc')).toBe(false);
   });
 });
