@@ -596,7 +596,11 @@ export class RtBattleScene extends Phaser.Scene {
     setBackHandler(this, () => {
       if (this.editing) this.endEdit();
       else if (this.warpAt >= 0) { /* 光門過場中 */ }
-      else if (this.menu) clickBackButton([this.menu]);
+      else if (this.menu) {
+        // 面板自己處理返回（燼牌對局中要按兩次，D-229）；沒處理才點它的返回類按鈕
+        const own = this.menu.getData?.('back') as (() => boolean) | undefined;
+        if (!own?.()) clickBackButton([this.menu]);
+      }
       else if (!this.ended) { SFX.uiTap(); this.toggleMenu(); }
       return 'handled';
     });

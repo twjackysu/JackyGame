@@ -731,6 +731,31 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     scene.tweens.add({ targets: ghost, x: cx, y, scale: 1.3, alpha: 0, duration: 650, ease: 'Sine.easeInOut', onComplete: () => ghost.destroy() });
   }
 
+  // 返回鍵／返回手勢（第 89 輪，D-229）：對局中以前一按就點到「離開」（沒下注＝整局直接沒了；下注時「認輸離開」不在
+  // 返回字清單裡＝完全沒反應）→ 第一次只跳提示，2.2 秒內再按一次才離開（下注就是認輸）。回傳 false＝交給一般的返回按鈕。
+  let backAt = -1e9;
+  let backTip: Phaser.GameObjects.Text | null = null;
+  root.once('destroy', () => backTip?.destroy());
+  root.setData('back', (): boolean => {
+    if (!g || g.over) return false;
+    const now = scene.time.now;
+    if (now - backAt < 2200) {
+      backTip?.destroy();
+      backTip = null;
+      leave();
+      return true;
+    }
+    backAt = now;
+    backTip?.destroy();
+    const tip = scene.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 500 + btnDy() - 66, staked ? `再按一次返回＝認輸離開（${staked} 金不退）` : '再按一次返回＝離開這一局', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffd27a', backgroundColor: '#1a0f08', align: 'center' })
+      .setOrigin(0.5)
+      .setPadding(14, 8, 14, 8)
+      .setDepth(991);
+    backTip = tip;
+    scene.tweens.add({ targets: tip, alpha: 0, delay: 1800, duration: 400, onComplete: () => { tip.destroy(); if (backTip === tip) backTip = null; } });
+    return true;
+  });
   render();
   root.setData('echo', echoFx);
   root.setData('reveal', reveal); // 截圖／除錯用
