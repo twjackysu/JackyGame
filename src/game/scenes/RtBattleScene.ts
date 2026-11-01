@@ -2152,6 +2152,13 @@ export class RtBattleScene extends Phaser.Scene {
       return;
     }
     if (this.topCard?.active || this.time.now < this.chapterUntil) return;
+    // 第 92 輪（D-233）：打 Boss 時在巢穴邊跨區（霧語森林狼王巢穴就在兩區交界）→ 60 秒後又報一次「危險：狼群首領出沒…」，
+    // 兩行紅字蓋在打鬥中間。Boss 已被打掉血＝正在打，玩家知道自己在哪，只記下這區、不報。
+    if (this.bossEngaged()) {
+      this.zoneName = z.name;
+      this.zoneSeenAt.set(z.name, this.time.now);
+      return;
+    }
     // 第 52 輪：走進第二個地區時開場說明框還在（荊棘谷 8 秒就進毒沼）→ 說明框、地區名稱、地區說明、「見切射擊！」四組字同時擠在上半部。
     // 已經走到下一區＝學會走路了，直接收起說明框，地區名稱照原本位置。開場那一區（zoneName 還是 null）不收。
     // 但霧語森林南營地走 6 格就出去了：說明框至少留 3 秒（兩行字讀得完；不到 3 秒照舊整組往下挪）
