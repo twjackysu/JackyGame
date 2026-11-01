@@ -77,7 +77,7 @@ function stackFrom(y: number, half: number, busy: readonly Band[], limit: number
  * 固定位置（不排隊）的大字找空位（第 76 輪）：升級數值小字以前直接蓋在剛出的「撿到裝備了！」教學上（360×640）。
  * 先往下讓過重疊的大字（不超過 limit），不行再往上讓（不超過 ceil、不蓋主角超過 HERO_OVERLAP），都不行就照原位。
  */
-export function pinY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band): number {
+export function pinY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band, keep?: Band): number {
   const half = h / 2;
   const hits = (cy: number): Band | undefined => busy.find(([t, b]) => cy - half < b + GAP && cy + half > t - GAP);
   if (!hits(y)) return y;
@@ -95,7 +95,9 @@ export function pinY(y: number, h: number, busy: readonly Band[], limit: number,
     cy = b[0] - GAP - half;
   }
   const onHero = avoid !== undefined && Math.min(cy + half, avoid[1]) - Math.max(cy - half, avoid[0]) > HERO_OVERLAP;
-  if (cy - half >= ceil && !hits(cy) && !onHero) return cy;
+  // 第 90 輪（D-231）：往上讓會蓋到交戰中的 Boss（keep）也不讓——升級數值小字以前跑到狼王身上；照原位（場景會叫教學小字讓位）
+  const onKeep = keep !== undefined && cy - half < keep[1] && cy + half > keep[0];
+  if (cy - half >= ceil && !hits(cy) && !onHero && !onKeep) return cy;
   return y;
 }
 

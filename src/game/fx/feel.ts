@@ -173,7 +173,7 @@ export function reserveBanner(scene: Phaser.Scene, cy: number, h: number, ms: nu
 export function pinBanner(scene: Phaser.Scene, t: Phaser.GameObjects.Text, ms: number): void {
   const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
   const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
-  t.setY(pinY(t.y, t.height, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene)));
+  t.setY(pinY(t.y, t.height, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene), KEEP.get(scene)));
   reserveBanner(scene, t.y, t.height, ms);
 }
 
