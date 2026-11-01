@@ -293,6 +293,8 @@ export class RtBattleScene extends Phaser.Scene {
   private slainUntil = 0;
   /** 第 65 輪：Boss 第二階段大字（「狼后怒放・荊棘綻放！」）顯示期間，深夜說明／公告大字先排隊，不疊在上面 */
   private phaseUntil = 0;
+  /** Boss 第二階段大字還在（第 88 輪，D-226）：升級的數值小字等它淡出再出 */
+  private phaseBannerUntil = 0;
   private nightTip?: Phaser.GameObjects.Text;
   /** 第 56 輪：剛經光門抵達，回程門的字晚一點才淡入（不然一落地就貼在主角旁邊） */
   private gateLabelFrom = 0;
@@ -2890,6 +2892,7 @@ export class RtBattleScene extends Phaser.Scene {
         // 已經是暴怒的 Boss 再喊「狼王暴怒！」很怪（第 46 輪）：改說牠徹底失控
         bigText(this, GAME_WIDTH / 2, 520, u(e.id)?.fury ? `${this.bw}徹底失控了！` : t2, c2, 52, 700);
         this.phaseUntil = this.time.now + 3200;
+        this.phaseBannerUntil = this.time.now + 950;
         this.tipCalmUntil = Math.max(this.tipCalmUntil, this.phaseUntil);
         // 剛好正在顯示的深夜說明讓位（同一秒出現時三層大字疊成一疊）
         const nt = this.nightTip;
@@ -3078,11 +3081,18 @@ export class RtBattleScene extends Phaser.Scene {
         // 第 50 輪：以前「技能點 +1」和標題同一個 54px 大字（兩行很擠），主角頭上的「HP・攻擊」飄字剛好被第二行蓋住 → 標題一行大字＋數值／技能點一則小字（置中大字會自動錯開，D-162）
         bigText(this, GAME_WIDTH / 2, 430, `等級提升！Lv ${e.level}`, '#ffe08a', 54, 1000);
         // 第 51 輪：數值小字改排在主角腳下（360×640 時主角在畫面 y≈580，以前小字剛好蓋住主角頭上的傷害數字 1.3 秒）；x 偏 1px＝固定位置、不排隊
-        const stat = bigText(this, GAME_WIDTH / 2 + 1, Math.max(560, Math.min(this.sy(p.y) + 130, GAME_HEIGHT - 520)), `HP ${e.maxHp}・攻擊 ${e.atk}${this.tracked ? '\n技能點 +1（☰ → 技能點）' : ''}`, '#fff2c8', 30, 1300);
-        // 第 76 輪：360×640 撿裝備＋升級同一秒，數值小字以前整塊蓋在「撿到裝備了！」教學上 → 讓開正在顯示的大字＋登記佔用
-        pinBanner(this, stat, 1500);
-        const lt = this.liveTip;
-        if (lt && lt.t.active && Math.abs(lt.t.y - stat.y) < (lt.t.height + stat.height) / 2 + 16) this.yieldTip(lt);
+        const showStat = (): void => {
+          const q = playerOf(this.s);
+          const stat = bigText(this, GAME_WIDTH / 2 + 1, Math.max(560, Math.min(this.sy(q.y) + 130, GAME_HEIGHT - 520)), `HP ${e.maxHp}・攻擊 ${e.atk}${this.tracked ? '\n技能點 +1（☰ → 技能點）' : ''}`, '#fff2c8', 30, 1300);
+          // 第 76 輪：360×640 撿裝備＋升級同一秒，數值小字以前整塊蓋在「撿到裝備了！」教學上 → 讓開正在顯示的大字＋登記佔用
+          pinBanner(this, stat, 1500);
+          const lt = this.liveTip;
+          if (lt && lt.t.active && Math.abs(lt.t.y - stat.y) < (lt.t.height + stat.height) / 2 + 16) this.yieldTip(lt);
+        };
+        // 第 88 輪（D-226）：打 Boss 打到第二階段的同一下剛好升級，數值小字（固定位置）整塊蓋在「狼王暴怒！」上 → 等暴怒大字淡出再出
+        const wait = this.phaseBannerUntil - this.time.now;
+        if (wait > 0) this.time.delayedCall(wait, showStat);
+        else showStat();
         sparks(this, this.sx(p.x), this.sy(p.y) - 30, 36, 'ember', 0xffe08a, 700);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffe08a, 200, 600, 8);
         this.persist();
