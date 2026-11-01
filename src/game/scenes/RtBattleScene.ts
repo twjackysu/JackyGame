@@ -1197,7 +1197,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.cardBtn?.setVisible(near && !this.menu);
     // 新手引導（第 23 輪）：前幾次進地圖、第一次離開營火又回來時說明營火能做什麼（開場就在營火旁，所以等「回來」才提示）
     if (!near) this.leftFire = true;
-    else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie && !this.tipBusy && this.time.now >= this.chapterUntil) {
+    else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie && !this.tipBusy && this.time.now >= this.chapterUntil && this.time.now >= this.reviveUntil) {
+      // 第 87 輪：倒下醒來那一刻不講（以前「在營火旁醒來」「休息・HP 全滿」和這兩行說明同時出、疊在主角身上），醒來 3.5 秒後再說
       this.fireHinted = true;
       // 說明期間先收起下面的「點怪物開打」（第 42 輪：兩行字疊在一起）
       // 第 61 輪：開場大字還在（tipBusy）就先等；以前這則一收掉就把 tipBusy 解開，「長弓：站遠一點射！」直接疊在開場大字上
@@ -3145,7 +3146,8 @@ export class RtBattleScene extends Phaser.Scene {
         const p = playerOf(this.s);
         SFX.itemGet();
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffb060, 120, 500, 6);
-        bigText(this, this.sx(p.x), this.sy(p.y) - 90, '休息・HP 全滿', '#ffd27a', 32, 600);
+        // 第 87 輪：倒下醒來時已經 HP 全滿、有「在營火旁醒來」大字 → 不再浮「休息・HP 全滿」
+        if (this.time.now >= this.reviveUntil) bigText(this, this.sx(p.x), this.sy(p.y) - 90, '休息・HP 全滿', '#ffd27a', 32, 600);
       } else if (e.type === 'revive') {
         const p = playerOf(this.s);
         // 倒下→黑幕 1 秒淡入（像真的昏過去再醒來），再出字
