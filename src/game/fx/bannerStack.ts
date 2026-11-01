@@ -18,12 +18,27 @@ export function stackY(
   keep?: Band,
 ): number | null {
   const half = h / 2;
+  // 第 91 輪：交戰中的 Boss 在主角下方（keep 在主角帶下面；星骸守望者瞬移到背後）、原位正好壓在 Boss 身上
+  // → 先試 Boss 腳下（放得下、沒別的大字才挪），不行就照下面原本的規則。以前「黃框＝可以格擋！」整塊蓋住守望者
+  const keepBelow = keep !== undefined && avoid !== undefined && keep[0] >= avoid[1] - 1;
+  const underBoss = (): number | null => {
+    const under = keep![1] + GAP + half;
+    return under + half <= limit && !busy.some(([t, b]) => under - half < b + GAP && under + half > t - GAP) ? under : null;
+  };
+  if (keepBelow && y - half < keep![1] && y + half > keep![0]) {
+    const r = underBoss();
+    if (r !== null) return r;
+  }
   // 第 75 輪：原位就壓在主角身上（重疊超過 HERO_OVERLAP）→ 先試主角下方（放得下才挪），再照常避開其他大字；
   // 挪下去反而要排隊（下面被提示佔滿）就退回原位的排法——Boss 的「跑出圈外！」這種警告不能因為讓位而晚出。
   // 360×640 主角約在 490～630，560 的相遇結語、升級字以前整塊蓋住主角；390×844 主角在 630～770，原位不受影響
   if (avoid && Math.min(y + half, avoid[1]) - Math.max(y - half, avoid[0]) > HERO_OVERLAP) {
     const below = avoid[1] + GAP + half;
-    if (below + half <= limit) {
+    // 第 91 輪：主角下方就是交戰中的 Boss → 改試 Boss 腳下
+    if (keepBelow && below - half < keep![1] && below + half > keep![0]) {
+      const r = underBoss();
+      if (r !== null) return r;
+    } else if (below + half <= limit) {
       const r = stackFrom(below, half, busy, limit, ceil, avoid);
       if (r !== null) return r;
     }

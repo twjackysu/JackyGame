@@ -2291,7 +2291,11 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 90 輪：交戰中的 Boss 在主角上方 → 那一帶（Boss 本身＋腳下的紅圈預告）也不排大字（D-231）
     const boss = this.s.units.find((u) => u.tier === 'boss' && !u.dead && u.mode === 'combat');
     const by = boss ? this.sy(boss.y) : 0;
-    setBannerAvoid(this, [hy - 110, hy + 30], boss && by < hy - 10 && by > VIEW_TOP - 200 ? [by - 230, hy - 110] : null);
+    // 第 91 輪：Boss 在主角下方（守望者瞬移到背後）→ 主角腳下到 Boss 腳下 40 這一帶也不壓（stackY 先試排到 Boss 腳下）
+    const keep: [number, number] | null = !boss ? null
+      : by < hy - 10 && by > VIEW_TOP - 200 ? [by - 230, hy - 110]
+      : by > hy + 10 && by < VIEW_BOTTOM + 100 ? [hy + 30, by + 40] : null;
+    setBannerAvoid(this, [hy - 110, hy + 30], keep);
   }
 
   /**
