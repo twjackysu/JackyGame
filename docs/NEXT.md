@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 84 輪（11/1 10:55）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 85 輪（11/1 12:45）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`、`bossLv`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -10,7 +10,8 @@
 2. `art-inbox/` 有圖 → `node scripts/import-art.mjs`（D-036；需要 `pip install "rembg[cpu]" --break-system-packages`）。
 3. CI：同一輪連推多個 commit 會互相取消，只看最後一次結果。CI 的 Smoke test 有時要 13 分鐘（第 37 輪；卡在 `playwright install --with-deps` 的 apt），job 上限 15 分鐘——若之後開始逾時，再考慮快取瀏覽器或拿掉 `--with-deps`。**程式 commit 和 `[skip ci]` 的文件 commit 不要一起推**（最上面是 [skip ci] 時整次 push 都不跑）。
 
-## 現況（第 84 輪）
+## 現況（第 85 輪）
+- **D-219（鏡頭看一眼）**：`src/game/cameraPeek.ts`；場景 `camPeek = {x,y,at,id?,share?}` → `updateCamera` 偏移跟隨點、上緣夾限跟著放開。光門亮起（`revealGate`）與 Boss 登場（`bossIntro`）目標在畫面外時自動帶；**新的「畫面外有重要東西出現」要讓玩家看到，就設 `camPeek`，特效延到 `PEEK_IN` 再放**（特效是畫面座標）。**凍結截圖**：快轉後 `__game.loop.sleep(); T+=16; off+=16; __game.step(T,16)` 再截（不凍結的話 700ms 等待期間 RAF 讓時間跳走）；Boss 自然醒來用 `LV=… bash scripts/shot-meet.sh 地圖 名稱 [W H]`（以前的 `shot-bossmeet` 把主角放在 4.2 公尺內，看不到 10 公尺外醒來的問題）。
 - **D-218（光門）**：Boss 交戰中被打掉血 → 往前的門封住（`gateRules.ts` 的 `gateSealed`；場景 `bossEngaged()`），走進去浮字說明。**加新地圖**不用另外處理。畫面外箭頭距離字用 `clearOfHudPanels`（避開小地圖／懸賞板）；**新的左上角 HUD 板子**要加進 `clearOfHudPanels`／`overHudPanel` 的 boxes。
 - **D-217（效能）**：每幀跑的程式改文字顏色用 `textColor(t, c)`（`src/game/hudText.ts`），**不要直接 `setColor`／`setStyle`**（Phaser 每次都重畫＋重傳貼圖）；冷卻秒數用 `cdText`。量測腳本見第 83 輪 PROGRESS。
 - **D-216**：`src/game/orientation.ts`（觸控手機橫向＝DOM 提示＋`game.loop.sleep()`＋聲音暫停）；`screen.ts` 的 `portraitHeight(w,h,touch)`。**截圖腳本要模擬手機就用 `isMobile:true, hasTouch:true` 且直式 viewport**，不然橫的會被蓋。
@@ -119,7 +120,8 @@
 ### 下一輪從這裡開始（依序）
 1. **Jacky 有回覆就照他的答案先做**（FOR_JACKY 第 4～21 題）。
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
-3. **（下一輪建議主工作）「第一眼」第四十九段＋11/4 打磨期準備**：①（第 84 輪看過 390×844 深夜森林、暴怒狼王／狼后／岩王開場、360×640 深夜三張圖）挑一段很久沒看的：**360×640 暴怒星骸守望者／深夜星蝕狼**、或**光門剛亮起那一刻（首次討伐→抉擇→門亮→走進去）在 360×640**；②**11/4 起功能凍結**：跑 `bash scripts/stats.sh`，把 commit 數、輪數、程式行數、測試數寫進 README（只放一行統計，D-097），README 開頭「🚧 開發中」改成成果發表版；③只修看得到的問題。（`shot-newsave` 的 Bot 打一打會走回營火，看「真人追打」要用 `sc().commands` 一直推 target，見第 84 輪 PROGRESS。）
+3. **（下一輪建議主工作）「第一眼」第五十段＋11/4 打磨期準備**：①用**凍結截圖**（D-219 注意）重看以前只用快轉截圖看過的「鏡頭／演出」：通關演出後光門亮起（燼紅裂谷，`shot-kill.sh emberrift` 要點「繼續冒險」，見第 79 輪）、經光門抵達的降臨（`VIA=gate`）、巡邏精英在畫面外發現你（要不要也看一眼？只在第一次、別打斷戰鬥）；②**11/4 起功能凍結**：跑 `bash scripts/stats.sh`，把 commit 數、輪數、程式行數、測試數寫進 README（只放一行統計，D-097），README 開頭「🚧 開發中」改成成果發表版；③只修看得到的問題。（`shot-newsave` 的 Bot 打一打會走回營火，看「真人追打」要用 `sc().commands` 一直推 target，見第 84 輪 PROGRESS。）
+   - 第 85 輪已做：360×640／390×844 光門亮起與四隻 Boss 自然醒來 → 鏡頭看一眼（D-219）。小問題（不改）：390×844 帶到光門時抉擇結語和門底座重疊一點（1.3 秒）。
    - 第 83 輪已做：390×844 法杖新存檔前 30 秒（不用改）；效能量測＋HUD 文字不再每幀重畫（D-217）。
    - 第 82 輪已做：iOS 網址列收合（390×844→760：FIT 左右各留 19px、不跳動，不改；standalone PWA 沒有網址列）、切背景回來 tick 正常；離線（不用改）、390×844 新存檔長劍／長弓前 30 秒（不用改）、`npm run playthrough`、手機橫拿提示（D-215／216）。
    - 第 81 輪已做：新存檔序章→選武器兩種尺寸（修序章背後空樹林，D-214）、暫停選單五顆按鈕返回鍵、燼牌四種情況返回鍵（修大廳／結算沒反應）、回顧結局返回鍵。
@@ -179,7 +181,7 @@
 - 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 350 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 365 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
 - 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
 - **舊關卡雜湊比對**（核心改動必做）——**第 26 輪起的做法**：範本存在 `scripts/zz-hash.template.ts.txt`（90 場），複製成 `tests/zz-hash.test.ts`；`git worktree add /tmp/claude-0/old <本輪開頭 commit>`＋`ln -s $PWD/node_modules /tmp/claude-0/old/node_modules`，兩邊各跑一次（`HASH_OUT=/tmp/claude-0/hash-old.txt` / `hash-new.txt`）再 `diff`，最後 `git worktree remove --force`（`tests/zz-hash.test.ts` 不在 git，新 session 照範本複製）。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。
