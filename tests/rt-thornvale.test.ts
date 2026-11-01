@@ -60,6 +60,15 @@ describe('荊棘谷和霧語森林共用進度（rtRecord LINKED_MAPS）', () =>
     expect(sp.home).toEqual({ level: 8, xp: 30, dust: 70, kills: 320, bossKills: 4, chests: ['entry_nook'], fury: true, furyKills: 1, night: true });
     expect(sp.own).toEqual({ bossKills: 2, chests: ['tv_camp_nook', 'tv_marsh_edge'] });
   });
+
+  it('上次休息的營火（fire，D-230）每張地圖各記各的', async () => {
+    const { joinRecord, splitRecord } = await import('../src/game/rtRecord');
+    const mist = { level: 7, fire: 'deep' };
+    expect(joinRecord(mist, {}).fire).toBeUndefined();
+    const sp = splitRecord(mist, { ...joinRecord(mist, {}), fire: 'tv_mid' });
+    expect(sp.home.fire).toBe('deep');
+    expect(sp.own.fire).toBe('tv_mid');
+  });
 });
 
 describe('荊棘谷裝備名稱（D-114）', () => {

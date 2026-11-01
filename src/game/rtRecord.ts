@@ -10,6 +10,8 @@ export interface RtRecord {
   firstAt?: number;
   /** 最快討伐（從進森林開始算，秒） */
   bestBossSec?: number;
+  /** 上次休息的營火（第 89 輪，D-230）：下次進這張圖（不是走光門來的）就從這裡出發 */
+  fire?: string;
   /** 累計擊殺 */
   kills?: number;
   /** 累計撿到的材料（名稱刻意不用 gold，避免和主線資產混淆） */
@@ -124,7 +126,7 @@ export function nightUnlocked(rec: RtRecord): boolean {
  * 只有 MAP_KEYS（Boss 討伐、寶箱、暴怒與深夜）是每張地圖自己的。
  */
 export const LINKED_MAPS: Readonly<Record<string, string>> = Object.fromEntries(WORLD_MAPS.slice(1).map((m) => [m.id, WORLD_MAPS[0]!.id])); // { thornvale: 'mistwood' }
-export const MAP_KEYS = ['bossKills', 'firstAt', 'bestBossSec', 'chests', 'fury', 'furyKills', 'night'] as const satisfies readonly (keyof RtRecord)[];
+export const MAP_KEYS = ['bossKills', 'firstAt', 'bestBossSec', 'chests', 'fury', 'furyKills', 'night', 'fire'] as const satisfies readonly (keyof RtRecord)[];
 type MapKey = (typeof MAP_KEYS)[number];
 
 function pickMap(rec: RtRecord): Pick<RtRecord, MapKey> {

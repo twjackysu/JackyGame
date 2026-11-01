@@ -197,6 +197,8 @@ export class RtBattleScene extends Phaser.Scene {
   /** 第 56 輪：經光門抵達＝從回程門走出來（主角從光柱裡降下、淡入），-1＝沒有 */
   private arriveAt = -1;
   private via = '';
+  /** 這次是從上次休息的營火出發（D-230） */
+  private resumed = false;
   private gateArrow: Phaser.GameObjects.Text | null = null;
   private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean; revealAt?: number }[] = [];
   private ox = 0;
@@ -467,6 +469,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.gateArrow = null;
     { const p0 = playerOf(this.s); this.spawnAt = { x: p0.x, y: p0.y }; }
     this.setupGate();
+    this.resumed = this.resumeAtFire();
     this.arriveAt = -1;
     // 第 56 輪：走光門過來的，就站在這張圖的回程門前（像剛從門裡走出來），不是憑空出現在營火旁
     if (this.via === 'gate') {
@@ -919,6 +922,7 @@ export class RtBattleScene extends Phaser.Scene {
       rec.level = this.s.prog.level;
       rec.xp = this.s.prog.xp;
     }
+    if (this.s.campfireId) rec.fire = this.s.campfireId; // D-230
     saveRecord(this.stageId, rec);
     this.saved = now;
     this.coinBase = coinOf(rec);
@@ -1598,7 +1602,9 @@ export class RtBattleScene extends Phaser.Scene {
       const back = back0 && this.s.night ? nightIntro(back0, STAGES[this.stageId]!.name) : back0;
       // 選過「助」、這次會來道謝的人（以前只能剛好走過去才發現）→ 開場大字多一行提醒
       const wait = this.encThanks.length ? '\n✦ 你幫過的人在老地方等你' : '';
-      const intro = (back ?? st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）') + wait;
+      const intro0 = (back ?? st0.intro ?? '怪物會重生・5 分鐘能打倒幾隻？\n打不過就退回營火（怪不追進來）') + wait;
+      // D-230：從上次休息的營火出發時說一聲（不然以為存檔跑掉了）；已經三行以上就不加
+      const intro = this.resumed && intro0.split('\n').length < 3 ? `${intro0}\n（從上次休息的營火出發）` : intro0;
       const nl = intro.split('\n').length; // 三行以上往上挪、四行字小一號（不壓到下方 MP 鍵）
       this.introStr = intro;
       this.time.delayedCall(400, () => (this.introText = bigText(this, GAME_WIDTH / 2, 760 - Math.max(0, nl - 2) * 14, intro, '#ffd27a', nl >= 4 ? 28 : 30, tipMs(intro, 2600))).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
@@ -2283,6 +2289,25 @@ export class RtBattleScene extends Phaser.Scene {
     this.oy = VIEW_TOP - topY * this.k;
     const hy = this.sy(p0.y);
     setBannerAvoid(this, [hy - 110, hy + 30]);
+  }
+
+  /**
+   * 從上次休息的營火出發（第 89 輪，D-230）：手機上關掉 App 再開、或從標題回來，以前一律回到南邊出生點，
+   * 要再走 3～5 分鐘才回到剛剛打到的地方。走光門抵達（via gate）照舊站在回程門前；回程門的位置仍以出生點算。
+   */
+  private resumeAtFire(): boolean {
+    if (!this.tracked || this.bot || this.via === 'gate') return false;
+    const fires = STAGES[this.stageId]?.campfires ?? [];
+    const id = loadRecord(this.stageId).fire;
+    const f = fires.find((c) => c.id === id);
+    if (!f || f === fires[0]) return false;
+    const at = this.freeNear(f.x, f.y + UNIT * 1.6) ?? this.freeNear(f.x + UNIT * 1.6, f.y);
+    if (!at) return false;
+    const p0 = playerOf(this.s);
+    p0.x = at[0];
+    p0.y = at[1];
+    this.s.campfireId = f.id; // 倒下也在這裡醒來
+    return true;
   }
 
   /** 離開森林前先把紀錄寫好 */
