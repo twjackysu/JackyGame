@@ -180,6 +180,7 @@ export class RtBattleScene extends Phaser.Scene {
   private k = 0.4;
   /** 上次說明「跑出巢穴 Boss 回滿」的時間（D-185） */
   private leashToldAt = -1e9;
+  private gateShutToldAt = -1e9;
   /** 每個地區上次報名稱的時間（D-185：60 秒內不重報） */
   private zoneSeenAt = new Map<string, number>();
   /** 往下一張地圖的光門（D-186）：打倒這張圖的 Boss 後出現在巢穴北邊，走進去就換地圖 */
@@ -453,6 +454,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneName = null;
     this.zoneSeenAt.clear();
     this.leashToldAt = -1e9;
+    this.gateShutToldAt = -1e9;
     this.gates = [];
     this.gateWaits = '';
     this.gateArrow = null;
@@ -5773,14 +5775,19 @@ export class RtBattleScene extends Phaser.Scene {
     if (p.dead) return;
     for (const gt of this.gates) {
       const d = Math.hypot(p.x - gt.x, p.y - gt.y);
-      if (!gt.armed) {
-        if (d > UNIT * 2) gt.armed = true;
-        continue;
-      }
       // 第 84 輪（D-218）：再挑戰 Boss 時往前的門就在巢穴裡，追打／衝鋒／閃避踩到門會被傳走（暴怒戰白打）→ Boss 交戰中先封住，
       // 而且要先離門 2 格再回來才會觸發（不然 Boss 倒下那一刻站在門上就直接被傳走）
       if (!gt.back && this.bossEngaged()) {
         gt.armed = false;
+        // 故意走進去想離開的人：講一句為什麼沒反應（10 秒一次，浮字不佔教學小字）
+        if (d < UNIT * 0.9 && !this.bot && this.time.now > this.gateShutToldAt + 10000) {
+          this.gateShutToldAt = this.time.now;
+          floatNumber(this, this.sx(p.x), this.sy(p.y) - 120, 'Boss 戰中光門封住了・☰ 可直接前往', { color: '#bfd0e8', size: 22 });
+        }
+        continue;
+      }
+      if (!gt.armed) {
+        if (d > UNIT * 2) gt.armed = true;
         continue;
       }
       if (d > UNIT * 0.9) continue;
