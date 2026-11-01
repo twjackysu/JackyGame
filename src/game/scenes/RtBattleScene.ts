@@ -45,7 +45,7 @@ function lerpColor(a: number, b: number, t: number): number {
 const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf6a, frenzy: 0xff5a4a };
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES } from '../../core/battle/rt/data';
-import { gateSealed } from '../gateRules';
+import { eliteFighting, gateSealed } from '../gateRules';
 import { gearName, loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME } from '../weapon';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap, prevMap, FINALE_MAP } from '../worldMaps';
@@ -2154,7 +2154,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.topCard?.active || this.time.now < this.chapterUntil) return;
     // 第 92 輪（D-233）：打 Boss 時在巢穴邊跨區（霧語森林狼王巢穴就在兩區交界）→ 60 秒後又報一次「危險：狼群首領出沒…」，
     // 兩行紅字蓋在打鬥中間。Boss 已被打掉血＝正在打，玩家知道自己在哪，只記下這區、不報。
-    if (this.bossEngaged()) {
+    if (this.bossEngaged() || this.eliteEngaged()) {
       this.zoneName = z.name;
       this.zoneSeenAt.set(z.name, this.time.now);
       return;
@@ -5933,6 +5933,12 @@ export class RtBattleScene extends Phaser.Scene {
   /** Boss 交戰中、而且已經被打掉血（D-218：往前的光門封住）。只是從牠旁邊跑過去（滿血）門照常能走——巢穴是死路、Boss 重生後光門在牠背後 */
   private bossEngaged(): boolean {
     return gateSealed(enemiesOf(this.s).map((e) => ({ dead: e.dead, hp: e.hp, maxHp: e.maxHp, mode: e.mode, boss: !!ENEMIES[e.defId]?.boss })));
+  }
+
+  /** 第 93 輪（D-234）：巡邏精英交戰中被打掉血、在 12 格內（跨區不報地名用） */
+  private eliteEngaged(): boolean {
+    const p = playerOf(this.s);
+    return eliteFighting(enemiesOf(this.s).map((e) => ({ dead: e.dead, hp: e.hp, maxHp: e.maxHp, mode: e.mode, elite: e.tier === 'elite', boss: !!ENEMIES[e.defId]?.boss, dist: Math.hypot(e.x - p.x, e.y - p.y) / UNIT })));
   }
 
   /** 走進光門（沒開面板）→ 存檔後換地圖。Boss 交戰中只要還沒開打（牠滿血）也可以走（和 ☰ 直接前往一樣，等於脫離戰鬥）；打掉血之後封住，免得追打／衝鋒踩到門被傳走（D-218） */

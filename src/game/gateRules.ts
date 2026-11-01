@@ -11,3 +11,14 @@ export interface GateUnit {
 export function gateSealed(units: readonly GateUnit[]): boolean {
   return units.some((e) => !e.dead && e.boss && (e.mode === 'combat' || e.mode === 'returning') && e.hp < e.maxHp);
 }
+
+// 第 93 輪（D-234）：巡邏精英（迷霧巡守、荊棘巡獵者、彗星巡者…）交戰中被打掉血、在主角 12 格內＝正在纏鬥。
+// 走位跨區時不要跳地區名稱＋危險說明蓋在打鬥中間（D-233 只擋 Boss）。
+export interface FightUnit extends GateUnit {
+  elite?: boolean;
+  dist: number; // 和主角的距離（格）
+}
+
+export function eliteFighting(units: readonly FightUnit[]): boolean {
+  return units.some((e) => !e.dead && e.elite && !e.boss && e.mode === 'combat' && e.hp < e.maxHp && e.dist <= 12);
+}
