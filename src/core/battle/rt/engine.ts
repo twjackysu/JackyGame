@@ -1029,6 +1029,9 @@ function reviveAtCampfire(s: BattleState, p: Unit): boolean {
   p.statuses = [];
   p.action = null;
   p.targetId = null;
+  // 第 88 輪（D-225）：醒來也補藥水（和休息一樣補到攜帶上限）。以前藥水喝光倒下 → 醒來 0 瓶，要自己再點火堆才補，
+  // 新手常直接走回去又倒一次；休息本來就免費，這一步只是多餘的操作
+  s.potions = Math.max(s.potions, playerDef(s).potion.carry);
   p.x = c.x;
   p.y = c.y + UNIT;
   clampArena(s, p);

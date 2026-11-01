@@ -833,8 +833,10 @@ describe('營火：安全範圍、休息、復活（design/20 B4）', () => {
     p.y = u(17);
     p.hp = 1;
     p.atk = 1;
+    s.potions = 0; // 藥水喝光才倒下（D-225：醒來也補滿）
     for (let i = 0; i < sec(10) && !s.revives; i++) step(s, [{ type: 'stop' }]);
     expect(s.revives).toBe(1);
+    expect(s.potions).toBe(20);
     expect(s.outcome).toBe('running');
     expect(p.dead).toBe(false);
     expect(p.hp).toBe(p.maxHp);
