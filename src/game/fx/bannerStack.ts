@@ -23,6 +23,10 @@ export function stackY(y: number, h: number, busy: readonly Band[], limit: numbe
       const r = stackFrom(below, half, busy, limit, ceil, avoid);
       if (r !== null) return r;
     }
+    // 第 89 輪（D-228）：主角下方放不下（360×640 剛進地圖，鏡頭夾在地圖南緣，主角腳在 y≈757、下方只剩按鈕區）
+    // → 改排到主角頭上（不高過 ceil、不碰其他大字）。以前開場大字整塊蓋住主角。
+    const above = avoid[0] - GAP - half;
+    if (above - half >= ceil && !busy.some(([t, b]) => above - half < b + GAP && above + half > t - GAP)) return above;
     // 第 76 輪：不急的說明（討伐後「首次討伐！…」）寧可等一下也不蓋主角：主角下方暫時被佔住就排隊
     if (patient) return null;
   }
