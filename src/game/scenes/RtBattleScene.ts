@@ -1,6 +1,7 @@
 // 即時戰鬥試玩場景（除錯入口：?debug&scene=RtBattle&stage=forest_entry；D-063／D-065，design/20 §B8 P1）。
 // Phaser 只負責畫 BattleState 與收輸入 → BattleCommand；戰鬥結果全部由 src/core/battle/rt 決定（D-062）。
 import Phaser from 'phaser';
+import { cdText, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
@@ -5943,7 +5944,8 @@ export class RtBattleScene extends Phaser.Scene {
       // 以前打倒過、光門已經開著（第 55 輪）：舊玩家回來時目標字條也提光門，不只說「往北打狼王」
       const fwd = this.gates.find((q) => !q.back);
       this.gateAhead = fwd ? worldMap(fwd.to)?.name ?? '' : '';
-      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${this.gateWaits ? '' : big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : this.goalBefore && this.goalNext ? `${this.gateAhead ? `光門通往${this.gateAhead}・` : ''}${bossDef.name}可以再挑戰\n▶ ${this.goalNext}` : this.gateAhead ? `目標：打倒${bossDef.name}・光門通往${this.gateAhead}` : `目標：往北，打倒${bossDef.name}`) : '').setColor(done ? '#9fe8a0' : '#ffd27a');
+      this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${this.gateWaits ? '' : big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : this.goalBefore && this.goalNext ? `${this.gateAhead ? `光門通往${this.gateAhead}・` : ''}${bossDef.name}可以再挑戰\n▶ ${this.goalNext}` : this.gateAhead ? `目標：打倒${bossDef.name}・光門通往${this.gateAhead}` : `目標：往北，打倒${bossDef.name}`) : '');
+      textColor(this.goal, done ? '#9fe8a0' : '#ffd27a');
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
@@ -5974,7 +5976,8 @@ export class RtBattleScene extends Phaser.Scene {
       // 第 73 輪：等級不夠的建議等級從攻略提示（三行，360×640 疊上別的提示會蓋住主角）搬到 Boss 血條字的後面，打的時候一直看得到
       const wmB = boss ? worldMap(this.stageId) : undefined;
       const lowLv = !!wmB && !boss?.fury && (this.s.prog?.level ?? 1) < wmB.bossLv ? `　建議 Lv${wmB.bossLv}` : '';
-      if (boss) this.bossTxt.setText(`${boss.fury ? '暴怒的' : ''}${ENEMIES[boss.defId]?.name ?? ''}　${Math.max(1, Math.ceil((boss.hp / boss.maxHp) * 100))}%${lowLv}`).setColor(boss.phase === 2 ? '#ffb09a' : '#ffd0e4');
+      if (boss) this.bossTxt.setText(`${boss.fury ? '暴怒的' : ''}${ENEMIES[boss.defId]?.name ?? ''}　${Math.max(1, Math.ceil((boss.hp / boss.maxHp) * 100))}%${lowLv}`);
+      if (boss) textColor(this.bossTxt, boss.phase === 2 ? '#ffb09a' : '#ffd0e4');
     }
     if (boss) {
       const w = 600;
@@ -6027,9 +6030,9 @@ export class RtBattleScene extends Phaser.Scene {
       // 冷卻中也留著招式名（第 45 輪：以前冷卻時只剩數字，新手打一陣子五顆鍵全是「4.8」「2.3」，記不住哪顆是哪招）
       const nm = i === 4 ? '閃避' : skillDef(this.s, id)!.name;
       const bt = this.btnText[i]!;
-      bt.setText(left > 0 ? `${nm}\n${(left / TICKS_PER_SEC).toFixed(1)}` : nm);
+      bt.setText(left > 0 ? `${nm}\n${cdText(left)}` : nm);
       const bc = left > 0 ? '#a8a090' : '#ffffff';
-      if (bt.style.color !== bc) bt.setColor(bc);
+      textColor(bt, bc);
     });
     // 大招：MP 環（滿 40 才亮）＋冷卻
     {
@@ -6053,8 +6056,8 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / ult.cooldownTicks), false).fillPath();
       }
-      this.btnText[5]!.setText(left > 0 ? `${(left / TICKS_PER_SEC).toFixed(1)}` : ok ? ultLabel(skillDef(s, 'blade_storm')!.name) : `MP\n${p.mp}/${need}`);
-      this.btnText[5]!.setColor(ok ? '#ffffff' : '#c890b0');
+      this.btnText[5]!.setText(left > 0 ? cdText(left) : ok ? ultLabel(skillDef(s, 'blade_storm')!.name) : `MP\n${p.mp}/${need}`);
+      textColor(this.btnText[5]!, ok ? '#ffffff' : '#c890b0');
     }
     // 藥水：剩餘數量＋冷卻；血少於 40% 時閃爍提醒
     {
