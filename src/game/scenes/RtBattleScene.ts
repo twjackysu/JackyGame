@@ -2288,7 +2288,10 @@ export class RtBattleScene extends Phaser.Scene {
     this.ox = -left * this.k;
     this.oy = VIEW_TOP - topY * this.k;
     const hy = this.sy(p0.y);
-    setBannerAvoid(this, [hy - 110, hy + 30]);
+    // 第 90 輪：交戰中的 Boss 在主角上方 → 那一帶（Boss 本身＋腳下的紅圈預告）也不排大字（D-231）
+    const boss = this.s.units.find((u) => u.tier === 'boss' && !u.dead && u.mode === 'combat');
+    const by = boss ? this.sy(boss.y) : 0;
+    setBannerAvoid(this, [hy - 110, hy + 30], boss && by < hy - 60 && by > VIEW_TOP - 200 ? [by - 230, hy - 110] : null);
   }
 
   /**

@@ -144,10 +144,14 @@ const BANNER_CEIL = 430;
 export const BANNER_DEPTH = 950;
 const AVOID = new WeakMap<Phaser.Scene, Band>();
 /** 主角在畫面上的上下範圍（場景每幀更新）；往上疊的置中大字不蓋在這裡，改排隊（第 74 輪） */
-export function setBannerAvoid(scene: Phaser.Scene, band: Band | null): void {
+export function setBannerAvoid(scene: Phaser.Scene, band: Band | null, keep: Band | null = null): void {
   if (band) AVOID.set(scene, band);
   else AVOID.delete(scene);
+  if (keep) KEEP.set(scene, keep);
+  else KEEP.delete(scene);
 }
+/** 主角頭上不能放大字的一帶（第 90 輪：交戰中的 Boss 在主角上方） */
+const KEEP = new WeakMap<Phaser.Scene, Band>();
 const BANNERS = new WeakMap<Phaser.Scene, { t: { active: boolean; y: number }; h: number; fading: boolean }[]>();
 
 /**
@@ -211,7 +215,7 @@ export function bigText(
       if (!t.active || !scene.sys.isActive()) return;
       const live = (BANNERS.get(scene) ?? []).filter((b) => b.t.active && !b.fading);
       const busy: Band[] = live.map((b) => [b.t.y - b.h / 2, b.t.y + b.h / 2]);
-      const cy = stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene), patient);
+      const cy = stackY(y, h, busy, scene.scale.height * 0.62, BANNER_CEIL, AVOID.get(scene), patient, KEEP.get(scene));
       if (cy === null && tries++ < 24) {
         scene.tweens.addCounter({ from: 0, to: 1, duration: 250, onComplete: place });
         return;

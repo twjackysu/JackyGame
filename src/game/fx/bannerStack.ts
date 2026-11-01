@@ -12,7 +12,11 @@ const HERO_OVERLAP = 50;
  * 回傳新大字的中心 y；上下都放不下（往上會壓到左上角小地圖／懸賞板，ceil 以上）就回傳 null＝先排隊，
  * 等前面的大字淡出再出（第 39 輪：Boss 倒下、抉擇、稀有裝備、新地圖開放同時出，以前會被推到 HUD 上）。
  */
-export function stackY(y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band, patient = false): number | null {
+export function stackY(
+  y: number, h: number, busy: readonly Band[], limit: number, ceil = 120, avoid?: Band, patient = false,
+  /** 主角頭上不能放的一帶（第 90 輪：交戰中的 Boss 在主角上方——牠本身和紅圈預告） */
+  keep?: Band,
+): number | null {
   const half = h / 2;
   // 第 75 輪：原位就壓在主角身上（重疊超過 HERO_OVERLAP）→ 先試主角下方（放得下才挪），再照常避開其他大字；
   // 挪下去反而要排隊（下面被提示佔滿）就退回原位的排法——Boss 的「跑出圈外！」這種警告不能因為讓位而晚出。
@@ -26,7 +30,9 @@ export function stackY(y: number, h: number, busy: readonly Band[], limit: numbe
     // 第 89 輪（D-228）：主角下方放不下（360×640 剛進地圖，鏡頭夾在地圖南緣，主角腳在 y≈757、下方只剩按鈕區）
     // → 改排到主角頭上（不高過 ceil、不碰其他大字）。以前開場大字整塊蓋住主角。
     const above = avoid[0] - GAP - half;
-    if (above - half >= ceil && !busy.some(([t, b]) => above - half < b + GAP && above + half > t - GAP)) return above;
+    // 第 90 輪：交戰中的 Boss 在主角上方（keep）就不排到頭上——360×640 打 Boss 時攻略提示以前會蓋在 Boss 和牠的紅圈預告上
+    const onKeep = keep !== undefined && above - half < keep[1] && above + half > keep[0];
+    if (above - half >= ceil && !onKeep && !busy.some(([t, b]) => above - half < b + GAP && above + half > t - GAP)) return above;
     // 第 76 輪：不急的說明（討伐後「首次討伐！…」）寧可等一下也不蓋主角：主角下方暫時被佔住就排隊
     if (patient) return null;
   }
