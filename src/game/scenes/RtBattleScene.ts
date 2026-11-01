@@ -2125,6 +2125,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.tipBusy || this.time.now < this.chapterUntil || this.topCard?.active || this.time.now < this.reviveUntil) return;
     // 第 68 輪：巢穴邊的寶箱（星隕高原）提示以前和 Boss 登場名字疊在一起 → Boss 開打期間不提示
     if (enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat')) return;
+    // 第 93 輪（D-234）：和巡邏精英纏鬥中也先不提示（星隕高原彗星巡者打到一半跳「似乎有點熟悉」）
+    if (this.eliteEngaged()) return;
     const p = playerOf(this.s);
     for (const c of list) {
       if (c.nightOnly || this.chestHinted.has(c.id) || this.s.chestsOpened?.includes(c.id)) continue;
@@ -2574,6 +2576,8 @@ export class RtBattleScene extends Phaser.Scene {
       last.x = pos.x;
       last.y = pos.y;
     }
+    // 第 93 輪（D-234）：已經和巡邏精英打過（被牠從背後發現、直接開打）→「在巡邏——別走進牠的範圍」是過時的教學，打完牠回去巡邏時才跳很怪 → 直接記成看過
+    if (!patrolling && x.mode === 'combat' && !this.bot) this.tipSilently('jg_tip_stalker');
     if (!patrolling) return;
     const R = aggroUnitsOf(x) * UNIT * this.k;
     const pulse = 0.5 + 0.5 * Math.sin(now / 350);
@@ -2670,6 +2674,17 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** @returns 這則提示是否已經處理掉（剛顯示、以前看過、或 Bot 示範）；false＝現在太忙，呼叫端可以等一下再試 */
+  /** 教學已經不需要講了（玩家已經遇過）→ 不顯示、直接記成看過 */
+  private tipSilently(key: string): void {
+    if (this.tipsDone.has(key)) return;
+    this.tipsDone.add(key);
+    try {
+      localStorage.setItem(key, '1');
+    } catch {
+      /* 私密模式：只記在記憶體 */
+    }
+  }
+
   private tipOnce(key: string, text: string, color: string): boolean {
     // Bot 示範不提示、也不記成「看過了」（第 42 輪：以前先看 Bot 示範，格擋／撿裝備的教學就被 Bot 用掉了）
     if (this.bot || this.tipsDone.has(key)) return true;
