@@ -173,6 +173,11 @@ export function pinBanner(scene: Phaser.Scene, t: Phaser.GameObjects.Text, ms: n
   reserveBanner(scene, t.y, t.height, ms);
 }
 
+/** 這一帶（中心 cy、高 h）現在有沒有置中大字佔著（第 87 輪：隱藏首領的字要挪到主角下方前先看那裡空不空） */
+export function bannerBusy(scene: Phaser.Scene, cy: number, h: number): boolean {
+  return (BANNERS.get(scene) ?? []).some((b) => b.t.active && !b.fading && cy - h / 2 < b.t.y + b.h / 2 && cy + h / 2 > b.t.y - b.h / 2);
+}
+
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */
 export function bigText(
   scene: Phaser.Scene, x: number, y: number, text: string, color: string, size = 72, hold = 450,

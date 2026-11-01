@@ -56,7 +56,7 @@ import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rt
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
+import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
@@ -71,6 +71,7 @@ import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
+import { hiddenEliteBannerY } from '../fx/bannerStack';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 
@@ -1762,6 +1763,8 @@ export class RtBattleScene extends Phaser.Scene {
   private streakHint(): void {
     const h = STAGES[this.stageId]?.hiddenElite;
     if (!h || this.streakHinted || this.bot || (this.s.streak ?? 0) < Math.ceil((h.streak * 2) / 3)) return;
+    // 第 87 輪：已經到門檻（首領下一秒就出現）或首領已經在場上 → 不再預告，不然「會被引出來」和「現身！」疊在一起
+    if ((this.s.streak ?? 0) >= h.streak || this.s.units.some((u) => u.groupId === 'hidden' && !u.dead)) { this.streakHinted = true; return; }
     // 打 Boss 時先不提（第 45 輪：燼紅裂谷打岩王打到一半跳出「首領會被引出來」，和 Boss 提示同一個高度）
     if (enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat')) return;
     this.streakHinted = true;
@@ -3111,8 +3114,11 @@ export class RtBattleScene extends Phaser.Scene {
         const d = u(e.id);
         SFX.warn(true);
         this.cameras.main.shake(220, 0.006);
-        bigText(this, GAME_WIDTH / 2, 420, `隱藏的${ENEMIES[d?.defId ?? '']?.name ?? '首領'}現身！`, '#ffa040', 46, 1200);
-        this.time.delayedCall(700, () => bigText(this, GAME_WIDTH / 2, 490, '比一般的強很多・掉落三倍', '#ffd27a', 28, 1400));
+        // 第 87 輪：首領從主角上方衝過來時，固定在 420／490 的兩行大字正好蓋住牠衝刺的路線（360×640 看不到首領長什麼樣）→ 改排在主角下方
+        const yb = hiddenEliteBannerY(d ? this.sy(d.y) : null, this.sy(playerOf(this.s).y), this.scale.height);
+        const y0 = yb !== 420 && bannerBusy(this, yb, 130) ? 420 : yb; // 主角下方被別的大字佔著就照舊（不排隊，警告不能晚出）
+        // 兩行合成一塊：分開出的時候第二行會被別的提示推到第一行上面（順序顛倒）
+        bigText(this, GAME_WIDTH / 2, y0, `隱藏的${ENEMIES[d?.defId ?? '']?.name ?? '首領'}現身！\n比一般的強很多・掉落三倍`, '#ffa040', 38, 1900);
         if (d) shockRing(this, this.sx(d.x), this.sy(d.y), 0xffa040, 180, 650, 8);
       } else if (e.type === 'riot') {
         SFX.warn(true);

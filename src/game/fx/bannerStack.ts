@@ -88,3 +88,16 @@ export function pinY(y: number, h: number, busy: readonly Band[], limit: number,
   if (cy - half >= ceil && !hits(cy) && !onHero) return cy;
   return y;
 }
+
+/**
+ * 隱藏首領現身的大字（第 87 輪，D-223）：原本兩行固定在 420／490；首領從主角上方衝過來時正好蓋住牠的衝刺路線
+ * （360×640 主角約在 580，首領從上方 7 格外衝下來，整段都在字底下）→ 首領在主角上方就把字排到主角下方，
+ * 放不下（主角太靠下）或首領在下方／看不到就維持原位。ey／hy＝首領／主角的畫面 y，H＝畫面高度。
+ */
+export function hiddenEliteBannerY(ey: number | null, hy: number, H: number): number {
+  const DEFAULT = 420;
+  if (ey === null || ey >= hy) return DEFAULT;
+  const HALF = 60; // 兩行 38px 大字約 120 高
+  const y = hy + 30 + 20 + HALF;
+  return y + HALF <= H * 0.62 ? y : DEFAULT;
+}
