@@ -2710,7 +2710,9 @@ export class RtBattleScene extends Phaser.Scene {
           if (ay > VIEW_TOP) shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 60, 260, 5);
           SFX.warn(false);
           const fx = Math.max(90, Math.min(GAME_WIDTH - 90, this.sx(d.x)));
-          const fy = Math.max(VIEW_TOP + 110, this.sy(d.y) - 130);
+          // 第 84 輪：浮字會往上飄 70px，夾在 VIEW_TOP+110 還是會飄進上緣的目標字條（360×640 深夜裂谷）→ 也要在字條底下 90px 以下
+          const gbot = this.goal?.visible && this.goal.text ? this.goal.getBounds().bottom : 0;
+          const fy = Math.max(VIEW_TOP + 110, gbot + 90, this.sy(d.y) - 130);
           floatNumber(this, fx, fy, '被發現了！', { color: '#ffb07a', size: 30 });
         }
         if (d?.affix) this.time.delayedCall(250, () => floatNumber(this, this.sx(d.x), this.sy(d.y) - 90, `${ELITE_AFFIXES[d.affix!].name}！`, { color: `#${AFFIX_COLOR[d.affix!].toString(16).padStart(6, '0')}`, size: 32 }));
