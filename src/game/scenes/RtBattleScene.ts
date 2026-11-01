@@ -190,7 +190,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 首次討伐後的光門在等哪個面板關掉（抉擇／通關演出）才出現 */
   private gateWaits: '' | 'choice' | 'finale' = '';
   /** 第 85 輪（D-219）：鏡頭「看一眼」畫面外剛亮起的光門（世界座標＋開始時間），null＝沒有 */
-  private camPeek: { x: number; y: number; at: number } | null = null;
+  private camPeek: { x: number; y: number; at: number; id?: number; share?: number } | null = null;
   /** 走進光門的時間（-1＝沒在過場）、這次是不是從光門過來的 */
   private warpAt = -1;
   /** 第 56 輪：經光門抵達＝從回程門走出來（主角從光柱裡降下、淡入），-1＝沒有 */
@@ -2225,7 +2225,12 @@ export class RtBattleScene extends Phaser.Scene {
       const w = this.menu || this.warpAt >= 0 ? 0 : peekWeight(this.time.now - this.camPeek.at);
       if (this.time.now - this.camPeek.at >= PEEK_TOTAL) this.camPeek = null;
       else {
-        p = peekFocus(p0.x, p0.y, this.camPeek.x, this.camPeek.y, w);
+        // 跟著單位（Boss 登場時牠會往主角走）；單位不見了就看最後的位置
+        if (this.camPeek.id !== undefined) {
+          const u = this.s.units.find((q) => q.id === this.camPeek!.id && !q.dead);
+          if (u) { const lp = this.lerpPos(u); this.camPeek.x = lp.x; this.camPeek.y = lp.y; }
+        }
+        p = peekFocus(p0.x, p0.y, this.camPeek.x, this.camPeek.y, w, this.camPeek.share);
         peekW = w;
         peekGy = this.camPeek.y;
       }
@@ -4320,10 +4325,21 @@ export class RtBattleScene extends Phaser.Scene {
     [line, name].forEach((o) => this.tweens.add({ targets: o, x: GAME_WIDTH / 2, duration: 420, ease: 'Cubic.easeOut' }));
     this.tweens.add({ targets: subT, x: GAME_WIDTH / 2, duration: 420, delay: 120, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: [line, name, subT], alpha: 0, delay: 1800, duration: 400, onComplete: () => [line, name, subT].forEach((o) => o.destroy()) });
-    const bx = this.sx(d.x);
-    const by = this.sy(d.y);
-    shockRing(this, bx, by, Phaser.Display.Color.HexStringToColor(col).color, 220, 600, 8);
-    sparks(this, bx, by, 24, 'ember', Phaser.Display.Color.HexStringToColor(col).color, 700);
+    const burst = (): void => {
+      if (!this.scene.isActive()) return;
+      const bx = this.sx(d.x);
+      const by = this.sy(d.y);
+      shockRing(this, bx, by, Phaser.Display.Color.HexStringToColor(col).color, 220, 600, 8);
+      sparks(this, bx, by, 24, 'ember', Phaser.Display.Color.HexStringToColor(col).color, 700);
+    };
+    // 第 85 輪（D-219）：360×640 星骸守望者在約 9.6 公尺外就醒，登場名字出來時牠還在畫面上緣外（只看到「9m」箭頭）
+    // → 牠在畫面外就把鏡頭往牠帶一半（主角和 Boss 同框），衝擊環等鏡頭到了才放
+    const by0 = this.sy(d.y);
+    const bx0 = this.sx(d.x);
+    if (!this.bot && (by0 < VIEW_TOP + 140 || by0 > VIEW_BOTTOM - 200 || bx0 < 40 || bx0 > GAME_WIDTH - 40)) {
+      this.camPeek = { x: d.x, y: d.y, at: this.time.now, id: d.id, share: 0.5 };
+      this.time.delayedCall(PEEK_IN, burst);
+    } else burst();
   }
 
   /** 命中的那一刻在預告範圍裡長出荊棘（狼后／母樹，第 23 輪；純畫面、用 Math.random 不影響戰鬥） */
