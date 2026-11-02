@@ -29,6 +29,7 @@ const THORN_BACK: Readonly<Record<string, number>> = { thorn_wolf: 0x4a1f38, tho
 /** 精英／Boss 撞牆暈眩，每次進圖用置中大字講幾次（D-238），之後在牠頭上小字 */
 const STUN_BIG_TIMES = 2;
 const STUN_BIG_BOSS = 3;
+const LOW_HP_TIP_MS = 8000; // D-242：老玩家低血「打不過就退回營火」每次只講 8 秒
 const STAR_MARKS = new Set(['star_wolf', 'astral_alpha', 'comet_stalker', 'eclipse_wolf']);
 const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
 
@@ -319,6 +320,8 @@ export class RtBattleScene extends Phaser.Scene {
   private newbie = false;
   /** 第 67 輪：打倒過第一隻 Boss（霧角狼王）的老玩家——閒下來時不再一直顯示「點怪物開打」 */
   private veteran = false;
+  /** 第 97 輪（D-242）：這次「血不到一半、不在營火」從什麼時候開始（老玩家「打不過就退回營火」只講 8 秒） */
+  private lowHpAt = 0;
   private dustBase = 0;
   private goalAt = 0;
   private goalNext = '';
@@ -6222,7 +6225,12 @@ export class RtBattleScene extends Phaser.Scene {
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
-    const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < playerDef(this.s).potion.carry) ? '點營火休息：HP 全滿・補藥水' : !atFire && p.hp * 2 < p.maxHp ? '打不過就退回營火（怪不追進來）' : '';
+    // 第 97 輪（D-242）：老玩家低血走回營火的路上字條會一直閃 30 秒 → 每次低血只講 8 秒（新玩家照舊一直提醒）
+    const lowHp = !atFire && p.hp * 2 < p.maxHp;
+    if (!lowHp) this.lowHpAt = 0;
+    else if (!this.lowHpAt) this.lowHpAt = this.time.now;
+    const lowTip = lowHp && (!this.veteran || this.time.now - this.lowHpAt < LOW_HP_TIP_MS);
+    const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < playerDef(this.s).potion.carry) ? '點營火休息：HP 全滿・補藥水' : lowTip ? '打不過就退回營火（怪不追進來）' : '';
     // 第 56 輪：長螢幕（390×844）主角在畫面較下面，固定 y 850 的字條會蓋在主角頭上 → 至少在主角腳下 95
     if (calm) this.calmText.y = Phaser.Math.Clamp(this.sy(p.y) + 95, 850, VIEW_BOTTOM - 60);
     const calmMsg = calm ? restTip || (this.veteran ? (p.hp < p.maxHp ? '休息中・自動回血' : '') : p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '';
