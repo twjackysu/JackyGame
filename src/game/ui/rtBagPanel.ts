@@ -27,6 +27,8 @@ export interface BagCtx {
   atFire: () => boolean;
   /** 花材料（負數＝得到）；不夠回 false */
   spend: (dust: number, crystal: number) => boolean;
+  /** 這張地圖 Boss 的簡稱（第 100 輪：空行囊說明以前一律寫「狼王必掉」，在燼紅裂谷也是） */
+  bw?: string;
 }
 
 export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () => string, onChange: (st: BagState) => void, onClose: () => void, ctx?: BagCtx): Phaser.GameObjects.Container {
@@ -92,7 +94,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     const w = ctx?.wallet();
     items.push(scene.add.text(0, -338, `背包 ${st.bag.length}/${BAG_MAX}　▲＝比身上的好${w ? `　粉塵 ${w.dust}・結晶 ${w.crystal}` : ''}`, { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));
     const list = st.bag.slice(page * per, page * per + per);
-    if (!list.length) items.push(scene.add.text(0, -150, '還沒有裝備\n打倒怪物有機會掉落；首領常掉、狼王必掉', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+    if (!list.length) items.push(scene.add.text(0, -150, `還沒有裝備\n打倒怪物有機會掉落；首領常掉、${ctx?.bw ?? '狼王'}必掉`, { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
     list.forEach((g, i) => {
       items.push(...cell(0, -290 + i * 68, 640, 60, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}　Lv${g.ilvl}`, () => {
         detail = g;

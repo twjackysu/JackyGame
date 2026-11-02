@@ -1276,6 +1276,7 @@ export class RtBattleScene extends Phaser.Scene {
         else this.acc = 0;
       },
       {
+        bw: this.bw,
         wallet: () => walletOf(loadRecord(this.stageId)),
         atFire: () => {
           const p = playerOf(this.s);
