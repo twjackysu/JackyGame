@@ -2082,7 +2082,9 @@ export class RtBattleScene extends Phaser.Scene {
     const blocks: Phaser.GameObjects.Container[] = [];
     for (const wm of WORLD_MAPS) {
       const c = this.add.container(0, 0);
-      c.add(this.add.text(-310, 0, wm.name, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: wm.color }).setOrigin(0, 0));
+      // 第 99 輪（D-246）：還沒開放的地圖不寫名字（標題也只列開放的地圖；以前第一張圖就看到「星隕高原」）
+      const known = mapOpen(wm.id);
+      c.add(this.add.text(-310, 0, known ? wm.name : '？？？（還沒去過的地方）', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: known ? wm.color : '#6a5a80' }).setOrigin(0, 0));
       let y = 38;
       for (const m of memoriesOf(wm.id)) {
         const got = have.includes(m.id);
