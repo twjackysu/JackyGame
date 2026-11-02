@@ -362,6 +362,11 @@ export class RtBattleScene extends Phaser.Scene {
   private chestHintUntil = 0;
   /** 剛想起「和 Boss 攻略提示同一件事」的記憶的時間（D-240） */
   private memTipAt = -1e9;
+  /** Boss 攻略提示講的就是瞬移（星隕高原）時，提示在畫面上的時段；這段時間第一次瞬移不另跳大字（D-241） */
+  private tipBlinkFrom = 0;
+  private tipBlinkUntil = 0;
+  /** 第一次瞬移大字出現的時間（D-241：之後 8 秒內攻略提示不再講同一件事） */
+  private blinkSaidAt = -1e9;
   /** 倒下後在營火旁醒來的那幾秒（第 61 輪）：不報地區名稱、不出「似乎有點熟悉」，只留「在營火旁醒來」 */
   private reviveUntil = 0;
   /** 開場大字佔著 tipBusy 時的 busyRun（-1＝沒有） */
@@ -639,7 +644,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
-    { this.memQ = null; this.chestHintUntil = 0; this.memTipAt = -1e9; this.introRun = -1; this.reviveUntil = 0; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
+    { this.memQ = null; this.chestHintUntil = 0; this.memTipAt = -1e9; this.tipBlinkFrom = 0; this.tipBlinkUntil = 0; this.blinkSaidAt = -1e9; this.introRun = -1; this.reviveUntil = 0; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
       this.tipBusy = true;
@@ -2857,7 +2862,14 @@ export class RtBattleScene extends Phaser.Scene {
           const low = !!wm && lv < wm.bossLv;
           const tip = echo ? (low ? '（打不過就先回去練功）' : '') : `${wrapTip(this.bossTipText())}${low ? '\n打不過就先回去練功' : ''}`;
           // 第 64 輪：放在主角腳下（TIP_Y），以前 y 600 正好蓋在 Boss 和牠的第一個紅圈預告上
-          if (tip) this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, TIP_Y, tip, '#d8c8ff', 28, tipMs(tip)));
+          // 第 96 輪（D-241）：守望者開打 0.5 秒就瞬移，「化成星光——小心背後！」和 1 秒後的攻略提示「會瞬移到背後」講同一件事
+          // → 提示會講瞬移時：提示出現前先瞬移就跳大字、提示改只留練功那行；提示在畫面上時瞬移就不另跳大字
+          const blinkTip = !echo && /瞬移/.test(this.bossTipText());
+          if (blinkTip) { this.tipBlinkFrom = this.time.now + 2100; this.tipBlinkUntil = this.tipBlinkFrom + tipMs(tip); }
+          this.time.delayedCall(2100, () => {
+            const t = blinkTip && this.time.now - this.blinkSaidAt < 8000 ? (low ? '（打不過就先回去練功）' : '') : tip;
+            if (t) bigText(this, GAME_WIDTH / 2, TIP_Y, t, '#d8c8ff', 28, tipMs(t));
+          });
         }
       } else if (e.type === 'leash') {
         const d = u(e.id);
@@ -3011,7 +3023,11 @@ export class RtBattleScene extends Phaser.Scene {
         this.cameras.main.shake(120, 0.004);
         if (b && !this.blinkHinted.has(b.defId)) {
           this.blinkHinted.add(b.defId);
-          bigText(this, GAME_WIDTH / 2, 520, wd ? '巡守隱入霧中——小心背後！' : wmb.blink[0], wd ? '#9af0e0' : wmb.blink[1], 38, 900);
+          // D-241：攻略提示正在講瞬移就不另跳大字
+          if (this.time.now < this.tipBlinkFrom || this.time.now >= this.tipBlinkUntil) {
+            this.blinkSaidAt = this.time.now;
+            bigText(this, GAME_WIDTH / 2, 520, wd ? '巡守隱入霧中——小心背後！' : wmb.blink[0], wd ? '#9af0e0' : wmb.blink[1], 38, 900);
+          }
         }
       }
       else if (e.type === 'cast') {
