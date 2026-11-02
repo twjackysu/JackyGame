@@ -1,5 +1,17 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-03 02:14–02:40（台北）第 104 輪 — 「第一眼」第六十八段：面板底下透出的距離字與懸賞板（D-252）
+**背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 103 輪 7ba7c5e）。台北還沒到 11/3 18:00 → 照 NEXT「第 104 輪建議接著看」②③。
+
+**做了什麼**
+- **修了（D-252）**：360×640 開 ☰，Boss 箭頭的「69m」透到「暫停」標題正下方、懸賞板壓進「行囊」鈕 → 面板開著時一起藏，關掉還原。
+- 掃過不改：霧語森林狼王交戰中開 ☰／行囊（360×640，只剩上緣 HUD 淡淡透出）；荊棘谷狼后交戰中開 ☰（390×844 長弓）；燼牌對局中（面板不透）；從 ☰ 開記憶本；燼紅裂谷／星隕高原開場開 ☰ 與記憶本。
+- 截圖腳本假象：直接呼叫 `openMemoryBook()`（沒經過 ☰）營火捷徑鈕會留在遮罩上——真實路徑（☰→前世的記憶）`toggleMenu` 會先藏，不改。
+
+**驗證**：build＋`npx vitest run --exclude 'tests/zz-*'`（390 項全過）。Playwright 截圖（☰ 開／關前後的可見文字 dump）。`npm run playthrough`：三把武器都從新遊戲打到結局。
+
+**問題**：新腳本 `screenshots/r104.mjs`（gitignored）：`?debug&scene=RtBattle`，設 `jg_weapon`／`jg_prologue_seen` 後 reload，`scene.restart({stage, bot:''})`；`STEPS="tag##js##等待ms;;…"`（tag 開頭 `_` 不截圖），每步 dump 可見文字（含容器 depth 路徑）。瞬移到 Boss：`h.x=bo.x; h.y=bo.y+5`（`bo = units.find(u=>u.tier==='boss')`）。
+
 ## 2026-11-03 00:24–01:05（台北）第 103 輪 — 「第一眼」第六十七段：面板底下透出的營火字條（D-251）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 102 輪 fa69487）。照 NEXT「第 103 輪建議接著看」②③（①README 成果發表版留給 11/3 18:00 之後那輪）。
 
