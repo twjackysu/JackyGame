@@ -67,7 +67,7 @@ import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
 import { openChoice } from '../ui/choicePanel';
-import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, encountersOf, loadEncounters, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
+import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, encountersOf, leftMapsExcept, loadEncounters, markMetThisVisit, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { showOffscreenArrow } from '../arrowRules';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
@@ -649,7 +649,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.storySoon = false;
     this.paws = [];
     this.pawLast.clear();
-    { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
+    { const en = loadEncounters(); const on = this.tracked && !this.bot; if (on) leftMapsExcept(this.stageId); this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
     { this.memQ = null; this.chestHintUntil = 0; this.memTipAt = -1e9; this.tipBlinkFrom = 0; this.tipBlinkUntil = 0; this.blinkSaidAt = -1e9; this.introRun = -1; this.reviveUntil = 0; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
@@ -1904,6 +1904,7 @@ export class RtBattleScene extends Phaser.Scene {
       const c = meet(loadEncounters(), e.id, pick);
       if (!c) return;
       saveEncounters(c);
+      if (pick === 'spare' && !e.escort) markMetThisVisit(e.id, this.stageId); // 護送的人半路場景重開就照舊在原地等（不然要離開地圖才找得到她）
       const x = this.sx(e.tx * UNIT + UNIT / 2);
       const y = this.sy(e.ty * UNIT + UNIT / 2);
       let extra = '';

@@ -64,3 +64,15 @@ describe('路上的相遇（D-159）', () => {
     expect(rivalEncounterEcho('sol', { sf_courier: 'spare' })).not.toBeNull();
   });
 });
+
+describe('同一次停留剛選「助」的不馬上道謝（第 102 輪，D-250）', () => {
+  it('同一張圖場景重開不道謝，換過地圖再回來才道謝', async () => {
+    const m = await import('../src/game/encounters');
+    const a = m.meet({}, 'tv_mule', 'spare')!;
+    m.markMetThisVisit('tv_mule', 'thornvale');
+    m.leftMapsExcept('thornvale');
+    expect(m.pendingThanks(a, 'thornvale')).toEqual([]);
+    m.leftMapsExcept('emberrift');
+    expect(m.pendingThanks(a, 'thornvale').map((e) => e.id)).toEqual(['tv_mule']);
+  });
+});

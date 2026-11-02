@@ -175,9 +175,23 @@ export function meet(cur: Record<string, EncounterState>, id: string, pick: Choi
   return { ...cur, [id]: pick };
 }
 
-/** 進地圖時：這張圖上選了「助」、還沒拿回禮的相遇（這次進來就會來道謝） */
+/**
+ * 第 102 輪（D-250）：這次停留剛選了「助」的相遇（id → 地圖）。只存在記憶體：
+ * 選完「助」後在同一張圖 ☰ 換武器／切深夜（場景重開）→ 對方馬上站在原地道謝，和「下次回到那張地圖」對不上。
+ * 換到別張地圖（`leftMapsExcept`）或重開 App 就清掉，之後回來才道謝。
+ */
+const metThisVisit = new Map<string, string>();
+export function markMetThisVisit(id: string, map: string): void {
+  metThisVisit.set(id, map);
+}
+/** 進地圖時呼叫：不是這張圖的「剛遇到」都清掉（人已經離開那張圖了） */
+export function leftMapsExcept(map: string): void {
+  for (const [id, m] of metThisVisit) if (m !== map) metThisVisit.delete(id);
+}
+
+/** 進地圖時：這張圖上選了「助」、還沒拿回禮的相遇（這次進來就會來道謝；同一次停留剛選的不算） */
 export function pendingThanks(cur: Record<string, EncounterState>, map: string): Encounter[] {
-  return encountersOf(map).filter((e) => cur[e.id] === 'spare');
+  return encountersOf(map).filter((e) => cur[e.id] === 'spare' && !metThisVisit.has(e.id));
 }
 
 /** 拿回禮：標成 thanked；回傳新狀態（不是待回禮的回 null） */
