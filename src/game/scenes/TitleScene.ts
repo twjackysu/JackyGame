@@ -289,14 +289,20 @@ export class TitleScene extends Phaser.Scene {
     const locked = new Map<number, string>(); // 第 66 輪：未開放的按鈕點了，條件直接寫在按鈕上
     const last = lastMap();
     let lastIdx = 0; // 第 63 輪：上次玩的地圖亮金框＋▶（沒紀錄就是第一顆）
+    let lockedSeen = false;
     WORLD_MAPS.forEach((m, i) => {
       if (mapOpen(m.id) && m.id === last) lastIdx = items.length;
       // 第 66 輪：走光門進去玩過的地圖不算新的（以前通關回標題，荊棘谷、燼紅裂谷都還掛著 NEW）
       if (mapOpen(m.id) && i > 0 && !seenMap(m.id) && !chapterSeen(m.id) && !bossKillsOf(m.id)) fresh.add(items.length);
       if (mapOpen(m.id)) items.push([`${i ? '前往' : '進入'}${m.name}`, () => this.go(() => this.scene.start('RtBattle', { stage: m.id, bot: '' }))]);
       else {
-        locked.set(items.length, m.id);
-        items.push([`${m.name}（未開放）`, () => this.lockedHint(m.id)]);
+        // 第 101 輪（D-249）：只寫「下一張」要開放的地圖名；更後面的寫「？？？」、通關後的地圖寫「？？？（通關後開放）」
+        // （以前新存檔標題就列出燼紅裂谷、星隕高原，點了還寫「在燼紅裂谷打倒燼心岩王後開放」——跟 D-246 不一致）
+        const shown = !m.postGame && !lockedSeen;
+        lockedSeen = true;
+        const key = shown ? m.id : `?${m.postGame ? 'post' : ''}`;
+        locked.set(items.length, key);
+        items.push([shown ? `${m.name}（未開放）` : m.postGame ? '？？？（通關後開放）' : '？？？（未開放）', () => this.lockedHint(key)]);
       }
     });
     // 通關後（D-133）：可以重看通關演出
@@ -324,7 +330,7 @@ export class TitleScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(0x0a0d1a, 0.85).fillRoundedRect(-200, -42, 400, 84, 20);
       g.lineStyle(i === lastIdx ? 3 : 2, 0xffd27a, i === lastIdx ? 1 : 0.5).strokeRoundedRect(-200, -42, 400, 84, 20);
-      const tx = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: '34px', color: label.includes('未開放') ? '#7a7f90' : '#ffffff' }).setOrigin(0.5).setLetterSpacing(6);
+      const tx = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: '34px', color: locked.has(i) ? '#7a7f90' : '#ffffff' }).setOrigin(0.5).setLetterSpacing(6);
       c.add([g, tx]);
       if (i === lastIdx && lastIdx > 0) c.add(this.add.text(-172, 0, '▶', { fontFamily: UI_FONT, fontSize: '26px', color: '#ffd27a' }).setOrigin(0.5));
       c.setSize(400, 84).setInteractive({ useHandCursor: true }).setAlpha(0);
@@ -398,8 +404,8 @@ export class TitleScene extends Phaser.Scene {
    * 以前固定在 y 860 跳一行小字，長螢幕時離按鈕很遠、壓在主角立繪上。
    */
   private lockedHint(id: string, c?: Phaser.GameObjects.Container, tx?: Phaser.GameObjects.Text, label?: string): void {
-    const pv = prevMap(id);
-    const msg = pv ? `在${pv.name}打倒${pv.boss}後開放` : '尚未開放';
+    const pv = id.startsWith('?') ? undefined : prevMap(id);
+    const msg = id === '?post' ? '通關之後開放' : id === '?' ? '先開放前一張地圖' : pv ? `在${pv.name}打倒${pv.boss}後開放` : '尚未開放';
     if (!c || !tx || label === undefined) {
       const t = this.add.text(GAME_WIDTH / 2, 860, msg, { fontFamily: UI_FONT, fontSize: '28px', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.6)' }).setPadding(16, 8, 16, 8).setOrigin(0.5).setDepth(100);
       this.tweens.add({ targets: t, alpha: 0, delay: 1600, duration: 400, onComplete: () => t.destroy() });
