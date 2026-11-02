@@ -110,10 +110,13 @@ export function recordBoss(rec: RtRecord, sec: number | null, at: number, fury =
   return { rec: out, first, best };
 }
 
-/** 暴怒狼王解鎖條件（D-099）：Lv8 以上或狼王討伐 3 次 */
+/** 暴怒狼王解鎖條件（D-099）：Lv8 以上或狼王討伐 3 次。
+ * 第 100 輪（D-247）：都要先打倒這張圖的 Boss 一次——以前 Lv8 就算，第一次走進燼紅裂谷（建議 Lv10）、星隕高原時
+ * 連岩王／守望者的面都沒見過，☰ 已經有「岩王暴怒：關」可以打開（第一次就打暴怒版），荊棘谷升到 Lv8 也跳「解鎖：狼后暴怒！」。 */
 export const FURY_UNLOCK = { level: 8, kills: 3 } as const;
 export function furyUnlocked(rec: RtRecord, level: number): boolean {
-  return level >= FURY_UNLOCK.level || (rec.bossKills ?? 0) >= FURY_UNLOCK.kills;
+  const k = rec.bossKills ?? 0;
+  return k >= 1 && (level >= FURY_UNLOCK.level || k >= FURY_UNLOCK.kills);
 }
 
 /** 深夜模式解鎖（D-103）：打倒暴怒狼王至少一次 */

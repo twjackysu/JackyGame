@@ -1,7 +1,8 @@
-# 燼牌重複文字掃描（第 99 輪）：LS='{…}' bash scripts/card-noise.sh 地圖 W H 秒；要先 npx vite --port 5173。開燼牌面板→練習一局→每 0.5 秒 getData('auto')() 幫你出一手，結束就再開一局；印每句出現在幾段。對手＝那張地圖的在地對手。
+# 燼牌重複文字掃描（第 99 輪）：LS='{…}' [OPP=對手簡稱] bash scripts/card-noise.sh 地圖 W H 秒；要先 npx vite --port 5173。開燼牌面板→練習一局→每 0.5 秒 getData('auto')() 幫你出一手，結束就再開一局；印每句出現在幾段。對手＝那張地圖的在地對手；OPP（例如 伊妲）＝先點那個頁籤（第 100 輪）。
 ST=$1; W=$2; H=$3; SEC=${4:-150}
 A='(()=>{const m=sc().menu; if(!m) return "nomenu"; if(m.getData("over")()) {m.getData("start")(false); return "restart";} return m.getData("auto")()?"play":"wait"})()'
-F='(()=>{sc().commands=()=>[]; window.AUTOPICK=null; sc().openCards(); sc().menu.getData("start")(false); return "start"})()'
+F='(()=>{sc().commands=()=>[]; window.AUTOPICK=null; sc().openCards(); if (window.OPP) clk(window.OPP); sc().menu.getData("start")(false); return "start"})()'
+if [ -n "$OPP" ]; then F="window.OPP='$OPP'; $F"; else F="window.OPP=null; $F"; fi
 SHOTS=$(python3 -c "import json,sys; print(json.dumps([[4,sys.argv[1]]]+[[t/2,sys.argv[2]] for t in range(10,$SEC*2)]))" "$F" "$A")
 sed -e 's|  await pg.waitForTimeout(700);|  i++; continue;|' scripts/shot-newsave.mjs > screenshots/cn-$$.mjs
 LS="$LS" STAGE=$ST SHOTS="$SHOTS" timeout 1500 node screenshots/cn-$$.mjs cn sword $W $H | python3 -c "

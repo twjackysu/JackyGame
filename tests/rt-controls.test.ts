@@ -73,8 +73,11 @@ describe('大地圖獨立紀錄（D-087）', () => {
 
 describe('暴怒狼王紀錄（D-099）', () => {
   it('Lv8 或討伐 3 次解鎖；暴怒討伐另外計數', () => {
-    expect(furyUnlocked({}, 7)).toBe(false);
-    expect(furyUnlocked({}, 8)).toBe(true);
+    expect(furyUnlocked({ bossKills: 1 }, 7)).toBe(false);
+    expect(furyUnlocked({ bossKills: 1 }, 8)).toBe(true);
+    // D-247：還沒打倒過這張圖的 Boss，等級再高也不解鎖（第一次走進燼紅裂谷就能開岩王暴怒）
+    expect(furyUnlocked({}, 8)).toBe(false);
+    expect(furyUnlocked({}, 20)).toBe(false);
     expect(furyUnlocked({ bossKills: 3 }, 1)).toBe(true);
     const r = recordBoss({ bossKills: 3 }, 100, 1, true).rec;
     expect(r.bossKills).toBe(4);

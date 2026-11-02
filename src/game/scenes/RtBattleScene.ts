@@ -2422,7 +2422,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec = loadRecord(this.stageId);
     const lv = this.s.prog?.level ?? 1;
     if (!furyUnlocked(rec, lv)) {
-      items.push(this.add.text(0, y, `🔒 ${this.bw}暴怒（Lv${FURY_UNLOCK.level} 或討伐 ${FURY_UNLOCK.kills} 次解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
+      items.push(this.add.text(0, y, (rec.bossKills ?? 0) < 1 ? `🔒 ${this.bw}暴怒（先打倒${this.bw}一次）` : `🔒 ${this.bw}暴怒（Lv${FURY_UNLOCK.level} 或討伐 ${FURY_UNLOCK.kills} 次解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
       return;
     }
     const on = !!this.s.bossFury;
@@ -3186,7 +3186,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (this.tracked) this.ptsLeft = this.skillPointsLeft();
         // 升級（D-090）：金色光柱＋大字＋數值浮字，立刻存檔
         const p = playerOf(this.s);
-        if (this.tracked && e.level === FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury && (loadRecord(this.stageId).bossKills ?? 0) < FURY_UNLOCK.kills) this.furyUnlockedToast();
+        if (this.tracked && e.level === FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury && (loadRecord(this.stageId).bossKills ?? 0) >= 1 && (loadRecord(this.stageId).bossKills ?? 0) < FURY_UNLOCK.kills) this.furyUnlockedToast(); // D-247：還沒打倒過這張圖的 Boss 不算解鎖
         SFX.perfect();
         this.cameras.main.flash(180, 255, 230, 160);
         const col = this.add.rectangle(this.sx(p.x), this.sy(p.y) - 200, 90, 420, 0xffe08a, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(44);
