@@ -26,8 +26,9 @@ const FLAME_MANE = new Set(['ember_wolf', 'obsidian_alpha', 'magma_stalker']);
 /** 荊棘谷的狼（第 40 輪）：背上一排荊棘刺（「棘背狼」名副其實），染色立繪的程式加料 */
 const THORN_BACK: Readonly<Record<string, number>> = { thorn_wolf: 0x4a1f38, thorn_stalker: 0x5a1f1a, night_thorn_alpha: 0x2a1a4a };
 /** 星隕高原的狼（第 40 輪）：染色立繪身上加會閃的星痕；彗星巡者拖彗尾、星蝕狼背上一輪日蝕 */
-/** 精英撞牆暈眩，每次進圖用置中大字講幾次（D-238；Boss 不限） */
+/** 精英／Boss 撞牆暈眩，每次進圖用置中大字講幾次（D-238），之後在牠頭上小字 */
 const STUN_BIG_TIMES = 2;
+const STUN_BIG_BOSS = 3;
 const STAR_MARKS = new Set(['star_wolf', 'astral_alpha', 'comet_stalker', 'eclipse_wolf']);
 const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
 
@@ -261,6 +262,8 @@ export class RtBattleScene extends Phaser.Scene {
   private blinkHinted = new Set<string>();
   /** 精英撞牆暈眩的置中大字這次進圖已經講過幾次（D-238） */
   private stunBig = 0;
+  /** Boss 撞牆暈眩的置中大字這次進圖講過幾次 */
+  private stunBoss = 0;
   /** 玩家有沒有主動點過怪／按過技能（刷怪關 30 秒沒動作就提示） */
   private engaged = false;
   /** 精英／Boss 邊緣箭頭的距離字（物件池） */
@@ -520,6 +523,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.cameras.main.setZoom(1); // 保險：舊版 Boss 登場會推鏡頭
     this.blinkHinted = new Set(); // 場景重開不會重跑欄位初始值
     this.stunBig = 0;
+    this.stunBoss = 0;
     this.rareQueue = [];
     this.salvageQ = { n: 0, dust: 0, name: '' };
     this.afterFinale = [];
@@ -2974,12 +2978,15 @@ export class RtBattleScene extends Phaser.Scene {
         // 第 60 輪：熔渣史萊姆、詞綴小怪一撞牆就跳置中大字，燼紅裂谷幾秒一次、蓋在別的公告上 → 大字只給 Boss／精英，其他在怪頭上小字
         const w = u(e.id);
         // D-238：星隕高原精英多、幾秒一次「撞牆暈眩！」置中大字太吵 → 精英撞牆每次進圖只用大字講 2 次，之後在牠頭上大一點的小字
+        // 第 96 輪：狼后一場撞牆 5～8 次也一樣 → Boss 每次進圖大字 3 次，之後頭上小字（Boss 身體大，字放高一點）
         const boss = !w || !!ENEMIES[w.defId]?.boss;
-        const n = w && !boss && w.tier === 'elite' ? this.stunBig : -1;
-        if (boss || (n >= 0 && n < STUN_BIG_TIMES)) {
-          if (n >= 0) this.stunBig++;
+        const elite = !!w && !boss && w.tier === 'elite';
+        const n = boss ? this.stunBoss : elite ? this.stunBig : -1;
+        if (!w || (boss && n < STUN_BIG_BOSS) || (elite && n < STUN_BIG_TIMES)) {
+          if (boss) this.stunBoss++;
+          else this.stunBig++;
           bigText(this, GAME_WIDTH / 2, 520, '撞牆暈眩！趁現在！', '#ffd27a', 40, 700);
-        } else if (w) floatNumber(this, this.sx(w.x), this.sy(w.y) - 90, n >= 0 ? '暈眩！趁現在！' : '暈眩！', { color: '#ffd27a', size: n >= 0 ? 30 : 24 });
+        } else floatNumber(this, this.sx(w.x), this.sy(w.y) - (boss ? 170 : 90), n >= 0 ? '暈眩！趁現在！' : '暈眩！', { color: '#ffd27a', size: boss ? 34 : n >= 0 ? 30 : 24 });
       }
       else if (e.type === 'blink') {
         // 暴怒狼王霧中瞬移（D-105）：原地與落點各冒一團霧、不做插值滑動
