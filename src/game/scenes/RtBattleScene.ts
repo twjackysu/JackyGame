@@ -2698,6 +2698,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.hint?.active) this.hint.setVisible(!this.menu?.active);
     // 第 59 輪：上方的記憶卡／回禮卡（depth 940）從暫停選單（960、遮罩 0.84）底下透出來，「暫停」標題壓在半透明的卡片字上 → 一起藏起
     if (this.topCard?.active) this.topCard.setVisible(!this.menu?.active);
+    // 第 103 輪：營火旁／休息中的字條（depth 65）在 ☰ 遮罩底下透到「回標題」鈕旁邊（「點營火休息：HP 全滿…」）→ 面板開著時藏起；關掉後下一幀 HUD 會照原條件再顯示
+    if (this.menu?.active && this.calmText?.visible) this.calmText.setVisible(false);
     if (this.menu?.active) {
       for (const o of this.children.list) {
         // 第 102 輪（D-250）：地區名稱／地區說明（depth 66）也藏——開 ☰ 時剛走進新地區，「小心石頭後的射手・北邊有營火」從遮罩底下透到「暫停」標題上面
@@ -6251,7 +6253,7 @@ export class RtBattleScene extends Phaser.Scene {
     const taught = this.veteran || (s.prog?.level ?? 1) >= CALM_TAUGHT_LV;
     const calmMsg = calm ? restTip || (taught ? (p.hp < p.maxHp ? '休息中・自動回血' : '') : p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '';
     // 第 63 輪：討伐大字期間不寫「打不過就退回營火」；第 67 輪：沒字就整條藏起（字條有底色）
-    this.calmText.setVisible(!!calmMsg && !this.tipBusy && !this.hint && this.time.now >= this.slainUntil).setText(calmMsg).setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
+    this.calmText.setVisible(!!calmMsg && !this.tipBusy && !this.hint && !this.menu?.active && this.time.now >= this.slainUntil).setText(calmMsg).setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // 第 71 輪：窄螢幕（360×640）字條右端「開打」壓到大招鍵 → 碰到任何按鈕就在全形空白處換成兩行
     if (calmMsg.includes('　') && this.calmText.visible) {
       const cb = this.calmText.getBounds();
