@@ -293,7 +293,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     // 抉擇（D-157）與路上的相遇（D-159）的回聲：兩句都有的話隨機挑一句
     const echoes = [rivalEcho(who.id, loadChoices()), rivalEncounterEcho(who.id, loadEncounters())].filter((x): x is string => !!x);
     const echo = echoes.length ? echoes[Math.floor(echoPick * echoes.length)]! : null;
-    const hello = scene.add.text(30, -545, `${who.short}：${echo && helloEcho ? echo : who.hello}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', align: 'center' }).setOrigin(0.5);
+    const hello = scene.add.text(30, -545, `${who.short}：${echo && helloEcho ? echo : (st.by[who.id]?.won ?? 0) > 0 ? who.again : who.hello}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', align: 'center' }).setOrigin(0.5);
     // 一行放不下時在靠中間的標點後面換行（第 70 輪，D-202：以前自動換行會把「。」」孤零零擠到第二行）
     if (hello.width > 520) hello.setText(breakAtPunct(hello.text));
     if (hello.width > 520) hello.setWordWrapWidth(520, true);
@@ -471,7 +471,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   function result(items: Phaser.GameObjects.GameObject[], game: CardGame): void {
     const w = game.winner;
     const msg = w === 0 ? '你贏了！' : w === 1 ? `${who.short}贏了` : '平手';
-    const line = prizeCard ? '「這張牌歸你了……好好用它。」' : w === 0 ? who.lose : w === 1 ? who.win : '「勢均力敵，再來？」';
+    const line = prizeCard ? '「這張牌歸你了……好好用它。」' : w === 0 ? (nextReward(stats().cards, who) ? who.lose : who.loseAgain) : w === 1 ? who.win : '「勢均力敵，再來？」';
     // 第 41 輪：下注局附上手上剩多少金幣（輸了才知道還能不能再賭）
     const prize = (staked ? `${w === 0 ? `＋${staked * 2} 金` : w === -1 ? `退回 ${staked} 金` : `輸掉 ${staked} 金`}（手上 ${ctx.coin()} 金）` : '練習局') + (prizeCard ? `　＋新牌「${CARDS[prizeCard]!.name}」` : '');
     items.push(scene.add.text(0, 120, msg, { fontFamily: TITLE_FONT, fontSize: '64px', color: w === 0 ? '#ffd27a' : w === 1 ? '#ff9a8a' : '#c8d0f0', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5));

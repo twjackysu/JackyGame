@@ -96,36 +96,40 @@ export interface Opponent {
   bankAt: number;
   bailAt: number;
   hello: string;
+  /** 贏過他之後的招呼（第 101 輪：伊妲每次都說「三家都贏過了？」） */
+  again: string;
   win: string;
   lose: string;
+  /** 他的牌全被你贏走之後輸的台詞（第 101 輪：伊妲的「回響之燼就交給你了」以前每次輸都講） */
+  loseAgain: string;
   blurb: string;
 }
 
 export const OPPONENTS: readonly Opponent[] = [
   {
     id: 'merchant', name: '旅商莫托', short: '莫托', deck: MERCHANT_DECK, stake: 40, rewards: ['mage', 'owl', 'ballista', 'horn', 'hero_seer'], bankAt: 10, bailAt: 14,
-    hello: '「坐下來歇歇腿，玩一把？」', win: '「承讓承讓，金幣我就收下了。」', lose: '「哈，下次我可不會手下留情。」', blurb: '偏後排與濃霧，打法穩健',
+    hello: '「坐下來歇歇腿，玩一把？」', again: '「又來啦？老位子，老規矩。」', loseAgain: '「你這手牌技，該換我跟你拜師了。」', win: '「承讓承讓，金幣我就收下了。」', lose: '「哈，下次我可不會手下留情。」', blurb: '偏後排與濃霧，打法穩健',
   },
   {
     id: 'vela', name: '采藥人薇菈', short: '薇菈', map: 'thornvale', stake: 80, rewards: ['thornhound', 'thornhound', 'briar_archer', 'hero_queen'], bankAt: 8, bailAt: 10,
     deck: ['thornhound', 'thornhound', 'thornhound', 'herbalist', 'herbalist', 'briar_archer', 'wolfhunter', 'sellsword', 'herbalist', 'slinger', 'scout', 'owl', 'hero_queen', 'frost', 'horn'],
-    hello: '「荊棘谷的獵犬可是成群結隊的，小心點。」', win: '「獵犬們，今晚加菜。」', lose: '「……你比狼后還難纏。」', blurb: '同袍獵犬群＋霜寒，很會提早收手',
+    hello: '「荊棘谷的獵犬可是成群結隊的，小心點。」', again: '「又是你。獵犬們都記得你的味道了。」', loseAgain: '「……行，算你狠。下回我換一群獵犬。」', win: '「獵犬們，今晚加菜。」', lose: '「……你比狼后還難纏。」', blurb: '同袍獵犬群＋霜寒，很會提早收手',
   },
   {
     id: 'goran', name: '鍛爐老兵葛倫', short: '葛倫', map: 'emberrift', stake: 120, rewards: ['golem', 'scorch', 'forgehand', 'hero_colossus'], bankAt: 10, bailAt: 12,
     deck: ['slime', 'slime', 'slime', 'golem', 'golem', 'forgehand', 'sellsword', 'bear', 'mage', 'ballista', 'forgehand', 'owl', 'scorch', 'hero_colossus', 'horn'],
-    hello: '「火候到了就出手——燼爆可不挑人。」', win: '「燒得乾乾淨淨。」', lose: '「好，好！這把火你接住了。」', blurb: '大塊頭＋燼爆，從不退讓',
+    hello: '「火候到了就出手——燼爆可不挑人。」', again: '「上回那把火還沒燒夠？來！」', loseAgain: '「哈！又被你接住了。」', win: '「燒得乾乾淨淨。」', lose: '「好，好！這把火你接住了。」', blurb: '大塊頭＋燼爆，從不退讓',
   },
   {
     id: 'ida', name: '燼火說書人伊妲', short: '伊妲', secret: true, stake: 200, rewards: ['hero_echo', 'echo'], bankAt: 9, bailAt: 10,
     deck: ['thornhound', 'thornhound', 'thornhound', 'golem', 'mage', 'ballista', 'ballista', 'echo', 'owl', 'scout', 'echo', 'hero_seer', 'scorch', 'horn', 'fog'],
-    hello: '「三家都贏過了？聽我說最後一個故事吧。」', win: '「故事還沒講完呢，再來？」', lose: '「……回響之燼，就交給你了。」', blurb: '「回響」會複製場上最強的牌',
+    hello: '「三家都贏過了？聽我說最後一個故事吧。」', again: '「又是你。這回換你講故事給我聽？」', loseAgain: '「……這個故事，你已經講得比我好了。」', win: '「故事還沒講完呢，再來？」', lose: '「……好故事。下注贏我，回響之燼就歸你。」', blurb: '「回響」會複製場上最強的牌',
   },
   // 第 30 輪（D-139）：星隕高原的觀星者——通關後才見得到；牌組是星痕狼群＋大塊頭＋燼爆＋濃霧，比葛倫再硬一點
   {
     id: 'sol', name: '觀星者索爾', short: '索爾', map: 'starfall', extra: true, stake: 160, rewards: ['star_wolf', 'stargazer', 'comet', 'hero_sentinel'], bankAt: 9, bailAt: 11,
     deck: ['star_wolf', 'star_wolf', 'star_wolf', 'stargazer', 'stargazer', 'comet', 'ballista', 'bear', 'mage', 'owl', 'scout', 'scorch', 'hero_sentinel', 'horn', 'fog'],
-    hello: '「星星掉下來的地方，牌運最好。」', win: '「看吧，星象早就寫好了。」', lose: '「……星象沒寫到你。」', blurb: '星痕狼群＋燼爆＋濃霧，攻守都硬',
+    hello: '「星星掉下來的地方，牌運最好。」', again: '「今晚星象不錯，再看一盤？」', loseAgain: '「星象又一次沒寫到你。」', win: '「看吧，星象早就寫好了。」', lose: '「……星象沒寫到你。」', blurb: '星痕狼群＋燼爆＋濃霧，攻守都硬',
   },
 ];
 export const opponent = (id: string): Opponent => OPPONENTS.find((o) => o.id === id) ?? OPPONENTS[0]!;
