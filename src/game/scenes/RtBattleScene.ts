@@ -2186,7 +2186,9 @@ export class RtBattleScene extends Phaser.Scene {
       this.zoneSeenAt.set(z.name, this.time.now);
       return;
     }
-    if (this.topCard?.active || this.time.now < this.chapterUntil) return;
+    // 第 102 輪（D-250）：新存檔序章後的選武器面板開著時，地區名稱「— 南營地 —」已經跳出來（面板只是把它藏起來），
+    // 選完武器幕名卡「第一幕　霧語森林」一出，兩組字疊在同一塊 → 面板開著時先不報，等幕名卡播完才報
+    if (this.topCard?.active || this.menu?.active || this.time.now < this.chapterUntil) return;
     // 第 92 輪（D-233）：打 Boss 時在巢穴邊跨區（霧語森林狼王巢穴就在兩區交界）→ 60 秒後又報一次「危險：狼群首領出沒…」，
     // 兩行紅字蓋在打鬥中間。Boss 已被打掉血＝正在打，玩家知道自己在哪，只記下這區、不報。
     if (this.bossEngaged() || this.eliteEngaged()) {

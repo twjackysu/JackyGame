@@ -6,6 +6,7 @@ import { bossKillsOf, mapOpen } from '../rtRecord';
 import { chapterSeen } from '../chapters';
 import { prevMap, WORLD_MAPS, FINALE_MAP } from '../worldMaps';
 import { loadWeapon, nextWeapon, saveWeapon, WEAPON_NAME } from '../weapon';
+import { weaponChosen } from '../ui/weaponPick';
 import { playMusic } from '../../audio/music';
 import { finaleSeen, loadFinaleStats, playFinale } from '../ui/finale';
 import { mulberry32, randRange } from '../../core/rng';
@@ -346,7 +347,8 @@ export class TitleScene extends Phaser.Scene {
       if (fresh.has(i)) this.unlockPulse(c, 100 + i * 80 + 320);
     });
     // 武器（D-147／152）：「設定」右邊的小按鈕，長劍 → 長弓 → 法杖（下次進地圖生效）
-    {
+    // 第 102 輪（D-250）：還沒選過武器的新存檔不顯示——序章後有正式的選武器畫面，標題先擺一顆「長劍 ⇄」反而讓人以為已經選好了
+    if (weaponChosen()) {
       const y = 1180 + TALL - (items.length > 4 ? 0 : 40) - 10;
       const w = this.add.container(cx + 282, y);
       const g = this.add.graphics();
