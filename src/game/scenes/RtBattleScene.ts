@@ -2695,17 +2695,27 @@ export class RtBattleScene extends Phaser.Scene {
   /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
   private menuBanners(): void {
     // 第 47 輪：開場操作說明框（depth 70）會透過面板的半透明遮罩疊在「技能點」標題上 → 面板開著時一起藏起
-    if (this.hint?.active) this.hint.setVisible(!this.menu?.active);
+    if (this.hint?.active) this.hint.setVisible(!this.menu?.active && !this.editing);
     // 第 59 輪：上方的記憶卡／回禮卡（depth 940）從暫停選單（960、遮罩 0.84）底下透出來，「暫停」標題壓在半透明的卡片字上 → 一起藏起
-    if (this.topCard?.active) this.topCard.setVisible(!this.menu?.active);
+    if (this.topCard?.active) this.topCard.setVisible(!this.menu?.active && !this.editing);
     // 第 103 輪：營火旁／休息中的字條（depth 65）在 ☰ 遮罩底下透到「回標題」鈕旁邊（「點營火休息：HP 全滿…」）→ 面板開著時藏起；關掉後下一幀 HUD 會照原條件再顯示
     if (this.menu?.active && this.calmText?.visible) this.calmText.setVisible(false);
-    if (this.menu?.active) {
+    // 第 105 輪（D-253）：☰→操作設定→調整按鈕位置時也是半透明黑框（0.8）蓋在畫面上方，剛跳的地區說明「小心石頭後的射手…」從框底下透到「調整按鈕位置」標題後面
+    // → 編輯中也藏起置中大字／地區字（HUD、營火字條、箭頭距離字照常顯示：調位置要看得到實際畫面）
+    const editing = !!this.editing && !this.menu?.active;
+    if (editing && this.bannerHidden.size) {
+      // 從 ☰ 進來時被藏的 HUD 字（箭頭距離、懸賞板）先還原
+      for (const t of this.bannerHidden) if (t.active && (this.arrowLabels.includes(t) || t === this.gateArrow || t === this.bountyTxt)) {
+        t.setVisible(true);
+        this.bannerHidden.delete(t);
+      }
+    }
+    if (this.menu?.active || editing) {
       for (const o of this.children.list) {
         // 第 102 輪（D-250）：地區名稱／地區說明（depth 66）也藏——開 ☰ 時剛走進新地區，「小心石頭後的射手・北邊有營火」從遮罩底下透到「暫停」標題上面
         // 第 104 輪（D-252）：Boss／精英箭頭的距離字（「69m」，depth 51）透到「暫停」標題正下方、看起來像標題的一部分；懸賞板（depth 49）在 360×640 壓進「行囊」鈕 → 一起藏
         if (!(o instanceof Phaser.GameObjects.Text) || !o.visible) continue;
-        const hud = this.arrowLabels.includes(o) || o === this.gateArrow || o === this.bountyTxt;
+        const hud = !editing && (this.arrowLabels.includes(o) || o === this.gateArrow || o === this.bountyTxt);
         if (o.depth === BANNER_DEPTH || this.zoneTexts.includes(o) || hud) {
           o.setVisible(false);
           this.bannerHidden.add(o);
