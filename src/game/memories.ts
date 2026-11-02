@@ -8,12 +8,14 @@ export interface Memory {
   tx: number;
   ty: number;
   lines: string;
+  /** 內容和這張圖的 Boss 攻略提示（worldMaps.bossTip）講同一件事：剛想起這段就不再跳攻略提示（D-240） */
+  bossTip?: true;
 }
 
 export const MEMORIES: readonly Memory[] = [
   { id: 'mw_camp', map: 'mistwood', tx: 34, ty: 91, lines: '前世第一次玩，在這裡被狼咬了十幾次。\n後來才懂：狼撲上來前，地上會先亮紅。' },
   { id: 'mw_den', map: 'mistwood', tx: 5, ty: 60, lines: '論壇置頂文：「狼群巢穴一次只拉一組。」\n不倒下一直打，首領就會被引出來。' },
-  { id: 'mw_lair', map: 'mistwood', tx: 30, ty: 26, lines: '霧角狼王衝鋒撞上岩壁會暈。\n前世的第一次討伐，就是靠這招拿到的。' },
+  { id: 'mw_lair', map: 'mistwood', tx: 30, ty: 26, lines: '霧角狼王衝鋒撞上岩壁會暈。\n前世的第一次討伐，就是靠這招拿到的。', bossTip: true },
   { id: 'tv_slope', map: 'thornvale', tx: 11, ty: 62, lines: '攻略網站把荊棘坡叫做「新手墳場」。\n棘背狼的毒，回營火休息就會解。' },
   { id: 'tv_mother', map: 'thornvale', tx: 6, ty: 48, lines: '荊棘母樹的根系環——貼著樹反而安全。\n當年公會頻道吵了三天才有人發現。' },
   { id: 'tv_garden', map: 'thornvale', tx: 18, ty: 26, lines: '狼后鑽進荊棘之後，會從背後冒出來。\n聽到地底的沙沙聲，就轉身。' },

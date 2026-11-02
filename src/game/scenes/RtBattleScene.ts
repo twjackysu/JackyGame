@@ -360,6 +360,8 @@ export class RtBattleScene extends Phaser.Scene {
   private memQ: Memory | null = null;
   /** 「這個地方似乎有點熟悉……」還在畫面上到這個時間（D-239：記憶卡等它淡掉再出） */
   private chestHintUntil = 0;
+  /** 剛想起「和 Boss 攻略提示同一件事」的記憶的時間（D-240） */
+  private memTipAt = -1e9;
   /** 倒下後在營火旁醒來的那幾秒（第 61 輪）：不報地區名稱、不出「似乎有點熟悉」，只留「在營火旁醒來」 */
   private reviveUntil = 0;
   /** 開場大字佔著 tipBusy 時的 busyRun（-1＝沒有） */
@@ -637,7 +639,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
-    { this.memQ = null; this.chestHintUntil = 0; this.introRun = -1; this.reviveUntil = 0; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
+    { this.memQ = null; this.chestHintUntil = 0; this.memTipAt = -1e9; this.introRun = -1; this.reviveUntil = 0; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
       this.tipBusy = true;
@@ -1822,6 +1824,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.memQ = null;
     const r = recall(loadMemories(), mem.id);
     if (!r) return;
+    if (mem.bossTip) this.memTipAt = this.time.now;
     saveMemories(r.ids);
     const rec = spend(loadRecord(this.stageId), 0, -r.crystal);
     if (rec) saveRecord(this.stageId, rec);
@@ -2849,9 +2852,12 @@ export class RtBattleScene extends Phaser.Scene {
           const wm = worldMap(this.stageId);
           const lv = this.s.prog?.level ?? 1;
           // 第 73 輪：建議等級搬到 Boss 血條字（`建議 LvN`），這裡只留一句短的，提示最多兩～三行不蓋主角
-          const tip = `${wrapTip(this.bossTipText())}${wm && lv < wm.bossLv ? '\n打不過就先回去練功' : ''}`;
+          // 第 96 輪（D-240）：霧語森林新存檔第 170 秒想起「狼王衝鋒撞上岩壁會暈」，6 秒後攻略提示又講一次 → 30 秒內想起過同一件事就只留練功那行
+          const echo = this.time.now - this.memTipAt < 30000;
+          const low = !!wm && lv < wm.bossLv;
+          const tip = echo ? (low ? '（打不過就先回去練功）' : '') : `${wrapTip(this.bossTipText())}${low ? '\n打不過就先回去練功' : ''}`;
           // 第 64 輪：放在主角腳下（TIP_Y），以前 y 600 正好蓋在 Boss 和牠的第一個紅圈預告上
-          this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, TIP_Y, tip, '#d8c8ff', 28, tipMs(tip)));
+          if (tip) this.time.delayedCall(2100, () => bigText(this, GAME_WIDTH / 2, TIP_Y, tip, '#d8c8ff', 28, tipMs(tip)));
         }
       } else if (e.type === 'leash') {
         const d = u(e.id);

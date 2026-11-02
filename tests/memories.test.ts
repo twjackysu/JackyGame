@@ -51,4 +51,14 @@ describe('前世的記憶', () => {
     expect(recall(have, MEMORIES[0]!.id)).toBeNull();
     expect(recall([], 'nope')).toBeNull();
   });
+
+  it('標了 bossTip 的記憶每張圖最多一個，而且那張圖真的有 Boss 攻略提示（D-240）', async () => {
+    const { WORLD_MAPS } = await import('../src/game/worldMaps');
+    const tagged = MEMORIES.filter((m) => m.bossTip);
+    expect(tagged.length).toBeGreaterThan(0);
+    for (const m of tagged) {
+      expect(tagged.filter((q) => q.map === m.map)).toHaveLength(1);
+      expect(WORLD_MAPS.find((w) => w.id === m.map)?.bossTip).toBeTruthy();
+    }
+  });
 });
