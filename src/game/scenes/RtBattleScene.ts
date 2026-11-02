@@ -61,7 +61,7 @@ import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
-import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
+import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -1625,7 +1625,7 @@ export class RtBattleScene extends Phaser.Scene {
       };
       // 第 44 輪：這張圖的 Boss 打倒過的老存檔不再播第一次的教學，改成「歡迎回到○○！」＋下一個目標
       // 第 59 輪：從 ☰ 切到深夜重新進入，開場不再說「歡迎回到○○！」（人根本沒離開），改成點出深夜
-      const back0 = this.tracked && worldMap(this.stageId) ? returnIntro(this.stageId, loadRecord(this.stageId), this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? '')) : null;
+      const back0 = this.tracked && worldMap(this.stageId) ? returnIntro(this.stageId, loadRecord(this.stageId), this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''), frontierAfter(this.stageId)) : null;
       const back = back0 && this.s.night ? nightIntro(back0, STAGES[this.stageId]!.name) : back0;
       // 選過「助」、這次會來道謝的人（以前只能剛好走過去才發現）→ 開場大字多一行提醒
       const wait = this.encThanks.length ? '\n✦ 你幫過的人在老地方等你' : '';
@@ -2392,7 +2392,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (cs.played || cs.have) lines.push(`營火燼牌 ${cs.won} 勝 / ${cs.played} 場・收集 ${cs.have}/${cs.total} 張`);
     const tip = worldMap(this.stageId) ? levelTip(this.stageId, rec, this.s.prog?.level ?? 1) : null;
     if (tip) lines.unshift(tip);
-    if (worldMap(this.stageId)) lines.unshift(`▶ 下一個目標：${nextGoal(this.stageId, rec, this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''))}`);
+    if (worldMap(this.stageId)) lines.unshift(`▶ 下一個目標：${nextGoal(this.stageId, rec, this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''), frontierAfter(this.stageId))}`);
     if (this.s.prog) lines.unshift(`Lv ${this.s.prog.level}・經驗 ${this.s.prog.xp}/${xpToNext(this.s.prog.level)}`);
     return this.add.text(0, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcc0', align: 'center', lineSpacing: 10, backgroundColor: '#00000066' }).setOrigin(0.5, 0).setPadding(18, 12, 18, 12);
   }
@@ -6218,7 +6218,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.goalAt = this.time.now;
         const rec0 = loadRecord(this.stageId);
         this.goalBefore = (rec0.bossKills ?? 0) > 0;
-        this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''));
+        this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''), frontierAfter(this.stageId));
       }
       this.goalDone = done;
       // 第 57 輪：光門還沒亮（等抉擇／通關演出）時不寫下一個目標——通關那張圖的「▶ 前往星隕高原」會在演出前就爆雷

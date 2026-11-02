@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../src/core/battle/rt/data';
 import { validateStage } from '../src/core/battle/rt/maps/validate';
-import { LINKED_MAPS, levelTip, nextGoal } from '../src/game/rtRecord';
+import { LINKED_MAPS, frontierAfter, levelTip, nextGoal } from '../src/game/rtRecord';
 import { FINALE_MAP, prevMap, WORLD_MAPS, worldMap } from '../src/game/worldMaps';
 
 describe('大地圖登記表', () => {
@@ -44,6 +44,11 @@ describe('大地圖登記表', () => {
     expect(nextGoal('thornvale', {}, 1, 0)).toBe('沿著山谷往北，打倒棘冠狼后');
     expect(nextGoal('thornvale', { bossKills: 1 }, 1, 0)).toBe('前往燼紅裂谷，打倒燼心岩王');
     expect(nextGoal('thornvale', { bossKills: 1 }, 1, 1)).toContain('開啟狼后暴怒');
+    expect(frontierAfter('mistwood')).toBeUndefined(); // 沒有紀錄＝後面都還沒開放
+    // D-248：主線還沒走完（荊棘谷打完、燼紅裂谷還沒）回霧語森林，目標指向燼紅裂谷，不叫人刷暴怒
+    expect(nextGoal('mistwood', { bossKills: 3 }, 10, 1, 'emberrift')).toBe('前往燼紅裂谷，打倒燼心岩王');
+    expect(nextGoal('mistwood', { bossKills: 1 }, 4, 0, 'thornvale')).toBe('前往荊棘谷，打倒棘冠狼后');
+    expect(nextGoal('mistwood', {}, 4, 0, 'emberrift')).toBe('往北穿過森林，打倒霧角狼王');
     expect(nextGoal('mistwood', { bossKills: 3 }, 10, 1)).toBe('☰ 開啟「狼王暴怒」並打倒牠（解鎖深夜的森林）');
     expect(nextGoal('mistwood', { bossKills: 3, fury: true }, 10, 1)).toBe('打倒暴怒的狼王（解鎖深夜的森林）');
     expect(nextGoal('thornvale', { bossKills: 9, furyKills: 1, fury: true }, 20, 1)).toBe('刷深夜的山谷、把裝備強化到 +10、挑戰最快討伐');

@@ -184,8 +184,12 @@ export function saveRecord(stage: string, rec: RtRecord): void {
  * 暫停選單的「下一個目標」（第 22 輪）：依進度給一句話。rec＝這張地圖的紀錄（共用地圖已 join），
  * otherKills＝下一張地圖（worldMaps 的 next）的 Boss 討伐次數；沒有下一張就不看。
  */
-export function nextGoal(stage: string, rec: RtRecord, level: number, otherKills: number): string {
+export function nextGoal(stage: string, rec: RtRecord, level: number, otherKills: number, frontier?: string): string {
   const m = worldMap(stage);
+  // 第 100 輪（D-248）：frontier＝往後第一張還沒打倒 Boss 的地圖。以前只看下一張——打完荊棘谷回霧語森林，
+  // 目標寫「☰ 開啟狼王暴怒」（主線還沒走完就叫人刷暴怒），現在寫「前往燼紅裂谷，打倒燼心岩王」
+  const fx = frontier && frontier !== m?.next ? worldMap(frontier) : undefined;
+  if ((rec.bossKills ?? 0) && fx) return `前往${fx.name}，打倒${fx.boss}`;
   const nx = m?.next ? worldMap(m.next) : undefined;
   const boss = m?.boss ?? '';
   const bw = m?.bw ?? '';
@@ -212,6 +216,12 @@ export function mapOpen(stage: string): boolean {
   return (readRaw(pv.id).bossKills ?? 0) >= 1;
 }
 
+/** 往後第一張還沒打倒 Boss、而且已經開放的地圖（D-248，給 nextGoal 的 frontier）；沒有就 undefined */
+export function frontierAfter(stage: string): string | undefined {
+  for (let id = worldMap(stage)?.next, n = 0; id && n < 10; id = worldMap(id)?.next, n++) if (mapOpen(id) && !bossKillsOf(id)) return id;
+  return undefined;
+}
+
 /** 荊棘谷開放條件（D-114）：霧語森林的狼王打倒過一次 */
 export function thornvaleOpen(): boolean {
   return mapOpen('thornvale');
@@ -234,10 +244,10 @@ export function fmtSec(sec: number): string {
  * 改成「歡迎回到○○！」＋下一個目標。目標太長就在「、」「，」之後或「（」之前斷行，每行不超過 maxLine 字（置中大字 30px 在 720 寬放得下）。
  * 第一次（還沒打倒 Boss）回 null，照舊用地圖的 intro。
  */
-export function returnIntro(stage: string, rec: RtRecord, level: number, otherKills: number, maxLine = 22): string | null {
+export function returnIntro(stage: string, rec: RtRecord, level: number, otherKills: number, frontier?: string, maxLine = 22): string | null {
   const m = worldMap(stage);
   if (!m || !(rec.bossKills ?? 0)) return null;
-  const goal = `▶ ${nextGoal(stage, rec, level, otherKills)}`;
+  const goal = `▶ ${nextGoal(stage, rec, level, otherKills, frontier)}`;
   const lines: string[] = [];
   let cur = '';
   for (const part of goal.split(/(?<=[、，])|(?=（)/)) {
