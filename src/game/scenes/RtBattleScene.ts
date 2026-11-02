@@ -2700,7 +2700,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.topCard?.active) this.topCard.setVisible(!this.menu?.active);
     if (this.menu?.active) {
       for (const o of this.children.list) {
-        if (o instanceof Phaser.GameObjects.Text && o.depth === BANNER_DEPTH && o.visible) {
+        // 第 102 輪（D-250）：地區名稱／地區說明（depth 66）也藏——開 ☰ 時剛走進新地區，「小心石頭後的射手・北邊有營火」從遮罩底下透到「暫停」標題上面
+        if (o instanceof Phaser.GameObjects.Text && (o.depth === BANNER_DEPTH || this.zoneTexts.includes(o)) && o.visible) {
           o.setVisible(false);
           this.bannerHidden.add(o);
         }
