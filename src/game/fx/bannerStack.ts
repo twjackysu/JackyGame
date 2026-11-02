@@ -54,7 +54,9 @@ export function stackY(
     }
     // 第 89 輪（D-228）：主角下方放不下（360×640 剛進地圖，鏡頭夾在地圖南緣，主角腳在 y≈757、下方只剩按鈕區）
     // → 改排到主角頭上（不高過 ceil、不碰其他大字）。以前開場大字整塊蓋住主角。
-    const above = avoid[0] - GAP - half;
+    // 第 95 輪：頭上只差間距（GAP）放不下時縮小間距貼著主角頭頂放（不碰主角帶）。360×640 守望者瞬移到主角下方時
+    // 「守望者召喚墜星——藍圈在你腳下！」（520，高 56）上下都放不下，照原位整塊蓋在主角和他腳下的藍圈上
+    const above = Math.max(avoid[0] - GAP - half, Math.min(ceil + half, avoid[0] - half));
     // 第 90 輪：交戰中的 Boss 在主角上方（keep）就不排到頭上——360×640 打 Boss 時攻略提示以前會蓋在 Boss 和牠的紅圈預告上
     const onKeep = keep !== undefined && above - half < keep[1] && above + half > keep[0];
     if (above - half >= ceil && !onKeep && !busy.some(([t, b]) => above - half < b + GAP && above + half > t - GAP)) return above;
