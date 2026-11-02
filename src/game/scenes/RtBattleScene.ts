@@ -29,6 +29,7 @@ const THORN_BACK: Readonly<Record<string, number>> = { thorn_wolf: 0x4a1f38, tho
 /** 精英／Boss 撞牆暈眩，每次進圖用置中大字講幾次（D-238），之後在牠頭上小字 */
 const STUN_BIG_TIMES = 2;
 const STUN_BIG_BOSS = 3;
+const CALM_TAUGHT_LV = 2; // D-244：新玩家 Lv2 起底部字條不再教「點怪物開打」
 const LOW_HP_TIP_MS = 8000; // D-242：老玩家低血「打不過就退回營火」每次只講 8 秒
 const STAR_MARKS = new Set(['star_wolf', 'astral_alpha', 'comet_stalker', 'eclipse_wolf']);
 const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
@@ -6233,7 +6234,9 @@ export class RtBattleScene extends Phaser.Scene {
     const restTip = fires.length === 0 ? '' : atFire && (p.hp < p.maxHp || s.potions < playerDef(this.s).potion.carry) ? '點營火休息：HP 全滿・補藥水' : lowTip ? '打不過就退回營火（怪不追進來）' : '';
     // 第 56 輪：長螢幕（390×844）主角在畫面較下面，固定 y 850 的字條會蓋在主角頭上 → 至少在主角腳下 95
     if (calm) this.calmText.y = Phaser.Math.Clamp(this.sy(p.y) + 95, 850, VIEW_BOTTOM - 60);
-    const calmMsg = calm ? restTip || (this.veteran ? (p.hp < p.maxHp ? '休息中・自動回血' : '') : p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '';
+    // 第 97 輪（D-244）：新玩家升到 Lv2（打倒幾隻狼）就學會點怪物開打了，不再一直閃「準備好就點怪物開打」
+    const taught = this.veteran || (s.prog?.level ?? 1) >= CALM_TAUGHT_LV;
+    const calmMsg = calm ? restTip || (taught ? (p.hp < p.maxHp ? '休息中・自動回血' : '') : p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '';
     // 第 63 輪：討伐大字期間不寫「打不過就退回營火」；第 67 輪：沒字就整條藏起（字條有底色）
     this.calmText.setVisible(!!calmMsg && !this.tipBusy && !this.hint && this.time.now >= this.slainUntil).setText(calmMsg).setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // 第 71 輪：窄螢幕（360×640）字條右端「開打」壓到大招鍵 → 碰到任何按鈕就在全形空白處換成兩行
