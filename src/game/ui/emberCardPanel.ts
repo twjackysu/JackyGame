@@ -274,7 +274,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     });
     const sc = sel >= 0 ? me.hand[sel] : undefined;
     // 第 48 輪：名稱一行、說明一行；以前「（1 點・後排）」的空格讓自動換行斷在「（1⏎點」
-    const info = sc ? `${CARDS[sc]!.name}${CARDS[sc]!.power ? `（${CARDS[sc]!.power}點・${CARDS[sc]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[sc]!.desc ? `\n${CARDS[sc]!.desc}` : ''}` : myTurn ? (coach(game) ?? '點一張牌看說明，再點一次打出') : '';
+    const info = sc ? `${CARDS[sc]!.name}${CARDS[sc]!.power ? `（${CARDS[sc]!.power}點・${CARDS[sc]!.row === 0 ? '前排' : '後排'}）` : ''}${CARDS[sc]!.desc ? `\n${CARDS[sc]!.desc}` : ''}` : myTurn ? (coach(game) ?? (stats().played >= 3 ? '輪到你出牌' : '點一張牌看說明，再點一次打出')) : ''; // 第 97 輪（D-243）：打過 3 場就不再每回合教操作
     items.push(scene.add.text(0, 420 + infoDy(), info, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc8', align: 'center', wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5));
     const canPlay = myTurn && sel >= 0 && legalMoves(game, 0).some((m) => m.type === 'play' && m.card === sel);
     if (sc && myTurn && !canPlay && CARDS[sc]!.ability === 'horn') {
@@ -762,6 +762,15 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   root.setData('burn', burnFx);
   // 截圖用：直接開局／直接結束（w：0 你贏、1 對手贏、-1 平手）
   root.setData('start', start);
+  // 第 97 輪：截圖／掃描用——輪到你時照電腦的出法幫你出一手（回傳 false＝還不能出）
+  root.setData('auto', (): boolean => {
+    if (!g || g.over || busy || g.turn !== 0) return false;
+    const m = aiMove(g, 0, who);
+    if (m.type === 'play') play(m.card);
+    else pass();
+    return true;
+  });
+  root.setData('over', (): boolean => !!g?.over);
   root.setData('end', (w: number) => {
     if (!g) return;
     g.over = true;
