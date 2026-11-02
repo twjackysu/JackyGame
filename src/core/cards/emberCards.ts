@@ -131,6 +131,8 @@ export const OPPONENTS: readonly Opponent[] = [
 export const opponent = (id: string): Opponent => OPPONENTS.find((o) => o.id === id) ?? OPPONENTS[0]!;
 /** 這張地圖的營火有哪些對手（莫托到處都在） */
 export const opponentsAt = (map: string, secret = false): Opponent[] => OPPONENTS.filter((o) => (o.secret ? secret : !o.map || o.map === map));
+/** 燼牌大廳的對手頁籤（D-139／D-246）：主線對手都列；通關後地圖的對手（extra）要在他的營火、或真的交手過才列（以前「有統計欄位」就列，統計預設每位都有 → 沒通關就看到「索爾・星隕高原營火」）。 */
+export const opponentTabs = (here: readonly Opponent[], played: (id: string) => number): Opponent[] => OPPONENTS.filter((o) => !o.extra || here.includes(o) || played(o.id) > 0);
 
 export interface Side {
   deck: string[];

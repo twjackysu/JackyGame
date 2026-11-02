@@ -1,6 +1,6 @@
 // 營火燼牌（D-127）：規則與 AI。
 import { describe, expect, it } from 'vitest';
-import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, DECK_MAX, deckWith, legalMoves, maxReach, MERCHANT_DECK, newCardGame, nextReward, OPPONENTS, opponentsAt, PLAYER_DECK, rowScore, echoTarget, scorchTargets, totalScore, type CardGame, type Opponent } from '../src/core/cards/emberCards';
+import { aiMove, applyMove, CARD_REWARDS, CARDS, cardPower, DECK_MAX, deckWith, legalMoves, maxReach, MERCHANT_DECK, newCardGame, nextReward, OPPONENTS, opponentsAt, opponentTabs, PLAYER_DECK, rowScore, echoTarget, scorchTargets, totalScore, type CardGame, type Opponent } from '../src/core/cards/emberCards';
 
 function bare(): CardGame {
   const g = newCardGame(1);
@@ -273,5 +273,20 @@ describe('新手教練：追不上（第 62 輪）', () => {
     expect(maxReach(g, 0)).toBeNull();
     S.hand = [];
     expect(maxReach(g, 0)).toBe(2);
+  });
+});
+
+describe('燼牌對手頁籤（D-246）', () => {
+  const extra = OPPONENTS.filter((o) => o.extra).map((o) => o.id);
+  it('沒去過通關後地圖、沒交手過 → 不列通關後的對手', () => {
+    expect(extra.length).toBeGreaterThan(0);
+    const ids = opponentTabs(opponentsAt('thornvale'), () => 0).map((o) => o.id);
+    for (const id of extra) expect(ids).not.toContain(id);
+    expect(ids).toContain('vela');
+  });
+  it('在他的營火、或交手過就列出來', () => {
+    const at = OPPONENTS.find((o) => o.extra)!;
+    expect(opponentTabs(opponentsAt(at.map!), () => 0)).toContain(at);
+    expect(opponentTabs(opponentsAt('mistwood'), (id) => (id === at.id ? 1 : 0))).toContain(at);
   });
 });

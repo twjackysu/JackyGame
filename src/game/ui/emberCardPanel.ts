@@ -5,7 +5,7 @@ import { loadChoices, rivalEcho } from '../choices';
 import { loadEncounters, rivalEncounterEcho } from '../encounters';
 import { breakAtPunct } from './tipText';
 import { SFX } from '../../audio/sfx';
-import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, maxReach, newCardGame, nextReward, OPPONENTS, opponentsAt, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
+import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, maxReach, newCardGame, nextReward, OPPONENTS, opponentsAt, opponentTabs, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
@@ -302,7 +302,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     // 對手：三個頁籤；不在這張地圖的對手顯示去哪裡找（D-129）
     here = opponentsAt(ctx.map, secretOpen());
     // 通關後地圖的對手（D-139）：在他的營火、或交手過才列出來；五個頁籤時縮窄一點
-    const tabs = OPPONENTS.filter((o) => !o.extra || here.includes(o) || !!st.by[o.id]);
+    const tabs = opponentTabs(here, (id) => st.by[id]?.played ?? 0);
     const step = tabs.length > 4 ? 138 : 172;
     tabs.forEach((o, i) => {
       const x = (i - (tabs.length - 1) / 2) * step;
