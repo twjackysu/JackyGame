@@ -36,6 +36,20 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
   let page = 0;
   let detail: RtGear | null = null;
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
+  // 第 106 輪（D-254）：強化結果字／火花放在場景上（depth 990～995，不在 root 裡）——點完「強化！」馬上按「完成」，
+  // 從 ☰ 開的行囊會立刻回到 ☰，「強化成功！+3」還浮在暫停選單上 1.4 秒 → 面板關掉就一起收掉
+  const fx: Phaser.GameObjects.GameObject[] = [];
+  const keepFx = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
+    fx.push(o);
+    o.once('destroy', () => fx.splice(fx.indexOf(o) >>> 0, 1));
+    return o;
+  };
+  root.once('destroy', () => {
+    for (const o of fx.splice(0)) {
+      scene.tweens.killTweensOf(o);
+      o.destroy();
+    }
+  });
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9).setInteractive({ useHandCursor: true });
@@ -178,7 +192,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
             render();
             // 第 62 輪：結果字放在卡片正下方（以前固定 +360，落在「全部換成最好的／完成」上面、透出底下按鈕）
             const msgY = GAME_HEIGHT / 2 + cardBottom + 56;
-            const msg = scene.add.text(GAME_WIDTH / 2, msgY, success ? `強化成功！+${enh + 1}` : '強化失敗……材料沒了', { fontFamily: TITLE_FONT, fontSize: '40px', color: success ? '#ffd27a' : '#c0c0d0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990);
+            const msg = keepFx(scene.add.text(GAME_WIDTH / 2, msgY, success ? `強化成功！+${enh + 1}` : '強化失敗……材料沒了', { fontFamily: TITLE_FONT, fontSize: '40px', color: success ? '#ffd27a' : '#c0c0d0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990));
             scene.tweens.add({ targets: msg, y: msgY - 30, alpha: 0, delay: 700, duration: 700, onComplete: () => msg.destroy() });
             // 第 62 輪：成功時金色火花從裝備圖示迸出（+6 以上要賭成功率的，火花更多更遠）
             if (success) {
@@ -188,10 +202,10 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
               for (let i = 0; i < n; i++) {
                 const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
                 const d = (enh + 1 > 5 ? 110 : 70) + Math.random() * 50;
-                const sp = scene.add.circle(ix, iy, 3 + Math.random() * 4, i % 3 ? 0xffd27a : 0xfff4d0, 1).setDepth(995).setBlendMode(Phaser.BlendModes.ADD);
+                const sp = keepFx(scene.add.circle(ix, iy, 3 + Math.random() * 4, i % 3 ? 0xffd27a : 0xfff4d0, 1).setDepth(995).setBlendMode(Phaser.BlendModes.ADD));
                 scene.tweens.add({ targets: sp, x: ix + Math.cos(a) * d, y: iy + Math.sin(a) * d, alpha: 0, scale: 0.3, duration: 450 + Math.random() * 250, ease: 'Cubic.easeOut', onComplete: () => sp.destroy() });
               }
-              const ring = scene.add.circle(ix, iy, 30, 0xffd27a, 0).setStrokeStyle(4, 0xffd27a, 1).setDepth(995);
+              const ring = keepFx(scene.add.circle(ix, iy, 30, 0xffd27a, 0).setStrokeStyle(4, 0xffd27a, 1).setDepth(995));
               scene.tweens.add({ targets: ring, scale: 2.6, alpha: 0, duration: 500, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
             }
           }, ok, 24));

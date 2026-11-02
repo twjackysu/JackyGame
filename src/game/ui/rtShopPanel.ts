@@ -96,6 +96,9 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   root.once('destroy', () => {
     scene.events.off('update', drawPortrait);
     portrait.destroy();
+    // 第 106 輪（D-254）：買完馬上「離開」，「已購買」不再浮在地圖／☰ 上
+    if (lastToast) scene.tweens.killTweensOf(lastToast);
+    lastToast?.destroy();
   });
 
   function render(): void {
