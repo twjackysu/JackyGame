@@ -146,6 +146,15 @@ export const BOW_VARIANTS_B: Record<string, SkillDefinition & { variantName: str
 };
 
 /** 長弓技能說明（技能點面板用） */
+/** 長劍原招的說明（第 101 輪：技能點面板三把武器都顯示招式說明＋每級加成） */
+export const SWORD_DESC: Record<string, string> = {
+  heavy_slash: '前方 90° 扇形 2 格重擊 180%；冷卻 4 秒',
+  whirlwind: '身邊 2.2 格旋轉三段（每段 80%），可以邊轉邊走；冷卻 8 秒',
+  charge: '往前衝 4 格，路上的敵人 140%＋減速 1 秒；冷卻 7 秒',
+  parry: '0.4 秒格擋窗口、擋下傷害 −80%，反擊前方 220%；冷卻 8 秒',
+  blade_storm: '身邊 3 格旋轉 8 段＋最後一擊，共 800%，可以邊轉邊走；40 MP',
+};
+
 export const BOW_DESC: Record<string, string> = {
   heavy_slash: '往前射出 7 格穿透箭，整排 200%；冷卻 4 秒',
   whirlwind: '前方 70° 扇形三輪齊射（每輪 75%），射的時候能慢慢走；冷卻 7 秒',
@@ -419,7 +428,7 @@ export interface WeaponDef {
   desc?: Record<string, string>;
 }
 export const WEAPONS: Record<WeaponKind, WeaponDef> = {
-  sword: { id: 'sword', name: '長劍', player: SWORDSMAN, skills: SKILLS, variants: SKILL_VARIANTS, variantsB: SKILL_VARIANTS_B },
+  sword: { id: 'sword', name: '長劍', player: SWORDSMAN, skills: SKILLS, variants: SKILL_VARIANTS, variantsB: SKILL_VARIANTS_B, desc: SWORD_DESC },
   bow: { id: 'bow', name: '長弓', player: ARCHER, skills: BOW_SKILLS, variants: BOW_VARIANTS, variantsB: BOW_VARIANTS_B, desc: BOW_DESC },
   staff: { id: 'staff', name: '法杖', player: MAGE, skills: STAFF_SKILLS, variants: STAFF_VARIANTS, variantsB: STAFF_VARIANTS_B, desc: STAFF_DESC },
 };

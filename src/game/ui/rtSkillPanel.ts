@@ -43,7 +43,8 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
       const on = vi > 0;
       items.push(scene.add.text(-300, y - 30, on && alt ? `${bow ? (W.skills[t.id]?.name ?? t.name) : t.name} → ${alt.variantName}` : bow ? (W.skills[t.id]?.name ?? t.name) : t.name, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: on ? '#ffb6f0' : '#ffffff' }).setOrigin(0, 0.5));
       if (alt0 && rank < SKILL_MAX_RANK) items.push(scene.add.text(200, y - 30, `5 級解鎖：${alt0.variantName}${altB ? `／${altB.variantName}` : ''}`, { fontFamily: UI_FONT, fontSize: '17px', color: '#c890c0' }).setOrigin(1, 0.5));
-      const desc = scene.add.text(-300, y + (on || bow ? 4 : 12), on && alt ? alt.desc : bow ? (W.desc?.[t.id] ?? '') : `每級：${t.per}`, { fontFamily: UI_FONT, fontSize: on || bow ? '16px' : '19px', color: on ? '#f0d0ea' : '#c8c0a8', wordWrap: { width: 480, useAdvancedWrap: true } }).setOrigin(0, 0.5);
+      // 第 101 輪：三把武器都顯示招式說明（以前長劍只寫「每級：…」、長弓／法杖只寫說明，不知道 +1 加什麼）；每級加成寫在等級格右邊
+      const desc = scene.add.text(-300, y + 4, on && alt ? alt.desc : (W.desc?.[t.id] ?? ''), { fontFamily: UI_FONT, fontSize: '16px', color: on ? '#f0d0ea' : '#c8c0a8', wordWrap: { width: 480, useAdvancedWrap: true } }).setOrigin(0, 0.5);
       // 第 62 輪：兩行的說明（隕星術）第二行會壓到等級格 → 說明往下一點、等級格貼到卡片底
       const two = desc.height > 30;
       if (two) desc.setY(y + 9);
@@ -54,6 +55,7 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
         g.fillStyle(k < rank ? 0xffd27a : 0x3a3020, 1).fillRoundedRect(-300 + k * 34, y + (two ? 43 : 34), 28, 10, 4);
       }
       items.push(g);
+      items.push(scene.add.text(-300 + SKILL_MAX_RANK * 34 + 8, y + (two ? 48 : 39), `每級 ${t.per}`, { fontFamily: UI_FONT, fontSize: '15px', color: rank ? '#e8c890' : '#9a8a70' }).setOrigin(0, 0.5));
       const can = !!addRank(r, t.id, level);
       if (rank >= SKILL_MAX_RANK && alt0) {
         // 原招 → 變化 → 變化二 → 原招（按鈕寫下一種的名字）

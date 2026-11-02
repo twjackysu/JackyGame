@@ -101,3 +101,9 @@ describe('武器表與法杖（D-152）', () => {
     expect(fails).toBe(0);
   }, 300000);
 });
+
+describe('技能點面板說明（第 101 輪）', () => {
+  it('三把武器的五個技能都有原招說明', () => {
+    for (const w of WEAPON_IDS) for (const id of Object.keys(SKILLS)) expect(WEAPONS[w].desc?.[id], `${w}/${id}`).toBeTruthy();
+  });
+});
