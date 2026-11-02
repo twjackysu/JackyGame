@@ -7,6 +7,7 @@ import { breakAtPunct } from './tipText';
 import { SFX } from '../../audio/sfx';
 import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, maxReach, newCardGame, nextReward, OPPONENTS, opponentsAt, opponentTabs, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
+import { mapOpen } from '../rtRecord';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT, bigText } from '../fx/feel';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
@@ -322,7 +323,8 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
         });
       items.push(t);
       // 第 45 輪：以前每個頁籤下面都塞一行 14px 說明（手機上約 7px、互相黏在一起）→ 只有還沒解鎖的寫「在哪」，選中的對手打法寫在招呼語下面
-      if (!ok) items.push(scene.add.text(x, -431, o.secret ? '贏過前三位' : `${worldMap(o.map ?? '')?.name ?? '別的地圖'}營火`, { fontFamily: UI_FONT, fontSize: '18px', color: '#9a8e80', align: 'center', wordWrap: { width: step - 8, useAdvancedWrap: true } }).setOrigin(0.5, 0));
+      // 第 99 輪（D-246）：還沒開放的地圖不寫名字
+      if (!ok) items.push(scene.add.text(x, -431, o.secret ? '贏過前三位' : o.map && !mapOpen(o.map) ? '前方地圖的營火' : `${worldMap(o.map ?? '')?.name ?? '別的地圖'}營火`, { fontFamily: UI_FONT, fontSize: '18px', color: '#9a8e80', align: 'center', wordWrap: { width: step - 8, useAdvancedWrap: true } }).setOrigin(0.5, 0));
     });
     const rules = [
       '三局兩勝。雙方各抽 10 張牌，整場不補牌。',
