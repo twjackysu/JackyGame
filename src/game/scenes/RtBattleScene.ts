@@ -2703,7 +2703,10 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.menu?.active) {
       for (const o of this.children.list) {
         // 第 102 輪（D-250）：地區名稱／地區說明（depth 66）也藏——開 ☰ 時剛走進新地區，「小心石頭後的射手・北邊有營火」從遮罩底下透到「暫停」標題上面
-        if (o instanceof Phaser.GameObjects.Text && (o.depth === BANNER_DEPTH || this.zoneTexts.includes(o)) && o.visible) {
+        // 第 104 輪（D-252）：Boss／精英箭頭的距離字（「69m」，depth 51）透到「暫停」標題正下方、看起來像標題的一部分；懸賞板（depth 49）在 360×640 壓進「行囊」鈕 → 一起藏
+        if (!(o instanceof Phaser.GameObjects.Text) || !o.visible) continue;
+        const hud = this.arrowLabels.includes(o) || o === this.gateArrow || o === this.bountyTxt;
+        if (o.depth === BANNER_DEPTH || this.zoneTexts.includes(o) || hud) {
           o.setVisible(false);
           this.bannerHidden.add(o);
         }
