@@ -355,6 +355,8 @@ export class RtBattleScene extends Phaser.Scene {
   private memLeft: Memory[] = [];
   /** 走到了、但開場大字還在 → 先記著，大字收掉再想起（第 61 輪：星隕高原從光門抵達，記憶卡和開場大字同時出現） */
   private memQ: Memory | null = null;
+  /** 「這個地方似乎有點熟悉……」還在畫面上到這個時間（D-239：記憶卡等它淡掉再出） */
+  private chestHintUntil = 0;
   /** 倒下後在營火旁醒來的那幾秒（第 61 輪）：不報地區名稱、不出「似乎有點熟悉」，只留「在營火旁醒來」 */
   private reviveUntil = 0;
   /** 開場大字佔著 tipBusy 時的 busyRun（-1＝沒有） */
@@ -631,7 +633,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
-    { this.memQ = null; this.introRun = -1; this.reviveUntil = 0; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
+    { this.memQ = null; this.chestHintUntil = 0; this.introRun = -1; this.reviveUntil = 0; const have = loadMemories(); this.memLeft = this.tracked && !this.bot ? memoriesOf(this.stageId).filter((m) => !have.includes(m.id)) : []; }
     // 序章（D-134）：第一次進第一張大地圖先播前世的故事，播完才開始開場說明
     if (!this.bot && this.stageId === WORLD_MAPS[0]!.id && !prologueSeen()) {
       this.tipBusy = true;
@@ -1808,7 +1810,8 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 68 輪：星隕高原的記憶點就在守望者巢穴邊，記憶卡以前蓋在 Boss 登場名字上 → Boss 開打、抉擇面板、討伐大字期間先記著，打完再想起
     // （還沒開打但站在 Boss 發現範圍附近也先等：不然記憶卡和登場名字同一刻出現）
     // 第 79 輪：星隕高原選完「還」0.5 秒就跳記憶卡（＋相機閃紫光），結語只露 1 秒 → 結語期間、等「番外　完」卡時也先記著
-    if (this.menu || this.topCard?.active || this.storySoon || this.time.now < this.tipCalmUntil || this.time.now < this.slainUntil || this.time.now < this.reviveUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
+    // 第 96 輪（D-239）：星隕高原出生點旁有寶箱也有記憶點，「似乎有點熟悉」和記憶卡同一刻出現 → 等那行字淡掉再想起
+    if (this.menu || this.topCard?.active || this.storySoon || this.time.now < this.chestHintUntil || this.time.now < this.tipCalmUntil || this.time.now < this.slainUntil || this.time.now < this.reviveUntil || enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && (e.mode === 'combat' || Math.hypot(e.x - p.x, e.y - p.y) < (aggroUnitsOf(e) + 3) * UNIT))) return;
     // 第 86 輪（D-222）：被狼群圍著時跳記憶卡，兩行字要邊打邊讀、傷害數字鑽到卡片底下 → 身邊 7 格內的小怪也打完再想起（已經記下來，不會漏）
     if (peekBlocked(enemiesOf(this.s), p.x, p.y, UNIT * 7)) return;
     const mem = this.memQ;
@@ -2143,6 +2146,7 @@ export class RtBattleScene extends Phaser.Scene {
       // 畫面正中間常是主角頭上（回程門的字也在那）→ 往上挪一點，並佔位讓其他置中大字避開
       const hy = GAME_HEIGHT / 2 - 190;
       reserveBanner(this, hy, 50, 3200);
+      this.chestHintUntil = this.time.now + 3200;
       const t = this.add.text(GAME_WIDTH / 2, hy, '這個地方似乎有點熟悉……', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: 'italic', color: '#d8c8ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(66).setAlpha(0);
       this.tweens.add({ targets: t, alpha: 0.9, duration: 700, hold: 1800, yoyo: true, onComplete: () => t.destroy() });
     }
