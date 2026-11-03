@@ -2,6 +2,11 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-261 2026-11-03 其他存檔鍵壞資料只補測試、不改程式；iPad 直／橫看過不改
+- **決策**：`jg_memories`／`jg_encounters`／`jg_choices`／`jg_rt_controls`／`jg_last_map`／`jg_weapon`／`jg_cards`／`timesDue` 計數塞錯型別（物件、陣列、字串、`1e999`＝Infinity）實機掃過都退回預設、沒有 pageerror、HUD 沒有 NaN；只新增 `tests/save-garbage.test.ts` 鎖住這個行為。iPad（gen 7）直式與橫式（橫式不蓋「轉直式」提示，左右留黑邊、畫面正常）看過不改。
+- **理由**：11/4 起功能凍結，這些鍵本來就有 clean*／sanitize，程式不用動；補測試防日後回歸。
+- **替代**：iPad 橫式也蓋「請轉直式」（會擋住用平板橫放玩的人，現在留黑邊也能玩，不做）。
+
 ## D-260 2026-11-03 讀檔檢查欄位型別（地圖紀錄、裝備、設定、燼牌戰績）
 - **決策**：`rtRecord.sanitizeRecord()`（`readRaw` 一律經過）——數字欄位要是有限非負數、`level` ≥ 1 取整、`fury`／`night` 要是布林、`fire` 字串、`chests` 字串陣列、`spent` 只留有限數字；型別不對的欄位當成沒有。`isGear` 也檢查 `base`／`affixes`／`special` 的數值；設定（`settings.ts`）型別和預設值不同的欄位丟掉；燼牌戰績欄位壞掉當 0。
 - **理由**：壞存檔測試（Playwright 寫入 `jg_rt_mistwood={"level":"x",...}`）進森林 HUD 顯示「Lv NaN・HP NaN/NaN」，而且會一路存回去、玩家只能清資料。打磨期前最後一個「不會當機但會壞掉整個存檔」的洞。

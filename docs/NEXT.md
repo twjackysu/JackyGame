@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 112 輪（11/3 18:35）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 113 輪（11/3 20:40）更新；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`、`bossLv`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
@@ -153,7 +153,9 @@
 2. **相遇（選做，先等 Jacky 回 FOR_JACKY 第 21 題）**：他說「相遇減少」就把每張圖砍回一個（刪 `ENCOUNTERS` 第 4～7 筆、改測試數量、README）。沒回覆就**先不要再加**。**不要**把抉擇／相遇做成永久戰鬥加成（D-157）。
 3. **（下一輪建議主工作）「第一眼」＋打磨期**：①只修看得到的問題（凍結截圖，D-219 注意）；②README 成果發表版已完成（D-257）；③11/4 起功能凍結、11/5 中午前定最終版。
    - **README 成果發表版已在第 109 輪提前做完（D-257）**：版本 1.0.0、開頭「🎉 成果發表版 1.0.0」＋一行統計、「第一次玩：10 分鐘試玩路線」。**11/5 最後一輪**再跑 `bash scripts/stats.sh`，統計若差很多（例如輪數 > 130）就更新那一行；之後只修 bug 的話版本改 1.0.x（`package.json`＋`package-lock.json` 前兩處）。
-   - **第 113 輪建議接著看**：①**11/4 00:00 起功能凍結**——只修看得到的 bug、不加系統（第 113 輪 20:12 還在 11/3，可以做小修正，但不要加新內容）；②壞存檔測試第 112 輪做過（D-260）：如果還有時間，可以照同樣方法測 `jg_memories`／`jg_encounters`／`jg_choices`／`jg_rt_controls` 塞錯型別（這幾個本來就有 clean*，預期沒事）；③PROGRESS 超過 300 行再合併第 103～112 輪；④11/5 最後一輪：`bash scripts/stats.sh` 更新 README 統計行、版本視修 bug 情況改 1.0.x。
+   - **第 114 輪建議接著看**（22:12 開始，仍是 11/3，但**別加新內容**）：①**11/4 00:00 起功能凍結**——只修看得到的 bug；②存檔壞資料已全部掃完（D-260／261），iPad 直／橫看過（D-261），不用再排；③可選：新存檔長弓 360×640 前 400 秒看一次（第 112 輪只看了法杖 390×844）；④PROGRESS 超過 300 行再合併第 103～113 輪；⑤11/5 最後一輪：`bash scripts/stats.sh` 更新 README 統計行、版本視修 bug 情況改 1.0.x。
+   - 第 113 輪已做：`jg_memories`／`jg_encounters`／`jg_choices`／`jg_rt_controls` 等其他存檔鍵塞錯型別實機掃過都沒事，補 `tests/save-garbage.test.ts`；iPad 直／橫看過不改（D-261）。
+   - （舊）第 113 輪建議接著看：①**11/4 00:00 起功能凍結**——只修看得到的 bug、不加系統（第 113 輪 20:12 還在 11/3，可以做小修正，但不要加新內容）；②壞存檔測試第 112 輪做過（D-260）：如果還有時間，可以照同樣方法測 `jg_memories`／`jg_encounters`／`jg_choices`／`jg_rt_controls` 塞錯型別（這幾個本來就有 clean*，預期沒事）；③PROGRESS 超過 300 行再合併第 103～112 輪；④11/5 最後一輪：`bash scripts/stats.sh` 更新 README 統計行、版本視修 bug 情況改 1.0.x。
    - 第 112 輪已做：讀檔檢查欄位型別（D-260：地圖紀錄、裝備、設定、燼牌戰績），壞存檔不再出現「Lv NaN」；新存檔法杖 390×844 前 400 秒看過不改。
    - （舊）第 112 輪建議接著看：①**11/4 00:00 起功能凍結**——只修看得到的 bug、不加系統；②（選做）README「更多畫面」22～32 第 111 輪看過：已是 11/2 重拍的新版畫面，**不用換**；③PROGRESS 超過 300 行再合併第 103～111 輪；④11/5 最後一輪：`bash scripts/stats.sh` 更新 README 統計行、版本視修 bug 情況改 1.0.x。
    - 第 111 輪已做：Boss 已討伐 3 次以上不再重講攻略提示（D-259）；荊棘谷暴怒長劍 390×844、燼紅裂谷深夜法杖 360×640 240 秒重複文字掃完——所有地圖×武器×（一般／暴怒／深夜）的主要組合都掃過了，之後不用再排掃描。
@@ -179,7 +181,7 @@
 - 舊試玩小關卡（七關）只留給 ☰ 換關與模擬器；不要再加新的小關卡。
 
 ## 驗證小抄
-- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 388 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
+- **commit 前一定要** `npm run build`（含 tsc）＋ `npx vitest run --exclude 'tests/zz-*'`（目前 401 項，約 1 分鐘；如果突然變很久，多半是某個 Bot 迴圈打轉到上限）。
 - 場景檔不要寫出 `{ gold: …}`／`.gold +=` 這種字樣：`tests/game-api.test.ts` 會掃 `src/game/**`（獨立紀錄裡的金幣欄位因此叫 `coin`）。
 - **舊關卡雜湊比對**（核心改動必做）——**第 26 輪起的做法**：範本存在 `scripts/zz-hash.template.ts.txt`（90 場），複製成 `tests/zz-hash.test.ts`；`git worktree add /tmp/claude-0/old <本輪開頭 commit>`＋`ln -s $PWD/node_modules /tmp/claude-0/old/node_modules`，兩邊各跑一次（`HASH_OUT=/tmp/claude-0/hash-old.txt` / `hash-new.txt`）再 `diff`，最後 `git worktree remove --force`（`tests/zz-hash.test.ts` 不在 git，新 session 照範本複製）。荊棘谷改動另跑 `tests/rt-thornvale.test.ts`。
 - `RUNS=60 npm run sim:rt`（刷怪關會略過）；霧語森林測試 `tests/rt-mistwood.test.ts`（含 15 分鐘耐久）。

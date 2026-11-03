@@ -1,5 +1,14 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-03 20:14–20:40（台北）第 113 輪 — 其他存檔鍵壞資料掃描、iPad 直／橫（D-261）
+**背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 112 輪 1877101）。照 NEXT「第 113 輪建議接著看」②。
+
+**做了什麼**
+- 壞存檔掃描（`screenshots/r113c.mjs`，gitignored：同 r112c 的做法，`FROM=n` 從第 n 組開始，一次跑 5 組以內免得超過 2 分鐘）：`jg_memories` 物件／混雜陣列、`jg_encounters` 陣列、`jg_choices` 字串／數字、`jg_rt_controls` 字串／欄位全錯／`1e999`、`jg_last_map` 不存在的地圖、`jg_weapon` 數字、`jg_cards` 陣列、`jg_streak_hint_*` 非數字 → 全部沒有 pageerror、HUD 正常（Lv 1・HP 620/620）。**不用改程式**，補 `tests/save-garbage.test.ts`（3 項）。
+- iPad（gen 7）直式＋橫式標題與霧語森林截圖（`screenshots/r113ipad.mjs`）：直式正常；橫式左右黑邊、畫面完整，不蓋轉向提示（只擋高度 ≤ 600 的手機），不改。
+
+**驗證**：build＋`npx vitest run --exclude 'tests/zz-*'`（401 項全過，含通關機器人）。
+
 ## 2026-11-03 18:12–18:35（台北）第 112 輪 — 壞存檔不再出現「Lv NaN」（D-260）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 111 輪 b6bb0d9）。開發期最後幾輪，NEXT 說只修看得到的問題 → 換個角度測：存檔被弄壞時會怎樣。
 
