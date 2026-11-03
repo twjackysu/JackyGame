@@ -2888,7 +2888,8 @@ export class RtBattleScene extends Phaser.Scene {
           const lv = this.s.prog?.level ?? 1;
           // 第 73 輪：建議等級搬到 Boss 血條字（`建議 LvN`），這裡只留一句短的，提示最多兩～三行不蓋主角
           // 第 96 輪（D-240）：霧語森林新存檔第 170 秒想起「狼王衝鋒撞上岩壁會暈」，6 秒後攻略提示又講一次 → 30 秒內想起過同一件事就只留練功那行
-          const echo = this.time.now - this.memTipAt < 30000;
+          // 第 111 輪（D-259）：這張圖的 Boss 已討伐 3 次以上（暴怒解鎖的次數）＝老手，每次進圖不再重講攻略，只留練功那行
+          const echo = this.time.now - this.memTipAt < 30000 || (this.tracked && bossKillsOf(this.stageId) >= FURY_UNLOCK.kills);
           const low = !!wm && lv < wm.bossLv;
           const tip = echo ? (low ? '（打不過就先回去練功）' : '') : `${wrapTip(this.bossTipText())}${low ? '\n打不過就先回去練功' : ''}`;
           // 第 64 輪：放在主角腳下（TIP_Y），以前 y 600 正好蓋在 Boss 和牠的第一個紅圈預告上
