@@ -1,5 +1,15 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-03 18:12–18:35（台北）第 112 輪 — 壞存檔不再出現「Lv NaN」（D-260）
+**背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 111 輪 b6bb0d9）。開發期最後幾輪，NEXT 說只修看得到的問題 → 換個角度測：存檔被弄壞時會怎樣。
+
+**做了什麼**
+- 壞存檔測試（`screenshots/r112c.mjs`，gitignored：`CASES='[[名稱,{LS鍵:字串值}]]'`，清 LS→寫入→reload→標題→`scene.start('RtBattle')`→截圖＋收 pageerror）：JSON 爛掉、`null`、數字、不存在的武器 `axe` 都正常（沒有錯誤、用預設）；**欄位型別錯（`level:"x"`、`coin:-3`、`bag:5`）→ HUD「Lv NaN・HP NaN/NaN」**。
+- **修了（D-260）**：`sanitizeRecord`（地圖紀錄）、`isGear` 數值檢查、設定型別檢查、燼牌戰績數字檢查；新測試 `tests/rt-record-sanitize.test.ts`（8 項）。修完同一組壞存檔 → 「Lv 1・HP 540/540」。
+- 新存檔法杖 390×844 前 400 秒（`shot-newsave.mjs`）看過不改：教學、升級字條、狼王戰正常（只有已知的受擊閃白假象）。
+
+**驗證**：build＋`npx vitest run --exclude 'tests/zz-*'`（398 項全過，含通關機器人）。
+
 ## 2026-11-03 16:12–16:50（台北）第 111 輪 — 老手不再重講 Boss 攻略（D-259）；最後兩組重複文字掃描
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 109 輪 3eadcdb）；PWA 網址正常回應。照 NEXT「第 111 輪建議接著看」②③。
 
