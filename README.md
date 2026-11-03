@@ -4,7 +4,7 @@
 
 原創冒險 RPG，手機單機（iOS / Android / PWA），**完全離線**、直式單手操作、單人即時動作戰鬥。
 
-🚧 **開發中**（2026-10-23 開工，11/05 成果發表）。進度見 [`docs/PROGRESS.md`](docs/PROGRESS.md)，計畫見 [`docs/PLAN.md`](docs/PLAN.md)。
+🎉 **成果發表版 1.0.0**（2026-11-05）：由 Claude 以每 2 小時一輪的排程開發迴圈從零做出——2026-10-23 開工，約 110 輪、1000+ commits、TypeScript 約 1.9 萬行、近 400 項自動測試（統計到 11/3，`bash scripts/stats.sh`）。
 
 ▶ **馬上玩**：手機瀏覽器開 https://twjackysu.github.io/JackyGame/ （可加入主畫面離線玩）・Android 下載 [APK](https://github.com/twjackysu/JackyGame/releases/tag/latest)・iOS 見下方「[怎麼玩](#怎麼玩)」。
 
