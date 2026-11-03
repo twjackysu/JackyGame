@@ -1,5 +1,15 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-04 00:14–00:45（台北）第 115 輪 — 正式版（vite preview）從標題走一次＋離線四張地圖（不用改）
+**背景**：11/4 起功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 113 輪 233509f）。照 NEXT「第 115 輪建議接著看」③。
+
+**做了什麼**
+- 正式版 `npm run build`＋`npx vite preview --port 4173`，390×844 新存檔真實點擊（`screenshots/r115q.mjs`，gitignored）：標題→點擊開始→進入霧語森林→序章→略過→選武器→霧語森林 HUD／教學大字正常，service worker 有註冊，沒有 pageerror／console error。
+- **離線**（`ctx.setOffline(true)` 後 reload）：標題正常；法杖進霧語森林（`r115s.mjs`）、長弓 360×640 Lv12 進荊棘谷／燼紅裂谷／星隕高原（`r115m.mjs`）都載入完整，沒有 requestfailed。
+- **不用改程式**；沒有新決策。
+
+**問題**：無頭 swiftshader 在標題約 1fps，相機 fadeOut 不前進，真實點「進入」不會換場景——自動化要用 `?debug` 的 `__game.scene.getScene('Title').scene.start('RtBattle',{stage,bot:''})`。390×844 的「點擊開始」實際在 y≈692（舊筆記寫 600 也會觸發，整個畫面都可點）。`jg_weapon` 存純字串（`staff`），不是 JSON。
+
 ## 2026-11-03 22:16–22:45（台北）第 114 輪 — 新存檔長弓 360×640 前 400 秒＋荊棘谷光門抵達（不用改）
 **背景**：沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 113 輪 233509f）；`latest` APK 是 233509f 的版本（5.9MB）。照 NEXT「第 114 輪建議接著看」③。
 
