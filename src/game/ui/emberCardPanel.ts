@@ -139,22 +139,30 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   };
 
   // 牌桌（第 28 輪）：木板桌面＋四邊暗角（只畫一次）、桌子中央營火映過來的暖光（每幀閃）
-  const table = scene.add.graphics();
-  for (let y = -GAME_HEIGHT / 2, i = 0; y < GAME_HEIGHT / 2; y += 58, i++) {
-    table.fillStyle(i % 2 ? 0x1e140b : 0x23170d, 1).fillRect(-GAME_WIDTH / 2, y, GAME_WIDTH, 58);
-    table.fillStyle(0x0c0704, 1).fillRect(-GAME_WIDTH / 2, y, GAME_WIDTH, 2);
-    // 木紋與節眼（固定位置，不用亂數）
-    const off = ((i * 197) % 520) - 260;
-    table.lineStyle(1, 0x2c1d10, 0.7).lineBetween(-GAME_WIDTH / 2, y + 20, off - 30, y + 22).lineBetween(off + 30, y + 36, GAME_WIDTH / 2, y + 34);
-    table.fillStyle(0x140c06, 0.9).fillEllipse(off, y + 29, 34, 12);
-    table.lineStyle(1, 0x2c1d10, 0.8).strokeEllipse(off, y + 29, 50, 20);
+  // 第 118 輪（D-262）：木紋約 7000 個繪圖指令，Graphics 每幀都重畫 → 烘成貼圖（每種畫面高度只烘一次），打牌時幀數約 2.4 倍
+  const TABLE_KEY = `ember_table_${GAME_HEIGHT}`;
+  if (!scene.textures.exists(TABLE_KEY)) {
+    const tg = scene.make.graphics({}, false);
+    tg.translateCanvas(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+    for (let y = -GAME_HEIGHT / 2, i = 0; y < GAME_HEIGHT / 2; y += 58, i++) {
+      tg.fillStyle(i % 2 ? 0x1e140b : 0x23170d, 1).fillRect(-GAME_WIDTH / 2, y, GAME_WIDTH, 58);
+      tg.fillStyle(0x0c0704, 1).fillRect(-GAME_WIDTH / 2, y, GAME_WIDTH, 2);
+      // 木紋與節眼（固定位置，不用亂數）
+      const off = ((i * 197) % 520) - 260;
+      tg.lineStyle(1, 0x2c1d10, 0.7).lineBetween(-GAME_WIDTH / 2, y + 20, off - 30, y + 22).lineBetween(off + 30, y + 36, GAME_WIDTH / 2, y + 34);
+      tg.fillStyle(0x140c06, 0.9).fillEllipse(off, y + 29, 34, 12);
+      tg.lineStyle(1, 0x2c1d10, 0.8).strokeEllipse(off, y + 29, 50, 20);
+    }
+    for (let k = 0; k < 14; k++) {
+      const b = 16 + k * 14;
+      tg.fillStyle(0x000000, 0.07);
+      tg.fillRect(-GAME_WIDTH / 2, -GAME_HEIGHT / 2, GAME_WIDTH, b).fillRect(-GAME_WIDTH / 2, GAME_HEIGHT / 2 - b, GAME_WIDTH, b);
+      tg.fillRect(-GAME_WIDTH / 2, -GAME_HEIGHT / 2, b * 0.6, GAME_HEIGHT).fillRect(GAME_WIDTH / 2 - b * 0.6, -GAME_HEIGHT / 2, b * 0.6, GAME_HEIGHT);
+    }
+    tg.generateTexture(TABLE_KEY, GAME_WIDTH, GAME_HEIGHT);
+    tg.destroy();
   }
-  for (let k = 0; k < 14; k++) {
-    const b = 16 + k * 14;
-    table.fillStyle(0x000000, 0.07);
-    table.fillRect(-GAME_WIDTH / 2, -GAME_HEIGHT / 2, GAME_WIDTH, b).fillRect(-GAME_WIDTH / 2, GAME_HEIGHT / 2 - b, GAME_WIDTH, b);
-    table.fillRect(-GAME_WIDTH / 2, -GAME_HEIGHT / 2, b * 0.6, GAME_HEIGHT).fillRect(GAME_WIDTH / 2 - b * 0.6, -GAME_HEIGHT / 2, b * 0.6, GAME_HEIGHT);
-  }
+  const table = scene.add.image(0, 0, TABLE_KEY);
   const glow = scene.add.graphics();
   const drawGlow = (): void => {
     const t = scene.time.now;
