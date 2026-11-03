@@ -486,7 +486,10 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     if (prizeCard && !revealed) {
       revealed = true;
       scene.time.delayedCall(450, () => {
-        if (root.active && prizeCard) reveal(prizeCard);
+        if (!prizeCard) return;
+        // 第 108 輪（D-256）：贏了賭局馬上離開，揭曉動畫看不到 → 關面板後由場景補一句
+        if (root.active) reveal(prizeCard);
+        else ctx.announce?.(`得到新牌「${CARDS[prizeCard]!.name}」\n已放進燼牌牌組`, '#ffd27a');
       });
     }
   }
