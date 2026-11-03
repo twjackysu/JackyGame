@@ -284,5 +284,11 @@ export function gearSkillMods(items: (RtGear | undefined | null)[]): Record<stri
 /** 讀檔時檢查一件裝備的形狀（壞資料丟掉） */
 export function isGear(x: unknown): x is RtGear {
   const g = x as RtGear;
-  return !!g && typeof g.uid === 'string' && (g.enh === undefined || (Number.isInteger(g.enh) && g.enh >= 0 && g.enh <= ENH_MAX)) && GEAR_SLOTS.includes(g.slot) && [1, 2, 3].includes(g.rarity) && typeof g.name === 'string' && !!g.base && Array.isArray(g.affixes);
+  if (!(!!g && typeof g.uid === 'string' && (g.enh === undefined || (Number.isInteger(g.enh) && g.enh >= 0 && g.enh <= ENH_MAX)) && GEAR_SLOTS.includes(g.slot) && [1, 2, 3].includes(g.rarity) && typeof g.name === 'string' && !!g.base && Array.isArray(g.affixes))) return false;
+  // 第 112 輪（D-260）：數值也要是有限數字，壞掉的裝備會讓攻擊／HP 變 NaN
+  const fin = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v);
+  if (typeof g.base !== 'object' || !Object.values(g.base).every((v) => v === undefined || fin(v))) return false;
+  if (!g.affixes.every((a) => !!a && typeof a === 'object' && typeof a.stat === 'string' && a.stat in AFFIX_NAME && fin(a.value))) return false;
+  if (g.special !== undefined && !(g.special && typeof g.special.skill === 'string' && typeof g.special.kind === 'string' && fin(g.special.value))) return false;
+  return true;
 }

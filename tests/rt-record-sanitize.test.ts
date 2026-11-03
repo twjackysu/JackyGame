@@ -28,3 +28,16 @@ describe('sanitizeRecord（D-260）', () => {
     expect(sanitizeRecord(ok)).toEqual(ok);
   });
 });
+
+import { isGear } from '../src/core/battle/rt/gear';
+describe('isGear 數值檢查（D-260）', () => {
+  const ok = { uid: 'u', slot: 'weapon', rarity: 2, ilvl: 5, name: 'n', base: { atk: 20 }, affixes: [{ stat: 'hp', value: 10 }], enh: 3 };
+  it('正常裝備通過', () => expect(isGear(ok)).toBe(true));
+  it('底數值不是數字就丟', () => expect(isGear({ ...ok, base: { atk: 'x' } })).toBe(false));
+  it('詞綴壞掉就丟', () => {
+    expect(isGear({ ...ok, affixes: [{ stat: 'hp', value: null }] })).toBe(false);
+    expect(isGear({ ...ok, affixes: [{ stat: 'luck', value: 3 }] })).toBe(false);
+    expect(isGear({ ...ok, affixes: [5] })).toBe(false);
+  });
+  it('特效壞掉就丟', () => expect(isGear({ ...ok, special: { skill: 'a', kind: 'cd', value: 'x' } })).toBe(false));
+});
