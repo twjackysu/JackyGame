@@ -151,10 +151,39 @@ export function splitRecord(home: RtRecord, rec: RtRecord): { home: RtRecord; ow
   return { home: { ...dropMap(rec), ...pickMap(home) }, own: pickMap(rec) };
 }
 
+const NUM_KEYS = ['bossKills', 'firstAt', 'bestBossSec', 'kills', 'coin', 'dust', 'crystal', 'runs', 'playSec', 'level', 'xp', 'furyKills'] as const;
+const BOOL_KEYS = ['fury', 'night'] as const;
+const okNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+/**
+ * 第 112 輪（D-260）：讀檔時檢查基本欄位的型別。以前存檔被弄壞（例如 level 變成字串）會讓 HUD 顯示「Lv NaN・HP NaN/NaN」
+ * 而且一路存回去；現在型別不對的欄位直接丟掉（當成沒有），其他欄位照用。形狀複雜的欄位（行囊、技能、懸賞、行商）各自另有 clean*。
+ */
+export function sanitizeRecord(raw: unknown): RtRecord {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = { ...(raw as Record<string, unknown>) };
+  for (const k of NUM_KEYS) if (out[k] !== undefined && !okNum(out[k])) delete out[k];
+  if (okNum(out.level)) out.level = Math.max(1, Math.floor(out.level));
+  for (const k of BOOL_KEYS) if (out[k] !== undefined && typeof out[k] !== 'boolean') delete out[k];
+  if (out.fire !== undefined && typeof out.fire !== 'string') delete out.fire;
+  if (out.chests !== undefined) {
+    if (Array.isArray(out.chests)) out.chests = out.chests.filter((c) => typeof c === 'string');
+    else delete out.chests;
+  }
+  if (out.spent !== undefined) {
+    const sp = out.spent;
+    if (!sp || typeof sp !== 'object' || Array.isArray(sp)) delete out.spent;
+    else {
+      const o: Record<string, number> = {};
+      for (const [k, v] of Object.entries(sp as Record<string, unknown>)) if (typeof v === 'number' && Number.isFinite(v)) o[k] = v; // 分解會記成負的花費
+      out.spent = o;
+    }
+  }
+  return out as RtRecord;
+}
+
 function readRaw(stage: string): RtRecord {
   try {
-    const raw = JSON.parse(localStorage.getItem(`jg_rt_${stage}`) ?? '{}') as unknown;
-    return raw && typeof raw === 'object' ? (raw as RtRecord) : {};
+    return sanitizeRecord(JSON.parse(localStorage.getItem(`jg_rt_${stage}`) ?? '{}') as unknown);
   } catch {
     return {};
   }

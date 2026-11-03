@@ -31,7 +31,10 @@ export function getSettings(): Settings {
   } catch {
     s = {};
   }
-  cache = { ...DEFAULTS, ...s };
+  // 第 112 輪（D-260）：型別和預設值不同的欄位丟掉（壞掉的存檔不會讓音量變 NaN）
+  const ok: Record<string, unknown> = {};
+  if (s && typeof s === 'object') for (const k of Object.keys(DEFAULTS) as (keyof Settings)[]) if (typeof s[k] === typeof DEFAULTS[k] && !(typeof s[k] === 'number' && !Number.isFinite(s[k]))) ok[k] = s[k];
+  cache = { ...DEFAULTS, ...(ok as Partial<Settings>) };
   return cache;
 }
 
