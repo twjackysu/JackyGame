@@ -36,16 +36,18 @@ interface Stats {
   /** 留在箱子裡、不帶上場的牌（D-130，可重複 id） */
   off: string[];
 }
+/** 第 112 輪（D-260）：戰績欄位壞掉（不是非負整數）就當 0 */
+const cnt = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
 function stats(): Stats {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Stats>;
     const by: Stats['by'] = {};
     for (const o of OPPONENTS) {
       const b = v.by?.[o.id];
-      by[o.id] = { played: b?.played ?? 0, won: b?.won ?? 0 };
+      by[o.id] = { played: cnt(b?.played), won: cnt(b?.won) };
     }
     const ids = (a: unknown): string[] => (Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string' && !!CARDS[x]) : []);
-    return { played: v.played ?? 0, won: v.won ?? 0, cards: ids(v.cards), by, off: ids(v.off) };
+    return { played: cnt(v.played), won: cnt(v.won), cards: ids(v.cards), by, off: ids(v.off) };
   } catch {
     return { played: 0, won: 0, cards: [], by: {}, off: [] };
   }
