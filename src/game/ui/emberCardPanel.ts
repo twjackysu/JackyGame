@@ -20,6 +20,8 @@ export interface CardCtx {
   coin: () => number;
   /** 付錢（正數）或收錢（負數） */
   pay: (n: number) => void;
+  /** 面板已經關掉時改由場景補講的公告（第 107 輪：贏了第三家後馬上離開，伊妲出現的字會被擋掉） */
+  announce?: (text: string, color: string) => void;
 }
 
 const ROW_NAME = ['前排', '後排'];
@@ -573,8 +575,12 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     if (!wasOpen && secretOpen()) {
       // 三家都贏過一次：隱藏對手出現（D-132）
       scene.time.delayedCall(1600, () => {
-        if (!root.active) return;
-        bigText(scene, GAME_WIDTH / 2, 520, '有人在營火邊翻開了一本書……\n隱藏對手「伊妲」出現了', '#c8a0ff', 34, 2400).setDepth(990);
+        const msg = '有人在營火邊翻開了一本書……\n隱藏對手「伊妲」出現了';
+        if (!root.active) {
+          ctx.announce?.(msg, '#c8a0ff');
+          return;
+        }
+        bigText(scene, GAME_WIDTH / 2, 520, msg, '#c8a0ff', 34, 2400).setDepth(990);
         SFX.cardMagic();
       });
     }

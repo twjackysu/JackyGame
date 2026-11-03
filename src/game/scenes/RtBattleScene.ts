@@ -1213,6 +1213,8 @@ export class RtBattleScene extends Phaser.Scene {
           saveRecord(this.stageId, r);
           this.coinBase = coinOf(r);
         },
+        // 第 107 輪：面板已關（回行商／回營火）→ 等面板都關掉再講，最多等 2 分鐘
+        announce: (text, color) => this.announce(text, color, 0, 120000),
       },
       () => {
         if (!fromFire) return this.openShop();
@@ -2681,11 +2683,11 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 討伐後的解鎖公告（第 60 輪）：等稀有裝備大字、教學小字、幕名卡、上方卡片、面板都收掉才出，最多等 12 秒 */
-  private announce(text: string, color: string, waited = 0): void {
+  private announce(text: string, color: string, waited = 0, maxWait = 12000): void {
     if (!this.scene.isActive() || this.ended) return;
     const busy = this.tipBusy || this.time.now < this.chapterUntil || this.time.now < this.slainUntil || this.time.now < this.phaseUntil || !!this.topCard?.active || !!this.menu?.active || this.rareQueue.length > 0 || this.time.now - this.rareAt < 2200;
-    if (busy && waited < 12000) {
-      this.time.delayedCall(400, () => this.announce(text, color, waited + 400));
+    if (busy && waited < maxWait) {
+      this.time.delayedCall(400, () => this.announce(text, color, waited + 400, maxWait));
       return;
     }
     // 第 77 輪：patient——同一刻重講的教學小字佔住主角下方時，以前照原位 600 蓋住主角（360×640 荊棘谷「新地圖開放」）
