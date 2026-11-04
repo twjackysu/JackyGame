@@ -1,5 +1,11 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-04 18:11–18:50（台北）第 124 輪 — PWA 更新檢查（D-267）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1）。搶鎖時 GitHub push 回 500 兩次，等 20 秒重推成功。
+- **新檢查：裝好的 PWA 會不會換到新版？** 本機 http.server 放 A 版讓 SW 裝好、換成 B 版（版號 9.9.9）後連續重整：原本的 `registerSW.js` **重整 3 次都還是舊版**（瀏覽器沒去抓 `sw.js`）。
+- **修正（D-267）**：改由 `src/swUpdate.ts` 註冊，開啟時與切回前景（間隔 ≥ 60 秒）呼叫 `reg.update()`。實測第 1 次重整偵測到、第 2 次就是新版，離線重整正常、沒有 pageerror。新增 `tests/sw-update.test.ts`（3 項）。
+- 驗證：build、vitest 407 項全過（含通關機器人）；CI／Pages／APK 全綠（12a54a5）。
+
 ## 2026-11-04 16:12–16:30（台北）第 123 輪 — 健康檢查（沒有要修的，不改程式）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1）。
 - 新 session 重新 `npm ci`＋build、vitest 404 項全過（含通關機器人）。

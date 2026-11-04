@@ -2,6 +2,12 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-267 2026-11-04 PWA 每次開啟／切回前景都主動檢查新版本
+- **決策**：`vite-plugin-pwa` 改 `injectRegister: false`，改由 `src/swUpdate.ts` 註冊 `sw.js`：註冊後立刻 `reg.update()`，之後 `visibilitychange` 回到前景時再 `update()`（間隔至少 60 秒）。搭配原本的 `skipWaiting`＋`clientsClaim`，新版 worker 立刻接手，**下一次開啟／重新整理**就是新版；不會在遊戲中途強制重整。
+- **理由**：實測（`screenshots/r124sw.mjs`、`r124sw2.mjs`，gitignored：本機 http.server 先放 A 版、讓 SW 裝好，換成 B 版後連續重整）——原本的 `registerSW.js` 只呼叫 `register()`，Chromium 重整 3 次都沒去抓 `sw.js`，一直跑舊版；手動 `update()` 才會換。改完後第 1 次重整偵測到、第 2 次就是新版，離線重整也正常，沒有錯誤。Jacky 11/5 前裝過 PWA 的話，最終版要能自己換上。
+- **注意**：已經裝了舊版（第 123 輪以前）的 PWA 仍是舊的註冊方式，第一次換版要靠瀏覽器自己的檢查（最晚約 24 小時）；保險做法是關掉 App 重開兩次，或在瀏覽器開一次網址。precache 從 18 項變 17 項（少了 registerSW.js）。
+- **替代**：偵測到新版就跳「有新版本，點這裡更新」→ 要新 UI（功能凍結），不做；`controllerchange` 自動重整 → 打到一半畫面重來，不做。
+
 ## D-266 2026-11-04 桌機 Esc＝返回鍵
 - **決策**：`RtBattleScene` 聽 `keydown-ESC` → `pressBack()`（和 Android 返回鍵同一套：關最上層面板、沒有面板就開／關 ☰ 暫停選單；燼牌對局中一樣要按兩次）。「操作設定」在等新按鍵時 Esc 是「取消」，面板用 `root.setData('keyWait', …)` 告訴場景先別處理。標題畫面不綁（避免「再按一次返回鍵離開」那段用在桌機）。
 - **理由**：桌機玩家的直覺是 Esc 暫停／關視窗，以前只能用滑鼠點 ☰ 和面板上的返回。實測：開 ☰ → 關 → 開 → 操作設定 → 等新按鍵按 Esc 只取消、面板留著 → Esc 回 ☰ → Esc 關掉。
