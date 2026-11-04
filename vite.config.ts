@@ -24,7 +24,8 @@ export default defineConfig({
     VitePWA({
       strategies: 'generateSW',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // Registered by src/swUpdate.ts so every launch also checks for a new deploy (D-267).
+      injectRegister: false,
       // Icons are already matched by workbox.globPatterns; avoid duplicate precache entries.
       includeManifestIcons: false,
       manifest: {
