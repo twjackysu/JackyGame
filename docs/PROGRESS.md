@@ -1,5 +1,10 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-04 16:12–16:30（台北）第 123 輪 — 健康檢查（沒有要修的，不改程式）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1）。
+- 新 session 重新 `npm ci`＋build、vitest 404 項全過（含通關機器人）。
+- `bash scripts/stats.sh` 預看：1107 commits、128 輪（acquire lock 次數）、TS 約 1.9 萬行、決策到 D-266。README 統計行（「約 110 輪、1000+ commits」）留給 11/5 中午前那一輪更新。
+
 ## 2026-11-04 14:12–14:25（台北）第 122 輪 — 健康檢查＋README 連結檢查（沒有要修的，不改程式）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1；Releases `latest` 的 `jackygame-debug.apk` 5.9MB 對應 c711dc1）。
 - 新檢查：README 85 個相對路徑（截圖、文件連結）全部存在，外部連結只有 Pages 與 Releases `latest`。
