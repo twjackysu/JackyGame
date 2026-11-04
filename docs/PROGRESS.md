@@ -1,5 +1,16 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-04 10:11–10:40（台北）第 120 輪 — 電腦展示打磨：拖出畫面放開會停、兩側模糊主視覺、按鈕標快捷鍵、Esc 暫停（D-263～266）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI／Pages／APK 全綠（2c98a67）。成果發表很可能用電腦開網頁，這輪專看桌機。
+
+**做了什麼**
+- **D-263（bug）**：滑鼠拖搖桿拖到畫面外（寬螢幕左右黑邊）才放開，Phaser 只發 `pointerupoutside` → 主角一直走。實測修前放開 2 秒後還在走、修後立刻停（`screenshots/r120m.mjs`）。觸控用 CDP 多指實測（搖桿按住＋另一指點技能、放開其中一指、touchcancel）都正常（`r120t.mjs`）。
+- **D-264**：`index.html` 寬螢幕（`min-aspect-ratio: 3/4`）時 `body::before` 鋪模糊壓暗的 `bg_title_keyart.webp`，取代左右純黑；直式手機不載入。`disableContextMenu: true`（右鍵不跳瀏覽器選單）。正式版 preview 也確認圖有載到。
+- **D-265**：沒有觸控的裝置在按鈕右上角標快捷鍵（1～4、空白、R、Q）、搖桿下方「WASD 移動」；改鍵／調位置／左手模式／按鈕大小都跟著（`r120h.mjs`），觸控手機不顯示（390×844 截圖確認）。
+- **D-266**：桌機 Esc＝返回鍵（開關 ☰、關面板）；操作設定等新按鍵時 Esc 仍是取消（`r120k.mjs` 實測整串）。
+- README「一眼看懂」加「電腦也能玩」一行；FOR_JACKY ★ 加第 8 點。
+- 驗證：build、vitest 404 項全過（含通關機器人）；新增 `tests/pointer-release.test.ts`、`rt-controls` 加 `keyBadge` 測試。
+
 ## 2026-11-04 08:12–08:55（台北）第 119 輪 — 儲存空間壞掉、旋轉／改尺寸、反覆換場景、Boss 戰亂點與陣亡（都沒有錯誤，不用改）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI／Pages／APK 全綠（2c98a67）。
 
