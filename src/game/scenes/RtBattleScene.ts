@@ -674,6 +674,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onDown(p));
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onMove(p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onUp(p));
+    // 第 120 輪（D-263）：桌機拖著搖桿把滑鼠移出畫面才放開，Phaser 只發 pointerupoutside → 以前主角會一直走
+    this.input.on('pointerupoutside', (p: Phaser.Input.Pointer) => this.onUp(p));
     this.bindKeys();
     (window as unknown as { __rt?: unknown }).__rt = { state: () => this.s, result: () => summarize(this.s), send: (c: BattleCommand) => this.pending.push(c) };
   }
