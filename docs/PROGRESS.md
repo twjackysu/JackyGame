@@ -1,5 +1,10 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-05 02:12–02:25（台北）第 128 輪 — 健康檢查（沒有要修的，不改程式）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
+- build、vitest 407 項全過（含通關機器人）。
+- `screenshots/r128.mjs`（gitignored）：正式版 preview 390×844 觸控＋`?debug`，標題正常、點「進入霧語森林」後開始淡出，沒有 pageerror／console error。
+
 ## 2026-11-05 00:14–00:25（台北）第 127 輪 — 健康檢查（沒有要修的，不改程式）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
 - build、vitest 407 項全過（含通關機器人）。
