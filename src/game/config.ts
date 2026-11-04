@@ -37,6 +37,8 @@ export function createGameConfig(parent: string | HTMLElement): Phaser.Types.Cor
     input: {
       activePointers: 3,
     },
+    // 第 120 輪（D-263）：桌機在遊戲畫面上按右鍵不跳瀏覽器選單
+    disableContextMenu: true,
     scene: [BootScene, TitleScene, RtBattleScene],
   };
 }

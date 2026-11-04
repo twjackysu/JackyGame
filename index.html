@@ -39,6 +39,17 @@
         position: fixed;
         inset: 0;
       }
+      /* 第 120 輪（D-264）：電腦／平板橫放時，遊戲畫面左右的黑邊改成模糊、壓暗的標題主視覺（直式手機不載入） */
+      @media (min-aspect-ratio: 3/4) {
+        body::before {
+          content: '';
+          position: fixed;
+          inset: -60px;
+          background: #000 url('./art/bg_title_keyart.webp') center / cover no-repeat;
+          filter: blur(30px) brightness(0.3) saturate(1.15);
+          pointer-events: none;
+        }
+      }
       #game {
         position: absolute;
         top: env(safe-area-inset-top, 0px);
