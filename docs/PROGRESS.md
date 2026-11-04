@@ -1,5 +1,10 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-04 14:12–14:25（台北）第 122 輪 — 健康檢查＋README 連結檢查（沒有要修的，不改程式）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1；Releases `latest` 的 `jackygame-debug.apk` 5.9MB 對應 c711dc1）。
+- 新檢查：README 85 個相對路徑（截圖、文件連結）全部存在，外部連結只有 Pages 與 Releases `latest`。
+- 第 121 輪後沒改程式，不重跑 vitest（照 NEXT ③）。
+
 ## 2026-11-04 12:12–12:35（台北）第 121 輪 — 健康檢查（沒有要修的，不改程式）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI／Pages／APK 全綠（c711dc1）。
 - 照 NEXT 第 121 輪建議⑤：不為了做事而改程式。重新 `npm ci`＋build、vitest 404 項全過（含通關機器人）。
