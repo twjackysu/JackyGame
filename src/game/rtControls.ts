@@ -140,6 +140,17 @@ export function keyName(code: number): string {
   return named[code] ?? `鍵 ${code}`;
 }
 
+/** 畫面按鈕的順序（技能欄 1～4、閃避、大招、藥水）對應的動作 */
+export const BTN_ACTIONS: RtAction[] = ['slot1', 'slot2', 'slot3', 'slot4', 'dodge', 'ult', 'potion'];
+
+/** 按鈕角落的快捷鍵小標（D-265）：短一點；沒設定回空字串 */
+export function keyBadge(code: number): string {
+  if (!code) return '';
+  if (code === 32) return '空白';
+  if (code >= 96 && code <= 105) return String(code - 96);
+  return keyName(code);
+}
+
 const STORE = 'jg_rt_controls';
 
 /** 存檔時的畫面高度（舊存檔沒有＝1280）和現在不同：下半部的自訂位置跟著下緣移動，上半部不動 */

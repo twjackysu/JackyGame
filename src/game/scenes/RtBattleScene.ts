@@ -56,7 +56,7 @@ import { gearName, loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME 
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap, prevMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, fireRowLayout, inStickZone, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
+import { ACTIONS, BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, fireRowLayout, inStickZone, keyBadge, BTN_ACTIONS, loadControls, saveControls, swapSlots, type RtAction, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
@@ -214,6 +214,9 @@ export class RtBattleScene extends Phaser.Scene {
   private pending: BattleCommand[] = [];
   private stick: { id: number; bx: number; by: number; dx: number; dy: number } | null = null;
   private btnText: Phaser.GameObjects.Text[] = [];
+  /** 桌機（沒有觸控）在按鈕右上角標快捷鍵（D-265） */
+  private keyBadges: (Phaser.GameObjects.Text | null)[] = [];
+  private joyBadge: Phaser.GameObjects.Text | null = null;
   private bot: PlayerBot | null = null;
   private keys?: Partial<Record<RtAction, Phaser.Input.Keyboard.Key>>;
   /** 操作設定（D-088） */
@@ -713,6 +716,29 @@ export class RtBattleScene extends Phaser.Scene {
       const { x, y } = this.btnPos(i);
       return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((i === 4 ? 22 : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
     });
+    // 桌機快捷鍵小標（D-265）：成果發表多半用電腦開，以前只有進「操作設定」才知道 WASD／1～4／空白
+    for (const t of this.keyBadges) t?.destroy();
+    this.keyBadges = [];
+    if (!this.sys.game.device.input.touch) {
+      this.keyBadges = BTN_ACTIONS.map((a, i) => {
+        const k = keyBadge(this.ctl.keys[a]);
+        if (!k) return null;
+        const { x, y } = this.badgePos(i);
+        return this.add.text(x, y, k, { fontFamily: UI_FONT, fontSize: `${Math.round(15 * sc)}px`, fontStyle: '700', color: '#1a0f08', backgroundColor: '#e8dcc0', align: 'center' }).setOrigin(0.5).setPadding(5, 1, 5, 1).setDepth(61).setAlpha(0.85);
+      });
+    }
+    this.joyBadge?.destroy();
+    this.joyBadge = null;
+    if (!this.sys.game.device.input.touch) {
+      const mv = (['up', 'left', 'down', 'right'] as const).map((a) => keyBadge(this.ctl.keys[a]));
+      const label = mv.join('') === 'WASD' ? 'WASD 移動' : mv.every(Boolean) ? `${mv.join(' ')} 移動` : '';
+      if (label) this.joyBadge = this.add.text(0, 0, label, { fontFamily: UI_FONT, fontSize: `${Math.round(15 * sc)}px`, fontStyle: '700', color: '#1a0f08', backgroundColor: '#e8dcc0' }).setOrigin(0.5, 0).setPadding(6, 1, 6, 1).setDepth(61).setAlpha(0.7);
+    }
+  }
+  private badgePos(i: number): { x: number; y: number } {
+    const b = this.btnPos(i);
+    const r = this.btnR(i) * 0.72;
+    return { x: b.x + r, y: b.y - r };
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
@@ -1361,6 +1387,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (e.drag < BTN_COUNT) {
       const b = this.btnPos(e.drag);
       this.btnText[e.drag]?.setPosition(b.x, b.y);
+      const kb = this.badgePos(e.drag);
+      this.keyBadges[e.drag]?.setPosition(kb.x, kb.y);
     }
   }
   private editUp(): void {
@@ -6324,6 +6352,7 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0x9fd8ff, 0.5).fillEllipse(gx, gy, 12, 6);
     }
     // 搖桿
+    this.joyBadge?.setPosition(this.JOY.x, Math.min(this.JOY.y + this.JOY.r + 8, GAME_HEIGHT - 28));
     g.fillStyle(0xffffff, 0.08).fillCircle(this.JOY.x, this.JOY.y, this.JOY.r);
     g.lineStyle(2, 0xffffff, 0.3).strokeCircle(this.JOY.x, this.JOY.y, this.JOY.r);
     if (this.stick) {

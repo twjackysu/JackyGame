@@ -96,3 +96,12 @@ describe('暴怒狼王紀錄（D-099）', () => {
     expect(fitHeight(null, 1560)).toBe(null);
   });
 });
+
+describe('桌機快捷鍵小標（D-265）', () => {
+  it('預設鍵：1～4、空白、R、Q；沒設定是空字串', async () => {
+    const { BTN_ACTIONS, keyBadge, DEFAULT_KEYS } = await import('../src/game/rtControls');
+    expect(BTN_ACTIONS.map((a) => keyBadge(DEFAULT_KEYS[a]))).toEqual(['1', '2', '3', '4', '空白', 'R', 'Q']);
+    expect(keyBadge(0)).toBe('');
+    expect(keyBadge(99)).toBe('3');
+  });
+});
