@@ -1,5 +1,10 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-05 00:14–00:25（台北）第 127 輪 — 健康檢查（沒有要修的，不改程式）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
+- build、vitest 407 項全過（含通關機器人）。
+- `screenshots/r127.mjs`（gitignored）：正式版 preview 412×915 觸控＋`?debug`，標題場景正常，沒有 pageerror／console error。
+
 ## 2026-11-04 22:12–22:20（台北）第 126 輪 — 健康檢查（沒有要修的，不改程式）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
 - 新 session `npm ci`＋build、vitest 407 項全過（含通關機器人）。
