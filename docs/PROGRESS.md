@@ -1,5 +1,10 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-04 20:15–20:25（台北）第 125 輪 — 健康檢查（沒有要修的，不改程式）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
+- 新 session `npm ci`＋build、vitest 407 項全過（含通關機器人）。
+- `screenshots/r125.mjs`（gitignored）：正式版 preview 390×844 觸控，長弓直接進荊棘谷 12 秒，沒有 pageerror／console error，畫面正常。
+
 ## 2026-11-04 18:11–18:30（台北）第 124 輪 — PWA 更新檢查（D-267）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1）。搶鎖時 GitHub push 回 500 兩次，等 20 秒重推成功。
 - **新檢查：裝好的 PWA 會不會換到新版？** 本機 http.server 放 A 版讓 SW 裝好、換成 B 版（版號 9.9.9）後連續重整：原本的 `registerSW.js` **重整 3 次都還是舊版**（瀏覽器沒去抓 `sw.js`）。
