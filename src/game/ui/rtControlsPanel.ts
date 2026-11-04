@@ -37,6 +37,7 @@ export function openRtControlsPanel(scene: Phaser.Scene, start: RtControls, done
     scene.add.text(x, y, s, { fontFamily: UI_FONT, fontSize: `${size}px`, color }).setOrigin(ox, 0.5);
 
   function render(): void {
+    root.setData('keyWait', waiting !== null); // 等新按鍵時，場景的 Esc（D-266）讓給這裡當「取消」
     root.removeAll(true);
     const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.94).setInteractive()];
     items.push(scene.add.text(0, -570, '操作設定', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));

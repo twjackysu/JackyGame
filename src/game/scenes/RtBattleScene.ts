@@ -75,7 +75,7 @@ import { getSettings, updateSettings } from '../settings';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../ui/tipText';
-import { APP_HIDDEN, clickBackButton, setBackHandler } from '../backButton';
+import { APP_HIDDEN, clickBackButton, pressBack, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
 import { fightKeep, hiddenEliteBannerY } from '../fx/bannerStack';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
@@ -636,6 +636,12 @@ export class RtBattleScene extends Phaser.Scene {
       }
       else if (!this.ended) { SFX.uiTap(); this.toggleMenu(); }
       return 'handled';
+    });
+    // 第 120 輪（D-266）：桌機 Esc＝返回鍵（關最上層面板／開暫停選單）；操作設定等新按鍵時 Esc 是「取消」，讓給面板
+    this.input.keyboard?.off('keydown-ESC');
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.menu?.getData?.('keyWait')) return;
+      pressBack();
     });
     // 右上角選單（手機上不用改網址就能換關、重來、看 Bot 示範）
     const mb = this.add.text(GAME_WIDTH - 44, 40, '☰', { fontFamily: UI_FONT, fontSize: '40px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49).setInteractive({ useHandCursor: true });
