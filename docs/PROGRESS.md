@@ -1,5 +1,10 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-04 22:12–22:20（台北）第 126 輪 — 健康檢查（沒有要修的，不改程式）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
+- 新 session `npm ci`＋build、vitest 407 項全過（含通關機器人）。
+- `screenshots/r126.mjs`（gitignored）：正式版 preview 360×640 觸控＋`?debug`，標題（版本 1.0.0）→點「進入霧語森林」（360×640 在 (180,383)）→約 20 秒後場景是 `RtBattle`、序章星陣與「略過」正常，沒有 pageerror／console error。
+
 ## 2026-11-04 20:15–20:25（台北）第 125 輪 — 健康檢查（沒有要修的，不改程式）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
 - 新 session `npm ci`＋build、vitest 407 項全過（含通關機器人）。
