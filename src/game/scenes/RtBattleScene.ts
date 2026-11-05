@@ -5431,27 +5431,35 @@ export class RtBattleScene extends Phaser.Scene {
             const R = sp.displayHeight * 0.36;
             const pull = x.action && (x.action.kind === 'attack' || x.action.kind === 'skill') ? Math.min(1, (s.tick - x.action.start) / 6) * R * 0.35 : 0;
             const a0 = dir > 0 ? -1.1 : Math.PI - 1.1;
-            top.lineStyle(7, 0x3a2410, 0.9).beginPath().arc(bx - dir * R * 0.55, by, R, dir > 0 ? -1.1 : Math.PI - 1.1, dir > 0 ? 1.1 : Math.PI + 1.1, false).strokePath();
-            top.lineStyle(4, 0xb07a3a, 1).beginPath().arc(bx - dir * R * 0.55, by, R, a0, a0 + 2.2, false).strokePath();
+            // 主角圖本身已經拿著弓（hero_bow，R-019）：不畫程式弓，只在拉弓時讓圖上的箭尖發光
+            const art = sp.texture.key === 'hero_bow';
             const tx = bx - dir * R * 0.55 + Math.cos(a0) * R;
             const ty1 = by + Math.sin(a0) * R;
             const ty2 = by - Math.sin(a0) * R;
-            top.fillStyle(0xffd27a, 1).fillCircle(tx, ty1, 3.5).fillCircle(tx, ty2, 3.5);
-            top.lineStyle(1.5, 0xf0f0e0, 0.9).beginPath().moveTo(tx, ty1).lineTo(tx - dir * pull, by).lineTo(tx, ty2).strokePath();
-            // 弓身的金色描邊（遠看也認得出是弓）
-            top.lineStyle(1.5, 0xffe0a0, 0.7).beginPath().arc(bx - dir * R * 0.55, by, R + 2.5, a0 + 0.15, a0 + 2.05, false).strokePath();
+            if (!art) {
+              top.lineStyle(7, 0x3a2410, 0.9).beginPath().arc(bx - dir * R * 0.55, by, R, dir > 0 ? -1.1 : Math.PI - 1.1, dir > 0 ? 1.1 : Math.PI + 1.1, false).strokePath();
+              top.lineStyle(4, 0xb07a3a, 1).beginPath().arc(bx - dir * R * 0.55, by, R, a0, a0 + 2.2, false).strokePath();
+              top.fillStyle(0xffd27a, 1).fillCircle(tx, ty1, 3.5).fillCircle(tx, ty2, 3.5);
+              top.lineStyle(1.5, 0xf0f0e0, 0.9).beginPath().moveTo(tx, ty1).lineTo(tx - dir * pull, by).lineTo(tx, ty2).strokePath();
+              // 弓身的金色描邊（遠看也認得出是弓）
+              top.lineStyle(1.5, 0xffe0a0, 0.7).beginPath().arc(bx - dir * R * 0.55, by, R + 2.5, a0 + 0.15, a0 + 2.05, false).strokePath();
+            }
             if (pull > 0) {
               // 拉弓時搭著一支箭：箭尾在弦上、箭頭超出弓身；技能的箭頭會發光（顏色跟著招式的狀態）
               const sk = x.action?.kind === 'skill' ? skillDef(this.s, x.action.id) : undefined;
               const st0 = sk?.hits[0]?.status?.id ?? sk?.block?.counter.status?.id;
               const col = sk?.role === 'ult' ? 0xff9ae0 : st0 === 'burn' ? 0xff8a3a : st0 === 'poison' ? 0xa8ff6a : st0 === 'freeze' ? 0xbff4ff : st0 === 'weak' ? 0xc8a0ff : sk ? 0x9fe0ff : 0;
               const ax0 = tx - dir * pull;
-              const ax1 = bx + dir * R * 0.55;
-              top.lineStyle(3, 0x8a6a40, 1).lineBetween(ax0, by, ax1, by);
-              top.fillStyle(0xf4f8ff, 1).fillTriangle(ax1 + dir * 10, by, ax1, by - 5, ax1, by + 5);
+              // 有圖時箭尖在圖的右緣（材質座標 x≈1.0、y≈0.385；origin 是 0.5／0.92）
+              const ax1 = art ? sp.x + dir * sp.displayWidth * 0.48 : bx + dir * R * 0.55;
+              const ay = art ? sp.y - sp.displayHeight * 0.535 : by;
+              if (!art) {
+                top.lineStyle(3, 0x8a6a40, 1).lineBetween(ax0, by, ax1, by);
+                top.fillStyle(0xf4f8ff, 1).fillTriangle(ax1 + dir * 10, by, ax1, by - 5, ax1, by + 5);
+              }
               if (col) {
                 const gl = 0.5 + 0.5 * Math.sin(now / 60);
-                top.fillStyle(col, 0.35 + 0.25 * gl).fillCircle(ax1 + dir * 4, by, (sk?.role === 'ult' ? 16 : 10) + 3 * gl);
+                top.fillStyle(col, 0.35 + 0.25 * gl).fillCircle(ax1 + dir * 4, ay, (sk?.role === 'ult' ? 16 : 10) + 3 * gl);
               }
             }
           }
@@ -5461,10 +5469,14 @@ export class RtBattleScene extends Phaser.Scene {
             const H = sp.displayHeight;
             const bx = sp.x + dir * r * 0.75;
             const by0 = sp.y - H * 0.12;
-            const tx = bx + dir * H * 0.06;
-            const ty = sp.y - H * 0.78;
-            top.lineStyle(6, 0x3a2410, 0.95).lineBetween(bx, by0, tx, ty);
-            top.lineStyle(2.5, 0xc08a48, 1).lineBetween(bx, by0, tx, ty);
+            // 主角圖本身已經拿著法杖（hero_staff，R-019）：不畫程式木杖，光暈與符文改繞著圖上的星晶（材質座標 0.89／0.15；origin 0.5／0.92）
+            const art = sp.texture.key === 'hero_staff';
+            const tx = art ? sp.x + dir * sp.displayWidth * 0.39 : bx + dir * H * 0.06;
+            const ty = art ? sp.y - H * 0.77 : sp.y - H * 0.78;
+            if (!art) {
+              top.lineStyle(6, 0x3a2410, 0.95).lineBetween(bx, by0, tx, ty);
+              top.lineStyle(2.5, 0xc08a48, 1).lineBetween(bx, by0, tx, ty);
+            }
             const act = x.action && (x.action.kind === 'attack' || x.action.kind === 'skill');
             const sk = x.action?.kind === 'skill' ? skillDef(this.s, x.action.id) : undefined;
             const st0 = sk?.hits[0]?.status?.id ?? sk?.block?.counter.status?.id;
@@ -5472,9 +5484,11 @@ export class RtBattleScene extends Phaser.Scene {
             const gl = 0.5 + 0.5 * Math.sin(now / (act ? 50 : 260));
             const cr = H * 0.05;
             top.fillStyle(col, (act ? 0.45 : 0.22) + 0.2 * gl).fillCircle(tx, ty, cr * (act ? (sk?.role === 'ult' ? 3.4 : 2.4) : 1.7) + 2 * gl);
-            top.fillStyle(0xe8d8ff, 1).fillTriangle(tx, ty - cr * 1.5, tx - cr * 0.8, ty, tx + cr * 0.8, ty).fillTriangle(tx, ty + cr * 1.2, tx - cr * 0.8, ty, tx + cr * 0.8, ty);
-            top.fillStyle(0xffffff, 1).fillCircle(tx, ty, cr * 0.35);
-            top.lineStyle(1.5, 0xffe0a0, 0.8).strokeCircle(tx - dir * cr * 0.2, ty + cr * 1.6, cr * 0.7);
+            if (!art) {
+              top.fillStyle(0xe8d8ff, 1).fillTriangle(tx, ty - cr * 1.5, tx - cr * 0.8, ty, tx + cr * 0.8, ty).fillTriangle(tx, ty + cr * 1.2, tx - cr * 0.8, ty, tx + cr * 0.8, ty);
+              top.fillStyle(0xffffff, 1).fillCircle(tx, ty, cr * 0.35);
+              top.lineStyle(1.5, 0xffe0a0, 0.8).strokeCircle(tx - dir * cr * 0.2, ty + cr * 1.6, cr * 0.7);
+            }
             if (sk) {
               const rr = cr * (sk.role === 'ult' ? 4.2 : 3);
               const rot = now / 180;
