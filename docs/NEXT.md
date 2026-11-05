@@ -5,9 +5,11 @@
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`、`bossLv`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
 
-## ★ 第 137 輪起先做（第 136 輪 11/5 18:40 寫）
-- 已是最終版，只修 bug、維持可玩。每輪：看 Jacky 的 commit／FOR_JACKY 回覆／Issue → build＋vitest → 有空看一張截圖。
-- Jacky 會在本機用 Agent 匯入 AI 圖：**會左右走的怪原圖要朝右**（`SPRITE.flip`），第 136 輪已把棘背狼翻正；新圖進來都要截圖看一次。
+## ★ 第 138 輪起先做（第 137 輪 11/5 21:00 寫）
+- 已是最終版，只修 bug、照 Jacky 的回覆改。每輪：看 Jacky 的 commit／FOR_JACKY「回覆」／Issue → build＋vitest → 有空看一張截圖。
+- **R-018／R-019 到圖時**（`art-inbox/bg_title_keyart.png`、`sheet_hero_weapons.png`）：`node scripts/import-art.mjs`（sheet 會切成 `hero_sword/bow/staff`）→ 截圖看標題（標題字壓在星空區？）與三把武器的戰鬥主角（**要面朝右**，朝左就把 webp 左右翻）。`hero_lian` 保留當備援。
+- **改了任何數值（敵人、掉落、強化、技能、裝備）都要 `npm run wiki` 再 commit**（D-273）。
+- 技能樹（D-272）若 Jacky 回饋：說明框下方空白可以放「目前打法」小圖示或每級數值預覽；🔒 是 emoji，沒字型的手機可能顯示方框。
 - 11/6 00:00 起排程會自己停用（第 0 步）。
 
 ## （舊）第 136 輪起先做（第 135 輪 11/5 16:45 寫，第 1 項 CI 已確認全綠）

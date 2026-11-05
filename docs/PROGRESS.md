@@ -1,5 +1,13 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-05 20:18–20:33（台北）第 137 輪 — Jacky 回覆：README 精簡＋Wiki、技能樹、強化確認框、新主角圖 prompt
+**背景**：Jacky 20:06／20:08 在 FOR_JACKY「回覆」寫了四件事，本輪中途又追加兩件（技能樹要像暗黑、強化要寫出數值變化並跳確認框、綠升紅降）。沒有 Issue、art-inbox 空。
+- **D-274 強化確認框**：`gear.ts` 新 `enhanceDiff()`／`enhanceGain()`；行囊詳情卡多一行「成功後：…」，按「強化！」先開確認框（每列 原值 → 新值，綠／紅／灰），確定才強化。
+- **D-272 技能樹**：`rtSkillPanel.ts` 重寫成五欄樹狀（節點點一下加點、三個分支點一下換打法、下方說明框）；`rtSkills.ts` 新 `setVariant()`。
+- **D-273 Wiki**：`tests/wiki-gen.test.ts` 由遊戲資料產生 `docs/wiki/`（強化、技能樹、裝備與神裝、怪物與掉落），`npm run wiki` 寫檔；`gallery.md` 手寫（從舊 README 搬來的截圖集）。README 從 155 行縮到約 60 行。
+- **D-275 美術**：ART_REQUESTS 清掉已完成項目，新增 R-018（GPT 標題主視覺，沒有燈）、R-019（Gemini sheet 三武器 Q 版主角）；程式先寫好 `heroKey()`、`import-art.mjs` 的 `hero_` 前綴、`art-sheets.json`。
+- 驗證：build、vitest 418 項全過（含通關機器人、新 `rt-enhance-gain`／`rt-skill-setvariant`／`wiki-gen`）；Playwright 截圖看過行囊詳情、確認框、強化成功、技能樹（長劍 390×844、法杖 360×640、滿級解鎖分支）。截圖腳本 `screenshots/r137.mjs`、`r137s.mjs`（gitignored）。
+
 ## 2026-11-05 18:12–18:40（台北）第 136 輪 — 檢查 Jacky 匯入的 AI 怪物圖、修棘背狼朝向
 **背景**：Jacky 17:39 在本機匯入 R-012～R-017（六隻怪 AI 圖）並 push。CI／Pages／APK 全綠（27aa19c）；沒有 Issue、art-inbox 空、FOR_JACKY「回覆」空。
 - **棘背狼原圖朝左**，`SPRITE` 的 `flip` 假設原圖朝右（往左走才 flipX）→ 會倒著走、咬擊特效方向反。直接把 `public/art/enemy_thorn_wolf.webp` 左右翻轉（巡獵者、迷霧狼原圖都朝右；Boss／母樹／岩王不翻轉或對稱）。**之後匯入會左右走的怪要確認原圖朝右。**
