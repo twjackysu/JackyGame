@@ -34,13 +34,14 @@ const KINDS = {
   bg: { keep: true, w: 1440 }, // 地圖／戰鬥／對話背景，2 倍解析度（720 寬畫面）
   tile: { keep: true, w: 1024 }, // 圖塊集
   enemy: { h: 640 }, // 敵人、野獸、Boss（正面）
+  hero: { h: 640 }, // 主角 Q 版戰鬥圖（hero_sword／hero_bow／hero_staff，R-019）
   npc: { h: 1100, fade: true }, // 配角立繪
   walk: { h: 192 }, // 地圖上行走用的小角色
   prop: { h: 512 }, // 建築、樹、箱子等地圖物件
   item: { h: 256 }, // 道具、裝備圖示
 };
 const kindOf = (stem) => {
-  const m = /^(bg|tile|enemy|npc|walk|prop|item)_[a-z0-9_]+$/.exec(stem);
+  const m = /^(bg|tile|enemy|hero|npc|walk|prop|item)_[a-z0-9_]+$/.exec(stem);
   return m ? m[1] : null;
 };
 const BATTLE_H = { lian: 440, io: 420, serin: 460, liora: 420, rourke: 460, valdran: 680, valderan: 680 };
@@ -232,7 +233,7 @@ export async function main() {
     const id = idOf(f);
     const src = path.join(inbox, f);
     if (!id) {
-      console.log(`skip ${f}: 檔名要是 ${KNOWN.join('/')}，或 bg_/tile_/enemy_/npc_/walk_/prop_/item_ 開頭`);
+      console.log(`skip ${f}: 檔名要是 ${KNOWN.join('/')}，或 bg_/tile_/enemy_/hero_/npc_/walk_/prop_/item_ 開頭`);
       continue;
     }
     const kind = kindOf(id);

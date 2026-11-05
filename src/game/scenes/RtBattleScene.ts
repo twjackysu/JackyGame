@@ -52,7 +52,7 @@ const AFFIX_COLOR: Record<EliteAffix, number> = { swift: 0x5af0ff, tough: 0x9adf
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES } from '../../core/battle/rt/data';
 import { eliteFighting, gateSealed } from '../gateRules';
-import { gearName, loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME } from '../weapon';
+import { gearName, heroKey, loadWeapon, nextWeapon, saveWeapon, weaponSetup, WEAPON_NAME } from '../weapon';
 import { makeTestWorldStage } from '../../core/battle/rt/maps/testWorld';
 import { WORLD_MAPS, worldMap, prevMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -5139,10 +5139,13 @@ export class RtBattleScene extends Phaser.Scene {
 
   private spriteFor(x: Unit): Phaser.GameObjects.Image | null {
     const cfg = SPRITE[x.side === 'player' ? 'swordsman' : x.defId];
-    if (!cfg || !this.textures.exists(cfg.key)) return null;
+    if (!cfg) return null;
+    // 主角：有拿目前武器的立繪（ART_REQUESTS R-019：hero_sword／hero_bow／hero_staff）就用它，沒有才退回提燈的 hero_lian
+    const key = x.side === 'player' ? heroKey(loadWeapon(), (k) => this.textures.exists(k)) : cfg.key;
+    if (!this.textures.exists(key)) return null;
     let sp = this.sprites.get(x.id);
     if (!sp) {
-      sp = this.add.image(0, 0, cfg.key).setOrigin(0.5, 0.92);
+      sp = this.add.image(0, 0, key).setOrigin(0.5, 0.92);
       const hPx = x.r * cfg.h * this.k * (x.fury ? 1.15 : 1);
       sp.setScale(hPx / sp.height);
       sp.setData('base', sp.scaleX);

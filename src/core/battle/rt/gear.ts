@@ -239,6 +239,44 @@ export function gearLines(g: RtGear, names: Record<string, string> = SPECIAL_SKI
   return out;
 }
 
+/** 強化 +N → +N+1 成功後會變的數值（Jacky 11/5：「強化後哪些屬性增加多少要寫出來」）。
+ *  底數值每級 +10%（詞綴不吃強化）；+7、+10 時技能特效再變強。delta：>0 變強、<0 變弱、0 不變。 */
+export interface EnhanceRow {
+  label: string;
+  from: string;
+  to: string;
+  delta: number;
+}
+export function enhanceDiff(g: RtGear, names: Record<string, string> = SPECIAL_SKILLS): EnhanceRow[] {
+  const e = g.enh ?? 0;
+  if (e >= ENH_MAX) return [];
+  const up: RtGear = { ...g, enh: e + 1 };
+  const out: EnhanceRow[] = [];
+  const m0 = enhMul(g);
+  const m1 = enhMul(up);
+  for (const [k, n] of [['atk', '攻擊'], ['hp', 'HP'], ['def', '防禦']] as const) {
+    const b = g.base[k];
+    if (!b) continue;
+    const a0 = Math.round(b * m0);
+    const a1 = Math.round(b * m1);
+    out.push({ label: n, from: String(a0), to: String(a1), delta: a1 - a0 });
+  }
+  const s0 = specialOf(g);
+  const s1 = specialOf(up);
+  if (s0 && s1 && s0.value !== s1.value) {
+    const t0 = specialText(s0, names);
+    const t1 = specialText(s1, names);
+    const cut = (t: string) => t.replace(/^★ \S*?(冷卻|傷害|範圍|判定|距離) /, '');
+    out.push({ label: t1.slice(0, t1.length - cut(t1).length - 1), from: cut(t0), to: cut(t1), delta: 1 });
+  }
+  return out;
+}
+
+/** 一行版的強化預覽（「攻擊 14→15（+1）」） */
+export function enhanceGain(g: RtGear, names: Record<string, string> = SPECIAL_SKILLS): string[] {
+  return enhanceDiff(g, names).map((r) => (r.label.startsWith('★') ? `${r.label} ${r.to}（原 ${r.from}）` : `${r.label} ${r.from}→${r.to}${r.delta > 0 ? `（+${r.delta}）` : ''}`));
+}
+
 /** 強化讓特效變強（D-102）：+7 起 ×1.25、+10 ×1.5（格擋判定 +1／+2 ticks） */
 export function specialOf(g: RtGear): RtGear['special'] {
   const sp = g.special;

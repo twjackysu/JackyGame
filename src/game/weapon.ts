@@ -55,3 +55,9 @@ export function gearName(g: { slot: string; name: string }, w: WeaponId = loadWe
 export function gearTitleW(g: { slot: string; name: string; enh?: number }, w: WeaponId = loadWeapon()): string {
   return g.enh ? `+${g.enh} ${gearName(g, w)}` : gearName(g, w);
 }
+
+/** 主角立繪的材質 key：有「拿著這把武器」的圖就用（hero_<武器>），否則退回舊的 hero_lian（R-019 產圖前）。 */
+export function heroKey(w: WeaponId, has: (key: string) => boolean): string {
+  const k = `hero_${w}`;
+  return has(k) ? k : 'hero_lian';
+}

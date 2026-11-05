@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { gearName, gearTitleW, skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
 import { SWORDSMAN } from '../../core/battle/rt/data';
-import { ENH_MAX, GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, enhanceCost, gearLines, gearScore, salvageDust, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
+import { ENH_MAX, GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, enhanceCost, enhanceDiff, enhanceGain, gearLines, gearScore, salvageDust, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
 import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, unequip, type BagState } from '../rtBag';
 
@@ -35,6 +35,8 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
   let st = start;
   let page = 0;
   let detail: RtGear | null = null;
+  /** 強化確認框（Jacky 11/5）：按「強化！」先跳框列出每項數值 10→13（綠＝變強、紅＝變弱），確定才強化 */
+  let confirmEnh = false;
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
   // 第 106 輪（D-254）：強化結果字／火花放在場景上（depth 990～995，不在 root 裡）——點完「強化！」馬上按「完成」，
   // 從 ☰ 開的行囊會立刻回到 ☰，「強化成功！+3」還浮在暫停選單上 1.4 秒 → 面板關掉就一起收掉
@@ -95,6 +97,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
       items.push(...cell(x, y, 220, 64, g, g ? short(gearTitleW(g)) : `${SLOT_NAME[slot]}（空）`, () => {
         if (g) {
           detail = g;
+          confirmEnh = false;
           render();
         }
       }, '', slot));
@@ -112,6 +115,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     list.forEach((g, i) => {
       items.push(...cell(0, -290 + i * 68, 640, 60, g, `【${SLOT_NAME[g.slot]}】${gearTitleW(g)}　Lv${g.ilvl}`, () => {
         detail = g;
+        confirmEnh = false;
         render();
       }, isUpgrade(st, g) ? '▲' : ''));
     });
@@ -157,10 +161,11 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     out.push(lines);
     // 第 50 輪：比較／強化／按鈕跟著數值行數往上收（以前固定 y，普通裝只有 1 行時中間空一大塊；行商第 49 輪已改）
     const cmpY = Math.max(-150, -226 + lines.height + 44);
-    const btnY = cmpY + (ctx ? 160 : 90);
+    const btnY = cmpY + (ctx ? ((g.enh ?? 0) >= ENH_MAX ? 160 : 190) : 90);
     const cardBottom = btnY + 50;
     out.splice(1, 0, scene.add.rectangle(0, (-340 + cardBottom) / 2, 600, cardBottom + 340, 0x120c06, 0.97).setStrokeStyle(4, col, 1));
     // 強化（D-092）：營火旁才能強化；+5 以內必成，之後有成功率，失敗只扣材料
+    const overlay: Phaser.GameObjects.GameObject[] = [];
     if (ctx) {
       const enh = g.enh ?? 0;
       if (enh >= ENH_MAX) out.push(scene.add.text(0, cmpY + 75, `已強化到 +${ENH_MAX}（最高）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffd27a' }).setOrigin(0.5));
@@ -170,10 +175,25 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
         const ok = wl.dust >= c.dust && wl.crystal >= c.crystal;
         const fire = ctx.atFire();
         out.push(scene.add.text(0, cmpY + 50, `強化 +${enh}→+${enh + 1}：粉塵 ${c.dust}${c.crystal ? `・結晶 ${c.crystal}` : ''}・成功率 ${c.rate}%${c.rate < 100 ? '（失敗只扣材料）' : ''}`, { fontFamily: UI_FONT, fontSize: '20px', color: ok ? '#e8dcc0' : '#ff9a8a' }).setOrigin(0.5));
-        if (!fire) out.push(scene.add.text(0, cmpY + 92, '到營火旁才能強化', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff' }).setOrigin(0.5));
+        // 成功後哪些數值變多少（Jacky 11/5）
+        const gain = enhanceGain(g, skillNames());
+        if (gain.length) {
+          const gt = scene.add.text(0, cmpY + 80, `成功後：${gain.join('・')}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#ffd27a', wordWrap: { width: 560 }, align: 'center' }).setOrigin(0.5);
+          if (gt.height > 30) gt.setFontSize(16);
+          out.push(gt);
+        }
+        if (!fire) out.push(scene.add.text(0, cmpY + 122, '到營火旁才能強化', { fontFamily: UI_FONT, fontSize: '20px', color: '#9fd8ff' }).setOrigin(0.5));
         else
-          out.push(btn(0, cmpY + 104, ok ? '強化！' : '材料不夠', () => {
-            if (!ok || !ctx.spend(c.dust, c.crystal)) return;
+          out.push(btn(0, cmpY + 134, ok ? '強化！' : '材料不夠', () => {
+            if (!ok) return;
+            confirmEnh = true;
+            render();
+          }, ok, 24));
+        if (fire && ok && confirmEnh) overlay.push(...enhanceConfirm(g, enh, c, doEnhance));
+        // eslint-disable-next-line no-inner-declarations
+        function doEnhance(): void {
+            confirmEnh = false;
+            if (!ctx!.spend(c.dust, c.crystal)) return render();
             const success = Math.random() * 100 < c.rate;
             if (success) {
               const up: RtGear = { ...g, enh: enh + 1 };
@@ -188,6 +208,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
               SFX.uiTap();
               scene.cameras.main.shake(160, 0.006);
               detail = g;
+              confirmEnh = false;
             }
             render();
             // 第 62 輪：結果字放在卡片正下方（以前固定 +360，落在「全部換成最好的／完成」上面、透出底下按鈕）
@@ -208,7 +229,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
               const ring = keepFx(scene.add.circle(ix, iy, 30, 0xffd27a, 0).setStrokeStyle(4, 0xffd27a, 1).setDepth(995));
               scene.tweens.add({ targets: ring, scale: 2.6, alpha: 0, duration: 500, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
             }
-          }, ok, 24));
+        }
       }
     }
     // 換上後的差異
@@ -246,9 +267,41 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     }
     out.push(btn(worn ? 120 : 200, btnY, '返回', () => {
       detail = null;
+      confirmEnh = false;
       render();
     }));
-    return out;
+    return out.concat(overlay);
+  }
+
+  /** 強化確認框：每項「原值 → 新值」，變強綠、變弱紅、不變灰 */
+  function enhanceConfirm(g: RtGear, enh: number, c: { dust: number; crystal: number; rate: number }, go: () => void): Phaser.GameObjects.GameObject[] {
+    const rows = enhanceDiff(g, skillNames());
+    const o: Phaser.GameObjects.GameObject[] = [];
+    const h = 250 + rows.length * 44;
+    o.push(scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setInteractive());
+    o.push(scene.add.rectangle(0, 0, 520, h, 0x1a1208, 0.98).setStrokeStyle(4, 0xffd27a, 1));
+    let y = -h / 2 + 40;
+    o.push(scene.add.text(0, y, `強化 +${enh} → +${enh + 1}？`, { fontFamily: TITLE_FONT, fontSize: '32px', color: '#ffd27a' }).setOrigin(0.5));
+    y += 56;
+    for (const r of rows) {
+      const col = r.delta > 0 ? '#7dffb0' : r.delta < 0 ? '#ff7a6a' : '#a0a0b0';
+      const fs = r.label.length > 6 ? '20px' : '24px';
+      o.push(scene.add.text(-220, y, r.label, { fontFamily: UI_FONT, fontSize: fs, color: '#e8dcc0' }).setOrigin(0, 0.5));
+      o.push(scene.add.text(70, y, r.from, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff' }).setOrigin(1, 0.5));
+      o.push(scene.add.text(100, y, '→', { fontFamily: UI_FONT, fontSize: '24px', color: col }).setOrigin(0.5));
+      o.push(scene.add.text(130, y, r.delta === 0 ? `${r.to}（不變）` : r.to, { fontFamily: UI_FONT, fontSize: '24px', color: col, fontStyle: r.delta ? 'bold' : 'normal' }).setOrigin(0, 0.5));
+      y += 44;
+    }
+    y += 8;
+    o.push(scene.add.text(0, y, `粉塵 ${c.dust}${c.crystal ? `・結晶 ${c.crystal}` : ''}・成功率 ${c.rate}%`, { fontFamily: UI_FONT, fontSize: '21px', color: c.rate < 100 ? '#ffb08a' : '#e8dcc0' }).setOrigin(0.5));
+    if (c.rate < 100) o.push(scene.add.text(0, y + 28, '失敗只扣材料，不會掉級', { fontFamily: UI_FONT, fontSize: '18px', color: '#a0a0b0' }).setOrigin(0.5));
+    const by = h / 2 - 44;
+    o.push(btn(-110, by, '確定強化', go, true, 26));
+    o.push(btn(110, by, '取消', () => {
+      confirmEnh = false;
+      render();
+    }));
+    return o;
   }
 
   render();
