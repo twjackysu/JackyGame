@@ -1,5 +1,11 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-05 18:12–18:40（台北）第 136 輪 — 檢查 Jacky 匯入的 AI 怪物圖、修棘背狼朝向
+**背景**：Jacky 17:39 在本機匯入 R-012～R-017（六隻怪 AI 圖）並 push。CI／Pages／APK 全綠（27aa19c）；沒有 Issue、art-inbox 空、FOR_JACKY「回覆」空。
+- **棘背狼原圖朝左**，`SPRITE` 的 `flip` 假設原圖朝右（往左走才 flipX）→ 會倒著走、咬擊特效方向反。直接把 `public/art/enemy_thorn_wolf.webp` 左右翻轉（巡獵者、迷霧狼原圖都朝右；Boss／母樹／岩王不翻轉或對稱）。**之後匯入會左右走的怪要確認原圖朝右。**
+- README：版本 1.1.0、約 140 輪／1140+ commits／410+ 測試；美術說明拿掉「史萊姆、岩王是程式繪製」（已換 AI 圖）。
+- 驗證：build、vitest 412 項全過（含通關機器人）；`shot-meet.sh` 截圖看過荊棘谷狼后、燼紅裂谷岩王（390×844），新圖大小、位置正常。
+
 ## 2026-11-05 16:13–16:50（台北）第 135 輪 — Jacky 回覆：改名、永遠最新版、APK 可覆蓋安裝（版本 1.1.0）
 **背景**：Jacky 14:32 在 FOR_JACKY「回覆」寫了試玩心得（因瀏覽器快取看到舊版）、要求改名、問怎麼保證最新版、要 FOR_JACKY 只寫重點、職業切換維持可換。沒有 Issue、art-inbox 空。
 - **D-269 改名**《命運之境：轉生後的異世界冒險》（英文 Realm of Fate）：i18n 標題／副標、結局副標與名單、index.html、manifest、Capacitor／Android strings／iOS Info.plist、package.json、README；劇中手遊《星燼回響》保留。

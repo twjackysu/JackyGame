@@ -6,7 +6,7 @@
 
 原創冒險 RPG，手機單機（iOS / Android / PWA），**完全離線**、直式單手操作、單人即時動作戰鬥。
 
-🎉 **成果發表版 1.0.1**（2026-11-05）：由 Claude 以每 2 小時一輪的排程開發迴圈從零做出——2026-10-23 開工，約 130 輪、1100+ commits、TypeScript 約 1.9 萬行、400+ 項自動測試（統計到 11/5，`bash scripts/stats.sh`）。
+🎉 **成果發表版 1.1.0**（2026-11-05）：由 Claude 以每 2 小時一輪的排程開發迴圈從零做出——2026-10-23 開工，約 140 輪、1140+ commits、TypeScript 約 1.9 萬行、410+ 項自動測試（統計到 11/5，`bash scripts/stats.sh`）。
 
 ▶ **馬上玩**：手機瀏覽器開 https://twjackysu.github.io/JackyGame/ （可加入主畫面離線玩）・Android 下載 [APK](https://github.com/twjackysu/JackyGame/releases/tag/latest)・iOS 見下方「[怎麼玩](#怎麼玩)」。
 
@@ -123,7 +123,7 @@
 
 </details>
 
-> 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面（以及燼紅裂谷的熔渣史萊姆、燼心岩王，星隕高原的晶殼魔像、星骸守望者）是程式繪製，每張 AI 圖都有程式備援。
+> 音效、音樂全部程式即時生成（WebAudio），repo 裡沒有音訊素材檔。標題主視覺、主角與怪物圖由 Jacky 用 AI 繪圖產生（`public/art/`，需求清單 `docs/ART_REQUESTS.md`）；地面、樹林、營火、光影、粒子、介面（以及星隕高原的晶殼魔像、星骸守望者）是程式繪製，每張 AI 圖都有程式備援。
 
 ## 怎麼玩
 - **PWA（任何手機瀏覽器）**：https://twjackysu.github.io/JackyGame/ 
