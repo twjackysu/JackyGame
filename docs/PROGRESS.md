@@ -1,5 +1,13 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-05 16:13–16:50（台北）第 135 輪 — Jacky 回覆：改名、永遠最新版、APK 可覆蓋安裝（版本 1.1.0）
+**背景**：Jacky 14:32 在 FOR_JACKY「回覆」寫了試玩心得（因瀏覽器快取看到舊版）、要求改名、問怎麼保證最新版、要 FOR_JACKY 只寫重點、職業切換維持可換。沒有 Issue、art-inbox 空。
+- **D-269 改名**《命運之境：轉生後的異世界冒險》（英文 Realm of Fate）：i18n 標題／副標、結局副標與名單、index.html、manifest、Capacitor／Android strings／iOS Info.plist、package.json、README；劇中手遊《星燼回響》保留。
+- **D-270 永遠最新版**：`dist/version.json`（不進 precache）＋`src/versionCheck.ts`：標題畫面自動清快取帶 `?v=` 重整、冒險中 DOM 提示、重整過一次仍舊就只提示；App 提示下載 APK／iOS 改玩網頁版。`android/app/debug.keystore` 固定簽章、versionCode 用 CI run number。
+- **D-271** 職業維持可換；多角色＋共用倉庫列為之後方向。FOR_JACKY 重寫成 30 行重點版。
+- 驗證：typecheck、vitest 412 項全過（新 `tests/version-check.test.ts` 5 項）；preview 改假的新版 version.json → 自動跳到 `?debug=&v=zzzzzzz`，第二次出現「有新版本 9.9.9（你的是 1.1.0）・更新」，截圖看過（390×844）；標題新名字截圖正常。
+- CI／Pages／APK 全綠（0d5da18；APK 第一次用固定 debug 簽章建置成功）。雲端 shell 連不到 github.io，version.json 線上內容沒直接看。
+
 ## 2026-11-05 14:11–14:15（台北）第 134 輪 — 健康檢查（沒有要修的，不改程式）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（2a2ebf6，版本 1.0.1）。
 - 新 session 的 clone 是 detached HEAD，先 `git checkout main && git pull --rebase origin main`；`.loop/` 目錄在上輪釋放鎖時被刪，搶鎖前要 `mkdir -p .loop`（沒有 `xxd`，run_id 用 `od`）。

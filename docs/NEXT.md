@@ -1,9 +1,17 @@
 # 下一步（依優先順序，最上面先做）
 
-> 第 134 輪（11/5 14:25）確認仍適用（第 130 輪更新）；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
+> 第 135 輪（11/5 16:45）加了最上面的 ★ 段；第 18 輪整理過：過時指示全部刪掉（Jacky 10/25 要求，D-089）。舊內容要查就看 git 歷史或 `docs/DECISIONS.md`。
 > **現在的方向**：單人即時動作戰鬥＋**四張大地圖**（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後挑戰），D-062／063／065／087／114／125／138）。主規格 `docs/design/20-swordsman-and-map.md`。設計文件索引：`docs/design/README.md`。
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`、`bossLv`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
+
+## ★ 第 136 輪起先做（第 135 輪 11/5 16:45 寫）
+Jacky 11/5 回國試玩並回覆了（FOR_JACKY 已整理成重點版）。第 135 輪已做：改名《命運之境：轉生後的異世界冒險》（D-269）、永遠玩到最新版＋APK 固定簽章（D-270，版本 1.1.0）、職業維持可換（D-271）。
+1. **先確認第 135 輪的 CI／Pages／APK 是綠的**（APK 那條第一次用 `android/app/debug.keystore`＋`versionCode=GITHUB_RUN_NUMBER`、`versionName` 讀 package.json；紅了先修 `android/app/build.gradle`）。Pages 上 `https://twjackysu.github.io/JackyGame/version.json` 應是 `{"version":"1.1.0","build":"<sha7>","time":…}`。
+2. **FOR_JACKY 只寫重點**（Jacky 要求）：新增內容一次最多 3～5 行，已處理的直接刪；他不想逐題回答——**能自己決定的自己決定**，目標是「好玩、願意繼續玩」。
+3. Jacky 的其他回覆（已決定不改）：上方血條／多個環境字互相遮擋他覺得畫面小沒辦法 → 有空可以再看「HP 條附近的浮字」能不能避開（`bannerStack.ts` 的避讓區加 HUD 頂端帶），選做；狼王到 Boss 約 8 分鐘 OK；操作設定、刷寶速度 OK；第 5～8 題（東邊路、技能點、荊棘母樹、行商）是他瀏覽器快取舊版造成，清完都看到了。
+4. **之後的方向（Jacky 提過、現在不做）**：RO 式多角色＋帳號共用倉庫、換職業要有成本（D-271）。
+5. 用版本檢查測新版：`npm run build` 後改 `dist/version.json`（build 換別的字、time +1000）→ `npx vite preview` → `screenshots/r135.mjs`（gitignored；開 `/?debug` 等 9 秒，印 url 與 `#jg-update-bar` 文字）：應先跳到 `?v=…`、再出現「有新版本 …・更新」。
 
 ## 每輪開頭先看
 1. Jacky 有沒有回覆：`docs/FOR_JACKY.md` 的「回覆」、GitHub Issue、`git log --format='%an %s' -15` 看有沒有他的 commit。有就照他的答案先改。
