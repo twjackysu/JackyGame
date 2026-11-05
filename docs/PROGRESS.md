@@ -7,6 +7,7 @@
 - **D-273 Wiki**：`tests/wiki-gen.test.ts` 由遊戲資料產生 `docs/wiki/`（強化、技能樹、裝備與神裝、怪物與掉落），`npm run wiki` 寫檔；`gallery.md` 手寫（從舊 README 搬來的截圖集）。README 從 155 行縮到約 60 行。
 - **D-275 美術**：ART_REQUESTS 清掉已完成項目，新增 R-018（GPT 標題主視覺，沒有燈）、R-019（Gemini sheet 三武器 Q 版主角）；程式先寫好 `heroKey()`、`import-art.mjs` 的 `hero_` 前綴、`art-sheets.json`。
 - 驗證：build、vitest 418 項全過（含通關機器人、新 `rt-enhance-gain`／`rt-skill-setvariant`／`wiki-gen`）；Playwright 截圖看過行囊詳情、確認框、強化成功、技能樹（長劍 390×844、法杖 360×640、滿級解鎖分支）。截圖腳本 `screenshots/r137.mjs`、`r137s.mjs`（gitignored）。
+- 問題：8bb4502 的 CI／Pages 紅了——`npm run typecheck` 也檢查 `tests/`，wiki 產生器有沒用到的常數（本機只跑了 vitest）。843464c 修好，Pages／APK 綠。**推之前要跑 `npm run typecheck`（不是只有 vitest）**。
 
 ## 2026-11-05 18:12–18:40（台北）第 136 輪 — 檢查 Jacky 匯入的 AI 怪物圖、修棘背狼朝向
 **背景**：Jacky 17:39 在本機匯入 R-012～R-017（六隻怪 AI 圖）並 push。CI／Pages／APK 全綠（27aa19c）；沒有 Issue、art-inbox 空、FOR_JACKY「回覆」空。
