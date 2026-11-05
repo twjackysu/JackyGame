@@ -30,6 +30,7 @@ android/app/src/main/assets/capacitor.plugins.json
 *.apk
 *.aab
 *.keystore
+!android/app/debug.keystore
 *.jks
 
 # iOS

@@ -137,7 +137,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
     ring(520, 0xffd27a, 360);
     scene.time.delayedCall(160, () => ring(520, 0xffb35a, 460));
     const t = scene.add.text(cx, 520, '第一章・完', { fontFamily: TITLE_FONT, fontSize: '96px', fontStyle: '900', color: '#ffe6a8', stroke: '#3a1a06', strokeThickness: 8 }).setOrigin(0.5).setScale(1.8).setAlpha(0);
-    const sub = scene.add.text(cx, 640, '星燼回響　Echoes of Starfall', { fontFamily: TITLE_FONT, fontSize: '30px', color: '#d8b880' }).setOrigin(0.5).setAlpha(0).setLetterSpacing(4);
+    const sub = scene.add.text(cx, 640, '命運之境　轉生後的異世界冒險', { fontFamily: TITLE_FONT, fontSize: '30px', color: '#d8b880' }).setOrigin(0.5).setAlpha(0).setLetterSpacing(4);
     layer.add([t, sub]);
     glow(t, 0xffb35a);
     scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 700, ease: 'Back.Out' });
@@ -207,7 +207,7 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
       roll.add(t);
       y += t.height + gap;
     };
-    add(scene.add.text(cx, 0, '星燼回響', { fontFamily: TITLE_FONT, fontSize: '72px', fontStyle: '900', color: '#ffe6a8' }).setOrigin(0.5, 0), 90);
+    add(scene.add.text(cx, 0, '命運之境', { fontFamily: TITLE_FONT, fontSize: '72px', fontStyle: '900', color: '#ffe6a8' }).setOrigin(0.5, 0), 90);
     for (const [role, who] of FINALE_CREDITS) {
       add(scene.add.text(cx, 0, role, { fontFamily: UI_FONT, fontSize: '24px', color: '#a89878' }).setOrigin(0.5, 0), 14);
       add(scene.add.text(cx, 0, who, { fontFamily: TITLE_FONT, fontSize: '34px', color: '#f4e6c0', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0), 80);

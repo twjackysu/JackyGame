@@ -1,8 +1,8 @@
 {
   "name": "jackygame",
   "private": true,
-  "version": "1.0.1",
-  "description": "星燼回響 Echoes of Starfall - a mobile RPG built with Phaser 3",
+  "version": "1.1.0",
+  "description": "命運之境：轉生後的異世界冒險 Realm of Fate - a mobile RPG built with Phaser 3",
   "type": "module",
   "license": "GPL-3.0-only",
   "engines": {

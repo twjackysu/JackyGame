@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'io.github.twjackysu.jackygame',
-  appName: '星燼回響',
+  appName: '命運之境',
   webDir: 'dist',
   backgroundColor: '#0b0f1e',
   android: {

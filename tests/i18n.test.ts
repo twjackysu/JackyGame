@@ -6,7 +6,7 @@ afterEach(() => setLocale(DEFAULT_LOCALE));
 describe('i18n t()', () => {
   it('defaults to zh-TW', () => {
     expect(getLocale()).toBe('zh-TW');
-    expect(t('game.title')).toBe('星燼回響');
+    expect(t('game.title')).toBe('命運之境');
     expect(t('title.tapToStart')).toBe('點擊開始');
   });
 
