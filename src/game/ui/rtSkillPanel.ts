@@ -1,17 +1,27 @@
-// 即時戰鬥「技能點」面板（D-110）：每升一級 1 點，自由點、免費重置。
+// 即時戰鬥「技能樹」面板（D-110 → D-272）：每升一級 1 點，自由點、免費重置。
+// Jacky 11/5：「技能樹應該要真的像樹狀比較好點擊（像暗黑破壞神）」→ 五個技能排成五欄，
+// 上面是技能節點（點一下就加一點），往下長出三個分支（原招／變化／變化二），滿 5 級點分支就改用那種打法；
+// 下方說明框顯示選到的節點，也有大大的「+1」按鈕。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { WEAPONS, type WeaponKind } from '../../core/battle/rt/data';
-import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, skillPoints, toggleVariant, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
+import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, setVariant, skillPoints, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
+
+const COL_X = [-276, -138, 0, 138, 276];
+const NODE_Y = -350;
+const BRANCH_Y = [-196, -116, -36];
 
 /** 開面板；每次改動呼叫 change（呼叫端存檔＋套用；v＝選了變化的技能，D-112），關閉時呼叫 done。回傳的容器由呼叫端銷毀 */
 export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVariants: readonly string[], level: number, change: (r: SkillRanks, v: string[]) => void, done: () => void, weapon: WeaponKind = 'sword'): Phaser.GameObjects.Container {
   const W = WEAPONS[weapon];
-  const bow = weapon !== 'sword'; // 長弓／法杖：顯示自己的招式名與說明
   let r = start;
   let v = cleanVariants(startVariants, r);
+  /** 說明框顯示哪個節點：欄、-1＝技能本身、0/1/2＝分支 */
+  let sel: { col: number; node: -1 | 0 | 1 | 2 } = { col: 0, node: -1 };
+  let justUnlocked = -1;
+  let pulse: Phaser.Tweens.Tween | null = null;
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 26, off = false): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: off ? '#8a8070' : hi ? '#1a0f08' : '#ffffff', backgroundColor: off ? '#2a2218' : hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9);
@@ -24,68 +34,147 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     }
     return t;
   };
+  const tap = (o: Phaser.GameObjects.Shape, fn: () => void): void => {
+    o.setInteractive({ useHandCursor: true });
+    o.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      fn();
+    });
+  };
+  const skillName = (id: string, fallback: string): string => W.skills[id]?.name ?? fallback;
+  const altOf = (id: string, k: 1 | 2) => (k === 1 ? W.variants[id] : W.variantsB[id]);
+
+  function addPoint(col: number): void {
+    const t = SKILL_TREE[col]!;
+    const n = addRank(r, t.id, level);
+    if (!n) return;
+    r = n;
+    SFX.confirm();
+    change(r, v);
+    if ((r[t.id] ?? 0) >= SKILL_MAX_RANK && W.variants[t.id]) justUnlocked = col;
+  }
+  function pickBranch(col: number, k: 0 | 1 | 2): void {
+    const t = SKILL_TREE[col]!;
+    const n = setVariant(v, t.id, k, r, weapon);
+    if (!n) return;
+    if (variantIndex(v, t.id) !== k) SFX.confirm();
+    v = n;
+    change(r, v);
+  }
+
   function render(): void {
+    pulse?.remove();
+    pulse = null;
     root.removeAll(true);
     const left = skillPoints(level) - usedPoints(r);
     const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.93).setInteractive()];
-    items.push(scene.add.text(0, -520, '技能點', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
-    items.push(scene.add.text(0, -480, '技能滿 5 級可以切換兩種「變化」・點數三把武器共用', { fontFamily: UI_FONT, fontSize: '19px', color: '#ffb6f0' }).setOrigin(0.5));
-    items.push(scene.add.text(0, -448, `Lv ${level}・剩 ${left} 點（每升一級 +1，可以隨時免費重置）`, { fontFamily: UI_FONT, fontSize: '22px', color: left > 0 ? '#9fff9a' : '#c8d0f0' }).setOrigin(0.5));
-    SKILL_TREE.forEach((t, i) => {
-      const y = -360 + i * 140;
+    items.push(scene.add.text(0, -530, '技能樹', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
+    items.push(scene.add.text(0, -486, `Lv ${level}・剩 ${left} 點（每升一級 +1，隨時免費重置）`, { fontFamily: UI_FONT, fontSize: '22px', color: left > 0 ? '#9fff9a' : '#c8d0f0' }).setOrigin(0.5));
+    items.push(scene.add.text(0, -454, '點技能加點・滿 5 級往下選一種打法・點數三把武器共用', { fontFamily: UI_FONT, fontSize: '18px', color: '#ffb6f0' }).setOrigin(0.5));
+    const g = scene.add.graphics();
+    items.push(g);
+    const pulses: Phaser.GameObjects.GameObject[] = [];
+    SKILL_TREE.forEach((t, col) => {
+      const x = COL_X[col]!;
       const rank = r[t.id] ?? 0;
-      items.push(scene.add.rectangle(0, y, 640, 120, 0x1a140c, 0.9).setStrokeStyle(2, rank ? 0xffd27a : 0x5a4a30, 0.8));
-      // 長弓（D-147）：弓有自己的兩種變化（D-148／149）
-      const alt0 = W.variants[t.id];
-      const altB = W.variantsB[t.id];
+      const full = rank >= SKILL_MAX_RANK;
+      const hasAlt = !!W.variants[t.id];
       const vi = variantIndex(v, t.id);
-      const alt = vi === 2 ? altB : alt0; // 現在選的變化（D-121：第二種變化）
-      const on = vi > 0;
-      items.push(scene.add.text(-300, y - 30, on && alt ? `${bow ? (W.skills[t.id]?.name ?? t.name) : t.name} → ${alt.variantName}` : bow ? (W.skills[t.id]?.name ?? t.name) : t.name, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: on ? '#ffb6f0' : '#ffffff' }).setOrigin(0, 0.5));
-      if (alt0 && rank < SKILL_MAX_RANK) items.push(scene.add.text(200, y - 30, `5 級解鎖：${alt0.variantName}${altB ? `／${altB.variantName}` : ''}`, { fontFamily: UI_FONT, fontSize: '17px', color: '#c890c0' }).setOrigin(1, 0.5));
-      // 第 101 輪：三把武器都顯示招式說明（以前長劍只寫「每級：…」、長弓／法杖只寫說明，不知道 +1 加什麼）；每級加成寫在等級格右邊
-      const desc = scene.add.text(-300, y + 4, on && alt ? alt.desc : (W.desc?.[t.id] ?? ''), { fontFamily: UI_FONT, fontSize: '16px', color: on ? '#f0d0ea' : '#c8c0a8', wordWrap: { width: 480, useAdvancedWrap: true } }).setOrigin(0, 0.5);
-      // 第 62 輪：兩行的說明（隕星術）第二行會壓到等級格 → 說明往下一點、等級格貼到卡片底
-      const two = desc.height > 30;
-      if (two) desc.setY(y + 9);
-      items.push(desc);
-      // 等級格
-      const g = scene.add.graphics();
-      for (let k = 0; k < SKILL_MAX_RANK; k++) {
-        g.fillStyle(k < rank ? 0xffd27a : 0x3a3020, 1).fillRoundedRect(-300 + k * 34, y + (two ? 43 : 34), 28, 10, 4);
+      const isSel = sel.col === col;
+      // 樹幹：技能 → 三個分支（滿級才亮）
+      if (hasAlt) {
+        g.lineStyle(6, full ? 0xffd27a : 0x3a3020, 1).lineBetween(x, NODE_Y + 60, x, BRANCH_Y[2]!);
+        if (full) g.lineStyle(10, 0xffd27a, 0.15).lineBetween(x, NODE_Y + 60, x, BRANCH_Y[2]!);
       }
-      items.push(g);
-      items.push(scene.add.text(-300 + SKILL_MAX_RANK * 34 + 8, y + (two ? 48 : 39), `每級 ${t.per}`, { fontFamily: UI_FONT, fontSize: '15px', color: rank ? '#e8c890' : '#9a8a70' }).setOrigin(0, 0.5));
-      const can = !!addRank(r, t.id, level);
-      if (rank >= SKILL_MAX_RANK && alt0) {
-        // 原招 → 變化 → 變化二 → 原招（按鈕寫下一種的名字）
-        const nextName = vi === 0 ? alt0.variantName : vi === 1 && altB ? altB.variantName : '原招';
-        items.push(btn(250, y, nextName, () => {
-          const n = toggleVariant(v, t.id, r, weapon);
-          if (!n) return;
-          v = n;
-          SFX.confirm();
-          change(r, v);
-          render();
-        }, nextName !== '原招', 22));
-      } else {
-        items.push(btn(250, y, rank >= SKILL_MAX_RANK ? '滿' : '+1', () => {
-          const n = addRank(r, t.id, level);
-          if (!n) return;
-          r = n;
-          SFX.confirm();
-          change(r, v);
-          render();
-          // 剛滿 5 級：提示可以切換變化（D-112）
-          if (alt0 && (r[t.id] ?? 0) >= SKILL_MAX_RANK) {
-            // 第 62 輪：底色蓋住左邊（右邊切換鈕留著；以前粉紅字直接疊在「重斬」標題與說明上，往上飄還壓到上一列）
-            const tip = scene.add.text(-71, y, `解鎖「${alt0.variantName}」${altB ? `「${altB.variantName}」` : ''}！點右邊 →`, { fontFamily: TITLE_FONT, fontSize: '24px', color: '#ffb6f0', stroke: '#2a0a20', strokeThickness: 5, backgroundColor: '#1a0814', align: 'center', fixedWidth: 494 }).setOrigin(0.5).setPadding(0, 38, 0, 38);
-            root.add(tip);
-            scene.tweens.add({ targets: tip, alpha: 0, delay: 1100, duration: 500, onComplete: () => tip.destroy() });
-          }
-        }, can, 30, !can));
+      // 技能節點
+      if (isSel && sel.node === -1) g.fillStyle(0xffd27a, 0.18).fillCircle(x, NODE_Y, 66);
+      const node = scene.add.circle(x, NODE_Y, 54, rank ? 0x3a2a10 : 0x1a140c, 1).setStrokeStyle(rank ? 5 : 3, full ? 0xffd27a : rank ? 0xc8a060 : 0x5a4a30, 1);
+      tap(node, () => {
+        sel = { col, node: -1 };
+        addPoint(col);
+        render();
+      });
+      items.push(node);
+      const nm = skillName(t.id, t.name);
+      items.push(scene.add.text(x, NODE_Y - 10, nm, { fontFamily: UI_FONT, fontSize: nm.length > 3 ? '21px' : '25px', fontStyle: '700', color: rank ? '#ffffff' : '#b0a890' }).setOrigin(0.5));
+      items.push(scene.add.text(x, NODE_Y + 22, `${rank}/${SKILL_MAX_RANK}`, { fontFamily: UI_FONT, fontSize: '19px', color: full ? '#ffd27a' : '#c8c0a8' }).setOrigin(0.5));
+      // 等級點（節點下方 5 顆）
+      for (let k = 0; k < SKILL_MAX_RANK; k++) g.fillStyle(k < rank ? 0xffd27a : 0x3a3020, 1).fillCircle(x - 32 + k * 16, NODE_Y + 70, 5);
+      // 還能加點：右上角綠色 +
+      if (addRank(r, t.id, level)) {
+        const plus = scene.add.text(x + 42, NODE_Y - 44, '+', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#0a2a0a', backgroundColor: '#7dffb0' }).setOrigin(0.5).setPadding(7, 0, 7, 0);
+        items.push(plus);
+        pulses.push(plus);
       }
+      if (!hasAlt) return;
+      // 分支：原招／變化／變化二
+      ([0, 1, 2] as const).forEach((k) => {
+        const by = BRANCH_Y[k]!;
+        const alt = k === 0 ? null : altOf(t.id, k);
+        if (k > 0 && !alt) return;
+        const on = full && vi === k;
+        const box = scene.add.rectangle(x, by, 128, 60, on ? 0x4a1a40 : full ? 0x241a10 : 0x141008, 1).setStrokeStyle(on ? 4 : 2, on ? 0xffb6f0 : full ? 0xc8a060 : 0x3a3020, 1);
+        if (sel.col === col && sel.node === k) g.fillStyle(0xffb6f0, 0.2).fillRoundedRect(x - 72, by - 38, 144, 76, 12);
+        tap(box, () => {
+          sel = { col, node: k };
+          pickBranch(col, k);
+          render();
+        });
+        items.push(box);
+        const label = k === 0 ? '原招' : alt!.variantName;
+        items.push(scene.add.text(x, by, label, { fontFamily: UI_FONT, fontSize: label.length > 3 ? '20px' : '22px', fontStyle: on ? '700' : 'normal', color: on ? '#ffb6f0' : full ? '#e8dcc0' : '#6a604c' }).setOrigin(0.5));
+        if (!full) items.push(scene.add.text(x + 52, by - 22, '🔒', { fontSize: '14px' }).setOrigin(0.5).setAlpha(0.7));
+        if (justUnlocked === col) {
+          const flash = scene.add.rectangle(x, by, 128, 60, 0xffb6f0, 0.5).setBlendMode(Phaser.BlendModes.ADD);
+          items.push(flash);
+          scene.tweens.add({ targets: flash, alpha: 0, delay: k * 120, duration: 700, onComplete: () => flash.destroy() });
+        }
+      });
     });
+    // 說明框
+    const bx = 0;
+    const by = 160;
+    items.push(scene.add.rectangle(bx, by, 660, 300, 0x1a140c, 0.95).setStrokeStyle(2, 0x5a4a30, 1));
+    const t = SKILL_TREE[sel.col]!;
+    const rank = r[t.id] ?? 0;
+    const full = rank >= SKILL_MAX_RANK;
+    const nm = skillName(t.id, t.name);
+    let title: string;
+    let desc: string;
+    let sub: string;
+    let action: Phaser.GameObjects.Text;
+    if (sel.node === -1) {
+      title = `${nm}　Lv ${rank}/${SKILL_MAX_RANK}`;
+      desc = W.desc?.[t.id] ?? '';
+      sub = `每級 ${t.per}${W.variants[t.id] && !full ? '・5 級開放下面的分支' : ''}`;
+      const can = !!addRank(r, t.id, level);
+      action = btn(0, by + 106, full ? '已滿級' : can ? '+1 加點' : '沒有技能點了', () => {
+        addPoint(sel.col);
+        render();
+      }, can, 28, !can);
+    } else {
+      const k = sel.node;
+      const alt = k === 0 ? null : altOf(t.id, k);
+      title = k === 0 ? `${nm}（原招）` : `${nm} → ${alt?.variantName ?? ''}`;
+      desc = k === 0 ? (W.desc?.[t.id] ?? '') : (alt?.desc ?? '');
+      const using = full && variantIndex(v, t.id) === k;
+      sub = full ? (using ? '使用中' : '點「改用」就換成這種打法（隨時可以換回來）') : `${nm}滿 5 級才能選（現在 ${rank}/${SKILL_MAX_RANK}）`;
+      action = btn(0, by + 106, using ? '使用中' : full ? '改用這招' : '還沒解鎖', () => {
+        pickBranch(sel.col, k);
+        render();
+      }, full && !using, 28, !full || using);
+    }
+    items.push(scene.add.text(-300, by - 122, title, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: sel.node > 0 ? '#ffb6f0' : '#ffffff' }).setOrigin(0, 0));
+    items.push(scene.add.text(-300, by - 78, desc, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc0', wordWrap: { width: 600, useAdvancedWrap: true }, lineSpacing: 4 }).setOrigin(0, 0));
+    items.push(scene.add.text(-300, by + 52, sub, { fontFamily: UI_FONT, fontSize: '17px', color: '#c8a060', wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0, 0.5));
+    items.push(action);
+    if (justUnlocked >= 0) {
+      const j = SKILL_TREE[justUnlocked]!;
+      const tip = scene.add.text(0, -420, `「${skillName(j.id, j.name)}」滿級！往下選一種打法`, { fontFamily: TITLE_FONT, fontSize: '26px', color: '#ffb6f0', stroke: '#2a0a20', strokeThickness: 5 }).setOrigin(0.5);
+      items.push(tip);
+      scene.tweens.add({ targets: tip, alpha: 0, delay: 1400, duration: 500, onComplete: () => tip.destroy() });
+      justUnlocked = -1;
+    }
     items.push(btn(-150, 400, '全部重置', () => {
       r = {};
       v = [];
@@ -95,7 +184,9 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     }, false, 26, usedPoints(r) === 0));
     items.push(btn(150, 400, '關閉', () => done(), true));
     root.add(items);
+    if (pulses.length) pulse = scene.tweens.add({ targets: pulses, scale: 1.18, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
+  root.once('destroy', () => pulse?.remove());
   render();
   return root;
 }

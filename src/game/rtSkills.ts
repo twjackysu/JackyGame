@@ -104,3 +104,12 @@ export function mergeMods(a: Record<string, SkillMod>, b: Record<string, SkillMo
   }
   return out;
 }
+
+/** 直接選一種打法（技能樹面板，D-272）：0＝原招、1＝變化、2＝變化二；沒滿級或沒有那種變化就回 null */
+export function setVariant(v: readonly string[], id: string, idx: 0 | 1 | 2, r: SkillRanks, weapon: WeaponKind = 'sword'): string[] | null {
+  const w = WEAPONS[weapon];
+  if (!SKILL_VARIANTS[id] || (r[id] ?? 0) < SKILL_MAX_RANK) return null;
+  if (idx === 2 && !w.variantsB[id]) return null;
+  const rest = v.filter((x) => x !== id && x !== variantB(id));
+  return (idx === 0 ? rest : [...rest, idx === 1 ? id : variantB(id)]).sort();
+}
