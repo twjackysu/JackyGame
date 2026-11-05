@@ -1,58 +1,40 @@
-# 美術需求清單（給 Jacky 回國後的本機 Agent 用 GPT／Gemini 產圖）
+# 美術需求清單（給 Jacky 的本機 Agent 用 GPT／Gemini 產圖）
 
-> **這是唯一的美術需求佇列。** 開發迴圈需要 AI 繪圖時，只在這裡新增項目，不要另開檔案。Jacky 的本機 Agent 會照這份清單產圖。
-> **目前沒有待產的項目**（11/5：R-012～R-017 六張都已產好、匯入並換進遊戲）。之後開發迴圈若真的需要新圖，才在「需求清單」新增。
+> **唯一的美術需求佇列。** 開發迴圈需要 AI 圖時只在這裡新增。11/5 第 137 輪清理過：已完成的舊項目全部刪掉（要查 prompt 看 git 歷史）。
 
-## 規則（開發迴圈必讀）
-1. **額度有限，總量上限：GPT 8 張、Gemini 12 張（整個專案）。** 目前已排定的數量寫在下方「額度統計」，新增前先確認不會超過。
-2. **精緻、玩家會盯著看的**（Boss、主視覺、重要角色）→ **GPT**。**普通、一次很多的**（道具圖示、地圖物件、小怪）→ **Gemini**，而且盡量用**一張圖多個物件**（sheet，見下）來省額度。
-3. 遊戲**不能依賴這些圖**：每一項都要先有程式美術備援，圖到了才替換（`src/data/handArt.ts` 有該 key 就用圖）。
-4. 每一項寫清楚：檔名、工具、優先級、用途與尺寸、prompt、狀態。prompt 用英文，最後接上「共同風格」。
-5. 能用程式做好的（地面圖塊、水面、光影、粒子、UI）不要列進來。AI 圖塊很難無縫拼接，所以**不要要求 tileset**；地圖用程式圖塊，加上 AI 畫的獨立物件（建築、樹、箱子）。
+## 規則
+1. **額度**：GPT 剩 1 張、Gemini 剩 4 張（整個專案上限 GPT 8／Gemini 12）。
+2. 精緻、玩家會盯著看的 → **GPT**；普通、量多的 → **Gemini**，盡量一張圖多個物件（sheet）。
+3. 遊戲不依賴這些圖：都有程式美術或舊圖備援，圖到了才替換。
 
-## 給產圖 Agent 的流程
-1. 從上往下挑「狀態：待產」的項目，P1 先做。照指定工具（GPT／Gemini）產圖，一項一張；不滿意可以重產，但盡量一次到位。
-2. prompt = 項目的 prompt + 下方對應的「共同風格」。
-3. 存成項目指定的**檔名**（`.png`），放進 repo 的 `art-inbox/`，commit 並 push 到 `main`。
-4. 把該項目的狀態改成「已上傳 YYYY-MM-DD」。
-5. 匯入（去背、切格、縮圖、更新 `src/data/handArt.ts`）由開發迴圈下一輪自動做；本機要自己跑的話：`pip install "rembg[cpu]"` 後執行 `node scripts/import-art.mjs`。
-
-### 檔名規則（決定匯入時怎麼處理）
-| 前綴 | 用途 | 處理 |
-|---|---|---|
-| `bg_` | 背景（標題主視覺、地圖遠景） | 不去背，寬度縮到 1440 |
-| `enemy_` | 敵人、野獸、Boss（正面，Q 版） | 去背，高 640 |
-| `npc_` | 配角立繪（半身） | 去背，高 1100 |
-| `walk_` | 地圖上行走的小角色 | 去背，高 192 |
-| `prop_` | 建築、樹、箱子等地圖物件 | 去背，高 512 |
-| `item_` | 道具、裝備圖示 | 去背，高 256 |
-| `sheet_` | 一張圖多個物件 | 依 `scripts/art-sheets.json` 均分切格後，每格照上面規則處理 |
+## 產圖流程
+1. 照「工具」產圖，prompt = 項目 prompt + 下方「共同風格」。
+2. 存成指定檔名（`.png`）放進 `art-inbox/`，commit 並 push 到 `main`，把狀態改成「已上傳 日期」。
+3. 匯入（去背、切格、縮圖、更新 `src/data/handArt.ts`）：`pip install "rembg[cpu]"` 後 `node scripts/import-art.mjs`（開發迴圈也會自動做）。
+4. 小技巧：主體有亮綠色時綠幕會吃掉那些部位——GPT 改要「透明背景 PNG」，Gemini 改用洋紅 #FF00FF 底。
 
 ### 共同風格
-- **角色、敵人（GPT／Gemini 都用）**：
-  `Style: high-quality anime gacha game art, clean sharp lineart, painterly cel shading, rich lighting, fantasy RPG, matches a cast drawn in detailed modern anime style. Single subject, full body, transparent background (if not possible: solid pure green #00FF00), no text, no watermark, no frame. All-ages.`
-- **地圖物件、道具（sheet 用）**：
-  `Style: polished fantasy RPG game asset sheet, top-down 3/4 view (classic JRPG perspective) for map objects / front view for item icons, painterly anime style, soft lighting, each object centered in its own equal grid cell with generous empty margin, objects do not touch or overlap cell borders, solid pure green #00FF00 background, no grid lines, no text, no watermark.`
-
-## 額度統計（已用的照算）
-- GPT：已用 7／8（剩 1）
-- Gemini：已用 8／12（剩 4）
+- **角色**：`Style: high-quality anime gacha game art, clean sharp lineart, painterly cel shading, rich lighting, fantasy RPG, detailed modern anime style. No text, no watermark, no frame. All-ages.`
+- **主角外觀（每張主角圖都要一致）**：`The hero: a teenage boy with messy dark-brown hair and warm amber eyes, long red scarf flowing in the wind, dark navy-black long coat with gold trim and a small compass emblem, brown leather belts and gloves, brown boots. He does NOT carry a lantern.`
 
 ## 需求清單（待產）
-（目前沒有）
 
-## 已完成
-| 編號 | 工具 | 檔名 | 用在 |
-|---|---|---|---|
-| R-012 | GPT | `enemy_thorn_mother` | 霧語森林世界精英「荊棘母樹」（11/5） |
-| R-013 | GPT | `enemy_boss_thornqueen` | 荊棘谷 Boss「棘冠狼后」（11/5） |
-| R-014 | Gemini | `enemy_thorn_wolf` | 荊棘谷小怪「棘背狼」（11/5） |
-| R-015 | Gemini | `enemy_thorn_stalker` | 荊棘谷世界精英「荊棘巡獵者」（11/5） |
-| R-016 | GPT | `enemy_ember_colossus` | 燼紅裂谷 Boss「燼心岩王」（11/5；蓋過 `fx/emberArt.ts` 的程式材質） |
-| R-017 | Gemini | `enemy_slag_slime` | 燼紅裂谷小怪「熔渣史萊姆」（11/5；蓋過程式材質） |
+### R-018 標題主視覺（換掉提燈版）
+- **工具**：GPT（P1，用掉最後 1 張 GPT）
+- **檔名**：`bg_title_keyart.png`（直式 9:16，例如 1024×1820；不去背，匯入後寬 1440）
+- **為什麼**：現在的標題圖主角手上提著燈，但遊戲裡已經沒有燈這種武器（只有長劍、長弓、法杖）；旁邊的白髮少女遊戲裡也沒有。
+- **構圖重點**：上方 1/3 是星空（標題字會疊在這裡，不要放重要東西）；下方 1/4 會壓暗放按鈕。主角在畫面中下、略偏左。
+- **prompt**：
+  `Vertical 9:16 key art for a mobile fantasy action RPG title screen. A lone young swordsman stands on a mossy cliff edge at night, seen from slightly below and behind at a 3/4 angle, looking out over a vast fantasy world. He holds a slender longsword with a faint cyan glowing edge lowered at his side; a longbow is slung across his back. The hero: a teenage boy with messy dark-brown hair and warm amber eyes, long red scarf flowing in the wind, dark navy-black long coat with gold trim and a small compass emblem, brown leather belts and gloves, brown boots. He does NOT carry a lantern. Below and beyond him the world unfolds in layers: a misty violet forest with drifting light motes nearest, then a crimson thorn valley, then a far volcanic rift glowing with orange lava cracks, and on the horizon a crystal plateau of blue-violet star crystals. The upper third of the image is a breathtaking starry night sky with the Milky Way and several falling meteors streaking down (keep this area clear of characters for the title text). A glowing cyan portal of light rises faintly in the distant forest. Warm campfire embers float up from the bottom of the frame. Epic, hopeful, cinematic lighting, strong rim light on the hero from the stars, rich deep blues and purples with orange accents. No other characters, no text, no logo, no watermark. Style: high-quality anime gacha game art, clean sharp lineart, painterly cel shading, rich lighting, fantasy RPG, detailed modern anime style. All-ages.`
+- **狀態**：待產
 
-- R-012～R-017 的 prompt 見 git 歷史。產圖小技巧：主體有亮綠色（毒液、孢子、發光核心）時，綠幕去背會把那些部位一起吃掉——GPT 改要「透明背景 PNG」，Gemini 改用洋紅 #FF00FF 底再自己去背。
-- R-001～R-009 與第一批角色立繪都已產過（prompt 見 git 歷史）。舊主線刪除後（D-097），遊戲只用到其中 5 張：`bg_title_keyart`（R-004）、`enemy_boss_wolfking`（R-001）、`enemy_mist_wolf`、`enemy_thorn_shroom`（R-009）、`hero_lian`（第一批 Q 版）；其餘已從 `public/art/` 刪除。
+### R-019 主角 Q 版戰鬥圖：三把武器（換掉提燈版）
+- **工具**：Gemini（P2，1 張 sheet）
+- **檔名**：`sheet_hero_weapons.png`（橫式 3 格，例如 1536×640；`scripts/art-sheets.json` 已設定切成 `hero_sword`／`hero_bow`／`hero_staff`）
+- **為什麼**：戰鬥中的主角圖（`hero_lian`）也是提燈的。到圖後遊戲會依目前武器自動換圖（程式已寫好，`heroKey()`）。
+- **prompt**：
+  `A character sheet with 3 equal cells side by side, the same chibi (Q-version, about 2.5 heads tall) anime hero in each cell, full body, standing in a ready battle pose, 3/4 view FACING RIGHT, each centered in its own cell with generous empty margin, not touching the cell borders. Cell 1: holding a longsword with a faint cyan glowing edge. Cell 2: holding a wooden longbow with a nocked glowing arrow, quiver on the back. Cell 3: holding a tall star-tipped magic staff with a glowing violet crystal. The hero: a teenage boy with messy dark-brown hair and warm amber eyes, long red scarf flowing in the wind, dark navy-black long coat with gold trim and a small compass emblem, brown leather belts and gloves, brown boots. He does NOT carry a lantern. Solid pure magenta #FF00FF background, no grid lines, no text, no watermark. Style: high-quality anime gacha game art, clean sharp lineart, painterly cel shading, rich lighting, fantasy RPG, detailed modern anime style. All-ages.`
+- **狀態**：待產
 
-## 已取消
-- R-010 `sheet_party_walk`（隊伍正面走路小人）、R-011 `sheet_town_npcs`（鎮民走路小人）：只給舊主線的自由探索（ExploreScene）用；10/24 改成即時戰鬥後舊主線不再加功能（D-065、D-087），所以取消，不佔額度。程式備援（戰鬥背影圖、程式小人）照舊。
+## 目前遊戲用到的 AI 圖（`public/art/`）
+`bg_title_keyart`（R-018 會取代）、`hero_lian`（R-019 會取代，取代後保留當備援）、`enemy_boss_wolfking`、`enemy_mist_wolf`、`enemy_thorn_shroom`、`enemy_thorn_mother`、`enemy_boss_thornqueen`、`enemy_thorn_wolf`、`enemy_thorn_stalker`、`enemy_ember_colossus`、`enemy_slag_slime`。

@@ -18,6 +18,7 @@
     "icons:native": "node scripts/gen-native-icons.mjs",
     "screenshot": "node scripts/screenshot.mjs",
     "playthrough": "node scripts/playthrough.mjs",
+    "wiki": "WIKI=1 vitest run tests/wiki-gen.test.ts",
     "sim:rt": "RT_REPORT=1 vitest run tests/rt-report.test.ts"
   },
   "dependencies": {
