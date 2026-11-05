@@ -12,7 +12,6 @@ const SEC = 30;
 const sec = (t: number): string => `${+(t / SEC).toFixed(2)} 秒`;
 const NAV = '[Wiki 首頁](README.md)・[強化](enhance.md)・[技能樹](skills.md)・[裝備與神裝](gear.md)・[怪物與掉落](monsters.md)・[畫面集](gallery.md)';
 const head = (title: string): string => `# ${title}\n\n> ${NAV}\n>\n> 本頁由 \`npm run wiki\` 從遊戲資料自動產生，數字與遊戲版本一致。\n\n`;
-const LOOT: Record<string, string> = { dust: '粉塵', crystal: '結晶', potion: '藥水' };
 
 function enhancePage(): string {
   let s = head('強化系統');
