@@ -5,12 +5,13 @@
 > 舊主線（回合制＋自由探索）**已刪除**（D-097）。排程 ⭐ 方向對照：自由走動 ✅（大地圖）、自由買賣 ✅（D-116 行商）、自由點技能 ✅（D-110／112／121）、卡牌小遊戲 ✅（D-127～139 營火燼牌，五位對手）、碰到場景觸發劇情 ✅（D-134 序章、D-137 前世的記憶、D-133 通關演出、**D-159／160 路上的相遇（含護送）**）、**戀愛線依 D-063 停止，不做**。README 不放開發日誌，開發紀錄只寫在 PROGRESS。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆（稱呼、配色、decor、next、`postGame`、`bossLv`）＋ `maps/<id>.ts`（產生器在 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`，測試會要求）；`tests/rt-world-maps.test.ts`／`memories.test.ts` 會自動檢查。新 decor 要處理：地面 `paint`（`starD` 範例）、`Ambient` kind、`drawVents`／vent 事件顏色。
 
-## ★ 第 138 輪起先做（第 137 輪 11/5 21:00 寫）
-- 已是最終版，只修 bug、照 Jacky 的回覆改。每輪：看 Jacky 的 commit／FOR_JACKY「回覆」／Issue → build＋vitest → 有空看一張截圖。
-- **R-018／R-019 到圖時**（`art-inbox/bg_title_keyart.png`、`sheet_hero_weapons.png`）：`node scripts/import-art.mjs`（sheet 會切成 `hero_sword/bow/staff`）→ 截圖看標題（標題字壓在星空區？）與三把武器的戰鬥主角（**要面朝右**，朝左就把 webp 左右翻）。`hero_lian` 保留當備援。
-- **改了任何數值（敵人、掉落、強化、技能、裝備）都要 `npm run wiki` 再 commit**（D-273）。
+## ★ 第 139 輪起先做（第 138 輪 11/5 22:40 寫）
+- 已是最終版，只修 bug、照 Jacky 的回覆改。每輪：看 Jacky 的 commit／FOR_JACKY「回覆」／Issue → typecheck＋build＋vitest。
+- R-018／R-019 已到圖並在第 138 輪確認（三把武器面朝右、標題排版正常），不用再處理。
+- **改了任何數值（敵人、掉落、強化、技能、裝備）都要 `npm run wiki` 再 commit**（D-273）；推之前跑 `npm run typecheck`。
+- 看美術用即時截圖（Playwright 進 RtBattle 後 `waitForTimeout`），`shot-newsave.mjs` 快轉會讓角色變白色剪影。
 - 技能樹（D-272）若 Jacky 回饋：說明框下方空白可以放「目前打法」小圖示或每級數值預覽；🔒 是 emoji，沒字型的手機可能顯示方框。
-- 11/6 00:00 起排程會自己停用（第 0 步）。
+- **11/6 00:00 起排程會自己停用（第 0 步）**，下一輪多半就是停用排程。
 
 ## （舊）第 136 輪起先做（第 135 輪 11/5 16:45 寫，第 1 項 CI 已確認全綠）
 Jacky 11/5 回國試玩並回覆了（FOR_JACKY 已整理成重點版）。第 135 輪已做：改名《命運之境：轉生後的異世界冒險》（D-269）、永遠玩到最新版＋APK 固定簽章（D-270，版本 1.1.0）、職業維持可換（D-271）。
