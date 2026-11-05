@@ -12,7 +12,7 @@
 3. **切換職業**：照你最後的結論維持「隨時可換」（方便測試）。RO 式的多角色＋共用倉庫記在 `docs/DECISIONS.md` D-271 當之後的方向，現在不做（11/5 已是最終版）。
 
 ## 只有你能做的
-- **美術**（選做）：`docs/ART_REQUESTS.md` 有排好的 prompt（GPT 剩 1、Gemini 剩 4）。沒有圖遊戲也完整。
+- **美術**（選做）：`docs/ART_REQUESTS.md` 目前沒有待產項目（R-012～R-017 已在 11/5 產好換進遊戲；額度 GPT 剩 1、Gemini 剩 4）。
 - **iOS**：需要 Mac＋Xcode，步驟在 README「怎麼玩」。
 - **要上架的話**：新名字還沒查商標；Android 需要你自己的 release keystore（不能放 repo；現在 repo 裡那把是公開的 debug 金鑰）。
 - **真機順手看**：中階手機特效最多時會不會掉格、音量四段夠不夠分、Android 返回鍵和震動。

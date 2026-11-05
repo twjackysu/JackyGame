@@ -120,15 +120,15 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   alpha_wolf: { key: 'enemy_mist_wolf', h: 2.8, flip: true, tint: 0xffb080 },
   shade_wolf: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xa88aff },
   thorn_shooter: { key: 'enemy_thorn_shroom', h: 2.9, flip: false },
-  thorn_mother: { key: 'enemy_thorn_shroom', h: 2.6, flip: false, tint: 0x8fe07a },
+  thorn_mother: { key: 'enemy_thorn_mother', h: 2.6, flip: false },
   wolf_king: { key: 'enemy_boss_wolfking', h: 3.0, flip: false },
-  // 荊棘谷（D-114）：先用現有立繪染色，之後有圖再換（ART_REQUESTS）
-  thorn_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0x9fe08a },
-  thorn_queen: { key: 'enemy_boss_wolfking', h: 3.2, flip: false, tint: 0xb8f0a0 },
+  // 荊棘谷（D-114）：棘背狼、棘冠狼后、荊棘巡獵者用 AI 圖（R-013～R-015），其他先用現有立繪染色
+  thorn_wolf: { key: 'enemy_thorn_wolf', h: 2.9, flip: true },
+  thorn_queen: { key: 'enemy_boss_thornqueen', h: 3.2, flip: false },
   night_thorn_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xc890ff },
-  thorn_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff8a5c },
+  thorn_stalker: { key: 'enemy_thorn_stalker', h: 3.1, flip: true },
   mist_warden: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x7ae8d8 },
-  // 燼紅裂谷（D-125）：史萊姆與岩王是程式美術（fx/emberArt.ts），其他先用現有立繪染色
+  // 燼紅裂谷（D-125）：史萊姆與岩王用 AI 圖（R-016、R-017；沒有圖時退回 fx/emberArt.ts 的程式美術），其他先用現有立繪染色
   slag_slime: { key: 'enemy_slag_slime', h: 2.2, flip: false },
   ember_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0xffa070 },
   ember_shroom: { key: 'enemy_thorn_shroom', h: 2.9, flip: false, tint: 0xffb080 },

@@ -7,6 +7,7 @@
 // - 處理完的原檔會被刪掉（git rm 由呼叫者執行），避免大檔留在 repo。
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
@@ -297,4 +298,5 @@ export async function main() {
   return done;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await main();
+// pathToFileURL：Windows 的路徑（E:\...）也能判斷是直接執行
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await main();
