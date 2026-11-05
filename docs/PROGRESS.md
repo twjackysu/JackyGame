@@ -1,5 +1,10 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-05 08:12–08:20（台北）第 131 輪 — 健康檢查（沒有要修的，不改程式）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（2a2ebf6，版本 1.0.1）。
+- build、vitest 407 項全過（含通關機器人）。
+- 正式版 preview 390×844 觸控＋`?debug`：標題（版本 1.0.1）淡入正常，沒有 pageerror／console error。
+
 ## 2026-11-05 06:12–06:30（台北）第 130 輪 — 成果發表版 1.0.1（README 統計更新，D-268）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
 - 照 NEXT ⑤提前做：`bash scripts/stats.sh`（1123 commits、acquire lock 135 次＝實際 130 輪、TS 19129 行）→ README 統計行改「約 130 輪、1100+ commits、400+ 項測試（統計到 11/5）」；`package.json`／`package-lock.json` 版本 1.0.1。
