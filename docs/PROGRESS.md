@@ -1,5 +1,11 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-05 14:11–14:15（台北）第 134 輪 — 健康檢查（沒有要修的，不改程式）
+**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（2a2ebf6，版本 1.0.1）。
+- 新 session 的 clone 是 detached HEAD，先 `git checkout main && git pull --rebase origin main`；`.loop/` 目錄在上輪釋放鎖時被刪，搶鎖前要 `mkdir -p .loop`（沒有 `xxd`，run_id 用 `od`）。
+- build、vitest 407 項全過（含通關機器人）。
+- 正式版 preview 390×844 觸控＋`?debug`：標題（版本 1.0.1）淡入正常，沒有 pageerror／console error。
+
 ## 2026-11-05 12:11–12:25（台北）第 133 輪 — 健康檢查（沒有要修的，不改程式）
 **背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（2a2ebf6，版本 1.0.1）。
 - 新 session 的 clone 是 detached HEAD，先 `git checkout main && git reset --hard origin/main` 再搶鎖。
