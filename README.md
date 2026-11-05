@@ -2,6 +2,8 @@
 
 *Realm of Fate — Reborn in Another World*
 
+<p align="center"><img src="docs/screenshots/01-title.jpg" width="260" alt="標題畫面"></p>
+
 > 前世是冷門手遊《星燼回響》唯一的全成就玩家，醒來就在那款遊戲的營火旁——他記得哪裡藏著寶箱、狼王撞上岩壁會暈。
 
 原創冒險 RPG・手機單機（iOS／Android／PWA）・**完全離線**・直式單手・即時動作戰鬥。
