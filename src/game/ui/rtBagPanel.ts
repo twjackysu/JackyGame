@@ -190,7 +190,6 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
             render();
           }, ok, 24));
         if (fire && ok && confirmEnh) overlay.push(...enhanceConfirm(g, enh, c, doEnhance));
-        // eslint-disable-next-line no-inner-declarations
         function doEnhance(): void {
             confirmEnh = false;
             if (!ctx!.spend(c.dust, c.crystal)) return render();
