@@ -5,7 +5,8 @@ import { loadChoices, rivalEcho } from '../choices';
 import { loadEncounters, rivalEncounterEcho } from '../encounters';
 import { breakAtPunct } from './tipText';
 import { SFX } from '../../audio/sfx';
-import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, maxReach, newCardGame, nextReward, OPPONENTS, opponentsAt, opponentTabs, rowScore, totalScore, type CardGame, type Opponent, type Row } from '../../core/cards/emberCards';
+import { parseCardStats, secretOpen as coreSecretOpen, startMatch, type CardStats } from '../../core/meta/cards';
+import { aiMove, ALL_REWARDS, applyMove, CARDS, PLAYER_DECK, CHEST_CARDS, cardPower, DECK_MAX, DECK_MIN, deckWith, ownedCards, legalMoves, maxReach, newCardGame, nextReward, opponentsAt, opponentTabs, rowScore, totalScore, type CardGame, type Move, type Opponent, type Row } from '../../core/cards/emberCards';
 import { worldMap } from '../worldMaps';
 import { mapOpen } from '../rtRecord';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -22,34 +23,24 @@ export interface CardCtx {
   pay: (n: number) => void;
   /** 面板已經關掉時改由場景補講的公告（第 107 輪：贏了第三家後馬上離開，伊妲出現的字會被擋掉） */
   announce?: (text: string, color: string) => void;
+  /**
+   * V2（D-289）：下注局交給伺服器——開局扣賭注、發種子與牌組；打完送出牌紀錄，伺服器重播判勝負、發獎金。
+   * 沒有（或開局失敗）就照第一期在本機做。
+   */
+  server?: {
+    start: (opponentId: string) => Promise<{ matchId: string; seed: number; deck: string[] } | null>;
+    finish: (matchId: string, moves: Move[]) => Promise<{ winner: number; prize: string | null } | null>;
+  };
 }
 
 const ROW_NAME = ['前排', '後排'];
 const KEY = 'jg_cards';
-interface Stats {
-  played: number;
-  won: number;
-  /** 下注贏來的牌（各對手的都在這裡） */
-  cards: string[];
-  /** 各對手的戰績（D-129） */
-  by: Record<string, { played: number; won: number }>;
-  /** 留在箱子裡、不帶上場的牌（D-130，可重複 id） */
-  off: string[];
-}
-/** 第 112 輪（D-260）：戰績欄位壞掉（不是非負整數）就當 0 */
-const cnt = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+type Stats = CardStats;
 function stats(): Stats {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Stats>;
-    const by: Stats['by'] = {};
-    for (const o of OPPONENTS) {
-      const b = v.by?.[o.id];
-      by[o.id] = { played: cnt(b?.played), won: cnt(b?.won) };
-    }
-    const ids = (a: unknown): string[] => (Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string' && !!CARDS[x]) : []);
-    return { played: cnt(v.played), won: cnt(v.won), cards: ids(v.cards), by, off: ids(v.off) };
+    return parseCardStats(localStorage.getItem(KEY));
   } catch {
-    return { played: 0, won: 0, cards: [], by: {}, off: [] };
+    return parseCardStats(null);
   }
 }
 /** ☰ 紀錄用：燼牌戰績與收集 */
@@ -119,7 +110,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
   let fresh: [number, Row, number] | null = null;
   /** 這次的對手：預設是這張地圖的在地對手（沒有就莫托） */
   // 隱藏對手伊妲（D-132）：莫托、薇菈、葛倫都贏過一次才出現（每個營火都在）
-  const secretOpen = (): boolean => OPPONENTS.filter((o) => !o.secret && !o.extra).every((o) => (stats().by[o.id]?.won ?? 0) >= 1);
+  const secretOpen = (): boolean => coreSecretOpen(stats());
   let here = opponentsAt(ctx.map, secretOpen());
   let who: Opponent = here.filter((o) => !o.secret).slice(-1)[0] ?? here[0]!;
   /** 大廳／牌組一覽 */
@@ -563,13 +554,35 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     });
   }
 
+  /** 伺服器的下注局（D-289）：玩家出過的每一手 */
+  let match: { id: string; moves: Move[] } | null = null;
+  let starting = false;
   function start(bet: boolean): void {
+    if (bet && ctx.server) {
+      if (starting || ctx.coin() < who.stake) return;
+      starting = true;
+      const srv = ctx.server;
+      void srv.start(who.id).then((m) => {
+        starting = false;
+        if (root.active) begin(true, m);
+      });
+      return;
+    }
+    begin(bet, null);
+  }
+
+  function begin(bet: boolean, m: { matchId: string; seed: number; deck: string[] } | null): void {
+    match = null;
     if (bet) {
-      if (ctx.coin() < who.stake) return;
-      ctx.pay(who.stake);
+      if (m) match = { id: m.matchId, moves: [] };
+      else {
+        // 本機做法（沒有伺服器，或伺服器開局失敗）
+        if (ctx.coin() < who.stake) return;
+        ctx.pay(who.stake);
+      }
       staked = who.stake;
     } else staked = 0;
-    g = newCardGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, [deckWith(stats().cards, stats().off), who.deck], who.short);
+    g = m ? startMatch(m.seed, m.deck, who) : newCardGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, [deckWith(stats().cards, stats().off), who.deck], who.short);
     prizeCard = undefined;
     revealed = false;
     sel = -1;
@@ -604,7 +617,17 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
         saveStats(st);
       }
     }
-    if (staked) {
+    if (staked && match && ctx.server) {
+      // 伺服器重播判勝負、發獎金（畫面照本機算的先演出；同一份規則、同一個種子，結果一樣）
+      const mm = match;
+      const localWin = g.winner;
+      const localPrize = prizeCard;
+      match = null;
+      void ctx.server.finish(mm.id, mm.moves).then((r) => {
+        if (r && (r.winner !== localWin || (r.prize ?? undefined) !== localPrize)) console.warn('[cards] 伺服器判定和畫面不同', { server: r, local: { winner: localWin, prize: localPrize } });
+        if (root.active) render();
+      });
+    } else if (staked) {
       if (g.winner === 0) ctx.pay(-staked * 2);
       else if (g.winner === -1) ctx.pay(-staked);
     }
@@ -674,6 +697,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     const before = snap(g);
     const rounds = g.results.length;
     if (!applyMove(g, 0, { type: 'play', card: i })) return;
+    match?.moves.push({ type: 'play', card: i });
     sel = -1;
     scene.cameras.main.shake(80, 0.003);
     after(before, rounds);
@@ -683,7 +707,7 @@ export function openEmberCardPanel(scene: Phaser.Scene, ctx: CardCtx, onClose: (
     if (!g || busy || g.turn !== 0) return;
     const before = snap(g);
     const rounds = g.results.length;
-    applyMove(g, 0, { type: 'pass' });
+    if (applyMove(g, 0, { type: 'pass' })) match?.moves.push({ type: 'pass' });
     sel = -1;
     after(before, rounds);
   }

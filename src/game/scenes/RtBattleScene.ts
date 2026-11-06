@@ -1251,6 +1251,22 @@ export class RtBattleScene extends Phaser.Scene {
         },
         // 第 107 輪：面板已關（回行商／回營火）→ 等面板都關掉再講，最多等 2 分鐘
         announce: (text, color) => this.announce(text, color, 0, 120000),
+        // V2（D-289）：下注局的賭注、種子、勝負、獎金都由伺服器決定；結果寫回舊 key 後場景重讀金幣
+        server: !this.tracked
+          ? undefined
+          : {
+              start: async (opponentId) => {
+                this.persist();
+                const r = await legacyOp(captureLegacy(), ['wallet'], (c, me) => c.call('cards.start', { characterId: me.id, opponentId }), (x) => x.character, true);
+                if (this.scene.isActive()) this.coinBase = coinOf(loadRecord(this.stageId));
+                return r;
+              },
+              finish: async (matchId, moves) => {
+                const r = await legacyOp(captureLegacy(), ['wallet'], (c, me) => c.call('cards.finish', { characterId: me.id, matchId, moves }), (x) => x.character, true);
+                if (this.scene.isActive()) this.coinBase = coinOf(loadRecord(this.stageId));
+                return r;
+              },
+            },
       },
       () => {
         if (!fromFire) return this.openShop();

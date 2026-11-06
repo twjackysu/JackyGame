@@ -26,8 +26,21 @@ export interface CharacterRow {
   maps: Record<string, MapProgressView>;
   /** 劇情與教學旗標（舊存檔原樣保留；V2 決定哪些屬於角色、哪些是裝置偏好） */
   story: Record<string, string>;
+  /** 進行中的燼牌下注局（D-289）：伺服器的種子與牌組；打完或重開一局就換掉 */
+  cardMatch?: CardMatchRow;
   createdAt: number;
   version: number;
+}
+
+export interface CardMatchRow {
+  id: string;
+  opponentId: string;
+  seed: number;
+  deck: string[];
+  stake: number;
+  /** 下注贏了拿到哪張牌（開局時照當時的收藏決定） */
+  prize?: string;
+  at: number;
 }
 
 export interface ItemRow {
