@@ -38,6 +38,10 @@ export interface Api {
   'inventory.unequip': { params: { characterId: string; slot: string }; result: CharacterView; write: true };
   'inventory.salvage': { params: { characterId: string; itemId: string }; result: { dust: number; character: CharacterView }; write: true };
   'enhance.do': { params: { characterId: string; itemId: string }; result: { ok: boolean; enh: number; character: CharacterView }; write: true };
+  // 技能點（core/meta/skills.ts）：點數伺服器依等級算
+  'skills.add': { params: { characterId: string; skill: string }; result: CharacterView; write: true };
+  'skills.variant': { params: { characterId: string; skill: string; idx: 0 | 1 | 2 }; result: CharacterView; write: true };
+  'skills.reset': { params: { characterId: string }; result: CharacterView; write: true };
   // 營火行商（core/meta/shop.ts）。shop.open 第一次打開這批貨會決定「為你挑選」的部位，所以算寫入
   'shop.open': { params: { characterId: string; region: string }; result: ShopView; write: true };
   'shop.buy': { params: { characterId: string; region: string; uid: string }; result: { character: CharacterView; shop: ShopView }; write: true };
@@ -62,6 +66,9 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'shop.buyGoods',
   'shop.sell',
   'shop.reroll',
+  'skills.add',
+  'skills.variant',
+  'skills.reset',
 ]);
 
 export class ApiError extends Error {

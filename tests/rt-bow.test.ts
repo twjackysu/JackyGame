@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ARCHER, BOW_SKILLS, BOW_VARIANTS, BOW_VARIANTS_B, SKILLS, STAGES, SWORDSMAN } from '../src/core/battle/rt/data';
 import { blockWindow, createBattle, dashDistance, playerDef, setBossFury, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
-import { toggleVariant } from '../src/game/rtSkills';
+import { toggleVariant } from '../src/core/meta/skills';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { makeStarfallStage, STARFALL_SENTINEL } from '../src/core/battle/rt/maps/starfall';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';

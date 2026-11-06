@@ -159,3 +159,27 @@ for (const be of BACKENDS)
       expect(shop.stock.map((o) => o.price)).toEqual(base.map((g) => stockPrice(rec, g, 20)));
     });
   });
+
+for (const be of BACKENDS)
+  describe(`技能點（${be.name}）`, () => {
+    it('加點到沒點數、選打法、沒滿級不能選、重置', async () => {
+      const { db } = await be.fresh(() => 0);
+      const { a, ca } = await setup(db);
+      expect(ca.skills).toEqual({ heavy_slash: 3, whirlwind: 5 });
+      let c = ca;
+      for (let i = 0; i < 2; i++) c = await a.call('skills.add', { characterId: ca.id, skill: 'heavy_slash' });
+      expect(await code(a.call('skills.add', { characterId: ca.id, skill: 'heavy_slash' }))).toBe('rejected'); // 滿 5 級
+      c = await a.call('skills.add', { characterId: ca.id, skill: 'charge' }); // Lv12＝11 點用完
+      expect(c.skills).toEqual({ heavy_slash: 5, whirlwind: 5, charge: 1 });
+      expect(await code(a.call('skills.add', { characterId: ca.id, skill: 'charge' }))).toBe('rejected');
+      expect(await code(a.call('skills.add', { characterId: ca.id, skill: 'nope' }))).toBe('rejected');
+      c = await a.call('skills.variant', { characterId: ca.id, skill: 'whirlwind', idx: 0 });
+      expect(c.variants).toEqual([]);
+      c = await a.call('skills.variant', { characterId: ca.id, skill: 'heavy_slash', idx: 1 });
+      expect(c.variants).toEqual(['heavy_slash']);
+      expect(await code(a.call('skills.variant', { characterId: ca.id, skill: 'heavy_slash', idx: 3 as 1 }))).toBe('bad_request');
+      c = await a.call('skills.reset', { characterId: ca.id });
+      expect([c.skills, c.variants]).toEqual([{}, []]);
+      expect(await code(a.call('skills.variant', { characterId: ca.id, skill: 'heavy_slash', idx: 1 }))).toBe('rejected');
+    });
+  });

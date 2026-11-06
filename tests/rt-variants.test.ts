@@ -5,7 +5,7 @@ import { blockWindow, createBattle, dashDistance, setBossFury, setSkillVariants,
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec, u } from '../src/core/battle/rt/types';
-import { SKILL_TREE, cleanVariants, rankMods, toggleVariant, variantIndex, type SkillRanks } from '../src/game/rtSkills';
+import { SKILL_TREE, cleanVariants, rankMods, toggleVariant, variantIndex, type SkillRanks } from '../src/core/meta/skills';
 
 const out = (s: string) => (globalThis as unknown as { process: { stdout: { write: (x: string) => void } } }).process.stdout.write(s);
 

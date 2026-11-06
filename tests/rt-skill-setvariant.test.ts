@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { setVariant } from '../src/game/rtSkills';
+import { setVariant } from '../src/core/meta/skills';
 
 describe('技能樹直接選打法（setVariant，D-272）', () => {
   const r = { heavy_slash: 5, whirlwind: 3 };

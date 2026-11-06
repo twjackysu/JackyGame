@@ -4,7 +4,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, WEAPONS, WEAPON_IDS } from '../src/core/battle/rt/data';
 import { ENH_MAX, GEAR_SLOTS, PRO_SPECIAL_PCT, RARITY_NAME, SLOT_NAME, SPECIAL_KINDS, enhanceCost, genGear, type GearSlot, type Rarity } from '../src/core/battle/rt/gear';
-import { SKILL_MAX_RANK, SKILL_TREE } from '../src/game/rtSkills';
+import { SKILL_MAX_RANK, SKILL_TREE } from '../src/core/meta/skills';
 import { WORLD_MAPS } from '../src/game/worldMaps';
 import type { StageDefinition } from '../src/core/battle/rt/types';
 

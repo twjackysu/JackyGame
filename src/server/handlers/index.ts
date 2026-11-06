@@ -5,6 +5,7 @@ import { characterHandlers } from './character';
 import { inventoryHandlers } from './inventory';
 import { migrateHandlers } from './migrate';
 import { shopHandlers } from './shop';
+import { skillsHandlers } from './skills';
 
 export const HANDLERS: HandlerTable = {
   ...accountHandlers,
@@ -12,4 +13,5 @@ export const HANDLERS: HandlerTable = {
   ...migrateHandlers,
   ...inventoryHandlers,
   ...shopHandlers,
+  ...skillsHandlers,
 };

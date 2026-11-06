@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MAGE, STAFF_SKILLS, STAFF_VARIANTS, STAFF_VARIANTS_B, STAGES, SWORDSMAN, WEAPONS, WEAPON_IDS, BOW_SKILLS, SKILLS } from '../src/core/battle/rt/data';
 import { createBattle, dashDistance, playerDef, skillDef, step } from '../src/core/battle/rt/engine';
-import { toggleVariant } from '../src/game/rtSkills';
+import { toggleVariant } from '../src/core/meta/skills';
 import { gearName, gearTitleW } from '../src/game/weapon';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';

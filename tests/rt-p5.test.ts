@@ -160,7 +160,7 @@ describe('P5 配裝比較（Lv8、同一批裝備）', () => {
       for (const x of fury) expect(x.killed).toBe(true);
     }
     // 技能點（D-110）：Lv8 的 7 點兩種點法，疊在「全攻擊」配裝上比暴怒版
-    const { mergeMods, rankMods } = await import('../src/game/rtSkills');
+    const { mergeMods, rankMods } = await import('../src/core/meta/skills');
     const g0 = pick(BUILDS[0]!, items);
     for (const [name, ranks] of [['重斬5＋風暴2', { heavy_slash: 5, blade_storm: 2 }], ['衝鋒5＋格擋2', { charge: 5, parry: 2 }]] as const) {
       const mods = mergeMods(gearSkillMods(g0), rankMods(ranks));

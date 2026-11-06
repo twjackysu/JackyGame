@@ -4,7 +4,7 @@ import { SKILLS, STAGES } from '../src/core/battle/rt/data';
 import { createBattle, dashDistance, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
 import { SKILL_MOD_CAPS } from '../src/core/battle/rt/types';
-import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanRanks, mergeMods, rankMods, skillPoints, usedPoints } from '../src/game/rtSkills';
+import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanRanks, mergeMods, rankMods, skillPoints, usedPoints } from '../src/core/meta/skills';
 
 beforeAll(() => {
   STAGES.mistwood = makeMistwoodStage();
