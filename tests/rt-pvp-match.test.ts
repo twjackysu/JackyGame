@@ -1,6 +1,6 @@
 // 非同步 PvP 對戰的重播驗證（Q7 地基）：本機打的結果＝伺服器重跑的結果；造假的紀錄被拒或改變不了結果。
 import { describe, expect, it } from 'vitest';
-import { playPvp, replayPvp, type PvpMatchSetup } from '../src/core/battle/rt/pvpMatch';
+import { playPvp, replayPvp, startPvp, type PvpMatchSetup } from '../src/core/battle/rt/pvpMatch';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import type { BattleCommandBody } from '../src/core/battle/rt/types';
 
@@ -41,6 +41,15 @@ describe('非同步 PvP 重播', () => {
       [{ t: 0, c: [{ type: 'stop' }] }],
     ];
     for (const b of bad) expect(replayPvp(m, b)).toBeNull();
+  });
+
+  it('競技場不能喝藥水（第 144 輪）：雙方藥水 0，改過的客戶端送藥水指令也不會回血', () => {
+    const m = M(5, 'sword', 'sword');
+    const { s } = startPvp(m);
+    expect(s.potions).toBe(0);
+    expect(s.others?.[0]?.potions).toBe(0);
+    const spam = playPvp(m, (st) => (st.tick % 10 === 0 ? [{ type: 'potion' }] : []));
+    expect(spam.s.events.some((e) => e.type === 'potion')).toBe(false);
   });
 
   it('什麼都不做的紀錄也是合法的一場（站著被打），結果由伺服器決定', () => {

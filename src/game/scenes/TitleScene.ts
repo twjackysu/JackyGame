@@ -307,6 +307,8 @@ export class TitleScene extends Phaser.Scene {
         items.push([shown ? `${m.name}（未開放）` : m.postGame ? '？？？（通關後開放）' : '？？？（未開放）', () => this.lockedHint(key)]);
       }
     });
+    // 競技場（V5 非同步 PvP 天梯，第 144 輪）：選過武器（玩過序章）才出現；對手是模擬冒險者，勝負由伺服器重跑判定
+    if (weaponChosen() || prologueSeen()) items.push(['⚔ 競技場', () => this.go(() => this.scene.start('Pvp'))]);
     // 通關後（D-133）：可以重看通關演出
     // 舊存檔已經打倒過最後一張圖的 Boss（通關演出做出來之前）也看得到
     const cleared = finaleSeen() || bossKillsOf(FINALE_MAP) > 0;

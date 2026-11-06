@@ -1,7 +1,7 @@
 // 非同步 PvP 對戰（Q7 地基，24 §6.2、第 143 輪）：伺服器給種子與雙方配裝 → 客戶端在本機打、記下自己的指令 →
 // 伺服器用同一份引擎重跑（對手由 PlayerBot 操作，兩邊一模一樣）判勝負。指令紀錄不合法整場拒絕（做不了假）。
 // 純函式：src/server 的 pvp.start／finish 與畫面共用。
-import { addPlayer, createBattle, playerOf, stateHash, step } from './engine';
+import { addPlayer, createBattle, ctlOf, playerOf, stateHash, step } from './engine';
 import { WEAPONS } from './data';
 import { BOT_PROFILES, PlayerBot } from './sim';
 import type { BattleCommand, BattleCommandBody, BattleState, SkillMod } from './types';
@@ -36,6 +36,9 @@ export function startPvp(m: PvpMatchSetup): { s: BattleState; foeBot: PlayerBot 
   // 開場兩邊都先鎖定對方（競技場沒有怪）
   playerOf(s).targetId = foe.id;
   foe.targetId = playerOf(s).id;
+  // 第 144 輪：競技場不能喝藥水（Bot 不喝；不然改過的客戶端灌藥水指令就能拖贏，伺服器重跑也會照算）
+  s.potions = 0;
+  ctlOf(s, foe).potions = 0;
   return { s, foeBot: new PlayerBot(BOT_PROFILES[FOE_BOT]!, 'foe', 1) };
 }
 
