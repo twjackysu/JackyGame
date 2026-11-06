@@ -4,6 +4,7 @@ import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
+import { cosStep, evenStep, inSectorAngle, randStep, sinStep, xpCurve } from '../../fixedMath';
 
 // ---------------- 亂數（xorshift32，狀態存在 BattleState，可序列化） ----------------
 export function nextRand(s: BattleState): number {
@@ -49,10 +50,8 @@ export function inShape(sh: Shape, ox: number, oy: number, dirX: number, dirY: n
     case 'sector': {
       if (d > sh.r + pr) return false;
       if (d <= pr) return true;
-      const cos = (vx * fx + vy * fy) / d;
-      // 把目標半徑換算成角度寬容（貼邊也算中）
-      const half = (sh.deg / 2) * (Math.PI / 180) + Math.asin(Math.min(1, pr / d));
-      return cos >= Math.cos(Math.min(Math.PI, half));
+      // 把目標半徑換算成角度寬容（貼邊也算中）；不用反三角函式（D-280）
+      return inSectorAngle(vx, vy, d, fx, fy, sh.deg, pr);
     }
     case 'line': {
       const t = vx * fx + vy * fy;
@@ -102,7 +101,7 @@ export interface BattleSetup {
  */
 export function xpToNext(level: number): number {
   if (level <= 1) return 40;
-  return Math.round(60 * Math.pow(level, 1.7));
+  return xpCurve(level);
 }
 
 export function createBattle(setup: BattleSetup): BattleState {
@@ -146,9 +145,9 @@ export function createBattle(setup: BattleSetup): BattleState {
     if (g.nightOnly && !s.night) continue;
     // 開場：等角度排在半徑 60% 的圓上（不用亂數，方便擺關卡）；石頭上的會被推出去
     for (let k = 0; k < g.maxAlive; k++) {
-      const a = (k / g.maxAlive) * Math.PI * 2;
+      const a = evenStep(k, g.maxAlive);
       const r = g.maxAlive === 1 ? 0 : g.spawnRadius * 0.6;
-      s.units.push(spawnFromGroup(s, g, g.cx + Math.round(Math.cos(a) * r), g.cy + Math.round(Math.sin(a) * r)));
+      s.units.push(spawnFromGroup(s, g, g.cx + Math.round(cosStep(a) * r), g.cy + Math.round(sinStep(a) * r)));
     }
   }
   return s;
@@ -275,9 +274,9 @@ function processRespawns(s: BattleState): void {
       break;
     }
     due.shift();
-    const a = nextRand(s) * Math.PI * 2;
+    const a = randStep(nextRand(s));
     const r = Math.sqrt(nextRand(s)) * g.spawnRadius;
-    const m = spawnFromGroup(s, g, g.cx + Math.round(Math.cos(a) * r), g.cy + Math.round(Math.sin(a) * r));
+    const m = spawnFromGroup(s, g, g.cx + Math.round(cosStep(a) * r), g.cy + Math.round(sinStep(a) * r));
     const gone = s.units.findIndex((u) => u.dead && u.groupId === id);
     if (gone >= 0) s.units.splice(gone, 1);
     s.units.push(m);
@@ -297,9 +296,9 @@ function rollDrops(s: BattleState, e: Unit): void {
   const more = (n: number) => (bonus ? Math.round((n * (100 + bonus)) / 100) : n);
   const put = (kind: LootId, amount: number, rarity?: 1 | 2 | 3) => {
     if (amount <= 0) return;
-    const a = lootRand(s) * Math.PI * 2;
+    const a = randStep(lootRand(s));
     const r = (0.3 + lootRand(s) * 0.5) * UNIT;
-    const it: GroundItem = { id: (s.lootSeq = (s.lootSeq ?? 0) + 1), kind, amount, x: e.x + Math.round(Math.cos(a) * r), y: e.y + Math.round(Math.sin(a) * r), tick: s.tick };
+    const it: GroundItem = { id: (s.lootSeq = (s.lootSeq ?? 0) + 1), kind, amount, x: e.x + Math.round(cosStep(a) * r), y: e.y + Math.round(sinStep(a) * r), tick: s.tick };
     if (rarity) it.rarity = rarity;
     it.x = Math.min(s.arena.w - 20, Math.max(20, it.x));
     it.y = Math.min(s.arena.h - 20, Math.max(20, it.y));
@@ -360,9 +359,9 @@ function processPickup(s: BattleState): void {
 function ringSpot(s: BattleState, p: Unit, units: number): { x: number; y: number } | null {
   const start = Math.floor(nextRand(s) * 8);
   for (let k = 0; k < 8; k++) {
-    const a = ((start + k) / 8) * Math.PI * 2;
-    const x = p.x + Math.round(Math.cos(a) * units * UNIT);
-    const y = p.y + Math.round(Math.sin(a) * units * UNIT);
+    const a = evenStep(start + k, 8);
+    const x = p.x + Math.round(cosStep(a) * units * UNIT);
+    const y = p.y + Math.round(sinStep(a) * units * UNIT);
     if (x < UNIT || y < UNIT || x > s.arena.w - UNIT || y > s.arena.h - UNIT) continue;
     if (s.arena.solid && isSolidAt(s.arena.solid, x, y)) continue;
     if (campfireNear(s, x, y, CAMPFIRE_RULES.safeUnits)) continue;
@@ -450,8 +449,8 @@ function processRiot(s: BattleState): void {
   const elite = !!r.eliteId && nextRand(s) * 100 < (r.eliteChance ?? 0);
   for (let i = 0; i < n; i++) {
     const def = ENEMIES[elite && i === 0 ? r.eliteId! : r.enemyId]!;
-    const a = (i / n) * Math.PI * 2;
-    const m = makeEnemy(s, def, at.x + Math.round(Math.cos(a) * 1.5 * UNIT), at.y + Math.round(Math.sin(a) * 1.5 * UNIT));
+    const a = evenStep(i, n);
+    const m = makeEnemy(s, def, at.x + Math.round(cosStep(a) * 1.5 * UNIT), at.y + Math.round(sinStep(a) * 1.5 * UNIT));
     if (r.hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + r.hpPct)) / 100);
     clampArena(s, m);
     m.tier = elite && i === 0 ? 'elite' : 'normal';

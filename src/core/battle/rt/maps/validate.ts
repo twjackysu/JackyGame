@@ -4,6 +4,8 @@ import { ENEMIES } from '../data';
 import { cellIndex, flowField, gridOf } from '../path';
 import type { StageDefinition } from '../types';
 import { CAMPFIRE_RULES, UNIT } from '../types';
+/** 長度（不用 Math.hypot：它不保證各引擎結果一致，D-280） */
+const hyp = (x: number, y: number): number => Math.sqrt(x * x + y * y);
 
 export function validateStage(def: StageDefinition): string[] {
   const out: string[] = [];
@@ -64,10 +66,10 @@ export function validateStage(def: StageDefinition): string[] {
     check(`重生點 ${g.id}`, g.cx, g.cy);
     (g.patrol ?? []).forEach((pt, i) => {
       check(`重生點 ${g.id} 巡邏點 #${i}`, pt.x, pt.y);
-      for (const c of def.campfires ?? []) if (Math.hypot(pt.x - c.x, pt.y - c.y) < CAMPFIRE_RULES.safeUnits * UNIT + UNIT) out.push(`重生點 ${g.id} 巡邏點 #${i} 太靠近營火 ${c.id}`);
+      for (const c of def.campfires ?? []) if (hyp(pt.x - c.x, pt.y - c.y) < CAMPFIRE_RULES.safeUnits * UNIT + UNIT) out.push(`重生點 ${g.id} 巡邏點 #${i} 太靠近營火 ${c.id}`);
     });
     for (const c of def.campfires ?? []) {
-      if (Math.hypot(g.cx - c.x, g.cy - c.y) < CAMPFIRE_RULES.safeUnits * UNIT + g.spawnRadius) out.push(`重生點 ${g.id} 和營火 ${c.id} 的安全圈重疊`);
+      if (hyp(g.cx - c.x, g.cy - c.y) < CAMPFIRE_RULES.safeUnits * UNIT + g.spawnRadius) out.push(`重生點 ${g.id} 和營火 ${c.id} 的安全圈重疊`);
     }
     if (sol && grid) {
       // 半徑內至少要有 maxAlive 格空地
@@ -76,7 +78,7 @@ export function validateStage(def: StageDefinition): string[] {
       for (let y = Math.floor((g.cy - g.spawnRadius) / c); y <= Math.floor((g.cy + g.spawnRadius) / c); y++) {
         for (let x = Math.floor((g.cx - g.spawnRadius) / c); x <= Math.floor((g.cx + g.spawnRadius) / c); x++) {
           if (x < 0 || y < 0 || x >= grid.w || y >= grid.h || grid.walk[y * grid.w + x] === 0) continue;
-          if (Math.hypot(x * c + c / 2 - g.cx, y * c + c / 2 - g.cy) <= g.spawnRadius + c / 2) free++;
+          if (hyp(x * c + c / 2 - g.cx, y * c + c / 2 - g.cy) <= g.spawnRadius + c / 2) free++;
         }
       }
       if (free < g.maxAlive) out.push(`重生點 ${g.id} 半徑內只有 ${free} 格空地，少於 maxAlive ${g.maxAlive}`);
@@ -95,15 +97,15 @@ export function validateStage(def: StageDefinition): string[] {
     check(`危害 #${i}`, h.x, h.y);
     if (h.r <= 0 || h.pct <= 0 || (h.nightR !== undefined && h.nightR < h.r)) out.push(`危害 #${i} 的半徑或傷害不是正數（或深夜半徑比白天小）`);
     const r = Math.max(h.r, h.nightR ?? 0);
-    for (const c of def.campfires ?? []) if (Math.hypot(c.x - h.x, c.y - h.y) < r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`危害 #${i} 太靠近營火 ${c.id}`);
-    if (Math.hypot(def.player.x - h.x, def.player.y - h.y) < r + 2 * UNIT) out.push(`危害 #${i} 太靠近玩家起點`);
+    for (const c of def.campfires ?? []) if (hyp(c.x - h.x, c.y - h.y) < r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`危害 #${i} 太靠近營火 ${c.id}`);
+    if (hyp(def.player.x - h.x, def.player.y - h.y) < r + 2 * UNIT) out.push(`危害 #${i} 太靠近玩家起點`);
   });
   // 噴發口（D-125）：中心走得到、預告比週期短、不蓋到營火休息圈與玩家起點
   (def.vents ?? []).forEach((v, i) => {
     check(`噴發口 #${i}`, v.x, v.y);
     if (v.r <= 0 || v.pct <= 0 || v.warnTicks <= 0 || v.warnTicks >= Math.min(v.everyTicks, v.nightEveryTicks ?? v.everyTicks)) out.push(`噴發口 #${i} 的半徑／傷害／預告時間不合理`);
-    for (const c of def.campfires ?? []) if (Math.hypot(c.x - v.x, c.y - v.y) < v.r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`噴發口 #${i} 太靠近營火 ${c.id}`);
-    if (Math.hypot(def.player.x - v.x, def.player.y - v.y) < v.r + 2 * UNIT) out.push(`噴發口 #${i} 太靠近玩家起點`);
+    for (const c of def.campfires ?? []) if (hyp(c.x - v.x, c.y - v.y) < v.r + CAMPFIRE_RULES.safeUnits * UNIT) out.push(`噴發口 #${i} 太靠近營火 ${c.id}`);
+    if (hyp(def.player.x - v.x, def.player.y - v.y) < v.r + 2 * UNIT) out.push(`噴發口 #${i} 太靠近玩家起點`);
   });
   return out;
 }

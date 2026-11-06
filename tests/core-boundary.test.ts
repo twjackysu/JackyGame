@@ -25,8 +25,9 @@ function importsOf(text: string): string[] {
   return res;
 }
 
-const FORBIDDEN_LAYERS = [/^phaser$/, /(^|\/)game(\/|$)/, /(^|\/)audio(\/|$)/, /(^|\/)i18n(\/|$)/];
-const NONDETERMINISTIC = /\bMath\.random\s*\(|\bDate\.now\s*\(|\bnew\s+Date\s*\(/;
+const FORBIDDEN_LAYERS = [/^phaser$/, /(^|\/)(server|client|net|scenes)(\/|$)/, /(^|\/)game(\/|$)/, /(^|\/)audio(\/|$)/, /(^|\/)i18n(\/|$)/];
+// D-280：三角／指數函數各 JS 引擎可能差最後一位（伺服器用 Node 重跑客戶端紀錄會對不上），一律改用 src/core/fixedMath.ts
+const NONDETERMINISTIC = /\bMath\.(random|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|exp|expm1|pow|log|log2|log10|log1p|hypot|cbrt)\s*\(|\bDate\b|\bperformance\.|\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bwindow\.|\bdocument\./;
 
 describe('src/core 不得反向依賴畫面與音訊', () => {
   for (const f of listTs('src/core')) {

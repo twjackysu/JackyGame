@@ -2,6 +2,8 @@
 // P2 霧語森林本體等 Jacky 試玩回覆（D-065），這張只是壓力測試用。
 import type { StageDefinition } from '../types';
 import { sec, u } from '../types';
+/** 長度（不用 Math.hypot：它不保證各引擎結果一致，D-280） */
+const hyp = (x: number, y: number): number => Math.sqrt(x * x + y * y);
 
 const W = 48;
 const H = 96;
@@ -12,7 +14,7 @@ export function testWorldRows(): string[] {
   for (let y = 0; y < H; y++) {
     let r = '';
     for (let x = 0; x < W; x++) {
-      const nearCamp = Math.hypot(x - 24, y - 90) < 5 || Math.hypot(x - 24, y - 50) < 5;
+      const nearCamp = hyp(x - 24, y - 90) < 5 || hyp(x - 24, y - 50) < 5;
       const wall = (y === 70 || y === 30) && x % 16 !== 8 && x % 16 !== 7; // 兩道林牆，各留三個缺口
       r += !nearCamp && (wall || rnd() < 0.05) ? '#' : '.';
     }
