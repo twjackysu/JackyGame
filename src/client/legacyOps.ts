@@ -67,3 +67,10 @@ export function legacyOp<T>(
   chain = run;
   return run;
 }
+
+/** 排在面板動作同一條佇列後面執行（換角色等，D-302）；錯誤照樣丟給呼叫的人 */
+export function legacySerial<T>(fn: () => Promise<T>): Promise<T> {
+  const run = chain.then(fn);
+  chain = run.catch(() => undefined);
+  return run;
+}

@@ -146,3 +146,28 @@ for (const be of BACKENDS)
       expect((await a.call('warehouse.get', {})).items.map((i) => i.pos)).toEqual(Array.from({ length: 40 }, (_, i) => i));
     }, 60_000);
   });
+
+for (const be of BACKENDS)
+  describe(`換角色的舊 key 快照（${be.name}）`, () => {
+    it('migrate.pull：遷移的角色轉回舊 key → 再 sync 一次完全不變（來回不掉資料）；新角色是 1 級空手', async () => {
+      const { a, A } = await setup(be);
+      const before = await a.call('character.get', { id: A });
+      const { characterId, snapshot } = await a.call('migrate.pull', {});
+      expect(characterId).toBe(A);
+      expect(snapshot.jg_weapon).toBe('bow');
+      expect(snapshot.jg_memories).toBe(LEGACY_SAMPLE.jg_memories);
+      expect(snapshot.jg_prologue_seen).toBeUndefined(); // 裝置 key 不跟角色走
+      const after = await a.call('migrate.sync', { snapshot: { ...snapshot, jg_prologue_seen: '1' } });
+      expect(after).toEqual(before);
+      // 換到新角色
+      const c2 = await a.call('character.create', { name: '弓手', weapon: 'staff' });
+      await a.call('character.select', { id: c2.id });
+      const p2 = await a.call('migrate.pull', {});
+      expect(p2.characterId).toBe(c2.id);
+      expect(p2.snapshot.jg_weapon).toBe('staff');
+      expect(JSON.parse(p2.snapshot.jg_rt_mistwood!)).toMatchObject({ level: 1, xp: 0, bag: [], equip: {} });
+      // 換回來，原本的角色資料還在
+      await a.call('character.select', { id: A });
+      expect((await a.call('migrate.pull', {})).snapshot).toEqual(snapshot);
+    });
+  });

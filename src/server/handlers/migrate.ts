@@ -1,14 +1,15 @@
 // migrate.legacy：第一次啟動把舊的 localStorage 存檔轉成帳號 1／角色 1（只有本機版接受，線上版不能匯入離線存檔：26-security）
 import { ApiError } from '../../net/protocol';
 import type { HandlerTable } from '../router';
-import { fromLegacy, isLegacyEmpty } from '../legacy';
+import { fromLegacy, isLegacyEmpty, toLegacy } from '../legacy';
+import { isGear } from '../../core/battle/rt/gear';
 import { createCharacter } from './build';
 import { activeCharacter, ensureAccount } from './common';
 import { CURRENCIES } from '../repos/types';
 import { characterView } from '../views';
 import type { RtGear } from '../../core/battle/rt/gear';
 
-export const migrateHandlers: Pick<HandlerTable, 'migrate.legacy' | 'migrate.sync'> = {
+export const migrateHandlers: Pick<HandlerTable, 'migrate.legacy' | 'migrate.sync' | 'migrate.pull'> = {
   'migrate.legacy': async (ctx, p) => {
     if (!ctx.local) throw new ApiError('rejected', 'legacy import is local only');
     const snap = p?.snapshot;
@@ -61,5 +62,18 @@ export const migrateHandlers: Pick<HandlerTable, 'migrate.legacy' | 'migrate.syn
     const next = { ...c0, weapon: L.weapon, level: L.level, xp: L.xp, stats: L.stats, skills: L.skills, variants: L.variants, bounty: L.bounty, shop: L.shop, maps: L.maps, story: L.story };
     const c = same(next, c0) ? c0 : await ctx.r.characters.save(next);
     return characterView(ctx.r, c);
+  },
+
+  // 過渡期（D-302）：換角色時把「目前角色」轉回舊 key 的快照，客戶端寫回 localStorage 後重開畫面。只有本機版。
+  'migrate.pull': async (ctx) => {
+    if (!ctx.local) throw new ApiError('rejected', 'legacy pull is local only');
+    const c = await activeCharacter(ctx);
+    if (!c) throw new ApiError('not_found', 'character');
+    const rows = await ctx.r.items.listByOwner(c.id);
+    const bag = rows.filter((r) => r.location === 'bag').sort((a, b) => a.pos - b.pos).map((r) => r.gear as unknown).filter(isGear);
+    const equip: Record<string, RtGear> = {};
+    for (const r of rows) if (r.location.startsWith('equip:') && isGear(r.gear)) equip[r.location.slice(6)] = r.gear;
+    const snapshot = toLegacy({ ...c, bag, equip, wallet: await ctx.r.wallets.balances(c.id) });
+    return { characterId: c.id, snapshot };
   },
 };

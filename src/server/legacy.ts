@@ -3,6 +3,7 @@
 // 其他 jg_rt_<map> 只有地圖欄位（MAP_KEYS）。材料＝累計撿到 − spent。jg_weapon 是武器。
 import { isGear, type RtGear } from '../core/battle/rt/gear';
 import type { CurrencyId, LegacySnapshot, MapProgressView, WeaponView } from '../net/views';
+import { DEVICE_KEY } from '../net/legacyKeys';
 
 /** 和 src/game/rtRecord.ts 的 MAP_KEYS 一樣（tests/server-contract/legacy.test.ts 會檢查） */
 export const LEGACY_MAP_KEYS = ['bossKills', 'firstAt', 'bestBossSec', 'chests', 'fury', 'furyKills', 'night', 'fire'] as const;
@@ -96,4 +97,48 @@ export function fromLegacy(snap: LegacySnapshot): LegacyCharacter {
     wallet: { coin: have('coin'), dust: have('dust'), crystal: have('crystal') },
     skipped,
   };
+}
+
+
+export interface LegacySource {
+  weapon: WeaponView;
+  level: number;
+  xp: number;
+  stats: Record<string, number>;
+  skills: unknown;
+  variants: unknown;
+  bounty: unknown;
+  shop: unknown;
+  maps: Record<string, MapProgressView>;
+  story: Record<string, string>;
+  bag: RtGear[];
+  equip: Record<string, RtGear>;
+  wallet: Record<CurrencyId, number>;
+}
+
+/**
+ * 角色 → 舊存檔快照（fromLegacy 的反方向；換角色時把新角色寫回舊 key，D-302）。
+ * 材料＝累計撿到 − spent：累計照角色的 stats，spent＝累計 − 手上有的（拍賣所賺的錢會讓 spent 變負，和 legacyMirror 一樣）。
+ * 不含裝置 key（DEVICE_KEY）。
+ */
+export function toLegacy(c: LegacySource): LegacySnapshot {
+  const out: LegacySnapshot = {};
+  const home: Record<string, unknown> = { ...(c.maps[LEGACY_HOME] ?? {}) };
+  for (const k of STAT_KEYS) if (okNum(c.stats[k])) home[k] = c.stats[k];
+  home.level = c.level;
+  home.xp = c.xp;
+  const spent: Record<string, number> = {};
+  for (const cur of ['coin', 'dust', 'crystal'] as const) {
+    const total = okNum(c.stats[cur]) ? c.stats[cur] : 0;
+    if (total !== c.wallet[cur]) spent[cur] = total - c.wallet[cur];
+  }
+  if (Object.keys(spent).length) home.spent = spent;
+  home.bag = c.bag;
+  home.equip = c.equip;
+  for (const [k, v] of [['skills', c.skills], ['variants', c.variants], ['bounty', c.bounty], ['shop', c.shop]] as const) if (v !== null && v !== undefined) home[k] = v;
+  out[`jg_rt_${LEGACY_HOME}`] = JSON.stringify(home);
+  for (const [id, m] of Object.entries(c.maps)) if (id !== LEGACY_HOME && /^[a-z0-9_]{1,32}$/.test(id) && Object.keys(m).length) out[`jg_rt_${id}`] = JSON.stringify(m);
+  for (const [k, v] of Object.entries(c.story)) if (STORY_KEY.test(k) && !DEVICE_KEY.test(k) && typeof v === 'string') out[k] = v;
+  out.jg_weapon = c.weapon;
+  return out;
 }

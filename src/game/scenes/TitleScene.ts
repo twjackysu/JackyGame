@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
+import { openRoster } from '../ui/rosterPanel';
+import { loadRoster } from '../../client/roster';
 import { SFX } from '../../audio/sfx';
 import { bossKillsOf, mapOpen } from '../rtRecord';
 import { chapterSeen } from '../chapters';
@@ -378,10 +380,37 @@ export class TitleScene extends Phaser.Scene {
         this.tweens.add({ targets: msg, y: msg.y - 30, alpha: 0, delay: 1200, duration: 600, onComplete: () => msg.destroy() });
       });
       menu.add(w);
+      this.rosterButton(menu, cx - 282, y, items.length);
     }
     WORLD_MAPS.forEach((m) => {
       if (mapOpen(m.id)) markMapSeen(m.id);
     });
+  }
+
+  /** 角色（F1 多角色，D-302）：「設定」左邊的小按鈕，寫目前角色的名字；換了角色整個標題重開（記憶體裡的進度是舊角色的） */
+  private rosterButton(menu: Phaser.GameObjects.Container, x: number, y: number, n: number): void {
+    const b = this.add.container(x, y);
+    const g = this.add.graphics();
+    g.fillStyle(0x0a0d1a, 0.85).fillRoundedRect(-62, -42, 124, 84, 18);
+    g.lineStyle(2, 0xffd27a, 0.5).strokeRoundedRect(-62, -42, 124, 84, 18);
+    const tx = this.add.text(0, 0, '角色\n⇄', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', align: 'center', lineSpacing: 2 }).setOrigin(0.5);
+    b.add([g, tx]).setSize(124, 84).setInteractive({ useHandCursor: true }).setAlpha(0);
+    this.tweens.add({ targets: b, alpha: 1, delay: 100 + n * 80, duration: 300 });
+    void loadRoster().then((r) => {
+      const me = r?.characters.find((c) => c.id === r.activeId);
+      if (me && tx.active) tx.setText(`角色\n${me.name}`);
+    });
+    b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      if (this.busy) return;
+      SFX.confirm();
+      this.busy = true;
+      void openRoster(this).then((switched) => {
+        this.busy = false;
+        if (switched) this.go(() => this.scene.restart());
+      });
+    });
+    menu.add(b);
   }
 
   /** 新開放的地圖按鈕：金色光框脈動三下、右上角「NEW」、一圈金色火星 */
