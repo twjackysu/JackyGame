@@ -14,8 +14,8 @@ export interface RosterInfo {
 export async function loadRoster(): Promise<RosterInfo | null> {
   try {
     const { client } = await bootServer();
-    // 先把目前的舊 key 同步上去，列表上的等級、金幣才是最新的
-    await legacySerial(() => client.call('migrate.sync', { snapshot: captureLegacy() }));
+    // 先把目前的舊 key 同步上去，列表上的等級、金幣才是最新的（線上版不同步：伺服器的角色就是真相，D-306）
+    if (!import.meta.env.VITE_SERVER_URL) await legacySerial(() => client.call('migrate.sync', { snapshot: captureLegacy() }));
     const [acc, characters] = await Promise.all([client.call('account.get', {}), client.call('character.list', {})]);
     const sorted = characters.slice().sort((a, b) => a.slot - b.slot);
     return { activeId: acc.activeCharacterId ?? sorted[0]?.id ?? '', characters: sorted };
@@ -41,6 +41,11 @@ export async function switchCharacter(id: string): Promise<boolean> {
   try {
     const { client } = await bootServer();
     return await legacySerial(async () => {
+      if (import.meta.env.VITE_SERVER_URL) {
+        // 線上版（D-306）：只換伺服器的目前角色；本機的冒險進度不跟著換（等 loot.claim 之後畫面改讀伺服器）
+        await client.call('character.select', { id });
+        return true;
+      }
       await client.call('migrate.sync', { snapshot: captureLegacy() });
       await client.call('character.select', { id });
       const { snapshot } = await client.call('migrate.pull', {});

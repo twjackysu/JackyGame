@@ -17,8 +17,8 @@ export const accountHandlers: Pick<HandlerTable, 'account.get' | 'account.export
 
   'account.export': async (ctx) => {
     const acc = await ensureAccount(ctx);
-    const chars: (CharacterView & { story: Record<string, string> })[] = [];
-    for (const c of await ctx.r.characters.listByAccount(ctx.accountId)) chars.push({ ...(await characterView(ctx.r, c)), story: c.story });
+    const chars: (CharacterView & { story: Record<string, string>; pvpRating?: number })[] = [];
+    for (const c of await ctx.r.characters.listByAccount(ctx.accountId)) chars.push({ ...(await characterView(ctx.r, c)), story: c.story, ...(c.pvpRating === undefined ? {} : { pvpRating: c.pvpRating }) });
     const blob: ExportBlob = { format: 'jackygame-save', version: EXPORT_VERSION, exportedAt: ctx.clock.now(), data: { account: [accountView(acc)], characters: chars, warehouse: (await whRows(ctx)).map((i) => ({ pos: i.pos, bound: i.bound, gear: i.gear })) } };
     return blob;
   },
@@ -27,7 +27,7 @@ export const accountHandlers: Pick<HandlerTable, 'account.get' | 'account.export
     if (!ctx.local) throw new ApiError('rejected', 'import is local only');
     const b = p?.blob;
     if (!b || b.format !== 'jackygame-save' || b.version !== EXPORT_VERSION || !b.data || !Array.isArray(b.data.characters)) throw new ApiError('bad_request', 'not a save file');
-    const chars = b.data.characters as Partial<CharacterView & { story: Record<string, string> }>[];
+    const chars = b.data.characters as Partial<CharacterView & { story: Record<string, string>; pvpRating: number }>[];
     if (chars.length > MAX_CHARACTERS) throw new ApiError('bad_request', 'too many characters');
     const acc = await ensureAccount(ctx);
     for (const c of await ctx.r.characters.listByAccount(ctx.accountId)) await deleteCharacter(ctx, c.id);
@@ -56,6 +56,8 @@ export const accountHandlers: Pick<HandlerTable, 'account.get' | 'account.export
           // 拍賣所／交易中的物品匯入後回到行囊（掛單不跟著匯出）
           items: items.map((it) => ({ location: it.location === 'bag' || it.location.startsWith('equip:') ? it.location : 'bag', pos: num(it.pos), bound: !!it.bound, gear: it.gear })),
           wallet: { coin: num(w.coin), dust: num(w.dust), crystal: num(w.crystal) },
+          // 段位分（第 146 輪起匯出）；只有本機能匯入，夾在合理範圍
+          ...(typeof c.pvpRating === 'number' && Number.isFinite(c.pvpRating) ? { pvpRating: Math.min(5000, Math.max(1, Math.floor(c.pvpRating))) } : {}),
         },
         'import',
       );

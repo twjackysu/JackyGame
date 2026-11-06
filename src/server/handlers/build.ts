@@ -19,6 +19,8 @@ export interface CharacterSeed {
   story: Record<string, string>;
   items: { location: string; pos: number; bound: boolean; gear: RtGear | Record<string, unknown> }[];
   wallet: Record<CurrencyId, number>;
+  /** 競技場段位分（匯入存檔時帶回來；沒有就是起始分） */
+  pvpRating?: number;
 }
 
 export async function createCharacter(ctx: Ctx, seed: CharacterSeed, reason: string): Promise<CharacterRow> {
@@ -38,6 +40,7 @@ export async function createCharacter(ctx: Ctx, seed: CharacterSeed, reason: str
     shop: seed.shop,
     maps: seed.maps,
     story: seed.story,
+    ...(seed.pvpRating === undefined ? {} : { pvpRating: seed.pvpRating }),
     createdAt: now,
     version: 0,
   });

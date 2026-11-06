@@ -64,6 +64,11 @@ for (const be of BACKENDS)
       expect(lad.rows.slice(0, 10).every((r, i, xs) => i === 0 || xs[i - 1]!.rating >= r.rating)).toBe(true);
       expect(lad.total).toBeGreaterThan(20);
       expect(await code(b.call('pvp.ladder', { characterId }))).toBe('not_found');
+      // 匯出 → 匯入（第 146 輪）：段位分跟著存檔走
+      const blob = await a.call('account.export', {});
+      await a.call('account.import', { blob });
+      const after = (await a.call('character.list', {}))[0]!;
+      expect((await a.call('pvp.ladder', { characterId: after.id })).rating).toBe(res.rating);
     });
 
     it('造假的紀錄整筆拒絕、對局留著；過期作廢', async () => {

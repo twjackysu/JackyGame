@@ -24,7 +24,9 @@ const DIR = 1000;
 const K = 0.44;
 const ME = 0x6ab8ff;
 const FOE = 0xff6a5a;
-type Phase = 'lobby' | 'loading' | 'intro' | 'fight' | 'judging' | 'result' | 'error';
+type Phase = 'lobby' | 'loading' | 'intro' | 'fight' | 'judging' | 'result' | 'replay' | 'error';
+/** 重播速度（第 146 輪：結算畫面「看重播」） */
+const REPLAY_SPEED = 2;
 
 export class PvpScene extends Phaser.Scene {
   private phase: Phase = 'loading';
@@ -32,6 +34,10 @@ export class PvpScene extends Phaser.Scene {
   private s!: BattleState;
   private foeBot!: PlayerBot;
   private inputs: PvpInputs = [];
+  /** 伺服器判定的結果（重播完再顯示一次） */
+  private last: PvpResult | null = null;
+  /** 重播進行到第幾筆指令紀錄 */
+  private rpIdx = 0;
   private inp = new InputSystem();
   private acc = 0;
   private evIdx = 0;
@@ -222,18 +228,25 @@ export class PvpScene extends Phaser.Scene {
   }
 
   update(_t: number, delta: number): void {
-    if (this.phase === 'fight') {
-      this.acc += delta;
+    if (this.phase === 'fight' || this.phase === 'replay') {
+      const rp = this.phase === 'replay';
+      this.acc += rp ? delta * REPLAY_SPEED : delta;
       let n = 0;
-      while (this.acc >= STEP_MS && n < 4 && this.s.outcome === 'running') {
+      while (this.acc >= STEP_MS && n < (rp ? 4 * REPLAY_SPEED : 4) && this.s.outcome === 'running') {
         for (const u of this.units()) this.prev.set(u.id, { x: u.x, y: u.y });
-        step(this.s, this.commands());
+        step(this.s, rp ? this.replayCommands() : this.commands());
         this.acc -= STEP_MS;
         n++;
         this.playEvents();
       }
       if (this.acc > STEP_MS * 4) this.acc = 0;
-      if (this.s.outcome !== 'running') this.finish();
+      if (this.s.outcome !== 'running') {
+        if (rp) {
+          if (this.last && this.s.outcome !== this.last.outcome) console.warn('[pvp] 重播結果和伺服器判定不同', this.s.outcome, this.last.outcome);
+          this.showResult(this.last);
+        }
+        else this.finish();
+      }
     }
     if (this.open) this.draw();
   }
@@ -287,7 +300,7 @@ export class PvpScene extends Phaser.Scene {
 
   private lerp(u: Unit): { x: number; y: number } {
     const p = this.prev.get(u.id);
-    if (!p || this.phase !== 'fight') return { x: u.x, y: u.y };
+    if (!p || (this.phase !== 'fight' && this.phase !== 'replay')) return { x: u.x, y: u.y };
     const t = Math.min(1, this.acc / STEP_MS);
     return { x: p.x + (u.x - p.x) * t, y: p.y + (u.y - p.y) * t };
   }
@@ -391,7 +404,7 @@ export class PvpScene extends Phaser.Scene {
     bar(W - 274, 40, 250, foe.hp / foe.maxHp, FOE, true);
     h.fillStyle(0x9ac0ff, 0.9).fillRect(24, 70, (250 * me.mp) / Math.max(1, playerDef(s, me).mp), 6);
     const left = Math.max(0, Math.ceil((s.timeLimitTicks - s.tick) / TICKS_PER_SEC));
-    this.timer.setText(`${left}`);
+    this.timer.setText(this.phase === 'replay' ? `▶×${REPLAY_SPEED}  ${left}` : `${left}`);
     if (!this.names.length) return;
     if (!this.hudText) {
       this.hudText = [
@@ -470,6 +483,7 @@ export class PvpScene extends Phaser.Scene {
 
   private showResult(r: PvpResult | null): void {
     this.phase = 'result';
+    this.last = r;
     if (!r) {
       this.status.setText('伺服器沒有接受這場的結果\n（紀錄被拒或伺服器沒有回應）').setFontSize(30).setColor('#ffb0a8');
       this.endButtons();
@@ -488,8 +502,8 @@ export class PvpScene extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
     const y = GAME_HEIGHT - 220;
     const made: Phaser.GameObjects.Container[] = [];
-    const mk = (x: number, label: string, fn: () => void) => {
-      const c = this.add.container(x, y).setDepth(90);
+    const mk = (x: number, label: string, fn: () => void, by = y) => {
+      const c = this.add.container(x, by).setDepth(90);
       made.push(c);
       const bg = this.add.graphics();
       bg.fillStyle(0x0a0d1a, 0.92).fillRoundedRect(-140, -40, 280, 80, 18);
@@ -511,8 +525,33 @@ export class PvpScene extends Phaser.Scene {
       b.cd.setVisible(false);
     }
     this.buttons = [];
+    if (this.last && this.open) mk(cx, '▶ 看重播', () => this.replay(), y - 110);
     mk(cx - 150, '再來一場', () => fadeOutThen(this, 200, () => this.scene.restart()));
     mk(cx + 150, '離開', () => this.leave());
+  }
+
+  /** 重播剛才那場（第 146 輪）：同一個種子＋你的指令紀錄＋對手 Bot，跟伺服器重跑的是同一場；兩倍速 */
+  private replay(): void {
+    const st = startPvp(this.open!.setup);
+    this.s = st.s;
+    this.foeBot = st.foeBot;
+    this.rpIdx = 0;
+    this.evIdx = 0;
+    this.acc = 0;
+    this.prev.clear();
+    this.fx = [];
+    this.flashUntil.clear();
+    this.phase = 'replay';
+    this.status.setText(`▶ 重播 ×${REPLAY_SPEED}`).setFontSize(40).setColor('#bfe0ff').setScale(1);
+    this.time.delayedCall(700, () => this.phase === 'replay' && this.status.setText(''));
+  }
+
+  private replayCommands(): BattleCommand[] {
+    const t = this.s.tick + 1;
+    while (this.rpIdx < this.inputs.length && this.inputs[this.rpIdx]!.t < t) this.rpIdx++;
+    const r = this.inputs[this.rpIdx];
+    const mine = r && r.t === t ? r.c : [];
+    return [...mine, ...this.foeBot.decide(this.s)];
   }
 
   private leave(): void {
