@@ -50,6 +50,44 @@ for (const be of BACKENDS)
       expect(again.wallet).toEqual(v.wallet);
     });
 
+    it('拍賣所：上架的物品不會被 sync 刪掉；模擬玩家買走後的收入寫回舊 key，下一次 sync 不會被蓋掉', async () => {
+      const { db } = await be.fresh(() => 0);
+      const clock = new FakeClock();
+      const server = new GameServer({ db, auth: new LocalAuth(), clock, ids: new SeqIds(), local: true, rng: () => 0, sim: { players: 20, throttleMs: 0, maxActions: 60 } });
+      let n = 0;
+      const client = new GameClient(new LocalTransport((j) => server.handle(j)), { token: LOCAL_TOKEN, timeoutMs: 15000, newRequestId: () => `m${++n}` });
+      const ls = new MapStorage();
+      for (const [k, v] of Object.entries(LEGACY_SAMPLE)) ls.setItem(k, v);
+      const { characterId } = await client.call('migrate.legacy', { snapshot: legacySnapshot(ls) });
+      // 打開拍賣所（marketOps 的流程）：sync → browse（模擬玩家補跑）→ mine → 以伺服器為準寫回
+      const step = async () => {
+        await client.call('migrate.sync', { snapshot: legacySnapshot(ls) });
+        await client.call('market.browse', {});
+        const m = await client.call('market.mine', { characterId });
+        mirrorToLegacy(ls, m.character, ['items', 'wallet']);
+        return m;
+      };
+      const me0 = await client.call('character.get', { id: characterId });
+      const armor = me0.items.find((i) => i.gear.uid === 'g2')!;
+      // 上架（先不逛，模擬玩家還沒機會買）→ 寫回舊 key：行囊裡沒有這件了
+      mirrorToLegacy(ls, (await client.call('market.list', { characterId, itemId: armor.id, price: 1 })).character, ['items', 'wallet']);
+      expect(fromLegacy(legacySnapshot(ls)).bag.map((g) => g.uid)).not.toContain('g2');
+      // 別的面板動作（sync）不會把掛單中的物品刪掉
+      await client.call('migrate.sync', { snapshot: legacySnapshot(ls) });
+      expect((await client.call('character.get', { id: characterId })).items.find((i) => i.id === armor.id)!.location).toMatch(/^market:/);
+      // 時間過去，模擬玩家買走（1 金的好價）
+      let m = await step();
+      for (let h = 0; h < 48 && m.listings[0]!.status === 'open'; h++) {
+        clock.advance(3600_000);
+        m = await step();
+      }
+      expect(m.listings[0]!.status).toBe('sold');
+      const coin = m.character.wallet.coin;
+      expect(fromLegacy(legacySnapshot(ls)).wallet.coin).toBe(coin);
+      // 之後別的面板 sync：金幣照舊
+      expect((await client.call('migrate.sync', { snapshot: legacySnapshot(ls) })).wallet.coin).toBe(coin);
+    });
+
     it('線上版不接受 sync', async () => {
       const { db } = await be.fresh(() => 0);
       const server = new GameServer({ db, auth: new LocalAuth(), clock: new FakeClock(), ids: new SeqIds(), local: false });
