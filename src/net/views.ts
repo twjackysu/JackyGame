@@ -167,3 +167,15 @@ export interface WarehouseView {
   max: number;
   items: ItemView[];
 }
+
+/** loot.claim 的一筆掉落（D-307）：金幣／粉塵／結晶入錢包；裝備進行囊（itemId），行囊滿了自動分解成粉塵（salvaged） */
+export interface LootDropView {
+  kind: 'gold' | 'dust' | 'crystal' | 'potion' | 'gear';
+  amount: number;
+  rarity?: 1 | 2 | 3;
+  itemId?: string;
+  /** 行囊滿了自動分解最差的普通裝得到的粉塵（D-100，跟單機一樣） */
+  salvaged?: number;
+  /** 行囊滿了又沒有可分解的：這件沒撿到 */
+  full?: boolean;
+}

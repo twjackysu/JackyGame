@@ -4,6 +4,7 @@ import { accountHandlers } from './account';
 import { cardsHandlers } from './cards';
 import { characterHandlers } from './character';
 import { inventoryHandlers } from './inventory';
+import { lootHandlers } from './loot';
 import { marketHandlers } from './market';
 import { migrateHandlers } from './migrate';
 import { pvpHandlers } from './pvp';
@@ -26,4 +27,5 @@ export const HANDLERS: HandlerTable = {
   ...pvpHandlers,
   ...tradeHandlers,
   ...warehouseHandlers,
+  ...lootHandlers,
 };

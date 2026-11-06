@@ -1,6 +1,6 @@
 // 客戶端 ↔ 伺服器的訊息格式（D-277，design/24 §1～2）。邊界上只有 JSON：這裡只放型別與純函式。
 // 換成線上版時這份檔案兩邊共用，不用改。
-import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView, WarehouseView, WeaponView } from './views';
+import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, LootDropView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView, WarehouseView, WeaponView } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -87,6 +87,20 @@ export interface Api {
   'trade.get': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
   /** 天梯排行：前幾名＋自己的名次（只讀） */
   'pvp.ladder': { params: { characterId: string }; result: PvpLadderView; write: false };
+  // PvE 掉落由伺服器擲（26-security §3.1，D-307）：開打拿 battleId → 每打倒一隻送「打倒了誰、在哪一群」→ 伺服器檢查後用自己的亂數擲掉落、直接入帳
+  'battle.start': { params: { characterId: string; stageId: string; night?: boolean }; result: { battleId: string }; write: true };
+  'loot.claim': { params: LootClaimParams; result: { drops: LootDropView[]; character: CharacterView }; write: true };
+}
+export interface LootClaimParams {
+  characterId: string;
+  battleId: string;
+  /** 這場第幾隻（遞增、不重複） */
+  killSeq: number;
+  enemyId: string;
+  groupId?: string;
+  fixedIdx?: number;
+  fury?: boolean;
+  affix?: boolean;
 }
 /** 燼牌的一手（和 core/cards 的 Move 同形狀） */
 export type CardMoveView = { type: 'play'; card: number } | { type: 'pass' };
@@ -131,6 +145,8 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'trade.confirm',
   'trade.cancel',
   'trade.get',
+  'battle.start',
+  'loot.claim',
 ]);
 
 export class ApiError extends Error {

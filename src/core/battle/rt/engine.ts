@@ -2,6 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
+import { HIDDEN_GROUP, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
@@ -294,15 +295,11 @@ function processRespawns(s: BattleState): void {
 
 // ---------------- 掉落與自動撿取（design/20 B5 最小版本） ----------------
 function rollDrops(s: BattleState, e: Unit): void {
-  const d = ENEMIES[e.defId]?.drops;
-  if (!d) return;
-  const st = STAGES[s.stageId];
-  const nt = s.night ? st?.night : undefined;
-  const bonus = (e.groupId ? (nt?.lootPct ?? 0) : 0) + (!e.groupId ? 0 : e.groupId === RIOT_GROUP ? (st?.riot?.lootPct ?? 0) : e.groupId === HIDDEN_GROUP ? (st?.hiddenElite?.lootPct ?? 0) : (st?.spawnGroups?.find((g) => g.id === e.groupId)?.lootPct ?? 0));
-  const range = (r: [number, number]) => r[0] + Math.floor(lootRand(s) * (r[1] - r[0] + 1));
-  const more = (n: number) => (bonus ? Math.round((n * (100 + bonus)) / 100) : n);
-  const put = (kind: LootId, amount: number, rarity?: 1 | 2 | 3) => {
-    if (amount <= 0) return;
+  // 擲骰規則在 loot.ts（伺服器 loot.claim 共用）；這裡只負責丟到地上
+  const ctx: LootContext = { stageId: s.stageId, defId: e.defId, night: !!s.night, fury: !!e.fury, affix: !!e.affix, firstKill: !(s.bossKills ?? []).includes(e.defId) };
+  if (e.groupId) ctx.groupId = e.groupId;
+  if (e.fixedIdx !== undefined) ctx.fixedIdx = e.fixedIdx;
+  rollEnemyLoot(ctx, () => lootRand(s), (kind, amount, rarity) => {
     const a = randStep(lootRand(s));
     const r = (0.3 + lootRand(s) * 0.5) * UNIT;
     const it: GroundItem = { id: (s.lootSeq = (s.lootSeq ?? 0) + 1), kind, amount, x: e.x + Math.round(cosStep(a) * r), y: e.y + Math.round(sinStep(a) * r), tick: s.tick };
@@ -311,30 +308,7 @@ function rollDrops(s: BattleState, e: Unit): void {
     it.y = Math.min(s.arena.h - 20, Math.max(20, it.y));
     s.ground!.push(it);
     emit(s, { tick: s.tick, type: 'drop', item: it.id, kind, amount, ...(rarity ? { rarity } : {}) });
-  };
-  put('gold', more(range(d.gold)));
-  for (const i of d.items ?? []) {
-    if (lootRand(s) * 100 >= i.chance) continue;
-    const n = i.count ? range(i.count) : 1;
-    put(i.id, i.id === 'dust' ? more(n) : n);
-  }
-  // 裝備（D-091）：只有設了 gearDrops 的關卡才多抽（舊關卡掉落亂數序列不變）
-  const gd = st?.gearDrops?.[e.defId];
-  if (gd) {
-    const hpPct = e.groupId ? (st?.spawnGroups?.find((g) => g.id === e.groupId)?.hpPct ?? (e.groupId === HIDDEN_GROUP ? 100 : 0)) : e.fixedIdx !== undefined ? (st?.enemies[e.fixedIdx]?.hpPct ?? 0) : 0;
-    const fury = e.fury ? st?.bossZone?.fury : undefined;
-    // 隱藏精英（D-100）：物品等級再 +2、稀有權重 ×2
-    const hidden = e.groupId === HIDDEN_GROUP;
-    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0) + (hidden ? 2 : 0) + (nt?.ilvlPlus ?? 0) + (e.affix ? 1 : 0);
-    const first = !!gd.firstRare && !(s.bossKills ?? []).includes(e.defId);
-    for (let k = 0; k < (fury?.count ?? gd.count ?? 1); k++) {
-      if (lootRand(s) * 100 >= (gd.chance * (100 + bonus)) / 100) continue;
-      const w0 = fury?.rarity ?? gd.rarity;
-      const w: [number, number, number] = hidden ? [w0[0], w0[1], w0[2] * 2] : w0;
-      const t = lootRand(s) * (w[0] + w[1] + w[2]);
-      put('gear', ilvl, first && k === 0 ? 3 : t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3);
-    }
-  }
+  });
 }
 
 /** 走近 2.5 單位自動撿起；藥水滿了就留在地上；放太久消失 */
@@ -379,7 +353,6 @@ function ringSpot(s: BattleState, p: Unit, units: number): { x: number; y: numbe
 }
 
 /** 隱藏精英：連殺到門檻就在附近冒出來（醒著）；打倒後重新計數 */
-const HIDDEN_GROUP = 'hidden';
 
 /** 精英詞綴（D-113）：只有設了 eliteAffixes 的關卡、會移動的精英才抽（用掉落亂數，不動戰鬥亂數） */
 function rollAffix(s: BattleState, m: Unit): void {
@@ -426,7 +399,6 @@ function processHiddenElite(s: BattleState): void {
 }
 
 /** 狼群暴動：排程、生成（醒著、直接追玩家）、追丟就散去 */
-const RIOT_GROUP = 'riot';
 function processRiot(s: BattleState): void {
   const st = STAGES[s.stageId];
   const r = st?.riot;
