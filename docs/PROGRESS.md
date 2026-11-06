@@ -8,7 +8,7 @@
 - **PvP（D-295、D-297）**：`pvp.ts` 數值；`pvp_arena`（14×16、沒有怪、還沒有掩體）；HP ×3、玩家互打傷害 ×0.5、控制遞減、最後站著的隊伍贏。**三武器互打（Bot 各 20 場）：劍 20:0 勝弓與法杖、法杖 20:0 勝弓**——Bot 不會 PvP 走位；試了「遠程被貼近就後退」（KITE_AT 0.5／0.7／0.85）完全沒改變（後退時不會出手），已還原。平衡是下一步。
 - **非同步天梯（D-297）**：`pvpMatch.ts`（`startPvp`／`playPvp`／`replayPvp`＋紀錄白名單）；伺服器 `pvp.start`／`pvp.finish`（對手＝段位分最接近的模擬玩家、配裝由伺服器照身上裝備壓縮計算、Elo）。契約測試三種 DB：本機打＝伺服器重跑、造假 rejected、同局領兩次 not_found、過期作廢；第一版存在 story → 發現 `migrate.sync` 會用舊 key 蓋掉 story → 改存角色列 `pvpMatch`／`pvpRating`。還沒有畫面。
 - **Q5**：`src/game/rt/BannerSystem.ts`（原 `menuBanners`），前後版本同一支腳本比對一樣。場景 6,602 → 6,582 行。
-- 驗證：每步 typecheck、lint、build、vitest（最後 94 檔 668 項全過）。CI：模擬玩家（ed28964）、拍賣所 sync 測試（236aa45）全綠；最後幾個 commit 的 CI 見下一輪。
+- 驗證：每步 typecheck、lint、build、vitest（最後 94 檔 668 項全過）。CI：模擬玩家（ed28964）、拍賣所 sync 測試（236aa45）、Q6（a49ccdf）、pvpMatch（92e4507）全綠；最後的 6a32125（掩體）mssql job 綠（PvP／模擬玩家／拍賣所契約測試在 SQL Server 上過）、check job 的測試與 build 綠，Smoke test 收尾時還在跑。另外加了競技場掩體（四塊石頭）。
 
 ## 2026-11-06 20:17–21:00（台北）第 142 輪 — 燼牌下注與抉擇走伺服器、src/game 棘輪、拍賣所伺服器端
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（d273b66）。
