@@ -20,6 +20,7 @@ export function assertSchemaName(schema: string): string {
 
 export async function migrateToLatest(db: Kysely<unknown>, schema = 'game'): Promise<MigrationResultSet> {
   assertSchemaName(schema);
-  await sql`IF SCHEMA_ID(${schema}) IS NULL EXEC('CREATE SCHEMA ' + QUOTENAME(${schema}))`.execute(db);
+  // EXEC('…' + QUOTENAME(…)) 是語法錯誤（EXEC 只吃字串或變數），先組進變數再執行
+  await sql`IF SCHEMA_ID(${schema}) IS NULL BEGIN DECLARE @ddl nvarchar(200) = N'CREATE SCHEMA ' + QUOTENAME(${schema}); EXEC(@ddl); END`.execute(db);
   return migrator(db, schema).migrateToLatest();
 }
