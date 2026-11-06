@@ -61,6 +61,7 @@ import { openRtControlsPanel } from '../ui/rtControlsPanel';
 import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
+import { captureLegacy, legacyOp } from '../../client/legacyOps';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
@@ -1011,8 +1012,13 @@ export class RtBattleScene extends Phaser.Scene {
       cleanRanks(loadRecord(this.stageId).skills, lv),
       this.s.skillVariants ?? [],
       lv,
-      (r, v) => {
+      (r, v, intent) => {
+        // V2（D-285）：伺服器照同一份規則處理「意圖」，做完寫回舊 key；畫面先照舊存檔
+        const before = captureLegacy();
         saveRecord(this.stageId, { ...loadRecord(this.stageId), skills: r, variants: v });
+        void legacyOp(before, ['skills'], (c, id) =>
+          intent.kind === 'add' ? c.call('skills.add', { characterId: id, skill: intent.skill }) : intent.kind === 'variant' ? c.call('skills.variant', { characterId: id, skill: intent.skill, idx: intent.idx }) : c.call('skills.reset', { characterId: id }),
+        );
         setSkillMods(this.s, this.allMods(this.bagSt));
         setSkillVariants(this.s, v);
         this.ptsLeft = this.skillPointsLeft();

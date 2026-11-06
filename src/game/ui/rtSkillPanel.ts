@@ -13,8 +13,11 @@ const COL_X = [-276, -138, 0, 138, 276];
 const NODE_Y = -350;
 const BRANCH_Y = [-196, -116, -36];
 
+/** 玩家這次做了什麼（第 141 輪 V2：呼叫端把「意圖」送給伺服器，r／v 只是畫面先顯示的結果） */
+export type SkillIntent = { kind: 'add'; skill: string } | { kind: 'variant'; skill: string; idx: 0 | 1 | 2 } | { kind: 'reset' };
+
 /** 開面板；每次改動呼叫 change（呼叫端存檔＋套用；v＝選了變化的技能，D-112），關閉時呼叫 done。回傳的容器由呼叫端銷毀 */
-export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVariants: readonly string[], level: number, change: (r: SkillRanks, v: string[]) => void, done: () => void, weapon: WeaponKind = 'sword'): Phaser.GameObjects.Container {
+export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVariants: readonly string[], level: number, change: (r: SkillRanks, v: string[], intent: SkillIntent) => void, done: () => void, weapon: WeaponKind = 'sword'): Phaser.GameObjects.Container {
   const W = WEAPONS[weapon];
   let r = start;
   let v = cleanVariants(startVariants, r);
@@ -50,7 +53,7 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     if (!n) return;
     r = n;
     SFX.confirm();
-    change(r, v);
+    change(r, v, { kind: 'add', skill: t.id });
     if ((r[t.id] ?? 0) >= SKILL_MAX_RANK && W.variants[t.id]) justUnlocked = col;
   }
   function pickBranch(col: number, k: 0 | 1 | 2): void {
@@ -59,7 +62,7 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     if (!n) return;
     if (variantIndex(v, t.id) !== k) SFX.confirm();
     v = n;
-    change(r, v);
+    change(r, v, { kind: 'variant', skill: t.id, idx: k });
   }
 
   function render(): void {
@@ -179,7 +182,7 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
       r = {};
       v = [];
       SFX.uiTap();
-      change(r, v);
+      change(r, v, { kind: 'reset' });
       render();
     }, false, 26, usedPoints(r) === 0));
     items.push(btn(150, 400, '關閉', () => done(), true));
