@@ -82,7 +82,7 @@ export interface Api {
   'trade.confirm': { params: { characterId: string; tradeId: string; rev: number }; result: { trade: TradeView; character: CharacterView }; write: true };
   'trade.cancel': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
   /** 可以交易的對象（本機版：已經出現過的模擬冒險者；線上版之後換成好友／附近的玩家） */
-  'trade.partners': { params: { characterId: string }; result: { partners: { characterId: string; name: string; weapon: WeaponView }[]; open: { id: string; partnerName: string }[] }; write: false };
+  'trade.partners': { params: { characterId: string }; result: { partners: { characterId: string; name: string; weapon: WeaponView; /** 只放金幣跟它買，最少要放多少（它什麼都沒得賣就沒有） */ cheapest?: number }[]; open: { id: string; partnerName: string }[] }; write: false };
   /** 看一筆交易；過期的在這裡退回（所以算寫入） */
   'trade.get': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
   /** 天梯排行：前幾名＋自己的名次（只讀） */

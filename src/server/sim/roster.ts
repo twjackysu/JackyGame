@@ -1,6 +1,8 @@
 // 模擬玩家名冊（24 §5）：固定種子、名字、武器偏好、程度（tier）、多久上線一次。
 // 全部由 hashSeed 算出來，沒有存檔也能重建同一份名冊；名字是原創組合字。
 import { hashSeed, mulberry32 } from '../../core/rng';
+import { buyPrice } from '../../core/meta/shop';
+import type { RtGear } from '../../core/battle/rt/gear';
 import type { WeaponView } from '../../net/views';
 
 export interface SimPlayer {
@@ -51,3 +53,8 @@ export function simRoster(count = SIM_COUNT): SimPlayer[] {
 }
 
 export const isSimAccount = (id: string): boolean => id.startsWith(SIM_ACCOUNT_PREFIX);
+
+/** 模擬玩家面對面賣出的開價：行商買價 ×（0.45～0.85，越會殺價開越低；跟它在拍賣所的定價同一個區間，不含隨機） */
+export function simAsk(sim: Pick<SimPlayer, 'thrift'>, g: RtGear): number {
+  return Math.max(1, Math.round(buyPrice(g) * (0.45 + 0.4 * (1 - sim.thrift))));
+}

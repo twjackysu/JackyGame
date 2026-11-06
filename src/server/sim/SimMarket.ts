@@ -13,7 +13,7 @@ import type { AnyHandler, GameServer } from '../GameServer';
 import { HANDLERS } from '../handlers';
 import type { Ctx } from '../router';
 import { SIM_BACKLOG, SIM_MAX_LISTINGS, simState, simStep, type SimDecision, type SimState } from './handlers';
-import { simRoster, type SimPlayer } from './roster';
+import { simAsk, simRoster, type SimPlayer } from './roster';
 
 export interface SimOptions {
   /** 模擬玩家人數（預設 30） */
@@ -169,9 +169,9 @@ export class SimMarket {
     return this.roster.find((s) => s.accountId === accountId);
   }
 
-  /** 模擬玩家面對面賣出的開價：行商買價 ×（0.45～0.85，越會殺價開越低；跟它在拍賣所的定價同一個區間，不含隨機） */
+  /** 模擬玩家面對面賣出的開價（simAsk；trade.partners 也用它算「最便宜賣多少」） */
   askFor(sim: SimPlayer, g: RtGear): number {
-    return Math.max(1, Math.round(buyPrice(g) * (0.45 + 0.4 * (1 - sim.thrift))));
+    return simAsk(sim, g);
   }
 
   /** 模擬玩家願意出的收購價：行商買價 ×（0.35～0.80，越會殺價越低） */

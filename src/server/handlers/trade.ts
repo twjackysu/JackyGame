@@ -6,7 +6,8 @@ import { BAG_MAX } from '../../core/meta/bag';
 import { TRADE_TTL_MS, cancel, confirm, lock, newTrade, setOffer, validOffer, type TradeResult, type TradeSide } from '../../core/meta/trade';
 import { ApiError } from '../../net/protocol';
 import type { TradeView, WeaponView } from '../../net/views';
-import { simRoster } from '../sim/roster';
+import { isGear, type RtGear } from '../../core/battle/rt/gear';
+import { simAsk, simRoster } from '../sim/roster';
 import type { TradeRow } from '../repos/types';
 import type { Ctx, HandlerTable } from '../router';
 import { ownCharacter } from './common';
@@ -92,10 +93,15 @@ export const tradeHandlers: Pick<HandlerTable, 'trade.partners' | 'trade.open' |
     // 還開著的交易（離開面板再回來可以接著做；過期的不列，下次 get 時退回）
     const open = (await ctx.r.trades.listByCharacter(me.id, 20)).filter((t) => t.state.status === 'open' && t.expiresAt >= now).map((t) => ({ id: t.id, partnerName: t.aCharacterId === me.id ? t.bName : t.aName }));
     if (!ctx.local) return { partners: [], open };
-    const partners: { characterId: string; name: string; weapon: WeaponView }[] = [];
+    const partners: { characterId: string; name: string; weapon: WeaponView; cheapest?: number }[] = [];
     for (const s of simRoster()) {
       const [c] = await ctx.r.characters.listByAccount(s.accountId);
-      if (c) partners.push({ characterId: c.id, name: c.name, weapon: c.weapon });
+      if (!c) continue;
+      // 「只放金幣跟它買」最少要放多少（第 147 輪）：行囊裡沒綁定的裝備開價、或拍賣所自己掛著的價錢，取最便宜的（respondTrade 同一套規則）
+      let cheapest = Infinity;
+      for (const it of await ctx.r.items.listByOwner(c.id)) if (it.location === 'bag' && !it.bound && isGear(it.gear)) cheapest = Math.min(cheapest, simAsk(s, it.gear as unknown as RtGear));
+      for (const l of await ctx.r.listings.listBySeller(c.id, 40)) if (l.status === 'open' && l.expiresAt >= now) cheapest = Math.min(cheapest, l.price);
+      partners.push({ characterId: c.id, name: c.name, weapon: c.weapon, ...(Number.isFinite(cheapest) ? { cheapest } : {}) });
     }
     return { partners, open };
   },

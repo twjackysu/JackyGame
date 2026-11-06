@@ -166,4 +166,22 @@ for (const be of BACKENDS)
       expect(r.character.wallet.coin).toBe(change);
       expect(r.character.items.find((i) => i.id === got!.itemId)?.location).toBe('bag');
     });
+
+    it('trade.partners 的 cheapest（第 147 輪）：剛好放這麼多它就賣、少 1 金它不賣，不找零', async () => {
+      const { db } = await be.fresh(() => 0);
+      const server = new GameServer({ db, auth, clock: new FakeClock(), ids: new SeqIds(), local: true, rng: () => 0.3, sim: { players: 6, throttleMs: 0, maxActions: 30 } });
+      let n = 0;
+      const a = new GameClient(new LocalTransport((j) => server.handle(j)), { token: 'accA', timeoutMs: 15000, retries: 1, newRequestId: () => `c${++n}` });
+      const A = (await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE })).characterId;
+      const { partners } = await a.call('trade.partners', { characterId: A });
+      const me0 = await a.call('character.get', { id: A });
+      const p = partners.find((x) => x.cheapest !== undefined && x.cheapest > 1 && x.cheapest <= me0.wallet.coin);
+      expect(p).toBeDefined();
+      const { trade } = await a.call('trade.open', { characterId: A, partnerCharacterId: p!.characterId });
+      const less = await a.call('trade.offer', { characterId: A, tradeId: trade.id, items: [], coin: p!.cheapest! - 1 });
+      expect(less.trade.theirs.items.length).toBe(0);
+      const ok = await a.call('trade.offer', { characterId: A, tradeId: trade.id, items: [], coin: p!.cheapest! });
+      expect(ok.trade.theirs.items.length).toBe(1);
+      expect(ok.trade.theirs.coin).toBe(0);
+    });
   });

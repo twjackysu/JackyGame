@@ -135,6 +135,8 @@ export function openTradePanel(scene: Phaser.Scene, ops: TradeOps, onClose: () =
         run(() => ops.open(p.characterId));
       });
       items.push(bg, scene.add.text(-250, y, p.name, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff' }).setOrigin(0, 0.5), scene.add.text(250, y, WEAPON_NAME[p.weapon], { fontFamily: UI_FONT, fontSize: '22px', color: '#9aa4b8' }).setOrigin(1, 0.5));
+      // 只放金幣跟它買，最少要放多少（第 147 輪；伺服器照它的開價規則算）
+      if (p.cheapest !== undefined) items.push(scene.add.text(150, y, `賣 ${p.cheapest} 金起`, { fontFamily: UI_FONT, fontSize: '20px', color: '#ffd27a' }).setOrigin(1, 0.5));
     });
   }
 

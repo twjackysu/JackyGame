@@ -9,6 +9,8 @@ export interface TradePartner {
   characterId: string;
   name: string;
   weapon: WeaponView;
+  /** 只放金幣跟它買，最少要放多少 */
+  cheapest?: number;
 }
 export interface TradePage {
   trade: TradeView | null;
