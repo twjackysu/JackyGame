@@ -9,8 +9,8 @@
 ## ★ 第 144 輪起先做（V3 收尾＋V5 PvP 畫面，11/7–11/9）
 **已經有的（到第 143 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、**`pvpRank`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`、`cards.*`、`story.choose`、`market.*`、**`pvp.start/finish`（D-297）**；**模擬玩家 `src/server/sim/`（D-293）**；**拍賣所畫面（D-294）**；**隊伍引擎（D-296）：`PlayerCtl`／`ctlOf`／`addPlayer`／`playersOf`／`foesOf`／`hostile`，`PlayerBot(prof, name, pid)`**；**PvP：`pvp.ts`、`pvp_arena`、`pvpMatch.ts`（startPvp／playPvp／replayPvp）**；`src/game/rt/InputSystem.ts`、`BannerSystem.ts`；遷移 `0001`、`0002_market`。
 1. CI（含 mssql job）每輪開頭看一次；第 143 輪最後一個程式 commit 是「PvP：對局與段位分改存角色列」。
-2. **PvP 平衡（V3 驗收，23 §Q6：三武器互打勝率 40～60%）**：`RT_REPORT=1 npx vitest run tests/rt-pvp-balance.test.ts --silent=false` 印報表。現在**劍 20:0 勝弓與法杖、法杖 20:0 勝弓**。先查原因再調：(a) Bot 不會 PvP 走位（遠程被貼身只會站著打；試過「後退」沒用，因為後退時不出手）→ 做「邊退邊射」：遠程普攻在 `attackRange` 內可以出手，Bot 在對方近身招的預告時用閃避／後躍拉開；(b) 數值：比較三武器的 DPS／HP（`summarize`）；PvP 專用倍率可以加在 `pvp.ts`（例如遠程傷害 ×、近戰減傷），**不要動 PvE 數值**。種子只影響暴擊，結果幾乎固定 → 測試多加起始距離／位置的變化。
-3. **競技場掩體**：`pvp_arena` 加 `arena.solid`（幾塊石頭，參考 `rock_grove`），遠程要繞、近戰能貼。
+2. **PvP 平衡（V3 驗收，23 §Q6：三武器互打勝率 40～60%）**：`RT_REPORT=1 npx vitest run tests/rt-pvp-balance.test.ts --silent=false` 印報表。現在**劍 20:0 勝弓與法杖、法杖 20:0 勝弓**。先查原因再調：(a) Bot 不會 PvP 走位（遠程被貼身只會站著打；試過「後退」沒用，因為後退時不出手）→ 做「邊退邊射」：遠程普攻在 `attackRange` 內可以出手，Bot 在對方近身招的預告時用閃避／後躍拉開；(b) 數值：比較三武器的 DPS／HP（`summarize`）；PvP 專用倍率可以加在 `pvp.ts`（例如遠程傷害 ×、近戰減傷），**不要動 PvE 數值**。種子只影響暴擊，結果幾乎固定 → 測試多加起始距離／位置的變化。**第 143 輪量到的**：弓對劍平均距離只有 110（等於貼身肉搏），弓的後躍放了 10 次但跳完又被自動追擊拉回去；弓普攻總傷 672 vs 劍 958。所以要先讓遠程在 PvP 維持距離（自動追擊停在 `attackRange` 邊緣、被貼近時往遠離對手且不撞石頭的方向走並繼續射），再談數值。
+3. **競技場掩體**：第 143 輪已加四塊石頭（中線留空）；Bot 還不會利用掩體（平衡時一起看）。
 4. **V5 PvP 畫面**：營火或 ☰ 加「競技場」→ `pvp.start` → 用回傳的種子與雙方配裝開 `RtBattleScene`（新模式：stage `pvp_arena`、`addPlayer` 對手、對手由 `PlayerBot` 每 tick 下指令）→ 場景記下自己的指令（`InputSystem` 產生的就是）→ 結束 `pvp.finish` → 結算畫面（勝負、段位分變化、段位稱號 `rankName`）。場景現在只畫主角：對手要有血條／名字／不同顏色。
 5. **V4 託管交易 F3**、**多角色**：同前（見下面「之後」與第 142 輪的說明）。
 6. **Q5 拆 HUD**（範圍保護 #5）。
