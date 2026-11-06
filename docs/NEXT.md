@@ -6,13 +6,23 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 143 輪起先做（V2 收尾＋V4 先行，11/7–11/8）
-**已經有的（到第 142 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、**`cards`、`choices`、`market`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`（本機限定）、**`cards.start/finish`（D-289）、`story.choose`（D-290）、`market.list/cancel/buy/browse/mine`（D-291，還沒有畫面）**；`legacyMirror`／`legacyOps`（D-285）；技能樹、行囊、行商、**燼牌下注、討伐後抉擇**都走伺服器；`src/game/rt/InputSystem.ts`；`tests/game-ratchet.test.ts`（src/game 直接碰 localStorage／saveRecord／spend 的次數只准變少，**數字變少要把基準調低**）；遷移 `0002_market`。
-1. CI（含 mssql job 跑拍賣所契約測試）在 9a97f14 全綠；每輪開頭照樣看一次。
-2. **Q5 繼續拆場景**（`RtBattleScene.ts` 6,590 行，目標 < 4,000，範圍保護 #5）：`BannerSystem`（`bigText`／`pinBanner`／`announce`／`reserveBanner`／`menuBanners`，狀態 `bannerHidden`、`tipBusy`、`busyRun`、`chapterUntil`…）耦合很深——**先只搬 `menuBanners`＋`bannerHidden`**（純顯示切換），再搬 HUD（血條、技能鍵、小地圖、懸賞板）。一個系統一個 commit，截圖比對（腳本思路見第 141 輪）。
-3. **V4 拍賣所畫面**（營火「行商」旁加「拍賣所」頁籤，或 ☰ 裡）：瀏覽（部位／稀有度篩選、價格排序、分頁）、我的掛單（上架、取消、過期退回）、買。**買到的物品要寫回舊 key**：`legacyOp(..., ['items','wallet'], ..., authoritative=true)`（mirrorRecord 會把伺服器行囊整包寫回），否則下一次 `migrate.sync` 會把它刪掉（D-291 注意）。上架中的物品不在行囊裡 → 舊 key 也要拿掉（同一個 mirror 就會）。
-4. **V4 模擬玩家**（24 §5）：`src/server/sim/`：20～50 個固定種子帳號，伺服器被呼叫時依經過時間補跑——只用 `market.list/buy` handler 行動（不直接改 DB）。`npm run sim:economy` 報表。
-5. **懸賞領獎**（`bountyKill` 發粉塵／結晶）：戰鬥中觸發，跟 V5 `loot.claim` 一起做。**設定「匯出／匯入存檔」**：`account.import` 之後要把伺服器資料完整寫回舊 key（還沒有反向的 toLegacy），等舊 key 退場再做比較省。
+## ★ 第 144 輪起先做（V3 隊伍引擎＋V4 收尾，11/7–11/9）
+**已經有的（到第 143 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`、`cards.start/finish`、`story.choose`、`market.*`；**模擬玩家 `src/server/sim/`（D-293，`GameServer.run`、`npm run sim:economy`）**；**拍賣所畫面 `src/game/ui/marketPanel.ts`＋`src/game/marketOps.ts`（D-294，行商面板第四個分頁）**；**`core/battle/rt/pvp.ts` PvP 數值（D-295，引擎還沒接）**；`src/game/rt/InputSystem.ts`、**`src/game/rt/BannerSystem.ts`**；`tests/game-ratchet.test.ts`；遷移 `0001`、`0002_market`。
+1. CI（含 mssql job）每輪開頭看一次；第 143 輪推了 5 個程式 commit，看最後一個（BannerSystem）。
+2. **Q6 隊伍引擎（V3 主線，23 §Q6，不砍）**——建議分三步，每步 golden hash（`tests/rt-golden-hash.test.ts`）一定不變：
+   - (a) `Unit.team`（玩家 0、敵人 1；`stateHash` 不含 side／team，加欄位不影響 hash）、`hostile(a,b)`；`BattleState.players: number[]`（單人＝[第一個單位的 id]）、`playerOf(s, pid = 0)`。把每個「玩家專屬」的狀態（`manualMove`、`moveGoal`、`potions`、`lastCombatTick`、`campfireId`、`prog`、`skillMods`、`skillVariants`、`weapon`、`enhance`）列清單，先搬進 `PlayerCtl`（`s.ctl[pid]`），單人用 `ctl[0]`。engine.ts 有 20 處 `playerOf(s)`、3 處 `s.units[0]`。
+   - (b) 指令改成 `{ pid?, ...cmd }`（沒有 pid＝0，舊呼叫相容）；`updatePlayer` 對每個 pid 跑一次；敵人仇恨＝最近／最近傷害它的敵對玩家（單人結果一樣）；扣血判斷改 `hostile()`。
+   - (c) `tests/rt-multi.test.ts`：兩個 Bot（`sim.ts` 的 PlayerBot 多一個 pid）一起打狼王會贏；PvP：兩個玩家不同 team，接 `pvp.ts`（進場 `pvpMaxHp`／`pvpGear`、傷害 `pvpDamage`、控制 `pvpCc`），`maps/arena.ts`（24×24、有掩體），`tests/rt-pvp-balance.test.ts` 三武器互打各 200 場勝率 40～60%（報表寫 PROGRESS）。
+3. **V4 託管交易 F3（24 §4.2，不砍）**：新表 `game.Trade`（遷移 0003，只 CREATE；`TABLES` 加 `trades`，DocDb／Mssql 兩邊）、`trade.open/offer/lock/confirm/cancel`；放進去的物品 location＝`trade:<id>`；任一方改內容就解除雙方鎖定；雙方確認才在一個交易裡交換。本機對象＝模擬玩家（他們用 `simStep` 決定接不接）或自己的另一個角色（多角色做了才有）。契約測試照 `market.test.ts`。
+4. **V4 多角色**（預設 3 欄、倉庫 40 格、金幣分角色，FOR_JACKY 預設）：等舊 key 退場（V5 `loot.claim`）前做會很亂——**建議先做伺服器端＋契約測試，畫面放到 V5 之後**。
+5. **Q5 繼續拆場景**（`RtBattleScene.ts` 6,582 行，目標 < 4,000，範圍保護 #5）：下一塊 HUD（血條、技能鍵、小地圖、懸賞板）。一個系統一個 commit，前後版本用同一支 Playwright 腳本比對（`git stash` → build → 跑 → `stash pop` → build → 跑，見第 143 輪）。
+6. **拍賣所小改進（有空再做）**：排序切換（價格／物品等級／最新）要 `market.browse` 多 `sort` 參數（DocDb＋Mssql 兩邊）；營火字條提示「你的掛單賣掉了」要等模擬玩家能在別的時候補跑。
+7. **懸賞領獎**、**設定「匯出／匯入存檔」**：同前（等 V5 `loot.claim`）。
+
+**拍賣所／模擬玩家注意（第 143 輪）**：
+- 模擬玩家**只在 `market.browse`／`market.mine` 時補跑**（`GameServer.handle` 的 `SIM_TRIGGER`）；任何會呼叫這兩個的新畫面，都要像 `marketOps` 一樣在同一個 `legacyOp` 裡 authoritative 寫回錢包，不然模擬玩家買走掛單的收入會被下一次 `migrate.sync` 蓋掉。
+- 無頭瀏覽器第一次打開拍賣所要 5 秒左右（30 個模擬玩家建角色＋24 個動作 × 300 ms／寫入）；腳本裡 `__game.loop.sleep()` 等 4～5 秒再 `wake()`。Node 量測三種 DB 第一次補跑 9～28 ms。
+- 截圖腳本 `screenshots/r143.mjs`（gitignored）：`node screenshots/r143.mjs screenshots '["拍賣所","wait5000","鐵劍","購買","wait3000","上架","皮甲","上架！","wait3000"]'`，`VP='{"width":360,"height":640}'` 換尺寸；步驟是按鈕文字（用 CLICK 規則），`waitN` 會睡迴圈等 N 毫秒。`r143b.mjs` 檢查 ☰ 開關時懸賞板藏／還原。
 
 **過渡期注意（D-285）**：
 - 新的面板動作一律：`const before = captureLegacy();` **在本機存檔之前**拿，然後 `legacyOp(before, ['items'|'wallet'|'skills'|'shop'], op, viewOf, authoritative?)`。忘了這個順序會「做兩次」。
@@ -20,7 +30,7 @@
 - **無頭瀏覽器裡每次寫入要 300 ms 左右**（Phaser 軟體繪圖吃滿事件迴圈），等結果至少等 2.5 秒；`__game.loop.sleep()` 後是 1～3 ms。
 - CI mssql job：契約測試檔案**不能平行**（共用同一個資料庫），新測試的 GameClient `timeoutMs` 給 15000。
 
-**之後**：V3 隊伍引擎與 PvP 規則（23 §Q6）、V4 交易與多角色、V5 PvP 天梯、V6 `server/main.ts`＋Bicep。**V6 照零額外費用原則（D-279 補充、25 §4.3）**：ghcr.io、單一 API 縮到 0、上線 PvP 只有非同步天梯（HTTP），即時 BattleRoom 寫好但預設不部署。
+**之後**：V5 PvP 天梯（`pvp.start/finish` 伺服器重跑、模擬玩家的配裝當對手）＋ `loot.claim`（舊 key 退場）、V6 `server/main.ts`＋Bicep。**V6 照零額外費用原則（D-279 補充、25 §4.3）**：ghcr.io、單一 API 縮到 0、上線 PvP 只有非同步天梯（HTTP），即時 BattleRoom 寫好但預設不部署。
 
 **美術**：Jacky 產好 R-020／R-021 推進 `art-inbox/` 後，`node scripts/import-art.mjs`（切格設定已在 `scripts/art-sheets.json`）→ `RtBattleScene.ts` 的 `SPRITE` 表把 `star_sentinel`／`crystal_golem`／`star_wolf`／`ember_wolf`／`magma_stalker`／`obsidian_alpha`／`eclipse_wolf` 改用新 key、拿掉 `tint`；確認原圖**面朝右**。
 
