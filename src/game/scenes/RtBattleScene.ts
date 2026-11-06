@@ -72,7 +72,7 @@ import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { InputSystem } from '../rt/InputSystem';
 import { captureLegacy, legacyOp } from '../../client/legacyOps';
 import { characterCache } from '../../client/characterCache';
-import type { BountyDoneView } from '../../net/views';
+import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
@@ -446,7 +446,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
     this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined });
-    if (this.tracked && !this.bot) onlineLoot.start(this.stageId, !!this.s.night, loadWeapon(), (done, defId) => this.onlineBounty(done, defId));
+    if (this.tracked && !this.bot) onlineLoot.start(this.stageId, !!this.s.night, loadWeapon(), (done, defId, drops) => this.onlineBounty(done, defId, drops));
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -1041,9 +1041,26 @@ export class RtBattleScene extends Phaser.Scene {
     if (r.completed.length && this.bountyTxt) this.tweens.add({ targets: this.bountyTxt, scale: 1.12, duration: 160, yoyo: true });
   }
 
-  /** 線上版：loot.claim 回來（懸賞進度可能變了、可能完成） */
-  private onlineBounty(done: readonly BountyDoneView[], defId: string): void {
+  /** 線上版：伺服器的角色回來了（loot.claim／寶箱／相遇）：舊 key 已經換成伺服器的行囊與錢包 → 重讀；懸賞完成與掉落的裝備公告 */
+  private onlineBounty(done: readonly BountyDoneView[], defId: string, drops: readonly LootDropView[] = []): void {
     if (!this.scene.isActive()) return;
+    // 面板開著時不換（面板自己拿著一份；關掉後下一次回來再換）
+    if (!this.menu) {
+      const rec = loadRecord(this.stageId);
+      this.bagSt = cleanBag(rec);
+      setGearBonus(this.s, bonusOf(this.bagSt));
+      setSkillMods(this.s, this.allMods(this.bagSt));
+    }
+    const p = playerOf(this.s);
+    drops.forEach((d, i) => {
+      if (d.kind !== 'gear' || !d.itemId) return;
+      const it = characterCache.get()?.items.find((x) => x.id === d.itemId);
+      const g = it?.gear as RtGear | undefined;
+      if (!g) return;
+      const r = (d.rarity ?? 1) as 1 | 2 | 3;
+      const col = `#${RARITY_COLOR[r].toString(16).padStart(6, '0')}`;
+      this.time.delayedCall(i * 300, () => floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, gearName(g), { color: col, size: r >= 3 ? 30 : 24 }));
+    });
     this.announceBounty(done, defId);
     this.refreshBounty();
     if (done.length && this.bountyTxt) this.tweens.add({ targets: this.bountyTxt, scale: 1.12, duration: 160, yoyo: true });
@@ -1070,6 +1087,8 @@ export class RtBattleScene extends Phaser.Scene {
 
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
     if (!this.tracked) return;
+    // 線上版（第 147 輪）：裝備由伺服器擲（loot.claim），本機擲的不放進行囊；伺服器的回來時 onlineSynced 公告
+    if (import.meta.env.VITE_SERVER_URL) return;
     const p = playerOf(this.s);
     const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId });
     // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理

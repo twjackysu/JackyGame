@@ -7,7 +7,7 @@ import type { GameClient } from './GameClient';
 import { bootServer, legacySnapshot } from './boot';
 import { onlineActive } from './onlineClient';
 import { characterCache } from './characterCache';
-import { mirrorRecord, MIRROR_KEY, type MirrorField } from './legacyMirror';
+import { mirrorRecord, mirrorToLegacy, MIRROR_KEY, type MirrorField } from './legacyMirror';
 
 let chain: Promise<unknown> = Promise.resolve();
 let pending = 0;
@@ -49,7 +49,11 @@ export function legacyOp<T>(
       const ticket = characterCache.ticket();
       const t = await op(client, me);
       const v = viewOf(t);
-      if (online && v.id === me.id) characterCache.set(v, ticket);
+      if (online && v.id === me.id) {
+        characterCache.set(v, ticket);
+        // 線上版（第 147 輪）：舊 key 當成伺服器角色的快取（行囊、錢包），還沒改讀快取的畫面（行囊面板、行商）才看得到伺服器的物品
+        if (fields.length) mirrorToLegacy(localStorage, v, fields);
+      }
       if (!online && (pending === 1 || authoritative)) {
         const cur = localStorage.getItem(MIRROR_KEY) ?? '{}';
         const rec = JSON.parse(cur) as Record<string, unknown>;
