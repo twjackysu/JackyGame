@@ -19,7 +19,7 @@ export const DEFAULT_LIMITS: RateLimits = {
   pvp: { perSec: 1 / 3, burst: 2 },
 };
 
-const TRADE = /^(market\.(list|cancel|buy)|trade\.(open|offer|lock|confirm|cancel)|warehouse\.(put|take)|character\.(create|delete))$/;
+const TRADE = /^(market\.(list|cancel|buy)|trade\.(open|offer|lock|confirm|cancel)|warehouse\.(put|take)|character\.(create|delete|rename))$/;
 
 export function classOf(method: Method | string): LimitClass {
   if (method === 'pvp.start' || method === 'pvp.finish') return 'pvp';

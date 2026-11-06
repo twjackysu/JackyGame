@@ -136,6 +136,20 @@ for (const be of BACKENDS)
       expect(WAREHOUSE_MAX).toBe(40);
     });
 
+    it('改名（第 147 輪）：名字規則同建立、別人的改不到、等級與物品不變', async () => {
+      const { a, b, A } = await setup(be);
+      const before = await a.call('character.get', { id: A });
+      expect(await code(a.call('character.rename', { id: A, name: '' }))).toBe('bad_request');
+      expect(await code(a.call('character.rename', { id: A, name: '<b>壞</b>' }))).toBe('bad_request');
+      expect(await code(a.call('character.rename', { id: A, name: '一二三四五六七八九' }))).toBe('bad_request');
+      expect(await code(b.call('character.rename', { id: A, name: '小偷' }))).toBe('not_found');
+      const r = await a.call('character.rename', { id: A, name: ' 米拉 ' });
+      expect(r.name).toBe('米拉');
+      expect(r.level).toBe(before.level);
+      expect(r.items.length).toBe(before.items.length);
+      expect((await a.call('character.get', { id: A })).name).toBe('米拉');
+    });
+
     it('倉庫滿 40 格就拒絕', async () => {
       const { a } = await setup(be);
       const many: Record<string, unknown>[] = Array.from({ length: 41 }, (_, i) => ({ uid: `w${i}`, slot: 'ring', rarity: 1, ilvl: 1, name: '銅戒', base: { atk: 1 }, affixes: [] }));

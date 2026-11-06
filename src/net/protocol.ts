@@ -34,6 +34,8 @@ export interface Api {
   'character.create': { params: { name: string; weapon: WeaponView; slot?: number }; result: CharacterView; write: true };
   'character.delete': { params: { id: string }; result: AccountView; write: true };
   'character.select': { params: { id: string }; result: CharacterView; write: true };
+  /** 改名（第 147 輪）：規則同建立（1～8 字、不准控制字元與 <>&"'\\） */
+  'character.rename': { params: { id: string; name: string }; result: CharacterView; write: true };
   // 帳號共用倉庫（40 格）：只有行囊裡的能放
   'warehouse.get': { params: Record<string, never>; result: WarehouseView; write: false };
   'warehouse.put': { params: { characterId: string; itemId: string }; result: { warehouse: WarehouseView; character: CharacterView }; write: true };
@@ -120,6 +122,7 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'character.create',
   'character.delete',
   'character.select',
+  'character.rename',
   'warehouse.put',
   'warehouse.take',
   'migrate.legacy',

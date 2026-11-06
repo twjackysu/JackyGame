@@ -5,11 +5,11 @@ import { SFX } from '../../audio/sfx';
 import { CHARACTER_SLOTS } from '../../core/meta/roster';
 import type { CharacterView, WeaponView } from '../../net/views';
 import { forgetMetThisVisit } from '../encounters';
-import { createCharacter, deleteCharacter, loadRoster, switchCharacter, type RosterInfo } from '../../client/roster';
+import { createCharacter, deleteCharacter, loadRoster, renameCharacter, switchCharacter, type RosterInfo } from '../../client/roster';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce } from '../fx/feel';
 import { WEAPON_NAME } from '../weapon';
-import { pickName } from '../rosterNames';
+import { nextName, pickName } from '../rosterNames';
 
 const WEAPON_LOOK: Record<WeaponView, { fill: number; line: number; text: string }> = {
   sword: { fill: 0x2a2010, line: 0xffd27a, text: '#ffe0a0' },
@@ -132,6 +132,18 @@ export function openRoster(scene: Phaser.Scene, depth = 900): Promise<boolean> {
                 return;
               }
               note = '切換失敗，請再試一次';
+            }),
+          ),
+        );
+      // 改名（第 147 輪）：使用中的角色，按一下換成名字池的下一個（手機不用打字）
+      if (active)
+        out.push(
+          btn(GAME_WIDTH - 200, y + 40, 200, '改名', grey, () =>
+            run(async () => {
+              const err = await renameCharacter(c.id, nextName(c.name, (info?.characters ?? []).filter((x) => x.id !== c.id).map((x) => x.name)));
+              if (err) note = '改名失敗，請再試一次';
+              else SFX.confirm();
+              info = await loadRoster();
             }),
           ),
         );

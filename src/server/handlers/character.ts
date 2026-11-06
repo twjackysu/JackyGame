@@ -1,4 +1,4 @@
-// 角色（F1 多角色，D-302）：list／get／create／delete／select。角色欄 3 個、名字伺服器檢查、刪除有限制。
+// 角色（F1 多角色，D-302）：list／get／create／delete／select／rename（第 147 輪）。角色欄 3 個、名字伺服器檢查、刪除有限制。
 import { cleanName, deleteBlocker, freeSlot, isWeapon, CHARACTER_SLOTS } from '../../core/meta/roster';
 import { ApiError } from '../../net/protocol';
 import type { HandlerTable } from '../router';
@@ -6,7 +6,7 @@ import { accountView, characterView } from '../views';
 import { createCharacter, deleteCharacter } from './build';
 import { activeCharacter, ensureAccount, ownCharacter } from './common';
 
-export const characterHandlers: Pick<HandlerTable, 'character.list' | 'character.get' | 'character.create' | 'character.delete' | 'character.select'> = {
+export const characterHandlers: Pick<HandlerTable, 'character.list' | 'character.get' | 'character.create' | 'character.delete' | 'character.select' | 'character.rename'> = {
   'character.list': async (ctx) => Promise.all((await ctx.r.characters.listByAccount(ctx.accountId)).map((c) => characterView(ctx.r, c))),
   'character.get': async (ctx, p) => characterView(ctx.r, await ownCharacter(ctx, p?.id)),
 
@@ -47,5 +47,15 @@ export const characterHandlers: Pick<HandlerTable, 'character.list' | 'character
     const acc = await ensureAccount(ctx);
     if (acc.activeCharacterId !== c.id) await ctx.r.accounts.put({ ...acc, activeCharacterId: c.id });
     return characterView(ctx.r, c);
+  },
+
+  'character.rename': async (ctx, p) => {
+    const name = cleanName(p?.name);
+    if (!name) throw new ApiError('bad_request', 'name');
+    const c = await ownCharacter(ctx, p?.id);
+    if (c.name === name) return characterView(ctx.r, c);
+    const saved = await ctx.r.characters.save({ ...c, name });
+    await ctx.r.audit.add({ accountId: ctx.accountId, action: 'character.rename', detail: JSON.stringify({ id: c.id, from: c.name, to: name }), at: ctx.clock.now() });
+    return characterView(ctx.r, saved);
   },
 };

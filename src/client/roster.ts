@@ -79,3 +79,14 @@ export async function deleteCharacter(id: string): Promise<string | null> {
     return e instanceof Error ? e.message : String(e);
   }
 }
+
+/** 改名（第 147 輪）；失敗回錯誤訊息 */
+export async function renameCharacter(id: string, name: string): Promise<string | null> {
+  try {
+    const { client } = await bootServer();
+    await legacySerial(() => client.call('character.rename', { id, name }));
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
+}
