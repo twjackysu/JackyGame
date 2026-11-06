@@ -50,4 +50,28 @@ describe('多玩家控制狀態（Q6 第一步）', () => {
     ally.team = 2;
     expect(hostile(p0, ally)).toBe(true);
   });
+
+  it('多人：怪找最近的敵對玩家打；兩個人都會自己行動；全倒才算輸', () => {
+    const s = createBattle({ stageId: 'wolf_king', seed: 7 });
+    const p0 = playerOf(s);
+    const e = s.units.find((u) => u.side === 'enemy')!;
+    const p1 = withSecond(s);
+    // 主角躲到最遠的角落、第二個玩家貼著怪
+    p0.x = e.x < s.arena.w / 2 ? s.arena.w - p0.r - 1 : p0.r + 1;
+    p0.y = e.y < s.arena.h / 2 ? s.arena.h - p0.r - 1 : p0.r + 1;
+    p1.x = e.x + e.r + p1.r + 10;
+    p1.y = e.y;
+    p1.hp = p1.maxHp = 100000;
+    const hp0 = p0.hp;
+    for (let t = 0; t < 30 * 8; t++) step(s, [{ pid: 0, type: 'move', dx: 0, dy: 0 }]);
+    expect(p1.hp).toBeLessThan(p1.maxHp);
+    expect(p0.hp).toBe(hp0);
+    // 第二個玩家也會自己追擊出手（updatePlayer 每個 pid 都跑）
+    expect(e.hp).toBeLessThan(e.maxHp);
+    // 只有一個倒下不算輸
+    p0.hp = 0;
+    p0.dead = true;
+    step(s, []);
+    expect(s.outcome).toBe('running');
+  });
 });

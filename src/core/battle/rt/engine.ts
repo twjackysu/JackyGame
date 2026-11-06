@@ -587,6 +587,30 @@ export function ctlOf(s: BattleState, p: Unit): PlayerCtl {
   const pid = p.pid ?? 0;
   return pid === 0 ? s : s.others![pid - 1]!;
 }
+/** 所有玩家（單人＝只有主角；不配置新陣列） */
+const SOLO: Unit[] = [];
+export function playersOf(s: BattleState): readonly Unit[] {
+  if (!s.others?.length) {
+    SOLO[0] = s.units[0]!;
+    return SOLO;
+  }
+  return s.units.filter((u) => u.side === 'player');
+}
+/** 怪要對付誰（Q6）：單人＝主角；多人＝最近的、活著的敵對玩家（同距離取 id 小的） */
+function enemyTargetOf(s: BattleState, e: Unit): Unit {
+  if (!s.others?.length) return s.units[0]!;
+  let best: Unit | undefined;
+  let bd = Infinity;
+  for (const u of s.units) {
+    if (u.side !== 'player' || u.dead || !hostile(e, u)) continue;
+    const d = dist(e.x, e.y, u.x, u.y);
+    if (d < bd) {
+      bd = d;
+      best = u;
+    }
+  }
+  return best ?? s.units[0]!;
+}
 export const enemiesOf = (s: BattleState): Unit[] => s.units.filter((x) => x.side === 'enemy' && !x.dead);
 const unitById = (s: BattleState, id: number | null | undefined): Unit | undefined => (id == null ? undefined : s.units.find((x) => x.id === id));
 const has = (x: Unit, id: StatusId, tick: number): boolean => x.statuses.some((st) => st.id === id && st.until > tick);
@@ -936,7 +960,7 @@ function nearestEnemy(s: BattleState, p: Unit): Unit | undefined {
   let best: Unit | undefined;
   let bd = Infinity;
   for (const e of s.units) {
-    if (e.side !== 'enemy' || e.dead) continue; // 不配置新陣列（V1 Q4）
+    if (e.dead || e === p || !hostile(p, e)) continue; // 不配置新陣列（V1 Q4）；多人時敵對的玩家也算（Q6）
     // 地圖怪（D-072／D-073）：自動追擊只找戰鬥中的怪；待機的要玩家點它（或技能打到）才開打，
     // 清完一組就停下來（自然恢復），不會自己走去拉下一群
     if (e.mode && e.mode !== 'combat') continue;
@@ -1422,7 +1446,7 @@ function splashEnemies(s: BattleState, e: Unit, atk: AreaAttack, ox: number, oy:
 
 function updateEnemy(s: BattleState, e: Unit): void {
   const def = ENEMIES[e.defId]!;
-  const p = playerOf(s);
+  const p = enemyTargetOf(s, e);
   // Boss 階段與召喚
   if (def.boss) {
     if (e.phase === 1 && e.hp * 100 <= e.maxHp * def.boss.phase2AtPct) {
@@ -1464,7 +1488,9 @@ function updateEnemy(s: BattleState, e: Unit): void {
       if (atk.charge) {
         a.kind = 'charge';
         a.end = s.tick + atk.charge.ticks + atk.recoverTicks;
-      } else if (!p.dead && inShape(atk.shape, a.ox, a.oy, a.dirX, a.dirY, p.x, p.y, p.r)) enemyHit(s, e, atk, p);
+      } else if (!s.others?.length) {
+        if (!p.dead && inShape(atk.shape, a.ox, a.oy, a.dirX, a.dirY, p.x, p.y, p.r)) enemyHit(s, e, atk, p);
+      } else for (const u of playersOf(s)) if (!u.dead && hostile(e, u) && inShape(atk.shape, a.ox, a.oy, a.dirX, a.dirY, u.x, u.y, u.r)) enemyHit(s, e, atk, u);
       if (atk.hitsEnemiesPct) splashEnemies(s, e, atk, a.ox, a.oy, p);
     }
     if (a.kind === 'charge' && atk.charge && atk.shape.type === 'line') {
@@ -1516,11 +1542,10 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   if (s.outcome !== 'running') return;
   s.tick++;
   applyCommands(s, cmds);
-  updatePlayer(s);
-  const p0 = playerOf(s);
+  for (const p of playersOf(s)) updatePlayer(s, p);
   for (const e of s.units) {
     if (e.side !== 'enemy' || e.dead) continue;
-    if (e.mode === 'idle' || e.mode === 'dormant') updateDormancy(s, e, p0);
+    if (e.mode === 'idle' || e.mode === 'dormant') updateDormancy(s, e, enemyTargetOf(s, e));
     if (e.mode !== 'dormant') updateEnemy(s, e);
   }
   separate(s);
@@ -1536,9 +1561,13 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   processChests(s);
   processHazards(s);
   processVents(s);
-  const p = playerOf(s);
-  naturalRegen(s, p);
-  if (p.dead && !reviveAtCampfire(s, p)) s.outcome = 'defeat';
+  let down = 0;
+  const ps = playersOf(s);
+  for (const p of ps) {
+    naturalRegen(s, p);
+    if (p.dead && !reviveAtCampfire(s, p)) down++;
+  }
+  if (down === ps.length) s.outcome = 'defeat';
   else if (!s.units.some((x) => x.side === 'enemy' && !x.dead) && !pendingRespawn(s)) s.outcome = 'victory';
   else if (s.tick >= s.timeLimitTicks) s.outcome = 'timeout';
 }
