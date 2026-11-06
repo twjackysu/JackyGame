@@ -83,6 +83,18 @@ export interface MarketListingTable {
   Version: number;
 }
 
+export interface TradeTable {
+  Id: string;
+  ACharacterId: string;
+  BCharacterId: string;
+  Status: string;
+  /** 雙方帳號、名字、狀態機（JSON） */
+  Data: string;
+  CreatedAt: Ms;
+  ExpiresAt: Ms;
+  Version: number;
+}
+
 export interface GameDb {
   Account: AccountTable;
   Character: CharacterTable;
@@ -92,7 +104,8 @@ export interface GameDb {
   RequestLog: RequestLogTable;
   AuditLog: AuditLogTable;
   MarketListing: MarketListingTable;
+  Trade: TradeTable;
 }
 
 /** 這個版本建立的表（遷移只准碰這些；舊原型表一律不碰） */
-export const OWN_TABLES = ['MarketListing', 'AuditLog', 'RequestLog', 'LedgerEntry', 'Wallet', 'Item', 'Character', 'Account'] as const;
+export const OWN_TABLES = ['Trade', 'MarketListing', 'AuditLog', 'RequestLog', 'LedgerEntry', 'Wallet', 'Item', 'Character', 'Account'] as const;

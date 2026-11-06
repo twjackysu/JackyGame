@@ -10,6 +10,7 @@ import { pvpHandlers } from './pvp';
 import { shopHandlers } from './shop';
 import { skillsHandlers } from './skills';
 import { storyHandlers } from './story';
+import { tradeHandlers } from './trade';
 
 export const HANDLERS: HandlerTable = {
   ...accountHandlers,
@@ -22,4 +23,5 @@ export const HANDLERS: HandlerTable = {
   ...storyHandlers,
   ...marketHandlers,
   ...pvpHandlers,
+  ...tradeHandlers,
 };

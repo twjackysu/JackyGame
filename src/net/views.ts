@@ -140,3 +140,22 @@ export interface PvpLadderView {
   pos: number;
   total: number;
 }
+
+/** 面對面交易一方放的東西（物品附快照給畫面顯示） */
+export interface TradeOfferView {
+  items: { id: string; gear: Record<string, unknown> }[];
+  coin: number;
+}
+/** 面對面交易（託管，F3）：從「我」的角度看 */
+export interface TradeView {
+  id: string;
+  partnerName: string;
+  status: 'open' | 'done' | 'cancelled' | 'expired';
+  /** 內容版本：確認時要帶回來（防最後一秒偷換） */
+  rev: number;
+  mine: TradeOfferView;
+  theirs: TradeOfferView;
+  locked: { me: boolean; them: boolean };
+  confirmed: { me: boolean; them: boolean };
+  expiresAt: number;
+}

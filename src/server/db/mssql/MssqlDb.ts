@@ -6,7 +6,7 @@ import * as Tarn from 'tarn';
 import * as Tedious from 'tedious';
 import { ApiError } from '../../../net/protocol';
 import type { CurrencyId } from '../../../net/views';
-import { CURRENCIES, type CharacterRow, type Db, type ItemRow, type LedgerRow, type ListingRow, type Repos } from '../../repos/types';
+import { CURRENCIES, type CharacterRow, type Db, type ItemRow, type LedgerRow, type ListingRow, type Repos, type TradeRow } from '../../repos/types';
 import { parseConnectionString, type DbTarget } from './connString';
 import { assertSchemaName, migrateToLatest } from './migrate';
 import type { GameDb } from './schema';
@@ -73,6 +73,11 @@ function listingRow(r: { [K in keyof GameDb['MarketListing']]: unknown }): Listi
   if (r.ClosedAt !== null && r.ClosedAt !== undefined) out.closedAt = num(r.ClosedAt as number);
   if (r.BuyerCharacterId !== null && r.BuyerCharacterId !== undefined) out.buyerCharacterId = String(r.BuyerCharacterId);
   return out;
+}
+
+function tradeRow(r: { [K in keyof GameDb['Trade']]: unknown }): TradeRow {
+  const d = JSON.parse(String(r.Data)) as Pick<TradeRow, 'aAccountId' | 'aName' | 'bAccountId' | 'bName' | 'state'>;
+  return { id: String(r.Id), aCharacterId: String(r.ACharacterId), bCharacterId: String(r.BCharacterId), ...d, createdAt: num(r.CreatedAt as number), expiresAt: num(r.ExpiresAt as number), version: num(r.Version as number) };
 }
 
 function reposOf(t: Trx, now: () => number): Repos {
@@ -216,6 +221,32 @@ function reposOf(t: Trx, now: () => number): Repos {
         return rows.map(listingRow);
       },
       listBySeller: async (c, limit) => (await t.selectFrom('MarketListing').selectAll().where('SellerCharacterId', '=', c).orderBy('CreatedAt', 'desc').orderBy('Id', 'desc').offset(0).fetch(limit).execute()).map(listingRow),
+    },
+    trades: {
+      get: async (id) => {
+        const r = await t.selectFrom('Trade').selectAll().where('Id', '=', id).executeTakeFirst();
+        return r ? tradeRow(r) : undefined;
+      },
+      save: async (row) => {
+        const v = {
+          ACharacterId: row.aCharacterId,
+          BCharacterId: row.bCharacterId,
+          Status: row.state.status,
+          Data: JSON.stringify({ aAccountId: row.aAccountId, aName: row.aName, bAccountId: row.bAccountId, bName: row.bName, state: row.state }),
+          CreatedAt: row.createdAt,
+          ExpiresAt: row.expiresAt,
+        };
+        const cur = await t.selectFrom('Trade').select('Version').where('Id', '=', row.id).executeTakeFirst();
+        if (!cur) {
+          await t.insertInto('Trade').values({ Id: row.id, ...v, Version: row.version }).execute();
+          return { ...row };
+        }
+        const u = await t.updateTable('Trade').set({ ...v, Version: row.version + 1 }).where('Id', '=', row.id).where('Version', '=', row.version).executeTakeFirst();
+        if (!Number(u.numUpdatedRows)) throw new ApiError('conflict', `trades ${row.id} version ${row.version} != ${cur.Version}`);
+        return { ...row, version: row.version + 1 };
+      },
+      listByCharacter: async (c, limit) =>
+        (await t.selectFrom('Trade').selectAll().where((e) => e.or([e('ACharacterId', '=', c), e('BCharacterId', '=', c)])).orderBy('CreatedAt', 'desc').orderBy('Id', 'desc').offset(0).fetch(limit).execute()).map(tradeRow),
     },
   };
 }

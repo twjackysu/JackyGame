@@ -1,5 +1,6 @@
 // 資料表的列（design/24 §3）。線上版這些就是 `game` schema 的資料表（25 §3）；本機版存在 IndexedDB。
 // 規則：一件物品同一時間只在一個 location；金錢只能透過 Wallet＋LedgerEntry 異動（複式記帳）。
+import type { TradeState } from '../../core/meta/trade';
 import type { CurrencyId, MapProgressView, WeaponView } from '../../net/views';
 
 export interface AccountRow {
@@ -98,6 +99,22 @@ export interface ListingRow {
   version: number;
 }
 
+/** 面對面交易（託管，F3，24 §4.2、25 §3 game.Trade）。放進去的物品 location＝trade:<id>，放進去的金幣先扣掉（託管），完成或取消才發出去 */
+export interface TradeRow {
+  id: string;
+  aAccountId: string;
+  aCharacterId: string;
+  aName: string;
+  bAccountId: string;
+  bCharacterId: string;
+  bName: string;
+  /** 狀態機（core/meta/trade.ts）；status 另外存一份給查詢用 */
+  state: TradeState;
+  createdAt: number;
+  expiresAt: number;
+  version: number;
+}
+
 export interface ListingQuery {
   slot?: string;
   rarity?: number;
@@ -136,9 +153,10 @@ export interface Tables {
   requests: RequestLogRow;
   audit: AuditRow;
   listings: ListingRow;
+  trades: TradeRow;
 }
 export type TableName = keyof Tables;
-export const TABLES: readonly TableName[] = ['accounts', 'characters', 'items', 'wallets', 'ledger', 'requests', 'audit', 'listings'];
+export const TABLES: readonly TableName[] = ['accounts', 'characters', 'items', 'wallets', 'ledger', 'requests', 'audit', 'listings', 'trades'];
 
 /** 交易內可用的資料存取（handler 只看得到這個介面；SQL 版用 Kysely 實作同一份介面） */
 export interface Repos {
@@ -183,6 +201,13 @@ export interface Repos {
     listOpen(q: ListingQuery): Promise<ListingRow[]>;
     /** 這個角色上架過的（新的在前，最多 limit 筆） */
     listBySeller(characterId: string, limit: number): Promise<ListingRow[]>;
+  };
+  trades: {
+    get(id: string): Promise<TradeRow | undefined>;
+    /** 新增或更新（樂觀鎖同 items） */
+    save(row: TradeRow): Promise<TradeRow>;
+    /** 這個角色參與的交易（任一方；新的在前，最多 limit 筆） */
+    listByCharacter(characterId: string, limit: number): Promise<TradeRow[]>;
   };
 }
 

@@ -1,6 +1,6 @@
 // 客戶端 ↔ 伺服器的訊息格式（D-277，design/24 §1～2）。邊界上只有 JSON：這裡只放型別與純函式。
 // 換成線上版時這份檔案兩邊共用，不用改。
-import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, PvpStartView, PvpLadderView, ShopView } from './views';
+import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -65,6 +65,14 @@ export interface Api {
   // 非同步 PvP 天梯（core/battle/rt/pvpMatch.ts，24 §6.2）：伺服器發種子與雙方配裝 → 客戶端打完送自己的指令紀錄 → 伺服器重跑判勝負、改段位分
   'pvp.start': { params: { characterId: string }; result: PvpStartView; write: true };
   'pvp.finish': { params: { characterId: string; matchId: string; inputs: unknown[] }; result: { outcome: 'victory' | 'defeat' | 'timeout'; rating: number; delta: number }; write: true };
+  // 面對面交易（託管，core/meta/trade.ts，24 §4.2）：放進去的物品與金幣先由伺服器保管；雙方鎖定＋對目前版本確認才交換
+  'trade.open': { params: { characterId: string; partnerCharacterId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
+  'trade.offer': { params: { characterId: string; tradeId: string; items: string[]; coin: number }; result: { trade: TradeView; character: CharacterView }; write: true };
+  'trade.lock': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
+  'trade.confirm': { params: { characterId: string; tradeId: string; rev: number }; result: { trade: TradeView; character: CharacterView }; write: true };
+  'trade.cancel': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
+  /** 看一筆交易；過期的在這裡退回（所以算寫入） */
+  'trade.get': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
   /** 天梯排行：前幾名＋自己的名次（只讀） */
   'pvp.ladder': { params: { characterId: string }; result: PvpLadderView; write: false };
 }
@@ -100,6 +108,12 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'market.mine',
   'pvp.start',
   'pvp.finish',
+  'trade.open',
+  'trade.offer',
+  'trade.lock',
+  'trade.confirm',
+  'trade.cancel',
+  'trade.get',
 ]);
 
 export class ApiError extends Error {

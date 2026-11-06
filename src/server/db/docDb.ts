@@ -48,7 +48,7 @@ class Tx {
   }
 }
 
-function versioned<K extends 'characters' | 'items' | 'listings'>(tx: Tx, t: K, row: Tables[K]): Tables[K] {
+function versioned<K extends 'characters' | 'items' | 'listings' | 'trades'>(tx: Tx, t: K, row: Tables[K]): Tables[K] {
   const cur = tx.get(t, row.id);
   if (cur && cur.version !== row.version) throw new ApiError('conflict', `${t} ${row.id} version ${row.version} != ${cur.version}`);
   const next = { ...row, version: (cur?.version ?? row.version) + (cur ? 1 : 0) };
@@ -123,6 +123,11 @@ function reposOf(tx: Tx, now: () => number): Repos {
           .sort((a, b) => a.price - b.price || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
           .slice(q.offset, q.offset + q.limit),
       listBySeller: async (c, limit) => tx.scan('listings', (r) => r.sellerCharacterId === c).sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1)).slice(0, limit),
+    },
+    trades: {
+      get: async (id) => tx.get('trades', id),
+      save: async (row) => versioned(tx, 'trades', row),
+      listByCharacter: async (c, limit) => tx.scan('trades', (r) => r.aCharacterId === c || r.bCharacterId === c).sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1)).slice(0, limit),
     },
   };
 }
