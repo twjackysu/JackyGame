@@ -1,5 +1,6 @@
 // 即時戰鬥試玩場景（除錯入口：?debug&scene=RtBattle&stage=forest_entry；D-063／D-065，design/20 §B8 P1）。
 // Phaser 只負責畫 BattleState 與收輸入 → BattleCommand；戰鬥結果全部由 src/core/battle/rt 決定（D-062）。
+import { onlineLoot } from '../onlineLoot';
 import Phaser from 'phaser';
 import { cdText, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
@@ -443,6 +444,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
     this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined });
+    if (this.tracked && !this.bot) onlineLoot.start(this.stageId, !!this.s.night, loadWeapon());
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -3134,6 +3136,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
           this.killSprite(d.id);
           this.bountyKill(d.defId);
+          if (this.tracked && !this.bot) onlineLoot.kill(d);
           if (this.ventHit.get(d.id) === e.tick) this.ventKill(d.x, d.y);
           this.ventHit.delete(d.id);
           if (d.defId === 'thorn_queen' || d.defId === 'thorn_mother') this.thornWither(d.x, d.y, d.defId === 'thorn_queen');
