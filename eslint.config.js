@@ -5,9 +5,9 @@ import tseslint from 'typescript-eslint';
 const deny = (group, message) => ['error', { patterns: [{ group, message }] }];
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'dev-dist/**', 'android/**', 'ios/**', 'node_modules/**', 'screenshots/**', 'scripts/**', 'public/**'] },
+  { ignores: ['dist/**', 'dist-server/**', 'dev-dist/**', 'android/**', 'ios/**', 'node_modules/**', 'screenshots/**', 'scripts/**', 'public/**'] },
   {
-    files: ['src/**/*.ts', 'tests/**/*.ts'],
+    files: ['src/**/*.ts', 'tests/**/*.ts', 'server/**/*.ts'],
     languageOptions: { parser: tseslint.parser },
     plugins: { '@typescript-eslint': tseslint.plugin },
     rules: {

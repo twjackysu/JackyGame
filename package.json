@@ -21,7 +21,9 @@
     "wiki": "WIKI=1 vitest run tests/wiki-gen.test.ts",
     "sim:rt": "RT_REPORT=1 vitest run tests/rt-report.test.ts",
     "sim:economy": "SIM_REPORT=1 vitest run tests/sim-economy.test.ts --silent=false",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "build:server": "rolldown server/main.ts --platform node --format esm --dir dist-server --external msnodesqlv8 --minify",
+    "server:dev": "AUTH_MODE=dev npx --yes tsx server/main.ts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

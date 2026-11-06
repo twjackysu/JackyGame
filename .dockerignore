@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-server
+dev-dist
+android
+ios
+screenshots
+.git
+.loop
+**/.env

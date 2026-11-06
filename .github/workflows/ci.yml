@@ -31,6 +31,14 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      # V6（D-305）：線上 API 打包成一個檔案、真的啟動、打 /health；打包結果不能有遊戲畫面（Phaser）
+      - name: Server bundle smoke test
+        run: |
+          npm run build:server
+          if grep -q 'Phaser' dist-server/*.js; then echo 'dist-server 裡有 Phaser'; exit 1; fi
+          (cd dist-server && AUTH_MODE=dev PORT=8088 node main.js &)
+          for i in $(seq 1 20); do curl -sf http://localhost:8088/health && break; sleep 0.5; done
+          curl -sf http://localhost:8088/health
       - name: Smoke test (headless Chromium, fail on runtime errors)
         run: |
           npx playwright install --with-deps chromium
