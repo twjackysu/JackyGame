@@ -20,3 +20,20 @@ export function stageDef(id: string): StageDefinition | undefined {
   const mk = Object.prototype.hasOwnProperty.call(WORLD_STAGE_MAKERS, id) ? WORLD_STAGE_MAKERS[id] : undefined;
   return mk ? (STAGES[id] = mk()) : undefined;
 }
+
+/** 大地圖的順序（D-114／D-124）：第一張一開始就開；之後每張要先打倒前一張圖的 Boss 一次。和畫面層 worldMaps 的 next 一樣（測試對照） */
+export const WORLD_ORDER: readonly string[] = ['mistwood', 'thornvale', 'emberrift', 'starfall'];
+
+type MapProg = Readonly<Record<string, { bossKills?: number; furyKills?: number } | undefined>>;
+
+/** 這張圖開了沒（不是大地圖的關卡一律算開；伺服器 battle.start 檢查用） */
+export function worldStageOpen(id: string, maps: MapProg): boolean {
+  const i = WORLD_ORDER.indexOf(id);
+  if (i <= 0) return true;
+  return (maps[WORLD_ORDER[i - 1]!]?.bossKills ?? 0) >= 1;
+}
+
+/** 深夜開了沒（D-103／畫面層 nightUnlocked）：這張圖打倒過暴怒版 Boss */
+export function worldNightOpen(id: string, maps: MapProg): boolean {
+  return (maps[id]?.furyKills ?? 0) >= 1;
+}

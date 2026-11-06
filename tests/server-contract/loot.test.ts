@@ -98,6 +98,20 @@ for (const be of BACKENDS)
       expect(r.character.xp).toBe(39 + r.xp - xpToNext(1));
     });
 
+    it('還沒開放的地圖、還沒解鎖的深夜不能開；暴怒 Boss 記暴怒討伐（解鎖深夜）', async () => {
+      const { a } = await setup(be);
+      const fresh = { ...LEGACY_SAMPLE, jg_rt_mistwood: JSON.stringify({ ...JSON.parse(LEGACY_SAMPLE.jg_rt_mistwood!), bossKills: 0, furyKills: 0 }), jg_rt_thornvale: '{}' };
+      const { characterId } = await a.call('migrate.legacy', { snapshot: fresh });
+      expect(await code(a.call('battle.start', { characterId, stageId: 'thornvale' }))).toBe('rejected');
+      expect(await code(a.call('battle.start', { characterId, stageId: 'mistwood', night: true }))).toBe('rejected');
+      const { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
+      const r = await a.call('loot.claim', { characterId, battleId, killSeq: 1, enemyId: 'wolf_king', fixedIdx: 0, fury: true });
+      expect(r.character.maps.mistwood).toMatchObject({ bossKills: 1, furyKills: 1 });
+      expect(await code(a.call('battle.start', { characterId, stageId: 'thornvale' }))).toBe('ok');
+      expect(await code(a.call('battle.start', { characterId, stageId: 'emberrift' }))).toBe('rejected');
+      expect(await code(a.call('battle.start', { characterId, stageId: 'mistwood', night: true }))).toBe('ok');
+    });
+
     it('速度上限：開場 KILL_BURST 隻，之後每分鐘 KILLS_PER_MIN 隻', async () => {
       const { a, clock } = await setup(be);
       const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });

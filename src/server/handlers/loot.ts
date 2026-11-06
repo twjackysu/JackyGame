@@ -5,7 +5,7 @@
 //   通過才用「伺服器的亂數」照同一份規則（core/battle/rt/loot.ts）擲掉落，直接入錢包／行囊（行囊滿了照單機規則自動分解，D-100）；經驗與升級也在這裡算。
 // 深夜、暴怒、詞綴是客戶端說的（伺服器沒跑這場戰鬥），只能檢查「這張圖有沒有」；之後抽查重跑指令紀錄（26 §3.1）。
 import { genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
-import { stageDef } from '../../core/battle/rt/maps/world';
+import { stageDef, worldNightOpen, worldStageOpen } from '../../core/battle/rt/maps/world';
 import { xpToNext } from '../../core/battle/rt/engine';
 import { isStageBoss, killXp, rollEnemyLoot, validKill, type LootContext } from '../../core/battle/rt/loot';
 import { addWithAutoSalvage } from '../../core/meta/bag';
@@ -55,6 +55,8 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim'> = {
     const night = optBool(p?.night, 'night');
     const st = stageDef(stageId);
     if (!st?.loot || (night && !st.night)) throw new ApiError('rejected', 'stage');
+    // 還沒開放的地圖、還沒解鎖的深夜不能開（跟畫面層 mapOpen／nightUnlocked 同一條規則）
+    if (!worldStageOpen(stageId, c.maps) || (night && !worldNightOpen(stageId, c.maps))) throw new ApiError('rejected', 'locked');
     const b: StoredBattle = { id: ctx.ids.next('pve'), stageId, night, at: ctx.clock.now(), seq: 0, claims: 0 };
     await ctx.r.characters.save({ ...c, pveBattle: JSON.stringify(b) });
     return { battleId: b.id };
@@ -139,7 +141,7 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim'> = {
     }
     if (isStageBoss(lc)) {
       const mp = cur.maps[b.stageId] ?? {};
-      next.maps = { ...cur.maps, [b.stageId]: { ...mp, bossKills: (mp.bossKills ?? 0) + 1 } };
+      next.maps = { ...cur.maps, [b.stageId]: { ...mp, bossKills: (mp.bossKills ?? 0) + 1, ...(fury ? { furyKills: (mp.furyKills ?? 0) + 1 } : {}) } };
     }
     await ctx.r.characters.save(next);
     return { drops: rolled, xp, character: await freshView(ctx, c.id) };
