@@ -212,6 +212,10 @@ export interface Action {
 export interface Unit {
   id: number;
   side: 'player' | 'enemy';
+  /** 隊伍（Q6）：同隊不互打。沒有＝照 side（玩家 0、敵人 1）；PvP 時兩個玩家不同隊 */
+  team?: number;
+  /** 玩家編號（Q6）：沒有＝0（單人的主角）；其他玩家的控制狀態在 BattleState.others[pid − 1] */
+  pid?: number;
   defId: string;
   x: number;
   y: number;
@@ -358,7 +362,9 @@ export type BattleEvent =
   | { tick: number; type: 'regen'; id: number; heal: number };
 
 /** 玩家（或 Bot）的輸入：一個 tick 可以送多個 */
-export type BattleCommand =
+/** 指令（pid＝哪個玩家下的；沒有＝0，單人的舊呼叫不用改） */
+export type BattleCommand = BattleCommandBody & { pid?: number };
+export type BattleCommandBody =
   | { type: 'move'; dx: number; dy: number }
   | { type: 'stop' }
   | { type: 'skill'; id: string }
@@ -539,7 +545,19 @@ export interface StageZone {
   y1: number;
 }
 
-export interface BattleState {
+/**
+ * 每個玩家自己的控制狀態（Q6）。單人（pid 0）就是 BattleState 本身的同名欄位——舊程式、存檔、雜湊都不用改；
+ * 其他玩家的放在 BattleState.others[pid − 1]。引擎一律透過 ctlOf(s, 玩家) 讀寫。
+ */
+export interface PlayerCtl {
+  manualMove: { dx: number; dy: number } | null;
+  moveGoal?: { x: number; y: number; until: number } | null;
+  lastCombatTick?: number;
+  potions: number;
+  campfireId?: string;
+}
+
+export interface BattleState extends PlayerCtl {
   tick: number;
   rngState: number;
   units: Unit[];
@@ -603,4 +621,6 @@ export interface BattleState {
   respawnAt?: Record<string, number[]>;
   /** 星光碎片（D-141）：還留在地上的落點 idx 與消失的 tick（只有 vents 帶 shard 的關卡才會有） */
   shards?: { idx: number; until: number }[];
+  /** pid 1 以後的玩家的控制狀態（Q6；單人沒有） */
+  others?: PlayerCtl[];
 }

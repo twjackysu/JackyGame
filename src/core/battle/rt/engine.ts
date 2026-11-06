@@ -1,7 +1,7 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
-import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
+import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 import { cosStep, evenStep, inSectorAngle, randStep, sinStep, xpCurve } from '../../fixedMath';
@@ -339,8 +339,9 @@ function processPickup(s: BattleState): void {
     if (s.tick - it.tick > LOOT_RULES.expireTicks) return false;
     if (p.dead || s.tick - it.tick < LOOT_RULES.pickupDelayTicks || dist(p.x, p.y, it.x, it.y) > LOOT_RULES.pickupUnits * UNIT) return true;
     if (it.kind === 'potion') {
-      if (s.potions >= carry) return true;
-      s.potions = Math.min(carry, s.potions + it.amount);
+      const c = ctlOf(s, p);
+      if (c.potions >= carry) return true;
+      c.potions = Math.min(carry, c.potions + it.amount);
     }
     if (it.kind === 'gear') {
       (s.gearGot ??= []).push({ id: it.id, rarity: it.rarity ?? 1, ilvl: it.amount });
@@ -477,7 +478,7 @@ function processChests(s: BattleState): void {
     (s.chestsOpened ??= []).push(c.id);
     for (const k of Object.keys(c.loot).sort() as LootId[]) {
       const n = c.loot[k] ?? 0;
-      if (k === 'potion') s.potions = Math.min(playerDef(s).potion.carry, s.potions + n);
+      if (k === 'potion') ctlOf(s, p).potions = Math.min(playerDef(s).potion.carry, ctlOf(s, p).potions + n);
       s.loot[k] = (s.loot[k] ?? 0) + n;
     }
     emit(s, { tick: s.tick, type: 'chest', chest: c.id, loot: { ...c.loot } });
@@ -577,7 +578,15 @@ function gainXp(s: BattleState, dst: Unit): void {
 /** 還有沒有會重生的怪（刷怪地圖不會因清空而勝利） */
 const pendingRespawn = (s: BattleState): boolean => !!s.respawnAt && Object.values(s.respawnAt).some((d) => d.length > 0);
 
-export const playerOf = (s: BattleState): Unit => s.units[0]!;
+export const playerOf = (s: BattleState, pid = 0): Unit => (pid === 0 ? s.units[0]! : s.units.find((u) => u.side === 'player' && u.pid === pid)!);
+/** 隊伍（Q6）：沒設＝照 side */
+export const teamOf = (u: Unit): number => u.team ?? (u.side === 'player' ? 0 : 1);
+export const hostile = (a: Unit, b: Unit): boolean => teamOf(a) !== teamOf(b);
+/** 這個玩家的控制狀態（pid 0＝BattleState 本身） */
+export function ctlOf(s: BattleState, p: Unit): PlayerCtl {
+  const pid = p.pid ?? 0;
+  return pid === 0 ? s : s.others![pid - 1]!;
+}
 export const enemiesOf = (s: BattleState): Unit[] => s.units.filter((x) => x.side === 'enemy' && !x.dead);
 const unitById = (s: BattleState, id: number | null | undefined): Unit | undefined => (id == null ? undefined : s.units.find((x) => x.id === id));
 const has = (x: Unit, id: StatusId, tick: number): boolean => x.statuses.some((st) => st.id === id && st.until > tick);
@@ -703,7 +712,8 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   if (dst.mode === 'idle' || dst.mode === 'dormant') aggro(s, dst); // 被打到就醒
   if (dst.mode) dst.engagedTick = s.tick;
   if (src.mode) src.engagedTick = s.tick;
-  if (src.side === 'player' || dst.side === 'player') s.lastCombatTick = s.tick;
+  if (src.side === 'player') ctlOf(s, src).lastCombatTick = s.tick;
+  if (dst.side === 'player') ctlOf(s, dst).lastCombatTick = s.tick;
   if (dst.invulnUntil >= s.tick) {
     emit(s, { tick: s.tick, type: 'dodged', id: dst.id, attack: skill });
     return 0;
@@ -978,18 +988,21 @@ function startDodge(s: BattleState, p: Unit, dx: number, dy: number): boolean {
 }
 
 function applyCommands(s: BattleState, cmds: readonly BattleCommand[]): void {
-  const p = playerOf(s);
   s.manualMove = null;
+  for (const o of s.others ?? []) o.manualMove = null;
   for (const c of cmds) {
+    const p = playerOf(s, c.pid ?? 0);
+    if (!p) continue;
+    const ctl = ctlOf(s, p);
     if (c.type === 'move') {
-      s.manualMove = c.dx === 0 && c.dy === 0 ? null : { dx: c.dx, dy: c.dy };
-      if (s.manualMove) s.moveGoal = null;
+      ctl.manualMove = c.dx === 0 && c.dy === 0 ? null : { dx: c.dx, dy: c.dy };
+      if (ctl.manualMove) ctl.moveGoal = null;
     }
-    else if (c.type === 'stop') s.manualMove = null;
+    else if (c.type === 'stop') ctl.manualMove = null;
     else if (c.type === 'target') {
       p.targetId = c.id;
-      s.moveGoal = null;
-    } else if (c.type === 'moveTo') setMoveGoal(s, c.x, c.y);
+      ctl.moveGoal = null;
+    } else if (c.type === 'moveTo') setMoveGoal(s, p, c.x, c.y);
     else if (c.type === 'skill') startSkill(s, p, c.id);
     else if (c.type === 'dodge') startDodge(s, p, c.dx, c.dy);
     else if (c.type === 'potion') drinkPotion(s, p);
@@ -1012,9 +1025,10 @@ function restAtCampfire(s: BattleState, p: Unit): boolean {
   if (!c || p.dead || s.units.some((e) => e.side === 'enemy' && !e.dead && e.mode === 'combat')) return false;
   p.hp = p.maxHp;
   p.statuses = [];
-  s.potions = Math.max(s.potions, playerDef(s).potion.carry);
-  s.campfireId = c.id;
-  s.moveGoal = null;
+  const ctl = ctlOf(s, p);
+  ctl.potions = Math.max(ctl.potions, playerDef(s).potion.carry);
+  ctl.campfireId = c.id;
+  ctl.moveGoal = null;
   emit(s, { tick: s.tick, type: 'rest', id: p.id, campfire: c.id });
   return true;
 }
@@ -1023,7 +1037,8 @@ function restAtCampfire(s: BattleState, p: Unit): boolean {
 function reviveAtCampfire(s: BattleState, p: Unit): boolean {
   const fires = campfiresOf(s);
   if (!STAGES[s.stageId]?.reviveAtCampfire || !fires.length) return false;
-  const c = fires.find((f) => f.id === s.campfireId) ?? fires[0]!;
+  const ctl = ctlOf(s, p);
+  const c = fires.find((f) => f.id === ctl.campfireId) ?? fires[0]!;
   p.dead = false;
   p.hp = p.maxHp;
   p.statuses = [];
@@ -1031,12 +1046,12 @@ function reviveAtCampfire(s: BattleState, p: Unit): boolean {
   p.targetId = null;
   // 第 88 輪（D-225）：醒來也補藥水（和休息一樣補到攜帶上限）。以前藥水喝光倒下 → 醒來 0 瓶，要自己再點火堆才補，
   // 新手常直接走回去又倒一次；休息本來就免費，這一步只是多餘的操作
-  s.potions = Math.max(s.potions, playerDef(s).potion.carry);
+  ctl.potions = Math.max(ctl.potions, playerDef(s).potion.carry);
   p.x = c.x;
   p.y = c.y + UNIT;
   clampArena(s, p);
   p.invulnUntil = s.tick + CAMPFIRE_RULES.reviveInvulnTicks;
-  s.moveGoal = null;
+  ctl.moveGoal = null;
   s.revives = (s.revives ?? 0) + 1;
   if (s.streak) s.streak = 0;
   for (const e of s.units) {
@@ -1051,27 +1066,27 @@ function reviveAtCampfire(s: BattleState, p: Unit): boolean {
 }
 
 /** 點地移動：夾在場地內；點到石頭上就忽略（D-071） */
-function setMoveGoal(s: BattleState, x: number, y: number): void {
-  const p = playerOf(s);
+function setMoveGoal(s: BattleState, p: Unit, x: number, y: number): void {
   const gx = Math.min(s.arena.w - p.r, Math.max(p.r, Math.round(x)));
   const gy = Math.min(s.arena.h - p.r, Math.max(p.r, Math.round(y)));
   if (s.arena.solid && isSolidAt(s.arena.solid, gx, gy)) return;
   const g = gridOf(s.arena);
   if (g && flowField(g, cellIndex(g, gx, gy))[cellIndex(g, p.x, p.y)]! < 0) return; // 走不到
   // 最多走 10 秒（被怪擋住到不了時，自動恢復追擊）
-  s.moveGoal = { x: gx, y: gy, until: s.tick + 10 * TICKS_PER_SEC };
+  ctlOf(s, p).moveGoal = { x: gx, y: gy, until: s.tick + 10 * TICKS_PER_SEC };
 }
 
 /** 喝藥水：瞬間回復、不打斷動作；滿血、沒藥、冷卻中、倒下或暈眩時無效 */
 function drinkPotion(s: BattleState, p: Unit): boolean {
   const pt = playerDef(s).potion;
-  if (p.dead || disabled(p, s.tick) || s.potions <= 0 || p.hp >= p.maxHp) return false;
+  const ctl = ctlOf(s, p);
+  if (p.dead || disabled(p, s.tick) || ctl.potions <= 0 || p.hp >= p.maxHp) return false;
   if ((p.ready['potion'] ?? 0) > s.tick) return false;
   const heal = Math.min(p.maxHp - p.hp, Math.round((p.maxHp * pt.healPct) / 100));
   p.hp += heal;
-  s.potions--;
+  ctl.potions--;
   p.ready['potion'] = s.tick + pt.cooldownTicks;
-  emit(s, { tick: s.tick, type: 'potion', id: p.id, heal, left: s.potions });
+  emit(s, { tick: s.tick, type: 'potion', id: p.id, heal, left: ctl.potions });
   return true;
 }
 
@@ -1119,9 +1134,9 @@ function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillI
   }
 }
 
-function updatePlayer(s: BattleState): void {
-  const p = playerOf(s);
+function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
   if (p.dead || disabled(p, s.tick)) return;
+  const ctl = ctlOf(s, p);
   const pd = playerDef(s);
   const a = p.action;
   if (a) {
@@ -1139,10 +1154,10 @@ function updatePlayer(s: BattleState): void {
         p.y += Math.round((a.dirY / DIR) * step);
         clampArena(s, p);
       } else if (sk.moveFactor > 0) {
-        if (s.manualMove) {
-          const [fx, fy] = norm(s.manualMove.dx, s.manualMove.dy);
+        if (ctl.manualMove) {
+          const [fx, fy] = norm(ctl.manualMove.dx, ctl.manualMove.dy);
           moveDir(s, p, fx, fy, sk.moveFactor);
-        } else if (s.moveGoal) navToward(s, p, s.moveGoal.x, s.moveGoal.y, 0, sk.moveFactor);
+        } else if (ctl.moveGoal) navToward(s, p, ctl.moveGoal.x, ctl.moveGoal.y, 0, sk.moveFactor);
         else {
           const t = currentTarget(s, p);
           if (t) navToward(s, p, t.x, t.y, p.r + t.r, sk.moveFactor);
@@ -1159,7 +1174,7 @@ function updatePlayer(s: BattleState): void {
       for (const h of sk.hits) if (h.atTick === k) resolveSkillHit(s, p, a, h, a.id, 'skill');
     } else if (a.kind === 'attack') {
       // 手動移動可以取消普攻後搖（命中前取消就沒打到）
-      if ((s.manualMove || s.moveGoal) && k > pd.attackWindupTicks) p.action = null;
+      if ((ctl.manualMove || ctl.moveGoal) && k > pd.attackWindupTicks) p.action = null;
       else if (k === pd.attackWindupTicks) {
         const t = unitById(s, a.targetId);
         if (t && !t.dead && dist(p.x, p.y, t.x, t.y) <= pd.attackRange + p.r + t.r + 30) dealDamage(s, p, t, 100, 'normal', 'attack');
@@ -1169,18 +1184,18 @@ function updatePlayer(s: BattleState): void {
     if (p.action) return;
   }
   // 沒有動作：手動移動優先（暫停自動追擊；design/19 方案 A）
-  if (s.manualMove) {
-    const [fx, fy] = norm(s.manualMove.dx, s.manualMove.dy);
+  if (ctl.manualMove) {
+    const [fx, fy] = norm(ctl.manualMove.dx, ctl.manualMove.dy);
     p.facingX = fx;
     p.facingY = fy;
     moveDir(s, p, fx, fy);
     return;
   }
   // 點地移動中：走到目的地（期間不自動追擊），到了就恢復自動追擊
-  if (s.moveGoal) {
-    if (dist(p.x, p.y, s.moveGoal.x, s.moveGoal.y) <= 12 || s.tick >= s.moveGoal.until) s.moveGoal = null;
+  if (ctl.moveGoal) {
+    if (dist(p.x, p.y, ctl.moveGoal.x, ctl.moveGoal.y) <= 12 || s.tick >= ctl.moveGoal.until) ctl.moveGoal = null;
     else {
-      navToward(s, p, s.moveGoal.x, s.moveGoal.y, 0);
+      navToward(s, p, ctl.moveGoal.x, ctl.moveGoal.y, 0);
       return;
     }
   }
@@ -1533,9 +1548,10 @@ const REGEN = { afterTicks: 5 * TICKS_PER_SEC, everyTicks: TICKS_PER_SEC, pct: 2
 function naturalRegen(s: BattleState, p: Unit): void {
   const st = STAGES[s.stageId];
   if (!st || !(st.regen ?? st.mapAi) || p.dead || p.hp >= p.maxHp) return;
-  if (s.tick - (s.lastCombatTick ?? 0) < REGEN.afterTicks) return;
+  const last = ctlOf(s, p).lastCombatTick ?? 0;
+  if (s.tick - last < REGEN.afterTicks) return;
   if (s.units.some((e) => e.side === 'enemy' && !e.dead && e.mode === 'combat')) return;
-  if ((s.tick - (s.lastCombatTick ?? 0)) % REGEN.everyTicks !== 0) return;
+  if ((s.tick - last) % REGEN.everyTicks !== 0) return;
   const heal = Math.min(p.maxHp - p.hp, Math.max(1, Math.round((p.maxHp * REGEN.pct) / 100)));
   p.hp += heal;
   emit(s, { tick: s.tick, type: 'regen', id: p.id, heal });
