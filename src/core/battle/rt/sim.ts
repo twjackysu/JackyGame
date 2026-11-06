@@ -1,7 +1,7 @@
 // 控制器、無畫面模擬器與統計（design/19 §7、D-063 P2）。
 // 控制器只讀 BattleState、回傳 BattleCommand；同種子＋同控制器＝同結果（stateHash 驗證）。
 import { ENEMIES, STAGES } from './data';
-import { createBattle, ctlOf, dist, foesOf, skillDef, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
+import { createBattle, ctlOf, dist, foesOf, skillDef, enemiesOf, inShape, isSolidAt, playerDef, playerOf, stateHash, step, type BattleSetup } from './engine';
 import { aggroUnitsOf, CAMPFIRE_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
 
 export interface BattleController {
@@ -270,8 +270,52 @@ export class PlayerBot implements BattleController {
     else if (d <= (skillDef(s, 'heavy_slash', p)!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
     else if (ready('charge') && (backLeap(s, p) ? d <= (skillDef(s, 'charge', p)!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge', p)!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' });
     else if (near.length >= 1 && ready('whirlwind') && es.length === 1) out.push({ type: 'skill', id: 'whirlwind' });
+    // 3. PvP 遠程拉開距離（第 144 輪，邊退邊射）：沒放技能、普攻還在冷卻、對手太近 → 往遠離對手的方向走；
+    //    普攻好了就站住讓自動普攻出手（手動移動在出手前會蓋掉普攻，命中後才可以取消後搖）。PvE 不走這段。
+    if (s.pvp && !out.some((c) => c.type === 'skill')) {
+      const kd = kiteDir(s, p, tgt);
+      if (kd) out.push({ type: 'move', dx: kd[0], dy: kd[1] });
+    }
     return out;
   }
+}
+
+/** 八個方向（整數，避免三角函式；長度約 1000） */
+const DIRS8: readonly (readonly [number, number])[] = [
+  [1000, 0], [707, 707], [0, 1000], [-707, 707], [-1000, 0], [-707, -707], [0, -1000], [707, -707],
+];
+
+/**
+ * 遠程在 PvP 的走位：對手在「射程的一半」以內且普攻還沒好 → 回傳要走的方向（undefined＝不用走）。
+ * 從八個方向挑：走 1.5 格後離對手最遠、不撞石頭、不貼牆（牆邊 1 格內扣分，避免被逼進角落）。
+ */
+function kiteDir(s: BattleState, p: U, t: U): readonly [number, number] | undefined {
+  const pd = playerDef(s, p);
+  if (pd.attackRange < 3 * UNIT) return undefined; // 近戰不拉
+  const reach = pd.attackRange + p.r + t.r;
+  const d = dist(p.x, p.y, t.x, t.y);
+  if (d > reach * 0.6) return undefined;
+  const a = p.action;
+  const attacking = a && a.kind === 'attack' && s.tick - a.start <= pd.attackWindupTicks;
+  if (attacking) return undefined; // 箭還沒射出去
+  if (p.nextAttackTick <= s.tick + 1 && d <= reach) return undefined; // 普攻好了：站住射
+  const look = Math.round(1.5 * UNIT);
+  const { w, h, solid } = s.arena;
+  let best: readonly [number, number] | undefined;
+  let bestScore = -Infinity;
+  for (const v of DIRS8) {
+    const nx = p.x + Math.round((v[0] * look) / 1000);
+    const ny = p.y + Math.round((v[1] * look) / 1000);
+    if (nx < p.r || ny < p.r || nx > w - p.r || ny > h - p.r) continue;
+    if (solid && isSolidAt(solid, nx, ny)) continue;
+    const wall = Math.min(nx, ny, w - nx, h - ny);
+    const score = dist(nx, ny, t.x, t.y) - (wall < UNIT ? (UNIT - wall) * 3 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = v;
+    }
+  }
+  return best;
 }
 
 export interface BattleResult {

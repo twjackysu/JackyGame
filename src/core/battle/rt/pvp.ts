@@ -4,11 +4,23 @@
 import { gearBase, type RtGear } from './gear';
 import { sec } from './types';
 
+export type PvpWeapon = 'sword' | 'bow' | 'staff';
+
 export const PVP = {
   /** 場內最大 HP 倍率 */
   hpMult: 3,
   /** 所有傷害倍率 */
   dmgMult: 0.5,
+  /**
+   * 武器相剋的傷害百分比 [攻擊方][被打方]（第 144 輪平衡：三武器互打勝率 40～60%，23 §Q6）；只影響玩家打玩家，PvE 不讀。
+   * 為什麼要分對手：遠程會邊退邊射，弓對劍、法杖對弓、劍對法杖是「繞圈相剋」，單一武器倍率調不平（調一邊另一組就歪）。
+   * 量法：`RT_REPORT=1 npx vitest run tests/rt-pvp-balance.test.ts --silent=false`
+   */
+  vsPct: {
+    sword: { sword: 100, bow: 100, staff: 100 },
+    bow: { sword: 86, bow: 100, staff: 100 },
+    staff: { sword: 100, bow: 95, staff: 100 },
+  } as Readonly<Record<PvpWeapon, Readonly<Record<PvpWeapon, number>>>>,
   /** 控制效果（暈、凍、緩）時間倍率 */
   ccMult: 0.5,
   /** 同一個目標在視窗內第 n 次被控的時間倍率（第 4 次起免疫） */
@@ -23,7 +35,8 @@ export const PVP = {
 
 export const pvpMaxHp = (maxHp: number): number => Math.round(maxHp * PVP.hpMult);
 /** 傷害至少 1（不然低攻打高防永遠打不動） */
-export const pvpDamage = (dmg: number): number => (dmg <= 0 ? 0 : Math.max(1, Math.round(dmg * PVP.dmgMult)));
+export const pvpDamage = (dmg: number, att: PvpWeapon = 'sword', def: PvpWeapon = 'sword'): number =>
+  dmg <= 0 ? 0 : Math.max(1, Math.round((dmg * PVP.dmgMult * PVP.vsPct[att][def]) / 100));
 
 /** 控制遞減的狀態（每個目標一份） */
 export interface CcMemo {

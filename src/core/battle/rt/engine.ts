@@ -814,7 +814,7 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   let amount = computeDamage(atk, mult, pool, dst.def, critMul);
   if (has(src, 'weak', s.tick)) amount = Math.max(1, Math.round(amount * 0.8)); // 虛弱：造成傷害 −20%
   if (reducePct > 0) amount = Math.max(1, Math.round((amount * (100 - reducePct)) / 100));
-  if (s.pvp && src.side === 'player' && dst.side === 'player') amount = pvpDamage(amount);
+  if (s.pvp && src.side === 'player' && dst.side === 'player') amount = pvpDamage(amount, ctlOf(s, src).weapon ?? 'sword', ctlOf(s, dst).weapon ?? 'sword');
   applyHp(s, src, dst, amount, crit, origin, skill);
   // 受擊硬直（小怪；Boss 0）＋1 秒硬直免疫
   if (dst.side === 'enemy' && !dst.dead) {

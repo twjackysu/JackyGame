@@ -10,6 +10,9 @@ describe('PvP 規則', () => {
     expect(pvpDamage(31)).toBe(16);
     expect(pvpDamage(1)).toBe(1);
     expect(pvpDamage(0)).toBe(0);
+    // 武器相剋（第 144 輪）：弓打劍 86%、法杖打弓 95%，其他 100%
+    expect(pvpDamage(100, 'bow', 'sword')).toBe(Math.round((100 * PVP.dmgMult * PVP.vsPct.bow.sword) / 100));
+    expect(pvpDamage(100, 'sword', 'bow')).toBe(50);
   });
 
   it('控制：時間減半、15 秒內連續被控遞減到免疫、隔久了重置', () => {
