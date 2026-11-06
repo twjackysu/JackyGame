@@ -67,6 +67,22 @@ infra/                 Bicep（新）：Container Apps 環境＋App、Log Analyt
   - 契約測試（24 §1）多跑一份 **MssqlRepo**：本機沙盒沒有 SQL Server → 這份只在 CI 跑，GitHub Actions 用 service container `mcr.microsoft.com/mssql/server:2022-latest`；本機只跑 Memory／Local。
   - `server/` 整合測試：起 `main.ts`（Memory repo）→ 兩個 `WsTransport` client 交易一筆、打一場 PvP。
 
+## 4.4 費用控制與長連線（Jacky 11/6 問：PvP 長連線會不會很快用完免費額度）
+- Container Apps 計費看的是**副本開著的時間**（vCPU 秒、記憶體 GiB 秒），不是連線數；免費額度每月約 18 萬 vCPU 秒、36 萬 GiB 秒、200 萬次請求（以官方頁為準）。**一條 WebSocket 連著，副本就不能縮到 0**——長連線的成本在這裡。
+- 對策（寫進 Bicep 與程式）：
+  1. **拆兩個 Container App**：`jackygame-api`（HTTP：帳號、商店、拍賣、交易、**非同步 PvP**——主要模式，不需要長連線）與 `jackygame-battle`（WebSocket，只給即時 PvP）。兩個都 `minReplicas: 0`，沒人在玩就不收運算費。
+  2. **即時 PvP 只在對戰中連線**：配對成功才開 WebSocket，對戰結束（最長 3 分鐘）或閒置 60 秒就斷；大廳、天梯、拍賣都走 HTTP。
+  3. **規格最小**：0.25 vCPU／0.5 GiB 起跳；`maxReplicas: 2` 封頂，帳單不會失控。一個 0.25 vCPU 的 Node 程序就能同時跑上百場 1v1（引擎在最重的暴動場景約 54 μs/tick，PvP 場景小得多）。
+  4. **預算告警**：Bicep 一起建 Cost Management budget（例如每月 5 美元，80%／100% 寄信）。
+  5. 冷啟動：縮到 0 後第一個請求要等幾秒，標題畫面先打 `/health` 預熱。
+- 粗估（0.25 vCPU／0.5 GiB，價格以官方計算機為準）：
+  | 情境 | 每月 |
+  |---|---|
+  | 偶爾有人玩（每天累計幾小時） | 免費額度內，約 0 美元 |
+  | 一個副本 24 小時開著、大多閒置 | 約 3～5 美元（閒置時 vCPU 用較低的費率） |
+  | 一個副本 24 小時一直在忙 | 約 13～15 美元 |
+- 不選：App Service（B1 要一直開著、固定月費）、Azure Web PubSub（只轉發訊息，伺服器不權威，PvP 防不了作弊）。
+
 ## 4.5 本機開發與測試的資料庫（D-279）
 - **連線字串格式**：ADO.NET（`Server=...;Database=...;User Id=...;Password=...;Encrypt=True` 或 `Authentication=Active Directory Managed Identity`），`server/src/db/connString.ts` 解析成 driver 設定（有單元測試，涵蓋 JackyAIStudio 常見的幾種寫法）。
 - **LocalDB 的限制**：LocalDB 只有 Windows、預設只開具名管道（`(localdb)\MSSQLLocalDB`），Node 的 `tedious` driver 只能走 TCP 連不上。所以：
