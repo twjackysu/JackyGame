@@ -29,7 +29,11 @@ export interface ShopCtx {
   region: string;
   /** 營火燼牌（D-127）：有給才出現「燼牌」分頁按鈕 */
   onCards?: () => void;
+  /** V2（D-285）：買賣交給伺服器（價格、庫存、扣款都伺服器算）。true＝成交（呼叫端已經重讀紀錄與行囊）、false＝被拒、null＝伺服器失敗 → 本機舊做法 */
+  server?: (intent: ShopIntent) => Promise<boolean | null>;
 }
+
+export type ShopIntent = { kind: 'buy'; uid: string; wear: boolean } | { kind: 'sell'; uids: string[] } | { kind: 'goods'; id: string } | { kind: 'reroll' };
 
 export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () => void): Phaser.GameObjects.Container {
   let tab: 'buy' | 'sell' = 'buy';
@@ -49,6 +53,22 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   const echo = spared && Math.random() < 0.35 ? '「聽說你放過了牠們。這價錢，算我的心意。」' : took && Math.random() < 0.25 ? '「那顆發光的東西，你真的拿走了啊。」' : null;
   const line = echo ?? (pickSlot && pickLeft && Math.random() < 0.5 ? `「${SLOT_NAME[pickSlot]}該換了吧？特地幫你帶了一件。」` : LINES[Math.floor(Math.random() * LINES.length)]!);
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
+  /** 等伺服器回應（連點不重送） */
+  let busy = false;
+  /** 有伺服器就交給它，成交後 done；伺服器壞了退回本機舊做法 local */
+  const deal = (intent: ShopIntent, done: () => void, local: () => void): void => {
+    const sv = ctx.server;
+    if (!sv) return local();
+    if (busy) return;
+    busy = true;
+    void sv(intent).then((ok) => {
+      busy = false;
+      if (!root.active) return;
+      if (ok === null) return local();
+      if (ok) done();
+      else render();
+    });
+  };
 
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 24, off = false): Phaser.GameObjects.Text => {
     const t = scene.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color: off ? '#8a8070' : hi ? '#1a0f08' : '#ffffff', backgroundColor: off ? '#2a2218' : hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(18, 9, 18, 9);
@@ -170,22 +190,32 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       items.push(scene.add.text(-300, y - 12, it.name, { fontFamily: UI_FONT, fontSize: '23px', fontStyle: '700', color: it.crystal ? '#d8b0ff' : '#9fd8ff' }).setOrigin(0, 0.5));
       items.push(scene.add.text(-300, y + 16, it.desc, { fontFamily: UI_FONT, fontSize: '17px', color: '#a8a090' }).setOrigin(0, 0.5));
       items.push(btn(220, y, `${it.price} 金`, () => {
-        const r = spendCoin(ctx.rec(), it.price);
-        if (!r) return;
-        // 材料直接記成「負的花費」，和分解得到粉塵同一套帳
-        ctx.save({ ...r, spent: { ...r.spent, dust: (r.spent?.dust ?? 0) - it.dust, crystal: (r.spent?.crystal ?? 0) - it.crystal } });
-        coinFx();
-        toast(`買到 ${it.name}`, it.crystal ? '#d8b0ff' : '#9fd8ff');
-        render();
+        const done = () => {
+          coinFx();
+          toast(`買到 ${it.name}`, it.crystal ? '#d8b0ff' : '#9fd8ff');
+          render();
+        };
+        deal({ kind: 'goods', id: it.id }, done, () => {
+          const r = spendCoin(ctx.rec(), it.price);
+          if (!r) return;
+          // 材料直接記成「負的花費」，和分解得到粉塵同一套帳
+          ctx.save({ ...r, spent: { ...r.spent, dust: (r.spent?.dust ?? 0) - it.dust, crystal: (r.spent?.crystal ?? 0) - it.crystal } });
+          done();
+        });
       }, ok, 22, !ok));
     });
     const okR = coin >= SHOP_REROLL;
     items.push(btn(0, 250, `換一批裝備（${SHOP_REROLL} 金）`, () => {
-      const r = rerollShop(ctx.rec());
-      if (!r) return;
-      ctx.save(r);
-      SFX.confirm();
-      render();
+      const done = () => {
+        SFX.confirm();
+        render();
+      };
+      deal({ kind: 'reroll' }, done, () => {
+        const r = rerollShop(ctx.rec());
+        if (!r) return;
+        ctx.save(r);
+        done();
+      });
     }, false, 22, !okR));
     items.push(scene.add.text(0, 320, '▲＝比身上同部位的好　點裝備看詳細數值', { fontFamily: UI_FONT, fontSize: '18px', color: '#8890a8' }).setOrigin(0.5));
   }
@@ -217,14 +247,20 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     const junk = st.bag.filter((g) => g.rarity === 1 && !(g.enh ?? 0) && !isUpgrade(st, g));
     const sum = junk.reduce((n, g) => n + sellPrice(g), 0);
     if (st.bag.length) items.push(btn(0, 290 + SELL_DY, junk.length ? `賣掉全部普通裝 ×${junk.length}（+${sum} 金）` : '沒有可以一鍵賣的普通裝', () => {
-      const r = spendCoin(ctx.rec(), -sum);
-      if (!r || !junk.length) return;
-      ctx.save(r);
-      const ids = new Set(junk.map((g) => g.uid));
-      ctx.setBag({ ...st, bag: st.bag.filter((g) => !ids.has(g.uid)) });
-      coinFx();
-      toast(`+${sum} 金`);
-      render();
+      if (!junk.length) return;
+      const done = () => {
+        coinFx();
+        toast(`+${sum} 金`);
+        render();
+      };
+      deal({ kind: 'sell', uids: junk.map((g) => g.uid) }, done, () => {
+        const r = spendCoin(ctx.rec(), -sum);
+        if (!r) return;
+        ctx.save(r);
+        const ids = new Set(junk.map((g) => g.uid));
+        ctx.setBag({ ...st, bag: st.bag.filter((g) => !ids.has(g.uid)) });
+        done();
+      });
     }, false, 22, !junk.length));
     // 第 61 輪：背包裡沒有 ▲ 的裝備就不用提醒（以前背包是空的也寫著）
     if (st.bag.some((g) => isUpgrade(st, g))) items.push(scene.add.text(0, 350 + SELL_DY, '▲ 的裝備比身上的好，賣之前想清楚', { fontFamily: UI_FONT, fontSize: '18px', color: '#8890a8' }).setOrigin(0.5));
@@ -266,16 +302,21 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       const full = st.bag.length >= BAG_MAX;
       const ok = coin >= p && !full;
       const doBuy = (wear: boolean) => {
-        const r = buyGear(ctx.rec(), g, shopDiscountPct(loadChoices()));
-        if (!r || ctx.bag().bag.length >= BAG_MAX) return;
-        ctx.save(r);
-        const cur = ctx.bag();
-        const mine: RtGear = { ...g, uid: `${g.uid}b${Date.now().toString(36)}` };
-        const next: BagState = { ...cur, bag: [mine, ...cur.bag] };
-        ctx.setBag(wear ? equipWith(next, mine) : next);
-        coinFx();
-        toast(wear ? `換上 ${gearName(g)}！` : `買下 ${gearName(g)}！到行囊換上`, hex(col));
-        back();
+        const done = () => {
+          coinFx();
+          toast(wear ? `換上 ${gearName(g)}！` : `買下 ${gearName(g)}！到行囊換上`, hex(col));
+          back();
+        };
+        deal({ kind: 'buy', uid: g.uid, wear }, done, () => {
+          const r = buyGear(ctx.rec(), g, shopDiscountPct(loadChoices()));
+          if (!r || ctx.bag().bag.length >= BAG_MAX) return;
+          ctx.save(r);
+          const cur = ctx.bag();
+          const mine: RtGear = { ...g, uid: `${g.uid}b${Date.now().toString(36)}` };
+          const next: BagState = { ...cur, bag: [mine, ...cur.bag] };
+          ctx.setBag(wear ? equipWith(next, mine) : next);
+          done();
+        });
       };
       const up = isUpgrade(st, g);
       out.push(btn(up ? -170 : -130, btnY, full ? '背包滿了' : coin >= p ? `購買（${p} 金）` : `金幣不夠（${p}）`, () => doBuy(false), ok && !up, 24, !ok));
@@ -283,14 +324,19 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       out.push(btn(up && ok ? 230 : 150, btnY, '返回', back));
     } else {
       out.push(btn(-130, btnY, `賣出（+${sellPrice(g)} 金）`, () => {
-        const r = spendCoin(ctx.rec(), -sellPrice(g));
-        if (!r) return;
-        ctx.save(r);
-        const cur = ctx.bag();
-        ctx.setBag({ ...cur, bag: cur.bag.filter((x) => x.uid !== g.uid) });
-        coinFx();
-        toast(`+${sellPrice(g)} 金`);
-        back();
+        const done = () => {
+          coinFx();
+          toast(`+${sellPrice(g)} 金`);
+          back();
+        };
+        deal({ kind: 'sell', uids: [g.uid] }, done, () => {
+          const r = spendCoin(ctx.rec(), -sellPrice(g));
+          if (!r) return;
+          ctx.save(r);
+          const cur = ctx.bag();
+          ctx.setBag({ ...cur, bag: cur.bag.filter((x) => x.uid !== g.uid) });
+          done();
+        });
       }, true, 24));
       out.push(btn(150, btnY, '返回', back));
     }

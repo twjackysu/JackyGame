@@ -1228,6 +1228,39 @@ export class RtBattleScene extends Phaser.Scene {
         level: this.s.prog?.level ?? 1,
         region: this.stageId,
         onCards: () => this.openCards(),
+        // V2（D-285）：價格、庫存、扣款都伺服器算，結果寫回舊 key 後場景重讀
+        server: !this.tracked ? undefined : async (intent) => {
+          this.persist();
+          const region = this.stageId;
+          const res = await legacyOp(
+            captureLegacy(),
+            ['items', 'wallet', 'shop'],
+            async (c, me) => {
+              const itemOf = (uid: string) => {
+                const it = me.items.find((i) => i.gear.uid === uid);
+                if (!it) throw new Error('item not synced');
+                return it.id;
+              };
+              if (intent.kind === 'goods') return c.call('shop.buyGoods', { characterId: me.id, goodsId: intent.id });
+              if (intent.kind === 'reroll') return (await c.call('shop.reroll', { characterId: me.id, region })).character;
+              if (intent.kind === 'sell') return (await c.call('shop.sell', { characterId: me.id, itemIds: intent.uids.map(itemOf) })).character;
+              const v = (await c.call('shop.buy', { characterId: me.id, region, uid: intent.uid })).character;
+              if (!intent.wear) return v;
+              const mine = v.items.filter((i) => i.location === 'bag').sort((a, b) => a.pos - b.pos)[0]!;
+              return c.call('inventory.equip', { characterId: me.id, itemId: mine.id });
+            },
+            (v) => v,
+            true,
+          );
+          if (!res || !this.scene.isActive()) return null;
+          const rec = loadRecord(this.stageId);
+          this.bagSt = cleanBag(rec);
+          this.coinBase = coinOf(rec);
+          this.dustBase = walletOf(rec).dust;
+          setGearBonus(this.s, bonusOf(this.bagSt));
+          setSkillMods(this.s, this.allMods(this.bagSt));
+          return true;
+        },
       },
       () => {
         this.menu?.destroy();

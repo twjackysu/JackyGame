@@ -119,7 +119,9 @@ for (const be of BACKENDS)
       expect(cheap.price).toBeLessThanOrEqual(800);
       const r = await a.call('shop.buy', { characterId: ca.id, region: 'thornvale', uid: String(cheap.gear.uid) });
       expect(r.character.wallet.coin).toBe(800 - cheap.price);
-      expect(r.character.items.filter((i) => i.location === 'bag')[0]!.gear).toEqual(cheap.gear);
+      const got = r.character.items.filter((i) => i.location === 'bag')[0]!.gear;
+      expect({ ...got, uid: 0 }).toEqual({ ...cheap.gear, uid: 0 });
+      expect(String(got.uid).startsWith(`${String(cheap.gear.uid)}b`)).toBe(true);
       expect(r.shop.stock.length).toBe(3);
       expect(await code(a.call('shop.buy', { characterId: ca.id, region: 'thornvale', uid: String(cheap.gear.uid) }))).toBe('not_found');
       expect(await code(a.call('shop.buy', { characterId: ca.id, region: 'nowhere', uid: 'x' }))).toBe('bad_request');

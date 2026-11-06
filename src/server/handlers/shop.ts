@@ -67,7 +67,9 @@ export const shopHandlers: Pick<HandlerTable, 'shop.open' | 'shop.buy' | 'shop.b
     await ctx.r.wallets.apply(c.id, 'coin', -price, 'shop.buy', g.uid);
     const sh = shopBatch(rec);
     const after = await saveShop(ctx, c, { ...sh, sold: [...sh.sold, g.uid] });
-    await ctx.r.items.save({ id: ctx.ids.next('itm'), ownerId: c.id, location: 'bag', pos: frontPos(inv), bound: false, gear: g as unknown as Record<string, unknown>, createdAt: ctx.clock.now(), version: 0 });
+    // 買下的那件換一個自己的 uid（和第一期面板的格式一樣：貨架 uid＋b＋時間）
+    const mine = { ...g, uid: `${g.uid}b${ctx.clock.now().toString(36)}` };
+    await ctx.r.items.save({ id: ctx.ids.next('itm'), ownerId: c.id, location: 'bag', pos: frontPos(inv), bound: false, gear: mine as unknown as Record<string, unknown>, createdAt: ctx.clock.now(), version: 0 });
     return { character: await freshView(ctx, c.id), shop: shopView(after, region) };
   },
 
