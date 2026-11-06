@@ -7,6 +7,7 @@
 - ART_REQUESTS 新增 R-020（星隕高原怪物 sheet）、R-021（狼變種 sheet），兩張 Gemini；`scripts/art-sheets.json` 加好切格設定。
 - 只改文件與 `art-sheets.json`，沒動遊戲程式；CI 最新一次（8f369e2）全綠。
 - **追加（D-277）**：Jacky 要求線上化以**交易與 PvP** 為主、先用單機模擬線上版、之後只換資料庫或後端。新增 `docs/design/24-online-architecture.md`（本機權威伺服器、LocalTransport 只傳 JSON、Repository／LocalDb、資料模型、拍賣所＋託管交易、模擬玩家、PvP 非同步驗證＋即時 BattleRoom）；23 的 Q2／Q6／Q7、F 系列、里程碑、範圍保護照它改寫；NEXT 的 V1 第 2 項改成伺服器骨架。
+- **再追加（D-278）**：後端定案 Node.js＋TS、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（`Game` schema、權限隔離、各自遷移）；新增 `docs/design/25-azure-backend.md`，23／24／NEXT／FOR_JACKY 同步。
 
 ## 2026-11-05 22:17–22:40（台北）第 138 輪 — 檢查 Jacky 匯入的 R-018／R-019 新圖
 **背景**：Jacky 21:01 在本機匯入標題主視覺與三武器主角並 push，CI／Pages／APK 全綠（8f369e2）。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」空。

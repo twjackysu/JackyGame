@@ -1,6 +1,7 @@
 # 下一步（依優先順序，最上面先做）
 
 > **第二期（11/6～11/13，D-276／277）**：方向是**單機模擬線上版、以交易與 PvP 為主**（架構 `docs/design/24-online-architecture.md`）；主線是 `docs/design/23-v2-roadmap.md` 的里程碑 V1～V7，每輪照它選工作。11/13 12:00 最終版 1.2.0；11/12 12:00 起功能凍結。
+> **後端（D-278）**：Node.js＋TypeScript、Azure Container Apps、**與 JackyAIStudio 共用 Azure SQL，遊戲資料全放 `Game` schema（`dbo` 是 JackyAIStudio 的，絕不碰）**，資料存取用 Kysely，規格 `docs/design/25-azure-backend.md`。迴圈只寫程式／測試／Bicep，不建立雲端資源。
 > 遊戲現況：單人即時動作戰鬥＋四張大地圖（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後））、三把武器、技能樹、行商、強化、燼牌、相遇與抉擇。主規格 `docs/design/20-swordsman-and-map.md`，索引 `docs/design/README.md`。
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
@@ -17,7 +18,7 @@
 3. **Q4 效能**：先寫 `tests/rt-perf.test.ts`（霧語森林開暴動 `riot`、跑 9,000 tick、印平均 μs/tick；斷言不超過基準 2 倍，基準寫在 PROGRESS）。再把 `engine.ts` 的 `separate()`（第 899 行，O(n²)）改成均勻格子空間雜湊，**仍依 id 順序處理配對**（確定性）；`enemiesOf()` 改成不配置新陣列的版本。前後 golden hash 必須一樣（純效能改動不該改結果——如果變了代表處理順序變了，要修到一樣）。
 4. **Q8 ESLint**（V1 有空就做）：`eslint`＋`typescript-eslint`，邊界照 24 §8（`game` 不准 import `server`／`db`；`server` 不准 import `phaser`／`game`／`client`；`core` 只准 import `core`）；`npm run lint` 加進 `ci.yml`。
 
-**接著 V2（規則上伺服器）**：Q3 把 `src/game/rtShop.ts`（`buyGear`／`rerollShop`／`spendCoin`…）、`rtBag.ts`（`equipWith`／`unequip`）、`src/core/battle/rt/gear.ts` 的強化與掉落、`rtSkills.ts`、`rtBounty.ts`、`choices.ts` 的規則搬進 `src/core/meta/`（純函式、傳入 `Rng`），伺服器 handler（`shop.*`、`inventory.*`、`enhance.do`、`skills.*`、`loot.claim`）呼叫它們；畫面層逐檔改成 `await client.call(...)`，最後加掃描測試擋 `src/game` 直接用 `localStorage`。Q5 拆 `RtBattleScene.ts`（6,495 行）先拆 `CameraSystem`、`BannerSystem`、`InputSystem`、`HudSystem`（做法見 23 §Q5）。
+**接著 V2（規則上伺服器）**：先做 `src/server/db/mssql/`（Kysely `MssqlDialect`、`withSchema('Game')`、Migrator `migrationTableSchema: 'Game'`、`0001_init` 建 25 §3 的表），契約測試在 `ci.yml` 加一個 job 用 service container `mcr.microsoft.com/mssql/server:2022-latest` 跑（本機沒有 SQL Server，本機只跑 Memory／Local）。然後 Q3 把 `src/game/rtShop.ts`（`buyGear`／`rerollShop`／`spendCoin`…）、`rtBag.ts`（`equipWith`／`unequip`）、`src/core/battle/rt/gear.ts` 的強化與掉落、`rtSkills.ts`、`rtBounty.ts`、`choices.ts` 的規則搬進 `src/core/meta/`（純函式、傳入 `Rng`），伺服器 handler（`shop.*`、`inventory.*`、`enhance.do`、`skills.*`、`loot.claim`）呼叫它們；畫面層逐檔改成 `await client.call(...)`，最後加掃描測試擋 `src/game` 直接用 `localStorage`。Q5 拆 `RtBattleScene.ts`（6,495 行）先拆 `CameraSystem`、`BannerSystem`、`InputSystem`、`HudSystem`（做法見 23 §Q5）。
 
 **美術**：Jacky 產好 R-020／R-021 推進 `art-inbox/` 後，`node scripts/import-art.mjs`（切格設定已在 `scripts/art-sheets.json`）→ `RtBattleScene.ts` 的 `SPRITE` 表把 `star_sentinel`／`crystal_golem`／`star_wolf`／`ember_wolf`／`magma_stalker`／`obsidian_alpha`／`eclipse_wolf` 改用新 key、拿掉 `tint`；確認原圖**面朝右**（D-136 棘背狼的教訓）。
 

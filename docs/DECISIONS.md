@@ -2,6 +2,12 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-278 2026-11-06 後端：Node.js＋TypeScript、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（遊戲全在 `Game` schema）
+- **決策**：Jacky 11/6：「要先搞後端，不然邏輯都暴露在 client；Azure 優先、AWS 次之、GCP 最後。」「Azure Database 跟 JackyAIStudio 共用，game 的放 `Game` schema（`dbo` 是 JackyAIStudio 的）。」規格 `docs/design/25-azure-backend.md`：Node 22＋TS（共用 `src/core` 引擎做伺服器驗證）、Container Apps（WebSocket、縮到 0）、Kysely＋`MssqlDialect`、Managed Identity 連 SQL、遊戲身分只對 `Game` schema 有權限並 DENY `dbo`、遷移版本表 `Game.kysely_migration`（不碰 EF 的 `__EFMigrationsHistory`）、`build:online` 不打包 `src/server`。
+- **範圍**：迴圈只寫程式、測試、Bicep、部署 workflow（沒有 secret 就 skip），不建立雲端資源；Jacky 照 `docs/DEPLOY_AZURE.md` 部署。對戰重播與美術 A3～A6 為後端讓位。
+- **理由**：同一份確定性引擎在客戶端與伺服器跑，PvP／掉落驗證才可靠；.NET 要重寫引擎。共用資料庫省成本，schema 級權限隔離＋各自遷移避免互相破壞，之後也容易拆。
+- **替代**：.NET 後端（Jacky 熟）→ 引擎兩份會漂移；獨立 PostgreSQL → 多一筆費用，Jacky 指定共用；Cosmos DB → 跨文件交易受限，不適合交易。
+
 ## D-277 2026-11-06 線上化方向以交易與 PvP 為主：單機模擬線上版（本機權威伺服器＋Repository＋LocalDb），只換資料庫／後端就能上線
 - **決策**：Jacky 11/6：「日後可能變成線上版，方向朝能交易和能 PVP 為主；先用單機模擬線上版，架構朝只要換掉資料庫或後端 server 就能上線。」規格 `docs/design/24-online-architecture.md`：`GameClient` → `Transport`（本機 `LocalTransport` 只傳 JSON）→ `GameServer`（權威，用 `src/core`）→ Repository 介面 → `LocalDb`（IndexedDB）／`MemoryDb`。物品 id、金幣、掉落、強化、PvP 勝負都由伺服器決定；寫入帶 requestId；金幣用複式帳本。交易＝拍賣所＋託管面對面交易，靠模擬玩家讓單機有市場；PvP＝非同步天梯（伺服器重跑指令紀錄驗證）＋即時 `BattleRoom`（本機兩客戶端驗收）。
 - **取代 D-276 的部分**：原本的 `SaveStore` 方案改成本機伺服器＋Repository；「預設 2～4 人協力 lockstep」改成伺服器權威（PvP 與交易要防作弊）；每日秘境、成就、AI 隊友降到範圍保護之後。

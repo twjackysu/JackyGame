@@ -2,6 +2,7 @@
 
 > 2026-11-06 Jacky：「產品做得不錯，想繼續進度。新目標到 2026/11/13，自行列新功能 PLAN 或美術改進和 Code 品質改進計畫（時間或空間複雜度，或是方便之後變成線上多人連線版的架構寫法），一樣留 FOR_JACKY 給 feedback。」決策 D-276。
 > **11/6 追加（D-277）**：日後可能線上化，方向以**交易**與 **PvP** 為主；先用**單機模擬線上版**（遊戲內建一台本機伺服器＋本機資料庫），之後只換資料庫或後端就能上線。架構規格見 **`24-online-architecture.md`**，本文件的 Q2／Q6／Q7、F 系列、里程碑已照它改寫。
+> **11/6 再追加（D-278）**：後端定案 **Node.js＋TypeScript、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（遊戲全在 `Game` schema）**，規格 `25-azure-backend.md`；V2／V4／V6 加入後端工作，重播與美術降級。
 > 每一輪選工作時以本文件的里程碑 V1～V7 為主線；`docs/NEXT.md` 是逐輪待辦。**main 永遠要能 build、能從新遊戲玩到通關**；任何重構都不能讓玩家看到的行為變差。
 
 ## 0. 原則
@@ -102,17 +103,17 @@
 | 里程碑 | 日期 | 內容 | 驗收 |
 |---|---|---|---|
 | **V1 地基** | 11/6–11/7 | Q1 確定性、Q2 本機伺服器骨架＋資料層＋舊存檔遷移、Q4 `separate` 空間雜湊、Q8 ESLint 邊界 | golden hash、core-purity、server-contract、通關機器人全過；舊存檔讀得到 |
-| **V2 規則上伺服器** | 11/7–11/8 | Q3 core/meta；商店、強化、技能點、裝備穿脫、掉落全部改走 `GameClient`；Q5 拆場景（Input／Hud／Banner） | `src/game` 沒有規則運算與 localStorage；截圖比對無差 |
+| **V2 規則上伺服器** | 11/7–11/8 | Q3 core/meta；商店、強化、技能點、裝備穿脫、掉落全部改走 `GameClient`；**`db/mssql` Kysely 實作＋`Game` schema 遷移＋CI mssql 契約測試（25 §5）**；Q5 拆場景（Input／Hud／Banner） | `src/game` 沒有規則運算與 localStorage；截圖比對無差 |
 | **V3 隊伍引擎與 PvP 規則** | 11/8–11/9 | Q6、競技場地圖、PvP 平衡模擬；Q5 拆場景繼續 | rt-multi、pvp-balance 過；單人 hash 不變 |
-| **V4 交易與多角色** | 11/9–11/10 | F1、F2 拍賣所＋模擬玩家、F3 託管交易；`sim:economy` 報表 | 交易契約測試（不會複製物品、不會多扣錢、斷線重送不重複）；7 天模擬物價不暴漲 |
+| **V4 交易與多角色** | 11/9–11/10 | F1、F2 拍賣所＋模擬玩家、F3 託管交易；`sim:economy` 報表；SQL 版的交易鎖與並發測試 | 交易契約測試（不會複製物品、不會多扣錢、斷線重送不重複）；7 天模擬物價不暴漲 |
 | **V5 PvP 上線（本機）** | 11/10–11/11 | Q7 非同步 PvP 驗證＋天梯 UI（F4）、即時 `BattleRoom` 本機兩客戶端驗收、PvE 掉落改伺服器擲 | 作弊指令紀錄被拒；pvp-realtime 過 |
-| **V6 重播與美術** | 11/11–11/12 | F5、A1～A6（到圖就換） | FPS 不退步；截圖 |
+| **V6 雲端落地** | 11/11–11/12 | `server/main.ts`＋`WsTransport`＋`build:online`（不打包 `src/server`）、Dockerfile、`infra/*.bicep`、`deploy-server.yml`（無 secret 時 skip）、`docs/DEPLOY_AZURE.md`；到圖就換 A1／A2 | 本機 `server/` 整合測試（兩個 WS client 交易＋PvP）；online bundle 掃描沒有伺服器程式碼 |
 | **V7 凍結與發表** | 11/12 12:00 起 | 只修 bug、平衡、README／Wiki、1.2.0；**11/13 12:00 最終版** | CI／Pages／APK 全綠、通關機器人過 |
 
 ## 6. 範圍保護（時間不夠時依序砍）
 1. 每日秘境、成就、AI 協力夥伴（本來就排在最後）。
 2. F6 圖鑑、A6 地面、A5 UI 外框 → 只做傷害數字。
-3. F5 重播 → 只做 PvP 重播，不做幽靈。
+3. F5 對戰重播、美術 A3～A6（D-278 為了後端讓位）→ 有空才做。
 4. 即時 PvP `BattleRoom` → 只留協定與測試，不做 UI（非同步天梯照做）。
 5. Q5 拆場景 → 停在 < 4,000 行。
 
