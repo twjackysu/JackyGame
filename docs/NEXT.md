@@ -6,18 +6,22 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 144 輪起先做（V3 隊伍引擎＋V4 收尾，11/7–11/9）
-**已經有的（到第 143 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`、`cards.start/finish`、`story.choose`、`market.*`；**模擬玩家 `src/server/sim/`（D-293，`GameServer.run`、`npm run sim:economy`）**；**拍賣所畫面 `src/game/ui/marketPanel.ts`＋`src/game/marketOps.ts`（D-294，行商面板第四個分頁）**；**`core/battle/rt/pvp.ts` PvP 數值（D-295，引擎還沒接）**；`src/game/rt/InputSystem.ts`、**`src/game/rt/BannerSystem.ts`**；`tests/game-ratchet.test.ts`；遷移 `0001`、`0002_market`。
-1. CI（含 mssql job）每輪開頭看一次；第 143 輪推了 5 個程式 commit，看最後一個（BannerSystem）。
-2. **Q6 隊伍引擎（V3 主線，23 §Q6，不砍）**——建議分三步，每步 golden hash（`tests/rt-golden-hash.test.ts`）一定不變：
-   - (a) `Unit.team`（玩家 0、敵人 1；`stateHash` 不含 side／team，加欄位不影響 hash）、`hostile(a,b)`；`BattleState.players: number[]`（單人＝[第一個單位的 id]）、`playerOf(s, pid = 0)`。把每個「玩家專屬」的狀態（`manualMove`、`moveGoal`、`potions`、`lastCombatTick`、`campfireId`、`prog`、`skillMods`、`skillVariants`、`weapon`、`enhance`）列清單，先搬進 `PlayerCtl`（`s.ctl[pid]`），單人用 `ctl[0]`。engine.ts 有 20 處 `playerOf(s)`、3 處 `s.units[0]`。
-   - (b) 指令改成 `{ pid?, ...cmd }`（沒有 pid＝0，舊呼叫相容）；`updatePlayer` 對每個 pid 跑一次；敵人仇恨＝最近／最近傷害它的敵對玩家（單人結果一樣）；扣血判斷改 `hostile()`。
-   - (c) `tests/rt-multi.test.ts`：兩個 Bot（`sim.ts` 的 PlayerBot 多一個 pid）一起打狼王會贏；PvP：兩個玩家不同 team，接 `pvp.ts`（進場 `pvpMaxHp`／`pvpGear`、傷害 `pvpDamage`、控制 `pvpCc`），`maps/arena.ts`（24×24、有掩體），`tests/rt-pvp-balance.test.ts` 三武器互打各 200 場勝率 40～60%（報表寫 PROGRESS）。
-3. **V4 託管交易 F3（24 §4.2，不砍）**：新表 `game.Trade`（遷移 0003，只 CREATE；`TABLES` 加 `trades`，DocDb／Mssql 兩邊）、`trade.open/offer/lock/confirm/cancel`；放進去的物品 location＝`trade:<id>`；任一方改內容就解除雙方鎖定；雙方確認才在一個交易裡交換。本機對象＝模擬玩家（他們用 `simStep` 決定接不接）或自己的另一個角色（多角色做了才有）。契約測試照 `market.test.ts`。
-4. **V4 多角色**（預設 3 欄、倉庫 40 格、金幣分角色，FOR_JACKY 預設）：等舊 key 退場（V5 `loot.claim`）前做會很亂——**建議先做伺服器端＋契約測試，畫面放到 V5 之後**。
-5. **Q5 繼續拆場景**（`RtBattleScene.ts` 6,582 行，目標 < 4,000，範圍保護 #5）：下一塊 HUD（血條、技能鍵、小地圖、懸賞板）。一個系統一個 commit，前後版本用同一支 Playwright 腳本比對（`git stash` → build → 跑 → `stash pop` → build → 跑，見第 143 輪）。
-6. **拍賣所小改進（有空再做）**：排序切換（價格／物品等級／最新）要 `market.browse` 多 `sort` 參數（DocDb＋Mssql 兩邊）；營火字條提示「你的掛單賣掉了」要等模擬玩家能在別的時候補跑。
-7. **懸賞領獎**、**設定「匯出／匯入存檔」**：同前（等 V5 `loot.claim`）。
+## ★ 第 144 輪起先做（V3 收尾＋V5 PvP 畫面，11/7–11/9）
+**已經有的（到第 143 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、**`pvpRank`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`、`cards.*`、`story.choose`、`market.*`、**`pvp.start/finish`（D-297）**；**模擬玩家 `src/server/sim/`（D-293）**；**拍賣所畫面（D-294）**；**隊伍引擎（D-296）：`PlayerCtl`／`ctlOf`／`addPlayer`／`playersOf`／`foesOf`／`hostile`，`PlayerBot(prof, name, pid)`**；**PvP：`pvp.ts`、`pvp_arena`、`pvpMatch.ts`（startPvp／playPvp／replayPvp）**；`src/game/rt/InputSystem.ts`、`BannerSystem.ts`；遷移 `0001`、`0002_market`。
+1. CI（含 mssql job）每輪開頭看一次；第 143 輪最後一個程式 commit 是「PvP：對局與段位分改存角色列」。
+2. **PvP 平衡（V3 驗收，23 §Q6：三武器互打勝率 40～60%）**：`RT_REPORT=1 npx vitest run tests/rt-pvp-balance.test.ts --silent=false` 印報表。現在**劍 20:0 勝弓與法杖、法杖 20:0 勝弓**。先查原因再調：(a) Bot 不會 PvP 走位（遠程被貼身只會站著打；試過「後退」沒用，因為後退時不出手）→ 做「邊退邊射」：遠程普攻在 `attackRange` 內可以出手，Bot 在對方近身招的預告時用閃避／後躍拉開；(b) 數值：比較三武器的 DPS／HP（`summarize`）；PvP 專用倍率可以加在 `pvp.ts`（例如遠程傷害 ×、近戰減傷），**不要動 PvE 數值**。種子只影響暴擊，結果幾乎固定 → 測試多加起始距離／位置的變化。
+3. **競技場掩體**：`pvp_arena` 加 `arena.solid`（幾塊石頭，參考 `rock_grove`），遠程要繞、近戰能貼。
+4. **V5 PvP 畫面**：營火或 ☰ 加「競技場」→ `pvp.start` → 用回傳的種子與雙方配裝開 `RtBattleScene`（新模式：stage `pvp_arena`、`addPlayer` 對手、對手由 `PlayerBot` 每 tick 下指令）→ 場景記下自己的指令（`InputSystem` 產生的就是）→ 結束 `pvp.finish` → 結算畫面（勝負、段位分變化、段位稱號 `rankName`）。場景現在只畫主角：對手要有血條／名字／不同顏色。
+5. **V4 託管交易 F3**、**多角色**：同前（見下面「之後」與第 142 輪的說明）。
+6. **Q5 拆 HUD**（範圍保護 #5）。
+7. **拍賣所小改進**（排序切換）、**懸賞領獎**、**匯出／匯入存檔**：有空再做。
+
+**PvP／多人注意（第 143 輪）**：
+- 單人（`s.others` 沒有）一定走原本的路徑——golden hash（`tests/rt-golden-hash.test.ts`）、`rt-perf` 基準、通關機器人都要不變；多人才走 `playersOf`／`foesOf`。
+- `playersOf` 單人時回傳共用的陣列（不配置），**不要在迴圈裡再呼叫它**。
+- 等級經驗 `s.prog` 只算主角；PvP 配裝不算等級（D-297）。
+- 伺服器的 PvP 對局與段位分在角色列 `pvpMatch`／`pvpRating`（不是 story）；`account.export` 還沒帶這兩個欄位。
+- 26-security 的頻率限制（pvp.finish 重跑一場要 CPU）在 V6 `server/main.ts` 做。
 
 **拍賣所／模擬玩家注意（第 143 輪）**：
 - 模擬玩家**只在 `market.browse`／`market.mine` 時補跑**（`GameServer.handle` 的 `SIM_TRIGGER`）；任何會呼叫這兩個的新畫面，都要像 `marketOps` 一樣在同一個 `legacyOp` 裡 authoritative 寫回錢包，不然模擬玩家買走掛單的收入會被下一次 `migrate.sync` 蓋掉。

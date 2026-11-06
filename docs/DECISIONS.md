@@ -2,6 +2,16 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-297 2026-11-06 非同步 PvP 天梯：伺服器重跑判勝負、對手是模擬玩家、段位分存角色列
+- **決策**：`core/battle/rt/pvpMatch.ts`：你是 pid 0、對手 pid 1 由 `PlayerBot('normal')` 操作（客戶端與伺服器一樣）；客戶端只送「有指令的 tick」紀錄，白名單驗證（tick 遞增、每 tick ≤ 4、形狀與技能 id、不能帶 pid、結束後不能多塞），一場最長 3 分鐘。`pvp.start`：對手＝段位分最接近的 5 個模擬玩家隨機一個；雙方配裝＝身上裝備 `pvpGear`（參考物品等級 7）後的 `gearBonus`，**等級不算**（PvP 正規化）；技能變化／修正 V1 先不帶。`pvp.finish`：Elo K=32、超時算和局；30 分鐘作廢；寫稽核含 stateHash。對局與段位分存角色列 `pvpMatch`／`pvpRating`（SQL 在 Character.Data JSON）。
+- **理由**：26-security「勝負由伺服器決定」；確定性引擎重跑最便宜；不放 story 是因為過渡期 `migrate.sync` 會用舊 key 覆蓋 story。
+- **已知**：本機版種子與對手配裝都給客戶端（要在本機演），理論上可以離線先試打再送最好的一局——30 分鐘期限＋一局一個種子讓它沒什麼用；線上版可改成 `pvp.start` 時就扣一場（V6 再看）。沒有頻率限制（26-security 的 rate limit 在 V6 的 server/main.ts 做）。
+
+## D-296 2026-11-06 隊伍引擎：主角的控制狀態留在 BattleState，其他玩家放 s.others
+- **決策**：`PlayerCtl`（manualMove、moveGoal、lastCombatTick、potions、campfireId、weapon、skillVariants、skillMods）。pid 0 的就是 `BattleState` 本身的同名欄位；pid ≥ 1 放 `s.others[pid − 1]`；引擎一律 `ctlOf(s, p)`。`Unit.team`／`pid` 可選（沒有＝照 side）。單人（沒有 `s.others`）走原本的路徑、不配置新陣列。等級經驗 `s.prog` 仍只算主角。
+- **理由**：場景、存檔、測試、`stateHash` 都直接讀 `s.potions`／`s.moveGoal`……搬成陣列要改幾十處而且 golden hash 會變；這樣改單人完全不動，多人照樣乾淨。
+- **替代**：`s.ctl: PlayerCtl[]` 全面改寫 → 風險大、對玩家沒有差別。
+
 ## D-295 2026-11-06 PvP 數值正規化先寫成純函式（core/battle/rt/pvp.ts）
 - **決策**：HP ×3、傷害 ×0.5（至少 1）、控制時間 ×0.5 且 15 秒內同目標遞減 1→½→¼→免疫、物品等級差距保留 3 成（`pvpIlvl(ilvl, ref)`，`pvpGear` 照壓縮後等級重算底數值、平詞綴等比例縮、百分比詞綴不壓）、強化減半。gear.ts 只多匯出 `gearBase`。
 - **理由**：24 §6.1 的數字，先做成可測的純函式；引擎（Q6）接上去時只要在「進場」和「扣血／上狀態」兩處呼叫。單人 PvE 不讀，golden hash 不變。
