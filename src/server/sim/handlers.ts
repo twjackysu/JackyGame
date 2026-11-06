@@ -60,7 +60,8 @@ export async function simStep(ctx: Ctx, sim: SimPlayer, n: number): Promise<{ st
   const days = (at - (Number(c.story.sim_spawn) || at)) / DAY;
   const roll = R();
   let decision: SimDecision;
-  if (roll < 0.5) {
+  // 剛建的前兩次一定是上架：第一次打開拍賣所就有貨
+  if (roll < 0.5 || n < 2) {
     const ilvl = Math.max(1, Math.min(12, sim.tier + Math.floor(days / 2) + Math.floor(R() * 3) - 1));
     const rr = R();
     const rarity: Rarity = rr < 0.55 ? 1 : rr < 0.9 ? 2 : 3;

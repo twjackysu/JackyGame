@@ -29,6 +29,8 @@ export interface ShopCtx {
   region: string;
   /** 營火燼牌（D-127）：有給才出現「燼牌」分頁按鈕 */
   onCards?: () => void;
+  /** 拍賣所（V4）：有給才出現「拍賣所」分頁按鈕（要有伺服器） */
+  onMarket?: () => void;
   /** V2（D-285）：買賣交給伺服器（價格、庫存、扣款都伺服器算）。true＝成交（呼叫端已經重讀紀錄與行囊）、false＝被拒、null＝伺服器失敗 → 本機舊做法 */
   server?: (intent: ShopIntent) => Promise<boolean | null>;
 }
@@ -133,17 +135,15 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     // 第 38 輪：往右挪、限寬自動換行，長的台詞（燼牌回聲、相遇）不再蓋到左邊的旅商
     items.push(scene.add.text(50, -538, `旅商莫托：${line}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', wordWrap: { width: 520, useAdvancedWrap: true }, align: 'center', lineSpacing: -2 }).setOrigin(0.5));
     items.push(scene.add.text(0, -500, `金幣 ${coinOf(rec)}　粉塵 ${w.dust}　結晶 ${w.crystal}　背包 ${st.bag.length}/${BAG_MAX}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
-    const tx = ctx.onCards ? 200 : 110;
-    items.push(btn(-tx, -448, '買', () => {
-      tab = 'buy';
-      render();
-    }, tab === 'buy', 26));
-    if (ctx.onCards) items.push(btn(200, -448, '燼牌', () => ctx.onCards?.(), false, 26));
-    items.push(btn(ctx.onCards ? 0 : 110, -448, '賣', () => {
-      tab = 'sell';
-      page = 0;
-      render();
-    }, tab === 'sell', 26));
+    // 分頁鈕：買、賣，再加上有給的燼牌（D-127）、拍賣所（V4）；照數量平均排開
+    const tabs: [string, () => void, boolean][] = [
+      ['買', () => ((tab = 'buy'), render()), tab === 'buy'],
+      ['賣', () => ((tab = 'sell'), (page = 0), render()), tab === 'sell'],
+    ];
+    if (ctx.onCards) tabs.push(['燼牌', () => ctx.onCards?.(), false]);
+    if (ctx.onMarket) tabs.push(['拍賣所', () => ctx.onMarket?.(), false]);
+    const gap = tabs.length > 3 ? 170 : tabs.length > 2 ? 200 : 220;
+    tabs.forEach(([label, fn, on], i) => items.push(btn((i - (tabs.length - 1) / 2) * gap, -448, label, fn, on, 26)));
     if (tab === 'buy') buyTab(items, rec, st);
     else sellTab(items, st);
     items.push(btn(0, EXIT_Y, '離開', () => onClose(), true, 28));

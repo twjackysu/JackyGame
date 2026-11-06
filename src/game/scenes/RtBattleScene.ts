@@ -8,6 +8,8 @@ import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerDef
 import { RARITY_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
+import { openMarketPanel } from '../ui/marketPanel';
+import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
 import { cardSummary, grantCard, openEmberCardPanel, syncChestCards } from '../ui/emberCardPanel';
 import { addWithAutoSalvage } from '../rtBag';
@@ -1187,6 +1189,7 @@ export class RtBattleScene extends Phaser.Scene {
         level: this.s.prog?.level ?? 1,
         region: this.stageId,
         onCards: () => this.openCards(),
+        onMarket: this.tracked ? () => this.openMarket() : undefined,
         // V2（D-285）：價格、庫存、扣款都伺服器算，結果寫回舊 key 後場景重讀
         server: !this.tracked ? undefined : async (intent) => {
           this.persist();
@@ -1227,6 +1230,28 @@ export class RtBattleScene extends Phaser.Scene {
         this.acc = 0;
       },
     );
+  }
+
+  /** 拍賣所（V4）：從行商面板進來，離開回到行商。每個動作都由伺服器做，寫回舊 key 後場景重讀行囊與金幣 */
+  private openMarket(): void {
+    this.persist();
+    this.menu?.destroy();
+    const reload = () => {
+      if (!this.scene.isActive()) return;
+      const rec = loadRecord(this.stageId);
+      this.bagSt = cleanBag(rec);
+      this.coinBase = coinOf(rec);
+      this.dustBase = walletOf(rec).dust;
+      setGearBonus(this.s, bonusOf(this.bagSt));
+      setSkillMods(this.s, this.allMods(this.bagSt));
+    };
+    const wrap = <A extends unknown[]>(f: (...a: A) => Promise<MarketPage | null>) => async (...a: A) => {
+      const r = await f(...a);
+      if (r) reload();
+      return r;
+    };
+    const ops: MarketOps = { view: wrap(marketOps.view), list: wrap(marketOps.list), cancel: wrap(marketOps.cancel), buy: wrap(marketOps.buy) };
+    this.menu = openMarketPanel(this, { ops, bag: () => this.bagSt, coin: () => coinOf(loadRecord(this.stageId)), coinBefore: coinOf(loadRecord(this.stageId)) }, () => this.openShop());
   }
 
   /** 營火燼牌（D-127）：從行商面板進來，離開回到行商；從營火「燼牌」捷徑進來就直接關掉 */
