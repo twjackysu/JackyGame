@@ -6,7 +6,7 @@ import * as Tarn from 'tarn';
 import * as Tedious from 'tedious';
 import { ApiError } from '../../../net/protocol';
 import type { CurrencyId } from '../../../net/views';
-import { CURRENCIES, type CharacterRow, type Db, type ItemRow, type LedgerRow, type ListingRow, type Repos, type TradeRow } from '../../repos/types';
+import { CURRENCIES, type AccountRow, type CharacterRow, type Db, type ItemRow, type LedgerRow, type ListingRow, type Repos, type TradeRow } from '../../repos/types';
 import { parseConnectionString, type DbTarget } from './connString';
 import { assertSchemaName, migrateToLatest } from './migrate';
 import type { GameDb } from './schema';
@@ -86,12 +86,13 @@ function reposOf(t: Trx, now: () => number): Repos {
       get: async (id) => {
         const r = await t.selectFrom('Account').selectAll().where('Id', '=', id).executeTakeFirst();
         if (!r) return undefined;
-        const out = { id: r.Id, displayName: r.DisplayName, createdAt: num(r.CreatedAt) } as { id: string; displayName: string; createdAt: number; migratedAt?: number };
+        const out: AccountRow = { id: r.Id, displayName: r.DisplayName, createdAt: num(r.CreatedAt) };
         if (r.MigratedAt !== null) out.migratedAt = num(r.MigratedAt);
+        if (r.ActiveCharacterId !== null) out.activeCharacterId = r.ActiveCharacterId;
         return out;
       },
       put: async (row) => {
-        const v = { DisplayName: row.displayName, CreatedAt: row.createdAt, MigratedAt: row.migratedAt ?? null };
+        const v = { DisplayName: row.displayName, CreatedAt: row.createdAt, MigratedAt: row.migratedAt ?? null, ActiveCharacterId: row.activeCharacterId ?? null };
         const u = await t.updateTable('Account').set(v).where('Id', '=', row.id).executeTakeFirst();
         if (!Number(u.numUpdatedRows)) await t.insertInto('Account').values({ Id: row.id, ...v }).execute();
       },

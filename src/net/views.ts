@@ -10,6 +10,8 @@ export interface AccountView {
   createdAt: number;
   /** 舊存檔遷移過了沒（migrate.legacy） */
   migrated: boolean;
+  /** 目前角色（F1，D-302） */
+  activeCharacterId?: string;
 }
 
 export interface ItemView {
@@ -158,4 +160,10 @@ export interface TradeView {
   locked: { me: boolean; them: boolean };
   confirmed: { me: boolean; them: boolean };
   expiresAt: number;
+}
+
+/** 帳號共用倉庫（F1，D-302） */
+export interface WarehouseView {
+  max: number;
+  items: ItemView[];
 }

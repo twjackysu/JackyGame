@@ -3,7 +3,7 @@ import { ApiError } from '../../net/protocol';
 import type { HandlerTable } from '../router';
 import { fromLegacy, isLegacyEmpty } from '../legacy';
 import { createCharacter } from './build';
-import { ensureAccount } from './common';
+import { activeCharacter, ensureAccount } from './common';
 import { CURRENCIES } from '../repos/types';
 import { characterView } from '../views';
 import type { RtGear } from '../../core/battle/rt/gear';
@@ -25,7 +25,7 @@ export const migrateHandlers: Pick<HandlerTable, 'migrate.legacy' | 'migrate.syn
       ...L.bag.map((g, i) => ({ location: 'bag', pos: i, bound: false, gear: g })),
     ];
     const c = await createCharacter(ctx, { slot: 0, name: '旅人', weapon: L.weapon, level: L.level, xp: L.xp, stats: L.stats, skills: L.skills, variants: L.variants, bounty: L.bounty, shop: L.shop, maps: L.maps, story: L.story, items, wallet: L.wallet }, 'migrate');
-    await ctx.r.accounts.put({ ...acc, migratedAt: ctx.clock.now() });
+    await ctx.r.accounts.put({ ...acc, migratedAt: ctx.clock.now(), activeCharacterId: c.id });
     await ctx.r.audit.add({ accountId: ctx.accountId, action: 'migrate.legacy', detail: JSON.stringify({ empty: isLegacyEmpty(snap), keys: Object.keys(snap).length, items: items.length, skipped: L.skipped }), at: ctx.clock.now() });
     return { migrated: true, characterId: c.id, items: items.length, wallet: L.wallet, skipped: L.skipped };
   },
@@ -36,7 +36,8 @@ export const migrateHandlers: Pick<HandlerTable, 'migrate.legacy' | 'migrate.syn
     if (!ctx.local) throw new ApiError('rejected', 'legacy sync is local only');
     const snap = p?.snapshot;
     if (!snap || typeof snap !== 'object' || Object.values(snap).some((v) => typeof v !== 'string')) throw new ApiError('bad_request', 'snapshot');
-    const c0 = (await ctx.r.characters.listByAccount(ctx.accountId)).sort((a, b) => a.slot - b.slot)[0];
+    // 舊 key 只對應「目前角色」（D-302）
+    const c0 = await activeCharacter(ctx);
     if (!c0) throw new ApiError('not_found', 'character');
     const L = fromLegacy(snap);
     const want: { location: string; pos: number; gear: RtGear }[] = [

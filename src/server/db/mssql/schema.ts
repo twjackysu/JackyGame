@@ -10,6 +10,7 @@ export interface AccountTable {
   DisplayName: string;
   CreatedAt: Ms;
   MigratedAt: Ms | null;
+  ActiveCharacterId: string | null;
 }
 export interface CharacterTable {
   Id: string;

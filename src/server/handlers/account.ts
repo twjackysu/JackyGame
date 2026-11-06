@@ -5,9 +5,11 @@ import type { HandlerTable } from '../router';
 import { accountView, characterView } from '../views';
 import { createCharacter, deleteCharacter } from './build';
 import { ensureAccount } from './common';
+import { WAREHOUSE_MAX, warehouseOwner } from '../../core/meta/roster';
 
 export const EXPORT_VERSION = 1;
 const MAX_CHARACTERS = 3;
+const whRows = async (ctx: Parameters<HandlerTable['account.get']>[0]) => (await ctx.r.items.listByOwner(warehouseOwner(ctx.accountId))).filter((i) => i.location === 'warehouse');
 const MAX_ITEMS = 200;
 
 export const accountHandlers: Pick<HandlerTable, 'account.get' | 'account.export' | 'account.import'> = {
@@ -17,7 +19,7 @@ export const accountHandlers: Pick<HandlerTable, 'account.get' | 'account.export
     const acc = await ensureAccount(ctx);
     const chars: (CharacterView & { story: Record<string, string> })[] = [];
     for (const c of await ctx.r.characters.listByAccount(ctx.accountId)) chars.push({ ...(await characterView(ctx.r, c)), story: c.story });
-    const blob: ExportBlob = { format: 'jackygame-save', version: EXPORT_VERSION, exportedAt: ctx.clock.now(), data: { account: [accountView(acc)], characters: chars } };
+    const blob: ExportBlob = { format: 'jackygame-save', version: EXPORT_VERSION, exportedAt: ctx.clock.now(), data: { account: [accountView(acc)], characters: chars, warehouse: (await whRows(ctx)).map((i) => ({ pos: i.pos, bound: i.bound, gear: i.gear })) } };
     return blob;
   },
 
@@ -29,12 +31,14 @@ export const accountHandlers: Pick<HandlerTable, 'account.get' | 'account.export
     if (chars.length > MAX_CHARACTERS) throw new ApiError('bad_request', 'too many characters');
     const acc = await ensureAccount(ctx);
     for (const c of await ctx.r.characters.listByAccount(ctx.accountId)) await deleteCharacter(ctx, c.id);
+    for (const it of await whRows(ctx)) await ctx.r.items.delete(it.id);
     const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : d);
     const rec = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+    let first: string | undefined;
     for (const [i, c] of chars.entries()) {
       const items = (Array.isArray(c.items) ? c.items : []).slice(0, MAX_ITEMS).filter((it) => it && typeof it.location === 'string' && it.gear && typeof it.gear === 'object');
       const w = rec(c.wallet) as Record<string, unknown>;
-      await createCharacter(
+      const made = await createCharacter(
         ctx,
         {
           slot: i,
@@ -55,8 +59,17 @@ export const accountHandlers: Pick<HandlerTable, 'account.get' | 'account.export
         },
         'import',
       );
+      first ??= made.id;
     }
+    // 倉庫（D-302）：舊版匯出檔沒有這一欄
+    const wh = (Array.isArray(b.data.warehouse) ? b.data.warehouse : []) as { pos?: unknown; bound?: unknown; gear?: unknown }[];
+    for (const [i, it] of wh.slice(0, WAREHOUSE_MAX).entries())
+      if (it && it.gear && typeof it.gear === 'object' && !Array.isArray(it.gear))
+        await ctx.r.items.save({ id: ctx.ids.next('itm'), ownerId: warehouseOwner(ctx.accountId), location: 'warehouse', pos: num(it.pos, i), bound: !!it.bound, gear: it.gear as Record<string, unknown>, createdAt: ctx.clock.now(), version: 0 });
+    const next = { ...acc, activeCharacterId: first };
+    if (!first) delete next.activeCharacterId;
+    await ctx.r.accounts.put(next);
     await ctx.r.audit.add({ accountId: ctx.accountId, action: 'account.import', detail: JSON.stringify({ characters: chars.length, exportedAt: b.exportedAt }), at: ctx.clock.now() });
-    return accountView(acc);
+    return accountView(next);
   },
 };

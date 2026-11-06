@@ -9,6 +9,8 @@ export interface AccountRow {
   createdAt: number;
   /** 本機版：舊存檔遷移的時間 */
   migratedAt?: number;
+  /** 目前角色（F1 多角色，D-302）；沒有＝角色欄最前面的 */
+  activeCharacterId?: string;
 }
 
 export interface CharacterRow {

@@ -1,6 +1,6 @@
 // 客戶端 ↔ 伺服器的訊息格式（D-277，design/24 §1～2）。邊界上只有 JSON：這裡只放型別與純函式。
 // 換成線上版時這份檔案兩邊共用，不用改。
-import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView, WeaponView } from './views';
+import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView, WarehouseView, WeaponView } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -30,10 +30,18 @@ export interface Api {
   'account.get': { params: Record<string, never>; result: AccountView; write: false };
   'character.list': { params: Record<string, never>; result: CharacterView[]; write: false };
   'character.get': { params: { id: string }; result: CharacterView; write: false };
+  // 多角色（F1，core/meta/roster.ts，D-302）：3 個角色欄；刪除不能刪目前角色、最後一個、拍賣／交易中還有東西的
+  'character.create': { params: { name: string; weapon: WeaponView }; result: CharacterView; write: true };
+  'character.delete': { params: { id: string }; result: AccountView; write: true };
+  'character.select': { params: { id: string }; result: CharacterView; write: true };
+  // 帳號共用倉庫（40 格）：只有行囊裡的能放
+  'warehouse.get': { params: Record<string, never>; result: WarehouseView; write: false };
+  'warehouse.put': { params: { characterId: string; itemId: string }; result: { warehouse: WarehouseView; character: CharacterView }; write: true };
+  'warehouse.take': { params: { characterId: string; itemId: string }; result: { warehouse: WarehouseView; character: CharacterView }; write: true };
   'account.export': { params: Record<string, never>; result: ExportBlob; write: false };
   'account.import': { params: { blob: ExportBlob }; result: AccountView; write: true };
   'migrate.legacy': { params: { snapshot: LegacySnapshot }; result: MigrateResult; write: true };
-  /** 過渡期（D-285，只有本機版）：把舊 key 的現況同步到角色 1，回傳同步後的角色 */
+  /** 過渡期（D-285，只有本機版）：把舊 key 的現況同步到目前角色，回傳同步後的角色 */
   'migrate.sync': { params: { snapshot: LegacySnapshot }; result: CharacterView; write: true };
   // 行囊與強化（第 141 輪 V2；規則在 core/meta/bag.ts，擲骰在伺服器）
   'inventory.equip': { params: { characterId: string; itemId: string }; result: CharacterView; write: true };
@@ -87,6 +95,11 @@ export type ResultOf<M extends Method> = Api[M]['result'];
 /** 寫入類方法（必須帶 requestId） */
 export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'account.import',
+  'character.create',
+  'character.delete',
+  'character.select',
+  'warehouse.put',
+  'warehouse.take',
   'migrate.legacy',
   'migrate.sync',
   'inventory.equip',

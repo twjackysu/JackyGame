@@ -11,6 +11,7 @@ import { shopHandlers } from './shop';
 import { skillsHandlers } from './skills';
 import { storyHandlers } from './story';
 import { tradeHandlers } from './trade';
+import { warehouseHandlers } from './warehouse';
 
 export const HANDLERS: HandlerTable = {
   ...accountHandlers,
@@ -24,4 +25,5 @@ export const HANDLERS: HandlerTable = {
   ...marketHandlers,
   ...pvpHandlers,
   ...tradeHandlers,
+  ...warehouseHandlers,
 };

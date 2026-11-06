@@ -2,7 +2,7 @@
 import type { AccountView, CharacterView } from '../net/views';
 import type { AccountRow, CharacterRow, Repos } from './repos/types';
 
-export const accountView = (a: AccountRow): AccountView => ({ id: a.id, displayName: a.displayName, createdAt: a.createdAt, migrated: a.migratedAt !== undefined });
+export const accountView = (a: AccountRow): AccountView => ({ id: a.id, displayName: a.displayName, createdAt: a.createdAt, migrated: a.migratedAt !== undefined, ...(a.activeCharacterId ? { activeCharacterId: a.activeCharacterId } : {}) });
 
 export async function characterView(r: Repos, c: CharacterRow): Promise<CharacterView> {
   const items = await r.items.listByOwner(c.id);
