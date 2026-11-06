@@ -74,6 +74,7 @@ jobs:
       - name: Create test database
         run: docker exec ${{ job.services.mssql.id }} /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'CiOnly_Passw0rd!' -Q "CREATE DATABASE JackyGameTest"
       - name: Contract tests (Memory／Local／SQL Server)
-        run: npx vitest run tests/server-contract
+        # 所有契約測試共用同一個資料庫（fresh 會清表）→ 檔案不能平行跑；SQL 比記憶體慢，逾時放寬
+        run: npx vitest run tests/server-contract --no-file-parallelism --test-timeout=60000
         env:
           GAME_DB_TEST_CONNECTION: 'Server=localhost,1433;Database=JackyGameTest;User Id=sa;Password=CiOnly_Passw0rd!;Encrypt=False;TrustServerCertificate=True'

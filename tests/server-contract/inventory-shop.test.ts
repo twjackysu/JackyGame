@@ -19,7 +19,7 @@ const auth = { resolve: async (t?: string) => t ?? 'anon' };
 function stack(db: Db, roll: { v: number }) {
   const server = new GameServer({ db, auth, clock: new FakeClock(), ids: new SeqIds(), local: true, rng: () => roll.v });
   let rid = 0;
-  const mk = (token: string) => new GameClient(new LocalTransport((j) => server.handle(j)), { token, timeoutMs: 200, retries: 3, newRequestId: () => `${token}-${++rid}` });
+  const mk = (token: string) => new GameClient(new LocalTransport((j) => server.handle(j)), { token, timeoutMs: 15000, retries: 1, newRequestId: () => `${token}-${++rid}` });
   return { server, a: mk('accA'), b: mk('accB') };
 }
 

@@ -18,7 +18,7 @@ for (const be of BACKENDS)
       const { db } = await be.fresh(() => 0);
       const server = new GameServer({ db, auth: new LocalAuth(), clock: new FakeClock(), ids: new SeqIds(), local: true, rng: () => 0 });
       let n = 0;
-      const client = new GameClient(new LocalTransport((j) => server.handle(j)), { token: LOCAL_TOKEN, newRequestId: () => `q${++n}` });
+      const client = new GameClient(new LocalTransport((j) => server.handle(j)), { token: LOCAL_TOKEN, timeoutMs: 15000, newRequestId: () => `q${++n}` });
       const ls = new MapStorage();
       for (const [k, v] of Object.entries(LEGACY_SAMPLE)) ls.setItem(k, v);
       const { characterId } = await client.call('migrate.legacy', { snapshot: legacySnapshot(ls) });
@@ -53,7 +53,7 @@ for (const be of BACKENDS)
     it('線上版不接受 sync', async () => {
       const { db } = await be.fresh(() => 0);
       const server = new GameServer({ db, auth: new LocalAuth(), clock: new FakeClock(), ids: new SeqIds(), local: false });
-      const client = new GameClient(new LocalTransport((j) => server.handle(j)), { token: LOCAL_TOKEN, newRequestId: () => 'x1' });
+      const client = new GameClient(new LocalTransport((j) => server.handle(j)), { token: LOCAL_TOKEN, timeoutMs: 15000, newRequestId: () => 'x1' });
       await expect(client.call('migrate.sync', { snapshot: {} })).rejects.toBeInstanceOf(ApiError);
     });
   });
