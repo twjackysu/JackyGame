@@ -116,6 +116,9 @@ function rng(seed: number): () => number {
 
 const MULT: Record<Rarity, number> = { 1: 1, 2: 1.25, 3: 1.5 };
 
+/** 某部位、物品等級、稀有度的底數值（PvP 的 ilvl 壓縮用，pvp.ts） */
+export const gearBase = (slot: GearSlot, ilvl: number, rarity: Rarity): RtGear['base'] => baseOf(slot, Math.max(1, Math.min(12, Math.floor(ilvl))), MULT[rarity]);
+
 /** 底數值：部位決定吃哪些屬性 */
 function baseOf(slot: GearSlot, L: number, m: number): RtGear['base'] {
   const r = (n: number) => Math.max(1, Math.round(n * m));
