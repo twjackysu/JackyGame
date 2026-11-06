@@ -33,6 +33,8 @@ export interface ShopCtx {
   onMarket?: () => void;
   /** 面對面交易（F3）：有給才出現「交易」分頁按鈕（要有伺服器） */
   onTrade?: () => void;
+  /** 帳號共用倉庫（F1，D-302） */
+  onWarehouse?: () => void;
   /** V2（D-285）：買賣交給伺服器（價格、庫存、扣款都伺服器算）。true＝成交（呼叫端已經重讀紀錄與行囊）、false＝被拒、null＝伺服器失敗 → 本機舊做法 */
   server?: (intent: ShopIntent) => Promise<boolean | null>;
 }
@@ -145,7 +147,8 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     if (ctx.onCards) tabs.push(['燼牌', () => ctx.onCards?.(), false]);
     if (ctx.onMarket) tabs.push(['拍賣所', () => ctx.onMarket?.(), false]);
     if (ctx.onTrade) tabs.push(['交易', () => ctx.onTrade?.(), false]);
-    const gap = tabs.length > 4 ? 136 : tabs.length > 3 ? 170 : tabs.length > 2 ? 200 : 220;
+    if (ctx.onWarehouse) tabs.push(['倉庫', () => ctx.onWarehouse?.(), false]);
+    const gap = tabs.length > 5 ? 114 : tabs.length > 4 ? 136 : tabs.length > 3 ? 170 : tabs.length > 2 ? 200 : 220;
     tabs.forEach(([label, fn, on], i) => items.push(btn((i - (tabs.length - 1) / 2) * gap, -448, label, fn, on, 26)));
     if (tab === 'buy') buyTab(items, rec, st);
     else sellTab(items, st);

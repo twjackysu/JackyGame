@@ -10,6 +10,8 @@ import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPa
 import { openRtShopPanel } from '../ui/rtShopPanel';
 import { openMarketPanel } from '../ui/marketPanel';
 import { openTradePanel } from '../ui/tradePanel';
+import { openWarehousePanel } from '../ui/warehousePanel';
+import { warehouseOps, type WarehouseOps, type WarehousePage } from '../warehouseOps';
 import { tradeOps, type TradeOps, type TradePage } from '../tradeOps';
 import { BannerSystem } from '../rt/BannerSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
@@ -1194,6 +1196,7 @@ export class RtBattleScene extends Phaser.Scene {
         onCards: () => this.openCards(),
         onMarket: this.tracked ? () => this.openMarket() : undefined,
         onTrade: this.tracked ? () => this.openTrade() : undefined,
+        onWarehouse: this.tracked ? () => this.openWarehouse() : undefined,
         // V2（D-285）：價格、庫存、扣款都伺服器算，結果寫回舊 key 後場景重讀
         server: !this.tracked ? undefined : async (intent) => {
           this.persist();
@@ -1275,6 +1278,22 @@ export class RtBattleScene extends Phaser.Scene {
       return r;
     }])) as TradeOps;
     this.menu = openTradePanel(this, ops, () => this.openShop());
+  }
+
+  /** 帳號共用倉庫（F1，D-302）：從行商面板進來，離開回到行商；放進／拿出由伺服器做、寫回舊 key 後場景重讀行囊 */
+  private openWarehouse(): void {
+    this.persist();
+    this.menu?.destroy();
+    const wrap = (f: (...a: string[]) => Promise<WarehousePage | null>) => async (...a: string[]) => {
+      const r = await f(...a);
+      if (r && this.scene.isActive()) {
+        this.bagSt = cleanBag(loadRecord(this.stageId));
+        setGearBonus(this.s, bonusOf(this.bagSt));
+      }
+      return r;
+    };
+    const ops: WarehouseOps = { view: wrap(warehouseOps.view), put: wrap(warehouseOps.put), take: wrap(warehouseOps.take) };
+    this.menu = openWarehousePanel(this, ops, () => this.openShop());
   }
 
   /** 營火燼牌（D-127）：從行商面板進來，離開回到行商；從營火「燼牌」捷徑進來就直接關掉 */
