@@ -37,3 +37,9 @@ export function worldStageOpen(id: string, maps: MapProg): boolean {
 export function worldNightOpen(id: string, maps: MapProg): boolean {
   return (maps[id]?.furyKills ?? 0) >= 1;
 }
+
+/** Boss 暴怒解鎖（D-099／D-247）：先打倒那隻 Boss 一次，而且等級 ≥ 8 或討伐 3 次。畫面層 rtRecord 的 furyUnlocked 也用這份 */
+export const FURY_UNLOCK = { level: 8, kills: 3 } as const;
+export function furyOpenBy(bossKills: number, level: number): boolean {
+  return bossKills >= 1 && (level >= FURY_UNLOCK.level || bossKills >= FURY_UNLOCK.kills);
+}

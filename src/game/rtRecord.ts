@@ -1,5 +1,6 @@
 // 即時戰鬥大地圖的獨立紀錄（D-087）：跨場累計，只存在 localStorage `jg_rt_<stage>`，不碰主線 session 存檔。
 // 純資料函式放這裡（有測試），讀寫 localStorage 的包一層 try/catch（無痕模式）。
+import { FURY_UNLOCK, furyOpenBy } from '../core/battle/rt/maps/world';
 import { prevMap, WORLD_MAPS, worldMap } from './worldMaps';
 import { GEAR_SLOTS, isGear, type GearSlot, type RtGear } from '../core/battle/rt/gear';
 
@@ -113,10 +114,9 @@ export function recordBoss(rec: RtRecord, sec: number | null, at: number, fury =
 /** 暴怒狼王解鎖條件（D-099）：Lv8 以上或狼王討伐 3 次。
  * 第 100 輪（D-247）：都要先打倒這張圖的 Boss 一次——以前 Lv8 就算，第一次走進燼紅裂谷（建議 Lv10）、星隕高原時
  * 連岩王／守望者的面都沒見過，☰ 已經有「岩王暴怒：關」可以打開（第一次就打暴怒版），荊棘谷升到 Lv8 也跳「解鎖：狼后暴怒！」。 */
-export const FURY_UNLOCK = { level: 8, kills: 3 } as const;
+export { FURY_UNLOCK };
 export function furyUnlocked(rec: RtRecord, level: number): boolean {
-  const k = rec.bossKills ?? 0;
-  return k >= 1 && (level >= FURY_UNLOCK.level || k >= FURY_UNLOCK.kills);
+  return furyOpenBy(rec.bossKills ?? 0, level);
 }
 
 /** 深夜模式解鎖（D-103）：打倒暴怒狼王至少一次 */

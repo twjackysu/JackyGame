@@ -5,7 +5,7 @@
 //   通過才用「伺服器的亂數」照同一份規則（core/battle/rt/loot.ts）擲掉落，直接入錢包／行囊（行囊滿了照單機規則自動分解，D-100）；經驗與升級也在這裡算。
 // 深夜、暴怒、詞綴是客戶端說的（伺服器沒跑這場戰鬥），只能檢查「這張圖有沒有」；之後抽查重跑指令紀錄（26 §3.1）。
 import { genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
-import { stageDef, worldNightOpen, worldStageOpen } from '../../core/battle/rt/maps/world';
+import { furyOpenBy, stageDef, worldNightOpen, worldStageOpen } from '../../core/battle/rt/maps/world';
 import { xpToNext } from '../../core/battle/rt/engine';
 import { isStageBoss, killXp, rollEnemyLoot, validKill, type LootContext } from '../../core/battle/rt/loot';
 import { addWithAutoSalvage } from '../../core/meta/bag';
@@ -86,6 +86,8 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim'> = {
     if (groupId !== undefined) lc.groupId = groupId;
     if (fixedIdx !== undefined) lc.fixedIdx = fixedIdx;
     if (!validKill(lc)) throw new ApiError('rejected', 'kill');
+    // 暴怒版要先解鎖（跟畫面層 furyUnlocked 同規則）
+    if (fury && !furyOpenBy(prog.bossKills ?? 0, c.level)) throw new ApiError('rejected', 'fury locked');
 
     const rolled: LootDropView[] = [];
     rollEnemyLoot(lc, ctx.rng, (kind, amount, rarity) => rolled.push(rarity ? { kind, amount, rarity } : { kind, amount }));

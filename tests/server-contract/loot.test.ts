@@ -105,8 +105,11 @@ for (const be of BACKENDS)
       expect(await code(a.call('battle.start', { characterId, stageId: 'thornvale' }))).toBe('rejected');
       expect(await code(a.call('battle.start', { characterId, stageId: 'mistwood', night: true }))).toBe('rejected');
       const { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
-      const r = await a.call('loot.claim', { characterId, battleId, killSeq: 1, enemyId: 'wolf_king', fixedIdx: 0, fury: true });
-      expect(r.character.maps.mistwood).toMatchObject({ bossKills: 1, furyKills: 1 });
+      // 還沒打倒過狼王：暴怒還沒解鎖
+      expect(await code(a.call('loot.claim', { characterId, battleId, killSeq: 1, enemyId: 'wolf_king', fixedIdx: 0, fury: true }))).toBe('rejected');
+      await a.call('loot.claim', { characterId, battleId, killSeq: 2, enemyId: 'wolf_king', fixedIdx: 0 });
+      const r = await a.call('loot.claim', { characterId, battleId, killSeq: 3, enemyId: 'wolf_king', fixedIdx: 0, fury: true });
+      expect(r.character.maps.mistwood).toMatchObject({ bossKills: 2, furyKills: 1 });
       expect(await code(a.call('battle.start', { characterId, stageId: 'thornvale' }))).toBe('ok');
       expect(await code(a.call('battle.start', { characterId, stageId: 'emberrift' }))).toBe('rejected');
       expect(await code(a.call('battle.start', { characterId, stageId: 'mistwood', night: true }))).toBe('ok');
