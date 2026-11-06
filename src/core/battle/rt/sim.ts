@@ -140,7 +140,7 @@ export function safestPull(s: BattleState, advanceTo?: { x: number; y: number },
 /** 缺 MP（不夠放大招）或 HP 低於 80% 時，4 格內最近、已經可以撿的星光碎片 */
 function shardNear(s: BattleState, p: U): { x: number; y: number } | undefined {
   const vs = STAGES[s.stageId]?.vents;
-  const ultMp = skillDef(s, 'blade_storm')?.mp ?? 0;
+  const ultMp = skillDef(s, 'blade_storm', p)?.mp ?? 0;
   if (!vs || (p.mp >= ultMp && p.hp * 100 >= p.maxHp * 80)) return undefined;
   let best: { x: number; y: number } | undefined;
   let bd = 4 * UNIT;
@@ -252,12 +252,12 @@ export class PlayerBot implements BattleController {
     const es = enemiesOf(s);
     if (es.length === 0) return out;
     // 環形的範圍技（長弓環形箭雨，D-149）：太貼身的打不到，只算落在環上的
-    const ws = skillDef(s, 'whirlwind')!.hits[0]?.shape;
+    const ws = skillDef(s, 'whirlwind', p)!.hits[0]?.shape;
     const rIn = ws?.type === 'ring' ? ws.rIn : 0;
-    const near = es.filter((e) => { const d0 = dist(p.x, p.y, e.x, e.y); return d0 <= (skillDef(s, 'whirlwind')!.useRange ?? 0) + e.r && d0 + e.r >= rIn; });
+    const near = es.filter((e) => { const d0 = dist(p.x, p.y, e.x, e.y); return d0 <= (skillDef(s, 'whirlwind', p)!.useRange ?? 0) + e.r && d0 + e.r >= rIn; });
     const tgt = es.find((e) => e.id === p.targetId) ?? es.slice().sort((a, b) => dist(p.x, p.y, a.x, a.y) - dist(p.x, p.y, b.x, b.y))[0]!;
     const d = dist(p.x, p.y, tgt.x, tgt.y);
-    const ult = skillDef(s, 'blade_storm')!;
+    const ult = skillDef(s, 'blade_storm', p)!;
     const ultNear = es.filter((e) => dist(p.x, p.y, e.x, e.y) <= (ult.useRange ?? 0) + e.r);
     const bossNear = ultNear.some((e) => e.maxHp >= 2000);
     if (this.prof.ult && ready('blade_storm') && p.mp >= (ult.mp ?? 0) && (ultNear.length >= 3 || bossNear)) {
@@ -267,8 +267,8 @@ export class PlayerBot implements BattleController {
       out.push({ type: 'skill', id: 'blade_storm' });
     }
     else if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
-    else if (d <= (skillDef(s, 'heavy_slash')!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
-    else if (ready('charge') && (backLeap(s) ? d <= (skillDef(s, 'charge')!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge')!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' });
+    else if (d <= (skillDef(s, 'heavy_slash', p)!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
+    else if (ready('charge') && (backLeap(s, p) ? d <= (skillDef(s, 'charge', p)!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge', p)!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' });
     else if (near.length >= 1 && ready('whirlwind') && es.length === 1) out.push({ type: 'skill', id: 'whirlwind' });
     return out;
   }
@@ -295,8 +295,8 @@ export interface BattleResult {
 
 /** 從事件流算出結果（MetricsCollector 的單場版本） */
 /** 長弓的「後躍射擊」（D-147）是往後跳：敵人貼近時才用，跟劍士的衝鋒相反 */
-function backLeap(s: BattleState): boolean {
-  return (skillDef(s, 'charge')?.dash?.distance ?? 0) < 0;
+function backLeap(s: BattleState, p?: U): boolean {
+  return (skillDef(s, 'charge', p)?.dash?.distance ?? 0) < 0;
 }
 
 export function summarize(s: BattleState): BattleResult {

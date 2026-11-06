@@ -1,6 +1,7 @@
 // Q6 驗收（23 §Q6）：兩個 Bot 一起打狼王會贏、而且比一個人快；單人的結果不受影響（golden hash 另外守）。
 import { describe, expect, it } from 'vitest';
-import { addPlayer, createBattle, playerOf, step } from '../src/core/battle/rt/engine';
+import { addPlayer, createBattle, playerDef, playerOf, skillDef, step } from '../src/core/battle/rt/engine';
+import { WEAPONS } from '../src/core/battle/rt/data';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import type { BattleState } from '../src/core/battle/rt/types';
 
@@ -41,5 +42,17 @@ describe('多人協力（Q6）', () => {
     expect(duoWins).toBeGreaterThanOrEqual(soloWins);
     expect(duoWins).toBeGreaterThan(0);
     expect(duoTicks / duoWins).toBeLessThan(soloTicks / Math.max(1, soloWins));
+  }, 60_000);
+
+  it('每個玩家可以帶不同武器：長弓的第二個玩家用弓的技能與數值', () => {
+    const s = createBattle({ stageId: 'wolf_king', seed: 3 });
+    const bow = addPlayer(s, { weapon: 'bow' });
+    expect(skillDef(s, 'charge', bow)?.dash?.distance ?? 0).toBeLessThan(0); // 弓的後躍
+    expect(skillDef(s, 'charge')?.dash?.distance ?? 0).toBeGreaterThan(0); // 主角還是劍
+    expect(playerDef(s, bow)).toBe(WEAPONS.bow.player);
+    expect(bow.maxHp).toBe(WEAPONS.bow.player.hp);
+    const bots = [new PlayerBot(BOT_PROFILES.normal!, 'a'), new PlayerBot(BOT_PROFILES.normal!, 'b', 1)];
+    run(s, bots);
+    expect(s.outcome).toBe('victory');
   }, 60_000);
 });

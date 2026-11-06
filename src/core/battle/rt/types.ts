@@ -555,6 +555,10 @@ export interface PlayerCtl {
   lastCombatTick?: number;
   potions: number;
   campfireId?: string;
+  /** 武器、技能變化、裝備的技能修正（各玩家不同；pid 0 就是 BattleState 的同名欄位） */
+  weapon?: 'bow' | 'staff';
+  skillVariants?: string[];
+  skillMods?: Record<string, SkillMod>;
 }
 
 export interface BattleState extends PlayerCtl {

@@ -334,7 +334,7 @@ function rollDrops(s: BattleState, e: Unit): void {
 function processPickup(s: BattleState): void {
   if (!s.ground?.length) return;
   const p = playerOf(s);
-  const carry = playerDef(s).potion.carry;
+  const carry = playerDef(s, p).potion.carry;
   s.ground = s.ground.filter((it) => {
     if (s.tick - it.tick > LOOT_RULES.expireTicks) return false;
     if (p.dead || s.tick - it.tick < LOOT_RULES.pickupDelayTicks || dist(p.x, p.y, it.x, it.y) > LOOT_RULES.pickupUnits * UNIT) return true;
@@ -478,7 +478,7 @@ function processChests(s: BattleState): void {
     (s.chestsOpened ??= []).push(c.id);
     for (const k of Object.keys(c.loot).sort() as LootId[]) {
       const n = c.loot[k] ?? 0;
-      if (k === 'potion') ctlOf(s, p).potions = Math.min(playerDef(s).potion.carry, ctlOf(s, p).potions + n);
+      if (k === 'potion') ctlOf(s, p).potions = Math.min(playerDef(s, p).potion.carry, ctlOf(s, p).potions + n);
       s.loot[k] = (s.loot[k] ?? 0) + n;
     }
     emit(s, { tick: s.tick, type: 'chest', chest: c.id, loot: { ...c.loot } });
@@ -537,10 +537,11 @@ export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; d
 
 /** 戰鬥中換裝時更新技能修正（D-094） */
 /** 這場戰鬥實際用的技能定義（有選技能變化就用變化版，D-112） */
-export function skillDef(s: BattleState, id: string): SkillDefinition | undefined {
-  const v = s.skillVariants;
+export function skillDef(s: BattleState, id: string, p?: Unit): SkillDefinition | undefined {
+  const c = p ? ctlOf(s, p) : s;
+  const v = c.skillVariants;
   // 武器表（D-152）：技能欄同一組 id，招式整組換掉；變化（D-112／148）、變化二（D-121／149）
-  const w = WEAPONS[s.weapon ?? 'sword'];
+  const w = WEAPONS[c.weapon ?? 'sword'];
   if (!v) return w.skills[id];
   return (v.includes(id) ? w.variants[id] : v.includes(variantB(id)) ? w.variantsB[id] : undefined) ?? w.skills[id];
 }
@@ -588,21 +589,40 @@ export function ctlOf(s: BattleState, p: Unit): PlayerCtl {
   return pid === 0 ? s : s.others![pid - 1]!;
 }
 /**
- * 加一個玩家（Q6）：同一個職業定義與等級，放在主角旁邊；team 不給＝跟主角同隊（協力），給不同的數字＝敵對（PvP）。
- * 武器、技能修正、等級目前全場共用（s.weapon／skillMods／prog）——各玩家不同武器是下一步。
+ * 加一個玩家（Q6）：放在主角旁邊；team 不給＝跟主角同隊（協力），給不同的數字＝敵對（PvP）。
+ * 沒給 weapon＝複製主角（同武器、同等級、同裝備數值）；給了 weapon＝那把武器的基礎數值＋bonus（PvP 的配裝由呼叫端換算好傳進來）。
+ * 技能變化／修正各玩家自己的（PlayerCtl）；等級經驗（s.prog）仍只算主角。
  */
-export function addPlayer(s: BattleState, o: { team?: number; dx?: number; dy?: number; potions?: number } = {}): Unit {
+export function addPlayer(
+  s: BattleState,
+  o: { team?: number; dx?: number; dy?: number; potions?: number; weapon?: 'sword' | 'bow' | 'staff'; bonus?: { hp?: number; atk?: number; def?: number }; skillVariants?: string[]; skillMods?: Record<string, SkillMod> } = {},
+): Unit {
   const p0 = s.units[0]!;
   const pid = (s.others?.length ?? 0) + 1;
+  const ctl: PlayerCtl = { manualMove: null, potions: 0 };
+  const own = o.weapon !== undefined;
+  if (own && o.weapon !== 'sword') ctl.weapon = o.weapon;
+  else if (!own && s.weapon) ctl.weapon = s.weapon;
+  const vs = o.skillVariants ?? (own ? undefined : s.skillVariants);
+  if (vs?.length) ctl.skillVariants = [...vs].sort();
+  const mods = o.skillMods ?? (own ? undefined : s.skillMods);
+  if (mods && Object.keys(mods).length) ctl.skillMods = mods;
+  const pd = WEAPONS[ctl.weapon ?? 'sword'].player;
+  ctl.potions = o.potions ?? pd.potion.carry;
+  const b = o.bonus ?? {};
+  const stats = own
+    ? { r: pd.radius, hp: pd.hp + (b.hp ?? 0), maxHp: pd.hp + (b.hp ?? 0), atk: pd.atk + (b.atk ?? 0), def: pd.def + (b.def ?? 0), speedPerTick: speedPerTick(pd.speed), mp: Math.min(pd.mp, pd.mpStart), defId: pd.id }
+    : { hp: p0.maxHp };
   const u: Unit = {
-    ...p0, id: s.nextId++, pid, team: o.team ?? teamOf(p0), x: p0.x + (o.dx ?? 2 * p0.r + 20), y: p0.y + (o.dy ?? 0),
-    hp: p0.maxHp, dead: false, action: null, statuses: [], ready: {}, targetId: null, invulnUntil: -1, hitstunUntil: -1, hitstunImmuneUntil: -1, nextAttackTick: 0,
+    ...p0, ...stats, id: s.nextId++, pid, team: o.team ?? teamOf(p0), x: p0.x + (o.dx ?? 2 * p0.r + 20), y: p0.y + (o.dy ?? 0),
+    dead: false, action: null, statuses: [], ready: {}, targetId: null, invulnUntil: -1, hitstunUntil: -1, hitstunImmuneUntil: -1, nextAttackTick: 0,
   };
   clampArena(s, u);
   s.units.push(u);
-  (s.others ??= []).push({ manualMove: null, potions: o.potions ?? playerDef(s).potion.carry });
+  (s.others ??= []).push(ctl);
   return u;
 }
+
 /** 所有玩家（單人＝只有主角；不配置新陣列） */
 const SOLO: Unit[] = [];
 export function playersOf(s: BattleState): readonly Unit[] {
@@ -742,9 +762,12 @@ export function computeDamage(atk: number, mult: number, pool: number, def: numb
 }
 
 /** 目前武器的玩家定義（D-147：長弓；沒設＝劍士，舊關卡結果完全不變） */
-export function playerDef(s?: Pick<BattleState, 'weapon'>): PlayerDefinition {
-  return WEAPONS[s?.weapon ?? 'sword'].player;
+export function playerDef(s?: Pick<BattleState, 'weapon' | 'others'>, p?: Unit): PlayerDefinition {
+  const w = p?.pid ? s?.others?.[p.pid - 1]?.weapon : s?.weapon;
+  return WEAPONS[w ?? 'sword'].player;
 }
+/** 這個玩家的技能修正（沒給玩家＝主角） */
+const modsOf = (s: BattleState, p?: Unit): Record<string, SkillMod> | undefined => (p ? ctlOf(s, p) : s).skillMods;
 
 function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 'normal' | 'skill' | 'counter' | 'enemy', skill: string, reducePct = 0): number {
   if (dst.dead) return 0;
@@ -764,7 +787,7 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   let critMul = 1;
   let crit = false;
   if (src.side === 'player') {
-    const pd = playerDef(s);
+    const pd = playerDef(s, src);
     if (nextRand(s) * 100 < pd.critRate) {
       crit = true;
       critMul = pd.critDmg / 100;
@@ -788,7 +811,7 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
 /** 玩家回 MP（上限 PlayerDefinition.mp） */
 function gainMp(s: BattleState, p: Unit, n: number): void {
   if (p.side !== 'player' || p.dead || n <= 0) return;
-  p.mp = Math.min(playerDef(s).mp, p.mp + n);
+  p.mp = Math.min(playerDef(s, p).mp, p.mp + n);
 }
 
 /** 扣血（先扣護盾）、記事件、處理死亡 */
@@ -801,8 +824,8 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
   }
   dst.hp = Math.max(0, dst.hp - (amount - absorbed));
   if (origin !== 'dot') {
-    if (src.side === 'player' && dst.side === 'enemy') gainMp(s, src, playerDef(s).mpGain.deal);
-    if (dst.side === 'player' && amount > absorbed) gainMp(s, dst, playerDef(s).mpGain.hurt);
+    if (src.side === 'player' && dst.side === 'enemy') gainMp(s, src, playerDef(s, src).mpGain.deal);
+    if (dst.side === 'player' && amount > absorbed) gainMp(s, dst, playerDef(s, dst).mpGain.hurt);
   }
   emit(s, { tick: s.tick, type: 'damage', src: src.id, dst: dst.id, amount, crit, origin, skill, ...(absorbed ? { absorbed } : {}) });
   if (dst.hp <= 0 && !dst.dead) {
@@ -998,14 +1021,14 @@ function currentTarget(s: BattleState, p: Unit): Unit | undefined {
 }
 
 function startSkill(s: BattleState, p: Unit, id: string): boolean {
-  const sk = skillDef(s, id);
+  const sk = skillDef(s, id, p);
   if (!sk || p.dead || disabled(p, s.tick)) return false;
   if ((p.ready[id] ?? 0) > s.tick) return false;
   if (sk.mp && p.mp < sk.mp) return false;
   if (p.action && p.action.kind !== 'attack') return false; // 同時只能一個主動技能
   const t = currentTarget(s, p);
   if (t) face(p, t);
-  const cdPct = Math.min(SKILL_MOD_CAPS.cdPct, Math.max(0, s.skillMods?.[id]?.cdPct ?? 0));
+  const cdPct = Math.min(SKILL_MOD_CAPS.cdPct, Math.max(0, modsOf(s, p)?.[id]?.cdPct ?? 0));
   p.ready[id] = s.tick + (cdPct ? Math.round((sk.cooldownTicks * (100 - cdPct)) / 100) : sk.cooldownTicks); // 冷卻從施放開始計
   if (sk.mp) p.mp -= sk.mp;
   p.action = { kind: 'skill', id, start: s.tick, end: s.tick + sk.castTicks, dirX: p.facingX, dirY: p.facingY, ox: p.x, oy: p.y, hitIds: [], targetId: t?.id };
@@ -1014,11 +1037,11 @@ function startSkill(s: BattleState, p: Unit, id: string): boolean {
 }
 
 function startDodge(s: BattleState, p: Unit, dx: number, dy: number): boolean {
-  const pd = playerDef(s);
+  const pd = playerDef(s, p);
   if (p.dead || disabled(p, s.tick) || (p.ready['dodge'] ?? 0) > s.tick) return false;
   // 格擋有效窗口內不能用閃避取消
   const a = p.action;
-  if (a?.kind === 'skill' && skillDef(s, a.id)?.block && s.tick - a.start <= blockWindow(s, a.id)) return false;
+  if (a?.kind === 'skill' && skillDef(s, a.id, p)?.block && s.tick - a.start <= blockWindow(s, a.id, p)) return false;
   const [fx, fy] = dx === 0 && dy === 0 ? [-p.facingX, -p.facingY] : norm(dx, dy);
   p.ready['dodge'] = s.tick + pd.dodge.cooldownTicks;
   p.action = { kind: 'dodge', id: 'dodge', start: s.tick, end: s.tick + pd.dodge.ticks, dirX: fx, dirY: fy, ox: p.x, oy: p.y };
@@ -1066,7 +1089,7 @@ function restAtCampfire(s: BattleState, p: Unit): boolean {
   p.hp = p.maxHp;
   p.statuses = [];
   const ctl = ctlOf(s, p);
-  ctl.potions = Math.max(ctl.potions, playerDef(s).potion.carry);
+  ctl.potions = Math.max(ctl.potions, playerDef(s, p).potion.carry);
   ctl.campfireId = c.id;
   ctl.moveGoal = null;
   emit(s, { tick: s.tick, type: 'rest', id: p.id, campfire: c.id });
@@ -1086,7 +1109,7 @@ function reviveAtCampfire(s: BattleState, p: Unit): boolean {
   p.targetId = null;
   // 第 88 輪（D-225）：醒來也補藥水（和休息一樣補到攜帶上限）。以前藥水喝光倒下 → 醒來 0 瓶，要自己再點火堆才補，
   // 新手常直接走回去又倒一次；休息本來就免費，這一步只是多餘的操作
-  ctl.potions = Math.max(ctl.potions, playerDef(s).potion.carry);
+  ctl.potions = Math.max(ctl.potions, playerDef(s, p).potion.carry);
   p.x = c.x;
   p.y = c.y + UNIT;
   clampArena(s, p);
@@ -1118,7 +1141,7 @@ function setMoveGoal(s: BattleState, p: Unit, x: number, y: number): void {
 
 /** 喝藥水：瞬間回復、不打斷動作；滿血、沒藥、冷卻中、倒下或暈眩時無效 */
 function drinkPotion(s: BattleState, p: Unit): boolean {
-  const pt = playerDef(s).potion;
+  const pt = playerDef(s, p).potion;
   const ctl = ctlOf(s, p);
   if (p.dead || disabled(p, s.tick) || ctl.potions <= 0 || p.hp >= p.maxHp) return false;
   if ((p.ready['potion'] ?? 0) > s.tick) return false;
@@ -1131,8 +1154,8 @@ function drinkPotion(s: BattleState, p: Unit): boolean {
 }
 
 /** 套上範圍修正後的技能形狀（areaPct；沒有修正就回傳原物件） */
-export function skillShape(s: BattleState, skillId: string, shape: Shape): Shape {
-  const pct = Math.min(SKILL_MOD_CAPS.areaPct, Math.max(0, s.skillMods?.[skillId]?.areaPct ?? 0));
+export function skillShape(s: BattleState, skillId: string, shape: Shape, p?: Unit): Shape {
+  const pct = Math.min(SKILL_MOD_CAPS.areaPct, Math.max(0, modsOf(s, p)?.[skillId]?.areaPct ?? 0));
   if (!pct) return shape;
   const k = (n: number) => Math.round((n * (100 + pct)) / 100);
   switch (shape.type) {
@@ -1148,27 +1171,27 @@ export function skillShape(s: BattleState, skillId: string, shape: Shape): Shape
 }
 
 /** 格擋有效窗口（ticks），含裝備的 blockTicks */
-export function blockWindow(s: BattleState, skillId: string): number {
-  const b = skillDef(s, skillId)?.block;
+export function blockWindow(s: BattleState, skillId: string, p?: Unit): number {
+  const b = skillDef(s, skillId, p)?.block;
   if (!b) return -1;
-  return b.windowTicks + Math.min(SKILL_MOD_CAPS.blockTicks, Math.max(0, Math.floor(s.skillMods?.[skillId]?.blockTicks ?? 0)));
+  return b.windowTicks + Math.min(SKILL_MOD_CAPS.blockTicks, Math.max(0, Math.floor(modsOf(s, p)?.[skillId]?.blockTicks ?? 0)));
 }
 
 /** 位移技能的總距離（含 distPct） */
-export function dashDistance(s: BattleState, skillId: string): number {
-  const d = skillDef(s, skillId)?.dash;
+export function dashDistance(s: BattleState, skillId: string, p?: Unit): number {
+  const d = skillDef(s, skillId, p)?.dash;
   if (!d) return 0;
-  const pct = Math.min(SKILL_MOD_CAPS.distPct, Math.max(0, s.skillMods?.[skillId]?.distPct ?? 0));
+  const pct = Math.min(SKILL_MOD_CAPS.distPct, Math.max(0, modsOf(s, p)?.[skillId]?.distPct ?? 0));
   return pct ? Math.round((d.distance * (100 + pct)) / 100) : d.distance;
 }
 
 function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillId: string, origin: 'skill' | 'counter'): void {
-  const shape = skillShape(s, skillId, h.shape);
+  const shape = skillShape(s, skillId, h.shape, p);
   for (const e of enemiesOf(s)) {
     if (h.oncePerTarget && a.hitIds?.includes(e.id)) continue;
     if (!inShape(shape, h.ahead ? p.x + Math.round((a.dirX * h.ahead) / DIR) : p.x, h.ahead ? p.y + Math.round((a.dirY * h.ahead) / DIR) : p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
     a.hitIds?.push(e.id);
-    const dmgPct = s.skillMods?.[skillId]?.dmgPct ?? 0;
+    const dmgPct = modsOf(s, p)?.[skillId]?.dmgPct ?? 0;
     dealDamage(s, p, e, dmgPct ? Math.round((h.mult * (100 + dmgPct)) / 100) : h.mult, origin, skillId);
     if (h.status && !e.dead) addStatus(s, e, h.status, p);
   }
@@ -1177,7 +1200,7 @@ function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillI
 function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
   if (p.dead || disabled(p, s.tick)) return;
   const ctl = ctlOf(s, p);
-  const pd = playerDef(s);
+  const pd = playerDef(s, p);
   const a = p.action;
   if (a) {
     const k = s.tick - a.start;
@@ -1187,9 +1210,9 @@ function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
       p.y += Math.round((a.dirY / DIR) * step);
       clampArena(s, p);
     } else if (a.kind === 'skill') {
-      const sk = skillDef(s, a.id)!;
+      const sk = skillDef(s, a.id, p)!;
       if (sk.dash && k >= sk.dash.fromTick && k < sk.dash.fromTick + sk.dash.ticks) {
-        const step = Math.round(dashDistance(s, a.id) / sk.dash.ticks);
+        const step = Math.round(dashDistance(s, a.id, p) / sk.dash.ticks);
         p.x += Math.round((a.dirX / DIR) * step);
         p.y += Math.round((a.dirY / DIR) * step);
         clampArena(s, p);
@@ -1406,11 +1429,11 @@ function pickAttack(s: BattleState, e: Unit, def: EnemyDefinition, d: number, ta
 function enemyHit(s: BattleState, e: Unit, atk: AreaAttack, p: Unit): void {
   // 格擋反擊：窗口內、可格擋 → 減傷並立即反擊
   const a = p.action;
-  const sk = a?.kind === 'skill' ? skillDef(s, a.id) : undefined;
-  if (a && sk?.block && atk.blockable && !a.blocked && s.tick - a.start <= blockWindow(s, a.id)) {
+  const sk = a?.kind === 'skill' ? skillDef(s, a.id, p) : undefined;
+  if (a && sk?.block && atk.blockable && !a.blocked && s.tick - a.start <= blockWindow(s, a.id, p)) {
     a.blocked = true;
     emit(s, { tick: s.tick, type: 'block', id: p.id, attack: atk.id });
-    gainMp(s, p, playerDef(s).mpGain.block);
+    gainMp(s, p, playerDef(s, p).mpGain.block);
     dealDamage(s, e, p, atk.damageMultiplier, 'enemy', atk.id, sk.block.reducePct);
     face(p, e);
     a.dirX = p.facingX;
