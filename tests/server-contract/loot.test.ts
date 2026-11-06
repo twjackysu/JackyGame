@@ -9,7 +9,8 @@ import { FakeClock, SeqIds } from '../../src/server/clock';
 import { GameServer } from '../../src/server/GameServer';
 import { KILL_BURST, KILLS_PER_MIN, PVE_BATTLE_TTL } from '../../src/server/handlers/loot';
 import { BAG_MAX } from '../../src/core/meta/bag';
-import { killXp } from '../../src/core/battle/rt/loot';
+import { hasLoot, killXp } from '../../src/core/battle/rt/loot';
+import { BOUNTY_ALIAS, BOUNTY_POOL, cleanBounties } from '../../src/core/meta/bounty';
 import { xpToNext } from '../../src/core/battle/rt/engine';
 import { BACKENDS } from './backends';
 import { LEGACY_SAMPLE } from './fixtures';
@@ -113,6 +114,36 @@ for (const be of BACKENDS)
       expect(await code(a.call('battle.start', { characterId, stageId: 'thornvale' }))).toBe('ok');
       expect(await code(a.call('battle.start', { characterId, stageId: 'emberrift' }))).toBe('rejected');
       expect(await code(a.call('battle.start', { characterId, stageId: 'mistwood', night: true }))).toBe('ok');
+    });
+
+    it('懸賞（第 147 輪）：伺服器計數，完成時獎勵入錢包、補一張新的；其他怪不動懸賞', async () => {
+      const { a, clock } = await setup(be);
+      const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
+      const me = await a.call('character.get', { id: characterId });
+      const st = cleanBounties(me.bounty);
+      const wolf = st.list.find((x) => x.target === 'wolf');
+      expect(wolf).toBeDefined();
+      const left = wolf!.need - wolf!.got;
+      const { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
+      let seq = 0;
+      let last: Awaited<ReturnType<typeof a.call<'loot.claim'>>> | null = null;
+      let dustLoot = 0;
+      for (let i = 0; i < left; i++) {
+        clock.advance(3000);
+        last = await a.call('loot.claim', { characterId, battleId, killSeq: ++seq, enemyId: 'wolf', groupId: 'entry' });
+        dustLoot += last.drops.filter((d) => d.kind === 'dust').reduce((x, d) => x + d.amount, 0) + last.drops.reduce((x, d) => x + (d.salvaged ?? 0), 0);
+        if (i < left - 1) expect(last.bounty).toEqual([]);
+      }
+      expect(last!.bounty).toEqual([{ target: 'wolf', need: wolf!.need, reward: wolf!.reward }]);
+      expect(last!.character.wallet.dust).toBe(me.wallet.dust + dustLoot + wolf!.reward.dust);
+      const after = cleanBounties(last!.character.bounty);
+      expect(after.done).toBe(st.done + 1);
+      expect(after.list.length).toBe(3);
+      expect(after.list.some((x) => x.n === wolf!.n)).toBe(false);
+    });
+
+    it('懸賞目標（含別名）都是會掉東西的怪：客戶端只回報 hasLoot 的，懸賞才數得到', () => {
+      for (const id of [...BOUNTY_POOL.map((p) => p.target), ...Object.keys(BOUNTY_ALIAS)]) expect(hasLoot(id), id).toBe(true);
     });
 
     it('速度上限：開場 KILL_BURST 隻，之後每分鐘 KILLS_PER_MIN 隻', async () => {

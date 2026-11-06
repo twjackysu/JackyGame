@@ -1,6 +1,6 @@
 // 客戶端 ↔ 伺服器的訊息格式（D-277，design/24 §1～2）。邊界上只有 JSON：這裡只放型別與純函式。
 // 換成線上版時這份檔案兩邊共用，不用改。
-import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, LootDropView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView, WarehouseView, WeaponView } from './views';
+import type { AccountView, BountyDoneView, CharacterView, ExportBlob, LegacySnapshot, ListingView, LootDropView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView, WarehouseView, WeaponView } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -89,7 +89,7 @@ export interface Api {
   'pvp.ladder': { params: { characterId: string }; result: PvpLadderView; write: false };
   // PvE 掉落由伺服器擲（26-security §3.1，D-307）：開打拿 battleId → 每打倒一隻送「打倒了誰、在哪一群」→ 伺服器檢查後用自己的亂數擲掉落、直接入帳
   'battle.start': { params: { characterId: string; stageId: string; night?: boolean }; result: { battleId: string }; write: true };
-  'loot.claim': { params: LootClaimParams; result: { drops: LootDropView[]; xp: number; character: CharacterView }; write: true };
+  'loot.claim': { params: LootClaimParams; result: { drops: LootDropView[]; xp: number; /** 這一隻完成的懸賞（獎勵已入錢包） */ bounty: BountyDoneView[]; character: CharacterView }; write: true };
 }
 export interface LootClaimParams {
   characterId: string;

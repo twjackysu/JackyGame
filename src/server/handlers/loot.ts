@@ -9,8 +9,9 @@ import { furyOpenBy, stageDef, worldNightOpen, worldStageOpen } from '../../core
 import { xpToNext } from '../../core/battle/rt/engine';
 import { isStageBoss, killXp, rollEnemyLoot, validKill, type LootContext } from '../../core/battle/rt/loot';
 import { addWithAutoSalvage } from '../../core/meta/bag';
+import { bountyKill, cleanBounties } from '../../core/meta/bounty';
 import { ApiError } from '../../net/protocol';
-import type { LootDropView } from '../../net/views';
+import type { BountyDoneView, LootDropView } from '../../net/views';
 import type { HandlerTable } from '../router';
 import { ownCharacter } from './common';
 import { freshView, frontPos, idParam, loadInv } from './inv';
@@ -141,11 +142,22 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim'> = {
       next.level = level;
       next.xp = x;
     }
+    // 懸賞（第 147 輪）：計數與獎勵也由伺服器做（規則 core/meta/bounty.ts，和單機同一份）
+    const bst = cleanBounties(cur.bounty);
+    const bk = bountyKill(bst, enemyId);
+    const bounty: BountyDoneView[] = bk.completed.map((x) => ({ target: x.target, need: x.need, reward: { ...x.reward } }));
+    if (bk.st !== bst) {
+      next.bounty = bk.st;
+      for (const x of bk.completed) {
+        if (x.reward.dust) await ctx.r.wallets.apply(c.id, 'dust', x.reward.dust, 'bounty', b.id);
+        if (x.reward.crystal) await ctx.r.wallets.apply(c.id, 'crystal', x.reward.crystal, 'bounty', b.id);
+      }
+    }
     if (isStageBoss(lc)) {
       const mp = cur.maps[b.stageId] ?? {};
       next.maps = { ...cur.maps, [b.stageId]: { ...mp, bossKills: (mp.bossKills ?? 0) + 1, ...(fury ? { furyKills: (mp.furyKills ?? 0) + 1 } : {}) } };
     }
     await ctx.r.characters.save(next);
-    return { drops: rolled, xp, character: await freshView(ctx, c.id) };
+    return { drops: rolled, xp, bounty, character: await freshView(ctx, c.id) };
   },
 };

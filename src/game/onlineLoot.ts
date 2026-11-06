@@ -3,21 +3,24 @@
 // 過渡期：畫面上的掉落與本機存檔照舊（之後畫面改讀伺服器的角色，舊 key 才退場）；回報失敗（速度上限、斷線）只記 console，不影響遊戲。
 import { hasLoot } from '../core/battle/rt/loot';
 import type { Unit } from '../core/battle/rt/types';
-import type { WeaponView } from '../net/views';
+import type { BountyDoneView, WeaponView } from '../net/views';
 import { bootServer } from '../client/boot';
 import { onlineActive } from '../client/onlineClient';
 import { characterCache } from '../client/characterCache';
 
 let battle: Promise<{ characterId: string; battleId: string } | null> = Promise.resolve(null);
 let seq = 0;
+/** 每次 loot.claim 回來（懸賞進度／完成，第 147 輪）；換場景時 start 換掉 */
+let onClaim: ((done: BountyDoneView[], enemyId: string) => void) | null = null;
 let chain: Promise<unknown> = Promise.resolve();
 /** 除錯：回報了幾隻、拿到幾筆掉落、最後的錯誤 */
 export const onlineLootStatus = { claims: 0, drops: 0, error: null as string | null };
 
 export const onlineLoot = {
-  start(stageId: string, night: boolean, weapon: WeaponView): void {
+  start(stageId: string, night: boolean, weapon: WeaponView, claimed?: (done: BountyDoneView[], enemyId: string) => void): void {
     if (!import.meta.env.VITE_SERVER_URL) return;
     seq = 0;
+    onClaim = claimed ?? null;
     battle = (async () => {
       try {
         const { client } = await bootServer();
@@ -45,6 +48,7 @@ export const onlineLoot = {
         const ticket = characterCache.ticket();
         const r = await client.call('loot.claim', { ...cur, killSeq, ...kill });
         characterCache.set(r.character, ticket);
+        onClaim?.(r.bounty, kill.enemyId);
         onlineLootStatus.claims++;
         onlineLootStatus.drops += r.drops.length;
       } catch (e) {

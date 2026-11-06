@@ -72,6 +72,7 @@ import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { InputSystem } from '../rt/InputSystem';
 import { captureLegacy, legacyOp } from '../../client/legacyOps';
 import { characterCache } from '../../client/characterCache';
+import type { BountyDoneView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
@@ -445,7 +446,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
     this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined });
-    if (this.tracked && !this.bot) onlineLoot.start(this.stageId, !!this.s.night, loadWeapon());
+    if (this.tracked && !this.bot) onlineLoot.start(this.stageId, !!this.s.night, loadWeapon(), (done, defId) => this.onlineBounty(done, defId));
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
     this.bossTimed = false;
@@ -1008,7 +1009,9 @@ export class RtBattleScene extends Phaser.Scene {
   // ---------- 營地懸賞（D-109） ----------
   private refreshBounty(): void {
     if (!this.bountyTxt) return;
-    const st = cleanBounties(loadRecord(this.stageId).bounty);
+    // 線上版（第 147 輪）：懸賞由伺服器計數，看角色快取
+    const oc = import.meta.env.VITE_SERVER_URL ? characterCache.get() : null;
+    const st = cleanBounties(oc ? oc.bounty : loadRecord(this.stageId).bounty);
     // 懸賞三張地圖共用：這張地圖打不到的目標標「別圖」（例：燼紅裂谷沒有荊棘母樹；第 52 輪從「別張地圖」縮短，以前右緣伸到記憶卡底下）
     const stg = STAGES[this.stageId];
     const ids = [...(stg?.spawnGroups ?? []).map((g) => g.enemyId), ...(stg?.enemies ?? []).map((e) => e.enemyId)];
@@ -1023,13 +1026,31 @@ export class RtBattleScene extends Phaser.Scene {
 
   private bountyKill(defId: string): void {
     if (!this.tracked) return;
+    // 線上版（第 147 輪）：計數與獎勵由伺服器的 loot.claim 做，結果回來時 onlineBounty 公告
+    if (import.meta.env.VITE_SERVER_URL) return;
     const rec = loadRecord(this.stageId);
     const st = cleanBounties(rec.bounty);
     const r = bountyKill(st, defId);
     if (r.st === st) return;
     let out: RtRecord = { ...rec, bounty: r.st };
-    r.completed.forEach((b, i) => {
-      out = spend(out, -b.reward.dust, -b.reward.crystal) ?? out;
+    for (const b of r.completed) out = spend(out, -b.reward.dust, -b.reward.crystal) ?? out;
+    this.announceBounty(r.completed, defId);
+    saveRecord(this.stageId, out);
+    this.dustBase = walletOf(out).dust;
+    this.refreshBounty();
+    if (r.completed.length && this.bountyTxt) this.tweens.add({ targets: this.bountyTxt, scale: 1.12, duration: 160, yoyo: true });
+  }
+
+  /** 線上版：loot.claim 回來（懸賞進度可能變了、可能完成） */
+  private onlineBounty(done: readonly BountyDoneView[], defId: string): void {
+    if (!this.scene.isActive()) return;
+    this.announceBounty(done, defId);
+    this.refreshBounty();
+    if (done.length && this.bountyTxt) this.tweens.add({ targets: this.bountyTxt, scale: 1.12, duration: 160, yoyo: true });
+  }
+
+  private announceBounty(done: readonly BountyDoneView[], defId: string): void {
+    done.forEach((b, i) => {
       // 第 43 輪：以前一律寫懸賞池的原名（在燼紅裂谷打完燼芯菇卻顯示「荊棘射手」）→ 用這張圖剛打倒的那種；精英類照懸賞板寫「首領級精英」
       const name = b.target === 'alpha_wolf' ? BOUNTY_LABEL.alpha_wolf! : ENEMIES[defId]?.name ?? ENEMIES[b.target]?.name ?? b.target;
       const got = [b.reward.dust ? `粉塵 +${b.reward.dust}` : '', b.reward.crystal ? `結晶 +${b.reward.crystal}` : ''].filter(Boolean).join('・');
@@ -1038,10 +1059,6 @@ export class RtBattleScene extends Phaser.Scene {
         bigText(this, GAME_WIDTH / 2, 430, `懸賞完成！${name} ×${b.need}\n${got}`, '#ffe08a', 36, 1200);
       });
     });
-    saveRecord(this.stageId, out);
-    this.dustBase = walletOf(out).dust;
-    this.refreshBounty();
-    if (r.completed.length && this.bountyTxt) this.tweens.add({ targets: this.bountyTxt, scale: 1.12, duration: 160, yoyo: true });
   }
 
   // ---------- 裝備（D-091） ----------

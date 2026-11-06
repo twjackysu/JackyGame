@@ -179,3 +179,10 @@ export interface LootDropView {
   /** 行囊滿了又沒有可分解的：這件沒撿到 */
   full?: boolean;
 }
+
+/** 完成的懸賞（loot.claim 回傳，第 147 輪） */
+export interface BountyDoneView {
+  target: string;
+  need: number;
+  reward: { dust: number; crystal: number };
+}
