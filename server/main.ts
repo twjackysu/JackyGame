@@ -8,13 +8,21 @@ import { RateLimiter } from '../src/server/rateLimit';
 import type { Db } from '../src/server/repos/types';
 import { DevAuth } from './devAuth';
 import { createHttp } from './http';
+import { JwtAuth, jwksFetcher } from './jwtAuth';
+import type { Auth } from '../src/server/auth';
 
 const env = process.env;
 const now = () => Date.now();
 
 async function main(): Promise<void> {
   const mode = env.AUTH_MODE ?? '';
-  if (mode !== 'dev') throw new Error('AUTH_MODE 目前只支援 dev（JWT 驗證還沒做，線上不能開）');
+  let auth: Auth;
+  if (mode === 'dev') auth = new DevAuth();
+  else if (mode === 'jwt') {
+    const { JWT_ISSUER: issuer, JWT_AUDIENCE: audience, JWT_JWKS_URL: jwks } = env;
+    if (!issuer || !audience || !jwks?.startsWith('https://')) throw new Error('AUTH_MODE=jwt 要設 JWT_ISSUER、JWT_AUDIENCE、JWT_JWKS_URL（https）');
+    auth = new JwtAuth({ issuer, audience, keys: jwksFetcher(jwks) });
+  } else throw new Error('AUTH_MODE 要是 dev 或 jwt');
   const conn = env.GAME_DB_CONNECTION_STRING;
   let db: Db;
   if (conn) db = await MssqlDb.open(conn, now, env.GAME_DB_SCHEMA || 'game', { migrate: env.GAME_DB_MIGRATE !== '0' });
@@ -22,7 +30,7 @@ async function main(): Promise<void> {
     console.warn('[server] 沒有 GAME_DB_CONNECTION_STRING：用記憶體資料庫（重開就清空，只能開發用）');
     db = await DocDb.open(new MemoryStore(), now);
   }
-  const game = new GameServer({ db, auth: new DevAuth(), limiter: new RateLimiter(), local: false });
+  const game = new GameServer({ db, auth, limiter: new RateLimiter(), local: false });
   const port = Number(env.PORT || 8080);
   const cors = (env.CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   createHttp(game, { corsOrigins: cors }).listen(port, () => console.log(`[server] listening on :${port}（AUTH_MODE=${mode}）`));
