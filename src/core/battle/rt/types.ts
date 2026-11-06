@@ -216,6 +216,8 @@ export interface Unit {
   team?: number;
   /** 玩家編號（Q6）：沒有＝0（單人的主角）；其他玩家的控制狀態在 BattleState.others[pid − 1] */
   pid?: number;
+  /** PvP 控制遞減的紀錄（pvp.ts 的 CcMemo） */
+  ccMemo?: { n: number; last: number };
   defId: string;
   x: number;
   y: number;
@@ -452,6 +454,8 @@ export const LOOT_RULES = { pickupUnits: 2.5, pickupDelayTicks: 9, expireTicks: 
 export const RESPAWN_MIN_PLAYER_UNITS = 9;
 
 export interface StageDefinition {
+  /** PvP 競技場（Q6／24 §6.1）：玩家 HP ×3、玩家互打傷害 ×0.5、控制減半＋遞減；勝負＝最後還站著的隊伍 */
+  pvp?: boolean;
   id: string;
   name: string;
   arena: Arena;
@@ -625,6 +629,8 @@ export interface BattleState extends PlayerCtl {
   respawnAt?: Record<string, number[]>;
   /** 星光碎片（D-141）：還留在地上的落點 idx 與消失的 tick（只有 vents 帶 shard 的關卡才會有） */
   shards?: { idx: number; until: number }[];
+  /** PvP 競技場（StageDefinition.pvp） */
+  pvp?: boolean;
   /** pid 1 以後的玩家的控制狀態（Q6；單人沒有） */
   others?: PlayerCtl[];
 }

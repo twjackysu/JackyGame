@@ -1,6 +1,7 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
+import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
@@ -149,6 +150,12 @@ export function createBattle(setup: BattleSetup): BattleState {
       const r = g.maxAlive === 1 ? 0 : g.spawnRadius * 0.6;
       s.units.push(spawnFromGroup(s, g, g.cx + Math.round(cosStep(a) * r), g.cy + Math.round(sinStep(a) * r)));
     }
+  }
+  if (stage.pvp) {
+    // PvP 競技場：主角 HP ×3（addPlayer 加進來的玩家同樣處理）
+    s.pvp = true;
+    const p = s.units[0]!;
+    p.hp = p.maxHp = pvpMaxHp(p.maxHp);
   }
   return s;
 }
@@ -617,6 +624,7 @@ export function addPlayer(
     ...p0, ...stats, id: s.nextId++, pid, team: o.team ?? teamOf(p0), x: p0.x + (o.dx ?? 2 * p0.r + 20), y: p0.y + (o.dy ?? 0),
     dead: false, action: null, statuses: [], ready: {}, targetId: null, invulnUntil: -1, hitstunUntil: -1, hitstunImmuneUntil: -1, nextAttackTick: 0,
   };
+  if (s.pvp && own) u.hp = u.maxHp = pvpMaxHp(u.maxHp);
   clampArena(s, u);
   s.units.push(u);
   (s.others ??= []).push(ctl);
@@ -648,6 +656,8 @@ function enemyTargetOf(s: BattleState, e: Unit): Unit {
   return best ?? s.units[0]!;
 }
 export const enemiesOf = (s: BattleState): Unit[] => s.units.filter((x) => x.side === 'enemy' && !x.dead);
+/** 這個玩家的對手：活著、敵對的單位（PvP 時包含對方玩家） */
+export const foesOf = (s: BattleState, p: Unit): Unit[] => s.units.filter((x) => !x.dead && x !== p && hostile(p, x));
 const unitById = (s: BattleState, id: number | null | undefined): Unit | undefined => (id == null ? undefined : s.units.find((x) => x.id === id));
 const has = (x: Unit, id: StatusId, tick: number): boolean => x.statuses.some((st) => st.id === id && st.until > tick);
 /** 暈眩或冰凍：不能移動與攻擊 */
@@ -657,7 +667,15 @@ const disabled = (x: Unit, tick: number): boolean => has(x, 'stun', tick) || has
 export function addStatus(s: BattleState, x: Unit, st: StatusApply, src?: Unit): void {
   let id = st.id;
   if (id === 'freeze' && ENEMIES[x.defId]?.boss) id = 'slow';
-  const until = s.tick + st.ticks;
+  let ticks = st.ticks;
+  // PvP：玩家被控時間減半、15 秒內連續被控遞減到免疫（pvp.ts）
+  if (s.pvp && x.side === 'player' && (id === 'stun' || id === 'freeze' || id === 'slow')) {
+    const r = pvpCc(ticks, s.tick, x.ccMemo);
+    x.ccMemo = r.memo;
+    if (r.ticks <= 0) return;
+    ticks = r.ticks;
+  }
+  const until = s.tick + ticks;
   const rule = STATUS_RULES[id];
   const power = src && st.powerPct ? Math.max(1, Math.round((src.atk * st.powerPct) / 100)) : 0;
   const cur = x.statuses.find((q) => q.id === id);
@@ -796,6 +814,7 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   let amount = computeDamage(atk, mult, pool, dst.def, critMul);
   if (has(src, 'weak', s.tick)) amount = Math.max(1, Math.round(amount * 0.8)); // 虛弱：造成傷害 −20%
   if (reducePct > 0) amount = Math.max(1, Math.round((amount * (100 - reducePct)) / 100));
+  if (s.pvp && src.side === 'player' && dst.side === 'player') amount = pvpDamage(amount);
   applyHp(s, src, dst, amount, crit, origin, skill);
   // 受擊硬直（小怪；Boss 0）＋1 秒硬直免疫
   if (dst.side === 'enemy' && !dst.dead) {
@@ -1187,7 +1206,7 @@ export function dashDistance(s: BattleState, skillId: string, p?: Unit): number 
 
 function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillId: string, origin: 'skill' | 'counter'): void {
   const shape = skillShape(s, skillId, h.shape, p);
-  for (const e of enemiesOf(s)) {
+  for (const e of s.others?.length ? foesOf(s, p) : enemiesOf(s)) {
     if (h.oncePerTarget && a.hitIds?.includes(e.id)) continue;
     if (!inShape(shape, h.ahead ? p.x + Math.round((a.dirX * h.ahead) / DIR) : p.x, h.ahead ? p.y + Math.round((a.dirY * h.ahead) / DIR) : p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
     a.hitIds?.push(e.id);
@@ -1607,6 +1626,14 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
     if (p.dead && !reviveAtCampfire(s, p)) down++;
   }
   if (down === ps.length) s.outcome = 'defeat';
+  else if (s.pvp) {
+    // PvP：主角那隊全倒＝敗、其他隊全倒＝勝
+    const me = teamOf(s.units[0]!);
+    const alive = (mine: boolean) => ps.some((u) => !u.dead && (teamOf(u) === me) === mine);
+    if (!alive(true)) s.outcome = 'defeat';
+    else if (!alive(false)) s.outcome = 'victory';
+    else if (s.tick >= s.timeLimitTicks) s.outcome = 'timeout';
+  }
   else if (!s.units.some((x) => x.side === 'enemy' && !x.dead) && !pendingRespawn(s)) s.outcome = 'victory';
   else if (s.tick >= s.timeLimitTicks) s.outcome = 'timeout';
 }

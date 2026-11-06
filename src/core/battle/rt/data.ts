@@ -716,6 +716,10 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
 };
 
 export const STAGES: Record<string, StageDefinition> = {
+  // PvP 競技場（Q6，24 §6）：沒有怪的小場地；先不放掩體（maps/arena.ts 之後再做）
+  pvp_arena: {
+    id: 'pvp_arena', name: '競技場', arena: { w: u(14), h: u(16) }, player: { x: u(7), y: u(13) }, timeLimitTicks: sec(180), enemies: [], pvp: true,
+  },
   forest_entry: {
     id: 'forest_entry', name: '森林入口', arena: { w: u(14), h: u(18) }, player: { x: u(7), y: u(15) }, timeLimitTicks: sec(180),
     enemies: [{ enemyId: 'wolf', x: u(5), y: u(5) }, { enemyId: 'wolf', x: u(7), y: u(4) }, { enemyId: 'wolf', x: u(9), y: u(5) }],

@@ -1,7 +1,7 @@
 // 控制器、無畫面模擬器與統計（design/19 §7、D-063 P2）。
 // 控制器只讀 BattleState、回傳 BattleCommand；同種子＋同控制器＝同結果（stateHash 驗證）。
 import { ENEMIES, STAGES } from './data';
-import { createBattle, ctlOf, dist, skillDef, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
+import { createBattle, ctlOf, dist, foesOf, skillDef, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
 import { aggroUnitsOf, CAMPFIRE_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
 
 export interface BattleController {
@@ -249,7 +249,7 @@ export class PlayerBot implements BattleController {
       if (sh) return [...out, { type: 'move', dx: sh.x - p.x, dy: sh.y - p.y }];
     }
     // 2. 技能
-    const es = enemiesOf(s);
+    const es = s.others?.length ? foesOf(s, p) : enemiesOf(s);
     if (es.length === 0) return out;
     // 環形的範圍技（長弓環形箭雨，D-149）：太貼身的打不到，只算落在環上的
     const ws = skillDef(s, 'whirlwind', p)!.hits[0]?.shape;
