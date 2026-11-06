@@ -122,8 +122,12 @@ export function openTradePanel(scene: Phaser.Scene, ops: TradeOps, onClose: () =
       items.push(btn(0, -340, '重新找找', () => run(() => ops.partners())));
       return;
     }
-    ps.slice(0, 9).forEach((p, i) => {
-      const y = -370 + i * 70;
+    // 還開著的交易：最上面，點了接著做
+    const open = data?.open ?? [];
+    open.slice(0, 2).forEach((o, i) => items.push(btn(0, -390 + i * 60, `繼續和 ${o.partnerName} 的交易`, () => run(() => ops.get(o.id)), true, 22)));
+    const top = open.length ? -390 + Math.min(2, open.length) * 60 + 20 : -370;
+    ps.slice(0, open.length ? 7 : 9).forEach((p, i) => {
+      const y = top + i * 70;
       const bg = scene.add.rectangle(0, y, 560, 58, 0x1a140c, 0.95).setStrokeStyle(2, 0xffd27a, 0.6).setInteractive({ useHandCursor: true });
       bg.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
         ev.stopPropagation();

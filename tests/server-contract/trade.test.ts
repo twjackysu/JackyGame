@@ -118,6 +118,8 @@ for (const be of BACKENDS)
       const me0 = await a.call('character.get', { id: A });
       const item = me0.items.find((i) => i.location === 'bag')!;
       const { trade } = await a.call('trade.open', { characterId: A, partnerCharacterId: partners[0]!.characterId });
+      // 離開面板再回來：還開著的交易列在 open 裡
+      expect((await a.call('trade.partners', { characterId: A })).open.map((o) => o.id)).toEqual([trade.id]);
       let r = await a.call('trade.offer', { characterId: A, tradeId: trade.id, items: [item.id], coin: 0 });
       const bid = r.trade.theirs.coin;
       expect(bid).toBeGreaterThan(0);

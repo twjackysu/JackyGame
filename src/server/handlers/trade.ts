@@ -87,14 +87,17 @@ async function execute(ctx: Ctx, t: TradeRow): Promise<void> {
 
 export const tradeHandlers: Pick<HandlerTable, 'trade.partners' | 'trade.open' | 'trade.offer' | 'trade.lock' | 'trade.confirm' | 'trade.cancel' | 'trade.get'> = {
   'trade.partners': async (ctx, p) => {
-    await ownCharacter(ctx, p?.characterId);
-    if (!ctx.local) return { partners: [] };
+    const me = await ownCharacter(ctx, p?.characterId);
+    const now = ctx.clock.now();
+    // 還開著的交易（離開面板再回來可以接著做；過期的不列，下次 get 時退回）
+    const open = (await ctx.r.trades.listByCharacter(me.id, 20)).filter((t) => t.state.status === 'open' && t.expiresAt >= now).map((t) => ({ id: t.id, partnerName: t.aCharacterId === me.id ? t.bName : t.aName }));
+    if (!ctx.local) return { partners: [], open };
     const partners: { characterId: string; name: string; weapon: WeaponView }[] = [];
     for (const s of simRoster()) {
       const [c] = await ctx.r.characters.listByAccount(s.accountId);
       if (c) partners.push({ characterId: c.id, name: c.name, weapon: c.weapon });
     }
-    return { partners };
+    return { partners, open };
   },
 
   'trade.open': async (ctx, p) => {

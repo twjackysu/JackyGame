@@ -13,12 +13,14 @@ export interface TradePartner {
 export interface TradePage {
   trade: TradeView | null;
   partners: TradePartner[];
+  /** 還開著的交易（離開面板再回來可以接著做） */
+  open: { id: string; partnerName: string }[];
   character: CharacterView;
   /** 被伺服器拒絕的原因（錢不夠、版本過期…）；畫面照樣更新 */
   failed?: string;
 }
 
-type Act = (c: GameClient, me: CharacterView) => Promise<{ trade: TradeView; character: CharacterView } | { partners: TradePartner[] }>;
+type Act = (c: GameClient, me: CharacterView) => Promise<{ trade: TradeView; character: CharacterView } | { partners: TradePartner[]; open: TradePage['open'] }>;
 
 function step(act: Act): Promise<TradePage | null> {
   return legacyOp(
@@ -27,11 +29,11 @@ function step(act: Act): Promise<TradePage | null> {
     async (c, me) => {
       try {
         const r = await act(c, me);
-        if ('partners' in r) return { trade: null, partners: r.partners, character: me };
-        return { trade: r.trade, partners: [], character: r.character };
+        if ('partners' in r) return { trade: null, partners: r.partners, open: r.open, character: me };
+        return { trade: r.trade, partners: [], open: [], character: r.character };
       } catch (e) {
         if (!(e instanceof ApiError) || e.code === 'internal') throw e;
-        return { trade: null, partners: [], character: me, failed: e.message };
+        return { trade: null, partners: [], open: [], character: me, failed: e.message };
       }
     },
     (r) => r.character,
