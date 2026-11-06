@@ -1,6 +1,6 @@
 // 客戶端 ↔ 伺服器的訊息格式（D-277，design/24 §1～2）。邊界上只有 JSON：這裡只放型別與純函式。
 // 換成線上版時這份檔案兩邊共用，不用改。
-import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, ShopView } from './views';
+import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, PvpStartView, ShopView } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -62,6 +62,9 @@ export interface Api {
   'market.browse': { params: { slot?: string; rarity?: number; page?: number }; result: { listings: ListingView[]; page: number }; write: false };
   /** 自己的掛單；過期的物品在這裡退回行囊（所以算寫入） */
   'market.mine': { params: { characterId: string }; result: { listings: ListingView[]; character: CharacterView }; write: true };
+  // 非同步 PvP 天梯（core/battle/rt/pvpMatch.ts，24 §6.2）：伺服器發種子與雙方配裝 → 客戶端打完送自己的指令紀錄 → 伺服器重跑判勝負、改段位分
+  'pvp.start': { params: { characterId: string }; result: PvpStartView; write: true };
+  'pvp.finish': { params: { characterId: string; matchId: string; inputs: unknown[] }; result: { outcome: 'victory' | 'defeat' | 'timeout'; rating: number; delta: number }; write: true };
 }
 /** 燼牌的一手（和 core/cards 的 Move 同形狀） */
 export type CardMoveView = { type: 'play'; card: number } | { type: 'pass' };
@@ -93,6 +96,8 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'market.cancel',
   'market.buy',
   'market.mine',
+  'pvp.start',
+  'pvp.finish',
 ]);
 
 export class ApiError extends Error {

@@ -106,3 +106,20 @@ export interface ListingView {
   createdAt: number;
   expiresAt: number;
 }
+
+/** PvP 一方的配裝（伺服器算好；和 core/battle/rt/pvpMatch.ts 的 PvpSide 同形狀） */
+export interface PvpSideView {
+  weapon: WeaponView;
+  bonus: { hp: number; atk: number; def: number };
+}
+
+/** 非同步 PvP 開局（pvp.start）：種子、雙方配裝、對手名字與段位分 */
+export interface PvpStartView {
+  matchId: string;
+  seed: number;
+  me: PvpSideView;
+  foe: PvpSideView;
+  foeName: string;
+  foeRating: number;
+  rating: number;
+}
