@@ -184,6 +184,10 @@ const metThisVisit = new Map<string, string>();
 export function markMetThisVisit(id: string, map: string): void {
   metThisVisit.set(id, map);
 }
+/** 換角色時呼叫（第 147 輪）：「剛遇到」是上一個角色的，不能擋住新角色的道謝 */
+export function forgetMetThisVisit(): void {
+  metThisVisit.clear();
+}
 /** 進地圖時呼叫：不是這張圖的「剛遇到」都清掉（人已經離開那張圖了） */
 export function leftMapsExcept(map: string): void {
   for (const [id, m] of metThisVisit) if (m !== map) metThisVisit.delete(id);

@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { CHARACTER_SLOTS } from '../../core/meta/roster';
 import type { CharacterView, WeaponView } from '../../net/views';
+import { forgetMetThisVisit } from '../encounters';
 import { createCharacter, deleteCharacter, loadRoster, switchCharacter, type RosterInfo } from '../../client/roster';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT, pressBounce } from '../fx/feel';
@@ -95,6 +96,7 @@ export function openRoster(scene: Phaser.Scene, depth = 900): Promise<boolean> {
                     return;
                   }
                   if (await switchCharacter(made.id)) {
+                    forgetMetThisVisit();
                     SFX.confirm();
                     finish(true);
                     return;
@@ -124,6 +126,7 @@ export function openRoster(scene: Phaser.Scene, depth = 900): Promise<boolean> {
           btn(GAME_WIDTH - 200, y - 30, 200, '切換', gold, () =>
             run(async () => {
               if (await switchCharacter(c.id)) {
+                forgetMetThisVisit();
                 SFX.confirm();
                 finish(true);
                 return;
