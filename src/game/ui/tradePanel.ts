@@ -67,7 +67,7 @@ export function openTradePanel(scene: Phaser.Scene, ops: TradeOps, onClose: () =
         trade = d.trade;
         if (d.trade.status === 'done' && before?.status !== 'done') {
           SFX.itemGet();
-          toast(`交易完成！${d.trade.theirs.coin ? `得到 ${d.trade.theirs.coin} 金` : ''}${d.trade.theirs.items.length ? `得到 ${d.trade.theirs.items.length} 件裝備` : ''}`);
+          toast(`交易完成！${[d.trade.theirs.items.length ? `得到 ${d.trade.theirs.items.length} 件裝備` : '', d.trade.theirs.coin ? `${d.trade.theirs.items.length ? '找回' : '得到'} ${d.trade.theirs.coin} 金` : ''].filter(Boolean).join('、')}`);
         }
       }
       render();

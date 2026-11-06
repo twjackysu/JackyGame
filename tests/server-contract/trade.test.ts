@@ -131,7 +131,7 @@ for (const be of BACKENDS)
       expect(r.character.wallet.coin).toBe(me0.wallet.coin + bid);
       expect(r.character.items.some((i) => i.id === item.id)).toBe(false);
     });
-    it('跟模擬冒險者買（第 146 輪）：只放金幣 → 它放上買得起的最貴一件 → 鎖定、確認 → 裝備到你的行囊、錢到它那邊；錢不夠它什麼都不放', async () => {
+    it('跟模擬冒險者買（第 146 輪）：只放金幣 → 它放上買得起的最貴一件＋找零 → 鎖定、確認 → 裝備到你的行囊、錢到它那邊；錢不夠它什麼都不放', async () => {
       const { db } = await be.fresh(() => 0);
       const server = new GameServer({ db, auth, clock: new FakeClock(), ids: new SeqIds(), local: true, rng: () => 0.3, sim: { players: 6, throttleMs: 0, maxActions: 30 } });
       let n = 0;
@@ -141,6 +141,7 @@ for (const be of BACKENDS)
       const me0 = await a.call('character.get', { id: A });
       // 找一個行囊裡有東西的模擬冒險者
       let got: { tradeId: string; itemId: string; rev: number } | null = null;
+      let change = 0;
       for (const p of partners) {
         const { trade } = await a.call('trade.open', { characterId: A, partnerCharacterId: p.characterId });
         // 錢太少：它不放東西
@@ -148,7 +149,10 @@ for (const be of BACKENDS)
         expect(poor.trade.theirs.items.length).toBe(0);
         const r = await a.call('trade.offer', { characterId: A, tradeId: trade.id, items: [], coin: me0.wallet.coin });
         if (r.trade.theirs.items.length === 1) {
-          expect(r.trade.theirs.coin).toBe(0);
+          // 找零：付的比開價多，差額它放回來（開價 ≤ 你付的）
+          expect(r.trade.theirs.coin).toBeGreaterThan(0);
+          expect(r.trade.theirs.coin).toBeLessThan(me0.wallet.coin);
+          change = r.trade.theirs.coin;
           got = { tradeId: trade.id, itemId: r.trade.theirs.items[0]!.id, rev: r.trade.rev };
           break;
         }
@@ -159,7 +163,7 @@ for (const be of BACKENDS)
       expect(r.trade.locked).toEqual({ me: true, them: true });
       r = await a.call('trade.confirm', { characterId: A, tradeId: got!.tradeId, rev: r.trade.rev });
       expect(r.trade.status).toBe('done');
-      expect(r.character.wallet.coin).toBe(0);
+      expect(r.character.wallet.coin).toBe(change);
       expect(r.character.items.find((i) => i.id === got!.itemId)?.location).toBe('bag');
     });
   });

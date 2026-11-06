@@ -190,7 +190,7 @@ export class SimMarket {
     const v = await this.call<{ trade: TradeView; character: CharacterView }>(sim, 'trade.get', { characterId, tradeId });
     if (!v || v.trade.status !== 'open') return false;
     const t = v.trade;
-    // 對方只放金幣、沒放物品＝想跟我買（第 146 輪）：挑「開價買得起」的最貴一件放上去，金幣不收找零以外的錢
+    // 對方只放金幣、沒放物品＝想跟我買（第 146 輪）：挑「開價買得起」的最貴一件放上去，多的金幣找零
     if (!t.theirs.items.length && t.theirs.coin > 0) {
       const pool = [...t.mine.items, ...v.character.items.filter((i) => i.location === 'bag' && !i.bound)];
       let best: { id: string; ask: number } | null = null;
@@ -211,7 +211,9 @@ export class SimMarket {
         }
       }
       const items = best ? [best.id] : [];
-      if (t.mine.coin || t.mine.items.length !== items.length || t.mine.items[0]?.id !== items[0]) return !!(await this.call(sim, 'trade.offer', { characterId, tradeId, items, coin: 0 }));
+      // 找零：你放的金幣比開價多，差額它放回給你（錢從它的錢包託管；不夠就找到它有的為止）
+      const change = best ? Math.min(t.theirs.coin - best.ask, v.character.wallet.coin + t.mine.coin) : 0;
+      if (t.mine.coin !== change || t.mine.items.length !== items.length || t.mine.items[0]?.id !== items[0]) return !!(await this.call(sim, 'trade.offer', { characterId, tradeId, items, coin: change }));
       if (items.length && t.locked.them && !t.locked.me) return !!(await this.call(sim, 'trade.lock', { characterId, tradeId }));
       if (items.length && t.locked.them && t.locked.me && t.confirmed.them && !t.confirmed.me) return !!(await this.call(sim, 'trade.confirm', { characterId, tradeId, rev: t.rev }));
       return false;
