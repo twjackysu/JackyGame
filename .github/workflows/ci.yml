@@ -46,3 +46,34 @@ jobs:
           path: screenshots/
           if-no-files-found: ignore
           retention-days: 7
+
+  # D-284：SQL Server 版 Repository 的契約測試（25 §4）。CI 拋棄式容器，密碼只是測試用、不是機密。
+  mssql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'CiOnly_Passw0rd!'
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'CiOnly_Passw0rd!' -Q 'SELECT 1' || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - name: Create test database
+        run: docker exec ${{ job.services.mssql.id }} /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'CiOnly_Passw0rd!' -Q "CREATE DATABASE JackyGameTest"
+      - name: Contract tests (Memory／Local／SQL Server)
+        run: npx vitest run tests/server-contract
+        env:
+          GAME_DB_TEST_CONNECTION: 'Server=localhost,1433;Database=JackyGameTest;User Id=sa;Password=CiOnly_Passw0rd!;Encrypt=False;TrustServerCertificate=True'

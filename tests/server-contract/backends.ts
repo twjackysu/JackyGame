@@ -4,6 +4,11 @@ import { DocDb } from '../../src/server/db/docDb';
 import { MemoryStore } from '../../src/server/db/memory/MemoryDb';
 import { IdbStore, KvStore } from '../../src/server/db/local/LocalDb';
 import type { Db } from '../../src/server/repos/types';
+import { MssqlDb } from '../../src/server/db/mssql/MssqlDb';
+import { OWN_TABLES } from '../../src/server/db/mssql/schema';
+
+/** CI 的 mssql job 設這個環境變數（service container）；本機沒有 SQL Server 就不跑這一份 */
+export const MSSQL_TEST = process.env.GAME_DB_TEST_CONNECTION;
 
 /** 簡單的 Storage（localStorage 的替身） */
 export class MapStorage {
@@ -49,4 +54,16 @@ export const BACKENDS: Backend[] = [
       return { db: await DocDb.open(new KvStore(st), now), reopen: async () => DocDb.open(new KvStore(st), now) };
     },
   },
+  ...(MSSQL_TEST
+    ? [
+        {
+          name: 'mssql',
+          fresh: async (now: () => number) => {
+            const db = await MssqlDb.open(MSSQL_TEST, now);
+            for (const t of OWN_TABLES) await db.k.deleteFrom(t).execute();
+            return { db, reopen: async () => MssqlDb.open(MSSQL_TEST, now) };
+          },
+        } satisfies Backend,
+      ]
+    : []),
 ];
