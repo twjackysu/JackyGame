@@ -6,7 +6,7 @@ import { GEAR_SLOTS, gearBonus, genGear, isGear, type RtGear } from '../../core/
 import { pvpGear } from '../../core/battle/rt/pvp';
 import { replayPvp, type PvpMatchSetup, type PvpSide } from '../../core/battle/rt/pvpMatch';
 import { WEAPONS } from '../../core/battle/rt/data';
-import { PVP_START_RATING, eloDelta } from '../../core/meta/pvpRank';
+import { DAY_MS, PVP_START_RATING, eloDelta, simLeague } from '../../core/meta/pvpRank';
 import { hashSeed } from '../../core/rng';
 import { ApiError } from '../../net/protocol';
 import type { WeaponView } from '../../net/views';
@@ -38,7 +38,13 @@ function simSide(sim: SimPlayer): PvpSide {
   const ilvl = Math.min(12, sim.tier + 3);
   return sideOf(sim.weapon, GEAR_SLOTS.map((slot) => genGear(hashSeed(`${sim.seed}:pvp:${slot}`), 2, ilvl, { slot })));
 }
-const simRating = (sim: SimPlayer): number => PVP_START_RATING - 100 + sim.tier * 30;
+/** 模擬冒險者今天的段位分（D-303：它們每天彼此打幾場，確定性、同一天同結果） */
+let leagueCache: { day: number; r: Map<string, number> } | null = null;
+function simRatings(now: number): Map<string, number> {
+  const day = Math.floor(now / DAY_MS);
+  if (leagueCache?.day !== day) leagueCache = { day, r: simLeague(simRoster().map((s) => ({ id: s.accountId, tier: s.tier })), day) };
+  return leagueCache.r;
+}
 
 const ratingOf = (c: { pvpRating?: number }): number => (Number.isSafeInteger(c.pvpRating) && c.pvpRating! > 0 ? c.pvpRating! : PVP_START_RATING);
 
@@ -49,6 +55,8 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
   'pvp.ladder': async (ctx, p) => {
     const c = await ownCharacter(ctx, p?.characterId);
     const rating = ratingOf(c);
+    const sr = simRatings(ctx.clock.now());
+    const simRating = (s: SimPlayer) => sr.get(s.accountId)!;
     // 同分時自己排前面（剛打贏追平的人看得到自己往上爬）；模擬玩家依帳號 id 固定順序
     const all = [{ name: c.name, weapon: c.weapon, rating, me: true }, ...simRoster().map((s) => ({ name: s.name, weapon: s.weapon, rating: simRating(s), me: false }))]
       .map((r, i) => ({ ...r, i }))
@@ -66,6 +74,8 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const items = await ctx.r.items.listByOwner(c.id);
     const gear = items.filter((i) => i.location.startsWith('equip:') && isGear(i.gear)).map((i) => i.gear as unknown as RtGear);
     const rating = ratingOf(c);
+    const sr = simRatings(ctx.clock.now());
+    const simRating = (s: SimPlayer) => sr.get(s.accountId)!;
     // 對手：段位分最接近的 5 個模擬玩家裡隨機一個
     const near = simRoster()
       .map((s) => ({ s, d: Math.abs(simRating(s) - rating) }))
