@@ -14,7 +14,7 @@ export interface LocalStack {
 
 export async function startLocalServer(): Promise<LocalStack> {
   const { db, kind } = await openLocalDb(() => systemClock.now());
-  const server = new GameServer({ db, auth: new LocalAuth(), local: true });
+  const server = new GameServer({ db, auth: new LocalAuth(), local: true, sim: true });
   const client = new GameClient(new LocalTransport((j) => server.handle(j)), { token: LOCAL_TOKEN });
   return { client, kind };
 }

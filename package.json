@@ -20,6 +20,7 @@
     "playthrough": "node scripts/playthrough.mjs",
     "wiki": "WIKI=1 vitest run tests/wiki-gen.test.ts",
     "sim:rt": "RT_REPORT=1 vitest run tests/rt-report.test.ts",
+    "sim:economy": "SIM_REPORT=1 vitest run tests/sim-economy.test.ts --silent=false",
     "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
