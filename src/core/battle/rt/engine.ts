@@ -925,7 +925,8 @@ function separate(s: BattleState): void {
 function nearestEnemy(s: BattleState, p: Unit): Unit | undefined {
   let best: Unit | undefined;
   let bd = Infinity;
-  for (const e of enemiesOf(s)) {
+  for (const e of s.units) {
+    if (e.side !== 'enemy' || e.dead) continue; // 不配置新陣列（V1 Q4）
     // 地圖怪（D-072／D-073）：自動追擊只找戰鬥中的怪；待機的要玩家點它（或技能打到）才開打，
     // 清完一組就停下來（自然恢復），不會自己走去拉下一群
     if (e.mode && e.mode !== 'combat') continue;
@@ -1523,7 +1524,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   const p = playerOf(s);
   naturalRegen(s, p);
   if (p.dead && !reviveAtCampfire(s, p)) s.outcome = 'defeat';
-  else if (enemiesOf(s).length === 0 && !pendingRespawn(s)) s.outcome = 'victory';
+  else if (!s.units.some((x) => x.side === 'enemy' && !x.dead) && !pendingRespawn(s)) s.outcome = 'victory';
   else if (s.tick >= s.timeLimitTicks) s.outcome = 'timeout';
 }
 

@@ -173,42 +173,64 @@ export function flowField(g: Grid, goal: number): Int32Array {
     m.set(goal, hit);
     return hit;
   }
-  const n = g.w * g.h;
-  const d = new Int32Array(n).fill(-1);
-  if (g.walk[goal]) {
-    // 只有 10／14 兩種邊長：用兩條 FIFO 佇列＋依距離分桶的簡易 Dial 演算法
-    const buckets: number[][] = [];
-    d[goal] = 0;
-    buckets[0] = [goal];
-    for (let cost = 0; cost < buckets.length; cost++) {
-      const b = buckets[cost];
-      if (!b) continue;
-      for (let k = 0; k < b.length; k++) {
-        const cur = b[k]!;
-        if (d[cur] !== cost) continue;
-        const cx = cur % g.w;
-        const cy = (cur - cx) / g.w;
-        for (const [ox, oy, c] of NB) {
-          const x = cx + ox;
-          const y = cy + oy;
-          if (x < 0 || y < 0 || x >= g.w || y >= g.h) continue;
-          const ni = y * g.w + x;
-          if (!g.walk[ni]) continue;
-          if (ox && oy && (!g.walk[cy * g.w + x] || !g.walk[y * g.w + cx])) continue;
-          const nd = cost + c;
-          if (d[ni] !== -1 && d[ni]! <= nd) continue;
-          d[ni] = nd;
-          (buckets[nd] ??= []).push(ni);
-        }
-      }
-      buckets[cost] = undefined as unknown as number[];
-    }
-  }
+  const d = computeField(g, goal);
   m.set(goal, d);
-  if (m.size > 8) m.delete(m.keys().next().value as number);
+  if (m.size > FIELD_CACHE) m.delete(m.keys().next().value as number);
   return d;
 }
 const fieldCache = new WeakMap<Grid, Map<number, Int32Array>>();
+/** 每張格子圖最多快取幾個目標的距離場（V1 Q4：8 → 16；一張 ~4,600 格的圖每個 18KB） */
+const FIELD_CACHE = 16;
+
+const NBX = Int8Array.from(NB, (n) => n[0]);
+const NBY = Int8Array.from(NB, (n) => n[1]);
+const NBC = Int8Array.from(NB, (n) => n[2]);
+/** Dial 演算法的環狀桶數（邊長最多 14 → 15 個桶就不會繞回撞到） */
+const RING = 15;
+
+/**
+ * 到 goal 的最短距離場（10／14 邊長、斜走不切角；走不到＝-1）。
+ * V1 Q4（D-282）：改成環狀桶＋不解構的鄰居表，結果和舊版逐格相同（tests/path-field.test.ts 比對），快約 2～3 倍。
+ */
+export function computeField(g: Grid, goal: number): Int32Array {
+  const w = g.w;
+  const h = g.h;
+  const walk = g.walk;
+  const d = new Int32Array(w * h).fill(-1);
+  if (!walk[goal]) return d;
+  const ring: number[][] = Array.from({ length: RING }, () => []);
+  d[goal] = 0;
+  ring[0]!.push(goal);
+  let pending = 1;
+  for (let cost = 0; pending > 0; cost++) {
+    const b = ring[cost % RING]!;
+    for (let k = 0; k < b.length; k++) {
+      const cur = b[k]!;
+      pending--;
+      if (d[cur] !== cost) continue;
+      const cx = cur % w;
+      const cy = (cur - cx) / w;
+      for (let q = 0; q < 8; q++) {
+        const ox = NBX[q]!;
+        const oy = NBY[q]!;
+        const x = cx + ox;
+        const y = cy + oy;
+        if (x < 0 || y < 0 || x >= w || y >= h) continue;
+        const ni = y * w + x;
+        if (!walk[ni]) continue;
+        if (ox && oy && (!walk[cy * w + x] || !walk[y * w + cx])) continue;
+        const nd = cost + NBC[q]!;
+        const old = d[ni]!;
+        if (old !== -1 && old <= nd) continue;
+        d[ni] = nd;
+        ring[nd % RING]!.push(ni);
+        pending++;
+      }
+    }
+    b.length = 0;
+  }
+  return d;
+}
 
 /** 沿流場往下走一格（距離最小的鄰格；同距離依 NB 順序） */
 function descend(g: Grid, d: Int32Array, i: number): number {
