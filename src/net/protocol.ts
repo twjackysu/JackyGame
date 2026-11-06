@@ -33,6 +33,8 @@ export interface Api {
   'account.export': { params: Record<string, never>; result: ExportBlob; write: false };
   'account.import': { params: { blob: ExportBlob }; result: AccountView; write: true };
   'migrate.legacy': { params: { snapshot: LegacySnapshot }; result: MigrateResult; write: true };
+  /** 過渡期（D-285，只有本機版）：把舊 key 的現況同步到角色 1，回傳同步後的角色 */
+  'migrate.sync': { params: { snapshot: LegacySnapshot }; result: CharacterView; write: true };
   // 行囊與強化（第 141 輪 V2；規則在 core/meta/bag.ts，擲骰在伺服器）
   'inventory.equip': { params: { characterId: string; itemId: string }; result: CharacterView; write: true };
   'inventory.unequip': { params: { characterId: string; slot: string }; result: CharacterView; write: true };
@@ -57,6 +59,7 @@ export type ResultOf<M extends Method> = Api[M]['result'];
 export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'account.import',
   'migrate.legacy',
+  'migrate.sync',
   'inventory.equip',
   'inventory.unequip',
   'inventory.salvage',
