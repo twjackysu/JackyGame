@@ -59,13 +59,27 @@ server/                Node 進入點（新，獨立 package.json 或 npm worksp
   main.ts              HTTP（健康檢查、REST）＋ ws（WebSocket）→ GameServer
   auth/                DevAuth（開發用）、EntraAuth（驗 JWT）
   Dockerfile
-infra/                 Bicep（新）：Container Apps 環境＋App、Log Analytics、Managed Identity、ACR；**資料庫是既有的，只用 parameter 傳伺服器名與資料庫名**
-.github/workflows/deploy-server.yml   build 映像 → ACR → 跑 migration → 更新 Container App；**沒有設定 `AZURE_CLIENT_ID` 等 secret 時整個 job skip**
+infra/                 Bicep（新）：Container Apps 環境＋App、Managed Identity（**不建 ACR、不建 Redis**，映像放 ghcr.io；Log Analytics 視 §4.3 設上限或不建）；**資料庫是既有的，只用 parameter 傳伺服器名與資料庫名**
+.github/workflows/deploy-server.yml   build 映像 → ghcr.io → 跑 migration → 更新 Container App；**沒有設定 `AZURE_CLIENT_ID` 等 secret 時整個 job skip**
 ```
 - 客戶端兩種 build：`npm run build`（離線版，內含本機伺服器，跟現在一樣）；`npm run build:online`（`VITE_SERVER_URL`，用 `WsTransport`，**不打包 `src/server`**——用 `import.meta.env` 條件＋測試檢查 bundle 裡沒有 server 的程式碼）。上線版客戶端就看不到規則。
 - 測試：
   - 契約測試（24 §1）多跑一份 **MssqlRepo**：本機沙盒沒有 SQL Server → 這份只在 CI 跑，GitHub Actions 用 service container `mcr.microsoft.com/mssql/server:2022-latest`；本機只跑 Memory／Local。
   - `server/` 整合測試：起 `main.ts`（Memory repo）→ 兩個 `WsTransport` client 交易一筆、打一場 PvP。
+
+## 4.3 零額外費用原則（Jacky 11/6：「不打算多花錢」，最高優先）
+上線部署必須落在免費額度內，**任何會產生固定月費的東西都不用**：
+| 項目 | 做法 | 原因 |
+|---|---|---|
+| 映像倉庫 | **GitHub Container Registry（ghcr.io，公開映像免費）**，不用 Azure Container Registry | ACR Basic 有固定月費 |
+| 運算 | **只部署一個** `jackygame-api`（HTTP），`minReplicas: 0`、`maxReplicas: 1`、0.25 vCPU／0.5 GiB；Consumption 方案 | 沒人玩不收費；封頂避免爆量 |
+| 即時 PvP | **程式與測試照做，但預設不部署** `jackygame-battle`（Bicep 參數 `deployRealtime=false`）。上線的 PvP 只有**非同步天梯**（純 HTTP，不需要長連線） | 長連線會讓副本無法縮到 0 |
+| 日誌 | Container Apps 環境的 log 目的地設 `none`，或 Log Analytics 設每日上限 0.1 GB | Log Analytics 超過免費量要收費 |
+| 資料庫 | 共用 JackyAIStudio 的 Azure SQL，不另開；查詢一律走索引、少量批次寫入 | 不多一台 |
+| 登入 | Entra External ID 免費額度內 | — |
+| 預算告警 | Bicep 建 **每月 1 美元** 的 budget，50%／100% 寄信給 Jacky | 一有花費就知道 |
+| 冷啟動 | 縮到 0 後第一次要等幾秒 → 標題畫面先打 `/health` 預熱 | 免費的代價 |
+- 驗收：`docs/DEPLOY_AZURE.md` 列出每個資源與「為什麼不收費」；Bicep 裡沒有 ACR、沒有 dedicated workload profile、沒有 Redis。
 
 ## 4.4 費用控制與長連線（Jacky 11/6 問：PvP 長連線會不會很快用完免費額度）
 - Container Apps 計費看的是**副本開著的時間**（vCPU 秒、記憶體 GiB 秒），不是連線數；免費額度每月約 18 萬 vCPU 秒、36 萬 GiB 秒、200 萬次請求（以官方頁為準）。**一條 WebSocket 連著，副本就不能縮到 0**——長連線的成本在這裡。

@@ -8,6 +8,7 @@
   - 連線：環境變數 `GAME_DB_CONNECTION_STRING`（ADO.NET 格式），`.env` 不進 git。LocalDB 只能走具名管道，`tedious` 連不上 → 連線字串是 `(localdb)` 時改用選用相依 `msnodesqlv8`；CI 用 SQL Server 2022 容器。
   - Schema：資料庫已有小寫 `game`（8 張舊原型表），SQL Server 預設不分大小寫 → 沿用 `game`；遷移不建立同名表、不 DROP／ALTER 非自己建的表（CI 測試鎖住）；舊表由 Jacky 自己刪。
 - **理由**：交易與 PvP 的價值取決於「做不了假」；connection string 讓 Jacky 換環境不用改程式；用既有 schema 名避免大小寫造成的建立失敗。
+- **補充（同日，Jacky：「我應該不打算多花錢」）**：上線部署要落在免費額度內（25 §4.3）——映像放 ghcr.io（不建 ACR）、只部署一個 `jackygame-api`（minReplicas 0、maxReplicas 1、0.25 vCPU）、即時 PvP 程式照做但預設不部署（上線 PvP＝非同步天梯，純 HTTP）、日誌設上限或關閉、每月 1 美元預算告警。
 - **替代**：Managed Identity 寫死 → Jacky 指定要 connection string（仍支援在字串裡用 `Authentication=Active Directory Managed Identity`）；新開 `Game2` schema → 多一個名字，沒必要。
 
 ## D-278 2026-11-06 後端：Node.js＋TypeScript、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（遊戲全在 `Game` schema）
