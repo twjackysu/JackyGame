@@ -6,8 +6,10 @@
 - **V6 build:online（D-306）**：`npm run build:online`（`--mode online`，`.env.online` 預設連 `localhost:8080`、dev 登入）→ `dist-online/`。`boot.ts` 依 `VITE_SERVER_URL` 動態載入 `onlineClient.ts`（HttpTransport＋`jg_online_token`）或 `localServer.ts`；**線上 bundle 沒有 src/server**（`scripts/check-online-bundle.mjs` 掃 3 個伺服器字串、對照離線版要有，CI 加這一步）。線上版不遷移／不同步舊存檔：`legacyOp` 改打伺服器的目前角色（沒有就用本機武器建一個）、不寫回舊 key；換角色只換伺服器的目前角色。離線版行為不變（本機伺服器變成一個 47KB 的動態 chunk）。
 - **V5 loot.claim（D-307）**：掉落擲骰抽成 `core/battle/rt/loot.ts`（`rollEnemyLoot`、`validKill`、`isStageBoss`、`killXp`；引擎改呼叫它，**golden hash 不變**）；大地圖關卡定義 `maps/world.ts` `stageDef`（伺服器也能懶產生）。伺服器 `battle.start`／`loot.claim`：killSeq 遞增、每分鐘 40 隻＋開場 10 隻、3 小時過期、這張圖真的有這隻怪在這一群；伺服器亂數擲、直接入錢包／行囊（行囊滿了照 D-100）、經驗與升級、Boss 擊殺記地圖進度（firstRare 保底只有第一次）。線上版畫面 `src/game/onlineLoot.ts`：進場 start、打倒會掉東西的怪就 claim（離線版整段拿掉）。
 - **競技場**：結算「▶ 看重播」（同種子＋指令紀錄＋Bot，兩倍速；實測重播 1265 tick、結果和伺服器一樣）；**段位光環**（`rankAura`：霧語 1 圈→星隕 3 圈＋6 星點），排行榜段位字用光環色。匯出／匯入帶段位分。
-- **交易**：只放金幣＝跟模擬冒險者買：它放上開價（行商買價 ×0.45～0.85，或拍賣所掛單價——行囊沒有就撤下自己的掛單）買得起的最貴一件；錢不夠什麼都不放。
-- 驗證：每步 typecheck、lint、build、vitest（最後 105 檔 763 項全過，含通關機器人、golden hash、新的 loot 契約測試×3 種 DB、online-client／online-loot 真的起 node:http）。Playwright：離線／線上版競技場大廳一樣、線上版 boot `kind: online`、零錯誤；競技場打完 → 看重播 → 結果相同；光環截圖（改段位分看高段）；交易放 1000 金 → 對方放上「厚實的皮甲・薄霧」。腳本 `screenshots/r146*.mjs`（gitignored）。
+- **交易**：只放金幣＝跟模擬冒險者買：它放上開價（行商買價 ×0.45～0.85，或拍賣所掛單價——行囊沒有就撤下自己的掛單）買得起的最貴一件；錢不夠什麼都不放。多付的會找零（實測付 1000 → 皮甲＋找回 903）。
+- **loot.claim 補強**：`battle.start` 檢查地圖開放與深夜解鎖、暴怒要先解鎖（`maps/world.ts` 的 `WORLD_ORDER`／`worldStageOpen`／`worldNightOpen`／`furyOpenBy`，畫面層 `furyUnlocked` 改用同一份；測試對照 worldMaps 的 next 鏈）；暴怒 Boss 記 `furyKills`。
+- 驗證：每步 typecheck、lint、build、vitest（最後 106 檔 767 項全過，含通關機器人、golden hash、新的 loot 契約測試×3 種 DB、online-client／online-loot 真的起 node:http）。Playwright：離線／線上版競技場大廳一樣、線上版 boot `kind: online`、零錯誤；競技場打完 → 看重播 → 結果相同；光環截圖（改段位分看高段）；交易放 1000 金 → 對方放上「厚實的皮甲・薄霧」。腳本 `screenshots/r146*.mjs`（gitignored）。
+- CI：最後 df73b39 全綠（mssql、新的 Online client build、冒煙測試 1.5 分鐘）。
 - **注意**：offline dist 也有 `loot.claim` 字樣（protocol 的方法表），不是伺服器程式。
 
 ## 2026-11-07 02:12–03:10（台北）第 145 輪 — F1 多角色＋共用倉庫、天梯會動、頻率限制、V6 線上 API（HTTP、JWT、打包、Bicep）

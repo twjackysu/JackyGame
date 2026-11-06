@@ -8,11 +8,11 @@
 
 ## ★ 第 147 輪起先做（V5 收尾、V6 落地，11/7–11/11）
 **已經有的（到第 146 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（`simLeague`、**`rankAura`**）、`trade`、`roster`）；**`core/battle/rt/loot.ts`（掉落／經驗規則，引擎與伺服器共用）、`maps/world.ts` `stageDef`**；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.choose`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、**`battle.start`／`loot.claim`（D-307）**；`rateLimit.ts`；遷移 `0001`～`0004`；畫面：拍賣所、交易（**只放金幣＝跟模擬冒險者買**）、競技場（**看重播、段位光環**）、角色面板、倉庫；線上 API `server/`、`HttpTransport`、`build:server`、`infra/main.bicep`、`deploy-server.yml`；**`npm run build:online`（D-306，`src/client/onlineClient.ts`、`scripts/check-online-bundle.mjs`）、`src/game/onlineLoot.ts`**。
-1. CI 每輪開頭看一次（第 146 輪最後 db487b6 收尾時還在跑；之前 86e23d4 全綠）。冒煙截圖有看門狗了，如果又看到「WARNING: … 超過 … 秒沒結束」只是警告。
+1. CI 每輪開頭看一次（第 146 輪最後的程式 commit df73b39 全綠：mssql、online bundle 檢查、冒煙測試 1.5 分鐘）。冒煙截圖有看門狗了，如果又看到「WARNING: … 超過 … 秒沒結束」只是警告。
 2. **畫面改讀伺服器的角色（舊 key 退場的下一步）**：線上版現在畫面還顯示本機的等級／行囊／金幣，伺服器的角色另外長（loot.claim 給的）。建議做法：`src/client/` 加一個「角色快取」（`character.get` 結果＋每次動作回傳的 CharacterView 更新它），畫面層讀快取；離線版快取來源是 `migrate.sync`，所以兩版走同一條。先從 HUD 的金幣、等級做起，一次一個面板，截圖比對。
 3. **線上版登入畫面**：`jg_online_token` 沒有時標題顯示「登入」（MSAL.js 的 redirect 流程，Entra External ID；套件要確認授權與大小）。沒有登入前線上版只有 dev token 能用。
-4. **loot.claim 收尾**：(a) 抽查重跑（26 §3.1：伺服器要求上傳指令紀錄重跑，擊殺數對不上作廢＋AuditLog）——需要 PvE 指令紀錄，先記在 `BattleState`；(b) `battle.start` 檢查地圖解鎖（現在任何有 loot 的關卡都能開）；(c) 燼牌、寶箱、懸賞獎勵也還是客戶端給的（線上版要各自的 handler）。
-5. **交易收尾**：對方放上的裝備顯示「開價」（現在只看到物品，玩家可能多付；可以讓模擬冒險者「找零」：金幣多於開價就退回差額）；SQL 版交易並發測試（V4 驗收，只能在 CI 跑）。
+4. **loot.claim 收尾**：(a) 抽查重跑（26 §3.1：伺服器要求上傳指令紀錄重跑，擊殺數對不上作廢＋AuditLog）——需要 PvE 指令紀錄，先記在 `BattleState`；(b) ~~地圖／深夜／暴怒解鎖~~ 第 146 輪做了；懸賞（`bountyKill`）線上版還沒算；(c) 燼牌、寶箱、懸賞獎勵也還是客戶端給的（線上版要各自的 handler）。
+5. **交易收尾**：跟模擬冒險者買已經會找零（第 146 輪）；可以再顯示「它開價多少」讓玩家知道要放多少；SQL 版交易並發測試（V4 驗收，只能在 CI 跑）。
 6. **多角色收尾**：角色面板「改名」；換角色時 `metThisVisit` 沒清；行商面板 6 個分頁再加要改兩排。
 7. **Q5 拆 HUD**（範圍保護 #5）、即時 PvP `BattleRoom`（23 §6 #4：只做協定＋本機兩客戶端測試，不部署）。
 8. **V7（11/12 12:00 起凍結）**：README 成果發表、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能。
