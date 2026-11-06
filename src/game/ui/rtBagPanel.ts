@@ -29,6 +29,8 @@ export interface BagCtx {
   spend: (dust: number, crystal: number) => boolean;
   /** 這張地圖 Boss 的簡稱（第 100 輪：空行囊說明以前一律寫「狼王必掉」，在燼紅裂谷也是） */
   bw?: string;
+  /** V2（D-285）：強化交給伺服器（扣材料＋擲骰）；回 null＝伺服器失敗，退回本機舊做法 */
+  roll?: (g: RtGear) => Promise<{ ok: boolean; gear: RtGear } | null>;
 }
 
 export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () => string, onChange: (st: BagState) => void, onClose: () => void, ctx?: BagCtx): Phaser.GameObjects.Container {
@@ -37,6 +39,8 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
   let detail: RtGear | null = null;
   /** 強化確認框（Jacky 11/5）：按「強化！」先跳框列出每項數值 10→13（綠＝變強、紅＝變弱），確定才強化 */
   let confirmEnh = false;
+  /** 等伺服器回強化結果（連點不重送） */
+  let rolling = false;
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
   // 第 106 輪（D-254）：強化結果字／火花放在場景上（depth 990～995，不在 root 裡）——點完「強化！」馬上按「完成」，
   // 從 ☰ 開的行囊會立刻回到 ☰，「強化成功！+3」還浮在暫停選單上 1.4 秒 → 面板關掉就一起收掉
@@ -192,8 +196,26 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
         if (fire && ok && confirmEnh) overlay.push(...enhanceConfirm(g, enh, c, doEnhance));
         function doEnhance(): void {
             confirmEnh = false;
+            const roll = ctx!.roll;
+            if (roll) {
+              if (rolling) return;
+              rolling = true;
+              void roll(g).then((res) => {
+                rolling = false;
+                if (!root.active) return; // 面板關了：場景已經照伺服器結果更新行囊
+                if (!res) return localEnhance();
+                // 場景已經照伺服器結果改好行囊與錢包；finish 換上的那件和伺服器的一樣（+1）
+                finish(res.ok);
+              });
+              return;
+            }
+            localEnhance();
+        }
+        function localEnhance(): void {
             if (!ctx!.spend(c.dust, c.crystal)) return render();
-            const success = Math.random() * 100 < c.rate;
+            finish(Math.random() * 100 < c.rate);
+        }
+        function finish(success: boolean): void {
             if (success) {
               const up: RtGear = { ...g, enh: enh + 1 };
               const swap = (x: RtGear) => (x.uid === g.uid ? up : x);

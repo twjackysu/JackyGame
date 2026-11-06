@@ -21,26 +21,39 @@ export function captureLegacy(): Record<string, string> {
   }
 }
 
-export function legacyOp(before: Record<string, string>, fields: readonly MirrorField[], op: (client: GameClient, characterId: string) => Promise<CharacterView>): Promise<CharacterView | null> {
+/**
+ * before：動作前的快照；fields：要寫回的欄位；op：拿 client 與同步後的角色呼叫伺服器；viewOf：從結果拿出角色。
+ * authoritative：畫面層沒有先算（強化擲骰只能伺服器做）→ 一律寫回、不算分歧。
+ */
+export function legacyOp<T>(
+  before: Record<string, string>,
+  fields: readonly MirrorField[],
+  op: (client: GameClient, me: CharacterView) => Promise<T>,
+  viewOf: (t: T) => CharacterView,
+  authoritative = false,
+): Promise<T | null> {
   pending++;
   const run = chain.then(async () => {
     try {
       const { client } = await bootServer();
       const me = await client.call('migrate.sync', { snapshot: before });
-      const v = await op(client, me.id);
-      if (pending === 1) {
+      const t = await op(client, me);
+      const v = viewOf(t);
+      if (pending === 1 || authoritative) {
         const cur = localStorage.getItem(MIRROR_KEY) ?? '{}';
         const rec = JSON.parse(cur) as Record<string, unknown>;
         const next = JSON.stringify(mirrorRecord(rec, v, fields));
         if (next !== JSON.stringify(rec)) {
-          opStatus.diverged++;
-          console.warn('[legacyOp] 伺服器結果和畫面層不同，以伺服器為準', fields);
+          if (!authoritative) {
+            opStatus.diverged++;
+            console.warn('[legacyOp] 伺服器結果和畫面層不同，以伺服器為準', fields);
+          }
           localStorage.setItem(MIRROR_KEY, next);
         }
       }
       opStatus.done++;
       opStatus.error = null;
-      return v;
+      return t;
     } catch (e) {
       opStatus.error = e instanceof Error ? e.message : String(e);
       console.warn('[legacyOp]', opStatus.error);

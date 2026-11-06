@@ -5,7 +5,7 @@ import { cdText, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
-import { RARITY_COLOR, genGear } from '../../core/battle/rt/gear';
+import { RARITY_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
 import { coinOf, spendCoin } from '../rtShop';
@@ -1016,8 +1016,12 @@ export class RtBattleScene extends Phaser.Scene {
         // V2（D-285）：伺服器照同一份規則處理「意圖」，做完寫回舊 key；畫面先照舊存檔
         const before = captureLegacy();
         saveRecord(this.stageId, { ...loadRecord(this.stageId), skills: r, variants: v });
-        void legacyOp(before, ['skills'], (c, id) =>
-          intent.kind === 'add' ? c.call('skills.add', { characterId: id, skill: intent.skill }) : intent.kind === 'variant' ? c.call('skills.variant', { characterId: id, skill: intent.skill, idx: intent.idx }) : c.call('skills.reset', { characterId: id }),
+        void legacyOp(
+          before,
+          ['skills'],
+          (c, me) =>
+            intent.kind === 'add' ? c.call('skills.add', { characterId: me.id, skill: intent.skill }) : intent.kind === 'variant' ? c.call('skills.variant', { characterId: me.id, skill: intent.skill, idx: intent.idx }) : c.call('skills.reset', { characterId: me.id }),
+          (v) => v,
         );
         setSkillMods(this.s, this.allMods(this.bagSt));
         setSkillVariants(this.s, v);
@@ -1330,6 +1334,29 @@ export class RtBattleScene extends Phaser.Scene {
           saveRecord(this.stageId, r);
           this.dustBase = walletOf(r).dust;
           return true;
+        },
+        // V2（D-285）：強化的擲骰與扣材料只在伺服器；結果寫回舊 key 後場景重讀行囊（面板關了也一樣）
+        roll: !this.tracked ? undefined : async (g) => {
+          this.persist();
+          const res = await legacyOp(
+            captureLegacy(),
+            ['items', 'wallet'],
+            async (c, me) => {
+              const it = me.items.find((i) => i.gear.uid === g.uid);
+              if (!it) throw new Error('item not synced');
+              return c.call('enhance.do', { characterId: me.id, itemId: it.id });
+            },
+            (r) => r.character,
+            true,
+          );
+          if (!res || !this.scene.isActive()) return null;
+          const rec = loadRecord(this.stageId);
+          this.bagSt = cleanBag(rec);
+          this.dustBase = walletOf(rec).dust;
+          setGearBonus(this.s, bonusOf(this.bagSt));
+          setSkillMods(this.s, this.allMods(this.bagSt));
+          const it = res.character.items.find((i) => i.gear.uid === g.uid);
+          return { ok: res.ok, gear: (it?.gear as unknown as RtGear | undefined) ?? g };
         },
       },
     );

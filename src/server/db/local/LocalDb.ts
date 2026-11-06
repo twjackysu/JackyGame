@@ -44,7 +44,8 @@ export class IdbStore implements DocStore {
 
   commit(changes: readonly Change[]): Promise<void> {
     return new Promise((ok, fail) => {
-      const tx = this.db.transaction(IdbStore.STORE, 'readwrite');
+      // relaxed：不等 fsync（面板動作要即時；本機單人存檔，當機最多掉最後一筆，過渡期舊 key 也還在）
+      const tx = this.db.transaction(IdbStore.STORE, 'readwrite', { durability: 'relaxed' });
       const st = tx.objectStore(IdbStore.STORE);
       for (const c of changes) {
         const k = `${c.table}${SEP}${c.id}`;
