@@ -24,7 +24,7 @@ export const onlineLootStatus = { claims: 0, drops: 0, chests: 0, error: null as
 function synced(v: CharacterView, ticket: number, done: BountyDoneView[] = [], enemyId = '', drops: LootDropView[] = []): void {
   characterCache.set(v, ticket);
   if (characterCache.get() !== v) return; // 比較舊的回應：不寫
-  mirrorOnline(v, ['items', 'wallet']);
+  mirrorOnline(v, ['items', 'wallet', 'level']);
   onClaim?.(done, enemyId, drops);
 }
 

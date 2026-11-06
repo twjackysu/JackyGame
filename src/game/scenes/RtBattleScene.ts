@@ -456,7 +456,9 @@ export class RtBattleScene extends Phaser.Scene {
       this.s.timeLimitTicks = 24 * 3600 * TICKS_PER_SEC;
       const rec = loadRecord(this.stageId);
       const valid = new Set((STAGES[this.stageId]?.chests ?? []).filter((c) => !c.nightOnly).map((c) => c.id));
-      const opened = (rec.chests ?? []).filter((id) => valid.has(id));
+      // 線上版（第 147 輪）：開過哪些寶箱以伺服器的地圖進度為準（loot.chest 記的；角色快取上一場就有）
+      const srvChests = import.meta.env.VITE_SERVER_URL ? characterCache.get()?.maps[this.stageId]?.chests : undefined;
+      const opened = (srvChests ?? rec.chests ?? []).filter((id) => valid.has(id));
       if (opened.length) this.s.chestsOpened = [...opened];
       // 暴怒狼王（D-099）：上次選了而且已解鎖 → 這次進森林的狼王就是暴怒版
       if (rec.fury && furyUnlocked(rec, this.s.prog?.level ?? 1)) setBossFury(this.s, true);

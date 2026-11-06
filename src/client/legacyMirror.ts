@@ -5,8 +5,8 @@ import type { CharacterView, CurrencyId } from '../net/views';
 /** 共用進度存在第一張地圖的紀錄（和 src/server/legacy.ts 的 LEGACY_HOME 一樣） */
 export const MIRROR_KEY = 'jg_rt_mistwood';
 const CUR: readonly CurrencyId[] = ['coin', 'dust', 'crystal'];
-/** 寫回哪些欄位（只寫這次動作會改到的，其他欄位留給還沒切的程式） */
-export type MirrorField = 'items' | 'wallet' | 'skills' | 'shop';
+/** 寫回哪些欄位（只寫這次動作會改到的，其他欄位留給還沒切的程式）；level（第 147 輪）＝等級與經驗，只有線上版寫，不在 ALL_FIELDS 裡 */
+export type MirrorField = 'items' | 'wallet' | 'skills' | 'shop' | 'level';
 export const ALL_FIELDS: readonly MirrorField[] = ['items', 'wallet', 'skills', 'shop'];
 
 /** 舊紀錄＋伺服器的角色 → 新的舊紀錄。材料＝累計撿到 − spent，所以只改 spent，不動累計（統計數字照舊） */
@@ -36,6 +36,7 @@ export function mirrorRecord(rec: Record<string, unknown>, v: CharacterView, fie
   if (fields.includes('wallet') && spentChanged) out.spent = spent;
   if (fields.includes('skills')) Object.assign(out, { skills: v.skills, variants: v.variants });
   if (fields.includes('shop')) out.shop = v.shop;
+  if (fields.includes('level')) Object.assign(out, { level: v.level, xp: v.xp });
   return out;
 }
 
