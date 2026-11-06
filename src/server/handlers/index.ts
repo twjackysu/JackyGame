@@ -7,6 +7,7 @@ import { inventoryHandlers } from './inventory';
 import { migrateHandlers } from './migrate';
 import { shopHandlers } from './shop';
 import { skillsHandlers } from './skills';
+import { storyHandlers } from './story';
 
 export const HANDLERS: HandlerTable = {
   ...accountHandlers,
@@ -16,4 +17,5 @@ export const HANDLERS: HandlerTable = {
   ...shopHandlers,
   ...skillsHandlers,
   ...cardsHandlers,
+  ...storyHandlers,
 };

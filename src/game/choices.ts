@@ -2,7 +2,9 @@
 // 「取」＝馬上拿到結晶（強化用）；「還」＝這片土地記得你的善意：之後行商的裝備便宜（每次 −10%，主線最多 −30%、加上通關後的星隕高原 −40%）。
 // 結局的結語也會跟著你的選擇改變。純畫面＋存檔層：不動戰鬥核心、不影響 stateHash。存 localStorage `jg_choices`。
 
-export type ChoicePick = 'take' | 'spare';
+import { CHOICE_CRYSTAL, cleanChoices, makeChoice, type ChoicePick } from '../core/meta/choices';
+// 規則（誰能選、結晶幾顆）在 core/meta/choices.ts（伺服器也用，D-290）
+export { cleanChoices, makeChoice, type ChoicePick };
 
 export interface ChoiceOption {
   label: string;
@@ -32,7 +34,7 @@ export const BOSS_CHOICES: readonly BossChoice[] = [
     map: 'mistwood',
     title: '霧角狼王倒下了',
     prompt: '牠額上的霧角還在發光。\n前世的攻略說：折下來，是很好的強化材料。\n可是霧裡，好像有小狼在看著你。',
-    take: { label: '折下霧角', desc: '馬上得到 3 顆結晶（強化 +6 以上要用）', after: '霧角在你手裡慢慢冷了下來。', crystal: 3 },
+    take: { label: '折下霧角', desc: '馬上得到 3 顆結晶（強化 +6 以上要用）', after: '霧角在你手裡慢慢冷了下來。', crystal: CHOICE_CRYSTAL.mistwood },
     spare: { label: '讓牠回到霧裡', desc: '森林會記得你：之後行商的裝備便宜 10%', after: '狼王化成霧散開了。遠處傳來一聲小小的嚎叫。' },
     short: { take: '折下霧角', spare: '讓狼王回到霧裡' },
   },
@@ -40,7 +42,7 @@ export const BOSS_CHOICES: readonly BossChoice[] = [
     map: 'thornvale',
     title: '棘冠狼后倒下了',
     prompt: '荊棘王冠從牠頭上滑落，\n根鬚還連著山谷深處的母樹。\n扯斷它，王冠就是你的。',
-    take: { label: '摘下荊棘王冠', desc: '馬上得到 4 顆結晶', after: '根鬚斷開的聲音，像一聲嘆息。', crystal: 4 },
+    take: { label: '摘下荊棘王冠', desc: '馬上得到 4 顆結晶', after: '根鬚斷開的聲音，像一聲嘆息。', crystal: CHOICE_CRYSTAL.thornvale },
     spare: { label: '把王冠還給母樹', desc: '山谷會記得你：之後行商的裝備再便宜 10%', after: '王冠沉進土裡。荊棘之間，冒出了一朵白花。' },
     short: { take: '摘下荊棘王冠', spare: '把王冠還給母樹' },
   },
@@ -48,7 +50,7 @@ export const BOSS_CHOICES: readonly BossChoice[] = [
     map: 'emberrift',
     title: '燼心岩王倒下了',
     prompt: '岩王胸口的燼心還在跳動。\n挖出來，就是傳說中的星燼結晶。\n留著它，裂谷的火就不會熄。',
-    take: { label: '挖出燼心', desc: '馬上得到 5 顆結晶', after: '燼心在你掌心跳了最後一下。裂谷暗了。', crystal: 5 },
+    take: { label: '挖出燼心', desc: '馬上得到 5 顆結晶', after: '燼心在你掌心跳了最後一下。裂谷暗了。', crystal: CHOICE_CRYSTAL.emberrift },
     spare: { label: '讓燼心繼續燃燒', desc: '裂谷會記得你：之後行商的裝備再便宜 10%', after: '岩王的胸口重新亮起。熔岩低聲流動，像在道謝。' },
     short: { take: '挖出燼心', spare: '讓燼心繼續燃燒' },
   },
@@ -57,7 +59,7 @@ export const BOSS_CHOICES: readonly BossChoice[] = [
     map: 'starfall',
     title: '星骸守望者倒下了',
     prompt: '守望者的胸口，嵌著一顆墜落的星。\n它在這片高原上守了多久，沒有人知道。\n星星還在微微發亮，像在等誰。',
-    take: { label: '取下墜星核', desc: '馬上得到 6 顆結晶', after: '星光在你掌心熄滅了。高原的夜，暗了一點。', crystal: 6 },
+    take: { label: '取下墜星核', desc: '馬上得到 6 顆結晶', after: '星光在你掌心熄滅了。高原的夜，暗了一點。', crystal: CHOICE_CRYSTAL.starfall },
     spare: { label: '讓星星回到夜空', desc: '高原會記得你：行商的裝備再便宜 10%\n還有一顆小星星會跟著你', after: '墜星慢慢升起，回到了星座的缺口。夜空完整了。' },
     short: { take: '取下墜星核', spare: '讓星星回到夜空' },
     postGame: true,
@@ -75,22 +77,6 @@ export function loadChoices(): Record<string, ChoicePick> {
   } catch {
     return {};
   }
-}
-
-export function cleanChoices(raw: unknown): Record<string, ChoicePick> {
-  const out: Record<string, ChoicePick> = {};
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
-  for (const c of BOSS_CHOICES) {
-    const v = (raw as Record<string, unknown>)[c.map];
-    if (v === 'take' || v === 'spare') out[c.map] = v;
-  }
-  return out;
-}
-
-/** 記下抉擇（已經選過的不會被改：抉擇只有一次） */
-export function makeChoice(cur: Record<string, ChoicePick>, map: string, pick: ChoicePick): Record<string, ChoicePick> | null {
-  if (!choiceOf(map) || cur[map]) return null;
-  return { ...cur, [map]: pick };
 }
 
 export function saveChoices(c: Record<string, ChoicePick>): void {

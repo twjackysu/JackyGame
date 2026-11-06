@@ -1673,6 +1673,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu = openChoice(this, ch, (pick) => {
       this.menu = null;
       this.acc = 0;
+      // V2（D-290）：快照一定要在存抉擇之前拿（不然伺服器會以為已經選過）
+      if (this.tracked) this.persist();
+      const before = this.tracked ? captureLegacy() : null;
       const c = makeChoice(loadChoices(), this.stageId, pick);
       if (c) {
         saveChoices(c);
@@ -1683,6 +1686,11 @@ export class RtBattleScene extends Phaser.Scene {
           const rec = spend(loadRecord(this.stageId), 0, -ch.take.crystal);
           if (rec) saveRecord(this.stageId, rec);
           SFX.itemGet();
+        }
+        if (before) {
+          // 畫面照舊先存（玩家看到的不變）→ 伺服器檢查（打倒過 Boss、只能選一次）並發結晶，不同就以伺服器為準
+          const map = this.stageId;
+          void legacyOp(before, ['wallet'], (cl, me) => cl.call('story.choose', { characterId: me.id, map, pick }), (x) => x.character);
         }
       }
       const p = playerOf(this.s);

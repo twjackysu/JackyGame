@@ -53,6 +53,8 @@ export interface Api {
   // 燼牌下注（core/meta/cards.ts，D-289）：開局時伺服器扣賭注、發種子與牌組；打完送出牌紀錄，伺服器重播判勝負並結算
   'cards.start': { params: { characterId: string; opponentId: string }; result: { matchId: string; seed: number; deck: string[]; character: CharacterView }; write: true };
   'cards.finish': { params: { characterId: string; matchId: string; moves: CardMoveView[] }; result: { winner: number; payout: number; prize: string | null; character: CharacterView }; write: true };
+  // 討伐後的抉擇（core/meta/choices.ts，D-290）：要打倒過那張地圖的 Boss、只能選一次；「取」的結晶伺服器發
+  'story.choose': { params: { characterId: string; map: string; pick: 'take' | 'spare' }; result: { crystal: number; character: CharacterView }; write: true };
 }
 /** 燼牌的一手（和 core/cards 的 Move 同形狀） */
 export type CardMoveView = { type: 'play'; card: number } | { type: 'pass' };
@@ -79,6 +81,7 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'skills.reset',
   'cards.start',
   'cards.finish',
+  'story.choose',
 ]);
 
 export class ApiError extends Error {
