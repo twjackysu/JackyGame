@@ -6,13 +6,13 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 142 輪起先做（V2 後半，11/7–11/8）
-**已經有的（第 141 輪）**：`src/core/meta/`（`shop.ts`、`bag.ts`＋`enhanceRoll`、`skills.ts`；`src/game/rtShop|rtBag|rtSkills.ts` 只剩 re-export）；伺服器 handler `inventory.equip/unequip/salvage`、`enhance.do`、`shop.open/buy/buyGoods/sell/reroll`、`skills.add/variant/reset`、`migrate.sync`（本機限定）；`ctx.rng`（crypto）；`src/client/legacyMirror.ts`、`legacyOps.ts`（D-285：動作前快照 → sync → handler → 寫回舊 key）；**技能樹、行囊（穿脫／分解／強化）、行商四個面板都已走伺服器**；`src/game/rt/InputSystem.ts`（D-288）；`tests/server-contract/{inventory-shop,sync-mirror,fuzz}.test.ts`；CI mssql 改成檔案不平行（綠）。
-1. **Q5 繼續拆場景**（`RtBattleScene.ts` 6,550 行，目標 < 1,500）：下一塊 `BannerSystem`（`bigText`／`pinBanner`／`announce`／`reserveBanner`／`menuBanners`，相關狀態 `bannerHidden`、`tipBusy`…），再來 `HudSystem`（血條、技能鍵、小地圖、懸賞板、`clearOfHudPanels`）。一個系統一個 commit，截圖比對（腳本思路：`screenshots/r141f.mjs` 開場、`r141.mjs` 面板；gitignored，照 PROGRESS 第 141 輪重寫）。
-2. **其他會改存檔的面板也走 legacyOps**：燼牌（`emberCardPanel` 下注／贏牌）、討伐後抉擇（`choices.ts` 的 `makeChoice`＋結晶）、懸賞領獎（`refreshBounty`）。先看 `grep -n "saveRecord\|spend(" src/game/scenes/RtBattleScene.ts src/game/ui/*.ts`，每個都要：core/meta 純函式 → handler＋契約測試 → 面板接 `legacyOp`。**燼牌勝負有擲骰 → 要 authoritative（等伺服器）**。
-3. **設定「匯出／匯入存檔」**改呼叫 `account.export/import`（下載 JSON 檔）。
-4. **V2 驗收**（23 §V2）：`src/game` 沒有規則運算——加測試掃 `src/game` 不准 import `core/meta` 以外的地方算錢（例如 `Math.random` 只准出現在特效）；強化的本機退路（`rtBagPanel` 的 `localEnhance`）在 V5 刪掉。
-5. 剩下的 V1 尾巴（有空）：`separate()` 空間雜湊（D-282 暫緩）。
+## ★ 第 143 輪起先做（V2 收尾＋V4 先行，11/7–11/8）
+**已經有的（到第 142 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、**`cards`、`choices`、`market`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`（本機限定）、**`cards.start/finish`（D-289）、`story.choose`（D-290）、`market.list/cancel/buy/browse/mine`（D-291，還沒有畫面）**；`legacyMirror`／`legacyOps`（D-285）；技能樹、行囊、行商、**燼牌下注、討伐後抉擇**都走伺服器；`src/game/rt/InputSystem.ts`；`tests/game-ratchet.test.ts`（src/game 直接碰 localStorage／saveRecord／spend 的次數只准變少，**數字變少要把基準調低**）；遷移 `0002_market`。
+1. CI（含 mssql job 跑拍賣所契約測試）在 9a97f14 全綠；每輪開頭照樣看一次。
+2. **Q5 繼續拆場景**（`RtBattleScene.ts` 6,590 行，目標 < 4,000，範圍保護 #5）：`BannerSystem`（`bigText`／`pinBanner`／`announce`／`reserveBanner`／`menuBanners`，狀態 `bannerHidden`、`tipBusy`、`busyRun`、`chapterUntil`…）耦合很深——**先只搬 `menuBanners`＋`bannerHidden`**（純顯示切換），再搬 HUD（血條、技能鍵、小地圖、懸賞板）。一個系統一個 commit，截圖比對（腳本思路見第 141 輪）。
+3. **V4 拍賣所畫面**（營火「行商」旁加「拍賣所」頁籤，或 ☰ 裡）：瀏覽（部位／稀有度篩選、價格排序、分頁）、我的掛單（上架、取消、過期退回）、買。**買到的物品要寫回舊 key**：`legacyOp(..., ['items','wallet'], ..., authoritative=true)`（mirrorRecord 會把伺服器行囊整包寫回），否則下一次 `migrate.sync` 會把它刪掉（D-291 注意）。上架中的物品不在行囊裡 → 舊 key 也要拿掉（同一個 mirror 就會）。
+4. **V4 模擬玩家**（24 §5）：`src/server/sim/`：20～50 個固定種子帳號，伺服器被呼叫時依經過時間補跑——只用 `market.list/buy` handler 行動（不直接改 DB）。`npm run sim:economy` 報表。
+5. **懸賞領獎**（`bountyKill` 發粉塵／結晶）：戰鬥中觸發，跟 V5 `loot.claim` 一起做。**設定「匯出／匯入存檔」**：`account.import` 之後要把伺服器資料完整寫回舊 key（還沒有反向的 toLegacy），等舊 key 退場再做比較省。
 
 **過渡期注意（D-285）**：
 - 新的面板動作一律：`const before = captureLegacy();` **在本機存檔之前**拿，然後 `legacyOp(before, ['items'|'wallet'|'skills'|'shop'], op, viewOf, authoritative?)`。忘了這個順序會「做兩次」。

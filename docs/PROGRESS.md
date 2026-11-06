@@ -1,5 +1,13 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-06 20:17–21:00（台北）第 142 輪 — 燼牌下注與抉擇走伺服器、src/game 棘輪、拍賣所伺服器端
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（d273b66）。
+- **燼牌下注（D-289）**：`core/meta/cards.ts`（戰績解析、隱藏對手、`replayMatch`）；`cards.start`（扣賭注、伺服器種子、牌組與獎勵牌）→ 面板用同一種子開局、記玩家每一手 → `cards.finish` 伺服器重播判勝負發獎金。契約測試三種 DB（贏兩倍＋牌、輸不退、少出／亂出／多出整筆拒絕、同局不能領兩次、隱藏對手與錢不夠拒絕）；core 測試「畫面一步步打＝伺服器重播」五位對手各 30 局。Playwright：下注一局 999→959→1039、`opStatus.done`、零警告；結算畫面截圖正常。
+- **討伐後抉擇（D-290）**：`core/meta/choices.ts`＋`story.choose`（要打倒過 Boss、只能選一次、取的結晶伺服器發）。第一次 Playwright 跳 `already chosen`——快照拿在存抉擇之後；改到 `makeChoice` 之前，伺服器 crystal 2→5 和舊 key 一致。
+- **棘輪測試**：`tests/game-ratchet.test.ts`。第一次推上去的版本基準數字算錯（沒扣掉註解）→ 下一個 commit 修正，CI 只跑到修正版。
+- **拍賣所伺服器端（D-291，V4 先行）**：`core/meta/market.ts`、`market.list/cancel/buy/browse/mine`、`ListingRow`（三種 DB）、遷移 `0002_market`（`game.MarketListing`）、`account.import` 把拍賣中的物品放回行囊。契約測試：物品換主人、金幣守恆（只少手續費＋上架費）、回滾、取消、過期退回、綁定不能賣、重送只成交一次。沒有畫面，玩家看不到。
+- 驗證：每步 typecheck、lint、build、vitest（最後 85 檔 618 項全過，含通關機器人、golden hash）。截圖腳本 `screenshots/r142*.mjs`（gitignored）：`r142` 下注打完一局（`menu.getData('start')(true)`＋`getData('auto')` 迴圈）、`r142b` 看 opStatus、`r142c` 抉擇（`sc.showChoice(choiceOf('mistwood'))`，點 600×160 的卡再點最後一個可點物件）。
+
 ## 2026-11-06 18:12–18:55（台北）第 141 輪 — V2：規則進 core/meta、伺服器 handler、四個面板走伺服器
 - **Q3（core/meta）**：`rtShop`／`rtBag`／`rtSkills` 搬到 `src/core/meta/`（原檔改 re-export，畫面行為不變）；新增 `enhanceRoll(g, rng)`、`replaceGear`、`discountOf`（抉擇折扣，`tests/core-meta.test.ts` 檢查和 `BOSS_CHOICES` 一致）。
 - **伺服器 handler**：`inventory.equip/unequip/salvage`、`enhance.do`（`ctx.rng`＝crypto）、`shop.open/buy/buyGoods/sell/reroll`（價格、特價、抉擇折扣、買下的 uid 都伺服器算）、`skills.add/variant/reset`、`migrate.sync`（本機限定，D-285）。契約測試三種 DB 都跑：順序同第一期、別人的物品 not_found、重送只做一次、材料／金幣不夠整筆回滾、貨架和第一期面板一模一樣；`fuzz.test.ts` 所有方法 × 16 種垃圾參數只回預期錯誤碼（D-286）。
