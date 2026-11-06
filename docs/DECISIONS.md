@@ -2,6 +2,24 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-305 2026-11-07 線上版 API 先走 HTTP（server/），JWT 用 node:crypto 驗、Bicep 只建一個縮到 0 的 API
+- **決策**：`server/http.ts`（node:http，`POST /api` 收協定 JSON、`GET /health`；16KB 上限、只收 `application/json`、CORS 白名單、每 IP 每秒 20 次）＋`server/main.ts`（環境變數 → `MssqlDb` 或記憶體 → `GameServer`＋`RateLimiter`，`local: false`）＋`src/net/HttpTransport.ts`。登入兩種：`AUTH_MODE=dev`（`dev:<名字>`，只給開發）、`AUTH_MODE=jwt`（`server/jwtAuth.ts`：只收 RS256、JWKS 的 kid、iss／aud／exp／nbf，accountId＝`ext_<sub>`），缺設定拒絕啟動。`npm run build:server` 用 rolldown 打成一個檔案（1.7MB，CI 檢查沒有 Phaser、真的啟動打 /health）；`server/Dockerfile` 只放打包結果。`infra/main.bicep`：Container Apps 環境（Consumption、不送日誌）＋`jackygame-api`（0.25 vCPU／0.5 GiB、0～1 副本、系統受控識別連 SQL）＋每月 1 美元預算；`deploy-server.yml` 只能手動觸發、沒有 Azure secret 就 skip。
+- **理由**：25 §4.3 上線只有非同步天梯（純 HTTP），WebSocket 不部署 → 先做 HTTP 才能縮到 0；JWT 用內建 crypto 不加套件、明確擋 alg 混淆。打包成一個檔案讓映像不含原始碼與開發套件。
+- **之後**：`build:online`（客戶端用 HttpTransport、不打包 src/server）、`docs/DEPLOY_AZURE.md`、標題先打 /health 預熱。即時 PvP 的 WsTransport／BattleRoom 照 23 §6 #4 只做協定與本機測試。
+
+## D-304 2026-11-07 頻率限制在 GameServer（每帳號），每 IP 在 HTTP 層
+- **決策**：`src/server/rateLimit.ts` 權杖桶：一般 10/秒（瞬間 20）、交易類（拍賣上架／購買／取消、交易動作、倉庫、建刪角色）2/秒（5）、PvP 開局／結算每 3 秒 1 次（2）。`GameServerOptions.limiter`：線上版一定給、本機版不給。超過回 `rate_limited`。桶超過 2 萬個時丟掉已補滿的。
+- **理由**：26-security；`pvp.finish` 要重跑整場最吃 CPU。模擬玩家走 `GameServer.run`、不經過限制。單一容器（maxReplicas 1）用記憶體就夠，多副本時再換共用儲存。
+
+## D-303 2026-11-07 模擬冒險者的天梯分每天變：確定性聯賽，不存資料庫
+- **決策**：`core/meta/pvpRank.ts` 的 `simLeague(players, day)`：從今天往前 14 天、每人每天 2 場，對手與勝負都用 `hashSeed(帳號:日:場)`，勝率照程度差（每差一級 ±6%，夾在 10～90%），Elo 零和。伺服器依當天日期（伺服器時鐘）算一次快取。30 人分數約 825～1309（原本固定 940～1140）。
+- **理由**：天梯原本永遠一樣、排在你前後的人不會動；確定性＋只算 14 天，不用新資料表、重開／多副本結果一致、分數不會一路飄走。開局時對手段位分存進對局，所以跨日結算不受影響。
+
+## D-302 2026-11-07 多角色＋帳號共用倉庫（F1）；過渡期換角色＝換掉舊 key
+- **決策**：規則 `core/meta/roster.ts`：3 個角色欄、名字 1～8 字（不准控制字元與 `<>&"'\`）、刪除不能刪目前角色／最後一個／拍賣或交易裡還有東西的。伺服器 `character.create/delete/select`（帳號多 `activeCharacterId`，SQL 遷移 `0004_roster` 在自己的 `game.Account` 加欄）；倉庫 `warehouse.get/put/take`：40 格、物品 `ownerId＝wh:<帳號>`、location `warehouse`，只有行囊裡的能放（綁定的可以：綁帳號不綁角色）；匯出入帶倉庫。`migrate.sync` 只寫目前角色。**過渡期**：遊戲還讀寫舊 key，所以換角色＝`migrate.sync`（存目前角色）→`character.select`→`migrate.pull`（伺服器用 `toLegacy` 把角色轉回舊 key 快照，`fromLegacy` 的反方向，測試來回不掉資料）→ 客戶端清掉「角色的」舊 key 寫入新的、重開標題。**裝置 key 不跟角色走**（`src/net/legacyKeys.ts`：操作設定、教學提示 `jg_tip_*`、夜晚／連擊提示、開場動畫、備份）。畫面：標題「設定」左邊「角色」鈕 → 角色面板（切換、建立：點空欄 → 選武器，名字從原創清單挑、刪除按兩次）；營火行商多「倉庫」分頁。新角色 1 級空手、從霧語森林開始。
+- **理由**：Jacky D-271 提過 RO 式多角色＋共用倉庫；三把武器可以同時養。名字不讓打字（手機沒有輸入框、也避免要審查名字），之後要改名再做。
+- **替代**：一次把遊戲改成直接讀伺服器 → V5 `loot.claim` 才會把舊 key 退場，現在改風險太大。
+
 ## D-301 2026-11-07 單機的交易對象＝模擬冒險者，只做「收購」，回應包在真人的回應裡
 - **決策**：`trade.partners`（本機限定；線上版回空清單）列出已出現的模擬冒險者。真人做 `trade.open/offer/lock/confirm/get` 後，`GameServer.simTrade` 若發現對方是模擬玩家，就讓它（`SimMarket.respondTrade`）透過公開 handler 回應一步：對方放了物品 → 出價＝行商買價 ×（0.35＋0.45×(1−thrift)），上限是自己的金幣；對方鎖定 → 跟著鎖；對方確認 → 跟著確認。真人拿到的回應換成 `trade.get` 的最新狀態。
 - **理由**：24 §5「模擬玩家只能透過和真人一樣的 handler 行動」；回應包在同一次呼叫裡，畫面不用輪詢、也不用計時器。收購價比拍賣所行情低（拍賣所掛單是買價 45～85%），拍賣所仍是賣東西的主要管道，面對面交易是「馬上換現」。

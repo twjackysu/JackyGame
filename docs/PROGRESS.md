@@ -1,5 +1,15 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-07 02:12–03:10（台北）第 145 輪 — F1 多角色＋共用倉庫、天梯會動、頻率限制、V6 線上 API（HTTP、JWT、打包、Bicep）
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（4839f5b）。
+- **多角色伺服器端（D-302）**：`core/meta/roster.ts`；`character.create/delete/select`、`warehouse.get/put/take`（40 格，`ownerId＝wh:<帳號>`）；帳號 `activeCharacterId`（SQL 遷移 `0004_roster`，820cbd7 的 mssql job 綠）；`migrate.sync` 只寫目前角色；匯出入帶倉庫；建角色可指定欄。契約測試三種 DB：3 欄上限、名字／武器檢查、不能刪目前／最後一個／拍賣中有東西的、別人碰不到、倉庫滿 40 拒絕、倉庫物品不能拿去拍賣、匯出入後倉庫還在。
+- **換角色（過渡期）**：`migrate.pull`＋`toLegacy`（`fromLegacy` 反方向；測試：轉回舊 key 再 sync 角色完全不變）；`src/client/roster.ts`（同步 → 選 → 拉 → 換掉角色的舊 key，裝置 key 留著 `src/net/legacyKeys.ts`）。畫面：標題「角色」鈕＋`rosterPanel.ts`、行商「倉庫」分頁＋`warehousePanel.ts`。
+- **天梯（D-303）**：`simLeague` 模擬冒險者每天彼此打（確定性、14 天、零和），分數 825～1309、每天會變。
+- **頻率限制（D-304）**：`src/server/rateLimit.ts`＋`GameServerOptions.limiter`（線上開、本機不開）。
+- **V6（D-305）**：`server/http.ts`、`server/main.ts`、`server/devAuth.ts`、`server/jwtAuth.ts`、`src/net/HttpTransport.ts`、`server/.env.example`、`npm run build:server`（rolldown 單檔 1.7MB）、`server/Dockerfile`、`infra/main.bicep`、`deploy-server.yml`（手動、無 secret skip）；CI 加打包啟動 /health 冒煙測試＋`az bicep build`。
+- 驗證：每步 typecheck、lint、build、vitest（最後 101 檔 732 項全過，含通關機器人、golden hash）。Playwright 360×640（腳本 `screenshots/r145.mjs`、`r145w.mjs`，gitignored）：Lv12 長弓角色 → 建法杖新角色（Lv1、荊棘谷未開放、教學提示 key 還在）→ 切回 Lv12、999 金、行囊、討伐數都在；刪除角色正常；倉庫放兩件拿回一件，舊 key 行囊正確、零頁面錯誤。`AUTH_MODE=dev npx tsx server/main.ts` 實測 /health、POST /api 建角色。整合測試真的起 node:http。
+- **踩到的**：標題重開用 `cameras.main.fadeOut` 回呼沒觸發 → 改用既有 `go()`；無頭瀏覽器換角色後標題重開要好幾秒（腳本要等「武器」字樣變了再點）。沙盒不能下載 bicep 執行檔 → Bicep 只在 CI 編譯。
+
 ## 2026-11-07 00:13–01:10（台北）第 144 輪 — PvP 平衡、競技場畫面＋天梯大廳、託管交易伺服器端
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（6a32125）。
 - **PvP 平衡（D-298）**：先量：弓對劍平均距離 110（貼身肉搏）、三組都是 HP 多的贏。`PlayerBot` 加 `kiteDir`（PvP 時遠程在對手進到射程 60% 內、普攻冷卻中就往八方向裡離對手最遠、不撞石頭、不貼牆的方向走；普攻好了站住射）→ 變成「弓 20:0 勝劍、法杖 20:0 勝弓、劍≈法杖」的繞圈相剋。量了三個槓桿的梯度（每 +10%）：劍傷害 bs −9／ss −10、弓 bs +6／bst +7、法杖 ss +6／bst −6——三組加總近乎不變，單一武器倍率調不平；劍 PvP 移速 +8～25% 也幾乎沒用；劍提早衝鋒反而更差（撤掉）。最後用相剋表 `PVP.vsPct`：弓打劍 86%、法杖打弓 95%。平衡測試起始位置隨種子變（左右 ±4 格、前後 ±1 格），加 30～70% 護欄。**報表（各 20 場）：弓對劍 11:9、弓對法杖 10:10、法杖對劍 10:10**；種子 21～40：10:10、9:11、14:6。

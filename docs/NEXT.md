@@ -6,14 +6,20 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 145 輪起先做（V4 交易畫面＋多角色、V5 收尾，11/7–11/10）
-**已經有的（到第 144 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、**`trade`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`、`cards.*`、`story.choose`、`market.*`、`pvp.start/finish/ladder`、**`trade.open/offer/lock/confirm/cancel/get`（D-300）**；模擬玩家 `src/server/sim/`；拍賣所畫面；隊伍引擎；PvP：`pvp.ts`（**相剋表 `vsPct`，D-298**）、`pvp_arena`、`pvpMatch.ts`；**競技場畫面 `src/game/scenes/PvpScene.ts`＋`src/game/pvpOps.ts`（D-299）**；遷移 `0001`、`0002_market`、**`0003_trade`**。
-1. CI（含 mssql job）每輪開頭看一次；第 144 輪最後一個程式 commit 是「交易：離開面板再回來可以接著做」。遷移 0003 在 SQL Server 上已經綠（b830b7b 的 mssql job）。
-2. ~~交易對象＝模擬玩家~~：第 144 輪做完（`trade.partners`、`SimMarket.respondTrade`、`GameServer.simTrade`；只做「收購」：你放物品它出價。你只放金幣想「買」它不會回應——之後可以讓它從行囊放一件價格最接近的）。
-3. ~~交易畫面~~：第 144 輪做完（行商面板「交易」分頁，`src/game/ui/tradePanel.ts`＋`src/game/tradeOps.ts`）。離開面板再回來可以接著做（`trade.partners` 的 `open`）。之後：模擬冒險者「賣」給你。
-4. **多角色（F1，不砍，下一個最優先）**：3 角色欄、帳號共用倉庫 40 格（location `warehouse`）、金幣分角色；`character.create/delete/select`；過渡期舊 key 只對應「目前角色」——先寫 DECISIONS 再動。
-5. **競技場收尾**：(a) `pvp.finish` 頻率限制（26-security；V6 `server/main.ts` 一起）；(b) 模擬玩家的段位分現在是固定的（`simRating` 照 tier）→ 讓它們每天彼此打幾場（用 `hashSeed(sim, day)` 決定勝負、Elo 更新存在 sim 角色的 `pvpRating`）；(c) 結算畫面加「看重播」（F5，紀錄已經有，`replayPvp` 就能重跑）；(d) ~~對手看不出來~~（第 144 輪腳下光圈加底色）。
-6. **Q5 拆 HUD**（範圍保護 #5）、**V5 `loot.claim`**、**V6 `server/main.ts`＋Bicep**。
+## ★ 第 146 輪起先做（V5 收尾、V6 落地，11/7–11/11）
+**已經有的（到第 145 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（**`simLeague`**）、`trade`、**`roster`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.legacy/sync/`**`pull`**、`cards.*`、`story.choose`、`market.*`、`pvp.*`、`trade.*`、**`character.create/delete/select`、`warehouse.get/put/take`（D-302）**；**`src/server/rateLimit.ts`（D-304）**；遷移 `0001`～`0003`、**`0004_roster`**；畫面：拍賣所、交易、競技場、**角色面板（標題「角色」）、倉庫（行商分頁）**；**線上 API `server/`（http、main、devAuth、jwtAuth、Dockerfile、.env.example）、`src/net/HttpTransport.ts`、`npm run build:server`、`infra/main.bicep`、`.github/workflows/deploy-server.yml`（D-305）**。
+1. CI（含 mssql job、新的 Server bundle smoke test、Bicep build）每輪開頭看一次；第 145 輪最後一個程式 commit 是 3c8f7ec（Bicep）。**如果 Bicep build 紅了**：看錯誤訊息改 `infra/main.bicep`（沙盒不能下載 bicep，只能靠 CI）。
+2. **V6 `build:online`**：`VITE_SERVER_URL` 有值時 `src/client/boot.ts` 改用 `HttpTransport`＋登入 token、**不打包 `src/server`**（`import.meta.env` 條件＋動態 import；加測試掃描 online bundle 沒有 `GameServer`／`migrate.legacy` 字樣）。線上版沒有舊 key：畫面層目前還靠 legacyOp（migrate.sync 只有本機）——線上版先只開「競技場、拍賣所、交易、角色」能走的部分，寫 DECISIONS 再動。標題先打 `/health` 預熱。
+3. **`docs/DEPLOY_AZURE.md`**（V7 也要）：一步一步：建資源群組 → Entra External ID 建 API 應用程式 → `az deployment group create -f infra/main.bicep -p @infra/main.parameters.json`（範例 `infra/main.parameters.example.json`）→ 在 Azure SQL 用 `CREATE USER [jackygame-api] FROM EXTERNAL PROVIDER` 並只給 `game` schema 權限（`GRANT ... ON SCHEMA::game`）→ GitHub secrets（AZURE_CLIENT_ID 等，聯合認證）→ 手動跑 Deploy server。列每個資源「為什麼不收費」（25 §4.3）。
+4. **多角色收尾**：(a) 角色面板「改名」（之後）；(b) `account.export` 還沒帶 `pvpRating`；(c) 換角色時 `metThisVisit`（encounters.ts 模組變數）沒清，影響很小；(d) 行商面板 6 個分頁 gap 114，360 寬看起來剛好，再加分頁要改兩排。
+5. **競技場收尾**：(c) 結算畫面「看重播」（F5，`replayPvp` 就能重跑）。頻率限制已做（線上開）。
+6. **Q5 拆 HUD**（範圍保護 #5）、**V5 `loot.claim`**（舊 key 退場的關鍵）、交易「模擬冒險者賣給你」、SQL 版交易並發測試（V4 驗收）。
+
+**多角色注意（第 145 輪）**：
+- 換角色流程在 `src/client/roster.ts`：`switchCharacter` 排在 `legacySerial`（和面板動作同一條佇列）。**新的「角色的」localStorage key 不用做什麼**（預設跟著角色走）；**新的「裝置的」key（教學、操作設定）要加進 `src/net/legacyKeys.ts` 的 `DEVICE_KEY`**，不然換角色會被清掉。
+- 伺服器 `toLegacy` 只輸出 `fromLegacy` 認得的欄位；**RtRecord 加新欄位時兩邊都要加**（`tests/server-contract/roster.test.ts` 的來回測試會抓到）。
+- 截圖腳本 `screenshots/r145.mjs`（標題 → 角色 → 建立 → 法杖 → 等標題重開（等「武器\n法杖 ⇄」出現）→ 切回）、`r145w.mjs`（`sc.openShop()` → 倉庫 → 點裝備）。無頭瀏覽器換角色後標題重開要好幾秒。
+- 線上伺服器本機跑：`npm run server:dev`（記憶體 DB）或 `npm run build:server && cd dist-server && AUTH_MODE=dev node main.js`；`curl -X POST -H 'Content-Type: application/json' -d '{"v":1,"id":1,"method":"character.list","params":{},"token":"dev:me"}' localhost:8080/api`。
 
 **交易注意（第 144 輪）**：
 - 截圖腳本思路（/tmp，沒進 repo）：LS 設 `jg_prologue_seen`、`jg_weapon`、`jg_rt_mistwood`（coin、bag、equip、bossKills）→ `?debug&scene=RtBattle&stage=mistwood` → `sc.openTrade()` → 用 `sc.menu.list` 找文字物件 emit `pointerdown`（列是 Rectangle，找同一個 y 的）；每步前 `__game.loop.sleep()` 等 4 秒再 `wake()`（第一次 `trade.partners` 要 9 秒：模擬玩家補跑）。
