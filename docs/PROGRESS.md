@@ -1,5 +1,14 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-06 18:12–18:55（台北）第 141 輪 — V2：規則進 core/meta、伺服器 handler、四個面板走伺服器
+- **Q3（core/meta）**：`rtShop`／`rtBag`／`rtSkills` 搬到 `src/core/meta/`（原檔改 re-export，畫面行為不變）；新增 `enhanceRoll(g, rng)`、`replaceGear`、`discountOf`（抉擇折扣，`tests/core-meta.test.ts` 檢查和 `BOSS_CHOICES` 一致）。
+- **伺服器 handler**：`inventory.equip/unequip/salvage`、`enhance.do`（`ctx.rng`＝crypto）、`shop.open/buy/buyGoods/sell/reroll`（價格、特價、抉擇折扣、買下的 uid 都伺服器算）、`skills.add/variant/reset`、`migrate.sync`（本機限定，D-285）。契約測試三種 DB 都跑：順序同第一期、別人的物品 not_found、重送只做一次、材料／金幣不夠整筆回滾、貨架和第一期面板一模一樣；`fuzz.test.ts` 所有方法 × 16 種垃圾參數只回預期錯誤碼（D-286）。
+- **面板切換（D-285）**：`src/client/legacyMirror.ts`＋`legacyOps.ts`。技能樹、行囊（穿脫、全部換最好、分解）先存再送伺服器（分歧就以伺服器為準＋警告）；**強化與行商等伺服器結果**（擲骰、成交只在伺服器）。Playwright 四個面板都跑過：舊 key 和伺服器的錢包、行囊、貨架、技能完全一致，`diverged 0`、零錯誤；面板截圖和之前一樣。
+- **Q5**：`src/game/rt/InputSystem.ts`（D-288）；Playwright 鍵盤 D／S、搖桿、點地移動方向都對。
+- **CI**：8 新測試在 mssql job 逾時——所有測試檔共用同一個 SQL 資料庫、平行跑會互相清表；改成 `--no-file-parallelism --test-timeout=60000`、新測試 client 逾時 15 秒，70bda69 全綠。
+- **踩到的**：一開始 legacyMirror 每次都補 `spent: {}`／改 equip 欄位順序 → 被當成分歧；改成值一樣不動。無頭瀏覽器每次寫入 300 ms（Phaser 軟體繪圖吃滿事件迴圈，不是 IndexedDB），IndexedDB 仍改 relaxed（D-287）。
+- 驗證：每步 typecheck、lint、build、vitest（最後 81 檔 579 項全過，含通關機器人與 golden hash）。截圖腳本 `screenshots/r141*.mjs`（gitignored）：`r141` 技能、`r141b` 強化、`r141d` 行商、`r141e` 行囊、`r141f` 輸入，都是「設 LS → `?debug&scene=RtBattle&stage=mistwood` → 呼叫 `sc.openXxx()` → CLICK(文字)」。
+
 ## 2026-11-06 16:12–16:55（台北）第 140 輪 — V1 地基完成＋V2 db/mssql
 - **Q1 確定性（D-280）**：`src/core/fixedMath.ts`（產生器 `scripts/gen-fixed-math.mjs`）取代引擎的 `Math.asin/sin/cos/pow`；`tests/rt-golden-hash.test.ts`（120 組 hash 快照）、`tests/fixed-math.test.ts`（和舊公式比對 3 萬點）、`core-boundary` 加禁用清單。扇形與 XP 替換 hash 完全不變；角度量化後更新快照。
 - **Q2 本機伺服器骨架（D-281）**：`src/net`、`src/server`（GameServer／冪等／DocDb：Memory、IndexedDB、localStorage）、`src/client`（GameClient、boot）。開機複製舊存檔到角色 1（先備份 `jg_backup_<時間>`），遊戲仍讀寫舊 key。`tests/server-contract`（memory／local-idb／local-kv 同一組：遷移、重送只執行一次、35% 掉包、匯出匯入、回滾、錢包、樂觀鎖、重開）、`tests/layer-boundary.test.ts`。Playwright：真 Chromium 用 IndexedDB 遷移一次、重開不重複、零錯誤。
@@ -49,141 +58,12 @@
 - 驗證：typecheck、vitest 412 項全過（新 `tests/version-check.test.ts` 5 項）；preview 改假的新版 version.json → 自動跳到 `?debug=&v=zzzzzzz`，第二次出現「有新版本 9.9.9（你的是 1.1.0）・更新」，截圖看過（390×844）；標題新名字截圖正常。
 - CI／Pages／APK 全綠（0d5da18；APK 第一次用固定 debug 簽章建置成功）。雲端 shell 連不到 github.io，version.json 線上內容沒直接看。
 
-## 2026-11-05 14:11–14:15（台北）第 134 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（2a2ebf6，版本 1.0.1）。
-- 新 session 的 clone 是 detached HEAD，先 `git checkout main && git pull --rebase origin main`；`.loop/` 目錄在上輪釋放鎖時被刪，搶鎖前要 `mkdir -p .loop`（沒有 `xxd`，run_id 用 `od`）。
-- build、vitest 407 項全過（含通關機器人）。
-- 正式版 preview 390×844 觸控＋`?debug`：標題（版本 1.0.1）淡入正常，沒有 pageerror／console error。
-
-## 2026-11-05 12:11–12:25（台北）第 133 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（2a2ebf6，版本 1.0.1）。
-- 新 session 的 clone 是 detached HEAD，先 `git checkout main && git reset --hard origin/main` 再搶鎖。
-- build、vitest 407 項全過（含通關機器人）。
-- 正式版 preview 390×844 觸控＋`?debug`：標題（版本 1.0.1）淡入正常，沒有 pageerror／console error。
-
-## 2026-11-05 10:11–10:25（台北）第 132 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（2a2ebf6，版本 1.0.1）。
-- 新 session `npm ci`＋build、vitest 407 項全過（含通關機器人）。
-- 正式版 preview 390×844 觸控＋`?debug`：標題（版本 1.0.1）正常，點「進入霧語森林」後開始淡出，沒有 pageerror／console error。
-
-## 2026-11-05 08:12–08:20（台北）第 131 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（2a2ebf6，版本 1.0.1）。
-- build、vitest 407 項全過（含通關機器人）。
-- 正式版 preview 390×844 觸控＋`?debug`：標題（版本 1.0.1）淡入正常，沒有 pageerror／console error。
-
-## 2026-11-05 06:12–06:30（台北）第 130 輪 — 成果發表版 1.0.1（README 統計更新，D-268）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
-- 照 NEXT ⑤提前做：`bash scripts/stats.sh`（1123 commits、acquire lock 135 次＝實際 130 輪、TS 19129 行）→ README 統計行改「約 130 輪、1100+ commits、400+ 項測試（統計到 11/5）」；`package.json`／`package-lock.json` 版本 1.0.1。
-- 驗證：CI／Pages／APK 全綠（2a2ebf6）；build、vitest 407 項全過（含通關機器人）；`screenshots/r130.mjs`（gitignored）正式版 preview 390×844 觸控，標題顯示「版本 1.0.1」，沒有 pageerror／console error（注意 preview 網址是根目錄 `/?debug`，不是 `/JackyGame/`）。
-
-## 2026-11-05 04:11–04:15（台北）第 129 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
-- build、vitest 407 項全過（含通關機器人）。
-- `screenshots/r129.mjs`（gitignored）：正式版 preview 390×844 觸控＋`?debug`，標題正常、點「進入霧語森林」後開始淡出，沒有 pageerror／console error。
-
-## 2026-11-05 02:12–02:25（台北）第 128 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
-- build、vitest 407 項全過（含通關機器人）。
-- `screenshots/r128.mjs`（gitignored）：正式版 preview 390×844 觸控＋`?debug`，標題正常、點「進入霧語森林」後開始淡出，沒有 pageerror／console error。
-
-## 2026-11-05 00:14–00:25（台北）第 127 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
-- build、vitest 407 項全過（含通關機器人）。
-- `screenshots/r127.mjs`（gitignored）：正式版 preview 412×915 觸控＋`?debug`，標題場景正常，沒有 pageerror／console error。
-
-## 2026-11-04 22:12–22:20（台北）第 126 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
-- 新 session `npm ci`＋build、vitest 407 項全過（含通關機器人）。
-- `screenshots/r126.mjs`（gitignored）：正式版 preview 360×640 觸控＋`?debug`，標題（版本 1.0.0）→點「進入霧語森林」（360×640 在 (180,383)）→約 20 秒後場景是 `RtBattle`、序章星陣與「略過」正常，沒有 pageerror／console error。
-
-## 2026-11-04 20:15–20:25（台北）第 125 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（12a54a5）。
-- 新 session `npm ci`＋build、vitest 407 項全過（含通關機器人）。
-- `screenshots/r125.mjs`（gitignored）：正式版 preview 390×844 觸控，長弓直接進荊棘谷 12 秒，沒有 pageerror／console error，畫面正常。
-
-## 2026-11-04 18:11–18:30（台北）第 124 輪 — PWA 更新檢查（D-267）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1）。搶鎖時 GitHub push 回 500 兩次，等 20 秒重推成功。
-- **新檢查：裝好的 PWA 會不會換到新版？** 本機 http.server 放 A 版讓 SW 裝好、換成 B 版（版號 9.9.9）後連續重整：原本的 `registerSW.js` **重整 3 次都還是舊版**（瀏覽器沒去抓 `sw.js`）。
-- **修正（D-267）**：改由 `src/swUpdate.ts` 註冊，開啟時與切回前景（間隔 ≥ 60 秒）呼叫 `reg.update()`。實測第 1 次重整偵測到、第 2 次就是新版，離線重整正常、沒有 pageerror。新增 `tests/sw-update.test.ts`（3 項）。
-- 驗證：build、vitest 407 項全過（含通關機器人）；CI／Pages／APK 全綠（12a54a5）。
-
-## 2026-11-04 16:12–16:30（台北）第 123 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1）。
-- 新 session 重新 `npm ci`＋build、vitest 404 項全過（含通關機器人）。
-- `bash scripts/stats.sh` 預看：1107 commits、128 輪（acquire lock 次數）、TS 約 1.9 萬行、決策到 D-266。README 統計行（「約 110 輪、1000+ commits」）留給 11/5 中午前那一輪更新。
-
-## 2026-11-04 14:12–14:25（台北）第 122 輪 — 健康檢查＋README 連結檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」仍空、CI／Pages／APK 全綠（c711dc1；Releases `latest` 的 `jackygame-debug.apk` 5.9MB 對應 c711dc1）。
-- 新檢查：README 85 個相對路徑（截圖、文件連結）全部存在，外部連結只有 Pages 與 Releases `latest`。
-- 第 121 輪後沒改程式，不重跑 vitest（照 NEXT ③）。
-
-## 2026-11-04 12:12–12:35（台北）第 121 輪 — 健康檢查（沒有要修的，不改程式）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI／Pages／APK 全綠（c711dc1）。
-- 照 NEXT 第 121 輪建議⑤：不為了做事而改程式。重新 `npm ci`＋build、vitest 404 項全過（含通關機器人）。
-- `screenshots/r121.mjs`（gitignored）：390×844 觸控與 1366×768 桌機開標題 9 秒，沒有 pageerror／console error；桌機兩側模糊主視覺（D-264）正常、手機不受影響。
-- 雲端 shell 連不到 github.io（proxy 403），正式 Pages 網址無法直接驗，只看 CI 部署成功。
-
-## 2026-11-04 10:11–10:40（台北）第 120 輪 — 電腦展示打磨：拖出畫面放開會停、兩側模糊主視覺、按鈕標快捷鍵、Esc 暫停（D-263～266）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI／Pages／APK 全綠（2c98a67；本輪 c711dc1 也全綠）。成果發表很可能用電腦開網頁，這輪專看桌機。
-
-**做了什麼**
-- **D-263（bug）**：滑鼠拖搖桿拖到畫面外（寬螢幕左右黑邊）才放開，Phaser 只發 `pointerupoutside` → 主角一直走。實測修前放開 2 秒後還在走、修後立刻停（`screenshots/r120m.mjs`）。觸控用 CDP 多指實測（搖桿按住＋另一指點技能、放開其中一指、touchcancel）都正常（`r120t.mjs`）。
-- **D-264**：`index.html` 寬螢幕（`min-aspect-ratio: 3/4`）時 `body::before` 鋪模糊壓暗的 `bg_title_keyart.webp`，取代左右純黑；直式手機不載入。`disableContextMenu: true`（右鍵不跳瀏覽器選單）。正式版 preview 也確認圖有載到。
-- **D-265**：沒有觸控的裝置在按鈕右上角標快捷鍵（1～4、空白、R、Q）、搖桿下方「WASD 移動」；改鍵／調位置／左手模式／按鈕大小都跟著（`r120h.mjs`），觸控手機不顯示（390×844 截圖確認）。
-- **D-266**：桌機 Esc＝返回鍵（開關 ☰、關面板）；操作設定等新按鍵時 Esc 仍是取消（`r120k.mjs` 實測整串）。
-- README「一眼看懂」加「電腦也能玩」一行；FOR_JACKY ★ 加第 8 點。
-- 驗證：build、vitest 404 項全過（含通關機器人）；新增 `tests/pointer-release.test.ts`、`rt-controls` 加 `keyBadge` 測試。
-
-## 2026-11-04 08:12–08:55（台北）第 119 輪 — 儲存空間壞掉、旋轉／改尺寸、反覆換場景、Boss 戰亂點與陣亡（都沒有錯誤，不用改）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI／Pages／APK 全綠（2c98a67）。
-
-**做了什麼**（腳本都在 `screenshots/`，gitignored）
-- `r119ls.mjs`：模擬 localStorage 寫入丟 QuotaExceededError（`set`）、讀寫都丟（`all`，像隱私模式／儲存被封鎖）→ 標題、霧語森林、亂點 40 下、行囊都正常，沒有 pageerror。
-- `r119rs.mjs`：荊棘谷長弓玩到一半改視窗 390×844→844×390（橫向左右留黑邊）→360×640→412×915→768×1024→390×844，再開行商後改 360×640：畫面跟著重排、不切邊，沒有錯誤。
-- `r119sw.mjs`：四張圖↔標題來回換 12 次，JS heap 穩定在約 63～73MB（偶爾 121MB 下次就回落）、貼圖數 47→53～56 後持平，沒有洩漏。
-- `r119boss.mjs`／`r119die.mjs`：傳送到 Boss 旁（狼王 360×640 長弓、守望者 390×844 法杖、狼后 412×915 法杖、岩王 390×844 長劍）亂點＋拖曳＋按鍵；HP 設 3 強制陣亡 → 回營火復活、提示照常，都沒有錯誤。
-- 沒改程式；沒有新決策。
-
-**問題**：無頭瀏覽器同時開 4 個 Boss 戰會慢到 500 秒跑不完 60 下，**最多同時開 2 個**。
-
-## 2026-11-04 06:12–07:05（台北）第 118 輪 — 亂點測試（沒有錯誤）、燼牌牌桌烘成貼圖（D-262）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠。
-
-**做了什麼**
-- **亂點測試**（`screenshots/r118m.mjs`，gitignored；參數 `stage weapon 秒數 種子 W H [cards|shop|title]`）：隨機點擊 70%、拖曳 20%、按鍵 10%，四張圖×三把武器、360×640／390×844／412×915、行商、燼牌、標題（含回顧結局）共 14 趟，**沒有 pageerror／console error**、畫面沒卡死。
-- **燼牌效能**（D-262）：量測發現燼牌面板比外野還慢（無頭 1.8 vs 4.6 fps）；元兇是木紋桌面 6944 個 Graphics 指令每幀重畫 → 烘成貼圖，3.0 fps。重開面板、場景重啟後重開、360×640 都正常（貼圖快取 `ember_table_1280`）。
-- 標題量測：`postFX.addGlow` 的標題字最貴，凍結期不動（記在 D-262）。
-- 驗證：build、vitest 401 項全過、CI／Pages／APK 綠。
-
-## 2026-11-04 04:13–04:35（台北）第 117 輪 — 通關後最擠的 ☰、記憶本、操作設定 360×640／412×915 看過（不用改）
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI／Pages／APK 全綠（`latest` APK＝233509f，之後只有文件 commit）。
-
-**做了什麼**
-- `screenshots/r117a.mjs`／`r117b.mjs`（gitignored）：四張圖全開＋暴怒／深夜都可選的存檔，星隕高原 ☰（按鈕最多的情況）、前世的記憶 0/12、燼紅裂谷法杖「操作設定」，360×640 與 412×915 各一張：不疊、不切邊、技能欄名稱跟著法杖，沒有 pageerror。**不用改**。
-- `npm run playthrough` 三把武器從新遊戲打到結局通過；README 圖片路徑全部存在；`bash scripts/stats.sh`：122 次搶鎖、1085 commits（README 統計行留給 11/5 最後一輪）。
-
-**問題**：沙箱連不到 github.io（proxy 403），線上 PWA 只能看 Actions 的 Pages 部署結果（success）。
-
-## 2026-11-04 02:12–02:55（台北）第 116 輪 — 回顧結局 360×640／412×915 看過（不用改）；PROGRESS 合併第 103～114 輪
-**背景**：11/4 功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 113 輪 233509f，之後只有文件 commit）。
-
-**做了什麼**
-- `npx vitest run --exclude 'tests/zz-*'` 全跑一次：401 項全過（含通關機器人），main 沒問題。
-- 通關後標題「✦ 回顧結局」整段（`screenshots/r116f.mjs`，gitignored：LS 寫 `jg_finale_seen` 與四張圖 `jg_rt_<id>={bossKills,bestBossSec,firstAt}` → 點擊開始 → 點「✦ 回顧」→ 每 4 秒點一下遮罩）：360×640 結語、旅程紀錄（三位 Boss＋七格統計 4＋3）、製作名單、感謝遊玩＋「回到標題」；412×915 四位 Boss（含星骸守望者）卡片不疊統計。**不用改**。
-- 截圖的棕色底是 `cameras.main.flash` 在快轉下不前進的已知假象；結語前幾行變暗是設計（新行出現時舊行降到 0.45）。
-- PROGRESS 第 103～114 輪合併成每日摘要。
-
-**問題**：背景跑的截圖腳本若沒等結束就重跑，會寫到同一個 log／同名截圖而混在一起——重跑前先用 `ps -eo pid,etimes,cmd | grep r116f` 找 PID 殺掉。
-
-## 2026-11-04 00:14–00:45（台北）第 115 輪 — 正式版（vite preview）從標題走一次＋離線四張地圖（不用改）
-**背景**：11/4 起功能凍結。沒有 Issue、art-inbox 空、FOR_JACKY 沒有新回覆、CI 全綠（第 113 輪 233509f）。照 NEXT「第 115 輪建議接著看」③。
-
-**做了什麼**
-- 正式版 `npm run build`＋`npx vite preview --port 4173`，390×844 新存檔真實點擊（`screenshots/r115q.mjs`，gitignored）：標題→點擊開始→進入霧語森林→序章→略過→選武器→霧語森林 HUD／教學大字正常，service worker 有註冊，沒有 pageerror／console error。
-- **離線**（`ctx.setOffline(true)` 後 reload）：標題正常；法杖進霧語森林（`r115s.mjs`）、長弓 360×640 Lv12 進荊棘谷／燼紅裂谷／星隕高原（`r115m.mjs`）都載入完整，沒有 requestfailed。
-- **不用改程式**；沒有新決策。
-
-**問題**：無頭 swiftshader 在標題約 1fps，相機 fadeOut 不前進，真實點「進入」不會換場景——自動化要用 `?debug` 的 `__game.scene.getScene('Title').scene.start('RtBattle',{stage,bot:''})`。390×844 的「點擊開始」實際在 y≈692（舊筆記寫 600 也會觸發，整個畫面都可點）。`jg_weapon` 存純字串（`staff`），不是 JSON。
+## 2026-11-04 00:14～11-05 14:15（台北）第 115～134 輪：每日摘要（第 141 輪合併）
+- 11/4 功能凍結期，大多是健康檢查（CI／Pages／APK、Issue、art-inbox、FOR_JACKY 都看過，沒有要修的）。
+- **第 115～119 輪**：正式版 preview 從標題走一次＋離線四張地圖、回顧結局／☰／記憶本／操作設定在 360×640、412×915 看過；亂點測試（`r118m.mjs`：點擊 70%、拖曳 20%、按鍵 10%，四圖×三武器）零錯誤；燼牌牌桌烘成貼圖（D-262）；儲存空間壞掉、旋轉、反覆換場景、Boss 戰亂點都沒有錯誤。
+- **第 120 輪（D-263～266）**：拖搖桿拖出畫面放開會停（`pointerupoutside`）、寬螢幕兩側模糊主視覺、桌機按鈕標快捷鍵＋「WASD 移動」、Esc＝返回。
+- **第 124 輪（D-267）**：裝好的 PWA 換不到新版 → `src/swUpdate.ts` 開啟與切回前景時 `reg.update()`，`tests/sw-update.test.ts`。
+- **第 130 輪（D-268）**：成果發表版 1.0.1（README 統計：約 130 輪、1100+ commits、400+ 項測試）。
 
 ## 2026-11-03 00:24–22:45（台北）第 103～114 輪：每日摘要（第 116 輪合併）
 - **面板透字收尾**（D-251～256）：營火字條、Boss 距離字與懸賞板、調整按鈕位置時的地區字、行囊強化結果字在面板開著時都藏起來／跟著收掉；燼牌贏第三家（伊妲公告）、贏到新牌後馬上離開，公告改由場景 `announce` 補講。

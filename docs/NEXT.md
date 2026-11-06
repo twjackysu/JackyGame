@@ -6,15 +6,19 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 141 輪起先做（V1 已完成；V2 規則上伺服器，11/7–11/8）
-**已經有的（第 140 輪）**：`src/core/fixedMath.ts`（核心禁三角函式）、golden hash 快照、`src/net`／`src/server`／`src/client` 骨架（看 `src/server/README.md`）、開機把舊存檔複製成角色 1（`src/client/boot.ts`，遊戲仍讀寫舊 key）、`db/mssql`（CI job `mssql` 跑契約測試）、ESLint 邊界、`rt-perf` 基準 54 μs/tick。
-1. CI 的 `mssql` job 已綠（第 140 輪 acc05e8：SQL Server 2022 容器上契約測試＋舊表不變檢查全過）。之後改 `src/server/db/mssql` 都要看這個 job；本機沒有 Docker，失敗 log 很長（容器 log 灌在最後），用 `get_job_logs` 時請子代理只挑 vitest 的 FAIL 行。
-2. **Q3 規則搬進 `src/core/meta/`**（純函式、傳 `Rng`，不碰 Phaser／storage）：從 `src/game/rtShop.ts`（買、賣、重抽、`spendCoin`）、`rtBag.ts`（`equipWith`／`unequip`／分解）、`core/battle/rt/gear.ts` 的強化開始。現有 `rt-shop`／`rt-enhance-gain` 等測試改測 core 版本。
-3. **伺服器 handler**（`src/net/protocol.ts` 的 `Api` 加方法＋`WRITE_METHODS`、`src/server/handlers/*.ts`）：`inventory.equip/unequip/salvage`、`enhance.do`、`shop.get/buy/sell/reroll`、`skills.spend/reset/variant`。契約測試各寫一組（重送不重複、錢不夠被拒、別人的物品 not_found、`version` 衝突）。
-4. **畫面層切換的過渡法（D-281）**：一次切一個面板。面板改成 `await client.call(...)`；伺服器回傳後，用 `src/client/legacyMirror.ts`（新）把角色的結果**單向寫回舊 key**（`jg_rt_<map>` 的 bag／equip／spent…），這樣還沒切的程式照舊讀得到。全部切完再停寫舊 key，最後加測試擋 `src/game` 直接用 `localStorage`（設定／提示看過沒放 `src/client/prefs.ts`）。
-   - **戰鬥中撿到的東西**（`RtBattleScene` 的 `persist`）先維持寫舊 key＋開機時同步，V5 才改 `loot.claim`。所以 V2 要有「舊 key → 伺服器」的對帳：每次回營火／離開地圖時 `migrate.sync`（本機版限定）把舊 key 的增量送上去。**做之前先想清楚哪邊是真實來源，寫進 DECISIONS。**
-5. **Q5 拆場景**（`RtBattleScene.ts` 6,495 行）：先拆 `InputSystem`、`HudSystem`、`BannerSystem`，一個系統一個 commit，前後截圖比對。
-6. 剩下的 V1 尾巴（有空）：`separate()` 空間雜湊（D-282 暫緩，PvP／多人時再做）；設定面板「匯出／匯入存檔」改呼叫 `account.export/import`（下載 JSON 檔）。
+## ★ 第 142 輪起先做（V2 後半，11/7–11/8）
+**已經有的（第 141 輪）**：`src/core/meta/`（`shop.ts`、`bag.ts`＋`enhanceRoll`、`skills.ts`；`src/game/rtShop|rtBag|rtSkills.ts` 只剩 re-export）；伺服器 handler `inventory.equip/unequip/salvage`、`enhance.do`、`shop.open/buy/buyGoods/sell/reroll`、`skills.add/variant/reset`、`migrate.sync`（本機限定）；`ctx.rng`（crypto）；`src/client/legacyMirror.ts`、`legacyOps.ts`（D-285：動作前快照 → sync → handler → 寫回舊 key）；**技能樹、行囊（穿脫／分解／強化）、行商四個面板都已走伺服器**；`src/game/rt/InputSystem.ts`（D-288）；`tests/server-contract/{inventory-shop,sync-mirror,fuzz}.test.ts`；CI mssql 改成檔案不平行（綠）。
+1. **Q5 繼續拆場景**（`RtBattleScene.ts` 6,550 行，目標 < 1,500）：下一塊 `BannerSystem`（`bigText`／`pinBanner`／`announce`／`reserveBanner`／`menuBanners`，相關狀態 `bannerHidden`、`tipBusy`…），再來 `HudSystem`（血條、技能鍵、小地圖、懸賞板、`clearOfHudPanels`）。一個系統一個 commit，截圖比對（腳本思路：`screenshots/r141f.mjs` 開場、`r141.mjs` 面板；gitignored，照 PROGRESS 第 141 輪重寫）。
+2. **其他會改存檔的面板也走 legacyOps**：燼牌（`emberCardPanel` 下注／贏牌）、討伐後抉擇（`choices.ts` 的 `makeChoice`＋結晶）、懸賞領獎（`refreshBounty`）。先看 `grep -n "saveRecord\|spend(" src/game/scenes/RtBattleScene.ts src/game/ui/*.ts`，每個都要：core/meta 純函式 → handler＋契約測試 → 面板接 `legacyOp`。**燼牌勝負有擲骰 → 要 authoritative（等伺服器）**。
+3. **設定「匯出／匯入存檔」**改呼叫 `account.export/import`（下載 JSON 檔）。
+4. **V2 驗收**（23 §V2）：`src/game` 沒有規則運算——加測試掃 `src/game` 不准 import `core/meta` 以外的地方算錢（例如 `Math.random` 只准出現在特效）；強化的本機退路（`rtBagPanel` 的 `localEnhance`）在 V5 刪掉。
+5. 剩下的 V1 尾巴（有空）：`separate()` 空間雜湊（D-282 暫緩）。
+
+**過渡期注意（D-285）**：
+- 新的面板動作一律：`const before = captureLegacy();` **在本機存檔之前**拿，然後 `legacyOp(before, ['items'|'wallet'|'skills'|'shop'], op, viewOf, authoritative?)`。忘了這個順序會「做兩次」。
+- 驗證方法：Playwright 跑完動作後比對「舊 key 算出來的錢包／行囊」和 `client.call('character.list')`，以及 `opStatus`（`done`／`error`／`diverged` 都要合理；在頁面裡用場景原始碼找出 `legacyOps` 模組網址再 import，見 PROGRESS 第 141 輪）。
+- **無頭瀏覽器裡每次寫入要 300 ms 左右**（Phaser 軟體繪圖吃滿事件迴圈），等結果至少等 2.5 秒；`__game.loop.sleep()` 後是 1～3 ms。
+- CI mssql job：契約測試檔案**不能平行**（共用同一個資料庫），新測試的 GameClient `timeoutMs` 給 15000。
 
 **之後**：V3 隊伍引擎與 PvP 規則（23 §Q6）、V4 交易與多角色、V5 PvP 天梯、V6 `server/main.ts`＋Bicep。**V6 照零額外費用原則（D-279 補充、25 §4.3）**：ghcr.io、單一 API 縮到 0、上線 PvP 只有非同步天梯（HTTP），即時 BattleRoom 寫好但預設不部署。
 

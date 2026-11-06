@@ -2,6 +2,28 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-288 2026-11-06 拆場景從 InputSystem 開始（Q5）
+- **決策**：`src/game/rt/InputSystem.ts`：搖桿、鍵盤、累積指令 → 每 tick 的 `BattleCommand[]`（連線版送出去的就是這一層）。點擊的命中判定（按鈕、小地圖、營火、敵人）先留在場景，判定完呼叫 `inp.push()`。
+- **理由**：輸入是線上化的邊界、相依最少；命中判定要看畫面上的東西，等 HudSystem 拆出來再一起搬。
+- **替代**：一次拆 Input／Hud／Banner → 6,500 行的場景一次動太多，截圖比對很難抓到差異。
+
+## D-287 2026-11-06 IndexedDB 寫入用 relaxed durability
+- **決策**：`IdbStore.commit` 的交易加 `{ durability: 'relaxed' }`。
+- **理由**：面板動作現在每次都要寫本機資料庫，要即時；單人本機存檔，當機最多掉最後一筆，過渡期舊 key 也還在。（實測無頭瀏覽器裡寫入要 300 ms 是 Phaser 軟體繪圖把事件迴圈吃滿，`loop.sleep()` 後 1～3 ms，不是 IndexedDB 慢。）
+- **替代**：預設 durability → 手機上每次多等一次 fsync。
+
+## D-286 2026-11-06 handler 參數驗證先手寫，不引入 zod／valibot
+- **決策**：`handlers/inv.ts` 的 `idParam`／`slotParam` 與各 handler 自己檢查（型別、長度 ≤ 64、白名單：部位、地圖、材料、idx）；`tests/server-contract/fuzz.test.ts` 對所有方法 × 16 種垃圾參數，只准回 `bad_request`／`not_found`／`rejected`。V6 寫 `server/main.ts` 時再評估換 schema 函式庫（26 §4）。
+- **理由**：參數都很小（2～3 個欄位），手寫比加一個相依套件清楚；模糊測試確保不會回 `internal`。
+- **替代**：現在就上 zod → 本機版 bundle 多 ~12KB，收益不大。
+
+## D-285 2026-11-06 V2 過渡期的真實來源：舊 key 仍是真的，面板動作「先同步、伺服器做、再寫回」
+- **決策**：戰鬥中撿到的東西（`persist`）到 V5 `loot.claim` 前都還寫舊 key，所以過渡期**舊 key 是真實來源**，伺服器負責「照規則做」：面板動作 → `captureLegacy()`（動作前快照）→ `migrate.sync`（只有本機版；物品照 `uid` 對應、保留 itemId，錢包補差額記帳 `sync`）→ 呼叫 handler → `legacyMirror` 把結果寫回舊 key（只寫這次動作的欄位；值一樣不動）。`src/client/legacyOps.ts` 排隊一次一個。
+  - **確定的規則**（技能點、穿脫、分解）：畫面照舊先存（玩家看到的不變），伺服器結果不同就以伺服器為準寫回並 `console.warn` 列出差異（`opStatus.diverged`）。
+  - **伺服器才知道結果的**（強化擲骰、行商成交、買下的 uid）：面板等伺服器回來再演出（authoritative）；伺服器失敗才退回本機舊做法。
+- **理由**：一次只切一個面板、隨時能玩；同步一律在動作前做，才不會「新狀態上去、伺服器再做一次」變兩次。
+- **替代**：現在就讓伺服器當真實來源 → 戰鬥撿物、HUD、存檔 13 個檔案要同時改，V5 才合理。
+
 ## D-284 2026-11-06 SQL Server 版資料庫：表名照 25 §3、id 用 nvarchar(64)、時間存 UTC 毫秒 bigint
 - **決策**：`src/server/db/mssql`（Kysely＋MssqlDialect／tedious）。表 `game.Account／Character／Item／Wallet／LedgerEntry／RequestLog／AuditLog`；角色的技能、地圖進度等放 `Character.Data`（`ISJSON` check）、裝備本體放 `Item.Data`；樂觀鎖用 `Version int`（和 Memory／Local 同語意）；錢包 `CHECK (Balance >= 0)`；交易 SERIALIZABLE、死結重試 3 次。CI 新 job 用 SQL Server 2022 容器跑同一組契約測試，並建一張假的 `game.Players` 確認遷移後不變；遷移檔有靜態掃描（只 create／drop 自己的表、不碰 dbo、不寫原始 DROP／ALTER）。LocalDB（`msnodesqlv8`）留到 V6 的 `server/` 套件。
 - **理由**：id 由伺服器發、帶前綴字串（`chr_…`）方便看 log，`uniqueidentifier` 之後要換也只是遷移；毫秒 bigint 和 Repos 介面一致、沒有時區轉換問題；`Version` 比 `rowversion` 好在三種實作行為一模一樣。
