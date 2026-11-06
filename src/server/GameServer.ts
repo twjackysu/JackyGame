@@ -25,7 +25,9 @@ export interface GameServerOptions {
 }
 
 /** 開這些畫面時先讓模擬玩家補跑（不用常駐計時器） */
-const SIM_TRIGGER: ReadonlySet<string> = new Set(['market.browse', 'market.mine']);
+const SIM_TRIGGER: ReadonlySet<string> = new Set(['market.browse', 'market.mine', 'trade.partners']);
+/** 真人做了這些交易動作後，如果對方是模擬玩家，讓它回應一步（第 144 輪） */
+const SIM_TRADE: ReadonlySet<string> = new Set(['trade.open', 'trade.offer', 'trade.lock', 'trade.confirm', 'trade.get']);
 
 export type AnyHandler = (ctx: Ctx, p: unknown) => Promise<unknown>;
 
@@ -56,13 +58,30 @@ export class GameServer {
       if (write && !req.requestId) throw new ApiError('bad_request', 'write needs requestId');
       const accountId = await this.o.auth.resolve(req.token);
       if (this.sim && SIM_TRIGGER.has(method)) await this.sim.catchUp();
-      const result = await this.run(accountId, method, req.params, write ? req.requestId! : undefined, HANDLERS[method] as AnyHandler);
+      let result = await this.run(accountId, method, req.params, write ? req.requestId! : undefined, HANDLERS[method] as AnyHandler);
+      if (this.sim && SIM_TRADE.has(method)) result = (await this.simTrade(accountId, req.params, result)) ?? result;
       return `{"id":${id},"ok":true,"result":${result}}`;
     } catch (e) {
       const err = e instanceof ApiError ? { code: e.code, message: e.message } : { code: 'internal' as const, message: e instanceof Error ? e.message : String(e) };
       const res: Response = { id, ok: false, error: err };
       return JSON.stringify(res);
     }
+  }
+
+  /** 交易對象是模擬玩家：讓它回應一步；有回應就把真人的結果換成最新的交易狀態 */
+  private async simTrade(accountId: string, params: unknown, result: string): Promise<string | undefined> {
+    const p = params as { characterId?: unknown } | undefined;
+    const tid = (JSON.parse(result) as { trade?: { id?: unknown } }).trade?.id;
+    if (typeof tid !== 'string' || typeof p?.characterId !== 'string') return undefined;
+    const row = await this.o.db.tx((r) => r.trades.get(tid));
+    if (!row || row.state.status !== 'open') return undefined;
+    const simB = this.sim!.simOf(row.bAccountId);
+    const simA = this.sim!.simOf(row.aAccountId);
+    const sim = simB && row.aAccountId === accountId ? simB : simA && row.bAccountId === accountId ? simA : undefined;
+    if (!sim) return undefined;
+    const simChar = sim === simB ? row.bCharacterId : row.aCharacterId;
+    if (!(await this.sim!.respondTrade(sim, simChar, tid))) return undefined;
+    return this.run(accountId, 'trade.get', { characterId: p.characterId, tradeId: tid }, undefined, HANDLERS['trade.get'] as AnyHandler);
   }
 
   /**

@@ -1,6 +1,6 @@
 // 客戶端 ↔ 伺服器的訊息格式（D-277，design/24 §1～2）。邊界上只有 JSON：這裡只放型別與純函式。
 // 換成線上版時這份檔案兩邊共用，不用改。
-import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView } from './views';
+import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, PvpStartView, PvpLadderView, ShopView, TradeView, WeaponView } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -71,6 +71,8 @@ export interface Api {
   'trade.lock': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
   'trade.confirm': { params: { characterId: string; tradeId: string; rev: number }; result: { trade: TradeView; character: CharacterView }; write: true };
   'trade.cancel': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
+  /** 可以交易的對象（本機版：已經出現過的模擬冒險者；線上版之後換成好友／附近的玩家） */
+  'trade.partners': { params: { characterId: string }; result: { partners: { characterId: string; name: string; weapon: WeaponView }[] }; write: false };
   /** 看一筆交易；過期的在這裡退回（所以算寫入） */
   'trade.get': { params: { characterId: string; tradeId: string }; result: { trade: TradeView; character: CharacterView }; write: true };
   /** 天梯排行：前幾名＋自己的名次（只讀） */

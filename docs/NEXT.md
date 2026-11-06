@@ -6,15 +6,19 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 144 輪起先做（V3 收尾＋V5 PvP 畫面，11/7–11/9）
-**已經有的（到第 143 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、**`pvpRank`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`、`cards.*`、`story.choose`、`market.*`、**`pvp.start/finish`（D-297）**；**模擬玩家 `src/server/sim/`（D-293）**；**拍賣所畫面（D-294）**；**隊伍引擎（D-296）：`PlayerCtl`／`ctlOf`／`addPlayer`／`playersOf`／`foesOf`／`hostile`，`PlayerBot(prof, name, pid)`**；**PvP：`pvp.ts`、`pvp_arena`、`pvpMatch.ts`（startPvp／playPvp／replayPvp）**；`src/game/rt/InputSystem.ts`、`BannerSystem.ts`；遷移 `0001`、`0002_market`。
-1. CI（含 mssql job）每輪開頭看一次；第 143 輪最後一個程式 commit 是「PvP：對局與段位分改存角色列」。
-2. **PvP 平衡（V3 驗收，23 §Q6：三武器互打勝率 40～60%）**：`RT_REPORT=1 npx vitest run tests/rt-pvp-balance.test.ts --silent=false` 印報表。現在**劍 20:0 勝弓與法杖、法杖 20:0 勝弓**。先查原因再調：(a) Bot 不會 PvP 走位（遠程被貼身只會站著打；試過「後退」沒用，因為後退時不出手）→ 做「邊退邊射」：遠程普攻在 `attackRange` 內可以出手，Bot 在對方近身招的預告時用閃避／後躍拉開；(b) 數值：比較三武器的 DPS／HP（`summarize`）；PvP 專用倍率可以加在 `pvp.ts`（例如遠程傷害 ×、近戰減傷），**不要動 PvE 數值**。種子只影響暴擊，結果幾乎固定 → 測試多加起始距離／位置的變化。**第 143 輪量到的**：弓對劍平均距離只有 110（等於貼身肉搏），弓的後躍放了 10 次但跳完又被自動追擊拉回去；弓普攻總傷 672 vs 劍 958。所以要先讓遠程在 PvP 維持距離（自動追擊停在 `attackRange` 邊緣、被貼近時往遠離對手且不撞石頭的方向走並繼續射），再談數值。
-3. **競技場掩體**：第 143 輪已加四塊石頭（中線留空）；Bot 還不會利用掩體（平衡時一起看）。
-4. **V5 PvP 畫面**：營火或 ☰ 加「競技場」→ `pvp.start` → 用回傳的種子與雙方配裝開 `RtBattleScene`（新模式：stage `pvp_arena`、`addPlayer` 對手、對手由 `PlayerBot` 每 tick 下指令）→ 場景記下自己的指令（`InputSystem` 產生的就是）→ 結束 `pvp.finish` → 結算畫面（勝負、段位分變化、段位稱號 `rankName`）。場景現在只畫主角：對手要有血條／名字／不同顏色。
-5. **V4 託管交易 F3**、**多角色**：同前（見下面「之後」與第 142 輪的說明）。
-6. **Q5 拆 HUD**（範圍保護 #5）。
-7. **拍賣所小改進**（排序切換）、**懸賞領獎**、**匯出／匯入存檔**：有空再做。
+## ★ 第 145 輪起先做（V4 交易畫面＋多角色、V5 收尾，11/7–11/10）
+**已經有的（到第 144 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、**`trade`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`、`cards.*`、`story.choose`、`market.*`、`pvp.start/finish/ladder`、**`trade.open/offer/lock/confirm/cancel/get`（D-300）**；模擬玩家 `src/server/sim/`；拍賣所畫面；隊伍引擎；PvP：`pvp.ts`（**相剋表 `vsPct`，D-298**）、`pvp_arena`、`pvpMatch.ts`；**競技場畫面 `src/game/scenes/PvpScene.ts`＋`src/game/pvpOps.ts`（D-299）**；遷移 `0001`、`0002_market`、**`0003_trade`**。
+1. CI（含 mssql job）每輪開頭看一次；第 144 輪最後一個程式 commit 是「F3 託管交易伺服器端」（b830b7b，**新遷移 0003 第一次在 SQL Server 上跑**，紅了先修：`listByCharacter` 用了 `where((e) => e.or([...]))`）。
+2. **交易對象＝模擬玩家（F3 單機版）**：伺服器 `trade.partners`（本機限定，列出已經建好角色的模擬玩家 characterId＋名字＋武器）；GameServer 在 `trade.*` 回應後，如果對方是模擬玩家（`isSimAccount`）就讓它**透過公開 handler（`server.run(sim.accountId, 'trade.offer'…)`）回應**：玩家鎖定且有放物品 → 模擬玩家出價＝Σ 行商買價 ×（0.35＋0.45×(1−thrift)）（上限是它的金幣）並鎖定；玩家確認 → 它也確認（對同一個 rev）。玩家只放金幣想「買」→ 模擬玩家從行囊拿一件價格最接近的放上來（之後再做也行）。契約測試照 `tests/server-contract/trade.test.ts`。
+3. **交易畫面**：拍賣所旁邊（行商面板第五個分頁「交易」或拍賣所的掛單「找他交易」）：選對象 → 我的行囊點物品放進去／拿出來、金幣 ± 按鈕 → 鎖定 → 確認；對方欄即時顯示（每次動作後 `trade.get`）。寫回舊 key 照 `marketOps`（`legacyOp(..., ['items','wallet'], ..., authoritative=true)`）。
+4. **多角色（F1，不砍）**：3 角色欄、帳號共用倉庫 40 格（location `warehouse`）、金幣分角色；`character.create/delete/select`；過渡期舊 key 只對應「目前角色」——先寫 DECISIONS 再動。
+5. **競技場收尾**：(a) `pvp.finish` 頻率限制（26-security；V6 `server/main.ts` 一起）；(b) 模擬玩家的段位分現在是固定的（`simRating` 照 tier）→ 讓它們每天彼此打幾場（用 `hashSeed(sim, day)` 決定勝負、Elo 更新存在 sim 角色的 `pvpRating`）；(c) 結算畫面加「看重播」（F5，紀錄已經有，`replayPvp` 就能重跑）；(d) 對手立繪偏紅不明顯（法杖圖幾乎看不出），可以改成腳下紅圈加粗＋名字底色。
+6. **Q5 拆 HUD**（範圍保護 #5）、**V5 `loot.claim`**、**V6 `server/main.ts`＋Bicep**。
+
+**競技場注意（第 144 輪）**：
+- 截圖：`npx vite preview --port 4173` → `http://localhost:4173/?scene=Pvp`（大廳；`?debug` 才有 `window.__game`）。無頭瀏覽器第一次 `pvp.ladder`／`pvp.start` 要 5～9 秒（模擬玩家建角色＋每次寫入 300 ms）。「開始對戰」按鈕在 720 座標 (210, GAME_HEIGHT−220)。場景狀態 `__game.scene.getScene('Pvp').phase`：lobby → loading → intro → fight → judging → result。
+- 平衡報表：`RT_REPORT=1 npx vitest run tests/rt-pvp-balance.test.ts --silent=false`；測試有 30～70% 護欄，**改 PvE 數值（武器、技能）後如果它紅了，調 `PVP.vsPct`，不要動 PvE**。
+- Bot 改了（`kiteDir`、衝鋒條件）→ 進行中的 PvP 對局重跑結果會變（對手是 Bot）；一局最多 30 分鐘，影響不大。
 
 **PvP／多人注意（第 143 輪）**：
 - 單人（`s.others` 沒有）一定走原本的路徑——golden hash（`tests/rt-golden-hash.test.ts`）、`rt-perf` 基準、通關機器人都要不變；多人才走 `playersOf`／`foesOf`。

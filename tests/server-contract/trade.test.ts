@@ -107,4 +107,26 @@ for (const be of BACKENDS)
       expect(back.wallet.coin).toBe(meA.wallet.coin);
       expect(back.items.find((i) => i.id === item.id)!.location).toBe('bag');
     });
+    it('交易對象是模擬冒險者：放物品 → 它出收購價 → 鎖定它跟著鎖 → 確認它跟著確認，一樣走公開 handler', async () => {
+      const { db } = await be.fresh(() => 0);
+      const server = new GameServer({ db, auth, clock: new FakeClock(), ids: new SeqIds(), local: true, rng: () => 0.3, sim: { players: 6, throttleMs: 0, maxActions: 30 } });
+      let n = 0;
+      const a = new GameClient(new LocalTransport((j) => server.handle(j)), { token: 'accA', timeoutMs: 15000, retries: 1, newRequestId: () => `s${++n}` });
+      const A = (await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE })).characterId;
+      const { partners } = await a.call('trade.partners', { characterId: A });
+      expect(partners.length).toBeGreaterThan(0);
+      const me0 = await a.call('character.get', { id: A });
+      const item = me0.items.find((i) => i.location === 'bag')!;
+      const { trade } = await a.call('trade.open', { characterId: A, partnerCharacterId: partners[0]!.characterId });
+      let r = await a.call('trade.offer', { characterId: A, tradeId: trade.id, items: [item.id], coin: 0 });
+      const bid = r.trade.theirs.coin;
+      expect(bid).toBeGreaterThan(0);
+      expect(r.trade.locked.them).toBe(false);
+      r = await a.call('trade.lock', { characterId: A, tradeId: trade.id });
+      expect(r.trade.locked).toEqual({ me: true, them: true });
+      r = await a.call('trade.confirm', { characterId: A, tradeId: trade.id, rev: r.trade.rev });
+      expect(r.trade.status).toBe('done');
+      expect(r.character.wallet.coin).toBe(me0.wallet.coin + bid);
+      expect(r.character.items.some((i) => i.id === item.id)).toBe(false);
+    });
   });

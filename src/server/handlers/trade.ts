@@ -5,7 +5,8 @@
 import { BAG_MAX } from '../../core/meta/bag';
 import { TRADE_TTL_MS, cancel, confirm, lock, newTrade, setOffer, validOffer, type TradeResult, type TradeSide } from '../../core/meta/trade';
 import { ApiError } from '../../net/protocol';
-import type { TradeView } from '../../net/views';
+import type { TradeView, WeaponView } from '../../net/views';
+import { simRoster } from '../sim/roster';
 import type { TradeRow } from '../repos/types';
 import type { Ctx, HandlerTable } from '../router';
 import { ownCharacter } from './common';
@@ -84,7 +85,18 @@ async function execute(ctx: Ctx, t: TradeRow): Promise<void> {
   }
 }
 
-export const tradeHandlers: Pick<HandlerTable, 'trade.open' | 'trade.offer' | 'trade.lock' | 'trade.confirm' | 'trade.cancel' | 'trade.get'> = {
+export const tradeHandlers: Pick<HandlerTable, 'trade.partners' | 'trade.open' | 'trade.offer' | 'trade.lock' | 'trade.confirm' | 'trade.cancel' | 'trade.get'> = {
+  'trade.partners': async (ctx, p) => {
+    await ownCharacter(ctx, p?.characterId);
+    if (!ctx.local) return { partners: [] };
+    const partners: { characterId: string; name: string; weapon: WeaponView }[] = [];
+    for (const s of simRoster()) {
+      const [c] = await ctx.r.characters.listByAccount(s.accountId);
+      if (c) partners.push({ characterId: c.id, name: c.name, weapon: c.weapon });
+    }
+    return { partners };
+  },
+
   'trade.open': async (ctx, p) => {
     const c = await ownCharacter(ctx, p?.characterId);
     const partner = await ctx.r.characters.get(idParam(p?.partnerCharacterId, 'partnerCharacterId'));
