@@ -162,7 +162,7 @@ export class PvpScene extends Phaser.Scene {
       const sp = this.add.image(0, 0, heroKey(this.weaponOf(u), (k) => this.textures.exists(k))).setOrigin(0.5, 0.92).setDepth(30);
       sp.setScale((u.r * 5.5 * K) / sp.height);
       sp.setData('base', sp.scaleX);
-      if (u.pid) sp.setTint(0xffc0b8);
+      if (u.pid) sp.setTint(0xffa8a0);
       this.sprites.set(u.id, sp);
       this.names.push(this.add.text(0, 0, u.pid ? o.foeName : '你', { fontFamily: UI_FONT, fontSize: '22px', color: u.pid ? '#ffb0a8' : '#bfe0ff', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5).setDepth(40));
     }
@@ -350,7 +350,9 @@ export class PvpScene extends Phaser.Scene {
         return;
       }
       g.fillStyle(0x000000, 0.4).fillEllipse(px, py + r * 0.15, r * 2.6, r * 1.1);
-      g.lineStyle(3, col, 0.9).strokeEllipse(px, py + r * 0.15, r * 2.5, r * 1.0);
+      // 陣營：腳下一圈有底色的光圈（對手紅、自己藍；立繪本身看不太出差別）
+      g.fillStyle(col, 0.22 + 0.08 * Math.sin(now / 250)).fillEllipse(px, py + r * 0.15, r * 2.6, r * 1.05);
+      g.lineStyle(4, col, 0.95).strokeEllipse(px, py + r * 0.15, r * 2.6, r * 1.05);
       const moving = !!u.action || Math.abs(pos.x - (this.prev.get(u.id)?.x ?? pos.x)) > 0.3;
       const bob = moving ? Math.abs(Math.sin(now / 90 + u.id)) * r * 0.14 : Math.sin(now / 400 + u.id) * r * 0.04;
       const base = sp.getData('base') as number;
@@ -358,7 +360,7 @@ export class PvpScene extends Phaser.Scene {
       if (u.facingX !== 0) sp.setFlipX(u.facingX < 0);
       sp.setAlpha(u.invulnUntil >= s.tick ? 0.5 : 1);
       if ((this.flashUntil.get(u.id) ?? 0) > now) sp.setTintFill(0xffffff);
-      else if (u.pid) sp.setTint(0xffc0b8);
+      else if (u.pid) sp.setTint(0xffa8a0);
       else sp.clearTint();
       const top = sp.y - sp.displayHeight * 0.95;
       // 頭上血條
