@@ -1,7 +1,7 @@
 // 非同步 PvP 天梯（第 143 輪，V5 先行，24 §6.2、26-security）：
 // - pvp.start：伺服器挑對手（模擬玩家）、發種子、照雙方「身上的裝備」算配裝（物品等級壓縮 pvpGear）→ 對局存在角色的劇情旗標。
 // - pvp.finish：客戶端只送自己的指令紀錄；伺服器用同一份引擎重跑（對手 Bot 也在伺服器跑）判勝負、改段位分。紀錄不合法整筆拒絕。
-// 過渡期：對局與段位分存在 story（pvp_match／pvp_rating），V6 再搬到 game.PvpMatch 資料表。獎勵只有段位稱號，不給數值。
+// 對局與段位分存在角色列（pvpMatch／pvpRating，SQL 版在 Character.Data 的 JSON 裡；不放 story——migrate.sync 會用舊 key 蓋掉 story），V6 再搬到 game.PvpMatch 資料表。獎勵只有段位稱號，不給數值。
 import { GEAR_SLOTS, gearBonus, genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
 import { pvpGear } from '../../core/battle/rt/pvp';
 import { replayPvp, type PvpMatchSetup, type PvpSide } from '../../core/battle/rt/pvpMatch';
@@ -40,17 +40,14 @@ function simSide(sim: SimPlayer): PvpSide {
 }
 const simRating = (sim: SimPlayer): number => PVP_START_RATING - 100 + sim.tier * 30;
 
-const ratingOf = (story: Record<string, string>): number => {
-  const n = Number(story.pvp_rating);
-  return Number.isSafeInteger(n) && n > 0 ? n : PVP_START_RATING;
-};
+const ratingOf = (c: { pvpRating?: number }): number => (Number.isSafeInteger(c.pvpRating) && c.pvpRating! > 0 ? c.pvpRating! : PVP_START_RATING);
 
 export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish'> = {
   'pvp.start': async (ctx, p) => {
     const c = await ownCharacter(ctx, p?.characterId);
     const items = await ctx.r.items.listByOwner(c.id);
     const gear = items.filter((i) => i.location.startsWith('equip:') && isGear(i.gear)).map((i) => i.gear as unknown as RtGear);
-    const rating = ratingOf(c.story);
+    const rating = ratingOf(c);
     // 對手：段位分最接近的 5 個模擬玩家裡隨機一個
     const near = simRoster()
       .map((s) => ({ s, d: Math.abs(simRating(s) - rating) }))
@@ -58,7 +55,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish'> = {
       .slice(0, 5);
     const foe = near[Math.floor(ctx.rng() * near.length)]!.s;
     const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: sideOf(c.weapon, gear), foe: simSide(foe), foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
-    await ctx.r.characters.save({ ...c, story: { ...c.story, pvp_match: JSON.stringify(m) } });
+    await ctx.r.characters.save({ ...c, pvpMatch: JSON.stringify(m) });
     return { matchId: m.id, seed: m.seed, me: m.me as never, foe: m.foe as never, foeName: m.foeName, foeRating: m.foeRating, rating };
   },
 
@@ -68,7 +65,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish'> = {
     if (!Array.isArray(p?.inputs)) throw new ApiError('bad_request', 'inputs');
     let m: StoredMatch | null = null;
     try {
-      m = JSON.parse(c.story.pvp_match ?? 'null') as StoredMatch | null;
+      m = JSON.parse(c.pvpMatch ?? 'null') as StoredMatch | null;
     } catch {
       m = null;
     }
@@ -76,11 +73,11 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish'> = {
     const r = replayPvp(m, p.inputs);
     if (!r || r.s.outcome === 'running') throw new ApiError('rejected', 'inputs');
     const outcome = r.s.outcome as 'victory' | 'defeat' | 'timeout';
-    const before = ratingOf(c.story);
+    const before = ratingOf(c);
     const delta = eloDelta(before, m.foeRating, outcome);
     const rating = Math.max(1, before + delta);
-    const { pvp_match: _done, ...story } = c.story;
-    await ctx.r.characters.save({ ...c, story: { ...story, pvp_rating: String(rating) } });
+    const { pvpMatch: _done, ...rest } = c;
+    await ctx.r.characters.save({ ...rest, pvpRating: rating });
     await ctx.r.audit.add({ accountId: ctx.accountId, action: 'pvp.finish', detail: JSON.stringify({ match: m.id, foe: m.foeName, outcome, before, rating, hash: r.hash, ticks: r.s.tick }), at: ctx.clock.now() });
     return { outcome, rating, delta };
   },

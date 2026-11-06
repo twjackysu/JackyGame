@@ -45,12 +45,15 @@ for (const be of BACKENDS)
       // 別人的角色開不了、領不了
       expect(await code(b.call('pvp.start', { characterId }))).toBe('not_found');
       const local = fight(st);
+      // 過渡期：其他面板的 migrate.sync（用舊 key 蓋掉 story）不會弄丟對局與段位分
+      await a.call('migrate.sync', { snapshot: LEGACY_SAMPLE });
       const res = await a.call('pvp.finish', { characterId, matchId: st.matchId, inputs: local.inputs });
       expect(res.outcome).toBe(local.s.outcome);
       expect(res.delta).toBe(eloDelta(PVP_START_RATING, st.foeRating, res.outcome));
       expect(res.rating).toBe(PVP_START_RATING + res.delta);
       expect(await code(a.call('pvp.finish', { characterId, matchId: st.matchId, inputs: local.inputs }))).toBe('not_found');
-      // 下一局的起始分就是新的分數
+      // 下一局的起始分就是新的分數（中間再 sync 一次也一樣）
+      await a.call('migrate.sync', { snapshot: LEGACY_SAMPLE });
       expect((await a.call('pvp.start', { characterId })).rating).toBe(res.rating);
     });
 

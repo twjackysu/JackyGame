@@ -28,6 +28,10 @@ export interface CharacterRow {
   story: Record<string, string>;
   /** 進行中的燼牌下注局（D-289）：伺服器的種子與牌組；打完或重開一局就換掉 */
   cardMatch?: CardMatchRow;
+  /** 進行中的 PvP 對局（pvp.start 存、pvp.finish 清；JSON 字串＝core 的 PvpMatchSetup＋對手資訊）。不放 story：migrate.sync 會用舊 key 蓋掉 story */
+  pvpMatch?: string;
+  /** PvP 段位分（沒有＝起始分） */
+  pvpRating?: number;
   createdAt: number;
   version: number;
 }
