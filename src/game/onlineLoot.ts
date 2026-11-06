@@ -8,7 +8,7 @@ import type { GameClient } from '../client/GameClient';
 import { bootServer } from '../client/boot';
 import { onlineActive } from '../client/onlineClient';
 import { characterCache } from '../client/characterCache';
-import { mirrorToLegacy } from '../client/legacyMirror';
+import { mirrorOnline } from '../client/legacyOps';
 
 let battle: Promise<{ characterId: string; battleId: string } | null> = Promise.resolve(null);
 let seq = 0;
@@ -24,11 +24,7 @@ export const onlineLootStatus = { claims: 0, drops: 0, chests: 0, error: null as
 function synced(v: CharacterView, ticket: number, done: BountyDoneView[] = [], enemyId = '', drops: LootDropView[] = []): void {
   characterCache.set(v, ticket);
   if (characterCache.get() !== v) return; // 比較舊的回應：不寫
-  try {
-    mirrorToLegacy(localStorage, v, ['items', 'wallet']);
-  } catch {
-    /* 沒有 localStorage（測試） */
-  }
+  mirrorOnline(v, ['items', 'wallet']);
   onClaim?.(done, enemyId, drops);
 }
 

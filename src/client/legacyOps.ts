@@ -89,3 +89,12 @@ export function legacySerial<T>(fn: () => Promise<T>): Promise<T> {
   chain = run.catch(() => undefined);
   return run;
 }
+
+/** 線上版（第 147 輪）：伺服器的角色寫進舊 key 當快取（src/game 不能直接碰 localStorage，D-281） */
+export function mirrorOnline(v: CharacterView, fields: readonly MirrorField[]): void {
+  try {
+    mirrorToLegacy(localStorage, v, fields);
+  } catch {
+    /* 沒有 localStorage（測試、無痕） */
+  }
+}
