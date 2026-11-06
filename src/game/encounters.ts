@@ -2,6 +2,10 @@
 // 「取」＝馬上拿好處；「助」＝現在什麼都沒拿，下次回到這張地圖時對方會來道謝（回禮比「取」多一點）。
 // 和討伐後的抉擇（D-157）同一套面板與口吻；純畫面＋存檔層：不動戰鬥核心、不影響 stateHash。存 localStorage `jg_encounters`。
 import type { ChoiceOption, ChoicePick } from './choices';
+import { claimThanks, cleanEncounters, meet, type EncounterState } from '../core/meta/encounters';
+
+// 第 147 輪：規則（clean／meet／claimThanks）搬到 core/meta/encounters.ts，伺服器共用
+export { claimThanks, cleanEncounters, meet, type EncounterState };
 
 export type EncounterNpc = 'hunter' | 'mule' | 'miner' | 'herbalist' | 'thief' | 'pilgrim' | 'courier';
 
@@ -138,20 +142,7 @@ export const ENCOUNTER_RADIUS = 2;
 
 export const encountersOf = (map: string): Encounter[] => ENCOUNTERS.filter((e) => e.map === map);
 
-/** 存檔：take／spare＝選了（spare 還沒拿回禮）；thanked＝選了助、也拿過回禮 */
-export type EncounterState = ChoicePick | 'thanked';
-
 const KEY = 'jg_encounters';
-
-export function cleanEncounters(raw: unknown): Record<string, EncounterState> {
-  const out: Record<string, EncounterState> = {};
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
-  for (const e of ENCOUNTERS) {
-    const v = (raw as Record<string, unknown>)[e.id];
-    if (v === 'take' || v === 'spare' || v === 'thanked') out[e.id] = v;
-  }
-  return out;
-}
 
 export function loadEncounters(): Record<string, EncounterState> {
   try {
@@ -167,12 +158,6 @@ export function saveEncounters(c: Record<string, EncounterState>): void {
   } catch {
     /* 無痕模式 */
   }
-}
-
-/** 做出選擇（只有一次）；未知 id 或已經選過回 null */
-export function meet(cur: Record<string, EncounterState>, id: string, pick: ChoicePick): Record<string, EncounterState> | null {
-  if (!ENCOUNTERS.some((e) => e.id === id) || cur[id]) return null;
-  return { ...cur, [id]: pick };
 }
 
 /**
@@ -196,12 +181,6 @@ export function leftMapsExcept(map: string): void {
 /** 進地圖時：這張圖上選了「助」、還沒拿回禮的相遇（這次進來就會來道謝；同一次停留剛選的不算） */
 export function pendingThanks(cur: Record<string, EncounterState>, map: string): Encounter[] {
   return encountersOf(map).filter((e) => cur[e.id] === 'spare' && !metThisVisit.has(e.id));
-}
-
-/** 拿回禮：標成 thanked；回傳新狀態（不是待回禮的回 null） */
-export function claimThanks(cur: Record<string, EncounterState>, id: string): Record<string, EncounterState> | null {
-  if (cur[id] !== 'spare') return null;
-  return { ...cur, [id]: 'thanked' };
 }
 
 /** 地圖上還要畫出來、走近會觸發的相遇（沒選過的） */

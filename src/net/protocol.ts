@@ -64,6 +64,10 @@ export interface Api {
   'cards.start': { params: { characterId: string; opponentId: string }; result: { matchId: string; seed: number; deck: string[]; character: CharacterView }; write: true };
   'cards.finish': { params: { characterId: string; matchId: string; moves: CardMoveView[] }; result: { winner: number; payout: number; prize: string | null; character: CharacterView }; write: true };
   // 討伐後的抉擇（core/meta/choices.ts，D-290）：要打倒過那張地圖的 Boss、只能選一次；「取」的結晶伺服器發
+  /** 路上的相遇（第 147 輪）：選一次，「取」的獎勵伺服器發 */
+  'story.meet': { params: { characterId: string; encounterId: string; pick: 'take' | 'spare' }; result: { coin: number; crystal: number; character: CharacterView }; write: true };
+  /** 相遇的回禮：選過「助」才有、只有一次 */
+  'story.thanks': { params: { characterId: string; encounterId: string }; result: { coin: number; crystal: number; character: CharacterView }; write: true };
   'story.choose': { params: { characterId: string; map: string; pick: 'take' | 'spare' }; result: { crystal: number; character: CharacterView }; write: true };
   // 拍賣所（core/meta/market.ts，24 §4.1）：上架收上架費、成交扣手續費、物品換主人都在同一個交易
   'market.list': { params: { characterId: string; itemId: string; price: number }; result: { listing: ListingView; character: CharacterView }; write: true };
@@ -135,6 +139,8 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'cards.start',
   'cards.finish',
   'story.choose',
+  'story.meet',
+  'story.thanks',
   'market.list',
   'market.cancel',
   'market.buy',

@@ -2111,6 +2111,7 @@ export class RtBattleScene extends Phaser.Scene {
       const c = meet(loadEncounters(), e.id, pick);
       if (!c) return;
       saveEncounters(c);
+      onlineLoot.meet(e.id, pick, loadWeapon());
       if (pick === 'spare' && !e.escort) markMetThisVisit(e.id, this.stageId); // 護送的人半路場景重開就照舊在原地等（不然要離開地圖才找得到她）
       const x = this.sx(e.tx * UNIT + UNIT / 2);
       const y = this.sy(e.ty * UNIT + UNIT / 2);
@@ -2149,6 +2150,7 @@ export class RtBattleScene extends Phaser.Scene {
     const c0 = claimThanks(loadEncounters(), e.id);
     if (!c0) return;
     saveEncounters(c0);
+    onlineLoot.thanks(e.id, loadWeapon());
     let rec: RtRecord | null = loadRecord(this.stageId);
     if (e.thanks.coin) rec = rec && spendCoin(rec, -e.thanks.coin);
     if (e.thanks.crystal) rec = rec && spend(rec, 0, -e.thanks.crystal);

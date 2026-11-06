@@ -51,5 +51,11 @@ describe('線上版 PvE 掉落回報', () => {
     expect(characterCache.get()?.id).toBe(me!.id);
     expect(characterCache.wallet('coin')).toBe(me!.wallet.coin);
     expect(characterCache.get()?.xp).toBe(me!.xp);
+    // 相遇「取」（第 147 輪）：伺服器發 60 金，快取跟著
+    const coin0 = me!.wallet.coin;
+    onlineLoot.meet('mw_hunter', 'take', 'bow');
+    for (let i = 0; i < 50 && characterCache.wallet('coin') === coin0; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(characterCache.wallet('coin')).toBe(coin0 + 60);
+    expect(onlineLootStatus.error).toBeNull();
   });
 });

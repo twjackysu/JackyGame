@@ -3,7 +3,8 @@
 // 過渡期：畫面上的掉落與本機存檔照舊（之後畫面改讀伺服器的角色，舊 key 才退場）；回報失敗（速度上限、斷線）只記 console，不影響遊戲。
 import { hasLoot } from '../core/battle/rt/loot';
 import type { Unit } from '../core/battle/rt/types';
-import type { BountyDoneView, WeaponView } from '../net/views';
+import type { BountyDoneView, CharacterView, WeaponView } from '../net/views';
+import type { GameClient } from '../client/GameClient';
 import { bootServer } from '../client/boot';
 import { onlineActive } from '../client/onlineClient';
 import { characterCache } from '../client/characterCache';
@@ -15,6 +16,21 @@ let onClaim: ((done: BountyDoneView[], enemyId: string) => void) | null = null;
 let chain: Promise<unknown> = Promise.resolve();
 /** 除錯：回報了幾隻、拿到幾筆掉落、最後的錯誤 */
 export const onlineLootStatus = { claims: 0, drops: 0, chests: 0, error: null as string | null };
+
+function story(op: (client: GameClient, characterId: string) => Promise<{ character: CharacterView }>, weapon: WeaponView): void {
+  chain = chain.then(async () => {
+    try {
+      const { client } = await bootServer();
+      const me = await onlineActive(client, weapon);
+      const ticket = characterCache.ticket();
+      const r = await op(client, me.id);
+      characterCache.set(r.character, ticket);
+    } catch (e) {
+      onlineLootStatus.error = e instanceof Error ? e.message : String(e);
+      console.warn('[story]', onlineLootStatus.error);
+    }
+  });
+}
 
 export const onlineLoot = {
   start(stageId: string, night: boolean, weapon: WeaponView, claimed?: (done: BountyDoneView[], enemyId: string) => void): void {
@@ -52,6 +68,16 @@ export const onlineLoot = {
         console.warn('[loot.chest]', onlineLootStatus.error);
       }
     });
+  },
+
+  /** 路上的相遇（第 147 輪）：選擇與回禮由伺服器記帳、發獎勵（不用等這場的 battle.start） */
+  meet(encounterId: string, pick: 'take' | 'spare', weapon: WeaponView): void {
+    if (!import.meta.env.VITE_SERVER_URL) return;
+    story((client, characterId) => client.call('story.meet', { characterId, encounterId, pick }), weapon);
+  },
+  thanks(encounterId: string, weapon: WeaponView): void {
+    if (!import.meta.env.VITE_SERVER_URL) return;
+    story((client, characterId) => client.call('story.thanks', { characterId, encounterId }), weapon);
   },
 
   kill(u: Unit): void {
