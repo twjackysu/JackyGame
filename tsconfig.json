@@ -17,5 +17,5 @@
     "noEmit": true,
     "useDefineForClassFields": true
   },
-  "include": ["src", "tests", "vite.config.ts", "capacitor.config.ts"]
+  "include": ["src", "tests", "server", "vite.config.ts", "capacitor.config.ts"]
 }

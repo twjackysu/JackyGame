@@ -45,3 +45,4 @@ xcuserdata/
 # screenshots
 /screenshots/
 tests/zz-*.test.ts
+!.env.example
