@@ -3,7 +3,7 @@
 > **唯一的美術需求佇列。** 開發迴圈需要 AI 圖時只在這裡新增。11/5 第 137 輪清理過：已完成的舊項目全部刪掉（要查 prompt 看 git 歷史）。
 
 ## 規則
-1. **額度**：GPT 剩 0 張、Gemini 剩 3 張（整個專案上限 GPT 8／Gemini 12）。
+1. **額度**：GPT 剩 0 張、Gemini 剩 3 張（整個專案上限 GPT 8／Gemini 12）。第二期（11/6，D-276）排了 R-020、R-021 兩張 Gemini，排完剩 1 張保留。
 2. 精緻、玩家會盯著看的 → **GPT**；普通、量多的 → **Gemini**，盡量一張圖多個物件（sheet）。
 3. 遊戲不依賴這些圖：都有程式美術或舊圖備援，圖到了才替換。
 
@@ -18,7 +18,17 @@
 - **主角外觀（每張主角圖都要一致）**：`The hero: a teenage boy with messy dark-brown hair and warm amber eyes, long red scarf flowing in the wind, dark navy-black long coat with gold trim and a small compass emblem, brown leather belts and gloves, brown boots. He does NOT carry a lantern.`
 
 ## 需求清單（待產）
-（目前沒有）
+### R-020 `sheet_starfall_foes`（Gemini，優先：高）
+- **用途**：星隕高原（通關後地圖）現在是程式美術或狼圖染色。一張 1×3 sheet → `enemy_star_sentinel`（Boss「星骸守望者」）、`enemy_crystal_golem`（「晶殼魔像」）、`enemy_star_wolf`（「星痕狼」）；切格設定已寫在 `scripts/art-sheets.json`。三隻都**面朝右**、全身、腳底對齊同一條線。
+- **底色**：洋紅 #FF00FF（主體有藍綠光，不用綠幕）。
+- **Prompt**：`A horizontal character sheet with 3 separate full-body monsters on a flat solid magenta (#FF00FF) background, evenly spaced with wide empty gaps, all facing right, feet on the same baseline, no overlap. 1) "Star Sentinel" boss: a towering ancient guardian made of cracked dark-blue meteorite stone and floating star fragments, a glowing pale-gold core in its chest, a halo ring of tiny stars behind its head, long stone arms with crystal claws, imposing and majestic. 2) "Crystal Golem": a squat sturdy golem of translucent violet crystal shards over grey rock, glowing seams, small glowing eyes. 3) "Star-marked Wolf": a lean wolf with midnight-blue fur, glowing pale-blue constellation markings along its body, starlight wisps trailing from its tail.`
+- **狀態**：待產
+
+### R-021 `sheet_wolf_variants`（Gemini，優先：中）
+- **用途**：燼紅裂谷與星隕高原有 6 種狼都是霧狼圖染色，看起來一樣。一張 1×4 sheet → `enemy_ember_wolf`（燼狼）、`enemy_magma_stalker`（熔岩巡獵者）、`enemy_obsidian_alpha`（黑曜狼首）、`enemy_eclipse_wolf`（蝕月狼）。都**面朝右**、全身、同一條腳底線，體型和現有 `enemy_mist_wolf` 相近。
+- **底色**：洋紅 #FF00FF。
+- **Prompt**：`A horizontal creature sheet with 4 separate full-body wolves on a flat solid magenta (#FF00FF) background, evenly spaced with wide empty gaps, all facing right in a prowling pose, feet on the same baseline, no overlap, similar size. 1) "Ember Wolf": charcoal-grey fur with glowing orange cracks like cooling lava, ember sparks rising from its back. 2) "Magma Stalker": a larger, leaner wolf with molten-red mane, armored with black volcanic rock plates, glowing yellow eyes. 3) "Obsidian Alpha": a heavy pack-leader wolf covered in glossy black obsidian spikes with purple reflections, scarred muzzle. 4) "Eclipse Wolf": deep violet-black fur, a dark crescent-moon mark on its forehead, a faint purple corona outline around its body.`
+- **狀態**：待產
 
 ## 已完成（prompt 見 git 歷史）
 | 編號 | 工具 | 檔名 | 用在 |

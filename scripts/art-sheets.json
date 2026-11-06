@@ -1,3 +1,30 @@
 {
-  "sheet_hero_weapons": { "cols": 3, "rows": 1, "names": ["hero_sword", "hero_bow", "hero_staff"] }
+  "sheet_hero_weapons": {
+    "cols": 3,
+    "rows": 1,
+    "names": [
+      "hero_sword",
+      "hero_bow",
+      "hero_staff"
+    ]
+  },
+  "sheet_starfall_foes": {
+    "cols": 3,
+    "rows": 1,
+    "names": [
+      "enemy_star_sentinel",
+      "enemy_crystal_golem",
+      "enemy_star_wolf"
+    ]
+  },
+  "sheet_wolf_variants": {
+    "cols": 4,
+    "rows": 1,
+    "names": [
+      "enemy_ember_wolf",
+      "enemy_magma_stalker",
+      "enemy_obsidian_alpha",
+      "enemy_eclipse_wolf"
+    ]
+  }
 }
