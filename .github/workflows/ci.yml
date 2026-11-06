@@ -39,6 +39,7 @@ jobs:
           SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?skipIntro' screenshots/title.png 4000
           SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?scene=RtBattle&stage=mistwood' screenshots/mistwood.png 6000
           SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?scene=RtBattle&stage=wolf_king&bot=expert' screenshots/wolfking.png 5000
+          SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?scene=Pvp' screenshots/pvp.png 8000
       - uses: actions/upload-artifact@v4
         if: always()
         with:

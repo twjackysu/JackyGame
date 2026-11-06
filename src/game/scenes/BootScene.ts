@@ -30,6 +30,7 @@ export class BootScene extends Phaser.Scene {
     // 除錯入口：?debug&scene=RtBattle&stage=mistwood（試玩小關卡 stage=wolf_king 等）
     const q = new URLSearchParams(window.location.search);
     if (q.get('scene') === 'RtBattle') this.scene.start('RtBattle');
+    else if (q.get('scene') === 'Pvp') this.scene.start('Pvp');
     else this.scene.start('Title');
   }
 
