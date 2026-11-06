@@ -8,7 +8,7 @@ import { playerDef, playerOf, skillDef, skillShape, step } from '../../core/batt
 import { PVP_MAX_CMDS_PER_TICK, PVP_STAGE, startPvp, type PvpInputs } from '../../core/battle/rt/pvpMatch';
 import type { PlayerBot } from '../../core/battle/rt/sim';
 import { TICKS_PER_SEC, UNIT, type BattleCommand, type BattleState, type Shape, type Unit } from '../../core/battle/rt/types';
-import { rankName } from '../../core/meta/pvpRank';
+import { rankAura, rankName } from '../../core/meta/pvpRank';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -305,6 +305,24 @@ export class PvpScene extends Phaser.Scene {
     return { x: p.x + (u.x - p.x) * t, y: p.y + (u.y - p.y) * t };
   }
 
+  /** 段位外觀（rankAura）：腳下往外擴散的光圈＋高段位的環繞光點；只是外觀，不影響戰鬥 */
+  private drawAura(g: Phaser.GameObjects.Graphics, u: Unit, x: number, y: number, r: number, now: number): void {
+    const a = rankAura(u.pid ? this.open!.foeRating : this.open!.rating);
+    if (!a) return;
+    const period = 1400;
+    for (let i = 0; i < a.rings; i++) {
+      const t = ((now + (i * period) / a.rings) % period) / period;
+      g.lineStyle(5 - t * 3, a.color, 0.85 * (1 - t)).strokeEllipse(x, y, r * (2.7 + t * 2.2), r * (1.05 + t * 0.9));
+    }
+    for (let i = 0; i < a.motes; i++) {
+      const ang = now / 700 + (i * Math.PI * 2) / a.motes;
+      const mx = x + Math.cos(ang) * r * 1.5;
+      const my = y - r * 0.9 + Math.sin(ang) * r * 0.55 - Math.sin(now / 300 + i) * r * 0.15;
+      g.fillStyle(a.color, 0.4).fillCircle(mx, my, 9);
+      g.fillStyle(0xffffff, 0.95).fillCircle(mx, my, 4);
+    }
+  }
+
   private shapePath(g: Phaser.GameObjects.Graphics, sh: Shape, ox: number, oy: number, dx: number, dy: number, fill: boolean): void {
     const x = this.sx(ox);
     const y = this.sy(oy);
@@ -363,6 +381,7 @@ export class PvpScene extends Phaser.Scene {
         return;
       }
       g.fillStyle(0x000000, 0.4).fillEllipse(px, py + r * 0.15, r * 2.6, r * 1.1);
+      this.drawAura(g, u, px, py + r * 0.15, r, now);
       // 陣營：腳下一圈有底色的光圈（對手紅、自己藍；立繪本身看不太出差別）
       g.fillStyle(col, 0.22 + 0.08 * Math.sin(now / 250)).fillEllipse(px, py + r * 0.15, r * 2.6, r * 1.05);
       g.lineStyle(4, col, 0.95).strokeEllipse(px, py + r * 0.15, r * 2.6, r * 1.05);

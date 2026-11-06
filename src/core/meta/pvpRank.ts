@@ -14,6 +14,24 @@ export function rankName(r: number): string {
   return r >= 1400 ? '星隕' : r >= 1250 ? '燼紅' : r >= 1100 ? '荊棘' : r >= 950 ? '霧語' : '見習';
 }
 
+/**
+ * 段位外觀（F4 獎勵只給外觀，第 146 輪）：腳下光環的顏色與層數。見習沒有；越高段越多層、星隕再加環繞的星點。
+ * 純資料（顏色是 0xRRGGBB），畫面層照這個畫。
+ */
+export interface RankAura {
+  color: number;
+  /** 往外擴散的光圈層數 */
+  rings: number;
+  /** 環繞的光點數（0＝沒有） */
+  motes: number;
+}
+export function rankAura(r: number): RankAura | null {
+  if (r >= 1400) return { color: 0xe6d2ff, rings: 3, motes: 6 };
+  if (r >= 1250) return { color: 0xff8a3d, rings: 3, motes: 3 };
+  if (r >= 1100) return { color: 0x7dffb0, rings: 2, motes: 0 };
+  if (r >= 950) return { color: 0x9fd8ff, rings: 1, motes: 0 };
+  return null;
+}
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 /** 模擬冒險者的天梯只算最近幾天（每天重算；舊的不累積，分數不會一路飄走） */
