@@ -2,6 +2,7 @@
 node_modules/
 dist/
 dist-server/
+dist-online/
 dev-dist/
 coverage/
 *.tsbuildinfo
@@ -17,6 +18,8 @@ Thumbs.db
 !.vscode/extensions.json
 .env
 .env.*
+# 線上客戶端建置預設值（只有本機網址，不是機密，D-306）
+!.env.online
 
 # Android
 android/app/build/

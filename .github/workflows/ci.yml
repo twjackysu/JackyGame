@@ -31,6 +31,11 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      # V6（D-306）：線上版客戶端建置，而且不能打包 src/server（26-security）
+      - name: Online client build (no src/server)
+        run: |
+          npm run build:online
+          node scripts/check-online-bundle.mjs dist-online dist
       # V6（D-305）：線上 API 打包成一個檔案、真的啟動、打 /health；打包結果不能有遊戲畫面（Phaser）
       - name: Server bundle smoke test
         run: |

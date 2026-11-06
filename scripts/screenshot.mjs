@@ -13,6 +13,17 @@ const out = process.argv[3] ?? 'screenshots/title.png';
 const waitMs = Number(process.argv[4] ?? 3000);
 mkdirSync(path.dirname(out), { recursive: true });
 
+// CI 偶爾整支卡住（第 146 輪：競技場那張卡到 job 15 分鐘上限被取消，本機重跑 3 次都 11 秒）。
+// 看門狗：超過 waitMs＋150 秒就收手——已經收集到頁面錯誤就照樣失敗，否則只記警告（卡住的是 swiftshader，不是遊戲）。
+const problems = [];
+const watchdog = setTimeout(() => {
+  console.log(`WARNING: ${out} 超過 ${Math.round((waitMs + 150000) / 1000)} 秒沒結束，放棄這張（無頭瀏覽器卡住）`);
+  const fatal = problems.filter((p) => p.startsWith('[pageerror]') || p.startsWith('[error]'));
+  if (problems.length) console.log(problems.join('\n'));
+  process.exit(process.env.SMOKE_STRICT === '1' && fatal.length ? 1 : 0);
+}, waitMs + 150000);
+watchdog.unref();
+
 function findChromium() {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
   const base = process.env.PLAYWRIGHT_BROWSERS_PATH;
@@ -38,7 +49,6 @@ const context = await browser.newContext({
   serviceWorkers: 'block',
 });
 const page = await context.newPage();
-const problems = [];
 page.on('console', (m) => {
   if (m.type() === 'error' || m.type() === 'warning') problems.push(`[${m.type()}] ${m.text()}`);
   else console.log(`[console.${m.type()}] ${m.text()}`);
@@ -65,10 +75,11 @@ for (let attempt = 1; attempt <= 2 && !shotOk; attempt++) {
 console.log(`canvas: ${renderer}`);
 console.log(shotOk ? `saved ${out}` : `WARNING: screenshot skipped for ${out}`);
 if (problems.length) console.log(problems.join('\n'));
-await browser.close();
+await Promise.race([browser.close(), new Promise((r) => setTimeout(r, 15000))]);
 // SMOKE_STRICT=1：有 pageerror 或 console.error 就失敗（CI 煙霧測試用）
 const fatal = problems.filter((p) => p.startsWith('[pageerror]') || p.startsWith('[error]'));
 if (process.env.SMOKE_STRICT === '1' && (fatal.length || renderer === 'no canvas')) {
   console.error(`SMOKE FAILED: ${fatal.length} error(s), canvas=${renderer}`);
   process.exit(1);
 }
+process.exit(0);

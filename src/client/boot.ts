@@ -3,11 +3,17 @@
 // 這裡是過渡期唯一讀舊存檔的地方（之後會刪掉）。
 import type { GameClient } from './GameClient';
 import type { MigrateResult } from '../net/views';
-import { startLocalServer } from './localServer';
+
+/**
+ * 線上版伺服器網址（D-306）：建置時 VITE_SERVER_URL 有值＝線上版（npm run build:online）。
+ * Vite 在建置時把它換成字串常數，沒用到的分支（連同動態 import 的 localServer／src/server）不會打包。
+ */
+export const SERVER_URL: string = import.meta.env.VITE_SERVER_URL ?? '';
+export const ONLINE = SERVER_URL !== '';
 
 export interface BootResult {
   client: GameClient;
-  kind: 'idb' | 'kv' | 'memory';
+  kind: 'idb' | 'kv' | 'memory' | 'online';
   migrate?: MigrateResult;
   error?: string;
 }
@@ -29,6 +35,19 @@ let booted: Promise<BootResult> | null = null;
 /** 啟動一次（之後呼叫拿同一個結果）；任何錯誤都不影響遊戲（只記下來） */
 export function bootServer(): Promise<BootResult> {
   return (booted ??= (async () => {
+    if (import.meta.env.VITE_SERVER_URL) {
+      // 線上版：不遷移舊存檔（26-security：線上帳號從新開始）
+      const { startOnlineClient, onlineToken } = await import('./onlineClient');
+      let ls: Storage | undefined;
+      try {
+        ls = localStorage;
+      } catch {
+        ls = undefined;
+      }
+      const client = await startOnlineClient(import.meta.env.VITE_SERVER_URL, onlineToken(ls, import.meta.env.VITE_AUTH_MODE === 'dev'));
+      return { client, kind: 'online' as const };
+    }
+    const { startLocalServer } = await import('./localServer');
     const { client, kind } = await startLocalServer();
     const out: BootResult = { client, kind };
     try {
