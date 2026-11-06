@@ -10,6 +10,7 @@ import type { Rng } from '../core/rng';
 import { secureRandom } from './random';
 import type { Ctx } from './router';
 import { SimMarket, type SimOptions } from './sim/SimMarket';
+import type { RateLimiter } from './rateLimit';
 
 export interface GameServerOptions {
   db: Db;
@@ -22,6 +23,8 @@ export interface GameServerOptions {
   local?: boolean;
   /** 開模擬玩家（本機版預設開；線上版關掉或保留當填充）。true＝預設設定 */
   sim?: boolean | SimOptions;
+  /** 頻率限制（26-security；線上版一定給，本機版不給） */
+  limiter?: RateLimiter;
 }
 
 /** 開這些畫面時先讓模擬玩家補跑（不用常駐計時器） */
@@ -57,6 +60,7 @@ export class GameServer {
       const write = WRITE_METHODS.has(method);
       if (write && !req.requestId) throw new ApiError('bad_request', 'write needs requestId');
       const accountId = await this.o.auth.resolve(req.token);
+      if (this.o.limiter && !this.o.limiter.take(accountId, method, this.clock.now())) throw new ApiError('rate_limited', method);
       if (this.sim && SIM_TRIGGER.has(method)) await this.sim.catchUp();
       let result = await this.run(accountId, method, req.params, write ? req.requestId! : undefined, HANDLERS[method] as AnyHandler);
       if (this.sim && SIM_TRADE.has(method)) result = (await this.simTrade(accountId, req.params, result)) ?? result;
