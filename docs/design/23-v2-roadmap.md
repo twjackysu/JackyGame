@@ -1,18 +1,19 @@
-# 23 第二期路線圖（11/6 → 11/13）：新功能、美術、程式品質、連線預備
+# 23 第二期路線圖（11/6 → 11/13）：單機模擬線上版（交易、PvP）、程式品質、美術
 
 > 2026-11-06 Jacky：「產品做得不錯，想繼續進度。新目標到 2026/11/13，自行列新功能 PLAN 或美術改進和 Code 品質改進計畫（時間或空間複雜度，或是方便之後變成線上多人連線版的架構寫法），一樣留 FOR_JACKY 給 feedback。」決策 D-276。
+> **11/6 追加（D-277）**：日後可能線上化，方向以**交易**與 **PvP** 為主；先用**單機模擬線上版**（遊戲內建一台本機伺服器＋本機資料庫），之後只換資料庫或後端就能上線。架構規格見 **`24-online-architecture.md`**，本文件的 Q2／Q6／Q7、F 系列、里程碑已照它改寫。
 > 每一輪選工作時以本文件的里程碑 V1～V7 為主線；`docs/NEXT.md` 是逐輪待辦。**main 永遠要能 build、能從新遊戲玩到通關**；任何重構都不能讓玩家看到的行為變差。
 
 ## 0. 原則
-1. **先打地基、再加功能**：前兩天做「不改玩法」的重構（存檔、確定性、效能、拆場景），後面的功能（多角色、重播、每日挑戰）才蓋得上去。
-2. **連線預備 ≠ 現在做連線**：專案要求完全離線、不使用付費服務，所以 11/13 前**不架伺服器**。目標是讓「之後接上伺服器」只需要寫 transport 和 server，不用重寫遊戲。驗收方式是本機兩份引擎在記憶體裡互傳指令、`stateHash` 一致。
-3. **重構要可驗證**：每一步都要有 vitest、通關機器人（`npm run playthrough`）和固定種子 `stateHash` 回歸；畫面層的拆分要附前後截圖。
+1. **先打地基、再加功能**：先做「不改玩法」的重構與本機伺服器骨架，交易、PvP、多角色才蓋得上去。
+2. **單機模擬線上版**（D-277）：客戶端 → `GameClient` → `LocalTransport`（只傳 JSON）→ `GameServer`（權威）→ Repository → `LocalDb`。上線時只換 Transport 與 Repository 實作。專案仍完全離線、不架伺服器、不付費。
+3. **重構要可驗證**：每一步都要有 vitest、通關機器人（`npm run playthrough`）和固定種子 `stateHash` 回歸；伺服器 handler 要有契約測試（同一組測試跑 MemoryDb 與 LocalDb）；畫面層的拆分要附前後截圖。
 4. **品質優先於數量**：時間不夠時照 §6 的順序砍。
 
 ## 1. 現況盤點（11/6，第 138 輪後）
 | 項目 | 現況 | 問題 |
 |---|---|---|
-| 核心 `src/core/battle/rt/` | 純 TS、30 ticks/秒、xorshift32、`step(state, cmds)`、`stateHash` | 很好的基礎。但 `playerOf(s) = s.units[0]`（84 處假設單人）；`engine.ts` 的扇形命中與重生圍圈用 `Math.asin`／`Math.cos`／`Math.sin`（不同 JS 引擎結果可能差最後一位，lockstep 會分歧） |
+| 核心 `src/core/battle/rt/` | 純 TS、30 ticks/秒、xorshift32、`step(state, cmds)`、`stateHash` | 很好的基礎。但 `playerOf(s) = s.units[0]`（84 處假設單人）；`engine.ts` 的扇形命中與重生圍圈用 `Math.asin`／`Math.cos`／`Math.sin`（不同 JS 引擎結果可能差最後一位：伺服器用 Node 重跑客戶端的 PvP 指令紀錄驗證時會對不上） |
 | 畫面 `RtBattleScene.ts` | **6,495 行**、約 325 個方法 | 上帝物件：鏡頭、HUD、置中大字、特效、輸入、相遇、面板入口、存檔全混在一起，改一處容易牽動別處 |
 | 規則放在畫面層 | `src/game/rtShop.ts`、`rtBag.ts`、`rtSkills.ts`、`rtBounty.ts`、`choices.ts`、`encounters.ts` | 掉落／買賣／強化／技能點是「會改存檔的規則」，連線版要在伺服器跑，不能留在 Phaser 那邊 |
 | 存檔 | 13 個檔案直接呼叫 `localStorage`（約 50 處），key 散在各處（`jg_rt_<map>`、`jg_weapon`、`jg_prologue_seen`…） | 沒有統一 schema 版本與遷移；不能換成雲端存檔；玩家無法備份 |
@@ -26,15 +27,15 @@
 - 測試 `tests/core-purity.test.ts`：掃 `src/core/**`，禁止 `Math.random`、`Math.sin|cos|tan|asin|acos|atan2|exp|pow|log`、`Date`、`performance`、`localStorage`、`window`、`phaser` import。
 - 回歸：固定 10 個種子 × 3 武器 × 4 地圖跑 3,000 tick 的 `stateHash` 寫成快照（`tests/rt-golden-hash.test.ts`）。**之後改平衡會變 hash 是正常的**，更新快照時在 commit 寫「hash 快照更新：原因」。
 
-### Q2 存檔層 `src/save/`（V1）
-- `SaveStore` 介面：`get<T>(key, schema)`、`set(key, value)`、`remove`、`keys()`；實作 `LocalSaveStore`（現在）與 `MemorySaveStore`（測試、Bot）。之後的 `RemoteSaveStore` 只要實作同一介面。
-- 所有 `localStorage` 呼叫改走 `SaveStore`（`src/game/**` 不准直接用，測試擋）。key 集中在 `src/save/keys.ts`。
-- `SaveRoot` 加 `schemaVersion` 與 `migrations[]`（v1＝現在的格式，讀舊存檔自動升級、升級前先備份到 `jg_backup_<時間>`）。
-- **玩家看得到的功能**：設定裡「匯出存檔／匯入存檔」（壓成一段文字＋複製；匯入前驗證）。換手機或清快取前可以備份。
-- 空間：存檔用短 key、裝備用陣列格式會更省，但先求正確；量一下最大存檔大小寫進 PROGRESS，超過 200KB 再壓。
+### Q2 本機伺服器骨架＋資料層（V1，取代原本的 SaveStore 方案）
+- 照 24 §8 建 `src/net/`（`protocol.ts`、`Transport`、`LocalTransport`：每則訊息 JSON 來回、可設延遲／掉包）、`src/server/`（`GameServer`、handler 路由、`requestId` 冪等快取、`Clock`）、`src/server/repos/`（介面）、`src/server/db/memory`、`src/server/db/local`（IndexedDB；不支援時退回 localStorage 版 KV）、`src/client/GameClient.ts`（型別化 `call`、逾時重送、同一個 requestId）。
+- 資料模型照 24 §3（Account／Character／Item／Wallet＋Ledger…）。**舊存檔遷移**：第一次啟動把 `jg_rt_<map>`、`jg_weapon` 等轉成帳號 1／角色 1，轉之前備份到 `jg_backup_<時間>`；遷移有測試（舊格式樣本 → 新資料 → 數值一樣）。
+- `src/game/**` 的 `localStorage` 逐檔改成呼叫 `GameClient`（設定、提示看過沒這種純客戶端偏好可以留在 `ClientPrefs`，一樣集中一個檔案）。最後加掃描測試擋 `src/game` 直接用 `localStorage`／`indexedDB`。
+- 玩家看得到的：設定裡「匯出／匯入存檔」（伺服器 `account.export`／`account.import`）。
+- 驗收：`tests/server-contract/*.test.ts` 同時跑 MemoryDb 與 LocalDb（fake-indexeddb）；通關機器人照舊能通關。
 
 ### Q3 規則移到核心 `src/core/meta/`（V2）
-- 把「會改存檔的規則」改成純函式：`rollLoot(rng, ctx)`、`buy(state, offer)`、`sell`、`enhance(rng, item)`、`spendSkillPoint`、`applyChoice`… 輸入舊狀態、回傳新狀態＋事件，**不碰 Phaser、不碰存檔**。畫面層只呼叫它們、再交給 `SaveStore` 存。
+- 把「會改存檔的規則」改成純函式：`rollLoot(rng, ctx)`、`buy(state, offer)`、`sell`、`enhance(rng, item)`、`spendSkillPoint`、`applyChoice`… 輸入舊狀態、回傳新狀態＋事件，**不碰 Phaser、不碰資料庫**。由伺服器 handler 呼叫它們、再寫進 Repository；畫面層只看結果。
 - 亂數一律傳入 `Rng`（不用全域）。這樣伺服器可以照同一份程式驗證「這次強化真的成功嗎」，防作弊。
 - 驗收：`src/game/rt*.ts` 裡沒有規則運算，只剩 UI 綁定；現有 `rt-shop`／`rt-enhance` 等測試改測 core 版本仍全過。
 
@@ -59,31 +60,32 @@
   - `PanelHost`（☰、行囊、行商、技能樹、燼牌、返回鍵）
 - 做法：一次搬一個系統、一個 commit；搬之前先跑截圖腳本存基準圖，搬完比對（像素差 > 0.5% 就停下來看）。
 
-### Q6 多玩家引擎（V3）
-- `BattleState.players: number[]`（unit id），`playerOf(s, pid = 0)`；`BattleCommand` 外包一層 `{ pid, cmd }`（單人時畫面層自動帶 pid 0，舊呼叫相容）。
-- 敵人仇恨：從「玩家」改成「仇恨表裡最高的玩家」（傷害＋距離），單人時結果與現在相同（golden hash 驗證）。
-- 經驗、掉落改成每位玩家各自擲（連線時誰撿到誰的，不搶寶）。
-- 驗收：`tests/rt-multi.test.ts` 兩個 `PlayerBot` 一起打霧語森林狼王，能打倒、不當機；單人 golden hash 不變。
+### Q6 多玩家＋隊伍引擎（V3）
+- `Unit.team`（玩家可以是彼此的敵人）；`BattleState.players: number[]`，`playerOf(s, pid = 0)`；指令改成 `{ pid, cmd }`（單人時自動帶 0，舊呼叫相容）。
+- 敵人仇恨改成仇恨表最高者；技能命中判斷改成「打敵對隊伍」。單人 golden hash 必須不變。
+- PvP 規則 `src/core/battle/rt/pvp.ts`（24 §6.1：HP ×3、傷害 ×0.5、控制減半與遞減、ilvl 壓縮）；競技場地圖 `maps/arena.ts`（24×24、有掩體）。
+- 驗收：`tests/rt-multi.test.ts`（兩個 Bot 一起打狼王）、`tests/rt-pvp-balance.test.ts`（三武器互打各 200 場，勝率 40～60%，報表寫 PROGRESS）。
 
-### Q7 連線預備層 `src/net/`（V4）
-- `protocol.ts`：訊息型別（`Hello`、`Input{tick,pid,cmds}`、`Snapshot{tick,hash,state?}`、`Ack`），JSON 可序列化、帶版本號。
-- `Transport` 介面＋`LoopbackTransport`（記憶體，可模擬延遲與掉包）。
-- `LockstepSession`：輸入延遲 N tick、等齊所有玩家輸入才 `step`；每 30 tick 交換 `stateHash`，分歧就記錄。
-- 文件 `docs/design/24-online.md`：比較 **lockstep**（2～4 人協力、頻寬小、需要確定性——我們已具備）與 **伺服器權威＋客戶端預測**（人多、防作弊強）；建議路線：協力副本用 lockstep 或「房主權威」，帳號／倉庫／交易用伺服器權威（Q3 的 core/meta 直接在 Node 跑）。列出之後要選的服務（WebSocket 伺服器、帳號、資料庫）與粗估成本，給 Jacky 決定。
-- 驗收：`tests/net-lockstep.test.ts`：兩個 client 經 Loopback（100ms 延遲、5% 掉包重送）跑 10,000 tick，每次 hash 一致。
+### Q7 伺服器權威的戰鬥（V5）
+- **非同步 PvP 驗證**：伺服器 `pvp.start` 給種子與對手快照 → 客戶端本機打 → `pvp.finish(inputs)` → 伺服器用同一份引擎重跑、比對 hash 決定勝負（作弊的指令紀錄會被抓）。
+- **即時對戰 `BattleRoom`**：伺服器每 tick 收指令、`step`、送快照差量；`GameClient` 做本地預測＋校正。本機用兩個 client 經 `LocalTransport`（80ms、2% 掉包）驗收（`tests/pvp-realtime.test.ts`）。
+- **PvE 掉落改由伺服器擲**：`battle.start` 拿 battleId＋種子、`loot.claim(battleId, killSeq)`（24 §7），速率檢查。
+- 文件：`src/net/README.md`、`src/server/README.md` 寫清楚「換成線上版要做哪 5 件事」（24 §1）。
 
 ### Q8 工具與規範（隨時）
-- 加 ESLint（`typescript-eslint`、`no-restricted-imports`：`src/core` 不准 import `phaser`／`src/game`）。CI 跑 `npm run lint`。
-- `src/core/battle/rt/README.md` 與新的 `src/save/README.md`、`src/net/README.md` 寫清楚邊界。
+- 加 ESLint（`typescript-eslint`、`no-restricted-imports`，邊界照 24 §8：`game` 不准 import `server`／`db`；`server` 不准 import `phaser`／`game`／`client`；`core` 只准 import `core`）。CI 跑 `npm run lint`。
+- `src/core/battle/rt/README.md` 與新的 `src/server/README.md`、`src/net/README.md` 寫清楚邊界。
 
-## 3. 新功能（F 系列）
+## 3. 新功能（F 系列，D-277 後以交易與 PvP 為主）
 | 編號 | 功能 | 為什麼好玩 | 依賴 | 里程碑 |
 |---|---|---|---|---|
-| F1 | **多角色＋帳號共用倉庫**（RO 式，最多 3 個角色欄；每個角色有自己的武器、等級、技能點、行囊；倉庫 40 格共用；金幣分角色） | Jacky 11/5 提過（D-271）；三種武器可以同時養，刷到別武器的神裝有地方放 | Q2、Q3 | V4 |
-| F2 | **Boss 戰重播與幽靈**：每次打倒 Boss 存下種子＋指令紀錄（幾 KB），在紀錄頁看「最快一次」重播；再打時可開「幽靈」——半透明的自己最佳紀錄一起跑（不參與戰鬥） | 「同一隻狼王越打越快」（Jacky 10/25）有了看得見的對手；也是確定性的最好展示 | Q1、Q2 | V5 |
-| F3 | **每日秘境**：用台北日期當種子，從四張圖挑一區＋2～3 個詞綴（怪物狂暴、只能用技能、夜晚、毒霧…），限時通關給一次性獎勵；本機紀錄最佳時間（之後連線就是排行榜） | 每天回來玩一下的理由，適合短時段 | Q3 | V5 |
-| F4 | **怪物圖鑑與成就**：打過的怪記錄擊殺數、掉落、弱點；成就 20 個左右（首殺、無傷 Boss、全寶箱…）給稱號 | 長尾目標、收集感；資料大多已有（Wiki 產生器） | Q2 | V6 |
-| F5 | （選做，等 Jacky 回覆）**AI 協力夥伴**：用 Q6 的多玩家引擎，讓一個 Bot 當隊友 | 證明多人引擎；但 D-063 說過「單人、不做同伴」，**沒有 Jacky 同意只放在 `?debug`** | Q6 | V6 |
+| F1 | **多角色＋帳號共用倉庫**（3 角色欄、倉庫 40 格、金幣分角色） | Jacky 提過（D-271）；三種武器可以同時養 | Q2、Q3 | V4 |
+| F2 | **拍賣所**（24 §4.1）：上架、搜尋篩選、購買、手續費、到期退回；**模擬玩家**會上架和買走你的東西（24 §5） | 刷到別人用得到的裝備可以換錢 → 每件掉落都有價值；也是線上版經濟的試驗場 | Q2、Q3 | V4 |
+| F3 | **面對面交易（託管）**：雙方鎖定、雙方確認才交換；對象是模擬玩家或自己的其他角色 | 線上交易的核心流程先在本機跑通 | F2 | V4 |
+| F4 | **PvP 競技場・天梯**：非同步對戰模擬玩家的配裝（Bot 操作）、Elo、段位、賽季外觀獎勵（不給數值） | 刷寶有了「打人」的出口；三武器互剋有策略 | Q6、Q7 | V5 |
+| F5 | **對戰重播**：PvP 與 Boss 戰存種子＋指令（幾 KB），紀錄頁可以重播；Boss 戰可開「幽靈」 | 確定性的最好展示；PvP 輸了能看自己輸在哪 | Q1、F4 | V6 |
+| F6 | （砍單第一順位）怪物圖鑑 | 收集感 | Q2 | V6 |
+- 原本的「每日秘境」「成就」「AI 協力夥伴」移到 §6 範圍保護之後（有空才做）。
 
 ## 4. 美術改進（A 系列）
 | 編號 | 項目 | 方法 |
@@ -99,18 +101,19 @@
 ## 5. 里程碑與時程（台北）
 | 里程碑 | 日期 | 內容 | 驗收 |
 |---|---|---|---|
-| **V1 地基** | 11/6–11/7 | Q1 確定性、Q2 存檔層＋匯出匯入、Q4 `separate` 空間雜湊與 `alive` 索引、Q8 ESLint | golden hash、core-purity、perf 測試、通關機器人全過；舊存檔能讀 |
-| **V2 規則下沉＋拆場景（上）** | 11/7–11/8 | Q3 core/meta、Q5 拆 Camera／Hud／Banner／Input | 場景 < 4,000 行；截圖比對無差 |
-| **V3 拆場景（下）＋多玩家引擎** | 11/8–11/9 | Q5 其餘系統、Q6 | 場景 < 1,500 行；`rt-multi` 過、單人 hash 不變 |
-| **V4 多角色＋連線預備** | 11/9–11/10 | F1 多角色＋共用倉庫（含舊存檔遷移成角色 1）、Q7 `src/net` 與 24-online.md | 舊存檔升級測試；net-lockstep 10,000 tick 一致 |
-| **V5 重播與每日秘境** | 11/10–11/11 | F2、F3 | 重播與原戰鬥 hash 一致；每日種子同一天相同 |
-| **V6 收集與美術** | 11/11–11/12 | F4、A3～A6，到圖就換 A1／A2 | FPS 不退步；截圖 |
-| **V7 凍結與發表** | 11/12 12:00 起 | 只修 bug、平衡、README／Wiki 更新、版本 1.2.0；**11/13 12:00 最終版** | CI／Pages／APK 全綠、通關機器人過 |
+| **V1 地基** | 11/6–11/7 | Q1 確定性、Q2 本機伺服器骨架＋資料層＋舊存檔遷移、Q4 `separate` 空間雜湊、Q8 ESLint 邊界 | golden hash、core-purity、server-contract、通關機器人全過；舊存檔讀得到 |
+| **V2 規則上伺服器** | 11/7–11/8 | Q3 core/meta；商店、強化、技能點、裝備穿脫、掉落全部改走 `GameClient`；Q5 拆場景（Input／Hud／Banner） | `src/game` 沒有規則運算與 localStorage；截圖比對無差 |
+| **V3 隊伍引擎與 PvP 規則** | 11/8–11/9 | Q6、競技場地圖、PvP 平衡模擬；Q5 拆場景繼續 | rt-multi、pvp-balance 過；單人 hash 不變 |
+| **V4 交易與多角色** | 11/9–11/10 | F1、F2 拍賣所＋模擬玩家、F3 託管交易；`sim:economy` 報表 | 交易契約測試（不會複製物品、不會多扣錢、斷線重送不重複）；7 天模擬物價不暴漲 |
+| **V5 PvP 上線（本機）** | 11/10–11/11 | Q7 非同步 PvP 驗證＋天梯 UI（F4）、即時 `BattleRoom` 本機兩客戶端驗收、PvE 掉落改伺服器擲 | 作弊指令紀錄被拒；pvp-realtime 過 |
+| **V6 重播與美術** | 11/11–11/12 | F5、A1～A6（到圖就換） | FPS 不退步；截圖 |
+| **V7 凍結與發表** | 11/12 12:00 起 | 只修 bug、平衡、README／Wiki、1.2.0；**11/13 12:00 最終版** | CI／Pages／APK 全綠、通關機器人過 |
 
 ## 6. 範圍保護（時間不夠時依序砍）
-1. F5 AI 協力夥伴（本來就選做）。
-2. A6 地面、A5 UI 外框 → 只做傷害數字。
-3. F4 → 只做圖鑑，不做成就。
-4. F3 每日秘境 → 只做固定詞綴的「挑戰模式」。
-5. Q5 拆場景 → 停在 < 4,000 行（拆最亂的 Banner／Story 就好）。
-**不砍**：Q1、Q2、Q3、Q6、F1（這幾個是之後連線版的地基，也是 Jacky 直接提過的）。
+1. 每日秘境、成就、AI 協力夥伴（本來就排在最後）。
+2. F6 圖鑑、A6 地面、A5 UI 外框 → 只做傷害數字。
+3. F5 重播 → 只做 PvP 重播，不做幽靈。
+4. 即時 PvP `BattleRoom` → 只留協定與測試，不做 UI（非同步天梯照做）。
+5. Q5 拆場景 → 停在 < 4,000 行。
+
+**不砍**：Q1、Q2、Q3、Q6、F1、F2、F3、F4 非同步天梯（線上版的地基，也是 Jacky 直接指定的方向）。

@@ -1,6 +1,6 @@
 # 下一步（依優先順序，最上面先做）
 
-> **第二期（11/6～11/13，D-276）**：主線是 `docs/design/23-v2-roadmap.md` 的里程碑 V1～V7，每輪照它選工作。11/13 12:00 最終版 1.2.0；11/12 12:00 起功能凍結。
+> **第二期（11/6～11/13，D-276／277）**：方向是**單機模擬線上版、以交易與 PvP 為主**（架構 `docs/design/24-online-architecture.md`）；主線是 `docs/design/23-v2-roadmap.md` 的里程碑 V1～V7，每輪照它選工作。11/13 12:00 最終版 1.2.0；11/12 12:00 起功能凍結。
 > 遊戲現況：單人即時動作戰鬥＋四張大地圖（霧語森林→荊棘谷→燼紅裂谷（結局）→星隕高原（通關後））、三把武器、技能樹、行商、強化、燼牌、相遇與抉擇。主規格 `docs/design/20-swordsman-and-map.md`，索引 `docs/design/README.md`。
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
@@ -8,15 +8,20 @@
 ## ★ 第 139 輪起先做（11/6 第 138 輪後 Jacky 開第二期時寫）
 **V1 地基（11/6–11/7）**，照順序：
 1. **Q1 確定性**：新增 `src/core/fixedMath.ts`（`sinT(deg)`／`cosT(deg)` 整數查表 ×10000、需要的話 `isqrt`），換掉 `src/core/battle/rt/engine.ts` 的三角函式：第 54～55 行 `inShape` 扇形判定用 `Math.asin`＋`Math.cos`（改成整數比較：預先算好每種扇形角度的 cos×10000，目標半徑寬容用查表或保守近似）、第 453～454 行重生點圍圈用 `Math.cos`／`Math.sin`（改查表）。**換之前**先寫 `tests/rt-golden-hash.test.ts`：種子 1～10 × 武器 sword／bow／staff × 地圖 mistwood／thornvale／emberrift／starfall，用 `PlayerBot` 跑 3,000 tick 記 `stateHash`（快照存 `tests/__snapshots__/`）；換完如果 hash 變了，確認只是查表誤差造成、再更新快照並在 commit 寫原因。再加 `tests/core-purity.test.ts`（掃 `src/core/**/*.ts` 文字：禁 `Math.random|Math.sin|Math.cos|Math.tan|Math.asin|Math.acos|Math.atan2|Math.exp|Math.pow|Math.log|Date\.|performance\.|localStorage|window\.|from 'phaser'`；`maps/validate.ts`、`maps/testWorld.ts` 用 `Math.hypot` 只在測試／驗證用，可列白名單或改成 `dist()`）。
-2. **Q2 存檔層**：`src/save/{SaveStore.ts,LocalSaveStore.ts,MemorySaveStore.ts,keys.ts,migrate.ts,README.md}`。`grep -rn localStorage src` 目前 13 個檔案約 50 處，逐檔改成 `save.get/set`（`rtRecord.ts` 的 `sanitizeRecord` 保留當 schema 檢查）。加 `tests/save-store.test.ts`（舊格式存檔 → 讀得出來、`schemaVersion` 升成 1、備份 key 存在）與一個掃描測試「`src/game`／`src/audio` 不准出現 `localStorage`」。最後在設定面板（`src/game/ui/settingsPanel.ts`）加「匯出存檔／匯入存檔」（匯出＝JSON → base64 文字，`navigator.clipboard` 失敗時顯示文字框；匯入先驗證再寫、寫完重整）。
+2. **Q2 本機伺服器骨架**（D-277，規格 `docs/design/24-online-architecture.md` §1～3、§8）：
+   - 建 `src/net/{protocol.ts,Transport.ts,LocalTransport.ts,README.md}`（訊息 `{v, id, requestId, method, params}`／`{id, ok, result|error}`；LocalTransport 每則訊息 `JSON.stringify`→`parse`，可設 `latencyMs`、`dropPct`）、`src/server/{GameServer.ts,router.ts,idempotency.ts,clock.ts,README.md}`、`src/server/repos/*.ts`（介面）、`src/server/db/memory/`、`src/server/db/local/`（IndexedDB；`indexedDB` 不存在時退回 localStorage KV）、`src/client/GameClient.ts`（`call<M>(method, params)` 型別化、逾時重送同一個 requestId）。
+   - 第一批 handler：`account.get`、`character.list/get`、`account.export/import`、`migrate.legacy`（把 `jg_rt_<map>`、`jg_weapon` 等舊存檔轉成帳號 1／角色 1；轉前備份 `jg_backup_<時間>`）。資料模型照 24 §3（Item 用伺服器發的 id＋`location`＋`version`；Wallet＋LedgerEntry 複式記帳）。
+   - 測試：`tests/server-contract/*.test.ts` 同一組跑 MemoryDb 與 LocalDb（devDependency `fake-indexeddb`）；舊存檔樣本遷移前後數值一致；LocalTransport 重送不重複執行。
+   - **這一步先不改畫面層的讀寫**（V2 才逐檔改成走 GameClient），所以玩家行為不變；但開機時要跑一次遷移並把結果記下來（舊 key 先保留不刪，V2 全部切過去後才停止寫舊 key）。
+   - 設定面板「匯出／匯入存檔」改呼叫 `account.export/import`（可以留到 V2）。
 3. **Q4 效能**：先寫 `tests/rt-perf.test.ts`（霧語森林開暴動 `riot`、跑 9,000 tick、印平均 μs/tick；斷言不超過基準 2 倍，基準寫在 PROGRESS）。再把 `engine.ts` 的 `separate()`（第 899 行，O(n²)）改成均勻格子空間雜湊，**仍依 id 順序處理配對**（確定性）；`enemiesOf()` 改成不配置新陣列的版本。前後 golden hash 必須一樣（純效能改動不該改結果——如果變了代表處理順序變了，要修到一樣）。
-4. **Q8 ESLint**（V1 有空就做）：`eslint`＋`typescript-eslint`，`src/core` 不准 import `phaser` 與 `src/game`；`npm run lint` 加進 `ci.yml`。
+4. **Q8 ESLint**（V1 有空就做）：`eslint`＋`typescript-eslint`，邊界照 24 §8（`game` 不准 import `server`／`db`；`server` 不准 import `phaser`／`game`／`client`；`core` 只准 import `core`）；`npm run lint` 加進 `ci.yml`。
 
-**接著 V2**：Q3 把 `src/game/rtShop.ts`／`rtBag.ts`／`rtSkills.ts`／`rtBounty.ts`／`choices.ts` 的規則搬進 `src/core/meta/`（純函式、傳入 `Rng`）；Q5 拆 `RtBattleScene.ts`（6,495 行）先拆 `CameraSystem`、`BannerSystem`、`InputSystem`、`HudSystem`（做法見 23 §Q5）。
+**接著 V2（規則上伺服器）**：Q3 把 `src/game/rtShop.ts`（`buyGear`／`rerollShop`／`spendCoin`…）、`rtBag.ts`（`equipWith`／`unequip`）、`src/core/battle/rt/gear.ts` 的強化與掉落、`rtSkills.ts`、`rtBounty.ts`、`choices.ts` 的規則搬進 `src/core/meta/`（純函式、傳入 `Rng`），伺服器 handler（`shop.*`、`inventory.*`、`enhance.do`、`skills.*`、`loot.claim`）呼叫它們；畫面層逐檔改成 `await client.call(...)`，最後加掃描測試擋 `src/game` 直接用 `localStorage`。Q5 拆 `RtBattleScene.ts`（6,495 行）先拆 `CameraSystem`、`BannerSystem`、`InputSystem`、`HudSystem`（做法見 23 §Q5）。
 
 **美術**：Jacky 產好 R-020／R-021 推進 `art-inbox/` 後，`node scripts/import-art.mjs`（切格設定已在 `scripts/art-sheets.json`）→ `RtBattleScene.ts` 的 `SPRITE` 表把 `star_sentinel`／`crystal_golem`／`star_wolf`／`ember_wolf`／`magma_stalker`／`obsidian_alpha`／`eclipse_wolf` 改用新 key、拿掉 `tint`；確認原圖**面朝右**（D-136 棘背狼的教訓）。
 
-**FOR_JACKY**：「想聽你意見的」四題，他回了就照他的改計畫（多人型態會影響 Q6／Q7 的設計）。新內容一次最多 3～5 行。
+**FOR_JACKY**：「想聽你意見的」四題（交易綁定範圍、PvP 獎勵、多角色、GPT 額度），他回了就照他的改計畫。新內容一次最多 3～5 行。
 
 ## 每輪開頭先看
 1. Jacky 有沒有回覆：`docs/FOR_JACKY.md` 的「回覆」、GitHub Issue、`git log --format='%an %s' -15` 看有沒有他的 commit。有就照他的答案先改。
