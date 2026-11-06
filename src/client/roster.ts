@@ -5,6 +5,7 @@ import type { CharacterView, WeaponView } from '../net/views';
 import { DEVICE_KEY } from '../net/legacyKeys';
 import { bootServer } from './boot';
 import { captureLegacy, legacySerial } from './legacyOps';
+import { characterCache } from './characterCache';
 
 export interface RosterInfo {
   activeId: string;
@@ -44,6 +45,7 @@ export async function switchCharacter(id: string): Promise<boolean> {
       if (import.meta.env.VITE_SERVER_URL) {
         // 線上版（D-306）：只換伺服器的目前角色；本機的冒險進度不跟著換（等 loot.claim 之後畫面改讀伺服器）
         await client.call('character.select', { id });
+        characterCache.clear();
         return true;
       }
       await client.call('migrate.sync', { snapshot: captureLegacy() });

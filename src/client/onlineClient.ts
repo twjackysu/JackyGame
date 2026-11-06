@@ -6,6 +6,7 @@
 import type { CharacterView, WeaponView } from '../net/views';
 import { HttpTransport } from '../net/HttpTransport';
 import { GameClient } from './GameClient';
+import { characterCache } from './characterCache';
 
 export const ONLINE_TOKEN_KEY = 'jg_online_token';
 
@@ -47,6 +48,13 @@ export async function startOnlineClient(base: string, token: string | undefined)
  * （本機版是 migrate.sync 把舊存檔同步上去；線上版不同步，伺服器的角色就是唯一的真相。）
  */
 export async function onlineActive(client: GameClient, weapon: WeaponView): Promise<CharacterView> {
+  const ticket = characterCache.ticket();
+  const me = await findOrCreateActive(client, weapon);
+  characterCache.set(me, ticket);
+  return me;
+}
+
+async function findOrCreateActive(client: GameClient, weapon: WeaponView): Promise<CharacterView> {
   const [acc, list] = await Promise.all([client.call('account.get', {}), client.call('character.list', {})]);
   const cur = list.find((c) => c.id === acc.activeCharacterId) ?? list.slice().sort((a, b) => a.slot - b.slot)[0];
   if (cur) return cur;

@@ -6,6 +6,7 @@ import type { CharacterView, WeaponView } from '../net/views';
 import type { GameClient } from './GameClient';
 import { bootServer, legacySnapshot } from './boot';
 import { onlineActive } from './onlineClient';
+import { characterCache } from './characterCache';
 import { mirrorRecord, MIRROR_KEY, type MirrorField } from './legacyMirror';
 
 let chain: Promise<unknown> = Promise.resolve();
@@ -45,8 +46,10 @@ export function legacyOp<T>(
       // 線上版（D-306）：不同步舊存檔、也不寫回——伺服器的角色就是真相，本機舊 key 只剩離線的冒險進度（等 loot.claim）
       const online = !!import.meta.env.VITE_SERVER_URL;
       const me = online ? await onlineActive(client, weaponOf(before)) : await client.call('migrate.sync', { snapshot: before });
+      const ticket = characterCache.ticket();
       const t = await op(client, me);
       const v = viewOf(t);
+      if (online && v.id === me.id) characterCache.set(v, ticket);
       if (!online && (pending === 1 || authoritative)) {
         const cur = localStorage.getItem(MIRROR_KEY) ?? '{}';
         const rec = JSON.parse(cur) as Record<string, unknown>;

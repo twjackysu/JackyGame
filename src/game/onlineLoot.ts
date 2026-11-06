@@ -6,6 +6,7 @@ import type { Unit } from '../core/battle/rt/types';
 import type { WeaponView } from '../net/views';
 import { bootServer } from '../client/boot';
 import { onlineActive } from '../client/onlineClient';
+import { characterCache } from '../client/characterCache';
 
 let battle: Promise<{ characterId: string; battleId: string } | null> = Promise.resolve(null);
 let seq = 0;
@@ -41,7 +42,9 @@ export const onlineLoot = {
       if (!cur) return;
       try {
         const { client } = await bootServer();
+        const ticket = characterCache.ticket();
         const r = await client.call('loot.claim', { ...cur, killSeq, ...kill });
+        characterCache.set(r.character, ticket);
         onlineLootStatus.claims++;
         onlineLootStatus.drops += r.drops.length;
       } catch (e) {

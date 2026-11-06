@@ -46,5 +46,10 @@ describe('線上版 PvE 掉落回報', () => {
     expect(me!.weapon).toBe('bow');
     expect(me!.wallet.coin).toBeGreaterThan(0);
     expect(me!.items.filter((i) => i.location === 'bag').length).toBe(2);
+    // 角色快取（第 147 輪）：HUD 讀它，要跟伺服器一樣
+    const { characterCache } = await import('../src/client/characterCache');
+    expect(characterCache.get()?.id).toBe(me!.id);
+    expect(characterCache.wallet('coin')).toBe(me!.wallet.coin);
+    expect(characterCache.get()?.xp).toBe(me!.xp);
   });
 });

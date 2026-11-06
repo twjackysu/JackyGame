@@ -71,6 +71,7 @@ import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { InputSystem } from '../rt/InputSystem';
 import { captureLegacy, legacyOp } from '../../client/legacyOps';
+import { characterCache } from '../../client/characterCache';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
@@ -2576,7 +2577,7 @@ export class RtBattleScene extends Phaser.Scene {
       `累計：擊殺 ${total.kills ?? 0}・金幣 ${total.coin ?? 0}・粉塵 ${total.dust ?? 0}・結晶 ${total.crystal ?? 0}`,
       `${this.bw}討伐 ${rec.bossKills ?? 0} 次${rec.furyKills ? `（暴怒 ${rec.furyKills}）` : ''}${rec.bestBossSec !== undefined ? `・最快 ${fmtSec(rec.bestBossSec)}` : ''}・寶箱 ${(total.chests ?? []).filter((id) => dayChests.has(id)).length}/${nChest}`,
       `出發冒險 ${rec.runs ?? 1} 次・累計 ${fmtSec(total.playSec ?? 0)}`,
-      `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${this.coinBase >= 0 ? this.coinNow() : coinOf(rec)}（營火行商）`,
+      `懸賞完成 ${cleanBounties(rec.bounty).done} 張・手上金幣 ${(import.meta.env.VITE_SERVER_URL ? characterCache.wallet('coin') : null) ?? (this.coinBase >= 0 ? this.coinNow() : coinOf(rec))}（營火行商）`,
     ];
     { const chs = choiceOf(this.stageId); const cp = loadChoices()[this.stageId]; if (chs && cp) lines.push(`你的抉擇：${chs.short[cp]}${cp === 'take' ? '' : `（行商 −${shopDiscountPct(loadChoices())}%）`}`); }
     { const en = loadEncounters(); for (const e of encountersOf(this.stageId)) { const v = en[e.id]; if (v) lines.push(`路上的相遇：${e.short[v === 'thanked' ? 'spare' : v]}${v === 'spare' ? '（對方會來道謝）' : v === 'thanked' ? '（收到回禮了）' : ''}`); } }
@@ -6414,7 +6415,10 @@ export class RtBattleScene extends Phaser.Scene {
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = !this.bot && es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');
-    this.hud.setText(`${s.prog ? `Lv ${s.prog.level}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${this.coinBase >= 0 ? this.coinNow() : s.loot.gold ?? 0}　粉塵 ${this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
+    // 線上版（第 147 輪）：等級／金幣／粉塵讀伺服器的角色（loot.claim 由伺服器擲，本機算的不準）；離線版建置時這段整個拿掉
+    const oc = import.meta.env.VITE_SERVER_URL ? characterCache.get() : null;
+    const lv = oc ? oc.level : s.prog?.level;
+    this.hud.setText(`${lv !== undefined ? `Lv ${lv}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${oc ? (oc.wallet.coin ?? 0) : this.coinBase >= 0 ? this.coinNow() : s.loot.gold ?? 0}　粉塵 ${oc ? (oc.wallet.dust ?? 0) : this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
     if (this.goal) {
       const st = STAGES[this.stageId]!;
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
