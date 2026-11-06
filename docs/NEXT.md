@@ -8,12 +8,16 @@
 
 ## ★ 第 145 輪起先做（V4 交易畫面＋多角色、V5 收尾，11/7–11/10）
 **已經有的（到第 144 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、**`trade`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.sync`、`cards.*`、`story.choose`、`market.*`、`pvp.start/finish/ladder`、**`trade.open/offer/lock/confirm/cancel/get`（D-300）**；模擬玩家 `src/server/sim/`；拍賣所畫面；隊伍引擎；PvP：`pvp.ts`（**相剋表 `vsPct`，D-298**）、`pvp_arena`、`pvpMatch.ts`；**競技場畫面 `src/game/scenes/PvpScene.ts`＋`src/game/pvpOps.ts`（D-299）**；遷移 `0001`、`0002_market`、**`0003_trade`**。
-1. CI（含 mssql job）每輪開頭看一次；第 144 輪最後一個程式 commit 是「交易對象＝模擬冒險者」（1f16d6c）。遷移 0003 在 SQL Server 上已經綠（b830b7b 的 mssql job）。
+1. CI（含 mssql job）每輪開頭看一次；第 144 輪最後一個程式 commit 是「交易畫面」（67ae81c）。遷移 0003 在 SQL Server 上已經綠（b830b7b 的 mssql job）。
 2. ~~交易對象＝模擬玩家~~：第 144 輪做完（`trade.partners`、`SimMarket.respondTrade`、`GameServer.simTrade`；只做「收購」：你放物品它出價。你只放金幣想「買」它不會回應——之後可以讓它從行囊放一件價格最接近的）。
-3. **交易畫面（下一個最優先）**：行商面板多一個分頁「交易」（`rtShopPanel.ts` 的 `tabs` 照拍賣所的 `onMarket` 做法加 `onTrade`；RtBattleScene `openMarket` 旁邊加 `openTrade`）：`trade.partners` 選對象 → `trade.open` → 我的行囊點物品放進去／拿出來（`trade.offer` 每次送完整清單）→ 看對方出價 → 鎖定 → 確認。**模擬玩家的回應已經包在真人的回應裡**（GameServer 換成最新狀態），畫面不用輪詢。寫回舊 key 照 `marketOps`：新檔 `src/game/tradeOps.ts`，`legacyOp(captureLegacy(), ['items','wallet'], ..., (r) => r.character, true)`。放進交易的物品在伺服器是 `trade:<id>`，舊 key 的行囊會少那件（mirrorRecord 只看 bag／equip）——取消時會回來。寫回舊 key 照 `marketOps`（`legacyOp(..., ['items','wallet'], ..., authoritative=true)`）。
-4. **多角色（F1，不砍）**：3 角色欄、帳號共用倉庫 40 格（location `warehouse`）、金幣分角色；`character.create/delete/select`；過渡期舊 key 只對應「目前角色」——先寫 DECISIONS 再動。
+3. ~~交易畫面~~：第 144 輪做完（行商面板「交易」分頁，`src/game/ui/tradePanel.ts`＋`src/game/tradeOps.ts`）。小改進：交易中途離開面板，下次打開會回到對象清單（伺服器的交易還開著、30 分鐘後過期退回）→ 可以加「進行中的交易」列表（`trade.mine`）；模擬冒險者「賣」給你。
+4. **多角色（F1，不砍，下一個最優先）**：3 角色欄、帳號共用倉庫 40 格（location `warehouse`）、金幣分角色；`character.create/delete/select`；過渡期舊 key 只對應「目前角色」——先寫 DECISIONS 再動。
 5. **競技場收尾**：(a) `pvp.finish` 頻率限制（26-security；V6 `server/main.ts` 一起）；(b) 模擬玩家的段位分現在是固定的（`simRating` 照 tier）→ 讓它們每天彼此打幾場（用 `hashSeed(sim, day)` 決定勝負、Elo 更新存在 sim 角色的 `pvpRating`）；(c) 結算畫面加「看重播」（F5，紀錄已經有，`replayPvp` 就能重跑）；(d) 對手立繪偏紅不明顯（法杖圖幾乎看不出），可以改成腳下紅圈加粗＋名字底色。
 6. **Q5 拆 HUD**（範圍保護 #5）、**V5 `loot.claim`**、**V6 `server/main.ts`＋Bicep**。
+
+**交易注意（第 144 輪）**：
+- 截圖腳本思路（/tmp，沒進 repo）：LS 設 `jg_prologue_seen`、`jg_weapon`、`jg_rt_mistwood`（coin、bag、equip、bossKills）→ `?debug&scene=RtBattle&stage=mistwood` → `sc.openTrade()` → 用 `sc.menu.list` 找文字物件 emit `pointerdown`（列是 Rectangle，找同一個 y 的）；每步前 `__game.loop.sleep()` 等 4 秒再 `wake()`（第一次 `trade.partners` 要 9 秒：模擬玩家補跑）。
+- 舊 key 只看 bag／equip：放進交易的物品在舊 key 會暫時消失，取消後回來（`mirrorRecord`）。
 
 **競技場注意（第 144 輪）**：
 - 截圖：`npx vite preview --port 4173` → `http://localhost:4173/?scene=Pvp`（大廳；`?debug` 才有 `window.__game`）。無頭瀏覽器第一次 `pvp.ladder`／`pvp.start` 要 5～9 秒（模擬玩家建角色＋每次寫入 300 ms）。「開始對戰」按鈕在 720 座標 (210, GAME_HEIGHT−220)。場景狀態 `__game.scene.getScene('Pvp').phase`：lobby → loading → intro → fight → judging → result。
