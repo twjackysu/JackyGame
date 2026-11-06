@@ -48,7 +48,7 @@
 | 錯誤訊息 | 對外只給錯誤代碼，不回 stack trace、SQL 錯誤 |
 | 稽核 | 金錢、物品、交易、PvP 結果都寫 `AuditLog`（誰、何時、前後值、requestId） |
 | 相依套件 | CI 跑 `npm audit --omit=dev`（高風險就失敗）；Dependabot |
-| 最小權限 | 資料庫身分只對 `Game` schema 有權限（25 §2），執行期身分不能建表 |
+| 最小權限 | 資料庫身分只對 `game` schema 有權限（25 §2），執行期身分不能建表 |
 
 ## 5. 秘密與設定
 - 伺服器所有設定走環境變數，`server/.env.example` 只放範例、**`.env` 列入 `.gitignore`**：

@@ -24,7 +24,7 @@
                                │ Repository 介面（AccountRepo、CharacterRepo、ItemRepo、
                                │ WalletRepo、MarketRepo、TradeRepo、PvpRepo、AuditRepo）
         ┌──────────────────────┴───────────────────────┐
-        │ 現在：LocalDb（IndexedDB；測試用 MemoryDb）   │ 之後：Azure SQL（`Game` schema，25 號文件）
+        │ 現在：LocalDb（IndexedDB；測試用 MemoryDb）   │ 之後：Azure SQL（`game` schema，25 號文件）
         └───────────────────────────────────────────────┘
 ```
 

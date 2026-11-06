@@ -103,7 +103,7 @@
 | 里程碑 | 日期 | 內容 | 驗收 |
 |---|---|---|---|
 | **V1 地基** | 11/6–11/7 | Q1 確定性、Q2 本機伺服器骨架＋資料層＋舊存檔遷移、Q4 `separate` 空間雜湊、Q8 ESLint 邊界 | golden hash、core-purity、server-contract、通關機器人全過；舊存檔讀得到 |
-| **V2 規則上伺服器** | 11/7–11/8 | Q3 core/meta；商店、強化、技能點、裝備穿脫、掉落全部改走 `GameClient`；**`db/mssql` Kysely 實作＋`Game` schema 遷移＋CI mssql 契約測試（25 §5）**；Q5 拆場景（Input／Hud／Banner） | `src/game` 沒有規則運算與 localStorage；截圖比對無差 |
+| **V2 規則上伺服器** | 11/7–11/8 | Q3 core/meta；商店、強化、技能點、裝備穿脫、掉落全部改走 `GameClient`；**`db/mssql` Kysely 實作＋`game` schema 遷移＋CI mssql 契約測試（25 §5）**；Q5 拆場景（Input／Hud／Banner） | `src/game` 沒有規則運算與 localStorage；截圖比對無差 |
 | **V3 隊伍引擎與 PvP 規則** | 11/8–11/9 | Q6、競技場地圖、PvP 平衡模擬；Q5 拆場景繼續 | rt-multi、pvp-balance 過；單人 hash 不變 |
 | **V4 交易與多角色** | 11/9–11/10 | F1、F2 拍賣所＋模擬玩家、F3 託管交易；`sim:economy` 報表；SQL 版的交易鎖與並發測試 | 交易契約測試（不會複製物品、不會多扣錢、斷線重送不重複）；7 天模擬物價不暴漲 |
 | **V5 PvP 上線（本機）** | 11/10–11/11 | Q7 非同步 PvP 驗證＋天梯 UI（F4）、即時 `BattleRoom` 本機兩客戶端驗收、PvE 掉落改伺服器擲 | 作弊指令紀錄被拒；pvp-realtime 過 |
