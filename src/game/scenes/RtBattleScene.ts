@@ -1368,6 +1368,39 @@ export class RtBattleScene extends Phaser.Scene {
           this.dustBase = walletOf(r).dust;
           return true;
         },
+        // V2（D-285）：穿脫、分解送給伺服器（畫面先照舊存檔；伺服器結果不同就以伺服器為準寫回）
+        shadow: !this.tracked
+          ? undefined
+          : (intent, apply) => {
+              this.persist();
+              const before = captureLegacy();
+              apply();
+              void legacyOp(
+                before,
+                ['items', 'wallet'],
+                async (c, me) => {
+                  const itemOf = (uid: string) => {
+                    const it = me.items.find((i) => i.gear.uid === uid);
+                    if (!it) throw new Error('item not synced');
+                    return it.id;
+                  };
+                  if (intent.kind === 'unequip') return c.call('inventory.unequip', { characterId: me.id, slot: intent.slot });
+                  if (intent.kind === 'salvage') return (await c.call('inventory.salvage', { characterId: me.id, itemId: itemOf(intent.uid) })).character;
+                  let v = me;
+                  for (const uid of intent.uids) v = await c.call('inventory.equip', { characterId: me.id, itemId: itemOf(uid) });
+                  return v;
+                },
+                (v) => v,
+              ).then((v) => {
+                if (!v || !this.scene.isActive()) return;
+                // 可能以伺服器為準寫回了 → 場景重讀行囊（沒分歧時讀到的和現在一樣）
+                const rec = loadRecord(this.stageId);
+                this.bagSt = cleanBag(rec);
+                this.dustBase = walletOf(rec).dust;
+                setGearBonus(this.s, bonusOf(this.bagSt));
+                setSkillMods(this.s, this.allMods(this.bagSt));
+              });
+            },
         // V2（D-285）：強化的擲骰與扣材料只在伺服器；結果寫回舊 key 後場景重讀行囊（面板關了也一樣）
         roll: !this.tracked ? undefined : async (g) => {
           this.persist();

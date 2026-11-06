@@ -31,7 +31,11 @@ export interface BagCtx {
   bw?: string;
   /** V2（D-285）：強化交給伺服器（扣材料＋擲骰）；回 null＝伺服器失敗，退回本機舊做法 */
   roll?: (g: RtGear) => Promise<{ ok: boolean; gear: RtGear } | null>;
+  /** V2（D-285）：穿脫、分解也送給伺服器（規則確定，畫面先照舊做 apply，伺服器結果再寫回）；沒給就只做 apply */
+  shadow?: (intent: BagIntent, apply: () => void) => void;
 }
+
+export type BagIntent = { kind: 'equip'; uids: string[] } | { kind: 'unequip'; slot: GearSlot } | { kind: 'salvage'; uid: string };
 
 export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () => string, onChange: (st: BagState) => void, onClose: () => void, ctx?: BagCtx): Phaser.GameObjects.Container {
   let st = start;
@@ -82,6 +86,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     return out;
   };
 
+  const shadow = (intent: BagIntent, apply: () => void): void => (ctx?.shadow ? ctx.shadow(intent, apply) : apply());
   function change(next: BagState): void {
     st = next;
     onChange(st);
@@ -136,11 +141,15 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     }
     items.push(btn(-150, 360 + dy, '全部換成最好的', () => {
       let next = st;
+      const uids: string[] = [];
       for (const slot of GEAR_SLOTS) {
         const best = next.bag.filter((g) => g.slot === slot).sort((a, b) => gearScore(b, SWORDSMAN.hp, SWORDSMAN.atk) - gearScore(a, SWORDSMAN.hp, SWORDSMAN.atk))[0];
-        if (best && isUpgrade(next, best)) next = equipWith(next, best);
+        if (best && isUpgrade(next, best)) {
+          next = equipWith(next, best);
+          uids.push(best.uid);
+        }
       }
-      if (next !== st) change(next);
+      if (next !== st) shadow({ kind: 'equip', uids }, () => change(next));
       render();
     }));
     items.push(btn(150, 360 + dy, '完成', () => onClose(), true, 28));
@@ -269,19 +278,21 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     if (worn) {
       out.push(btn(-120, btnY, '卸下', () => {
         if (st.bag.length >= BAG_MAX) return;
-        change(unequip(st, g.slot));
+        shadow({ kind: 'unequip', slot: g.slot }, () => change(unequip(st, g.slot)));
         detail = null;
         render();
       }));
     } else {
       out.push(btn(-190, btnY, '換上', () => {
-        change(equipWith(st, g));
+        shadow({ kind: 'equip', uids: [g.uid] }, () => change(equipWith(st, g)));
         detail = null;
         render();
       }, true, 28));
       out.push(btn(0, btnY, ctx ? `分解 +${salvageDust(g)} 粉塵` : '丟掉', () => {
-        if (ctx) ctx.spend(-salvageDust(g), 0);
-        change({ ...st, bag: st.bag.filter((x) => x.uid !== g.uid) });
+        shadow({ kind: 'salvage', uid: g.uid }, () => {
+          if (ctx) ctx.spend(-salvageDust(g), 0);
+          change({ ...st, bag: st.bag.filter((x) => x.uid !== g.uid) });
+        });
         detail = null;
         render();
       }));

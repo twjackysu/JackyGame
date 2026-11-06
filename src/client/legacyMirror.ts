@@ -16,13 +16,24 @@ export function mirrorRecord(rec: Record<string, unknown>, v: CharacterView, fie
   for (const i of v.items) if (i.location.startsWith('equip:')) equip[i.location.slice(6)] = i.gear;
   const old = rec.spent && typeof rec.spent === 'object' ? (rec.spent as Record<string, unknown>) : {};
   const spent: Record<string, unknown> = { ...old };
+  let spentChanged = false;
   for (const c of CUR) {
     const total = typeof rec[c] === 'number' && Number.isFinite(rec[c]) ? Math.floor(rec[c] as number) : 0;
-    spent[c] = total - v.wallet[c];
+    const was = typeof old[c] === 'number' ? (old[c] as number) : 0;
+    // 值一樣就不動（不補 0、不改欄位順序：分歧檢查比的是 JSON 字串）
+    if (Math.max(0, total - was) !== v.wallet[c]) {
+      spent[c] = total - v.wallet[c];
+      spentChanged = true;
+    }
   }
   const out = { ...rec };
-  if (fields.includes('items')) Object.assign(out, { bag, equip });
-  if (fields.includes('wallet')) out.spent = spent;
+  if (fields.includes('items')) {
+    if (JSON.stringify(rec.bag ?? []) !== JSON.stringify(bag)) out.bag = bag;
+    const oldEq = rec.equip && typeof rec.equip === 'object' ? (rec.equip as Record<string, unknown>) : {};
+    const sameEq = Object.keys(oldEq).length === Object.keys(equip).length && Object.keys(equip).every((k) => JSON.stringify(oldEq[k]) === JSON.stringify(equip[k]));
+    if (!sameEq) out.equip = equip;
+  }
+  if (fields.includes('wallet') && spentChanged) out.spent = spent;
   if (fields.includes('skills')) Object.assign(out, { skills: v.skills, variants: v.variants });
   if (fields.includes('shop')) out.shop = v.shop;
   return out;

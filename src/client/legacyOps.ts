@@ -46,7 +46,9 @@ export function legacyOp<T>(
         if (next !== JSON.stringify(rec)) {
           if (!authoritative) {
             opStatus.diverged++;
-            console.warn('[legacyOp] 伺服器結果和畫面層不同，以伺服器為準', fields);
+            const nx = JSON.parse(next) as Record<string, unknown>;
+            const keys = Object.keys(nx).filter((k) => JSON.stringify(nx[k]) !== JSON.stringify(rec[k]));
+            console.warn('[legacyOp] 伺服器結果和畫面層不同，以伺服器為準', keys.map((k) => `${k}: ${JSON.stringify(rec[k])} → ${JSON.stringify(nx[k])}`).join('；').slice(0, 600));
           }
           localStorage.setItem(MIRROR_KEY, next);
         }
