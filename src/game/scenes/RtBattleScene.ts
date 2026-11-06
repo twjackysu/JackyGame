@@ -9,6 +9,8 @@ import { RARITY_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
 import { openMarketPanel } from '../ui/marketPanel';
+import { openTradePanel } from '../ui/tradePanel';
+import { tradeOps, type TradeOps, type TradePage } from '../tradeOps';
 import { BannerSystem } from '../rt/BannerSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
@@ -1191,6 +1193,7 @@ export class RtBattleScene extends Phaser.Scene {
         region: this.stageId,
         onCards: () => this.openCards(),
         onMarket: this.tracked ? () => this.openMarket() : undefined,
+        onTrade: this.tracked ? () => this.openTrade() : undefined,
         // V2（D-285）：價格、庫存、扣款都伺服器算，結果寫回舊 key 後場景重讀
         server: !this.tracked ? undefined : async (intent) => {
           this.persist();
@@ -1253,6 +1256,25 @@ export class RtBattleScene extends Phaser.Scene {
     };
     const ops: MarketOps = { view: wrap(marketOps.view), list: wrap(marketOps.list), cancel: wrap(marketOps.cancel), buy: wrap(marketOps.buy) };
     this.menu = openMarketPanel(this, { ops, bag: () => this.bagSt, coin: () => coinOf(loadRecord(this.stageId)), coinBefore: coinOf(loadRecord(this.stageId)) }, () => this.openShop());
+  }
+
+  /** 面對面交易（F3）：從行商面板進來，離開回到行商；每個動作由伺服器做、寫回舊 key 後場景重讀行囊與金幣 */
+  private openTrade(): void {
+    this.persist();
+    this.menu?.destroy();
+    const reload = () => {
+      if (!this.scene.isActive()) return;
+      const rec = loadRecord(this.stageId);
+      this.bagSt = cleanBag(rec);
+      this.coinBase = coinOf(rec);
+      setGearBonus(this.s, bonusOf(this.bagSt));
+    };
+    const ops = Object.fromEntries(Object.entries(tradeOps).map(([k, f]) => [k, async (...a: unknown[]) => {
+      const r = await (f as (...x: unknown[]) => Promise<TradePage | null>)(...a);
+      if (r) reload();
+      return r;
+    }])) as TradeOps;
+    this.menu = openTradePanel(this, ops, () => this.openShop());
   }
 
   /** 營火燼牌（D-127）：從行商面板進來，離開回到行商；從營火「燼牌」捷徑進來就直接關掉 */
