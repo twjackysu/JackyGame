@@ -23,6 +23,11 @@ const DIR = 1000;
 /** 競技場縮放：14×16 格整塊放進畫面上半部 */
 const K = 0.44;
 const ME = 0x6ab8ff;
+/** 段位顏色（排行榜的段位字用光環顏色；見習灰） */
+const auraCss = (r: number): string => {
+  const a = rankAura(r);
+  return a ? `#${a.color.toString(16).padStart(6, '0')}` : '#9aa4b8';
+};
 const FOE = 0xff6a5a;
 type Phase = 'lobby' | 'loading' | 'intro' | 'fight' | 'judging' | 'result' | 'replay' | 'error';
 /** 重播速度（第 146 輪：結算畫面「看重播」） */
@@ -145,10 +150,10 @@ export class PvpScene extends Phaser.Scene {
           this.add.text(76, y, `${r.pos}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.pos <= 3 ? '#ffd27a' : '#9aa4b8' }).setOrigin(0, 0.5),
           this.add.text(136, y, r.me ? `${r.name}（你）` : r.name, { fontFamily: UI_FONT, fontSize: '24px', color: col }).setOrigin(0, 0.5),
           this.add.text(W - 250, y, WEAPON_NAME[r.weapon], { fontFamily: UI_FONT, fontSize: '22px', color: '#9aa4b8' }).setOrigin(0, 0.5),
-          this.add.text(W - 76, y, `${rankName(r.rating)} ${r.rating}`, { fontFamily: UI_FONT, fontSize: '24px', color: col }).setOrigin(1, 0.5),
+          this.add.text(W - 76, y, `${rankName(r.rating)} ${r.rating}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.me ? col : auraCss(r.rating) }).setOrigin(1, 0.5),
         ]);
       });
-      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '對手是其他冒險者的配裝（電腦操作）\n勝負由伺服器重播你的操作判定', { fontFamily: UI_FONT, fontSize: '20px', color: '#7a8296', align: 'center' }).setOrigin(0.5));
+      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '對手是其他冒險者的配裝（電腦操作）\n勝負由伺服器重播你的操作判定・段位越高腳下光環越華麗', { fontFamily: UI_FONT, fontSize: '20px', color: '#7a8296', align: 'center' }).setOrigin(0.5));
     });
   }
 
