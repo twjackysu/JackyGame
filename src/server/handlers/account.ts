@@ -49,7 +49,8 @@ export const accountHandlers: Pick<HandlerTable, 'account.get' | 'account.export
           shop: c.shop ?? null,
           maps: rec(c.maps) as CharacterView['maps'],
           story: rec(c.story) as Record<string, string>,
-          items: items.map((it) => ({ location: it.location, pos: num(it.pos), bound: !!it.bound, gear: it.gear })),
+          // 拍賣所／交易中的物品匯入後回到行囊（掛單不跟著匯出）
+          items: items.map((it) => ({ location: it.location === 'bag' || it.location.startsWith('equip:') ? it.location : 'bag', pos: num(it.pos), bound: !!it.bound, gear: it.gear })),
           wallet: { coin: num(w.coin), dust: num(w.dust), crystal: num(w.crystal) },
         },
         'import',

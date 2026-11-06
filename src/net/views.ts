@@ -93,3 +93,16 @@ export interface ShopView {
   /** 抉擇「還」的折扣 % */
   discount: number;
 }
+
+/** 拍賣所的一筆掛單（不含賣家帳號 id） */
+export interface ListingView {
+  id: string;
+  sellerName: string;
+  /** 是不是我自己的 */
+  mine: boolean;
+  price: number;
+  status: 'open' | 'sold' | 'cancelled' | 'expired';
+  gear: Record<string, unknown>;
+  createdAt: number;
+  expiresAt: number;
+}

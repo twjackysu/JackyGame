@@ -6,7 +6,7 @@ import * as Tarn from 'tarn';
 import * as Tedious from 'tedious';
 import { ApiError } from '../../../net/protocol';
 import type { CurrencyId } from '../../../net/views';
-import { CURRENCIES, type CharacterRow, type Db, type ItemRow, type LedgerRow, type Repos } from '../../repos/types';
+import { CURRENCIES, type CharacterRow, type Db, type ItemRow, type LedgerRow, type ListingRow, type Repos } from '../../repos/types';
 import { parseConnectionString, type DbTarget } from './connString';
 import { assertSchemaName, migrateToLatest } from './migrate';
 import type { GameDb } from './schema';
@@ -50,6 +50,29 @@ function charRow(r: GameDb['Character'] extends infer T ? { [K in keyof T]: unkn
 }
 function itemRow(r: { [K in keyof GameDb['Item']]: unknown }): ItemRow {
   return { id: String(r.Id), ownerId: String(r.OwnerId), location: String(r.Location), pos: num(r.Pos as number), bound: !!r.Bound, gear: JSON.parse(String(r.Data)) as Record<string, unknown>, createdAt: num(r.CreatedAt as number), version: num(r.Version as number) };
+}
+
+function listingRow(r: { [K in keyof GameDb['MarketListing']]: unknown }): ListingRow {
+  const d = JSON.parse(String(r.Data)) as { gear: Record<string, unknown>; sellerName: string };
+  const out: ListingRow = {
+    id: String(r.Id),
+    sellerAccountId: String(r.SellerAccountId),
+    sellerCharacterId: String(r.SellerCharacterId),
+    sellerName: d.sellerName,
+    itemId: String(r.ItemId),
+    price: num(r.Price as number),
+    status: r.Status as ListingRow['status'],
+    slot: String(r.Slot),
+    rarity: num(r.Rarity as number),
+    ilvl: num(r.Ilvl as number),
+    gear: d.gear,
+    createdAt: num(r.CreatedAt as number),
+    expiresAt: num(r.ExpiresAt as number),
+    version: num(r.Version as number),
+  };
+  if (r.ClosedAt !== null && r.ClosedAt !== undefined) out.closedAt = num(r.ClosedAt as number);
+  if (r.BuyerCharacterId !== null && r.BuyerCharacterId !== undefined) out.buyerCharacterId = String(r.BuyerCharacterId);
+  return out;
 }
 
 function reposOf(t: Trx, now: () => number): Repos {
@@ -153,6 +176,46 @@ function reposOf(t: Trx, now: () => number): Repos {
       add: async (row) => {
         await t.insertInto('AuditLog').values({ AccountId: row.accountId, Action: row.action, Detail: row.detail, At: row.at }).execute();
       },
+    },
+    listings: {
+      get: async (id) => {
+        const r = await t.selectFrom('MarketListing').selectAll().where('Id', '=', id).executeTakeFirst();
+        return r ? listingRow(r) : undefined;
+      },
+      save: async (row) => {
+        const v = {
+          SellerAccountId: row.sellerAccountId,
+          SellerCharacterId: row.sellerCharacterId,
+          ItemId: row.itemId,
+          Price: row.price,
+          Status: row.status,
+          Slot: row.slot,
+          Rarity: row.rarity,
+          Ilvl: row.ilvl,
+          Data: JSON.stringify({ gear: row.gear, sellerName: row.sellerName }),
+          CreatedAt: row.createdAt,
+          ExpiresAt: row.expiresAt,
+          ClosedAt: row.closedAt ?? null,
+          BuyerCharacterId: row.buyerCharacterId ?? null,
+        };
+        const cur = await t.selectFrom('MarketListing').select('Version').where('Id', '=', row.id).executeTakeFirst();
+        if (!cur) {
+          await t.insertInto('MarketListing').values({ Id: row.id, ...v, Version: row.version }).execute();
+          return { ...row };
+        }
+        const u = await t.updateTable('MarketListing').set({ ...v, Version: row.version + 1 }).where('Id', '=', row.id).where('Version', '=', row.version).executeTakeFirst();
+        if (!Number(u.numUpdatedRows)) throw new ApiError('conflict', `listings ${row.id} version ${row.version} != ${cur.Version}`);
+        return { ...row, version: row.version + 1 };
+      },
+      listOpen: async (q) => {
+        let s = t.selectFrom('MarketListing').selectAll().where('Status', '=', 'open').where('ExpiresAt', '>', q.aliveAt);
+        if (q.slot !== undefined) s = s.where('Slot', '=', q.slot);
+        if (q.rarity !== undefined) s = s.where('Rarity', '=', q.rarity);
+        if (q.excludeAccountId !== undefined) s = s.where('SellerAccountId', '<>', q.excludeAccountId);
+        const rows = await s.orderBy('Price').orderBy('CreatedAt').orderBy('Id').offset(q.offset).fetch(q.limit).execute();
+        return rows.map(listingRow);
+      },
+      listBySeller: async (c, limit) => (await t.selectFrom('MarketListing').selectAll().where('SellerCharacterId', '=', c).orderBy('CreatedAt', 'desc').orderBy('Id', 'desc').offset(0).fetch(limit).execute()).map(listingRow),
     },
   };
 }

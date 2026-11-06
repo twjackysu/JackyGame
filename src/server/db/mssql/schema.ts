@@ -64,6 +64,25 @@ export interface AuditLogTable {
   At: Ms;
 }
 
+export interface MarketListingTable {
+  Id: string;
+  SellerAccountId: string;
+  SellerCharacterId: string;
+  ItemId: string;
+  Price: Big;
+  Status: string;
+  Slot: string;
+  Rarity: number;
+  Ilvl: number;
+  /** gear＋sellerName（JSON） */
+  Data: string;
+  CreatedAt: Ms;
+  ExpiresAt: Ms;
+  ClosedAt: Ms | null;
+  BuyerCharacterId: string | null;
+  Version: number;
+}
+
 export interface GameDb {
   Account: AccountTable;
   Character: CharacterTable;
@@ -72,7 +91,8 @@ export interface GameDb {
   LedgerEntry: LedgerEntryTable;
   RequestLog: RequestLogTable;
   AuditLog: AuditLogTable;
+  MarketListing: MarketListingTable;
 }
 
 /** 這個版本建立的表（遷移只准碰這些；舊原型表一律不碰） */
-export const OWN_TABLES = ['AuditLog', 'RequestLog', 'LedgerEntry', 'Wallet', 'Item', 'Character', 'Account'] as const;
+export const OWN_TABLES = ['MarketListing', 'AuditLog', 'RequestLog', 'LedgerEntry', 'Wallet', 'Item', 'Character', 'Account'] as const;

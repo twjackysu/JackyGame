@@ -74,6 +74,37 @@ export interface LedgerRow {
   at: number;
 }
 
+/** 拍賣所的掛單（24 §4.1、25 §3 game.MarketListing）。物品本體還在 items（location＝market:<id>），這裡多存一份給搜尋用 */
+export interface ListingRow {
+  id: string;
+  sellerAccountId: string;
+  sellerCharacterId: string;
+  sellerName: string;
+  itemId: string;
+  price: number;
+  status: 'open' | 'sold' | 'cancelled' | 'expired';
+  slot: string;
+  rarity: number;
+  ilvl: number;
+  gear: Record<string, unknown>;
+  createdAt: number;
+  expiresAt: number;
+  closedAt?: number;
+  buyerCharacterId?: string;
+  version: number;
+}
+
+export interface ListingQuery {
+  slot?: string;
+  rarity?: number;
+  /** 不列這個帳號自己的掛單 */
+  excludeAccountId?: string;
+  /** 只列這個時間之後才過期的 */
+  aliveAt: number;
+  offset: number;
+  limit: number;
+}
+
 export interface RequestLogRow {
   /** accountId:requestId */
   id: string;
@@ -100,9 +131,10 @@ export interface Tables {
   ledger: LedgerRow;
   requests: RequestLogRow;
   audit: AuditRow;
+  listings: ListingRow;
 }
 export type TableName = keyof Tables;
-export const TABLES: readonly TableName[] = ['accounts', 'characters', 'items', 'wallets', 'ledger', 'requests', 'audit'];
+export const TABLES: readonly TableName[] = ['accounts', 'characters', 'items', 'wallets', 'ledger', 'requests', 'audit', 'listings'];
 
 /** 交易內可用的資料存取（handler 只看得到這個介面；SQL 版用 Kysely 實作同一份介面） */
 export interface Repos {
@@ -138,6 +170,15 @@ export interface Repos {
   };
   audit: {
     add(row: Omit<AuditRow, 'id'>): Promise<void>;
+  };
+  listings: {
+    get(id: string): Promise<ListingRow | undefined>;
+    /** 新增或更新（樂觀鎖同 items） */
+    save(row: ListingRow): Promise<ListingRow>;
+    /** 還開著的掛單：價格低的在前，同價先上架的在前 */
+    listOpen(q: ListingQuery): Promise<ListingRow[]>;
+    /** 這個角色上架過的（新的在前，最多 limit 筆） */
+    listBySeller(characterId: string, limit: number): Promise<ListingRow[]>;
   };
 }
 

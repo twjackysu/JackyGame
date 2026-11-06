@@ -4,6 +4,7 @@ import { accountHandlers } from './account';
 import { cardsHandlers } from './cards';
 import { characterHandlers } from './character';
 import { inventoryHandlers } from './inventory';
+import { marketHandlers } from './market';
 import { migrateHandlers } from './migrate';
 import { shopHandlers } from './shop';
 import { skillsHandlers } from './skills';
@@ -18,4 +19,5 @@ export const HANDLERS: HandlerTable = {
   ...skillsHandlers,
   ...cardsHandlers,
   ...storyHandlers,
+  ...marketHandlers,
 };

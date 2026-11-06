@@ -1,6 +1,6 @@
 // 客戶端 ↔ 伺服器的訊息格式（D-277，design/24 §1～2）。邊界上只有 JSON：這裡只放型別與純函式。
 // 換成線上版時這份檔案兩邊共用，不用改。
-import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, MigrateResult, ShopView } from './views';
+import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, ListingView, MigrateResult, ShopView } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -55,6 +55,13 @@ export interface Api {
   'cards.finish': { params: { characterId: string; matchId: string; moves: CardMoveView[] }; result: { winner: number; payout: number; prize: string | null; character: CharacterView }; write: true };
   // 討伐後的抉擇（core/meta/choices.ts，D-290）：要打倒過那張地圖的 Boss、只能選一次；「取」的結晶伺服器發
   'story.choose': { params: { characterId: string; map: string; pick: 'take' | 'spare' }; result: { crystal: number; character: CharacterView }; write: true };
+  // 拍賣所（core/meta/market.ts，24 §4.1）：上架收上架費、成交扣手續費、物品換主人都在同一個交易
+  'market.list': { params: { characterId: string; itemId: string; price: number }; result: { listing: ListingView; character: CharacterView }; write: true };
+  'market.cancel': { params: { characterId: string; listingId: string }; result: CharacterView; write: true };
+  'market.buy': { params: { characterId: string; listingId: string }; result: CharacterView; write: true };
+  'market.browse': { params: { slot?: string; rarity?: number; page?: number }; result: { listings: ListingView[]; page: number }; write: false };
+  /** 自己的掛單；過期的物品在這裡退回行囊（所以算寫入） */
+  'market.mine': { params: { characterId: string }; result: { listings: ListingView[]; character: CharacterView }; write: true };
 }
 /** 燼牌的一手（和 core/cards 的 Move 同形狀） */
 export type CardMoveView = { type: 'play'; card: number } | { type: 'pass' };
@@ -82,6 +89,10 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'cards.start',
   'cards.finish',
   'story.choose',
+  'market.list',
+  'market.cancel',
+  'market.buy',
+  'market.mine',
 ]);
 
 export class ApiError extends Error {

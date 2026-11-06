@@ -1,10 +1,11 @@
 // 遷移（25 §2-2）：Kysely Migrator，版本表放在 game.kysely_migration；schema 不存在才建（JackyAIStudio 的資料庫已經有小寫 game）。
 import { Migrator, sql, type Kysely, type Migration, type MigrationResultSet } from 'kysely';
 import * as m0001 from './migrations/0001_init';
+import * as m0002 from './migrations/0002_market';
 
 type Step = { up(db: Kysely<unknown>, schema: string): Promise<void>; down(db: Kysely<unknown>, schema: string): Promise<void> };
 /** 依名稱排序執行；新增遷移就在這裡加一行（不用檔案系統掃描，打包成單一檔案也能跑） */
-export const MIGRATIONS: Record<string, Step> = { '0001_init': m0001 };
+export const MIGRATIONS: Record<string, Step> = { '0001_init': m0001, '0002_market': m0002 };
 
 export function migrator(db: Kysely<unknown>, schema = 'game'): Migrator {
   const migrations: Record<string, Migration> = {};
