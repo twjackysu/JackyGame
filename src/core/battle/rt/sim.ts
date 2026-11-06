@@ -1,7 +1,7 @@
 // 控制器、無畫面模擬器與統計（design/19 §7、D-063 P2）。
 // 控制器只讀 BattleState、回傳 BattleCommand；同種子＋同控制器＝同結果（stateHash 驗證）。
 import { ENEMIES, STAGES } from './data';
-import { createBattle, dist, skillDef, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
+import { createBattle, ctlOf, dist, skillDef, enemiesOf, inShape, playerOf, stateHash, step, type BattleSetup } from './engine';
 import { aggroUnitsOf, CAMPFIRE_RULES, UNIT, type BattleCommand, type BattleState, type Telegraph } from './types';
 
 export interface BattleController {
@@ -58,17 +58,15 @@ export const BOT_PROFILES: Record<'auto' | 'novice' | 'normal' | 'expert', BotSk
   expert: { reactTicks: 4, parries: true, restUntilPct: 85, safePull: true },
 };
 
+type U = BattleState['units'][number];
 /** 會打到玩家目前位置、還沒結算的預告 */
-function threats(s: BattleState): Telegraph[] {
-  const p = playerOf(s);
+function threats(s: BattleState, p: U = playerOf(s)): Telegraph[] {
   return s.telegraphs.filter((t) => t.hitTick > s.tick && inShape(t.shape, t.ox, t.oy, t.dirX, t.dirY, p.x, p.y, p.r + 10));
 }
 
-type U = BattleState['units'][number];
 const sleepingOf = (s: BattleState): U[] => s.units.filter((e) => e.side === 'enemy' && !e.dead && (e.mode === 'idle' || e.mode === 'dormant'));
 
-function nearestSleeping(s: BattleState): U | undefined {
-  const p = playerOf(s);
+function nearestSleeping(s: BattleState, p: U = playerOf(s)): U | undefined {
   let best: U | undefined;
   for (const e of sleepingOf(s)) if (!best || dist(e.x, e.y, p.x, p.y) < dist(best.x, best.y, p.x, p.y)) best = e;
   return best;
@@ -79,7 +77,7 @@ function nearestSleeping(s: BattleState): U | undefined {
  * 在這組位置開打時，仇恨半徑內的其他待機怪＝會被連帶拉到的「第二組」。
  * 依（連帶隻數、這組隻數、距離）挑最安全的；全部都會連帶時仍挑連帶最少的。
  */
-export function pullRisk(s: BattleState, e: U): { group: number; extra: number } {
+export function pullRisk(s: BattleState, e: U, p: U = playerOf(s)): { group: number; extra: number } {
   const sleeping = sleepingOf(s);
   const group = new Set<U>([e]);
   const queue = [e];
@@ -91,7 +89,6 @@ export function pullRisk(s: BattleState, e: U): { group: number; extra: number }
     }
   }
   // 第二組：在這組位置開打、或走過去的路上（直線近似），會進入其仇恨半徑的其他待機怪
-  const p = playerOf(s);
   let extra = 0;
   for (const o of sleeping) {
     if (group.has(o)) continue;
@@ -116,8 +113,7 @@ function segDist(px: number, py: number, ax: number, ay: number, bx: number, by:
   return dist(px, py, ax + t * vx, ay + t * vy);
 }
 
-export function safestPull(s: BattleState, advanceTo?: { x: number; y: number }, huntStationary = false): U | undefined {
-  const p = playerOf(s);
+export function safestPull(s: BattleState, advanceTo?: { x: number; y: number }, huntStationary = false, p: U = playerOf(s)): U | undefined {
   let best: U | undefined;
   let key: [number, number, number] | undefined;
   let pool = sleepingOf(s);
@@ -131,7 +127,7 @@ export function safestPull(s: BattleState, advanceTo?: { x: number; y: number },
     if (ahead.length) pool = ahead;
   }
   for (const e of pool) {
-    const r = pullRisk(s, e);
+    const r = pullRisk(s, e, p);
     const k: [number, number, number] = [r.extra, r.group, dist(e.x, e.y, p.x, p.y)];
     if (!key || k[0] < key[0] || (k[0] === key[0] && (k[1] < key[1] || (k[1] === key[1] && k[2] < key[2])))) {
       best = e;
@@ -166,11 +162,21 @@ function shardNear(s: BattleState, p: U): { x: number; y: number } | undefined {
  */
 export class PlayerBot implements BattleController {
   readonly name: string;
-  constructor(private prof: BotSkill, name: string) {
+  /** pid：操作哪個玩家（Q6 多人；預設主角） */
+  constructor(
+    private prof: BotSkill,
+    name: string,
+    private readonly pid = 0,
+  ) {
     this.name = name;
   }
   decide(s: BattleState): BattleCommand[] {
-    const p = playerOf(s);
+    const out = this.think(s);
+    return this.pid ? out.map((c) => ({ ...c, pid: this.pid })) : out;
+  }
+  private think(s: BattleState): BattleCommand[] {
+    const p = playerOf(s, this.pid);
+    const ctl = ctlOf(s, p);
     const out: BattleCommand[] = [];
     const ready = (id: string) => (p.ready[id] ?? 0) <= s.tick + 1;
     const busy = !!p.action && p.action.kind !== 'attack';
@@ -178,18 +184,18 @@ export class PlayerBot implements BattleController {
     const es0 = s.units.filter((e) => e.side === 'enemy' && !e.dead);
     const sleeping = (e: (typeof es0)[number]) => e.mode === 'idle' || e.mode === 'dormant';
     const fires = STAGES[s.stageId]?.campfires ?? [];
-    if (fires.length && this.prof.campfireBelowPotions !== undefined && s.potions < this.prof.campfireBelowPotions && !es0.some((e) => e.mode === 'combat')) {
+    if (fires.length && this.prof.campfireBelowPotions !== undefined && ctl.potions < this.prof.campfireBelowPotions && !es0.some((e) => e.mode === 'combat')) {
       let c = fires[0]!;
       for (const f of fires) if (dist(f.x, f.y, p.x, p.y) < dist(c.x, c.y, p.x, p.y)) c = f;
       if (dist(c.x, c.y, p.x, p.y) <= CAMPFIRE_RULES.restUnits * UNIT - 10) return [{ type: 'rest' }];
-      if (!s.moveGoal || s.moveGoal.x !== c.x || s.moveGoal.y !== c.y + UNIT) return [{ type: 'moveTo', x: c.x, y: c.y + UNIT }];
+      if (!ctl.moveGoal || ctl.moveGoal.x !== c.x || ctl.moveGoal.y !== c.y + UNIT) return [{ type: 'moveTo', x: c.x, y: c.y + UNIT }];
       return [];
     }
     if (es0.length && !es0.some((e) => e.mode === 'combat') && es0.some(sleeping)) {
       const want = this.prof.restUntilPct ?? 0;
       const tgt = s.units.find((e) => e.id === p.targetId);
       if (p.hp * 100 >= p.maxHp * want && (!tgt || tgt.dead || !sleeping(tgt))) {
-        const best = this.prof.safePull ? safestPull(s, this.prof.advanceTo, this.prof.huntStationary) : nearestSleeping(s);
+        const best = this.prof.safePull ? safestPull(s, this.prof.advanceTo, this.prof.huntStationary, p) : nearestSleeping(s, p);
         if (best) return [{ type: 'target', id: best.id }];
       }
       if (p.hp * 100 < p.maxHp * want) {
@@ -198,17 +204,17 @@ export class PlayerBot implements BattleController {
         for (const f of fires) if (c && dist(f.x, f.y, p.x, p.y) < dist(c.x, c.y, p.x, p.y)) c = f;
         if (c && dist(c.x, c.y, p.x, p.y) < 8 * UNIT) {
           if (dist(c.x, c.y, p.x, p.y) <= CAMPFIRE_RULES.restUnits * UNIT - 10) return [{ type: 'rest' }];
-          if (!s.moveGoal || s.moveGoal.x !== c.x || s.moveGoal.y !== c.y + UNIT) return [{ type: 'moveTo', x: c.x, y: c.y + UNIT }];
+          if (!ctl.moveGoal || ctl.moveGoal.x !== c.x || ctl.moveGoal.y !== c.y + UNIT) return [{ type: 'moveTo', x: c.x, y: c.y + UNIT }];
           return [];
         }
         return [{ type: 'stop' }];
       }
     }
     // 0. 藥水（瞬間、不打斷動作）
-    if (this.prof.potionAtPct !== undefined && s.potions > 0 && ready('potion') && p.hp * 100 < p.maxHp * this.prof.potionAtPct) out.push({ type: 'potion' });
+    if (this.prof.potionAtPct !== undefined && ctl.potions > 0 && ready('potion') && p.hp * 100 < p.maxHp * this.prof.potionAtPct) out.push({ type: 'potion' });
     // 1. 迴避
     if (this.prof.reactTicks !== undefined) {
-      const seen = threats(s).filter((t) => s.tick + 1 - t.startTick >= this.prof.reactTicks!);
+      const seen = threats(s, p).filter((t) => s.tick + 1 - t.startTick >= this.prof.reactTicks!);
       const t = seen.sort((a, b) => a.hitTick - b.hitTick)[0];
       if (t) {
         const left = t.hitTick - (s.tick + 1);

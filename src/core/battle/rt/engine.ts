@@ -587,6 +587,22 @@ export function ctlOf(s: BattleState, p: Unit): PlayerCtl {
   const pid = p.pid ?? 0;
   return pid === 0 ? s : s.others![pid - 1]!;
 }
+/**
+ * 加一個玩家（Q6）：同一個職業定義與等級，放在主角旁邊；team 不給＝跟主角同隊（協力），給不同的數字＝敵對（PvP）。
+ * 武器、技能修正、等級目前全場共用（s.weapon／skillMods／prog）——各玩家不同武器是下一步。
+ */
+export function addPlayer(s: BattleState, o: { team?: number; dx?: number; dy?: number; potions?: number } = {}): Unit {
+  const p0 = s.units[0]!;
+  const pid = (s.others?.length ?? 0) + 1;
+  const u: Unit = {
+    ...p0, id: s.nextId++, pid, team: o.team ?? teamOf(p0), x: p0.x + (o.dx ?? 2 * p0.r + 20), y: p0.y + (o.dy ?? 0),
+    hp: p0.maxHp, dead: false, action: null, statuses: [], ready: {}, targetId: null, invulnUntil: -1, hitstunUntil: -1, hitstunImmuneUntil: -1, nextAttackTick: 0,
+  };
+  clampArena(s, u);
+  s.units.push(u);
+  (s.others ??= []).push({ manualMove: null, potions: o.potions ?? playerDef(s).potion.carry });
+  return u;
+}
 /** 所有玩家（單人＝只有主角；不配置新陣列） */
 const SOLO: Unit[] = [];
 export function playersOf(s: BattleState): readonly Unit[] {
