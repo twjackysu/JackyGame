@@ -7,6 +7,7 @@ import { installBackButton } from './game/backButton';
 import { installOrientationGuard } from './game/orientation';
 import { browserSwEnv, installSwUpdates } from './swUpdate';
 import { installVersionCheck } from './versionCheck';
+import { bootServer } from './client/boot';
 
 installAudioUnlock();
 applySettings();
@@ -26,6 +27,10 @@ if (import.meta.env.PROD) {
   installVersionCheck(() => game.scene.isActive('RtBattle'));
 }
 
+// D-281：遊戲裡的本機伺服器（V1 只把舊存檔複製一份過去，遊戲照舊讀寫舊存檔）
+const server = bootServer();
+
 if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('debug')) {
   (window as unknown as { __game?: Phaser.Game }).__game = game;
+  (window as unknown as { __server?: typeof server }).__server = server;
 }
