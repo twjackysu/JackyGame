@@ -18,19 +18,19 @@ const count = (f: string, re: RegExp) => (code(f).match(re) ?? []).length;
 
 /** 直接碰 localStorage／indexedDB（第 142 輪的數字） */
 const STORAGE: Record<string, number> = {
-  'src/game/settings.ts': 3,
+  'src/game/settings.ts': 2,
   'src/game/choices.ts': 2,
   'src/game/ui/emberCardPanel.ts': 2,
   'src/game/ui/weaponPick.ts': 1,
-  'src/game/rtControls.ts': 3,
+  'src/game/rtControls.ts': 2,
   'src/game/scenes/RtBattleScene.ts': 9,
-  'src/game/scenes/TitleScene.ts': 4,
+  'src/game/scenes/TitleScene.ts': 3,
   'src/game/chapters.ts': 2,
-  'src/game/encounters.ts': 3,
-  'src/game/rtRecord.ts': 4,
-  'src/game/finaleStats.ts': 6,
-  'src/game/weapon.ts': 3,
-  'src/game/memories.ts': 3,
+  'src/game/encounters.ts': 2,
+  'src/game/rtRecord.ts': 2,
+  'src/game/finaleStats.ts': 5,
+  'src/game/weapon.ts': 2,
+  'src/game/memories.ts': 2,
 };
 /** 畫面層自己改存檔／錢包（saveRecord／spend／spendCoin） */
 const WRITES: Record<string, number> = {
