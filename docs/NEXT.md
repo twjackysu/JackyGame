@@ -6,14 +6,22 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 146 輪起先做（V5 收尾、V6 落地，11/7–11/11）
-**已經有的（到第 145 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（**`simLeague`**）、`trade`、**`roster`**）；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.legacy/sync/`**`pull`**、`cards.*`、`story.choose`、`market.*`、`pvp.*`、`trade.*`、**`character.create/delete/select`、`warehouse.get/put/take`（D-302）**；**`src/server/rateLimit.ts`（D-304）**；遷移 `0001`～`0003`、**`0004_roster`**；畫面：拍賣所、交易、競技場、**角色面板（標題「角色」）、倉庫（行商分頁）**；**線上 API `server/`（http、main、devAuth、jwtAuth、Dockerfile、.env.example）、`src/net/HttpTransport.ts`、`npm run build:server`、`infra/main.bicep`、`.github/workflows/deploy-server.yml`（D-305）**。
-1. CI（含 mssql job、新的 Server bundle smoke test、Bicep build）每輪開頭看一次；第 145 輪 3c8f7ec 的 mssql、測試、Server bundle smoke、Bicep build 都綠（瀏覽器冒煙測試收尾時還在跑），之後只改了 .gitignore。**如果 Bicep build 紅了**：看錯誤訊息改 `infra/main.bicep`（沙盒不能下載 bicep，只能靠 CI）。
-2. **V6 `build:online`**：`VITE_SERVER_URL` 有值時 `src/client/boot.ts` 改用 `HttpTransport`＋登入 token、**不打包 `src/server`**（`import.meta.env` 條件＋動態 import；加測試掃描 online bundle 沒有 `GameServer`／`migrate.legacy` 字樣）。線上版沒有舊 key：畫面層目前還靠 legacyOp（migrate.sync 只有本機）——線上版先只開「競技場、拍賣所、交易、角色」能走的部分，寫 DECISIONS 再動。標題先打 `/health` 預熱。
-3. **`docs/DEPLOY_AZURE.md`**：第 145 輪寫了草稿，等 `build:online` 做完補「線上客戶端」一節，V7 再對照 Bicep 檢查一次。內容：建資源群組 → Entra External ID 建 API 應用程式 → `az deployment group create -f infra/main.bicep -p @infra/main.parameters.json`（範例 `infra/main.parameters.example.json`）→ 在 Azure SQL 用 `CREATE USER [jackygame-api] FROM EXTERNAL PROVIDER` 並只給 `game` schema 權限（`GRANT ... ON SCHEMA::game`）→ GitHub secrets（AZURE_CLIENT_ID 等，聯合認證）→ 手動跑 Deploy server。列每個資源「為什麼不收費」（25 §4.3）。
-4. **多角色收尾**：(a) 角色面板「改名」（之後）；(b) `account.export` 還沒帶 `pvpRating`；(c) 換角色時 `metThisVisit`（encounters.ts 模組變數）沒清，影響很小；(d) 行商面板 6 個分頁 gap 114，360 寬看起來剛好，再加分頁要改兩排。
-5. **競技場收尾**：(c) 結算畫面「看重播」（F5，`replayPvp` 就能重跑）。頻率限制已做（線上開）。
-6. **Q5 拆 HUD**（範圍保護 #5）、**V5 `loot.claim`**（舊 key 退場的關鍵）、交易「模擬冒險者賣給你」、SQL 版交易並發測試（V4 驗收）。
+## ★ 第 147 輪起先做（V5 收尾、V6 落地，11/7–11/11）
+**已經有的（到第 146 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（`simLeague`、**`rankAura`**）、`trade`、`roster`）；**`core/battle/rt/loot.ts`（掉落／經驗規則，引擎與伺服器共用）、`maps/world.ts` `stageDef`**；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.choose`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、**`battle.start`／`loot.claim`（D-307）**；`rateLimit.ts`；遷移 `0001`～`0004`；畫面：拍賣所、交易（**只放金幣＝跟模擬冒險者買**）、競技場（**看重播、段位光環**）、角色面板、倉庫；線上 API `server/`、`HttpTransport`、`build:server`、`infra/main.bicep`、`deploy-server.yml`；**`npm run build:online`（D-306，`src/client/onlineClient.ts`、`scripts/check-online-bundle.mjs`）、`src/game/onlineLoot.ts`**。
+1. CI 每輪開頭看一次（第 146 輪最後 db487b6 收尾時還在跑；之前 86e23d4 全綠）。冒煙截圖有看門狗了，如果又看到「WARNING: … 超過 … 秒沒結束」只是警告。
+2. **畫面改讀伺服器的角色（舊 key 退場的下一步）**：線上版現在畫面還顯示本機的等級／行囊／金幣，伺服器的角色另外長（loot.claim 給的）。建議做法：`src/client/` 加一個「角色快取」（`character.get` 結果＋每次動作回傳的 CharacterView 更新它），畫面層讀快取；離線版快取來源是 `migrate.sync`，所以兩版走同一條。先從 HUD 的金幣、等級做起，一次一個面板，截圖比對。
+3. **線上版登入畫面**：`jg_online_token` 沒有時標題顯示「登入」（MSAL.js 的 redirect 流程，Entra External ID；套件要確認授權與大小）。沒有登入前線上版只有 dev token 能用。
+4. **loot.claim 收尾**：(a) 抽查重跑（26 §3.1：伺服器要求上傳指令紀錄重跑，擊殺數對不上作廢＋AuditLog）——需要 PvE 指令紀錄，先記在 `BattleState`；(b) `battle.start` 檢查地圖解鎖（現在任何有 loot 的關卡都能開）；(c) 燼牌、寶箱、懸賞獎勵也還是客戶端給的（線上版要各自的 handler）。
+5. **交易收尾**：對方放上的裝備顯示「開價」（現在只看到物品，玩家可能多付；可以讓模擬冒險者「找零」：金幣多於開價就退回差額）；SQL 版交易並發測試（V4 驗收，只能在 CI 跑）。
+6. **多角色收尾**：角色面板「改名」；換角色時 `metThisVisit` 沒清；行商面板 6 個分頁再加要改兩排。
+7. **Q5 拆 HUD**（範圍保護 #5）、即時 PvP `BattleRoom`（23 §6 #4：只做協定＋本機兩客戶端測試，不部署）。
+8. **V7（11/12 12:00 起凍結）**：README 成果發表、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能。
+
+**線上版注意（第 146 輪）**：
+- 判斷線上版一律用 `import.meta.env.VITE_SERVER_URL`（**直接寫在 if 條件裡**，Vite 才會在建置時把離線版的分支拿掉）；新的 src/server import 只能出現在 `localServer.ts` 這條動態載入的路上，不然 `check-online-bundle.mjs` 會擋。
+- 線上整套本機試：`npm run build:server && (cd dist-server && AUTH_MODE=dev CORS_ORIGINS=http://localhost:4174 node main.js) &`，`npm run build:online && npx vite preview --outDir dist-online --port 4174`；`screenshots/r146boot.mjs <url> <png>` 會印出 boot 的 kind 與 account。
+- vitest 裡測線上路徑：`vi.stubEnv('VITE_SERVER_URL', base)` 再動態 import（見 `tests/online-loot.test.ts`）。
+- `loot.claim` 的掉落規則改 `core/battle/rt/loot.ts` 一個地方就好；改了要跑 golden hash（亂數順序不能變）。
 
 **多角色注意（第 145 輪）**：
 - 換角色流程在 `src/client/roster.ts`：`switchCharacter` 排在 `legacySerial`（和面板動作同一條佇列）。**新的「角色的」localStorage key 不用做什麼**（預設跟著角色走）；**新的「裝置的」key（教學、操作設定）要加進 `src/net/legacyKeys.ts` 的 `DEVICE_KEY`**，不然換角色會被清掉。

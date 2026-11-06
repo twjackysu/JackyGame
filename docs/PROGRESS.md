@@ -1,5 +1,15 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-07 04:12–05:05（台北）第 146 輪 — build:online、PvE 掉落改伺服器擲（loot.claim）、競技場重播＋段位光環、跟模擬冒險者買
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空。上一輪最後一次 CI 被取消：冒煙測試的競技場截圖卡到 job 15 分鐘上限（本機重跑 3 次都 11 秒）。
+- **CI 卡住**：`scripts/screenshot.mjs` 加看門狗（waitMs＋150 秒；有頁面錯誤照樣失敗、否則只警告）、`browser.close` 最多等 15 秒。
+- **V6 build:online（D-306）**：`npm run build:online`（`--mode online`，`.env.online` 預設連 `localhost:8080`、dev 登入）→ `dist-online/`。`boot.ts` 依 `VITE_SERVER_URL` 動態載入 `onlineClient.ts`（HttpTransport＋`jg_online_token`）或 `localServer.ts`；**線上 bundle 沒有 src/server**（`scripts/check-online-bundle.mjs` 掃 3 個伺服器字串、對照離線版要有，CI 加這一步）。線上版不遷移／不同步舊存檔：`legacyOp` 改打伺服器的目前角色（沒有就用本機武器建一個）、不寫回舊 key；換角色只換伺服器的目前角色。離線版行為不變（本機伺服器變成一個 47KB 的動態 chunk）。
+- **V5 loot.claim（D-307）**：掉落擲骰抽成 `core/battle/rt/loot.ts`（`rollEnemyLoot`、`validKill`、`isStageBoss`、`killXp`；引擎改呼叫它，**golden hash 不變**）；大地圖關卡定義 `maps/world.ts` `stageDef`（伺服器也能懶產生）。伺服器 `battle.start`／`loot.claim`：killSeq 遞增、每分鐘 40 隻＋開場 10 隻、3 小時過期、這張圖真的有這隻怪在這一群；伺服器亂數擲、直接入錢包／行囊（行囊滿了照 D-100）、經驗與升級、Boss 擊殺記地圖進度（firstRare 保底只有第一次）。線上版畫面 `src/game/onlineLoot.ts`：進場 start、打倒會掉東西的怪就 claim（離線版整段拿掉）。
+- **競技場**：結算「▶ 看重播」（同種子＋指令紀錄＋Bot，兩倍速；實測重播 1265 tick、結果和伺服器一樣）；**段位光環**（`rankAura`：霧語 1 圈→星隕 3 圈＋6 星點），排行榜段位字用光環色。匯出／匯入帶段位分。
+- **交易**：只放金幣＝跟模擬冒險者買：它放上開價（行商買價 ×0.45～0.85，或拍賣所掛單價——行囊沒有就撤下自己的掛單）買得起的最貴一件；錢不夠什麼都不放。
+- 驗證：每步 typecheck、lint、build、vitest（最後 105 檔 763 項全過，含通關機器人、golden hash、新的 loot 契約測試×3 種 DB、online-client／online-loot 真的起 node:http）。Playwright：離線／線上版競技場大廳一樣、線上版 boot `kind: online`、零錯誤；競技場打完 → 看重播 → 結果相同；光環截圖（改段位分看高段）；交易放 1000 金 → 對方放上「厚實的皮甲・薄霧」。腳本 `screenshots/r146*.mjs`（gitignored）。
+- **注意**：offline dist 也有 `loot.claim` 字樣（protocol 的方法表），不是伺服器程式。
+
 ## 2026-11-07 02:12–03:10（台北）第 145 輪 — F1 多角色＋共用倉庫、天梯會動、頻率限制、V6 線上 API（HTTP、JWT、打包、Bicep）
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（4839f5b）。
 - **多角色伺服器端（D-302）**：`core/meta/roster.ts`；`character.create/delete/select`、`warehouse.get/put/take`（40 格，`ownerId＝wh:<帳號>`）；帳號 `activeCharacterId`（SQL 遷移 `0004_roster`，820cbd7 的 mssql job 綠）；`migrate.sync` 只寫目前角色；匯出入帶倉庫；建角色可指定欄。契約測試三種 DB：3 欄上限、名字／武器檢查、不能刪目前／最後一個／拍賣中有東西的、別人碰不到、倉庫滿 40 拒絕、倉庫物品不能拿去拍賣、匯出入後倉庫還在。

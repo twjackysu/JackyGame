@@ -2,6 +2,16 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-307 2026-11-07 PvE 掉落與經驗由伺服器擲（loot.claim），規則抽成 core 純函式
+- **決策**：`core/battle/rt/loot.ts` 是唯一的掉落／經驗規則（引擎的 `rollDrops`／`gainXp` 也呼叫它，亂數順序不變）。伺服器 `battle.start(characterId, stageId, night?)` 存在角色列 `pveBattle`（JSON；SQL 版在 Character.Data，不用遷移）；`loot.claim(battleId, killSeq, enemyId, groupId?, fixedIdx?, fury?, affix?)`：killSeq 遞增、`KILL_BURST` 10＋每分鐘 `KILLS_PER_MIN` 40、一場 3000 次、3 小時；`validKill` 檢查這張圖有這隻怪在這一群（深夜群組要深夜場、暴怒只有 Boss、詞綴要關卡有開）。通過才用伺服器亂數擲、入帳、升級；行囊滿了照 D-100（`addWithAutoSalvage`）。
+- **已知限制**：深夜／暴怒／詞綴／群組是客戶端說的，伺服器只能檢查「可能」；之後抽查重跑指令紀錄（26 §3.1）。離線版不呼叫（還是 migrate.sync 同步舊 key），只有線上版的 `onlineLoot` 用。
+- **替代**：伺服器跑整場 PvE（成本太高、手感要零延遲，24 §7 已否決）。
+
+## D-306 2026-11-07 線上版客戶端：同一份程式、建置時切換，不打包 src/server
+- **決策**：`VITE_SERVER_URL` 有值＝線上版（`npm run build:online`，`.env.online` 給本機預設）。`boot.ts` 用 `import.meta.env.VITE_SERVER_URL` 判斷並**動態 import** `onlineClient`／`localServer`，Vite 建置時把沒用到的分支連同 src/server 拿掉；CI 掃 `dist-online`。登入 token 放 `jg_online_token`（之後 MSAL 寫入）；`VITE_AUTH_MODE=dev` 才自動給 `dev:<亂數>`。線上版不遷移、不同步舊存檔（26-security），面板動作打伺服器的目前角色、不寫回舊 key。
+- **理由**：一份程式碼、一個開關，上線時只換 URL 與登入；離線版完全不變（多一個 chunk）。
+- **之後**：畫面改讀伺服器的角色（等級、行囊）後舊 key 才能退場；登入畫面。
+
 ## D-305 2026-11-07 線上版 API 先走 HTTP（server/），JWT 用 node:crypto 驗、Bicep 只建一個縮到 0 的 API
 - **決策**：`server/http.ts`（node:http，`POST /api` 收協定 JSON、`GET /health`；16KB 上限、只收 `application/json`、CORS 白名單、每 IP 每秒 20 次）＋`server/main.ts`（環境變數 → `MssqlDb` 或記憶體 → `GameServer`＋`RateLimiter`，`local: false`）＋`src/net/HttpTransport.ts`。登入兩種：`AUTH_MODE=dev`（`dev:<名字>`，只給開發）、`AUTH_MODE=jwt`（`server/jwtAuth.ts`：只收 RS256、JWKS 的 kid、iss／aud／exp／nbf，accountId＝`ext_<sub>`），缺設定拒絕啟動。`npm run build:server` 用 rolldown 打成一個檔案（1.7MB，CI 檢查沒有 Phaser、真的啟動打 /health）；`server/Dockerfile` 只放打包結果。`infra/main.bicep`：Container Apps 環境（Consumption、不送日誌）＋`jackygame-api`（0.25 vCPU／0.5 GiB、0～1 副本、系統受控識別連 SQL）＋每月 1 美元預算；`deploy-server.yml` 只能手動觸發、沒有 Azure secret 就 skip。
 - **理由**：25 §4.3 上線只有非同步天梯（純 HTTP），WebSocket 不部署 → 先做 HTTP 才能縮到 0；JWT 用內建 crypto 不加套件、明確擋 alg 混淆。打包成一個檔案讓映像不含原始碼與開發套件。
