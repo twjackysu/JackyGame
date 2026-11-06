@@ -66,6 +66,7 @@ for (const be of BACKENDS)
       const t = await a.call('story.meet', { characterId: id, encounterId: 'mw_hunter', pick: 'take' });
       expect(t).toMatchObject({ coin: 60, crystal: 0 });
       expect(t.character.wallet.coin).toBe(ca.wallet.coin + 60);
+      expect(t.character.encounters).toEqual({ mw_hunter: 'take' });
       expect(await code(a.call('story.meet', { characterId: id, encounterId: 'mw_hunter', pick: 'spare' }))).toBe('rejected');
       // 取過的沒有回禮
       expect(await code(a.call('story.thanks', { characterId: id, encounterId: 'mw_hunter' }))).toBe('rejected');

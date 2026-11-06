@@ -53,6 +53,8 @@ export interface CharacterView {
   bounty: unknown;
   shop: unknown;
   maps: Record<string, MapProgressView>;
+  /** 路上的相遇選過哪些（第 147 輪；id → take／spare／thanked，沒選過任何一個就沒有這個欄位） */
+  encounters?: Record<string, string>;
   items: ItemView[];
 }
 

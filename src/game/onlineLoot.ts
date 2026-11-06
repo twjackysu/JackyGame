@@ -8,7 +8,7 @@ import type { GameClient } from '../client/GameClient';
 import { bootServer } from '../client/boot';
 import { onlineActive } from '../client/onlineClient';
 import { characterCache } from '../client/characterCache';
-import { mirrorOnline } from '../client/legacyOps';
+import { mirrorEncounters, mirrorOnline } from '../client/legacyOps';
 
 let battle: Promise<{ characterId: string; battleId: string } | null> = Promise.resolve(null);
 let seq = 0;
@@ -25,6 +25,7 @@ function synced(v: CharacterView, ticket: number, done: BountyDoneView[] = [], e
   characterCache.set(v, ticket);
   if (characterCache.get() !== v) return; // 比較舊的回應：不寫
   mirrorOnline(v, ['items', 'wallet', 'level']);
+  mirrorEncounters(v);
   onClaim?.(done, enemyId, drops);
 }
 

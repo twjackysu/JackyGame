@@ -98,3 +98,12 @@ export function mirrorOnline(v: CharacterView, fields: readonly MirrorField[]): 
     /* 沒有 localStorage（測試、無痕） */
   }
 }
+
+/** 線上版：伺服器記的相遇狀態寫進舊 key jg_encounters（場景的 loadEncounters 讀它） */
+export function mirrorEncounters(v: CharacterView): void {
+  try {
+    localStorage.setItem('jg_encounters', JSON.stringify(v.encounters ?? {}));
+  } catch {
+    /* 沒有 localStorage */
+  }
+}
