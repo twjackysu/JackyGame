@@ -47,3 +47,4 @@ xcuserdata/
 /screenshots/
 tests/zz-*.test.ts
 !.env.example
+infra/main.parameters.json
