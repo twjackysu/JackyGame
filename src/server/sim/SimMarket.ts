@@ -199,6 +199,17 @@ export class SimMarket {
         const ask = this.askFor(sim, it.gear as unknown as RtGear);
         if (ask <= t.theirs.coin && (!best || ask > best.ask)) best = { id: it.id, ask };
       }
+      // 行囊裡沒有合適的：把拍賣所自己掛著、開價買得起的最貴一件撤下來賣（模擬冒險者刷到的東西多半已經上架）
+      if (!best && !t.mine.items.length) {
+        const mine = await this.call<{ listings: ListingView[]; character: CharacterView }>(sim, 'market.mine', { characterId });
+        const ls = (mine?.listings ?? []).filter((l) => l.status === 'open' && l.price <= t.theirs.coin).sort((x, y) => y.price - x.price)[0];
+        if (ls) {
+          const back = await this.call<CharacterView>(sim, 'market.cancel', { characterId, listingId: ls.id });
+          const uid = (ls.gear as { uid?: unknown }).uid;
+          const it = back?.items.find((i) => i.location === 'bag' && (i.gear as { uid?: unknown }).uid === uid);
+          if (it) best = { id: it.id, ask: ls.price };
+        }
+      }
       const items = best ? [best.id] : [];
       if (t.mine.coin || t.mine.items.length !== items.length || t.mine.items[0]?.id !== items[0]) return !!(await this.call(sim, 'trade.offer', { characterId, tradeId, items, coin: 0 }));
       if (items.length && t.locked.them && !t.locked.me) return !!(await this.call(sim, 'trade.lock', { characterId, tradeId }));

@@ -117,7 +117,7 @@ export function openTradePanel(scene: Phaser.Scene, ops: TradeOps, onClose: () =
 
   function partnersView(items: Phaser.GameObjects.GameObject[]): void {
     const ps = partners;
-    items.push(scene.add.text(0, -440, ps.length ? '跟誰交易？（他們會收購你放上去的裝備）' : '附近還沒有其他冒險者\n先逛逛拍賣所再回來', { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0e0', align: 'center' }).setOrigin(0.5));
+    items.push(scene.add.text(0, -440, ps.length ? '跟誰交易？（放裝備＝賣給他；只放金幣＝跟他買）' : '附近還沒有其他冒險者\n先逛逛拍賣所再回來', { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0e0', align: 'center' }).setOrigin(0.5));
     if (!ps.length) {
       items.push(btn(0, -340, '重新找找', () => run(() => ops.partners())));
       return;
@@ -157,7 +157,7 @@ export function openTradePanel(scene: Phaser.Scene, ops: TradeOps, onClose: () =
     const bag = (data?.character.items ?? []).filter((i) => i.location === 'bag' && !i.bound).sort((a, b) => a.pos - b.pos);
     const pages = Math.max(1, Math.ceil(bag.length / BAG_ROWS));
     bagPage = Math.min(bagPage, pages - 1);
-    items.push(scene.add.text(-310, yb, `行囊（點一下放上去）`, { fontFamily: UI_FONT, fontSize: '20px', color: '#a8b8d0' }).setOrigin(0, 0.5));
+    items.push(scene.add.text(-310, yb, `行囊（點一下放上去；只放金幣＝跟對方買）`, { fontFamily: UI_FONT, fontSize: '20px', color: '#a8b8d0' }).setOrigin(0, 0.5));
     if (pages > 1) items.push(btn(230, yb, '◀', () => ((bagPage = (bagPage + pages - 1) % pages), render()), false, 18), btn(290, yb, '▶', () => ((bagPage = (bagPage + 1) % pages), render()), false, 18));
     const full = mineIds.length >= TRADE_MAX_ITEMS;
     bag.slice(bagPage * BAG_ROWS, bagPage * BAG_ROWS + BAG_ROWS).forEach((it, i) => items.push(...gearRow(yb + 46 + i * 56, it.gear, full ? '' : '放上去', full ? undefined : () => offer([...mineIds, it.id], t.mine.coin))));
