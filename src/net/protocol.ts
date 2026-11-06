@@ -89,7 +89,7 @@ export interface Api {
   'pvp.ladder': { params: { characterId: string }; result: PvpLadderView; write: false };
   // PvE 掉落由伺服器擲（26-security §3.1，D-307）：開打拿 battleId → 每打倒一隻送「打倒了誰、在哪一群」→ 伺服器檢查後用自己的亂數擲掉落、直接入帳
   'battle.start': { params: { characterId: string; stageId: string; night?: boolean }; result: { battleId: string }; write: true };
-  'loot.claim': { params: LootClaimParams; result: { drops: LootDropView[]; character: CharacterView }; write: true };
+  'loot.claim': { params: LootClaimParams; result: { drops: LootDropView[]; xp: number; character: CharacterView }; write: true };
 }
 export interface LootClaimParams {
   characterId: string;

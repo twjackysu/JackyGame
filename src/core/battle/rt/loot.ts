@@ -98,3 +98,14 @@ export function isStageBoss(c: Pick<LootContext, 'stageId' | 'defId' | 'fixedIdx
   const st = stageDef(c.stageId);
   return !!st?.bossZone && c.groupId === undefined && c.fixedIdx !== undefined && st.enemies[c.fixedIdx]?.enemyId === c.defId;
 }
+
+/** 打倒這隻得多少經驗（D-090：重生點／固定怪的 hpPct 加成也加在經驗上；召喚物不給，由呼叫端擋）。引擎與伺服器共用 */
+export function killXp(c: Pick<LootContext, 'stageId' | 'defId' | 'groupId' | 'fixedIdx'>): number {
+  const st = stageDef(c.stageId);
+  const rule = st?.progression;
+  if (!rule) return 0;
+  const g = c.groupId ? st.spawnGroups?.find((q) => q.id === c.groupId) : undefined;
+  const fixed = c.fixedIdx !== undefined ? st.enemies[c.fixedIdx] : undefined;
+  const pct = 100 + (g?.hpPct ?? fixed?.hpPct ?? 0);
+  return Math.round(((rule.xp[c.defId] ?? 0) * pct) / 100);
+}

@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
-import { HIDDEN_GROUP, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
+import { HIDDEN_GROUP, killXp, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
 import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
@@ -542,10 +542,8 @@ function gainXp(s: BattleState, dst: Unit): void {
   const st = STAGES[s.stageId];
   const rule = st?.progression;
   if (!rule || !s.prog || dst.summonedBy) return;
-  const g = dst.groupId ? st.spawnGroups?.find((q) => q.id === dst.groupId) : undefined;
-  const fixed = dst.fixedIdx !== undefined ? st.enemies[dst.fixedIdx] : undefined;
-  const pct = 100 + (g?.hpPct ?? fixed?.hpPct ?? 0);
-  s.prog.xp += Math.round(((rule.xp[dst.defId] ?? 0) * pct) / 100);
+  // 經驗值規則在 loot.ts（伺服器 loot.claim 共用）
+  s.prog.xp += killXp({ stageId: s.stageId, defId: dst.defId, ...(dst.groupId ? { groupId: dst.groupId } : {}), ...(dst.fixedIdx !== undefined ? { fixedIdx: dst.fixedIdx } : {}) });
   const p = s.units[0]!;
   while (s.prog.level < rule.maxLevel && s.prog.xp >= xpToNext(s.prog.level)) {
     s.prog.xp -= xpToNext(s.prog.level);

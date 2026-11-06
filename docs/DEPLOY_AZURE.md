@@ -45,5 +45,16 @@ npm run build:server && cd dist-server && AUTH_MODE=dev node main.js
 ```
 連 LocalDB：設 `GAME_DB_CONNECTION_STRING`（見 `server/.env.example`），並 `npm install msnodesqlv8`（Windows）。
 
+## 線上版客戶端（第 146 輪，D-306）
+- 建置：`VITE_SERVER_URL=https://<apiUrl> npm run build:online` → `dist-online/`（不打包本機伺服器，CI 用 `scripts/check-online-bundle.mjs` 檢查）。沒設就用 `.env.online` 的 `http://localhost:8080`（連本機 `npm run server:dev`）。
+- 登入：正式版不設 `VITE_AUTH_MODE`；token 放在 localStorage 的 `jg_online_token`（登入畫面還沒做，之後用 Entra External ID 的 MSAL 取得後寫進去）。`VITE_AUTH_MODE=dev` 只給本機：自動產生 `dev:<亂數>`，只對 `AUTH_MODE=dev` 的伺服器有效。
+- **CORS**：API 的 `CORS_ORIGINS` 要列出客戶端網址（例如 `https://twjackysu.github.io`），不然瀏覽器會擋。
+- 線上版現在能用的：競技場天梯（含看重播）、角色列表、拍賣所／交易（打伺服器的角色）、**PvE 掉落由伺服器擲**（`battle.start`／`loot.claim`，打倒怪就入伺服器的角色）。畫面上的冒險進度（等級、行囊顯示）還是本機的，等畫面改讀伺服器才會一致。
+- 本機整套試：
+  ```
+  npm run build:server && (cd dist-server && AUTH_MODE=dev CORS_ORIGINS=http://localhost:4174 node main.js) &
+  npm run build:online && npx vite preview --outDir dist-online --port 4174
+  ```
+
 ## 還沒做（之後的輪次）
-- 線上版客戶端 `npm run build:online`（畫面改連 API、不打包本機伺服器）與登入畫面。在那之前部署上去的 API 只能用工具呼叫。
+- 登入畫面（MSAL）；畫面改讀伺服器的角色（舊 key 退場）；線上客戶端要放哪裡（Pages 子路徑或 Static Web Apps 免費方案）由 Jacky 決定。

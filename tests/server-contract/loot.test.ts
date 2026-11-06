@@ -9,6 +9,8 @@ import { FakeClock, SeqIds } from '../../src/server/clock';
 import { GameServer } from '../../src/server/GameServer';
 import { KILL_BURST, KILLS_PER_MIN, PVE_BATTLE_TTL } from '../../src/server/handlers/loot';
 import { BAG_MAX } from '../../src/core/meta/bag';
+import { killXp } from '../../src/core/battle/rt/loot';
+import { xpToNext } from '../../src/core/battle/rt/engine';
 import { BACKENDS } from './backends';
 import { LEGACY_SAMPLE } from './fixtures';
 
@@ -45,6 +47,9 @@ for (const be of BACKENDS)
       const gold = r.drops.filter((d) => d.kind === 'gold').reduce((x, d) => x + d.amount, 0);
       expect(gold).toBeGreaterThan(0);
       expect(r.character.wallet.coin).toBe(before.coin + gold);
+      // 經驗也是伺服器給的（同一份 killXp 規則）
+      expect(r.xp).toBe(killXp({ stageId: 'mistwood', defId: 'wolf', groupId: 'entry' }));
+      expect(r.xp).toBeGreaterThan(0);
       // 重送同一個 killSeq（或更小）＝衝突
       expect(await code(a.call('loot.claim', { characterId, battleId, killSeq: 1, enemyId: 'wolf', groupId: 'entry' }))).toBe('conflict');
       // 別人的角色／別場
@@ -81,6 +86,16 @@ for (const be of BACKENDS)
       // 深夜開的那場就可以領深夜群組
       const night = await a.call('battle.start', { characterId, stageId: 'mistwood', night: true });
       expect(await code(a.call('loot.claim', { characterId, battleId: night.battleId, killSeq: 1, enemyId: 'shade_wolf', groupId: 'night_shade' }))).toBe('ok');
+    });
+
+    it('經驗滿了就升級（一次可能連升，規則跟引擎一樣）', async () => {
+      const { a } = await setup(be);
+      const low = { ...LEGACY_SAMPLE, jg_rt_mistwood: JSON.stringify({ ...JSON.parse(LEGACY_SAMPLE.jg_rt_mistwood!), level: 1, xp: 39 }) };
+      const { characterId } = await a.call('migrate.legacy', { snapshot: low });
+      const { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
+      const r = await a.call('loot.claim', { characterId, battleId, killSeq: 1, enemyId: 'wolf', groupId: 'entry' });
+      expect(r.character.level).toBe(2);
+      expect(r.character.xp).toBe(39 + r.xp - xpToNext(1));
     });
 
     it('速度上限：開場 KILL_BURST 隻，之後每分鐘 KILLS_PER_MIN 隻', async () => {

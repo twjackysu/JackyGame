@@ -2,11 +2,12 @@
 // - battle.start：開一場（角色列存 pveBattle），回 battleId。一個角色同時只有一場，重開就換掉。
 // - loot.claim：客戶端只說「這場第幾隻、打倒了誰、在哪一群／第幾個固定怪、暴怒？詞綴？」——
 //   伺服器檢查：這場是我的、還沒過期、killSeq 遞增、速度不超過人類上限（每分鐘 40 隻＋開場 10 隻）、這張圖真的有這隻怪在這一群（validKill）；
-//   通過才用「伺服器的亂數」照同一份規則（core/battle/rt/loot.ts）擲掉落，直接入錢包／行囊（行囊滿了照單機規則自動分解，D-100）。
+//   通過才用「伺服器的亂數」照同一份規則（core/battle/rt/loot.ts）擲掉落，直接入錢包／行囊（行囊滿了照單機規則自動分解，D-100）；經驗與升級也在這裡算。
 // 深夜、暴怒、詞綴是客戶端說的（伺服器沒跑這場戰鬥），只能檢查「這張圖有沒有」；之後抽查重跑指令紀錄（26 §3.1）。
 import { genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
 import { stageDef } from '../../core/battle/rt/maps/world';
-import { isStageBoss, rollEnemyLoot, validKill, type LootContext } from '../../core/battle/rt/loot';
+import { xpToNext } from '../../core/battle/rt/engine';
+import { isStageBoss, killXp, rollEnemyLoot, validKill, type LootContext } from '../../core/battle/rt/loot';
 import { addWithAutoSalvage } from '../../core/meta/bag';
 import { ApiError } from '../../net/protocol';
 import type { LootDropView } from '../../net/views';
@@ -123,11 +124,24 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim'> = {
     // 這場的進度；打倒 Boss 記在地圖進度（伺服器記，firstRare 保底只有第一次）
     const cur = (await ctx.r.characters.get(c.id))!;
     const next = { ...cur, pveBattle: JSON.stringify({ ...b, seq, claims: b.claims + 1 }) };
+    // 經驗與升級也由伺服器算（26-security：經驗是敏感邏輯）；規則和引擎同一份（killXp、xpToNext）
+    const xp = killXp(lc);
+    const maxLevel = stageDef(b.stageId)?.progression?.maxLevel ?? 1;
+    if (xp > 0) {
+      let level = Math.max(1, cur.level);
+      let x = cur.xp + xp;
+      while (level < maxLevel && x >= xpToNext(level)) {
+        x -= xpToNext(level);
+        level++;
+      }
+      next.level = level;
+      next.xp = x;
+    }
     if (isStageBoss(lc)) {
       const mp = cur.maps[b.stageId] ?? {};
       next.maps = { ...cur.maps, [b.stageId]: { ...mp, bossKills: (mp.bossKills ?? 0) + 1 } };
     }
     await ctx.r.characters.save(next);
-    return { drops: rolled, character: await freshView(ctx, c.id) };
+    return { drops: rolled, xp, character: await freshView(ctx, c.id) };
   },
 };
