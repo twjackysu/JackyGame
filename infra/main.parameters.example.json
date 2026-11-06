@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "gameDbConnectionString": { "value": "Server=tcp:<你的伺服器>.database.windows.net,1433;Database=<資料庫>;Authentication=Active Directory Managed Identity;Encrypt=True;" },
+    "jwtIssuer": { "value": "https://<租用戶>.ciamlogin.com/<租用戶 id>/v2.0" },
+    "jwtAudience": { "value": "<API 的應用程式 (用戶端) 識別碼>" },
+    "jwtJwksUrl": { "value": "https://<租用戶>.ciamlogin.com/<租用戶 id>/discovery/v2.0/keys" },
+    "budgetEmail": { "value": "<你的信箱>" },
+    "budgetStart": { "value": "2026-11-01" }
+  }
+}

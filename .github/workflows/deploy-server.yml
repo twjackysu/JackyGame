@@ -1,0 +1,57 @@
+# 線上版 API 部署（V6，D-305）：build 映像 → ghcr.io → 更新 Azure Container App。
+# 沒有設定 AZURE_CLIENT_ID／AZURE_TENANT_ID／AZURE_SUBSCRIPTION_ID／AZURE_RESOURCE_GROUP 時整個流程 skip（迴圈不建立任何雲端資源）。
+# 設定步驟見 docs/DEPLOY_AZURE.md；只能手動觸發（workflow_dispatch），不會因為 push 自動上線。
+name: Deploy server
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          A: ${{ secrets.AZURE_CLIENT_ID }}
+          T: ${{ secrets.AZURE_TENANT_ID }}
+          S: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          G: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        run: |
+          if [ -n "$A" ] && [ -n "$T" ] && [ -n "$S" ] && [ -n "$G" ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; else echo "ready=false" >> "$GITHUB_OUTPUT"; echo '沒有 Azure 設定，略過部署'; fi
+
+  deploy:
+    needs: gate
+    if: needs.gate.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push image
+        run: |
+          IMG=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/jackygame-api
+          docker build -f server/Dockerfile -t $IMG:${GITHUB_SHA} -t $IMG:latest .
+          docker push $IMG:${GITHUB_SHA}
+          docker push $IMG:latest
+          echo "IMG=$IMG:${GITHUB_SHA}" >> "$GITHUB_ENV"
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # 遷移在容器啟動時跑（GAME_DB_MIGRATE 預設 1：只建 game schema 自己的表）；這裡只換映像
+      - name: Update Container App
+        run: az containerapp update -g "${{ secrets.AZURE_RESOURCE_GROUP }}" -n jackygame-api --image "$IMG"
