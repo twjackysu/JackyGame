@@ -716,9 +716,27 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
 };
 
 export const STAGES: Record<string, StageDefinition> = {
-  // PvP 競技場（Q6，24 §6）：沒有怪的小場地；先不放掩體（maps/arena.ts 之後再做）
+  // PvP 競技場（Q6，24 §6）：沒有怪的小場地，中間四塊掩體（遠程要繞、近戰可以貼上去）；兩邊出生點在上下兩端
   pvp_arena: {
-    id: 'pvp_arena', name: '競技場', arena: { w: u(14), h: u(16) }, player: { x: u(7), y: u(13) }, timeLimitTicks: sec(180), enemies: [], pvp: true,
+    id: 'pvp_arena', name: '競技場', timeLimitTicks: sec(180), player: { x: u(7), y: u(13) }, enemies: [], pvp: true,
+    arena: { w: u(14), h: u(16), solid: { cell: u(1), rows: [
+      '..............',
+      '..............',
+      '..............',
+      '..............',
+      '...##....##...',
+      '...##....##...',
+      '..............',
+      '..............',
+      '..............',
+      '..............',
+      '...##....##...',
+      '...##....##...',
+      '..............',
+      '..............',
+      '..............',
+      '..............',
+    ] } },
   },
   forest_entry: {
     id: 'forest_entry', name: '森林入口', arena: { w: u(14), h: u(18) }, player: { x: u(7), y: u(15) }, timeLimitTicks: sec(180),
