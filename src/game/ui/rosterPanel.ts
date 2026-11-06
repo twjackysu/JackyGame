@@ -89,7 +89,7 @@ export function openRoster(scene: Phaser.Scene, depth = 900): Promise<boolean> {
               btn(170 + i * 190, y + 20, 170, WEAPON_NAME[w], WEAPON_LOOK[w], () =>
                 run(async () => {
                   const name = pickName(info?.characters.map((x) => x.name) ?? []);
-                  const made = await createCharacter(name, w);
+                  const made = await createCharacter(name, w, slot);
                   if (!made) {
                     note = '建立失敗，請再試一次';
                     return;

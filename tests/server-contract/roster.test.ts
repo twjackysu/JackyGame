@@ -59,7 +59,9 @@ for (const be of BACKENDS)
       const c2 = await a.call('character.create', { name: '弓手', weapon: 'bow' });
       expect(c2).toMatchObject({ slot: 1, level: 1, xp: 0, weapon: 'bow', wallet: { coin: 0, dust: 0, crystal: 0 } });
       expect(c2.items).toEqual([]);
-      const c3 = await a.call('character.create', { name: '法師', weapon: 'staff' });
+      expect(await code(a.call('character.create', { name: '法師', weapon: 'staff', slot: 1 }))).toBe('rejected'); // 那欄有人
+      expect(await code(a.call('character.create', { name: '法師', weapon: 'staff', slot: 7 }))).toBe('bad_request');
+      const c3 = await a.call('character.create', { name: '法師', weapon: 'staff', slot: 2 });
       expect(c3.slot).toBe(2);
       expect(await code(a.call('character.create', { name: '第四', weapon: 'sword' }))).toBe('rejected');
       expect((await a.call('character.list', {})).map((c) => c.slot).sort()).toEqual([0, 1, 2]);

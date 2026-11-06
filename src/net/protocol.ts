@@ -31,7 +31,7 @@ export interface Api {
   'character.list': { params: Record<string, never>; result: CharacterView[]; write: false };
   'character.get': { params: { id: string }; result: CharacterView; write: false };
   // 多角色（F1，core/meta/roster.ts，D-302）：3 個角色欄；刪除不能刪目前角色、最後一個、拍賣／交易中還有東西的
-  'character.create': { params: { name: string; weapon: WeaponView }; result: CharacterView; write: true };
+  'character.create': { params: { name: string; weapon: WeaponView; slot?: number }; result: CharacterView; write: true };
   'character.delete': { params: { id: string }; result: AccountView; write: true };
   'character.select': { params: { id: string }; result: CharacterView; write: true };
   // 帳號共用倉庫（40 格）：只有行囊裡的能放

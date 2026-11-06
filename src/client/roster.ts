@@ -53,10 +53,10 @@ export async function switchCharacter(id: string): Promise<boolean> {
   }
 }
 
-export async function createCharacter(name: string, weapon: WeaponView): Promise<CharacterView | null> {
+export async function createCharacter(name: string, weapon: WeaponView, slot?: number): Promise<CharacterView | null> {
   try {
     const { client } = await bootServer();
-    return await legacySerial(() => client.call('character.create', { name, weapon }));
+    return await legacySerial(() => client.call('character.create', { name, weapon, ...(slot === undefined ? {} : { slot }) }));
   } catch (e) {
     console.warn('[roster] create', e);
     return null;

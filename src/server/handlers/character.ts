@@ -16,7 +16,11 @@ export const characterHandlers: Pick<HandlerTable, 'character.list' | 'character
     if (!isWeapon(p?.weapon)) throw new ApiError('bad_request', 'weapon');
     const acc = await ensureAccount(ctx);
     const list = await ctx.r.characters.listByAccount(ctx.accountId);
-    const slot = freeSlot(list.map((c) => c.slot));
+    const used = list.map((c) => c.slot);
+    // 指定角色欄（畫面上點的那一欄）；沒指定就用第一個空的
+    const want = p?.slot;
+    if (want !== undefined && !(Number.isInteger(want) && want >= 0 && want < CHARACTER_SLOTS)) throw new ApiError('bad_request', 'slot');
+    const slot = want === undefined ? freeSlot(used) : used.includes(want) ? -1 : want;
     if (slot < 0 || list.length >= CHARACTER_SLOTS) throw new ApiError('rejected', 'no free slot');
     const c = await createCharacter(ctx, { slot, name, weapon: p.weapon, level: 1, xp: 0, stats: {}, skills: null, variants: null, bounty: null, shop: null, maps: {}, story: {}, items: [], wallet: { coin: 0, dust: 0, crystal: 0 } }, 'create');
     // 第一個角色自動成為目前角色
