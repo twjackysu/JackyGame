@@ -42,7 +42,25 @@ const simRating = (sim: SimPlayer): number => PVP_START_RATING - 100 + sim.tier 
 
 const ratingOf = (c: { pvpRating?: number }): number => (Number.isSafeInteger(c.pvpRating) && c.pvpRating! > 0 ? c.pvpRating! : PVP_START_RATING);
 
-export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish'> = {
+/** 天梯顯示前幾名 */
+const LADDER_TOP = 10;
+
+export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.ladder'> = {
+  'pvp.ladder': async (ctx, p) => {
+    const c = await ownCharacter(ctx, p?.characterId);
+    const rating = ratingOf(c);
+    // 同分時自己排前面（剛打贏追平的人看得到自己往上爬）；模擬玩家依帳號 id 固定順序
+    const all = [{ name: c.name, weapon: c.weapon, rating, me: true }, ...simRoster().map((s) => ({ name: s.name, weapon: s.weapon, rating: simRating(s), me: false }))]
+      .map((r, i) => ({ ...r, i }))
+      .sort((a, b) => b.rating - a.rating || a.i - b.i)
+      .map(({ i: _i, ...r }, k) => ({ ...r, pos: k + 1 }));
+    const mine = all.find((r) => r.me)!;
+    const rows = all.slice(0, LADDER_TOP);
+    if (mine.pos > LADDER_TOP) rows.push(mine);
+    return { rows, rating, pos: mine.pos, total: all.length };
+  },
+
+
   'pvp.start': async (ctx, p) => {
     const c = await ownCharacter(ctx, p?.characterId);
     const items = await ctx.r.items.listByOwner(c.id);

@@ -55,6 +55,15 @@ for (const be of BACKENDS)
       // 下一局的起始分就是新的分數（中間再 sync 一次也一樣）
       await a.call('migrate.sync', { snapshot: LEGACY_SAMPLE });
       expect((await a.call('pvp.start', { characterId })).rating).toBe(res.rating);
+      // 天梯（第 144 輪）：自己的分數與名次跟著變；照分數由高到低；別人的角色看不到
+      const lad = await a.call('pvp.ladder', { characterId });
+      expect(lad.rating).toBe(res.rating);
+      const me = lad.rows.find((r) => r.me)!;
+      expect(me.pos).toBe(lad.pos);
+      expect(me.rating).toBe(res.rating);
+      expect(lad.rows.slice(0, 10).every((r, i, xs) => i === 0 || xs[i - 1]!.rating >= r.rating)).toBe(true);
+      expect(lad.total).toBeGreaterThan(20);
+      expect(await code(b.call('pvp.ladder', { characterId }))).toBe('not_found');
     });
 
     it('造假的紀錄整筆拒絕、對局留著；過期作廢', async () => {

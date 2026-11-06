@@ -24,7 +24,7 @@ const DIR = 1000;
 const K = 0.44;
 const ME = 0x6ab8ff;
 const FOE = 0xff6a5a;
-type Phase = 'loading' | 'intro' | 'fight' | 'judging' | 'result' | 'error';
+type Phase = 'lobby' | 'loading' | 'intro' | 'fight' | 'judging' | 'result' | 'error';
 
 export class PvpScene extends Phaser.Scene {
   private phase: Phase = 'loading';
@@ -56,7 +56,7 @@ export class PvpScene extends Phaser.Scene {
   }
 
   init(): void {
-    this.phase = 'loading';
+    this.phase = 'lobby';
     this.open = null;
     this.inputs = [];
     this.inp.reset();
@@ -80,7 +80,7 @@ export class PvpScene extends Phaser.Scene {
     this.hud = this.add.graphics().setDepth(60);
     this.timer = this.add.text(W / 2, 58, '', { fontFamily: UI_FONT, fontSize: '34px', color: '#ffe0a0' }).setOrigin(0.5).setDepth(61);
     this.statusBg = this.add.graphics().setDepth(79);
-    this.status = this.add.text(W / 2, this.oy + (16 * UNIT * K) / 2, '尋找對手…', { fontFamily: UI_FONT, fontSize: '36px', color: '#ffffff', align: 'center', lineSpacing: 10, stroke: '#000000', strokeThickness: 6 }).setOrigin(0.5).setDepth(80);
+    this.status = this.add.text(W / 2, this.oy + (16 * UNIT * K) / 2, '', { fontFamily: UI_FONT, fontSize: '36px', color: '#ffffff', align: 'center', lineSpacing: 10, stroke: '#000000', strokeThickness: 6 }).setOrigin(0.5).setDepth(80);
     setBackHandler(this, () => {
       if (this.phase === 'fight' || this.phase === 'judging') return 'handled'; // 打到一半不能逃（逃了就沒有結果）
       this.leave();
@@ -97,7 +97,53 @@ export class PvpScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.inp.stickMove(p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.inp.stickEnd(p));
     this.inp.bindKeys(this.input.keyboard, loadControls());
-    void pvpOps.start().then((o) => (this.scene.isActive() ? this.begin(o) : undefined));
+    this.lobby();
+  }
+
+  /** 天梯大廳：排行＋「開始對戰」（第 144 輪） */
+  private lobby(): void {
+    const W = GAME_WIDTH;
+    const box = this.add.container(0, 0).setDepth(85);
+    const top = this.oy + 20;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0a0d1a, 0.92).fillRoundedRect(36, top, W - 72, 16 * UNIT * K - 40, 20);
+    bg.lineStyle(2, 0xffd27a, 0.7).strokeRoundedRect(36, top, W - 72, 16 * UNIT * K - 40, 20);
+    const title = this.add.text(W / 2, top + 44, '⚔ 競技場天梯', { fontFamily: UI_FONT, fontSize: '38px', color: '#ffd27a' }).setOrigin(0.5);
+    const sub = this.add.text(W / 2, top + 92, '讀取排行…', { fontFamily: UI_FONT, fontSize: '24px', color: '#c8d0e0' }).setOrigin(0.5);
+    box.add([bg, title, sub]);
+    const start = () => {
+      box.destroy();
+      this.phase = 'loading';
+      this.status.setText('尋找對手…');
+      void pvpOps.start().then((o) => (this.scene.isActive() ? this.begin(o) : undefined));
+    };
+    this.endButtons([
+      ['開始對戰', start],
+      ['離開', () => this.leave()],
+    ]);
+    void pvpOps.ladder().then((lad) => {
+      if (!this.scene.isActive() || !box.active) return;
+      if (!lad) {
+        sub.setText('伺服器沒有回應，排行讀不到');
+        return;
+      }
+      sub.setText(`你的段位：${rankName(lad.rating)} ${lad.rating}　第 ${lad.pos} / ${lad.total} 名`);
+      lad.rows.forEach((r, i) => {
+        const y = top + 145 + i * 44 + (i >= 10 ? 12 : 0);
+        const col = r.me ? '#ffd27a' : '#ffffff';
+        if (r.me) {
+          const hl = this.add.graphics().fillStyle(0xffd27a, 0.14).fillRoundedRect(56, y - 20, W - 112, 40, 8);
+          box.add(hl);
+        }
+        box.add([
+          this.add.text(76, y, `${r.pos}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.pos <= 3 ? '#ffd27a' : '#9aa4b8' }).setOrigin(0, 0.5),
+          this.add.text(136, y, r.me ? `${r.name}（你）` : r.name, { fontFamily: UI_FONT, fontSize: '24px', color: col }).setOrigin(0, 0.5),
+          this.add.text(W - 250, y, WEAPON_NAME[r.weapon], { fontFamily: UI_FONT, fontSize: '22px', color: '#9aa4b8' }).setOrigin(0, 0.5),
+          this.add.text(W - 76, y, `${rankName(r.rating)} ${r.rating}`, { fontFamily: UI_FONT, fontSize: '24px', color: col }).setOrigin(1, 0.5),
+        ]);
+      });
+      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '對手是其他冒險者的配裝（電腦操作）\n勝負由伺服器重播你的操作判定', { fontFamily: UI_FONT, fontSize: '20px', color: '#7a8296', align: 'center' }).setOrigin(0.5));
+    });
   }
 
   private begin(o: PvpOpen | null): void {
@@ -436,11 +482,13 @@ export class PvpScene extends Phaser.Scene {
     this.endButtons();
   }
 
-  private endButtons(): void {
+  private endButtons(list?: [string, () => void][]): void {
     const cx = GAME_WIDTH / 2;
     const y = GAME_HEIGHT - 220;
+    const made: Phaser.GameObjects.Container[] = [];
     const mk = (x: number, label: string, fn: () => void) => {
       const c = this.add.container(x, y).setDepth(90);
+      made.push(c);
       const bg = this.add.graphics();
       bg.fillStyle(0x0a0d1a, 0.92).fillRoundedRect(-140, -40, 280, 80, 18);
       bg.lineStyle(2, 0xffd27a, 0.8).strokeRoundedRect(-140, -40, 280, 80, 18);
@@ -448,9 +496,14 @@ export class PvpScene extends Phaser.Scene {
       c.setSize(280, 80).setInteractive({ useHandCursor: true });
       c.on('pointerdown', () => {
         SFX.confirm();
+        for (const m of made) m.destroy();
         fn();
       });
     };
+    if (list) {
+      list.forEach(([label, fn], i) => mk(cx + (i ? 150 : -150), label, fn));
+      return;
+    }
     for (const b of this.buttons) {
       b.label.setVisible(false);
       b.cd.setVisible(false);

@@ -2,6 +2,7 @@
 // 畫面只在本機用同一份引擎打、記下自己的指令（pvpMatch.playPvp 的即時版），打完把紀錄交給伺服器重跑。
 // PvP 不改錢包與行囊（獎勵只有段位稱號），所以 legacyOp 不寫回任何欄位。
 import type { PvpInputs, PvpMatchSetup } from '../core/battle/rt/pvpMatch';
+import type { PvpLadderView } from '../net/views';
 import { captureLegacy, legacyOp } from '../client/legacyOps';
 
 export interface PvpOpen {
@@ -18,6 +19,9 @@ export interface PvpResult {
 }
 
 export const pvpOps = {
+  /** 天梯排行（只讀；一樣先同步舊存檔，角色才會是最新的） */
+  ladder: (): Promise<PvpLadderView | null> =>
+    legacyOp(captureLegacy(), [], async (c, me) => ({ v: await c.call('pvp.ladder', { characterId: me.id }), me }), (r) => r.me, true).then((r) => r?.v ?? null),
   /** 開一局（伺服器挑對手、發種子）；伺服器壞了回 null */
   start: (): Promise<PvpOpen | null> =>
     legacyOp(

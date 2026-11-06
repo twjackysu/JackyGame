@@ -123,3 +123,20 @@ export interface PvpStartView {
   foeRating: number;
   rating: number;
 }
+
+/** 天梯的一列 */
+export interface PvpLadderRowView {
+  /** 名次（1 起算） */
+  pos: number;
+  name: string;
+  weapon: WeaponView;
+  rating: number;
+  me: boolean;
+}
+/** 天梯排行（pvp.ladder）：前幾名；自己不在前幾名時另外附在最後 */
+export interface PvpLadderView {
+  rows: PvpLadderRowView[];
+  rating: number;
+  pos: number;
+  total: number;
+}
