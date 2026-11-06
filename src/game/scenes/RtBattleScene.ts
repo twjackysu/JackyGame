@@ -9,6 +9,7 @@ import { RARITY_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
 import { openMarketPanel } from '../ui/marketPanel';
+import { BannerSystem } from '../rt/BannerSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
 import { cardSummary, grantCard, openEmberCardPanel, syncChestCards } from '../ui/emberCardPanel';
@@ -66,7 +67,7 @@ import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { InputSystem } from '../rt/InputSystem';
 import { captureLegacy, legacyOp } from '../../client/legacyOps';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { BANNER_DEPTH, TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
@@ -264,7 +265,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 選單開著＝暫停 */
   private menu: Phaser.GameObjects.Container | null = null;
   /** 面板開著時被藏起來的置中大字（面板關掉再放回來） */
-  private bannerHidden = new Set<Phaser.GameObjects.Text>();
+  private readonly banners = new BannerSystem();
   private botName: string | null = null;
   private lastWarnTick = -1;
   private blinkHinted = new Set<string>();
@@ -470,7 +471,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.ended = false;
     this.inp.reset();
     // 全螢幕面板（行囊、行商、技能點、☰…）開著時藏起置中大字（D-176，同 D-172 的抉擇面板）
-    this.bannerHidden.clear();
+    this.banners.reset();
     this.events.off('postupdate', this.menuBanners, this);
     this.events.on('postupdate', this.menuBanners, this);
     // 鏡頭：畫面寬約 10.5 格（角色夠大、手機看得清楚），跟隨主角（D-067）
@@ -2837,39 +2838,18 @@ export class RtBattleScene extends Phaser.Scene {
     this.holdTips(bigText(this, GAME_WIDTH / 2, 600, text, color, 34, 2600, true));
   }
 
-  /** 每台裝置只提示一次的小引導（第 23 輪）；說明框還在時先不提示 */
+  /** 面板／調整按鈕位置時藏起會透出來的字（Q5：邏輯在 rt/BannerSystem.ts） */
   private menuBanners(): void {
-    // 第 47 輪：開場操作說明框（depth 70）會透過面板的半透明遮罩疊在「技能點」標題上 → 面板開著時一起藏起
-    if (this.hint?.active) this.hint.setVisible(!this.menu?.active && !this.editing);
-    // 第 59 輪：上方的記憶卡／回禮卡（depth 940）從暫停選單（960、遮罩 0.84）底下透出來，「暫停」標題壓在半透明的卡片字上 → 一起藏起
-    if (this.topCard?.active) this.topCard.setVisible(!this.menu?.active && !this.editing);
-    // 第 103 輪：營火旁／休息中的字條（depth 65）在 ☰ 遮罩底下透到「回標題」鈕旁邊（「點營火休息：HP 全滿…」）→ 面板開著時藏起；關掉後下一幀 HUD 會照原條件再顯示
-    if (this.menu?.active && this.calmText?.visible) this.calmText.setVisible(false);
-    // 第 105 輪（D-253）：☰→操作設定→調整按鈕位置時也是半透明黑框（0.8）蓋在畫面上方，剛跳的地區說明「小心石頭後的射手…」從框底下透到「調整按鈕位置」標題後面
-    // → 編輯中也藏起置中大字／地區字（HUD、營火字條、箭頭距離字照常顯示：調位置要看得到實際畫面）
-    const editing = !!this.editing && !this.menu?.active;
-    if (editing && this.bannerHidden.size) {
-      // 從 ☰ 進來時被藏的 HUD 字（箭頭距離、懸賞板）先還原
-      for (const t of this.bannerHidden) if (t.active && (this.arrowLabels.includes(t) || t === this.gateArrow || t === this.bountyTxt)) {
-        t.setVisible(true);
-        this.bannerHidden.delete(t);
-      }
-    }
-    if (this.menu?.active || editing) {
-      for (const o of this.children.list) {
-        // 第 102 輪（D-250）：地區名稱／地區說明（depth 66）也藏——開 ☰ 時剛走進新地區，「小心石頭後的射手・北邊有營火」從遮罩底下透到「暫停」標題上面
-        // 第 104 輪（D-252）：Boss／精英箭頭的距離字（「69m」，depth 51）透到「暫停」標題正下方、看起來像標題的一部分；懸賞板（depth 49）在 360×640 壓進「行囊」鈕 → 一起藏
-        if (!(o instanceof Phaser.GameObjects.Text) || !o.visible) continue;
-        const hud = !editing && (this.arrowLabels.includes(o) || o === this.gateArrow || o === this.bountyTxt);
-        if (o.depth === BANNER_DEPTH || this.zoneTexts.includes(o) || hud) {
-          o.setVisible(false);
-          this.bannerHidden.add(o);
-        }
-      }
-    } else if (this.bannerHidden.size) {
-      for (const t of this.bannerHidden) if (t.active) t.setVisible(true);
-      this.bannerHidden.clear();
-    }
+    this.banners.update({
+      menuActive: !!this.menu?.active,
+      editing: !!this.editing,
+      hint: this.hint ?? undefined,
+      topCard: this.topCard,
+      calmText: this.calmText,
+      children: this.children.list,
+      zoneTexts: this.zoneTexts,
+      hud: (t) => this.arrowLabels.includes(t) || t === this.gateArrow || t === this.bountyTxt,
+    });
   }
 
   /** @returns 這則提示是否已經處理掉（剛顯示、以前看過、或 Bot 示範）；false＝現在太忙，呼叫端可以等一下再試 */
