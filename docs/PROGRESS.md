@@ -1,5 +1,13 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-06 16:12–16:55（台北）第 140 輪 — V1 地基完成＋V2 db/mssql
+- **Q1 確定性（D-280）**：`src/core/fixedMath.ts`（產生器 `scripts/gen-fixed-math.mjs`）取代引擎的 `Math.asin/sin/cos/pow`；`tests/rt-golden-hash.test.ts`（120 組 hash 快照）、`tests/fixed-math.test.ts`（和舊公式比對 3 萬點）、`core-boundary` 加禁用清單。扇形與 XP 替換 hash 完全不變；角度量化後更新快照。
+- **Q2 本機伺服器骨架（D-281）**：`src/net`、`src/server`（GameServer／冪等／DocDb：Memory、IndexedDB、localStorage）、`src/client`（GameClient、boot）。開機複製舊存檔到角色 1（先備份 `jg_backup_<時間>`），遊戲仍讀寫舊 key。`tests/server-contract`（memory／local-idb／local-kv 同一組：遷移、重送只執行一次、35% 掉包、匯出匯入、回滾、錢包、樂觀鎖、重開）、`tests/layer-boundary.test.ts`。Playwright：真 Chromium 用 IndexedDB 遷移一次、重開不重複、零錯誤。
+- **Q4 效能（D-282）**：`tests/rt-perf.test.ts` 基準 **54 μs/tick**（暴動、最多 33 隻）；距離場改環狀桶（逐格相同、快 22%）。`separate()` 空間雜湊暫緩（只佔約 10%）。
+- **Q8 ESLint（D-283）**：`eslint.config.js` 守邊界，CI 加 `npm run lint`。
+- **V2 db/mssql（D-284）**：Kysely＋tedious、`0001_init`（game schema 7 張表）、ADO.NET 連線字串解析（`tests/conn-string.test.ts`）、CI 新 job `mssql`（SQL Server 2022 service container）跑契約測試＋舊表不變檢查。本機沒有 Docker daemon，SQL 版只能看 CI：第一次紅（`EXEC('CREATE SCHEMA ' + QUOTENAME(...))` 是語法錯誤），改成先組進變數後 acc05e8 的 mssql job 全綠。
+- 驗證：每步 typecheck、build、lint、vitest（最後 77 檔全過，含通關機器人）；golden hash 在效能改動前後不變。
+
 ## 2026-11-06 12:11–12:40（台北）第 139 輪 — 開第二期（到 11/13）：寫路線圖
 **背景**：排程第 0 步要停用迴圈，但停用被權限擋下；Jacky 接著回覆要繼續做到 11/13，請我自己列新功能、美術、程式品質（複雜度、連線多人架構）計畫，並保留 FOR_JACKY。
 - 新增 `docs/design/23-v2-roadmap.md`（D-276）：現況盤點（`RtBattleScene` 6,495 行、13 個檔案約 50 處 localStorage、`separate()` O(n²)、核心用 `Math.asin/sin/cos`、`playerOf = units[0]`、規則放在畫面層）→ Q1～Q8、F1～F5、A1～A6、里程碑 V1～V7、範圍保護。

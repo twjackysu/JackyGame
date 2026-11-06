@@ -2,6 +2,31 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-284 2026-11-06 SQL Server 版資料庫：表名照 25 §3、id 用 nvarchar(64)、時間存 UTC 毫秒 bigint
+- **決策**：`src/server/db/mssql`（Kysely＋MssqlDialect／tedious）。表 `game.Account／Character／Item／Wallet／LedgerEntry／RequestLog／AuditLog`；角色的技能、地圖進度等放 `Character.Data`（`ISJSON` check）、裝備本體放 `Item.Data`；樂觀鎖用 `Version int`（和 Memory／Local 同語意）；錢包 `CHECK (Balance >= 0)`；交易 SERIALIZABLE、死結重試 3 次。CI 新 job 用 SQL Server 2022 容器跑同一組契約測試，並建一張假的 `game.Players` 確認遷移後不變；遷移檔有靜態掃描（只 create／drop 自己的表、不碰 dbo、不寫原始 DROP／ALTER）。LocalDB（`msnodesqlv8`）留到 V6 的 `server/` 套件。
+- **理由**：id 由伺服器發、帶前綴字串（`chr_…`）方便看 log，`uniqueidentifier` 之後要換也只是遷移；毫秒 bigint 和 Repos 介面一致、沒有時區轉換問題；`Version` 比 `rowversion` 好在三種實作行為一模一樣。
+- **替代**：`uniqueidentifier`＋`datetime2`＋`rowversion`（25 §3 原案）→ 三種實作語意不同，契約測試難共用。
+
+## D-283 2026-11-06 ESLint 只當邊界守門員
+- **決策**：`eslint.config.js`（`typescript-eslint` parser，沒有開 recommended 全套）：`src/core` 只准 import core、禁 `Math.random/sin/cos/...`、`Date.now`、瀏覽器全域；`src/server` 不准 import Phaser／game／client；`src/net` 只放協定；`src/game`／`src/audio` 不准直接 import `src/server`；另開少數抓 bug 的規則。`npm run lint` 進 CI。
+- **理由**：邊界是第二期架構的命脈；一次開全套規則會產生上千個風格警告、淹沒真正的問題。
+- **替代**：只靠 vitest 掃描 → 已經有（core-boundary、layer-boundary），ESLint 讓編輯器當場就標紅。
+
+## D-282 2026-11-06 引擎效能：量測後不急著做空間雜湊
+- **決策**：新增 `tests/rt-perf.test.ts`（霧語森林每 10 秒強制暴動、expert Bot、9,000 tick）：**54 μs/tick、最多 33 隻活著**（30 tick/秒＝每秒 1.6ms，佔 60fps 預算不到 0.2%）。`separate()` 只佔約 10%，空間雜湊延到 PvP／多人讓單位數變多時再做；改了距離場（環狀桶、鄰居表不解構，結果逐格相同、快 22%）、快取 8→16、`nearestEnemy` 不配置陣列。
+- **理由**：手機效能瓶頸在畫面（Phaser 繪圖、文字），不在引擎；空間雜湊會改變成對處理的時機，可能讓 golden hash 變動，不值得現在冒險。
+- **替代**：照原計畫做空間雜湊 → 收益 < 5%。
+
+## D-281 2026-11-06 本機伺服器骨架上線（V1 Q2）：開機只「複製」舊存檔
+- **決策**：`src/net`（協定、LocalTransport）、`src/server`（GameServer、冪等、Memory／Local DB、handlers：account.get/export/import、character.list/get、migrate.legacy）、`src/client`（GameClient、localServer、boot）。開機時 `bootServer()`：帳號還沒遷移 → 把 `jg_*` 舊 key 備份成 `jg_backup_<時間>`（只備份一次）→ `migrate.legacy` 複製成角色 1。**V1 不改畫面層讀寫**，舊 key 照舊是遊戲的真實來源；V2 畫面層逐檔改走 GameClient 時，再用「伺服器 → 舊 key」單向同步過渡，全部切完才停寫舊 key。舊存檔遷移與匯入只在 `local: true`（線上版拒絕，26-security）。本機 DB：IndexedDB → localStorage（`jgdb:` 前綴）→ 記憶體。物品歸屬先用角色 id（`ownerId`）。
+- **理由**：先讓伺服器有真實資料、跑過真瀏覽器，但不冒「玩家存檔壞掉」的風險。
+- **替代**：一次把讀寫全切到伺服器 → 改動 13 個檔案、風險集中在同一輪。
+
+## D-280 2026-11-06 核心確定性：查表數學（fixedMath）
+- **決策**：`src/core/fixedMath.ts`（`scripts/gen-fixed-math.mjs` 產生的數字字面值表）：半度一格的 sin 表、扇形判定用 cos(α+β) 展開（不用 asin）、XP 曲線表（不用 `Math.pow`）。重生點／掉落／暴動／圍圈的角度改成半度一格。`tests/core-boundary.test.ts` 禁止核心用三角／指數／`hypot`／`Date`／`performance`／瀏覽器儲存。新增 `tests/rt-golden-hash.test.ts`（10 種子 × 3 武器 × 4 地圖 × 3,000 tick，快照在 `tests/__snapshots__/golden-*.json`）。
+- **理由**：`Math.sin` 等在不同 JS 引擎可能差最後一位，伺服器（Node）重跑客戶端（手機瀏覽器）的 PvP 紀錄會對不上。扇形判定與 XP 換掉後 120 組 hash 完全不變；角度量化讓位置最多差 0.25°，玩家看不出來，hash 快照已更新。
+- **替代**：整數定點全面改寫 → 工程量大且 `Math.sqrt` 已經是 IEEE 正確捨入，不需要。
+
 ## D-279 2026-11-06 資安：敏感邏輯只在後端；DB 用 connection string（開發 LocalDB）；沿用既有小寫 `game` schema、不碰舊表
 - **決策**：Jacky 11/6：「顧好資安，敏感邏輯都寫在後端避免作弊；DB 用 connection string 我之後換，測試先用 LocalDB」「目前已經有 game 的一些 table，我之後會刪掉」。
   - 資安規格 `docs/design/26-security.md`：客戶端只送意圖；經濟、物品、掉落、強化、交易、PvP 勝負、時間都在伺服器；PvE 掉落伺服器擲＋速率檢查＋抽查重跑；`build:online` 不打包 `src/server`；輸入 schema 驗證、參數化 SQL、JWT、資源擁有權檢查、頻率限制、冪等、稽核、gitleaks／npm audit；**線上帳號從新開始，離線存檔不能匯入**。

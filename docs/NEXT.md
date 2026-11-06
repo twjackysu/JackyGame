@@ -6,23 +6,21 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 139 輪起先做（11/6 第 138 輪後 Jacky 開第二期時寫）
-**V1 地基（11/6–11/7）**，照順序：
-1. **Q1 確定性**：新增 `src/core/fixedMath.ts`（`sinT(deg)`／`cosT(deg)` 整數查表 ×10000、需要的話 `isqrt`），換掉 `src/core/battle/rt/engine.ts` 的三角函式：第 54～55 行 `inShape` 扇形判定用 `Math.asin`＋`Math.cos`（改成整數比較：預先算好每種扇形角度的 cos×10000，目標半徑寬容用查表或保守近似）、第 453～454 行重生點圍圈用 `Math.cos`／`Math.sin`（改查表）。**換之前**先寫 `tests/rt-golden-hash.test.ts`：種子 1～10 × 武器 sword／bow／staff × 地圖 mistwood／thornvale／emberrift／starfall，用 `PlayerBot` 跑 3,000 tick 記 `stateHash`（快照存 `tests/__snapshots__/`）；換完如果 hash 變了，確認只是查表誤差造成、再更新快照並在 commit 寫原因。再加 `tests/core-purity.test.ts`（掃 `src/core/**/*.ts` 文字：禁 `Math.random|Math.sin|Math.cos|Math.tan|Math.asin|Math.acos|Math.atan2|Math.exp|Math.pow|Math.log|Date\.|performance\.|localStorage|window\.|from 'phaser'`；`maps/validate.ts`、`maps/testWorld.ts` 用 `Math.hypot` 只在測試／驗證用，可列白名單或改成 `dist()`）。
-2. **Q2 本機伺服器骨架**（D-277，規格 `docs/design/24-online-architecture.md` §1～3、§8）：
-   - 建 `src/net/{protocol.ts,Transport.ts,LocalTransport.ts,README.md}`（訊息 `{v, id, requestId, method, params}`／`{id, ok, result|error}`；LocalTransport 每則訊息 `JSON.stringify`→`parse`，可設 `latencyMs`、`dropPct`）、`src/server/{GameServer.ts,router.ts,idempotency.ts,clock.ts,README.md}`、`src/server/repos/*.ts`（介面）、`src/server/db/memory/`、`src/server/db/local/`（IndexedDB；`indexedDB` 不存在時退回 localStorage KV）、`src/client/GameClient.ts`（`call<M>(method, params)` 型別化、逾時重送同一個 requestId）。
-   - 第一批 handler：`account.get`、`character.list/get`、`account.export/import`、`migrate.legacy`（把 `jg_rt_<map>`、`jg_weapon` 等舊存檔轉成帳號 1／角色 1；轉前備份 `jg_backup_<時間>`）。資料模型照 24 §3（Item 用伺服器發的 id＋`location`＋`version`；Wallet＋LedgerEntry 複式記帳）。
-   - 測試：`tests/server-contract/*.test.ts` 同一組跑 MemoryDb 與 LocalDb（devDependency `fake-indexeddb`）；舊存檔樣本遷移前後數值一致；LocalTransport 重送不重複執行。
-   - **這一步先不改畫面層的讀寫**（V2 才逐檔改成走 GameClient），所以玩家行為不變；但開機時要跑一次遷移並把結果記下來（舊 key 先保留不刪，V2 全部切過去後才停止寫舊 key）。
-   - 設定面板「匯出／匯入存檔」改呼叫 `account.export/import`（可以留到 V2）。
-3. **Q4 效能**：先寫 `tests/rt-perf.test.ts`（霧語森林開暴動 `riot`、跑 9,000 tick、印平均 μs/tick；斷言不超過基準 2 倍，基準寫在 PROGRESS）。再把 `engine.ts` 的 `separate()`（第 899 行，O(n²)）改成均勻格子空間雜湊，**仍依 id 順序處理配對**（確定性）；`enemiesOf()` 改成不配置新陣列的版本。前後 golden hash 必須一樣（純效能改動不該改結果——如果變了代表處理順序變了，要修到一樣）。
-4. **Q8 ESLint**（V1 有空就做）：`eslint`＋`typescript-eslint`，邊界照 24 §8（`game` 不准 import `server`／`db`；`server` 不准 import `phaser`／`game`／`client`；`core` 只准 import `core`）；`npm run lint` 加進 `ci.yml`。
+## ★ 第 141 輪起先做（V1 已完成；V2 規則上伺服器，11/7–11/8）
+**已經有的（第 140 輪）**：`src/core/fixedMath.ts`（核心禁三角函式）、golden hash 快照、`src/net`／`src/server`／`src/client` 骨架（看 `src/server/README.md`）、開機把舊存檔複製成角色 1（`src/client/boot.ts`，遊戲仍讀寫舊 key）、`db/mssql`（CI job `mssql` 跑契約測試）、ESLint 邊界、`rt-perf` 基準 54 μs/tick。
+1. CI 的 `mssql` job 已綠（第 140 輪 acc05e8：SQL Server 2022 容器上契約測試＋舊表不變檢查全過）。之後改 `src/server/db/mssql` 都要看這個 job；本機沒有 Docker，失敗 log 很長（容器 log 灌在最後），用 `get_job_logs` 時請子代理只挑 vitest 的 FAIL 行。
+2. **Q3 規則搬進 `src/core/meta/`**（純函式、傳 `Rng`，不碰 Phaser／storage）：從 `src/game/rtShop.ts`（買、賣、重抽、`spendCoin`）、`rtBag.ts`（`equipWith`／`unequip`／分解）、`core/battle/rt/gear.ts` 的強化開始。現有 `rt-shop`／`rt-enhance-gain` 等測試改測 core 版本。
+3. **伺服器 handler**（`src/net/protocol.ts` 的 `Api` 加方法＋`WRITE_METHODS`、`src/server/handlers/*.ts`）：`inventory.equip/unequip/salvage`、`enhance.do`、`shop.get/buy/sell/reroll`、`skills.spend/reset/variant`。契約測試各寫一組（重送不重複、錢不夠被拒、別人的物品 not_found、`version` 衝突）。
+4. **畫面層切換的過渡法（D-281）**：一次切一個面板。面板改成 `await client.call(...)`；伺服器回傳後，用 `src/client/legacyMirror.ts`（新）把角色的結果**單向寫回舊 key**（`jg_rt_<map>` 的 bag／equip／spent…），這樣還沒切的程式照舊讀得到。全部切完再停寫舊 key，最後加測試擋 `src/game` 直接用 `localStorage`（設定／提示看過沒放 `src/client/prefs.ts`）。
+   - **戰鬥中撿到的東西**（`RtBattleScene` 的 `persist`）先維持寫舊 key＋開機時同步，V5 才改 `loot.claim`。所以 V2 要有「舊 key → 伺服器」的對帳：每次回營火／離開地圖時 `migrate.sync`（本機版限定）把舊 key 的增量送上去。**做之前先想清楚哪邊是真實來源，寫進 DECISIONS。**
+5. **Q5 拆場景**（`RtBattleScene.ts` 6,495 行）：先拆 `InputSystem`、`HudSystem`、`BannerSystem`，一個系統一個 commit，前後截圖比對。
+6. 剩下的 V1 尾巴（有空）：`separate()` 空間雜湊（D-282 暫緩，PvP／多人時再做）；設定面板「匯出／匯入存檔」改呼叫 `account.export/import`（下載 JSON 檔）。
 
-**接著 V2（規則上伺服器）**：先做 `src/server/db/mssql/`（Kysely `MssqlDialect`、`withSchema('game')`、Migrator `migrationTableSchema: 'game'`、`0001_init` 建 25 §3 的表），契約測試在 `ci.yml` 加一個 job 用 service container `mcr.microsoft.com/mssql/server:2022-latest` 跑（本機沒有 SQL Server，本機只跑 Memory／Local）。然後 Q3 把 `src/game/rtShop.ts`（`buyGear`／`rerollShop`／`spendCoin`…）、`rtBag.ts`（`equipWith`／`unequip`）、`src/core/battle/rt/gear.ts` 的強化與掉落、`rtSkills.ts`、`rtBounty.ts`、`choices.ts` 的規則搬進 `src/core/meta/`（純函式、傳入 `Rng`），伺服器 handler（`shop.*`、`inventory.*`、`enhance.do`、`skills.*`、`loot.claim`）呼叫它們；畫面層逐檔改成 `await client.call(...)`，最後加掃描測試擋 `src/game` 直接用 `localStorage`。Q5 拆 `RtBattleScene.ts`（6,495 行）先拆 `CameraSystem`、`BannerSystem`、`InputSystem`、`HudSystem`（做法見 23 §Q5）。
+**之後**：V3 隊伍引擎與 PvP 規則（23 §Q6）、V4 交易與多角色、V5 PvP 天梯、V6 `server/main.ts`＋Bicep。**V6 照零額外費用原則（D-279 補充、25 §4.3）**：ghcr.io、單一 API 縮到 0、上線 PvP 只有非同步天梯（HTTP），即時 BattleRoom 寫好但預設不部署。
 
-**美術**：Jacky 產好 R-020／R-021 推進 `art-inbox/` 後，`node scripts/import-art.mjs`（切格設定已在 `scripts/art-sheets.json`）→ `RtBattleScene.ts` 的 `SPRITE` 表把 `star_sentinel`／`crystal_golem`／`star_wolf`／`ember_wolf`／`magma_stalker`／`obsidian_alpha`／`eclipse_wolf` 改用新 key、拿掉 `tint`；確認原圖**面朝右**（D-136 棘背狼的教訓）。
+**美術**：Jacky 產好 R-020／R-021 推進 `art-inbox/` 後，`node scripts/import-art.mjs`（切格設定已在 `scripts/art-sheets.json`）→ `RtBattleScene.ts` 的 `SPRITE` 表把 `star_sentinel`／`crystal_golem`／`star_wolf`／`ember_wolf`／`magma_stalker`／`obsidian_alpha`／`eclipse_wolf` 改用新 key、拿掉 `tint`；確認原圖**面朝右**。
 
-**FOR_JACKY**：「想聽你意見的」四題（交易綁定範圍、PvP 獎勵、多角色、GPT 額度），他回了就照他的改計畫。新內容一次最多 3～5 行。
+**FOR_JACKY**：「想聽你意見的」四題（交易綁定範圍、PvP 獎勵、多角色、GPT 額度），他回了就照他的改計畫。
 
 ## 每輪開頭先看
 1. Jacky 有沒有回覆：`docs/FOR_JACKY.md` 的「回覆」、GitHub Issue、`git log --format='%an %s' -15` 看有沒有他的 commit。有就照他的答案先改。
