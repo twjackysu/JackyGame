@@ -74,3 +74,22 @@ export interface ExportBlob {
   exportedAt: number;
   data: Record<string, unknown[]>;
 }
+
+/** 行商貨架上的一件（價格已含特價與抉擇折扣；伺服器算好，客戶端只顯示） */
+export interface ShopOfferView {
+  gear: Record<string, unknown>;
+  price: number;
+  deal: boolean;
+  picked: boolean;
+}
+
+export interface ShopView {
+  batch: number;
+  region: string;
+  stock: ShopOfferView[];
+  /** 材料（固定價） */
+  goods: { id: string; name: string; desc: string; price: number }[];
+  reroll: number;
+  /** 抉擇「還」的折扣 % */
+  discount: number;
+}

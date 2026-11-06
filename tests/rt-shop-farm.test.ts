@@ -6,8 +6,8 @@ import { GEAR_SLOTS, gearBonus, gearScore, genGear, type GearSlot, type RtGear }
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec } from '../src/core/battle/rt/types';
-import { buyPrice, shopIlvl, shopStock, stockPrice, withPick } from '../src/game/rtShop';
-import { weakestSlot } from '../src/game/rtBag';
+import { buyPrice, shopIlvl, shopStock, stockPrice, withPick } from '../src/core/meta/shop';
+import { weakestSlot } from '../src/core/meta/bag';
 
 const out = (s: string) => (globalThis as unknown as { process: { stdout: { write: (x: string) => void } } }).process.stdout.write(s);
 const mkBot = () => new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');

@@ -6,12 +6,16 @@ import { randomIds, systemClock, type Clock, type IdGen } from './clock';
 import { HANDLERS } from './handlers';
 import { REQUEST_TTL_MS, cached, remember, requestKey } from './idempotency';
 import type { Db } from './repos/types';
+import type { Rng } from '../core/rng';
+import { secureRandom } from './random';
 
 export interface GameServerOptions {
   db: Db;
   auth: Auth;
   clock?: Clock;
   ids?: IdGen;
+  /** 擲骰（預設 crypto）；測試注入固定種子 */
+  rng?: Rng;
   /** 本機版（接受舊存檔遷移等只有單機才合理的請求） */
   local?: boolean;
 }
@@ -50,7 +54,7 @@ export class GameServer {
         }
         this.executed++;
         const handler = HANDLERS[method] as (ctx: never, p: unknown) => Promise<unknown>;
-        const out = JSON.stringify(await handler({ accountId, r, clock: this.clock, ids: this.ids, local: !!this.o.local } as never, req.params));
+        const out = JSON.stringify(await handler({ accountId, r, clock: this.clock, ids: this.ids, rng: this.o.rng ?? secureRandom, local: !!this.o.local } as never, req.params));
         if (write) {
           const now = this.clock.now();
           await remember(r, key, method, out, now);

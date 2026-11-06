@@ -23,8 +23,9 @@ export interface BossChoice {
   postGame?: true;
 }
 
-/** 每個「還」讓行商的裝備便宜幾 %（可疊；四個都還＝−40%） */
-export const SPARE_DISCOUNT = 10;
+/** 每個「還」讓行商的裝備便宜幾 %（可疊；四個都還＝−40%）。規則在 core/meta/shop.ts（伺服器也用） */
+import { SPARE_DISCOUNT } from '../core/meta/shop';
+export { SPARE_DISCOUNT };
 
 export const BOSS_CHOICES: readonly BossChoice[] = [
   {

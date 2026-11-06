@@ -1,9 +1,9 @@
 // 營火行商（D-116）：金幣帳、價格、貨架固定種子、買賣與換貨
 import { describe, expect, it } from 'vitest';
 import { GEAR_SLOTS, genGear, type GearSlot, type RtGear } from '../src/core/battle/rt/gear';
-import { weakestSlot } from '../src/game/rtBag';
+import { weakestSlot } from '../src/core/meta/bag';
 import { spend } from '../src/game/rtRecord';
-import { PICK_ILVL_PLUS, isPicked, withPick, buyGear, buyPrice, cleanShop, DEAL_PCT, dealIndex, isDeal, stockPrice, coinOf, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, SHOP_REROLL } from '../src/game/rtShop';
+import { PICK_ILVL_PLUS, isPicked, withPick, buyGear, buyPrice, cleanShop, DEAL_PCT, dealIndex, isDeal, stockPrice, coinOf, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, SHOP_REROLL } from '../src/core/meta/shop';
 
 describe('營火行商', () => {
   it('金幣＝撿到 − 花掉；賣出記負的花費；不夠就買不了；和粉塵帳互不影響', () => {

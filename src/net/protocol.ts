@@ -1,6 +1,6 @@
 // 客戶端 ↔ 伺服器的訊息格式（D-277，design/24 §1～2）。邊界上只有 JSON：這裡只放型別與純函式。
 // 換成線上版時這份檔案兩邊共用，不用改。
-import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, MigrateResult } from './views';
+import type { AccountView, CharacterView, ExportBlob, LegacySnapshot, MigrateResult, ShopView } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -33,13 +33,36 @@ export interface Api {
   'account.export': { params: Record<string, never>; result: ExportBlob; write: false };
   'account.import': { params: { blob: ExportBlob }; result: AccountView; write: true };
   'migrate.legacy': { params: { snapshot: LegacySnapshot }; result: MigrateResult; write: true };
+  // 行囊與強化（第 141 輪 V2；規則在 core/meta/bag.ts，擲骰在伺服器）
+  'inventory.equip': { params: { characterId: string; itemId: string }; result: CharacterView; write: true };
+  'inventory.unequip': { params: { characterId: string; slot: string }; result: CharacterView; write: true };
+  'inventory.salvage': { params: { characterId: string; itemId: string }; result: { dust: number; character: CharacterView }; write: true };
+  'enhance.do': { params: { characterId: string; itemId: string }; result: { ok: boolean; enh: number; character: CharacterView }; write: true };
+  // 營火行商（core/meta/shop.ts）。shop.open 第一次打開這批貨會決定「為你挑選」的部位，所以算寫入
+  'shop.open': { params: { characterId: string; region: string }; result: ShopView; write: true };
+  'shop.buy': { params: { characterId: string; region: string; uid: string }; result: { character: CharacterView; shop: ShopView }; write: true };
+  'shop.buyGoods': { params: { characterId: string; goodsId: string }; result: CharacterView; write: true };
+  'shop.sell': { params: { characterId: string; itemIds: string[] }; result: { coin: number; character: CharacterView }; write: true };
+  'shop.reroll': { params: { characterId: string; region: string }; result: { character: CharacterView; shop: ShopView }; write: true };
 }
 export type Method = keyof Api;
 export type ParamsOf<M extends Method> = Api[M]['params'];
 export type ResultOf<M extends Method> = Api[M]['result'];
 
 /** 寫入類方法（必須帶 requestId） */
-export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>(['account.import', 'migrate.legacy']);
+export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
+  'account.import',
+  'migrate.legacy',
+  'inventory.equip',
+  'inventory.unequip',
+  'inventory.salvage',
+  'enhance.do',
+  'shop.open',
+  'shop.buy',
+  'shop.buyGoods',
+  'shop.sell',
+  'shop.reroll',
+]);
 
 export class ApiError extends Error {
   constructor(

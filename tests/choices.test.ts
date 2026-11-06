@@ -3,7 +3,7 @@ import { BOSS_CHOICES, choiceOf, cleanChoices, codaLine, epilogueLine, makeChoic
 import { FINALE_LINES } from '../src/game/finaleStats';
 import { WORLD_MAPS, FINALE_MAP } from '../src/game/worldMaps';
 import { genGear } from '../src/core/battle/rt/gear';
-import { buyGear, buyPrice, stockPrice } from '../src/game/rtShop';
+import { buyGear, buyPrice, stockPrice } from '../src/core/meta/shop';
 import type { RtRecord } from '../src/game/rtRecord';
 
 describe('討伐後的抉擇（D-157）', () => {
