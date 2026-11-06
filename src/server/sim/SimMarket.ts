@@ -169,6 +169,11 @@ export class SimMarket {
     return this.roster.find((s) => s.accountId === accountId);
   }
 
+  /** 模擬玩家面對面賣出的開價：行商買價 ×（0.45～0.85，越會殺價開越低；跟它在拍賣所的定價同一個區間，不含隨機） */
+  askFor(sim: SimPlayer, g: RtGear): number {
+    return Math.max(1, Math.round(buyPrice(g) * (0.45 + 0.4 * (1 - sim.thrift))));
+  }
+
   /** 模擬玩家願意出的收購價：行商買價 ×（0.35～0.80，越會殺價越低） */
   bidFor(sim: SimPlayer, gears: readonly Record<string, unknown>[]): number {
     const f = 0.35 + 0.45 * (1 - sim.thrift);
@@ -178,12 +183,28 @@ export class SimMarket {
   /**
    * 面對面交易的對象是模擬玩家（F3 單機版，第 144 輪）：真人每做一個動作，模擬玩家就照「收購」的規則回應一步，
    * 一樣只走公開的 trade.* handler：對方放了物品 → 出價（上限是自己的金幣）；對方鎖定 → 跟著鎖；對方確認 → 跟著確認。
+   * 對方只放金幣（第 146 輪）→ 反過來「賣」：放上開價買得起的最貴一件（askFor）。
    * 回傳有沒有動作（有的話 GameServer 會把真人的回應換成最新的交易狀態）。
    */
   async respondTrade(sim: SimPlayer, characterId: string, tradeId: string): Promise<boolean> {
     const v = await this.call<{ trade: TradeView; character: CharacterView }>(sim, 'trade.get', { characterId, tradeId });
     if (!v || v.trade.status !== 'open') return false;
     const t = v.trade;
+    // 對方只放金幣、沒放物品＝想跟我買（第 146 輪）：挑「開價買得起」的最貴一件放上去，金幣不收找零以外的錢
+    if (!t.theirs.items.length && t.theirs.coin > 0) {
+      const pool = [...t.mine.items, ...v.character.items.filter((i) => i.location === 'bag' && !i.bound)];
+      let best: { id: string; ask: number } | null = null;
+      for (const it of pool) {
+        if (!isGear(it.gear)) continue;
+        const ask = this.askFor(sim, it.gear as unknown as RtGear);
+        if (ask <= t.theirs.coin && (!best || ask > best.ask)) best = { id: it.id, ask };
+      }
+      const items = best ? [best.id] : [];
+      if (t.mine.coin || t.mine.items.length !== items.length || t.mine.items[0]?.id !== items[0]) return !!(await this.call(sim, 'trade.offer', { characterId, tradeId, items, coin: 0 }));
+      if (items.length && t.locked.them && !t.locked.me) return !!(await this.call(sim, 'trade.lock', { characterId, tradeId }));
+      if (items.length && t.locked.them && t.locked.me && t.confirmed.them && !t.confirmed.me) return !!(await this.call(sim, 'trade.confirm', { characterId, tradeId, rev: t.rev }));
+      return false;
+    }
     const want = Math.min(v.character.wallet.coin + t.mine.coin, this.bidFor(sim, t.theirs.items.map((i) => i.gear)));
     if (t.mine.coin !== want || t.mine.items.length) return !!(await this.call(sim, 'trade.offer', { characterId, tradeId, items: [], coin: want }));
     if (want > 0 && t.locked.them && !t.locked.me) return !!(await this.call(sim, 'trade.lock', { characterId, tradeId }));

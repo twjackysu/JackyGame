@@ -131,4 +131,35 @@ for (const be of BACKENDS)
       expect(r.character.wallet.coin).toBe(me0.wallet.coin + bid);
       expect(r.character.items.some((i) => i.id === item.id)).toBe(false);
     });
+    it('跟模擬冒險者買（第 146 輪）：只放金幣 → 它放上買得起的最貴一件 → 鎖定、確認 → 裝備到你的行囊、錢到它那邊；錢不夠它什麼都不放', async () => {
+      const { db } = await be.fresh(() => 0);
+      const server = new GameServer({ db, auth, clock: new FakeClock(), ids: new SeqIds(), local: true, rng: () => 0.3, sim: { players: 6, throttleMs: 0, maxActions: 30 } });
+      let n = 0;
+      const a = new GameClient(new LocalTransport((j) => server.handle(j)), { token: 'accA', timeoutMs: 15000, retries: 1, newRequestId: () => `b${++n}` });
+      const A = (await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE })).characterId;
+      const { partners } = await a.call('trade.partners', { characterId: A });
+      const me0 = await a.call('character.get', { id: A });
+      // 找一個行囊裡有東西的模擬冒險者
+      let got: { tradeId: string; itemId: string; rev: number } | null = null;
+      for (const p of partners) {
+        const { trade } = await a.call('trade.open', { characterId: A, partnerCharacterId: p.characterId });
+        // 錢太少：它不放東西
+        const poor = await a.call('trade.offer', { characterId: A, tradeId: trade.id, items: [], coin: 1 });
+        expect(poor.trade.theirs.items.length).toBe(0);
+        const r = await a.call('trade.offer', { characterId: A, tradeId: trade.id, items: [], coin: me0.wallet.coin });
+        if (r.trade.theirs.items.length === 1) {
+          expect(r.trade.theirs.coin).toBe(0);
+          got = { tradeId: trade.id, itemId: r.trade.theirs.items[0]!.id, rev: r.trade.rev };
+          break;
+        }
+        await a.call('trade.cancel', { characterId: A, tradeId: trade.id });
+      }
+      expect(got).not.toBeNull();
+      let r = await a.call('trade.lock', { characterId: A, tradeId: got!.tradeId });
+      expect(r.trade.locked).toEqual({ me: true, them: true });
+      r = await a.call('trade.confirm', { characterId: A, tradeId: got!.tradeId, rev: r.trade.rev });
+      expect(r.trade.status).toBe('done');
+      expect(r.character.wallet.coin).toBe(0);
+      expect(r.character.items.find((i) => i.id === got!.itemId)?.location).toBe('bag');
+    });
   });
