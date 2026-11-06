@@ -3,6 +3,7 @@
 // - loot.claim：客戶端只說「這場第幾隻、打倒了誰、在哪一群／第幾個固定怪、暴怒？詞綴？」——
 //   伺服器檢查：這場是我的、還沒過期、killSeq 遞增、速度不超過人類上限（每分鐘 40 隻＋開場 10 隻）、這張圖真的有這隻怪在這一群（validKill）；
 //   通過才用「伺服器的亂數」照同一份規則（core/battle/rt/loot.ts）擲掉落，直接入錢包／行囊（行囊滿了照單機規則自動分解，D-100）；經驗與升級也在這裡算。
+// - loot.chest（第 147 輪）：寶箱內容是地圖資料寫死的；白天的每個角色只能開一次（記在地圖進度），夜光的每場一次。沒有位置可查（伺服器沒跑戰鬥），之後抽查重跑。
 // 深夜、暴怒、詞綴是客戶端說的（伺服器沒跑這場戰鬥），只能檢查「這張圖有沒有」；之後抽查重跑指令紀錄（26 §3.1）。
 import { genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
 import { furyOpenBy, stageDef, worldNightOpen, worldStageOpen } from '../../core/battle/rt/maps/world';
@@ -32,6 +33,8 @@ interface StoredBattle {
   /** 最後一次的 killSeq */
   seq: number;
   claims: number;
+  /** 這場開過的夜光寶箱（每次進深夜都是滿的，D-108） */
+  nightChests?: string[];
 }
 
 function parse(json: string | undefined): StoredBattle | null {
@@ -49,7 +52,7 @@ const optBool = (v: unknown, what: string): boolean => {
   return v;
 };
 
-export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim'> = {
+export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'loot.chest'> = {
   'battle.start': async (ctx, p) => {
     const c = await ownCharacter(ctx, p?.characterId);
     const stageId = idParam(p?.stageId, 'stageId');
@@ -159,5 +162,28 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim'> = {
     }
     await ctx.r.characters.save(next);
     return { drops: rolled, xp, bounty, character: await freshView(ctx, c.id) };
+  },
+  'loot.chest': async (ctx, p) => {
+    const c = await ownCharacter(ctx, p?.characterId);
+    const bid = idParam(p?.battleId, 'battleId');
+    const chestId = idParam(p?.chestId, 'chestId');
+    const b = parse(c.pveBattle);
+    const now = ctx.clock.now();
+    if (!b || b.id !== bid || now - b.at > PVE_BATTLE_TTL) throw new ApiError('not_found', 'battle');
+    const chest = stageDef(b.stageId)?.chests?.find((x) => x.id === chestId);
+    // 這張圖沒有這個寶箱；夜光寶箱只有深夜打得開
+    if (!chest || (chest.nightOnly && !b.night)) throw new ApiError('rejected', 'chest');
+    const mp = c.maps[b.stageId] ?? {};
+    const opened = chest.nightOnly ? (b.nightChests ?? []) : (mp.chests ?? []);
+    if (opened.includes(chestId)) throw new ApiError('conflict', 'opened');
+    // 內容是地圖資料寫死的（不擲骰；藥水是戰鬥中的消耗品，伺服器不記）
+    const got = { coin: chest.loot.gold ?? 0, dust: chest.loot.dust ?? 0, crystal: chest.loot.crystal ?? 0 };
+    if (got.coin) await ctx.r.wallets.apply(c.id, 'coin', got.coin, 'chest', `${b.stageId}:${chestId}`);
+    if (got.dust) await ctx.r.wallets.apply(c.id, 'dust', got.dust, 'chest', `${b.stageId}:${chestId}`);
+    if (got.crystal) await ctx.r.wallets.apply(c.id, 'crystal', got.crystal, 'chest', `${b.stageId}:${chestId}`);
+    const cur = (await ctx.r.characters.get(c.id))!;
+    if (chest.nightOnly) await ctx.r.characters.save({ ...cur, pveBattle: JSON.stringify({ ...b, nightChests: [...opened, chestId] }) });
+    else await ctx.r.characters.save({ ...cur, maps: { ...cur.maps, [b.stageId]: { ...(cur.maps[b.stageId] ?? {}), chests: [...opened, chestId] } } });
+    return { ...got, character: await freshView(ctx, c.id) };
   },
 };

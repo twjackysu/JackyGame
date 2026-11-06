@@ -3459,6 +3459,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.time.delayedCall(700, () => bigText(this, GAME_WIDTH / 2, 490, `${e.count} 隻狼衝過來了・打倒掉落加倍`, '#ffd27a', 28, 1400));
         shockRing(this, this.sx(e.x), this.sy(e.y), 0xff5a3a, 200, 700, 8);
       } else if (e.type === 'chest') {
+        if (this.tracked && !this.bot) onlineLoot.chest(e.chest);
         const c = STAGES[this.stageId]?.chests?.find((q) => q.id === e.chest);
         const x = c ? this.sx(c.x) : GAME_WIDTH / 2;
         const y = c ? this.sy(c.y) : 600;

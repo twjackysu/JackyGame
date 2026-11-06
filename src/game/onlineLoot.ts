@@ -14,7 +14,7 @@ let seq = 0;
 let onClaim: ((done: BountyDoneView[], enemyId: string) => void) | null = null;
 let chain: Promise<unknown> = Promise.resolve();
 /** 除錯：回報了幾隻、拿到幾筆掉落、最後的錯誤 */
-export const onlineLootStatus = { claims: 0, drops: 0, error: null as string | null };
+export const onlineLootStatus = { claims: 0, drops: 0, chests: 0, error: null as string | null };
 
 export const onlineLoot = {
   start(stageId: string, night: boolean, weapon: WeaponView, claimed?: (done: BountyDoneView[], enemyId: string) => void): void {
@@ -32,6 +32,26 @@ export const onlineLoot = {
         return null;
       }
     })();
+  },
+
+  /** 開了寶箱（第 147 輪）：內容由伺服器照地圖資料給 */
+  chest(chestId: string): void {
+    if (!import.meta.env.VITE_SERVER_URL) return;
+    const b = battle;
+    chain = chain.then(async () => {
+      const cur = await b;
+      if (!cur) return;
+      try {
+        const { client } = await bootServer();
+        const ticket = characterCache.ticket();
+        const r = await client.call('loot.chest', { ...cur, chestId });
+        characterCache.set(r.character, ticket);
+        onlineLootStatus.chests++;
+      } catch (e) {
+        onlineLootStatus.error = e instanceof Error ? e.message : String(e);
+        console.warn('[loot.chest]', onlineLootStatus.error);
+      }
+    });
   },
 
   kill(u: Unit): void {

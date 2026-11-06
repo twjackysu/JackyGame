@@ -10,6 +10,7 @@ import { GameServer } from '../../src/server/GameServer';
 import { KILL_BURST, KILLS_PER_MIN, PVE_BATTLE_TTL } from '../../src/server/handlers/loot';
 import { BAG_MAX } from '../../src/core/meta/bag';
 import { hasLoot, killXp } from '../../src/core/battle/rt/loot';
+import { stageDef } from '../../src/core/battle/rt/maps/world';
 import { BOUNTY_ALIAS, BOUNTY_POOL, cleanBounties } from '../../src/core/meta/bounty';
 import { xpToNext } from '../../src/core/battle/rt/engine';
 import { BACKENDS } from './backends';
@@ -140,6 +141,34 @@ for (const be of BACKENDS)
       expect(after.done).toBe(st.done + 1);
       expect(after.list.length).toBe(3);
       expect(after.list.some((x) => x.n === wolf!.n)).toBe(false);
+    });
+
+    it('寶箱（第 147 輪）：內容照地圖資料、白天的每個角色一次、夜光的每場一次；沒有的寶箱、白天開夜光、別人的都拒絕', async () => {
+      const { a, b } = await setup(be);
+      const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
+      const me = await a.call('character.get', { id: characterId });
+      const chests = stageDef('mistwood')!.chests!;
+      const day = chests.find((c) => !c.nightOnly && !(me.maps.mistwood?.chests ?? []).includes(c.id) && c.loot.gold)!;
+      const night = chests.find((c) => c.nightOnly)!;
+      expect(day).toBeDefined();
+      let { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
+      const r = await a.call('loot.chest', { characterId, battleId, chestId: day.id });
+      expect(r).toMatchObject({ coin: day.loot.gold ?? 0, dust: day.loot.dust ?? 0, crystal: day.loot.crystal ?? 0 });
+      expect(r.character.wallet.coin).toBe(me.wallet.coin + (day.loot.gold ?? 0));
+      expect(r.character.maps.mistwood?.chests).toContain(day.id);
+      expect(await code(a.call('loot.chest', { characterId, battleId, chestId: day.id }))).toBe('conflict');
+      expect(await code(a.call('loot.chest', { characterId, battleId, chestId: 'nope' }))).toBe('rejected');
+      expect(await code(a.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('rejected');
+      expect(await code(b.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('not_found');
+      // 重開一場：白天的還是開過了
+      battleId = (await a.call('battle.start', { characterId, stageId: 'mistwood' })).battleId;
+      expect(await code(a.call('loot.chest', { characterId, battleId, chestId: day.id }))).toBe('conflict');
+      // 深夜：夜光寶箱每場一次，下一場又是滿的
+      battleId = (await a.call('battle.start', { characterId, stageId: 'mistwood', night: true })).battleId;
+      expect(await code(a.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('ok');
+      expect(await code(a.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('conflict');
+      battleId = (await a.call('battle.start', { characterId, stageId: 'mistwood', night: true })).battleId;
+      expect(await code(a.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('ok');
     });
 
     it('懸賞目標（含別名）都是會掉東西的怪：客戶端只回報 hasLoot 的，懸賞才數得到', () => {

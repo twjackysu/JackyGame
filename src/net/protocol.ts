@@ -89,6 +89,8 @@ export interface Api {
   'pvp.ladder': { params: { characterId: string }; result: PvpLadderView; write: false };
   // PvE 掉落由伺服器擲（26-security §3.1，D-307）：開打拿 battleId → 每打倒一隻送「打倒了誰、在哪一群」→ 伺服器檢查後用自己的亂數擲掉落、直接入帳
   'battle.start': { params: { characterId: string; stageId: string; night?: boolean }; result: { battleId: string }; write: true };
+  /** 寶箱（第 147 輪）：伺服器照地圖資料給固定內容；白天的每個角色一次、夜光的每場一次 */
+  'loot.chest': { params: { characterId: string; battleId: string; chestId: string }; result: { coin: number; dust: number; crystal: number; character: CharacterView }; write: true };
   'loot.claim': { params: LootClaimParams; result: { drops: LootDropView[]; xp: number; /** 這一隻完成的懸賞（獎勵已入錢包） */ bounty: BountyDoneView[]; character: CharacterView }; write: true };
 }
 export interface LootClaimParams {
@@ -147,6 +149,7 @@ export const WRITE_METHODS: ReadonlySet<Method> = new Set<Method>([
   'trade.get',
   'battle.start',
   'loot.claim',
+  'loot.chest',
 ]);
 
 export class ApiError extends Error {
