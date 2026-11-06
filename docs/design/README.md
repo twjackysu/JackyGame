@@ -6,7 +6,8 @@
 | 文件 | 內容 | 狀態 |
 |---|---|---|
 | [23-v2-roadmap.md](23-v2-roadmap.md) | **第二期主線（11/6～11/13，D-276／277）**：程式品質 Q1～Q8、新功能 F1～F6（交易、PvP）、美術 A1～A6、里程碑 V1～V7 | **現行主線** |
-| [25-azure-backend.md](25-azure-backend.md) | **Azure 後端**（D-278）：Node.js＋TS、Container Apps、與 JackyAIStudio 共用 Azure SQL 的 `Game` schema、權限隔離、資料表、Bicep／部署 | **現行雲端規格** |
+| [26-security.md](26-security.md) | **資安與防作弊**（D-279）：敏感邏輯只在後端、PvE 掉落伺服器擲＋抽查重跑、PvP 伺服器判定、交易鎖與帳本、輸入驗證、頻率限制、秘密管理 | **現行** |
+| [25-azure-backend.md](25-azure-backend.md) | **Azure 後端**（D-278）：Node.js＋TS、Container Apps、與 JackyAIStudio 共用 Azure SQL 的 `game` schema、權限隔離、資料表、Bicep／部署 | **現行雲端規格** |
 | [24-online-architecture.md](24-online-architecture.md) | **單機模擬線上版**（D-277）：本機權威伺服器、Transport、Repository／LocalDb、資料模型、拍賣所與託管交易、模擬玩家、PvP（非同步驗證＋即時 BattleRoom） | **現行架構規格** |
 | [20-swordsman-and-map.md](20-swordsman-and-map.md) | **主規格**：劍士技能、森林地圖、死亡與回復、刷寶三層目標、§B8 實作順序 P1～P5 | P1～P3 完成；**下一步 P4 刷寶** |
 | [19-realtime-combat.md](19-realtime-combat.md) | 即時戰鬥核心規格（30 ticks/秒、預告、仇恨、狀態、模擬器） | 已實作；同伴與戀愛部分作廢（D-063） |

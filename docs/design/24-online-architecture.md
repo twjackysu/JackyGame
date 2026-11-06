@@ -30,7 +30,7 @@
 
 **換成線上版要做的事（目標清單，越短越好）**：
 1. 把 `src/server/` 原封不動放到 Node（它本來就不碰 DOM／Phaser）。
-2. 寫一份 SQL 版的 Repository（介面不變，測試套件共用）——已定案：Kysely＋Azure SQL，與 JackyAIStudio 共用資料庫、遊戲資料全在 `Game` schema（D-278，`25-azure-backend.md`）。
+2. 寫一份 SQL 版的 Repository（介面不變，測試套件共用）——已定案：Kysely＋Azure SQL，與 JackyAIStudio 共用資料庫、遊戲資料全在既有的 `game` schema（D-278／279，`25-azure-backend.md`）。
 3. 寫 `WsTransport`（客戶端）與 WebSocket 入口（伺服器端）。
 4. 把 `LocalAuth` 換成真的登入。
 5. 「模擬玩家」（§5）關掉，換成真人。

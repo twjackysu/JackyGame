@@ -9,7 +9,8 @@
 3. 先整理程式（11/6–11/9），玩起來應該完全不變，有變就是 bug。
 
 ## 後端（D-278，[design/25-azure-backend.md](design/25-azure-backend.md)）
-- Node.js＋TypeScript（才能跟遊戲共用同一份戰鬥引擎判勝負）＋Azure Container Apps＋**共用 JackyAIStudio 的 Azure SQL，遊戲全在 `Game` schema**，遊戲用的資料庫帳號只對 `Game` 有權限、碰不到 `dbo`；遷移各管各的。
+- Node.js＋TypeScript（才能跟遊戲共用同一份戰鬥引擎判勝負）＋Azure Container Apps＋**共用 JackyAIStudio 的 Azure SQL，遊戲全在既有的 `game` schema**（SQL Server 不分大小寫，`Game` 就是你現在那個 `game`），遊戲用的資料庫帳號只對 `game` 有權限、碰不到 `dbo`；遷移各管各的，**不會碰你那 8 張舊表**，你自己刪就好。
+- 連線用 `GAME_DB_CONNECTION_STRING`（ADO.NET 格式），開發用 LocalDB（Node 要裝 `msnodesqlv8` 才連得到 LocalDB，會寫在 `server/.env.example`），之後你換成 JackyAIStudio 的連線字串。資安規格：[design/26-security.md](design/26-security.md)。線上帳號從新開始，離線存檔不能匯入（可以改檔作弊）。
 - 請確認：JackyAIStudio 的資料庫方案（serverless 會被遊戲流量吵醒、費用變高）。部署步驟會寫在 `docs/DEPLOY_AZURE.md`，11/12 前我這邊只寫程式和 Bicep，不會動你的雲端。
 
 ## 想聽你意見的（不回就照預設）

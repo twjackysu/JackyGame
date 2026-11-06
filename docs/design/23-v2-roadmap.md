@@ -2,7 +2,7 @@
 
 > 2026-11-06 Jacky：「產品做得不錯，想繼續進度。新目標到 2026/11/13，自行列新功能 PLAN 或美術改進和 Code 品質改進計畫（時間或空間複雜度，或是方便之後變成線上多人連線版的架構寫法），一樣留 FOR_JACKY 給 feedback。」決策 D-276。
 > **11/6 追加（D-277）**：日後可能線上化，方向以**交易**與 **PvP** 為主；先用**單機模擬線上版**（遊戲內建一台本機伺服器＋本機資料庫），之後只換資料庫或後端就能上線。架構規格見 **`24-online-architecture.md`**，本文件的 Q2／Q6／Q7、F 系列、里程碑已照它改寫。
-> **11/6 再追加（D-278）**：後端定案 **Node.js＋TypeScript、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（遊戲全在 `Game` schema）**，規格 `25-azure-backend.md`；V2／V4／V6 加入後端工作，重播與美術降級。
+> **11/6 再追加（D-278）**：後端定案 **Node.js＋TypeScript、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（遊戲全在既有的 `game` schema）**，規格 `25-azure-backend.md`、資安 `26-security.md`（D-279）；V2／V4／V6 加入後端工作，重播與美術降級。
 > 每一輪選工作時以本文件的里程碑 V1～V7 為主線；`docs/NEXT.md` 是逐輪待辦。**main 永遠要能 build、能從新遊戲玩到通關**；任何重構都不能讓玩家看到的行為變差。
 
 ## 0. 原則

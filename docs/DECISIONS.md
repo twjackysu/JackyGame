@@ -2,6 +2,14 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-279 2026-11-06 資安：敏感邏輯只在後端；DB 用 connection string（開發 LocalDB）；沿用既有小寫 `game` schema、不碰舊表
+- **決策**：Jacky 11/6：「顧好資安，敏感邏輯都寫在後端避免作弊；DB 用 connection string 我之後換，測試先用 LocalDB」「目前已經有 game 的一些 table，我之後會刪掉」。
+  - 資安規格 `docs/design/26-security.md`：客戶端只送意圖；經濟、物品、掉落、強化、交易、PvP 勝負、時間都在伺服器；PvE 掉落伺服器擲＋速率檢查＋抽查重跑；`build:online` 不打包 `src/server`；輸入 schema 驗證、參數化 SQL、JWT、資源擁有權檢查、頻率限制、冪等、稽核、gitleaks／npm audit；**線上帳號從新開始，離線存檔不能匯入**。
+  - 連線：環境變數 `GAME_DB_CONNECTION_STRING`（ADO.NET 格式），`.env` 不進 git。LocalDB 只能走具名管道，`tedious` 連不上 → 連線字串是 `(localdb)` 時改用選用相依 `msnodesqlv8`；CI 用 SQL Server 2022 容器。
+  - Schema：資料庫已有小寫 `game`（8 張舊原型表），SQL Server 預設不分大小寫 → 沿用 `game`；遷移不建立同名表、不 DROP／ALTER 非自己建的表（CI 測試鎖住）；舊表由 Jacky 自己刪。
+- **理由**：交易與 PvP 的價值取決於「做不了假」；connection string 讓 Jacky 換環境不用改程式；用既有 schema 名避免大小寫造成的建立失敗。
+- **替代**：Managed Identity 寫死 → Jacky 指定要 connection string（仍支援在字串裡用 `Authentication=Active Directory Managed Identity`）；新開 `Game2` schema → 多一個名字，沒必要。
+
 ## D-278 2026-11-06 後端：Node.js＋TypeScript、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（遊戲全在 `Game` schema）
 - **決策**：Jacky 11/6：「要先搞後端，不然邏輯都暴露在 client；Azure 優先、AWS 次之、GCP 最後。」「Azure Database 跟 JackyAIStudio 共用，game 的放 `Game` schema（`dbo` 是 JackyAIStudio 的）。」規格 `docs/design/25-azure-backend.md`：Node 22＋TS（共用 `src/core` 引擎做伺服器驗證）、Container Apps（WebSocket、縮到 0）、Kysely＋`MssqlDialect`、Managed Identity 連 SQL、遊戲身分只對 `Game` schema 有權限並 DENY `dbo`、遷移版本表 `Game.kysely_migration`（不碰 EF 的 `__EFMigrationsHistory`）、`build:online` 不打包 `src/server`。
 - **範圍**：迴圈只寫程式、測試、Bicep、部署 workflow（沒有 secret 就 skip），不建立雲端資源；Jacky 照 `docs/DEPLOY_AZURE.md` 部署。對戰重播與美術 A3～A6 為後端讓位。
