@@ -2,6 +2,25 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-311 2026-11-07 角色改名：按一下換名字池的下一個（不讓打字）
+- **決策**：`character.rename(id, name)`（`cleanName` 同建立、稽核、交易類頻率限制）；角色面板「使用中」的角色多「改名」鈕，`nextName` 換名字池的下一個、跳過別的角色在用的。舊的拍賣掛單保留當時的賣家名字。
+- **理由**：D-302 說過之後再做改名；手機沒有輸入框、也避免要審查自由輸入的名字。
+
+## D-310 2026-11-07 即時 PvP：伺服器權威＋「套用的指令」廣播（不部署）
+- **決策**：`src/net/realtime.ts`（JSON 訊息）＋`src/server/realtime/BattleRoom.ts`＋`src/client/RoomClient.ts`。客戶端送「想在第 t tick 生效的指令」（帶 seq，未確認的每次整批重送）；伺服器每 tick 依固定順序（pid 0 再 pid 1）套用、跑引擎、把這一 tick 實際套用的指令廣播（frame，連號，每 30 tick 附 stateHash）；客戶端只照 frame 前進（缺號 resend），確定性引擎保證雙方狀態一樣。驗證：validCmd 白名單、pid 由連線決定、每 tick 4 個、最多排 30 tick 之後、太晚的延到下一 tick、seq 去重。
+- **驗收**：`tests/pvp-realtime.test.ts` 80ms（3 tick）延遲、2% 掉包打完三場：雙方 hash＝伺服器、desync 0、指令紀錄重跑一致；作弊指令 6 種被拒。
+- **之後**：畫面接的時候加本地預測（自己的移動先動、frame 回來修正）；WsTransport。照 25 §4.3 不部署。
+- **替代**：每 tick 廣播整個狀態快照（頻寬大、手機吃不消）；純 lockstep（PvP 防作弊不夠，D-277 已否決）。
+
+## D-309 2026-11-07 懸賞、寶箱、路上的相遇也由伺服器發（線上版）
+- **決策**：規則搬進 core：`core/meta/bounty.ts`（原 game/rtBounty，留轉出）、`core/meta/encounters.ts`（獎勵表＋meet／claimThanks；台詞留在畫面，`tests/encounter-rewards.test.ts` 對照數字）。`loot.claim` 順便計懸賞、完成就發獎勵（ledger `bounty`）並回傳 `bounty`；`loot.chest`（地圖資料寫死的內容；白天的每個角色一次記在地圖進度、夜光的每場一次）；`story.meet`（一次、地圖要開放）／`story.thanks`（助過才有、一次）。離線版完全不變。
+- **已知限制**：寶箱沒有位置可查、回禮的「下次回來」只有畫面知道——伺服器只保證「一次」；之後抽查重跑。
+
+## D-308 2026-11-07 線上版畫面讀伺服器的角色：角色快取＋舊 key 當快取
+- **決策**：`src/client/characterCache.ts`（onlineActive／loot.*／story.*／legacyOp 回來就更新；`ticket()` 擋晚到的舊回應）。線上版 HUD 的等級、金幣、粉塵、暫停選單手上金幣、懸賞板讀快取；**舊 key（jg_rt_mistwood 的行囊、錢包、等級，jg_encounters）在線上版變成伺服器角色的快取**：進場、每次 loot.claim／寶箱／相遇、面板動作回來都 `mirrorOnline` 寫回，所以還沒改讀快取的畫面（行囊、行商面板）看到的就是伺服器的物品；本機擲的裝備不放進行囊（改公告伺服器掉的）。離線版建置時這些分支整段拿掉。
+- **理由**：一次改完所有面板風險太大；把舊 key 降級成快取，畫面不用動就能對上伺服器，之後一個面板一個面板改讀快取，最後刪掉舊 key。
+- **已知限制**：面板開著時不換行囊（面板自己拿一份，關掉後下一次回來再換）；本機引擎撿的金幣會暫時多算到下一次寫回。
+
 ## D-307 2026-11-07 PvE 掉落與經驗由伺服器擲（loot.claim），規則抽成 core 純函式
 - **決策**：`core/battle/rt/loot.ts` 是唯一的掉落／經驗規則（引擎的 `rollDrops`／`gainXp` 也呼叫它，亂數順序不變）。伺服器 `battle.start(characterId, stageId, night?)` 存在角色列 `pveBattle`（JSON；SQL 版在 Character.Data，不用遷移）；`loot.claim(battleId, killSeq, enemyId, groupId?, fixedIdx?, fury?, affix?)`：killSeq 遞增、`KILL_BURST` 10＋每分鐘 `KILLS_PER_MIN` 40、一場 3000 次、3 小時；`validKill` 檢查這張圖有這隻怪在這一群（深夜群組要深夜場、暴怒只有 Boss、詞綴要關卡有開）。通過才用伺服器亂數擲、入帳、升級；行囊滿了照 D-100（`addWithAutoSalvage`）。
 - **已知限制**：深夜／暴怒／詞綴／群組是客戶端說的，伺服器只能檢查「可能」；之後抽查重跑指令紀錄（26 §3.1）。離線版不呼叫（還是 migrate.sync 同步舊 key），只有線上版的 `onlineLoot` 用。

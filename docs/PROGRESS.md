@@ -1,5 +1,14 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-07 06:12–07:10（台北）第 147 輪 — 線上版畫面讀伺服器的角色、懸賞／寶箱／相遇改伺服器發、即時 PvP BattleRoom、角色改名、小地圖拆出
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（df73b39）。
+- **角色快取（D-308）**：`src/client/characterCache.ts`；線上版 HUD 等級／金幣／粉塵、暫停選單、懸賞板讀快取；舊 key 在線上版變成伺服器角色的快取（`mirrorOnline`，行囊／錢包／等級／jg_encounters），本機擲的裝備不進行囊、改公告伺服器掉的。Playwright（build:online＋dist-server）：本機假劍進場被蓋掉；打倒狼王 → 行囊兩件跟伺服器一樣 →「全部換成最好的」→ 伺服器裝備欄一致；金幣、粉塵、等級和伺服器一樣、零錯誤。
+- **伺服器發獎勵（D-309）**：懸賞（`core/meta/bounty.ts`，loot.claim 計數＋發獎勵；實測 12 隻狼 → 「懸賞完成！粉塵 +6」跟伺服器）、寶箱 `loot.chest`（實測走到寶箱 → HUD 金 40 粉塵 6＝伺服器）、相遇 `story.meet`／`story.thanks`（`core/meta/encounters.ts` 獎勵表，和畫面資料對照測試）。契約測試三種 DB。
+- **即時 PvP（D-310）**：`net/realtime`＋`server/realtime/BattleRoom`＋`client/RoomClient`；`tests/pvp-realtime.test.ts` 80ms／2% 掉包三場雙方 hash＝伺服器、作弊指令被拒。不部署。
+- **其他**：交易對象列表「賣 X 金起」（trade.partners `cheapest`，契約：剛好放這麼多就賣、少 1 金不賣）；換角色清「剛遇到」（forgetMetThisVisit）；角色改名（D-311，截圖：旅人 → 艾薇）；Q5 小地圖拆到 `src/game/rt/MinimapSystem.ts`（前後截圖只差 4 個閃爍像素）。
+- 驗證：每步 typecheck、lint、build、build:online＋bundle 檢查、vitest（最後 112 檔 800 項全過，含通關機器人、golden hash）。CI 每個程式 commit 都綠（mssql 含 loot.chest／story.meet）。
+- **踩到的**：一次 commit 沒等 vitest 結果就推了（棘輪測試：src/game 不能碰 localStorage）→ 下一個 commit 改走 `client/legacyOps.mirrorOnline` 修好；之後一律先看測試結果再 commit。
+
 ## 2026-11-07 04:12–05:05（台北）第 146 輪 — build:online、PvE 掉落改伺服器擲（loot.claim）、競技場重播＋段位光環、跟模擬冒險者買
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空。上一輪最後一次 CI 被取消：冒煙測試的競技場截圖卡到 job 15 分鐘上限（本機重跑 3 次都 11 秒）。
 - **CI 卡住**：`scripts/screenshot.mjs` 加看門狗（waitMs＋150 秒；有頁面錯誤照樣失敗、否則只警告）、`browser.close` 最多等 15 秒。

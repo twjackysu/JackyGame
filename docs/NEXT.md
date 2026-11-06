@@ -6,16 +6,21 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 147 輪起先做（V5 收尾、V6 落地，11/7–11/11）
-**已經有的（到第 146 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（`simLeague`、**`rankAura`**）、`trade`、`roster`）；**`core/battle/rt/loot.ts`（掉落／經驗規則，引擎與伺服器共用）、`maps/world.ts` `stageDef`**；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.choose`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、**`battle.start`／`loot.claim`（D-307）**；`rateLimit.ts`；遷移 `0001`～`0004`；畫面：拍賣所、交易（**只放金幣＝跟模擬冒險者買**）、競技場（**看重播、段位光環**）、角色面板、倉庫；線上 API `server/`、`HttpTransport`、`build:server`、`infra/main.bicep`、`deploy-server.yml`；**`npm run build:online`（D-306，`src/client/onlineClient.ts`、`scripts/check-online-bundle.mjs`）、`src/game/onlineLoot.ts`**。
-1. CI 每輪開頭看一次（第 146 輪最後的程式 commit df73b39 全綠：mssql、online bundle 檢查、冒煙測試 1.5 分鐘）。冒煙截圖有看門狗了，如果又看到「WARNING: … 超過 … 秒沒結束」只是警告。
-2. **畫面改讀伺服器的角色（舊 key 退場的下一步）**：線上版現在畫面還顯示本機的等級／行囊／金幣，伺服器的角色另外長（loot.claim 給的）。建議做法：`src/client/` 加一個「角色快取」（`character.get` 結果＋每次動作回傳的 CharacterView 更新它），畫面層讀快取；離線版快取來源是 `migrate.sync`，所以兩版走同一條。先從 HUD 的金幣、等級做起，一次一個面板，截圖比對。
-3. **線上版登入畫面**：`jg_online_token` 沒有時標題顯示「登入」（MSAL.js 的 redirect 流程，Entra External ID；套件要確認授權與大小）。沒有登入前線上版只有 dev token 能用。
-4. **loot.claim 收尾**：(a) 抽查重跑（26 §3.1：伺服器要求上傳指令紀錄重跑，擊殺數對不上作廢＋AuditLog）——需要 PvE 指令紀錄，先記在 `BattleState`；(b) ~~地圖／深夜／暴怒解鎖~~ 第 146 輪做了；懸賞（`bountyKill`）線上版還沒算；(c) 燼牌、寶箱、懸賞獎勵也還是客戶端給的（線上版要各自的 handler）。
-5. **交易收尾**：跟模擬冒險者買已經會找零（第 146 輪）；可以再顯示「它開價多少」讓玩家知道要放多少；SQL 版交易並發測試（V4 驗收，只能在 CI 跑）。
-6. **多角色收尾**：角色面板「改名」；換角色時 `metThisVisit` 沒清；行商面板 6 個分頁再加要改兩排。
-7. **Q5 拆 HUD**（範圍保護 #5）、即時 PvP `BattleRoom`（23 §6 #4：只做協定＋本機兩客戶端測試，不部署）。
+## ★ 第 148 輪起先做（V5／V6 收尾，11/7–11/11）
+**已經有的（到第 147 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、`trade`、`roster`、**`bounty`、`encounters`**）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.choose`／**`story.meet`／`story.thanks`**、`market.*`、`pvp.*`、`trade.*`（`partners` 多 `cheapest`）、`character.*`（**`rename`**）、`warehouse.*`、`battle.start`／`loot.claim`（**含懸賞**）／**`loot.chest`**；**即時 PvP `src/net/realtime.ts`＋`src/server/realtime/BattleRoom.ts`＋`src/client/RoomClient.ts`（D-310，不部署）**；**`src/client/characterCache.ts`＋線上版舊 key 當快取（D-308）**；**`src/game/rt/MinimapSystem.ts`**。
+1. CI 每輪開頭看一次（第 147 輪最後的程式 commit 是「線上版相遇狀態以伺服器為準」）。
+2. **線上版還沒對上伺服器的**（D-308 之後）：(a) 行囊面板標題的「Lv」讀本機 `s.prog`（HUD 已經讀快取）；(b) 引擎本身的等級／技能點在進場時讀舊 key（已經寫回伺服器的等級，下一場才生效）；(c) 燼牌、行商面板的錢包讀舊 key（已經是快取，但本機撿的金幣會暫時多算到下一次寫回）——一次一個面板改讀 `characterCache`，最後刪掉 `mirrorOnline`。
+3. **線上版登入畫面**：`jg_online_token` 沒有時標題顯示「登入」（Entra External ID；MSAL.js 授權與大小要確認，或自己做 PKCE redirect 不加套件）。沒有登入前線上版只有 dev token 能用。
+4. **PvE 抽查重跑（26 §3.1）**：伺服器在 `battle.start` 給種子、客戶端記指令紀錄，`loot.audit` 抽查（擊殺數對不上作廢＋AuditLog）。成本：大地圖一場可能幾小時 → 只重跑最近 N 分鐘或 Boss 戰。寶箱位置、回禮時機也靠它。
+5. **即時 PvP 畫面**（選做，23 §6 #4）：競技場加「即時對戰（本機兩人）」用 `RoomClient`＋本地預測；WsTransport。不部署。
+6. **交易收尾**：SQL 版交易並發測試（V4 驗收，只能在 CI 跑）。
+7. **Q5 拆 HUD 繼續**：`drawUi` 的 HUD 字、懸賞板（MinimapSystem 的做法：純函式＋view 物件，前後截圖比對）。
 8. **V7（11/12 12:00 起凍結）**：README 成果發表、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能。
+
+**線上版注意（第 147 輪）**：
+- 線上版的伺服器結果一律走 `onlineLoot.ts` 的 `synced()`：更新快取 → `mirrorOnline`（items／wallet／level）＋`mirrorEncounters` → 通知場景 `onlineBounty` 重讀行囊。新的線上 handler 照這條走。
+- `src/game` 不能碰 localStorage（`tests/game-ratchet.test.ts`）：寫舊 key 要放在 `src/client/legacyOps.ts`。
+- 線上整套 Playwright：見第 146 輪的指令；打怪用 `s.events.push({ type: 'death', id, tick })`＋`hp = 0`（會走真的 playEvents → loot.claim）；狼王第一次保底稀有，拿來測行囊。
 
 **線上版注意（第 146 輪）**：
 - 判斷線上版一律用 `import.meta.env.VITE_SERVER_URL`（**直接寫在 if 條件裡**，Vite 才會在建置時把離線版的分支拿掉）；新的 src/server import 只能出現在 `localServer.ts` 這條動態載入的路上，不然 `check-online-bundle.mjs` 會擋。
