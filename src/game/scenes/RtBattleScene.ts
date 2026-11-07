@@ -1325,7 +1325,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (r) reload();
       return r;
     };
-    const ops: MarketOps = { view: wrap(marketOps.view), list: wrap(marketOps.list), cancel: wrap(marketOps.cancel), buy: wrap(marketOps.buy) };
+    const ops: MarketOps = { view: wrap(marketOps.view), list: wrap(marketOps.list), cancel: wrap(marketOps.cancel), buy: wrap(marketOps.buy), history: marketOps.history };
     this.menu = openMarketPanel(this, { ops, bag: () => this.bagSt, coin: () => coinOf(loadRecord(this.stageId)), coinBefore: coinOf(loadRecord(this.stageId)) }, () => this.openShop());
   }
 

@@ -55,5 +55,8 @@ export const marketOps = {
   list: (uid: string, price: number, slot: GearSlot | undefined, page: number) => step((c, me) => c.call('market.list', { characterId: me.id, itemId: itemIdOf(me, uid), price }), slot, page),
   cancel: (listingId: string, slot: GearSlot | undefined, page: number) => step((c, me) => c.call('market.cancel', { characterId: me.id, listingId }), slot, page),
   buy: (listingId: string, slot: GearSlot | undefined, page: number) => step((c, me) => c.call('market.buy', { characterId: me.id, listingId }), slot, page),
+  /** 最近成交的價格（第 153 輪，D-329；只讀）：上架時參考定價。伺服器壞了回 null */
+  history: (slot: GearSlot, rarity: number): Promise<number[] | null> =>
+    legacyOp(captureLegacy(), [], async (c, me) => ({ h: await c.call('market.history', { slot, rarity }), me }), (r) => r.me, true).then((r) => r?.h.sales.map((s) => s.price) ?? null),
 };
 export type MarketOps = typeof marketOps;

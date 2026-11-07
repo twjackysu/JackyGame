@@ -18,3 +18,18 @@ export const listFee = (price: number): number => Math.max(1, Math.floor((price 
 export const saleFee = (price: number): number => Math.floor((price * MARKET_FEE_PCT) / 100);
 /** 賣家實拿 */
 export const sellerGets = (price: number): number => price - saleFee(price);
+
+/** 最近成交看幾筆（market.history，第 153 輪） */
+export const HISTORY_N = 12;
+
+/**
+ * 最近成交的行情（第 153 輪，D-329）：中位數＋最低／最高。給上架時參考定價（畫面只顯示，價格還是賣家自己定）。
+ * 沒有成交回 null。中位數：偶數筆取中間兩筆的平均（四捨五入）。
+ */
+export function priceStats(prices: readonly number[]): { n: number; median: number; lo: number; hi: number } | null {
+  const ps = prices.filter((p) => validPrice(p)).sort((a, b) => a - b);
+  if (!ps.length) return null;
+  const m = ps.length >> 1;
+  const median = ps.length % 2 ? ps[m]! : Math.round((ps[m - 1]! + ps[m]!) / 2);
+  return { n: ps.length, median, lo: ps[0]!, hi: ps[ps.length - 1]! };
+}

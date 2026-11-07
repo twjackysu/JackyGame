@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, isGear, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
-import { MARKET_FEE_PCT, MARKET_PAGE, PRICE_MAX, listFee, sellerGets } from '../../core/meta/market';
+import { MARKET_FEE_PCT, MARKET_PAGE, PRICE_MAX, listFee, priceStats, sellerGets } from '../../core/meta/market';
 import { buyPrice, sellPrice } from '../../core/meta/shop';
 import type { ListingView } from '../../net/views';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -30,7 +30,7 @@ const HOUR = 3600_000;
 /** 定價的快捷鍵：行商買價的幾成（行商收購只給 25%） */
 const PRESETS: [string, number][] = [
   ['便宜賣', 0.4],
-  ['行情價', 0.6],
+  ['中等價', 0.6],
   ['高價', 0.85],
 ];
 
@@ -49,6 +49,8 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
   let error = false;
   let detail: { kind: 'listing'; l: ListingView } | { kind: 'sell'; g: RtGear; price: number } | null = null;
   let first = true;
+  /** 最近成交（D-329）：部位:稀有度 → 價格列表；'wait'＝讀取中；null＝讀不到 */
+  const sold = new Map<string, number[] | 'wait' | null>();
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
 
   let lastToast: Phaser.GameObjects.Text | null = null;
@@ -296,7 +298,22 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
     out.push(btn(200, y, '+10%', () => setPrice(Math.max(price + 1, price * 1.1)), false, 20));
     y += 62;
     PRESETS.forEach(([label, k], i) => out.push(btn(-200 + i * 200, y, `${label} ${Math.round(buyPrice(g) * k)}`, () => setPrice(buyPrice(g) * k), false, 18)));
-    y += 52;
+    // 最近成交（第 153 輪，D-329）：同部位同稀有度別人最近賣多少；點一下用中位數定價
+    y += 50;
+    const hk = `${g.slot}:${g.rarity}`;
+    const h = sold.get(hk);
+    if (h === undefined && ctx.ops.history) {
+      sold.set(hk, 'wait');
+      void ctx.ops.history(g.slot, g.rarity).then((v) => {
+        sold.set(hk, v);
+        if (root.active && detail?.kind === 'sell' && `${detail.g.slot}:${detail.g.rarity}` === hk) render();
+      });
+    }
+    const st = Array.isArray(h) ? priceStats(h) : null;
+    const kind = `${RARITY_NAME[g.rarity]}${SLOT_NAME[g.slot]}`;
+    if (st) out.push(btn(0, y, `最近成交 ${st.n} 筆・中位 ${st.median} 金（${st.lo}～${st.hi}）→ 用這個價`, () => setPrice(st.median), false, 17));
+    else out.push(scene.add.text(0, y, h === 'wait' || h === undefined ? '讀取最近成交…' : h === null ? '最近成交讀不到' : `最近還沒有人賣出${kind}`, { fontFamily: UI_FONT, fontSize: '17px', color: '#7a8aa8' }).setOrigin(0.5));
+    y += 48;
     out.push(scene.add.text(0, y, `上架費 ${listFee(price)} 金（不退）・賣掉實拿 ${sellerGets(price)} 金\n賣給行商只有 ${sellPrice(g)} 金・行商賣這種貨約 ${buyPrice(g)} 金`, { fontFamily: UI_FONT, fontSize: '18px', color: '#a8b8d0', align: 'center', lineSpacing: 6 }).setOrigin(0.5));
     y += 80;
     const coin = data?.character.wallet.coin ?? 0;

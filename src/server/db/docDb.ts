@@ -129,6 +129,11 @@ function reposOf(tx: Tx, now: () => number): Repos {
           .sort((a, b) => a.price - b.price || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
           .slice(q.offset, q.offset + q.limit),
       listBySeller: async (c, limit) => tx.scan('listings', (r) => r.sellerCharacterId === c).sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1)).slice(0, limit),
+      listSold: async (q) =>
+        tx
+          .scan('listings', (r) => r.status === 'sold' && r.slot === q.slot && r.rarity === q.rarity)
+          .sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0) || (a.id < b.id ? 1 : -1))
+          .slice(0, q.limit),
     },
     trades: {
       get: async (id) => tx.get('trades', id),

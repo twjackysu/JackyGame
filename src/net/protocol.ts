@@ -75,6 +75,8 @@ export interface Api {
   'market.list': { params: { characterId: string; itemId: string; price: number }; result: { listing: ListingView; character: CharacterView }; write: true };
   'market.cancel': { params: { characterId: string; listingId: string }; result: CharacterView; write: true };
   'market.buy': { params: { characterId: string; listingId: string }; result: CharacterView; write: true };
+  /** 最近成交（第 153 輪，D-329）：同部位同稀有度最近 HISTORY_N 筆的價格（不帶買賣雙方），上架時參考定價 */
+  'market.history': { params: { slot: string; rarity: number }; result: { sales: { price: number; ilvl: number; at: number }[] }; write: false };
   'market.browse': { params: { slot?: string; rarity?: number; page?: number }; result: { listings: ListingView[]; page: number }; write: false };
   /** 自己的掛單；過期的物品在這裡退回行囊（所以算寫入） */
   /** news＝上次看過之後才賣出的掛單（第 149 輪：「你不在的時候賣出了…」） */

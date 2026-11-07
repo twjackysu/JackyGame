@@ -3,7 +3,7 @@
 // 綁定的物品不能上架；不能買自己帳號的掛單（左手換右手走面對面交易）；過期的掛單買不到，賣家看「我的掛單」時退回行囊。
 import { BAG_MAX } from '../../core/meta/bag';
 import { GEAR_SLOTS } from '../../core/battle/rt/gear';
-import { LISTING_MS, MARKET_PAGE, MAX_OPEN_LISTINGS, listFee, saleFee, sellerGets, validPrice } from '../../core/meta/market';
+import { HISTORY_N, LISTING_MS, MARKET_PAGE, MAX_OPEN_LISTINGS, listFee, saleFee, sellerGets, validPrice } from '../../core/meta/market';
 import { ApiError } from '../../net/protocol';
 import type { ListingView } from '../../net/views';
 import type { ListingRow } from '../repos/types';
@@ -30,7 +30,7 @@ async function giveBack(ctx: Ctx, l: ListingRow): Promise<void> {
   await ctx.r.items.save({ ...it, location: 'bag', pos: frontPos(inv) });
 }
 
-export const marketHandlers: Pick<HandlerTable, 'market.list' | 'market.cancel' | 'market.buy' | 'market.browse' | 'market.mine'> = {
+export const marketHandlers: Pick<HandlerTable, 'market.list' | 'market.cancel' | 'market.buy' | 'market.browse' | 'market.mine' | 'market.history'> = {
   'market.list': async (ctx, p) => {
     const price = p?.price;
     if (!validPrice(price)) throw new ApiError('bad_request', 'price');
@@ -84,6 +84,16 @@ export const marketHandlers: Pick<HandlerTable, 'market.list' | 'market.cancel' 
     if (typeof page !== 'number' || !Number.isInteger(page) || page < 0 || page > 500) throw new ApiError('bad_request', 'page');
     const rows = await ctx.r.listings.listOpen({ slot, rarity, aliveAt: ctx.clock.now(), offset: page * MARKET_PAGE, limit: MARKET_PAGE });
     return { listings: rows.map((l) => view(l, ctx.accountId)), page };
+  },
+
+  'market.history': async (ctx, p) => {
+    const slot = p?.slot;
+    if (typeof slot !== 'string' || !(GEAR_SLOTS as readonly string[]).includes(slot)) throw new ApiError('bad_request', 'slot');
+    const rarity = p?.rarity;
+    if (typeof rarity !== 'number' || !Number.isInteger(rarity) || rarity < 0 || rarity > 5) throw new ApiError('bad_request', 'rarity');
+    // 只給價格、物品等級、時間：誰賣誰買不外流（26-security：不洩漏其他玩家資料）
+    const rows = await ctx.r.listings.listSold({ slot, rarity, limit: HISTORY_N });
+    return { sales: rows.map((l) => ({ price: l.price, ilvl: l.ilvl, at: l.closedAt ?? l.createdAt })) };
   },
 
   'market.mine': async (ctx, p) => {

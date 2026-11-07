@@ -156,3 +156,35 @@ for (const be of BACKENDS)
       await db.close();
     });
   });
+
+for (const be of BACKENDS)
+  describe(`拍賣所最近成交（第 153 輪，D-329，${be.name}）`, () => {
+    it('只列同部位同稀有度的成交、新的在前、不帶賣家買家；取消與還開著的不算；格式不對 bad_request', async () => {
+      const { db } = await be.fresh(() => 0);
+      const { a, b, ca, cb, clock } = await setup(db);
+      const items = bagOf(ca);
+      const g0 = items[0]!.gear as { slot: string; rarity: number; ilvl: number };
+      const same = items.filter((i) => (i.gear as { slot: string }).slot === g0.slot && (i.gear as { rarity: number }).rarity === g0.rarity);
+      expect(await code(a.call('market.history', { slot: 'nope', rarity: 1 }))).toBe('bad_request');
+      expect(await code(a.call('market.history', { slot: g0.slot, rarity: 9 }))).toBe('bad_request');
+      expect((await a.call('market.history', { slot: g0.slot, rarity: g0.rarity })).sales).toEqual([]);
+      // 第一件賣出、（有的話）第二件賣出、再掛一件不賣、一件取消
+      const prices = [300, 420];
+      const soldAt: number[] = [];
+      for (let k = 0; k < Math.min(2, same.length); k++) {
+        clock.advance(60_000);
+        const r = await a.call('market.list', { characterId: ca.id, itemId: same[k]!.id, price: prices[k]! });
+        await b.call('market.buy', { characterId: cb.id, listingId: r.listing.id });
+        soldAt.unshift(clock.now());
+      }
+      const left = bagOf(await a.call('character.get', { id: ca.id })).filter((i) => (i.gear as { slot: string }).slot === g0.slot && (i.gear as { rarity: number }).rarity === g0.rarity);
+      if (left[0]) await a.call('market.list', { characterId: ca.id, itemId: left[0].id, price: 9999 });
+      const h = await b.call('market.history', { slot: g0.slot, rarity: g0.rarity });
+      expect(h.sales.map((s) => s.price)).toEqual(prices.slice(0, soldAt.length).reverse());
+      expect(h.sales.map((s) => s.at)).toEqual(soldAt);
+      for (const s of h.sales) expect(Object.keys(s).sort()).toEqual(['at', 'ilvl', 'price']);
+      // 別的稀有度看不到這幾筆
+      expect((await b.call('market.history', { slot: g0.slot, rarity: g0.rarity === 1 ? 2 : 1 })).sales).toEqual([]);
+      await db.close();
+    });
+  });

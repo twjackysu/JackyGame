@@ -216,6 +216,8 @@ export interface Repos {
     listOpen(q: ListingQuery): Promise<ListingRow[]>;
     /** 這個角色上架過的（新的在前，最多 limit 筆） */
     listBySeller(characterId: string, limit: number): Promise<ListingRow[]>;
+    /** 最近成交的（第 153 輪 market.history；同部位、同稀有度，成交時間新的在前，最多 limit 筆） */
+    listSold(q: { slot: string; rarity: number; limit: number }): Promise<ListingRow[]>;
   };
   trades: {
     get(id: string): Promise<TradeRow | undefined>;
