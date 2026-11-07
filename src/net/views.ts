@@ -160,6 +160,8 @@ export interface PvpLadderView {
   rating: number;
   pos: number;
   total: number;
+  /** 目前連勝（D-324；0＝沒有） */
+  streak: number;
 }
 
 /** 面對面交易一方放的東西（物品附快照給畫面顯示） */

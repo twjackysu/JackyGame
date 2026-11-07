@@ -17,3 +17,13 @@ export function agoText(ms: number): string {
   if (h < 24) return `${h} 小時前`;
   return `${Math.floor(h / 24)} 天前`;
 }
+
+/**
+ * 結果畫面的連勝／今日首勝字（第 151 輪，D-324；伺服器算的，只是外觀）：沒有就空字串。
+ * 首勝和連勝同時有 → 「今日首勝！・3 連勝」；連勝 2 場起才說。
+ */
+export function streakLine(r: { outcome: PvpRecentView['outcome']; streak: number; firstWin: boolean }): string {
+  if (r.outcome !== 'victory') return '';
+  const parts = [r.firstWin ? '今日首勝！' : '', r.streak >= 2 ? `${r.streak} 連勝` : ''].filter(Boolean);
+  return parts.join('・');
+}

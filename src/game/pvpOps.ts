@@ -18,6 +18,9 @@ export interface PvpResult {
   outcome: 'victory' | 'defeat' | 'timeout';
   rating: number;
   delta: number;
+  /** 打完後的連勝、今天（台北）第一次贏（D-324，伺服器算的，只給外觀） */
+  streak: number;
+  firstWin: boolean;
 }
 
 export const pvpOps = {

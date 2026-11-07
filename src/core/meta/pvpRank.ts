@@ -70,3 +70,25 @@ export function simLeague(players: readonly { id: string; tier: number }[], toda
       }
   return r;
 }
+
+/** 台北時間（UTC+8，沒有日光節約）的第幾天：每日首勝用（core 不用 Date，時間由伺服器給） */
+export const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;
+export const taipeiDay = (ms: number): number => Math.floor((ms + TAIPEI_OFFSET_MS) / DAY_MS);
+
+/** 連勝顯示的上限（存的數字不會無限長） */
+export const PVP_STREAK_CAP = 99;
+
+/**
+ * 打完一場後的連勝與「今日首勝」（第 151 輪，D-324）：只給外觀（結果畫面的字與光、天梯名字旁的「N 連勝」），不給段位分或數值。
+ * 勝：連勝 +1；輸：歸零；平手（時間到）：不變。今天（台北）第一次贏 → firstWin。
+ */
+export function pvpStreakAfter(
+  prev: { streak?: number; winDay?: number },
+  outcome: 'victory' | 'defeat' | 'timeout',
+  day: number,
+): { streak: number; winDay?: number; firstWin: boolean } {
+  const s0 = Number.isSafeInteger(prev.streak) && prev.streak! > 0 ? Math.min(prev.streak!, PVP_STREAK_CAP) : 0;
+  const wd = Number.isSafeInteger(prev.winDay) ? prev.winDay : undefined;
+  if (outcome === 'victory') return { streak: Math.min(s0 + 1, PVP_STREAK_CAP), winDay: day, firstWin: wd !== day };
+  return { streak: outcome === 'defeat' ? 0 : s0, ...(wd !== undefined ? { winDay: wd } : {}), firstWin: false };
+}

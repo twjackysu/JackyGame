@@ -7,9 +7,11 @@ import { LocalTransport } from '../../src/net/LocalTransport';
 import { FakeClock, SeqIds } from '../../src/server/clock';
 import { GameServer } from '../../src/server/GameServer';
 import { playPvp } from '../../src/core/battle/rt/pvpMatch';
+import { GEAR_SLOTS, genGear } from '../../src/core/battle/rt/gear';
+import { hashSeed } from '../../src/core/rng';
 import { BOT_PROFILES, PlayerBot } from '../../src/core/battle/rt/sim';
 import type { BattleCommandBody } from '../../src/core/battle/rt/types';
-import { PVP_START_RATING, canChallenge, eloDelta } from '../../src/core/meta/pvpRank';
+import { PVP_START_RATING, canChallenge, eloDelta, taipeiDay } from '../../src/core/meta/pvpRank';
 import type { PvpStartView } from '../../src/net/views';
 import { BACKENDS } from './backends';
 import { LEGACY_SAMPLE } from './fixtures';
@@ -169,6 +171,60 @@ for (const be of BACKENDS)
       const lad2 = await a.call('pvp.ladder', { characterId });
       expect(lad2.recent[0]!.revenge).toBe(win.outcome === 'defeat');
       expect(lad2.recent[1]!.foeId).toBe(last.foeId);
+      await db.close();
+    });
+  });
+
+/** 每個部位都穿好裝（模擬冒險者也是全身精良）：Bot 才贏得了 */
+const STRONG: Record<string, string> = (() => {
+  const rec = JSON.parse(LEGACY_SAMPLE.jg_rt_mistwood!) as Record<string, unknown>;
+  rec.equip = Object.fromEntries(GEAR_SLOTS.map((slot) => [slot, { ...genGear(hashSeed(`strong:${slot}`), 3, 12, { slot }), uid: `s-${slot}` }]));
+  rec.bag = [];
+  return { ...LEGACY_SAMPLE, jg_rt_mistwood: JSON.stringify(rec), jg_weapon: 'sword' };
+})();
+
+for (const be of BACKENDS)
+  describe(`PvP 連勝與今日首勝（第 151 輪，D-324，${be.name}）`, () => {
+    it('勝 +1、輸歸零；今天第一次贏才是首勝，隔天（台北）再一次；不改段位分的算法', async () => {
+      const { db } = await be.fresh(() => 0);
+      const clock = new FakeClock();
+      const server = new GameServer({ db, auth, clock, ids: new SeqIds(), local: true, rng: () => 0.45 });
+      let n = 0;
+      const a = new GameClient(new LocalTransport((j) => server.handle(j)), { token: 'accS', timeoutMs: 15000, retries: 1, newRequestId: () => `s${++n}` });
+      const { characterId } = await a.call('migrate.legacy', { snapshot: STRONG });
+      expect((await a.call('pvp.ladder', { characterId })).streak).toBe(0);
+      let streak = 0;
+      let wonToday = false;
+      let firsts = 0;
+      let day = taipeiDay(clock.now());
+      const play = async (stand: boolean) => {
+        clock.advance(60_000);
+        const st = await a.call('pvp.start', { characterId });
+        const res = await a.call('pvp.finish', { characterId, matchId: st.matchId, inputs: stand ? [] : fight(st).inputs });
+        const d = taipeiDay(clock.now());
+        if (d !== day) [day, wonToday] = [d, false];
+        const first = res.outcome === 'victory' && !wonToday;
+        if (res.outcome === 'victory') [streak, wonToday] = [streak + 1, true];
+        else if (res.outcome === 'defeat') streak = 0;
+        expect(res.delta).toBe(eloDelta(st.rating, st.foeRating, res.outcome));
+        expect(res.streak).toBe(streak);
+        expect(res.firstWin).toBe(first);
+        if (first) firsts++;
+        expect((await a.call('pvp.ladder', { characterId })).streak).toBe(streak);
+        return res;
+      };
+      for (let k = 0; k < 3; k++) await play(false);
+      // 脫光站著不動 → 輸，連勝歸零
+      for (const slot of GEAR_SLOTS) await a.call('inventory.unequip', { characterId, slot });
+      expect((await play(true)).outcome).toBe('defeat');
+      await a.call('migrate.sync', { snapshot: STRONG }); // 舊 key 的裝備穿回去
+      expect(streak).toBe(0);
+      clock.advance(24 * 60 * 60 * 1000); // 隔天
+      for (let k = 0; k < 2; k++) await play(false);
+      // 中間 migrate.sync（舊 key 蓋 story）不會弄丟連勝
+      await a.call('migrate.sync', { snapshot: STRONG });
+      expect((await a.call('pvp.ladder', { characterId })).streak).toBe(streak);
+      expect(firsts).toBeGreaterThanOrEqual(1); // 真的有贏過（不然整段沒測到首勝）
       await db.close();
     });
   });

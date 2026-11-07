@@ -13,12 +13,12 @@ import { auraCss, drawRankAura } from '../fx/rankAura';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { UI_FONT, fadeOutThen } from '../fx/feel';
+import { UI_FONT, bigText, fadeOutThen, shockRing, sparks } from '../fx/feel';
 import { InputSystem } from '../rt/InputSystem';
 import { buttonPos, loadControls } from '../rtControls';
 import { pvpOps, type PvpOpen, type PvpResult } from '../pvpOps';
 import { heroKey, WEAPON_NAME } from '../weapon';
-import { agoText, recentLook } from '../pvpRecent';
+import { agoText, recentLook, streakLine } from '../pvpRecent';
 import type { PvpRecentView } from '../../net/views';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -152,7 +152,7 @@ export class PvpScene extends Phaser.Scene {
         sub.setText('伺服器沒有回應，排行讀不到');
         return;
       }
-      sub.setText(`你的段位：${rankName(lad.rating)} ${lad.rating}　第 ${lad.pos} / ${lad.total} 名`);
+      sub.setText(`你的段位：${rankName(lad.rating)} ${lad.rating}　第 ${lad.pos} / ${lad.total} 名${lad.streak >= 2 ? `・${lad.streak} 連勝` : ''}`);
       // 最近戰績（第 149 輪）：右上角「近況 勝敗和」（照勝敗上色）；點一下展開最近 5 場，輸掉的可以「⚔ 再挑一次」（第 150 輪，D-323）
       if (lad.recent.length) this.recentBadge(box, W - 60, top + 44, lad.recent, top + 120, (id, name) => start(id, name));
       lad.rows.forEach((r, i) => {
@@ -601,6 +601,20 @@ export class PvpScene extends Phaser.Scene {
     this.status.setText(`${title}\n段位分 ${r.rating}（${r.delta >= 0 ? '+' : ''}${r.delta}）${up}`).setFontSize(40).setColor(r.outcome === 'victory' ? '#ffd27a' : '#ffffff');
     this.tweens.add({ targets: this.status, scale: { from: 1.25, to: 1 }, duration: 300, ease: 'Back.Out' });
     if (r.outcome === 'victory') this.cameras.main.flash(250, 255, 220, 150);
+    // 連勝／今日首勝（D-324）：伺服器說的，只有字和光
+    const sl = streakLine(r);
+    if (sl) {
+      const cx = GAME_WIDTH / 2;
+      const y = this.status.y - 190;
+      this.time.delayedCall(420, () => {
+        if (!this.scene.isActive() || this.phase !== 'result') return;
+        bigText(this, cx, y, sl, r.firstWin ? '#fff2a8' : '#ffb36a', r.firstWin ? 50 : 44, 1600);
+        shockRing(this, cx, y, r.firstWin ? 0xffe08a : 0xff9a4a, 260, 620, 8);
+        sparks(this, cx, y, r.firstWin ? 34 : 20, 'spark', r.firstWin ? 0xffe08a : 0xffa060, 520);
+        if (r.firstWin) SFX.perfect();
+        else SFX.itemGet();
+      });
+    }
     this.endButtons();
   }
 

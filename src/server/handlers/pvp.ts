@@ -6,7 +6,7 @@ import { GEAR_SLOTS, gearBonus, genGear, isGear, type RtGear } from '../../core/
 import { pvpGear } from '../../core/battle/rt/pvp';
 import { replayPvp, type PvpMatchSetup, type PvpSide } from '../../core/battle/rt/pvpMatch';
 import { WEAPONS } from '../../core/battle/rt/data';
-import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, simLeague } from '../../core/meta/pvpRank';
+import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, pvpStreakAfter, simLeague, taipeiDay } from '../../core/meta/pvpRank';
 import { hashSeed } from '../../core/rng';
 import { ApiError } from '../../net/protocol';
 import type { PvpRecentView, WeaponView } from '../../net/views';
@@ -92,7 +92,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
       const foe = r.foeId ? simRoster().find((s) => s.accountId === r.foeId) : undefined;
       return { ...r, revenge: r.outcome === 'defeat' && !!foe && canChallenge(rating, simRating(foe)) };
     });
-    return { rows, recent, rating, pos: mine.pos, total: all.length };
+    return { rows, recent, rating, pos: mine.pos, total: all.length, streak: pvpStreakAfter({ streak: c.pvpStreak }, 'timeout', 0).streak }; // 平手＝不變：拿來把壞資料修成安全值
   },
 
 
@@ -143,8 +143,10 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const rating = Math.max(1, before + delta);
     const { pvpMatch: _done, ...rest } = c;
     const pvpHistory = JSON.stringify([{ outcome, foeName: m.foeName, ...(m.foeId ? { foeId: m.foeId } : {}), delta: rating - before, at: ctx.clock.now() }, ...historyOf(c)].slice(0, PVP_HISTORY));
-    await ctx.r.characters.save({ ...rest, pvpRating: rating, pvpHistory });
+    // 連勝／今日首勝（D-324）：只給外觀；日子用伺服器的時間（台北）
+    const st = pvpStreakAfter({ streak: c.pvpStreak, winDay: c.pvpWinDay }, outcome, taipeiDay(ctx.clock.now()));
+    await ctx.r.characters.save({ ...rest, pvpRating: rating, pvpHistory, pvpStreak: st.streak, ...(st.winDay !== undefined ? { pvpWinDay: st.winDay } : {}) });
     await ctx.r.audit.add({ accountId: ctx.accountId, action: 'pvp.finish', detail: JSON.stringify({ match: m.id, foe: m.foeName, outcome, before, rating, hash: r.hash, ticks: r.s.tick }), at: ctx.clock.now() });
-    return { outcome, rating, delta };
+    return { outcome, rating, delta, streak: st.streak, firstWin: st.firstWin };
   },
 };
