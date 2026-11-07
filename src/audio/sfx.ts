@@ -311,5 +311,9 @@ export const SFX = {
     playSfx({ wave: 'triangle', freq: 880, sustain: 0.04, release: 0.15, volume: 0.2 });
     playSfx({ wave: 'triangle', freq: 1318.5, sustain: 0.06, release: 0.3, volume: 0.2, delay: 0.09 });
   },
+  /** 金幣入袋（第 151 輪：拍賣所賣出通知的金幣飛進來）：n 聲越來越高的清脆小響 */
+  coins: (n = 5): void => {
+    for (let i = 0; i < Math.min(n, 8); i++) playSfx({ wave: 'triangle', freq: 1760 + i * 110, sustain: 0.015, release: 0.09, volume: 0.12, delay: 0.25 + i * 0.07 });
+  },
   save: (): void => playSfx({ wave: 'sine', freq: 1200, freqEnd: 1600, sustain: 0.02, release: 0.2, volume: 0.1 }),
 } as const;

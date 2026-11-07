@@ -9,6 +9,7 @@ import { buyPrice, sellPrice } from '../../core/meta/shop';
 import type { ListingView } from '../../net/views';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
+import { coinFly } from '../fx/coinFly';
 import { gearIcon } from '../fx/gearIcons';
 import type { MarketOps, MarketPage } from '../marketOps';
 import { soldNewsText } from '../marketNews';
@@ -57,9 +58,20 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
     const t = (lastToast = scene.add.text(GAME_WIDTH / 2, y0, msg, { fontFamily: TITLE_FONT, fontSize: `${size}px`, color: col, stroke: '#000', strokeThickness: 6, align: 'center', wordWrap: { width: GAME_WIDTH - 40, useAdvancedWrap: true } }).setOrigin(0.5).setDepth(990));
     scene.tweens.add({ targets: t, y: y0 - 40, alpha: 0, delay: hold, duration: 700, onComplete: () => t.destroy() });
   };
+  /** 賣出時飛進錢包的金幣（第 151 輪）：面板關掉一起收（D-254） */
+  let coins: Phaser.GameObjects.GameObject[] = [];
+  const payday = (gain: number): void => {
+    for (const o of coins) if (o.active) o.destroy();
+    coins = coinFly(scene, { x: GAME_WIDTH / 2, y: GAME_HEIGHT / 2 + 380 }, { x: GAME_WIDTH / 2 - 90, y: GAME_HEIGHT / 2 - 500 }, gain);
+    SFX.coins(coins.length);
+  };
   root.once('destroy', () => {
     if (lastToast) scene.tweens.killTweensOf(lastToast);
     lastToast?.destroy();
+    for (const o of coins) {
+      scene.tweens.killTweensOf(o);
+      if (o.active) o.destroy();
+    }
   });
 
   /** 送一個動作給伺服器；連點不重送；回來後重畫 */
@@ -87,11 +99,13 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
       if (news) {
         SFX.itemGet();
         toast(news, '#7dffb0', 26, 2600);
+        payday(d.news.reduce((sum, l) => sum + sellerGets(l.price), 0));
       } else if (first) {
         const gained = d.character.wallet.coin - ctx.coinBefore;
         if (gained > 0) {
           SFX.itemGet();
           toast(`你不在的時候有人買走掛單\n+${gained} 金`, '#7dffb0');
+          payday(gained);
         }
       }
       first = false;
