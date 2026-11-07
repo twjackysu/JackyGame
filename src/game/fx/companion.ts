@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 import { enemiesOf, playerOf } from '../../core/battle/rt/engine';
 import { UNIT, type BattleState } from '../../core/battle/rt/types';
 import { GAME_WIDTH } from '../config';
+import type { CachedDraw } from './cachedDraw';
 
 type Kind = 'cub' | 'flower' | 'wisp' | 'star';
 const KINDS: Readonly<Record<string, Kind>> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp', starfall: 'star' };
@@ -21,7 +22,15 @@ export interface CompanionHost {
 export class Companion {
   private cub: { x: number; y: number; a: number; t: number; face: number; kind: Kind } | null = null;
 
+  /** 畫進小貼圖（第 154 輪，D-332）；沒有就直接畫在傳進來的畫筆上 */
+  private cache: CachedDraw | null = null;
+
   constructor(private readonly h: CompanionHost) {}
+
+  /** 場景 create 時給一張小貼圖（範圍見 COMPANION_BOX，s＝k×1.7） */
+  setCache(c: CachedDraw | null): void {
+    this.cache = c;
+  }
 
   get active(): boolean {
     return this.cub !== null;
@@ -41,7 +50,10 @@ export class Companion {
 
   draw(g: Phaser.GameObjects.Graphics, now: number, s: BattleState): void {
     const c = this.cub;
-    if (!c) return;
+    if (!c) {
+      this.cache?.hide();
+      return;
+    }
     const p = playerOf(s);
     const dt = Math.min(0.1, Math.max(0, (now - c.t) / 1000));
     c.t = now;
@@ -64,9 +76,19 @@ export class Companion {
     c.a += ((fight ? 0.08 : 0.5) - c.a) * Math.min(1, dt * 3);
     const cx = this.h.sx(c.x);
     const cy = this.h.sy(c.y);
-    if (cx < -60 || cx > GAME_WIDTH + 60 || cy < this.h.viewTop - 80 || cy > this.h.viewBottom + 60) return;
-    const k = this.h.k() * 1.7;
+    if (cx < -60 || cx > GAME_WIDTH + 60 || cy < this.h.viewTop - 80 || cy > this.h.viewBottom + 60) {
+      this.cache?.hide();
+      return;
+    }
     const moving = d > UNIT * 0.4;
+    if (this.cache) this.cache.show(cx, cy, now, c.kind, (cg, fx, fy, t) => this.paint(cg, fx, fy, t, moving));
+    else this.paint(g, cx, cy, now, moving);
+  }
+
+  /** 腳底在 (cx, cy) 畫跟班（從 draw 拆出來，內容不變） */
+  private paint(g: Phaser.GameObjects.Graphics, cx: number, cy: number, now: number, moving: boolean): void {
+    const c = this.cub!;
+    const k = this.h.k() * 1.7;
     if (c.kind !== 'cub') {
       // 荊棘谷＝母樹的白花精（浮著轉）、燼紅裂谷＝燼心的小火靈（跳動的火球）
       const bob = Math.sin(now / 400) * 6 * k;
@@ -116,3 +138,7 @@ export class Companion {
     g.fillStyle(0x6ab8ff, Math.min(1, a * 1.8)).fillCircle(cx + f * 16 * k, cy - 26 * k - hop, 1.8 * k);
   }
 }
+
+/** 跟班小貼圖的範圍（腳底為原點、單位＝k×1.7；第 154 輪照四種樣子的畫法量的再留邊） */
+export const COMPANION_BOX = { l: -50, t: -84, r: 50, b: 12 } as const;
+

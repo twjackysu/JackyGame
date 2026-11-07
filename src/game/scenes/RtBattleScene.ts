@@ -82,7 +82,7 @@ import { getSettings, updateSettings } from '../settings';
 import { RangedFx } from '../fx/rangedFx';
 import { FieldFx } from '../fx/fieldFx';
 import { makeGround } from '../rt/ground';
-import { Companion } from '../fx/companion';
+import { COMPANION_BOX, Companion } from '../fx/companion';
 import { drawChoiceMarkArt, drawGateArt } from '../fx/landmarks';
 import { eliteFall } from '../fx/eliteFall';
 import { DashFx } from '../fx/dashFx';
@@ -622,6 +622,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, fireGlowTexture(this)).setBlendMode(Phaser.BlendModes.ADD));
     // D-332：要排在 this.g 底下（同 depth 0、先加進場景）
     this.fireCache = this.tracked ? (STAGES[this.stageId]?.campfires ?? []).map(() => ({ mer: new CachedDraw(this, this.k * 1.5 * 1.2, MER_BOX), rival: new CachedDraw(this, this.k * 1.5 * 1.1, RIVAL_BOX) })) : [];
+    this.cub.setCache(new CachedDraw(this, this.k * 1.7, COMPANION_BOX));
     this.npcCache = this.tracked && !this.bot ? Array.from({ length: NPC_CACHE_MAX }, () => new CachedDraw(this, this.k * 2.1, NPC_BOX)) : [];
     this.g = this.add.graphics();
     this.frostG = this.add.graphics().setDepth(9); // 霜旋的冰晶（在單位底下、地面之上）
