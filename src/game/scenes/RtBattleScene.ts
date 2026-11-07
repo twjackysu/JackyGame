@@ -1652,7 +1652,7 @@ export class RtBattleScene extends Phaser.Scene {
   private nightShade: Phaser.GameObjects.Image | null = null;
   private nightLight: NightLight | null = null;
   private readonly fireSpots: LightSpot[] = [];
-  /** 深夜光照（A3）：主角用插值後的位置，營火只算畫面內的 */
+  /** 深夜光照（A3）：主角用插值後的位置；營火與傳送門只算畫面內的（傳送門交戰中封住時光暗一點） */
   private drawNightLight(): void {
     const pl = playerOf(this.s);
     const pos = this.lerpPos(pl);
@@ -1664,9 +1664,18 @@ export class RtBattleScene extends Phaser.Scene {
       const cx = this.sx(c.x);
       const cy = this.sy(c.y) - 10 * k15;
       if (cx < -fireR || cx > GAME_WIDTH + fireR || cy < VIEW_TOP - fireR || cy > VIEW_BOTTOM + fireR) continue;
-      spots.push({ x: cx, y: cy });
+      spots.push({ x: cx, y: cy, r: fireR, a: 0.96, flicker: true });
     }
-    this.nightLight!.update(this.time.now, this.sx(pos.x), this.sy(pos.y), spots, fireR);
+    let shut: boolean | undefined; // 交戰中門封住（和 drawGate 同一條件；畫面內有門才算）
+    for (const gt of this.gates) {
+      const gk = this.k * (gt.back ? 1.7 : 2.2);
+      const r = 170 * gk;
+      const cx = this.sx(gt.x);
+      const cy = this.sy(gt.y) - 40 * gk;
+      if (cx < -r || cx > GAME_WIDTH + r || cy < VIEW_TOP - r || cy > VIEW_BOTTOM + r) continue;
+      spots.push({ x: cx, y: cy, r, a: !gt.back && (shut ??= this.bossEngaged()) ? 0.35 : 0.75, flicker: false });
+    }
+    this.nightLight!.update(this.time.now, this.sx(pos.x), this.sy(pos.y), spots);
   }
 
   private nightTexture(): string {

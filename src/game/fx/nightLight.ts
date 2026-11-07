@@ -24,6 +24,12 @@ interface Flash {
 export interface LightSpot {
   x: number;
   y: number;
+  /** 半徑（畫面像素） */
+  r: number;
+  /** 亮度 0～1 */
+  a: number;
+  /** 會閃動（火） */
+  flicker: boolean;
 }
 
 /** 擦除筆刷：白色＋alpha 曲線（alpha 越高擦得越亮） */
@@ -60,17 +66,17 @@ export class NightLight {
     this.flashes.push({ x, y, r, t0: this.scene.time.now, dur });
   }
 
-  /** 每幀：鋪夜色 → 擦出主角、營火、閃光。fireR 是營火光的半徑（畫面像素） */
-  update(now: number, px: number, py: number, fires: readonly LightSpot[], fireR: number): void {
+  /** 每幀：鋪夜色 → 擦出主角、固定光源（營火、傳送門）、閃光 */
+  update(now: number, px: number, py: number, spots: readonly LightSpot[]): void {
     const rt = this.rt;
     rt.clear();
     rt.fill(DARK, DARK_A);
     const s = PLAYER_R / BRUSH;
     rt.stamp(this.playerBrush, undefined, px * RES, py * RES, { scale: s * RES, erase: true });
-    for (let i = 0; i < fires.length; i++) {
-      const f = fires[i]!;
-      const flick = 1 + 0.07 * Math.sin(now / 110 + i * 1.7) + 0.04 * Math.sin(now / 47 + i);
-      rt.stamp(this.softBrush, undefined, f.x * RES, f.y * RES, { scale: ((fireR * flick) / BRUSH) * RES, alpha: 0.96, erase: true });
+    for (let i = 0; i < spots.length; i++) {
+      const f = spots[i]!;
+      const flick = f.flicker ? 1 + 0.07 * Math.sin(now / 110 + i * 1.7) + 0.04 * Math.sin(now / 47 + i) : 1 + 0.03 * Math.sin(now / 600 + i);
+      rt.stamp(this.softBrush, undefined, f.x * RES, f.y * RES, { scale: ((f.r * flick) / BRUSH) * RES, alpha: f.a, erase: true });
     }
     let w = 0;
     for (let i = 0; i < this.flashes.length; i++) {
