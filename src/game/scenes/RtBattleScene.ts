@@ -2,7 +2,7 @@
 // Phaser 只負責畫 BattleState 與收輸入 → BattleCommand；戰鬥結果全部由 src/core/battle/rt 決定（D-062）。
 import { onlineLoot } from '../onlineLoot';
 import Phaser from 'phaser';
-import { cdText, textColor } from '../hudText';
+import { cdText, hudLine, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
@@ -180,14 +180,6 @@ const fy0 = (x: Unit): number => x.facingY / 1000;
 
 /** 掉落物名稱（寶箱內容顯示用） */
 const LOOT_NAMES: Record<string, string> = Object.fromEntries([['gold', '金幣'], ['dust', '粉塵'], ['crystal', '結晶'], ['potion', '藥水']]);
-
-/** HUD 時間：一分鐘內顯示「12.3 秒」，之後「3:05」 */
-function clock(tick: number): string {
-  const sec = tick / TICKS_PER_SEC;
-  if (sec < 60) return `${sec.toFixed(1)} 秒`;
-  const m = Math.floor(sec / 60);
-  return `${m}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
-}
 
 export class RtBattleScene extends Phaser.Scene {
   private s!: BattleState;
@@ -6368,7 +6360,14 @@ export class RtBattleScene extends Phaser.Scene {
     // 線上版（第 147 輪）：等級／金幣／粉塵讀伺服器的角色（loot.claim 由伺服器擲，本機算的不準）；離線版建置時這段整個拿掉
     const oc = import.meta.env.VITE_SERVER_URL ? characterCache.get() : null;
     const lv = oc ? oc.level : s.prog?.level;
-    this.hud.setText(`${lv !== undefined ? `Lv ${lv}　` : ''}HP ${p.hp}/${p.maxHp}　MP ${p.mp}　${s.loot ? `${s.enhance?.level ? `武器 +${s.enhance.level}　` : ''}金 ${oc ? (oc.wallet.coin ?? 0) : this.coinBase >= 0 ? this.coinNow() : s.loot.gold ?? 0}　粉塵 ${oc ? (oc.wallet.dust ?? 0) : this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0}` : `敵人 ${es.length}`}　${clock(s.tick)}`);
+    const loot = s.loot
+      ? {
+          enh: s.enhance?.level ?? 0,
+          coin: oc ? (oc.wallet.coin ?? 0) : this.coinBase >= 0 ? this.coinNow() : s.loot.gold ?? 0,
+          dust: oc ? (oc.wallet.dust ?? 0) : this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0,
+        }
+      : undefined;
+    this.hud.setText(hudLine({ ...(lv !== undefined ? { lv } : {}), hp: p.hp, maxHp: p.maxHp, mp: p.mp, ...(loot ? { loot } : {}), enemies: es.length, tick: s.tick }));
     if (this.goal) {
       const st = STAGES[this.stageId]!;
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);

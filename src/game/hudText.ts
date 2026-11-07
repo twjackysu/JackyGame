@@ -13,3 +13,30 @@ export function textColor(t: Phaser.GameObjects.Text, c: string): Phaser.GameObj
   return t;
 }
 
+
+/** HUD 時間：一分鐘內顯示「12.3 秒」，之後「3:05」 */
+export function hudClock(tick: number): string {
+  const sec = tick / TICKS_PER_SEC;
+  if (sec < 60) return `${sec.toFixed(1)} 秒`;
+  const m = Math.floor(sec / 60);
+  return `${m}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+}
+
+/** 頂端 HUD 一行要的數字（Q5 拆場景，第 148 輪：場景算好數字，這裡只排字） */
+export interface HudLineView {
+  /** 等級（沒有等級制的關卡不寫） */
+  lv?: number;
+  hp: number;
+  maxHp: number;
+  mp: number;
+  /** 有掉落的關卡：武器強化、金幣、粉塵；沒有就寫剩幾隻敵人 */
+  loot?: { enh: number; coin: number; dust: number };
+  enemies: number;
+  tick: number;
+}
+
+export function hudLine(v: HudLineView): string {
+  const lv = v.lv !== undefined ? `Lv ${v.lv}　` : '';
+  const mid = v.loot ? `${v.loot.enh ? `武器 +${v.loot.enh}　` : ''}金 ${v.loot.coin}　粉塵 ${v.loot.dust}` : `敵人 ${v.enemies}`;
+  return `${lv}HP ${v.hp}/${v.maxHp}　MP ${v.mp}　${mid}　${hudClock(v.tick)}`;
+}
