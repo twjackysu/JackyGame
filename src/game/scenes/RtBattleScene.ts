@@ -951,8 +951,15 @@ export class RtBattleScene extends Phaser.Scene {
   private persist(): void {
     if (!this.tracked || !this.s) return;
     const now = this.snap();
-    const rec = mergeRun(loadRecord(this.stageId), this.saved, now);
-    if (this.s.prog) {
+    const base = loadRecord(this.stageId);
+    const rec = mergeRun(base, this.saved, now);
+    if (import.meta.env.VITE_SERVER_URL) {
+      // 線上版（第 148 輪，NEXT #2）：錢包、等級是伺服器的（舊 key 只是快取，loot.claim 回來時寫回）；
+      // 本機撿的金幣／粉塵／結晶、本機算的經驗不算進去——以前會暫時多算到下一次寫回，燼牌、行商面板看到的錢比伺服器多
+      rec.coin = base.coin;
+      rec.dust = base.dust;
+      rec.crystal = base.crystal;
+    } else if (this.s.prog) {
       rec.level = this.s.prog.level;
       rec.xp = this.s.prog.xp;
     }
@@ -1232,7 +1239,7 @@ export class RtBattleScene extends Phaser.Scene {
           setGearBonus(this.s, bonusOf(st));
           setSkillMods(this.s, this.allMods(st));
         },
-        level: this.s.prog?.level ?? 1,
+        level: (import.meta.env.VITE_SERVER_URL ? characterCache.get()?.level : undefined) ?? this.s.prog?.level ?? 1,
         region: this.stageId,
         onCards: () => this.openCards(),
         onMarket: this.tracked ? () => this.openMarket() : undefined,
@@ -1423,7 +1430,8 @@ export class RtBattleScene extends Phaser.Scene {
       this.bagSt,
       () => {
         const p = playerOf(this.s);
-        return `${this.s.prog ? `Lv ${this.s.prog.level}　` : ''}攻擊 ${p.atk}　HP ${p.maxHp}　防禦 ${p.def}`;
+        const lv = (import.meta.env.VITE_SERVER_URL ? characterCache.get()?.level : undefined) ?? this.s.prog?.level;
+        return `${lv !== undefined ? `Lv ${lv}　` : ''}攻擊 ${p.atk}　HP ${p.maxHp}　防禦 ${p.def}`;
       },
       (st) => {
         this.bagSt = st;
