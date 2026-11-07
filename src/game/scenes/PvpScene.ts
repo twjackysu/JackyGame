@@ -541,7 +541,10 @@ export class PvpScene extends Phaser.Scene {
         const sk = u && skillDef(this.s, e.skill, u);
         const h = sk?.hits[0];
         if (u && h) this.fx.push({ kind: 'shape', until: now + 260, dur: 260, col: u.pid ? FOE : ME, x0: u.x, y0: u.y, x1: 0, y1: 0, shape: skillShape(this.s, e.skill, h.shape, u), dx: u.facingX, dy: u.facingY });
-        if (sk?.role === 'ult') this.cameras.main.flash(150, 255, 200, 240);
+        if (sk?.role === 'ult') {
+          this.cameras.main.flash(150, 255, 200, 240);
+          this.arenaArt?.roar(getSettings().lowFx, now); // 看台小歡呼（第 154 輪）
+        }
       } else if (e.type === 'dodge') SFX.dodge();
       else if (e.type === 'block') SFX.parry();
       else if (e.type === 'death') {

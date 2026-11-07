@@ -184,16 +184,40 @@ export class ArenaArt {
    * @returns 灑了幾片（測試用）
    */
   cheer(lowFx: boolean): number {
+    return this.confetti(lowFx ? 18 : 40, 1);
+  }
+
+  /**
+   * 小歡呼（第 154 輪）：有人放大招時，看台各灑一小撮彩紙、看台邊亮一下。純外觀，省電畫質只灑幾片、不亮。
+   * 兩次之間至少隔 1.2 秒（避免連放時彩紙堆滿）。@returns 灑了幾片（0＝還在冷卻）
+   */
+  roar(lowFx: boolean, now: number): number {
+    if (now - this.lastRoar < 1200) return 0;
+    this.lastRoar = now;
+    if (!lowFx) {
+      const sc = this.scene;
+      const W = sc.scale.width;
+      for (const y of this.standY) {
+        const band = sc.add.rectangle(W / 2, y, W, 46, 0xffe8a8, 0.22).setDepth(3).setBlendMode(Phaser.BlendModes.ADD);
+        sc.tweens.add({ targets: band, alpha: 0, duration: 520, ease: 'Quad.easeOut', onComplete: () => band.destroy() });
+      }
+    }
+    return this.confetti(lowFx ? 6 : 14, 0.55);
+  }
+
+  private lastRoar = -1e9;
+
+  /** n 片彩紙從上下看台往場內飄；reach＝飄多遠（1＝勝利的大歡呼） */
+  private confetti(n: number, reach: number): number {
     const sc = this.scene;
     const W = sc.scale.width;
-    const n = lowFx ? 18 : 40;
     const cols = [0xffd27a, 0x6ab8ff, 0xffffff, 0xffe8a8];
     for (let i = 0; i < n; i++) {
       const top = i % 2 === 0;
       const x = 20 + Math.random() * (W - 40);
       const y = top ? this.standY[0] : this.standY[1];
       const p = sc.add.rectangle(x, y, 10 + Math.random() * 6, 5 + Math.random() * 3, cols[i % cols.length]!, 0.95).setDepth(70).setAngle(Math.random() * 360);
-      const dy = top ? 90 + Math.random() * 220 : -(140 + Math.random() * 220);
+      const dy = (top ? 90 + Math.random() * 220 : -(140 + Math.random() * 220)) * reach;
       sc.tweens.add({ targets: p, x: x + (Math.random() - 0.5) * 120, y: y + dy, angle: p.angle + (Math.random() < 0.5 ? -1 : 1) * (200 + Math.random() * 300), scaleY: { from: 1, to: 0.2 }, yoyo: false, duration: 1200 + Math.random() * 900, delay: Math.random() * 350, ease: top ? 'Sine.easeIn' : 'Cubic.easeOut' });
       sc.tweens.add({ targets: p, alpha: 0, delay: 1300 + Math.random() * 600, duration: 500, onComplete: () => p.destroy() });
     }
