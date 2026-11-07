@@ -44,8 +44,38 @@ export function bootServer(): Promise<BootResult> {
       } catch {
         ls = undefined;
       }
-      const client = await startOnlineClient(import.meta.env.VITE_SERVER_URL, onlineToken(ls, import.meta.env.VITE_AUTH_MODE === 'dev'));
-      return { client, kind: 'online' as const };
+      let token = onlineToken(ls, import.meta.env.VITE_AUTH_MODE === 'dev');
+      let loginError: string | undefined;
+      // 正式登入（第 148 輪）：建置時設了 Entra 才走 PKCE；沒登入就整頁轉去登入頁（同一個分頁只自動轉一次，失敗不會一直轉）
+      if (import.meta.env.VITE_ENTRA_AUTHORITY && import.meta.env.VITE_ENTRA_CLIENT_ID && ls) {
+        const { beginLogin, finishLogin } = await import('./oidcLogin');
+        const { ONLINE_TOKEN_KEY } = await import('./onlineClient');
+        const deps = {
+          cfg: { authority: import.meta.env.VITE_ENTRA_AUTHORITY, clientId: import.meta.env.VITE_ENTRA_CLIENT_ID, redirectUri: location.origin + location.pathname },
+          local: ls,
+          session: sessionStorage,
+          random: (n: number) => crypto.getRandomValues(new Uint8Array(n)),
+          sha256: (d: Uint8Array) => crypto.subtle.digest('SHA-256', new Uint8Array(d)),
+          fetch: (url: string, init: { method: 'POST'; headers: Record<string, string>; body: string }) => fetch(url, init),
+          go: (url: string) => location.assign(url),
+          now: () => Date.now(),
+        };
+        try {
+          const r = await finishLogin(deps, location.search, ONLINE_TOKEN_KEY);
+          if (r.handled) history.replaceState(null, '', location.pathname);
+          token = r.token;
+          loginError = r.error;
+          if (token) sessionStorage.removeItem('jg_login_tried');
+          else if (!r.error && !sessionStorage.getItem('jg_login_tried')) {
+            sessionStorage.setItem('jg_login_tried', '1');
+            await beginLogin(deps);
+          }
+        } catch (e) {
+          loginError = e instanceof Error ? e.message : String(e);
+        }
+      }
+      const client = await startOnlineClient(import.meta.env.VITE_SERVER_URL, token);
+      return { client, kind: 'online' as const, ...(loginError ? { error: `login: ${loginError}` } : {}) };
     }
     const { startLocalServer } = await import('./localServer');
     const { client, kind } = await startLocalServer();

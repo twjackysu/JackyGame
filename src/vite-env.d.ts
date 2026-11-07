@@ -10,4 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_SERVER_URL?: string;
   /** 'dev'：沒有登入 token 時自動給 dev:<亂數>（只對 AUTH_MODE=dev 的伺服器有效） */
   readonly VITE_AUTH_MODE?: string;
+  /** 線上版正式登入（Entra External ID，PKCE；第 148 輪）：兩個都設才會轉登入頁 */
+  readonly VITE_ENTRA_AUTHORITY?: string;
+  readonly VITE_ENTRA_CLIENT_ID?: string;
 }
