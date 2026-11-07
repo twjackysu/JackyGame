@@ -57,6 +57,8 @@ function versioned<K extends 'characters' | 'items' | 'listings' | 'trades'>(tx:
 }
 
 let ledgerSeq = 0;
+/** 帳的 id＝<時間36>-<序號36>-<角色>；取序號（格式不對回 0） */
+const ledgerSeqOf = (id: string): number => parseInt(id.split('-')[1] ?? '', 36) || 0;
 
 function reposOf(tx: Tx, now: () => number): Repos {
   const walletId = (c: string, cur: CurrencyId) => `${c}:${cur}`;
@@ -95,7 +97,8 @@ function reposOf(tx: Tx, now: () => number): Repos {
         tx.put('ledger', lid, { id: lid, characterId: c, currency: cur, delta, balanceAfter: balance, reason, refId, at });
         return balance;
       },
-      ledger: async (c) => tx.scan('ledger', (r) => r.characterId === c).sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1)),
+      // 同一毫秒的帳照序號排（序號是 36 進位字串：直接比字串的話 "10" 會排在 "z" 前面，第 154 輪對帳時發現）
+      ledger: async (c) => tx.scan('ledger', (r) => r.characterId === c).sort((a, b) => a.at - b.at || ledgerSeqOf(a.id) - ledgerSeqOf(b.id) || (a.id < b.id ? -1 : 1)),
       deleteCharacter: async (c) => {
         for (const cur of CURRENCIES) tx.del('wallets', walletId(c, cur));
         for (const l of tx.scan('ledger', (r) => r.characterId === c)) tx.del('ledger', l.id);

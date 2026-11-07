@@ -10,6 +10,7 @@ import { GameServer } from '../../src/server/GameServer';
 import type { Db } from '../../src/server/repos/types';
 import { LISTING_MS, MAX_OPEN_LISTINGS, bargainPct, listFee, refKey, sellerGets } from '../../src/core/meta/market';
 import { BACKENDS } from './backends';
+import { reconcileCharacter } from '../../src/server/ledgerCheck';
 import { LEGACY_SAMPLE } from './fixtures';
 
 const auth = { resolve: async (t?: string) => t ?? 'anon' };
@@ -209,6 +210,24 @@ for (const be of BACKENDS)
       expect(bargainPct(br.listings[0]!.price, br.refs![key])).toBe(25);
       expect((await a.call('market.browse', {})).refs).toBeUndefined();
       expect(await code(a.call('market.browse', { refs: 'yes' as unknown as boolean }))).toBe('bad_request');
+      await db.close();
+    });
+
+    it('對帳（26 §3.3）：上架費、成交、手續費、取消跑完之後，兩邊錢包餘額都等於帳本加總、每行 balanceAfter 接得起來', async () => {
+      const { db } = await be.fresh(() => 0);
+      const { a, b, ca, cb, clock } = await setup(db);
+      const it = bagOf(ca)[0]!;
+      for (let k = 0; k < 6; k++) {
+        clock.advance(1000);
+        const [seller, sc, buyer, bc] = k % 2 ? [b, cb, a, ca] : [a, ca, b, cb];
+        const r = await seller.call('market.list', { characterId: sc.id, itemId: it.id, price: 100 + k * 37 });
+        await buyer.call('market.buy', { characterId: bc.id, listingId: r.listing.id });
+      }
+      const r2 = await a.call('market.list', { characterId: ca.id, itemId: it.id, price: 999 });
+      await a.call('market.cancel', { characterId: ca.id, listingId: r2.listing.id });
+      for (const c of [ca, cb]) expect(await db.tx((r) => reconcileCharacter(r, c.id))).toEqual([]);
+      const led = await db.tx((r) => r.wallets.ledger(ca.id));
+      expect(led.filter((l) => l.reason.startsWith('market.')).length).toBeGreaterThanOrEqual(7);
       await db.close();
     });
   });
