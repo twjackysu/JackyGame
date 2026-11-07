@@ -3474,7 +3474,10 @@ export class RtBattleScene extends Phaser.Scene {
         this.time.delayedCall(700, () => bigText(this, GAME_WIDTH / 2, 490, `${e.count} 隻狼衝過來了・打倒掉落加倍`, '#ffd27a', 28, 1400));
         shockRing(this, this.sx(e.x), this.sy(e.y), 0xff5a3a, 200, 700, 8);
       } else if (e.type === 'chest') {
-        if (this.tracked && !this.bot) onlineLoot.chest(e.chest);
+        // 線上版：夜光寶箱出去再進來 5 分鐘內伺服器不給（D-313）→ 說清楚，不然 HUD 沒加錢像是 bug
+        if (this.tracked && !this.bot) onlineLoot.chest(e.chest, () => {
+            if (this.scene.isActive()) this.announce('夜光寶箱的光還沒恢復・這次沒有東西（約 5 分鐘後再來）', '#bfe0ff');
+          });
         const c = STAGES[this.stageId]?.chests?.find((q) => q.id === e.chest);
         const x = c ? this.sx(c.x) : GAME_WIDTH / 2;
         const y = c ? this.sy(c.y) : 600;

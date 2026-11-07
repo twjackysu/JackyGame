@@ -4,6 +4,7 @@
 import { hasLoot } from '../core/battle/rt/loot';
 import type { Unit } from '../core/battle/rt/types';
 import type { BountyDoneView, CharacterView, LootDropView, WeaponView } from '../net/views';
+import { ApiError } from '../net/protocol';
 import type { GameClient } from '../client/GameClient';
 import { bootServer } from '../client/boot';
 import { onlineActive } from '../client/onlineClient';
@@ -64,8 +65,8 @@ export const onlineLoot = {
     })();
   },
 
-  /** 開了寶箱（第 147 輪）：內容由伺服器照地圖資料給 */
-  chest(chestId: string): void {
+  /** 開了寶箱（第 147 輪）：內容由伺服器照地圖資料給；夜光寶箱還沒補滿（D-313，出去再進來 5 分鐘內）時叫 refilling */
+  chest(chestId: string, refilling?: () => void): void {
     if (!import.meta.env.VITE_SERVER_URL) return;
     const b = battle;
     chain = chain.then(async () => {
@@ -79,7 +80,8 @@ export const onlineLoot = {
         onlineLootStatus.chests++;
       } catch (e) {
         onlineLootStatus.error = e instanceof Error ? e.message : String(e);
-        console.warn('[loot.chest]', onlineLootStatus.error);
+        if (e instanceof ApiError && e.code === 'conflict' && e.message === 'refilling') refilling?.();
+        else console.warn('[loot.chest]', onlineLootStatus.error);
       }
     });
   },

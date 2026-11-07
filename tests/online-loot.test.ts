@@ -57,5 +57,16 @@ describe('線上版 PvE 掉落回報', () => {
     for (let i = 0; i < 50 && characterCache.wallet('coin') === coin0; i++) await new Promise((r) => setTimeout(r, 20));
     expect(characterCache.wallet('coin')).toBe(coin0 + 60);
     expect(onlineLootStatus.error).toBeNull();
+    // 寶箱（第 148 輪）：白天的開過再開是 conflict「opened」——不是夜光的「還沒補滿」，不叫 refilling
+    const { stageDef } = await import('../src/core/battle/rt/maps/world');
+    const day = stageDef('mistwood')!.chests!.find((c) => !c.nightOnly)!;
+    let refills = 0;
+    onlineLoot.chest(day.id, () => refills++);
+    for (let i = 0; i < 50 && onlineLootStatus.chests < 1; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(onlineLootStatus.chests).toBe(1);
+    onlineLoot.chest(day.id, () => refills++);
+    for (let i = 0; i < 50 && !onlineLootStatus.error; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(onlineLootStatus.error).toBe('opened');
+    expect(refills).toBe(0);
   });
 });
