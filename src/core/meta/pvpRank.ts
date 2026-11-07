@@ -92,3 +92,16 @@ export function pvpStreakAfter(
   if (outcome === 'victory') return { streak: Math.min(s0 + 1, PVP_STREAK_CAP), winDay: day, firstWin: wd !== day };
   return { streak: outcome === 'defeat' ? 0 : s0, ...(wd !== undefined ? { winDay: wd } : {}), firstWin: false };
 }
+
+/**
+ * 模擬冒險者在競技場穿什麼（第 151 輪，D-325）：照「它今天的段位分」，不是照它的程度。
+ * 以前一律全身精良（物品等級照程度）→ 裝備差的玩家一路輸到 600 多分還是一場都贏不了（Elo 找不到平衡點）；
+ * 分數低的對手裝備也差，輸的人掉分後就會遇到打得贏的對手，贏的人往上遇到更硬的。
+ * 低於 850 分：只穿 4 件、普通；低於 760 分：只剩武器和頭盔（GEAR_SLOTS 前兩件）。
+ */
+export function simGearPlan(rating: number): { rarity: 1 | 2 | 3; ilvl: number; slots: number } {
+  const ilvl = Math.max(1, Math.min(12, Math.round(3 + (rating - 850) / 40)));
+  const rarity = rating < 900 ? 1 : rating < 1250 ? 2 : 3;
+  const slots = rating < 760 ? 2 : rating < 850 ? 4 : 6;
+  return { rarity, ilvl, slots };
+}

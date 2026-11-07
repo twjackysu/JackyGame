@@ -6,7 +6,7 @@ import { GEAR_SLOTS, gearBonus, genGear, isGear, type RtGear } from '../../core/
 import { pvpGear } from '../../core/battle/rt/pvp';
 import { replayPvp, type PvpMatchSetup, type PvpSide } from '../../core/battle/rt/pvpMatch';
 import { WEAPONS } from '../../core/battle/rt/data';
-import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, pvpStreakAfter, simLeague, taipeiDay } from '../../core/meta/pvpRank';
+import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, pvpStreakAfter, simGearPlan, simLeague, taipeiDay } from '../../core/meta/pvpRank';
 import { hashSeed } from '../../core/rng';
 import { ApiError } from '../../net/protocol';
 import type { PvpRecentView, WeaponView } from '../../net/views';
@@ -35,10 +35,10 @@ function sideOf(weapon: WeaponView, gear: RtGear[]): PvpSide {
   return { weapon, bonus: { hp: b.hp, atk: b.atk, def: b.def } };
 }
 
-/** 模擬玩家的配裝：每個部位一件精良，物品等級照程度（同種子同結果） */
-function simSide(sim: SimPlayer): PvpSide {
-  const ilvl = Math.min(12, sim.tier + 3);
-  return sideOf(sim.weapon, GEAR_SLOTS.map((slot) => genGear(hashSeed(`${sim.seed}:pvp:${slot}`), 2, ilvl, { slot })));
+/** 模擬玩家的配裝：照「它和你比較低的那個」段位分（D-325，simGearPlan；模擬冒險者的分數擠在 900～1250，只看它的分數的話，掉到 700 的人遇到的還是全身裝）；同種子同分數同結果 */
+function simSide(sim: SimPlayer, rating: number): PvpSide {
+  const g = simGearPlan(rating);
+  return sideOf(sim.weapon, GEAR_SLOTS.slice(0, g.slots).map((slot) => genGear(hashSeed(`${sim.seed}:pvp:${slot}`), g.rarity, g.ilvl, { slot })));
 }
 /** 模擬冒險者今天的段位分（D-303：它們每天彼此打幾場，確定性、同一天同結果） */
 let leagueCache: { day: number; r: Map<string, number> } | null = null;
@@ -119,7 +119,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
         .slice(0, 5);
       foe = near[Math.floor(ctx.rng() * near.length)]!.s;
     }
-    const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: sideOf(c.weapon, gear), foe: simSide(foe), foeId: foe.accountId, foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
+    const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: sideOf(c.weapon, gear), foe: simSide(foe, Math.min(simRating(foe), rating)), foeId: foe.accountId, foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
     await ctx.r.characters.save({ ...c, pvpMatch: JSON.stringify(m) });
     return { matchId: m.id, seed: m.seed, me: m.me as never, foe: m.foe as never, foeId: foe.accountId, foeName: m.foeName, foeRating: m.foeRating, rating };
   },

@@ -21,3 +21,20 @@ describe('pvpStreakAfter', () => {
     expect(taipeiDay(utcMidnight + 16 * 3600_000)).toBe(20001);
   });
 });
+
+describe('simGearPlan（D-325）', () => {
+  it('分數越低裝備越差：件數、稀有度、物品等級都不會變好', async () => {
+    const { simGearPlan } = await import('../src/core/meta/pvpRank');
+    let prev = simGearPlan(400);
+    expect(prev).toEqual({ rarity: 1, ilvl: 1, slots: 2 });
+    for (let r = 420; r <= 1800; r += 20) {
+      const g = simGearPlan(r);
+      expect(g.slots).toBeGreaterThanOrEqual(prev.slots);
+      expect(g.rarity).toBeGreaterThanOrEqual(prev.rarity);
+      expect(g.ilvl).toBeGreaterThanOrEqual(prev.ilvl);
+      prev = g;
+    }
+    expect(simGearPlan(1000)).toEqual({ rarity: 2, ilvl: 7, slots: 6 });
+    expect(prev).toEqual({ rarity: 3, ilvl: 12, slots: 6 });
+  });
+});
