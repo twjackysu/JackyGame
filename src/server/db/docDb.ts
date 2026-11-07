@@ -99,6 +99,7 @@ function reposOf(tx: Tx, now: () => number): Repos {
       },
       // 同一毫秒的帳照序號排（序號是 36 進位字串：直接比字串的話 "10" 會排在 "z" 前面，第 154 輪對帳時發現）
       ledger: async (c) => tx.scan('ledger', (r) => r.characterId === c).sort((a, b) => a.at - b.at || ledgerSeqOf(a.id) - ledgerSeqOf(b.id) || (a.id < b.id ? -1 : 1)),
+      activeSince: async (at, limit) => [...new Set(tx.scan('ledger', (r) => r.at >= at).map((r) => r.characterId))].sort().slice(0, limit),
       deleteCharacter: async (c) => {
         for (const cur of CURRENCIES) tx.del('wallets', walletId(c, cur));
         for (const l of tx.scan('ledger', (r) => r.characterId === c)) tx.del('ledger', l.id);

@@ -155,6 +155,8 @@ function reposOf(t: Trx, now: () => number): Repos {
         await t.insertInto('LedgerEntry').values({ CharacterId: c, Currency: cur, Delta: delta, BalanceAfter: balance, Reason: reason, RefId: refId ?? null, At: now() }).execute();
         return balance;
       },
+      // 每日對帳（D-334）：LedgerEntry 沒有 At 索引，一天一次全表掃描先接受；量大再加遷移
+      activeSince: async (at, limit) => (await t.selectFrom('LedgerEntry').select('CharacterId').distinct().where('At', '>=', at).orderBy('CharacterId').offset(0).fetch(limit).execute()).map((r) => r.CharacterId),
       ledger: async (c) =>
         (await t.selectFrom('LedgerEntry').selectAll().where('CharacterId', '=', c).orderBy('Id').execute()).map((r): LedgerRow => {
           const out: LedgerRow = { id: String(r.Id), characterId: r.CharacterId, currency: r.Currency as CurrencyId, delta: num(r.Delta), balanceAfter: num(r.BalanceAfter), reason: r.Reason, at: num(r.At) };

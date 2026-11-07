@@ -10,7 +10,7 @@ import { GameServer } from '../../src/server/GameServer';
 import type { Db } from '../../src/server/repos/types';
 import { LISTING_MS, MAX_OPEN_LISTINGS, bargainPct, listFee, refKey, sellerGets } from '../../src/core/meta/market';
 import { BACKENDS } from './backends';
-import { reconcileCharacter } from '../../src/server/ledgerCheck';
+import { reconcileCharacter, runLedgerAudit } from '../../src/server/ledgerCheck';
 import { LEGACY_SAMPLE } from './fixtures';
 
 const auth = { resolve: async (t?: string) => t ?? 'anon' };
@@ -226,6 +226,10 @@ for (const be of BACKENDS)
       const r2 = await a.call('market.list', { characterId: ca.id, itemId: it.id, price: 999 });
       await a.call('market.cancel', { characterId: ca.id, listingId: r2.listing.id });
       for (const c of [ca, cb]) expect(await db.tx((r) => reconcileCharacter(r, c.id))).toEqual([]);
+      // 每日對帳：從 0 開始找得到兩個角色、都對得上；從未來開始找不到人
+      expect((await db.tx((r) => r.wallets.activeSince(0, 100))).sort()).toEqual([ca.id, cb.id].sort());
+      expect(await db.tx((r) => r.wallets.activeSince(clock.now() + 1, 100))).toEqual([]);
+      expect(await runLedgerAudit(db, 0, clock.now())).toEqual([]);
       const led = await db.tx((r) => r.wallets.ledger(ca.id));
       expect(led.filter((l) => l.reason.startsWith('market.')).length).toBeGreaterThanOrEqual(7);
       await db.close();

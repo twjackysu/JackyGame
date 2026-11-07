@@ -195,6 +195,8 @@ export interface Repos {
     /** 異動餘額並寫一行帳；餘額會變負就丟 rejected */
     apply(characterId: string, currency: CurrencyId, delta: number, reason: string, refId?: string): Promise<number>;
     ledger(characterId: string): Promise<LedgerRow[]>;
+    /** at 之後有記過帳的角色（不重複，最多 limit 個；每日對帳用，第 154 輪 D-334） */
+    activeSince(at: number, limit: number): Promise<string[]>;
     deleteCharacter(characterId: string): Promise<void>;
   };
   requests: {

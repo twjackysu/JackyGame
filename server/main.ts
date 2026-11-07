@@ -10,6 +10,7 @@ import { DevAuth } from './devAuth';
 import { createHttp } from './http';
 import { JwtAuth, jwksFetcher } from './jwtAuth';
 import type { Auth } from '../src/server/auth';
+import { runLedgerAudit } from '../src/server/ledgerCheck';
 
 const env = process.env;
 const now = () => Date.now();
@@ -34,6 +35,20 @@ async function main(): Promise<void> {
   const port = Number(env.PORT || 8080);
   const cors = (env.CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   createHttp(game, { corsOrigins: cors }).listen(port, () => console.log(`[server] listening on :${port}（AUTH_MODE=${mode}）`));
+  scheduleLedgerAudit(db);
+}
+
+/** 每日對帳（26 §3.3、D-334）：啟動 1 分鐘後對一次最近 25 小時有記帳的角色，之後每 24 小時一次；對不上寫稽核＋log（不擋服務） */
+function scheduleLedgerAudit(db: Db): void {
+  const DAY = 24 * 3600 * 1000;
+  const run = (): void => {
+    const t = now();
+    runLedgerAudit(db, t - DAY - 3600 * 1000, t)
+      .then((bad) => (bad.length ? console.error(`[ledger] 對帳不符 ${bad.length} 筆：`, JSON.stringify(bad.slice(0, 20))) : console.log('[ledger] 對帳正常')))
+      .catch((e) => console.error('[ledger] 對帳失敗：', e instanceof Error ? e.message : e));
+  };
+  setTimeout(run, 60_000).unref();
+  setInterval(run, DAY).unref();
 }
 
 main().catch((e) => {
