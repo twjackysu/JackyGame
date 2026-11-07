@@ -50,6 +50,9 @@ it('只有一把武器的人掉分後贏得了；中等裝備在 1000 附近有�
   expect(got.r2i6!.win).toBeGreaterThan(0.25);
   expect(got.r2i6!.win).toBeLessThan(0.75);
   expect(got.r3i10!.rating).toBeGreaterThan(got.r2i6!.rating + 150);
+  // D-326：爬到模擬冒險者頂端以上，對手配裝跟著加強化 → 好裝也會開始輸（第 152 輪實測約 1320、最後 15 場 80%）
+  expect(got.r3i10!.win).toBeLessThan(0.95);
+  expect(got.r3i10!.rating).toBeLessThan(1380);
   expect(got.r2i6!.rating).toBeGreaterThan(got.weapon!.rating + 150);
 }, 120000);
 });

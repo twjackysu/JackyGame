@@ -99,9 +99,24 @@ export function pvpStreakAfter(
  * 分數低的對手裝備也差，輸的人掉分後就會遇到打得贏的對手，贏的人往上遇到更硬的。
  * 低於 850 分：只穿 4 件、普通；低於 760 分：只剩武器和頭盔（GEAR_SLOTS 前兩件）。
  */
-export function simGearPlan(rating: number): { rarity: 1 | 2 | 3; ilvl: number; slots: number } {
+export function simGearPlan(rating: number): { rarity: 1 | 2 | 3; ilvl: number; slots: number; enh: number } {
   const ilvl = Math.max(1, Math.min(12, Math.round(3 + (rating - 850) / 40)));
   const rarity = rating < 900 ? 1 : rating < 1250 ? 2 : 3;
   const slots = rating < 760 ? 2 : rating < 850 ? 4 : 6;
-  return { rarity, ilvl, slots };
+  // 第 152 輪（D-326）：1250 以上每 50 分強化 +1（最多 +8），冠軍區不再沒人打得過
+  const enh = rating < SIM_GEAR_TOP ? 0 : Math.min(8, Math.floor((rating - SIM_GEAR_TOP) / 50));
+  return { rarity, ilvl, slots, enh };
+}
+
+/** 模擬冒險者段位分的大約上限（它們彼此打，擠在 900～1250） */
+export const SIM_GEAR_TOP = 1250;
+
+/**
+ * 配裝要照哪個分數（D-325／D-326）：平常是「對手和你比較低的那個」；
+ * 你已經爬到模擬冒險者頂端（1250）以上時，超出的那段加回對手身上——
+ * 不然你 1400 分遇到的永遠是 1250 分的配裝，最強的人 100% 勝、停在冠軍區。
+ */
+export function simGearRating(you: number, foe: number): number {
+  const lo = Math.min(you, foe);
+  return you > SIM_GEAR_TOP ? Math.min(you, foe + (you - SIM_GEAR_TOP)) : lo;
 }
