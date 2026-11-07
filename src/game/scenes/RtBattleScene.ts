@@ -91,6 +91,7 @@ import { GroundHazards, LAVA_ATTACKS, METEOR_ATTACKS } from '../fx/groundHazards
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { CachedDraw, type DrawBox } from '../fx/cachedDraw';
+import { DiscLayer } from '../rt/uiDisc';
 
 // D-332：小貼圖的範圍（腳底為原點的設計單位；第 154 輪把每個人物每種樣子 10 秒內畫過的範圍量出來，再留 6～16 的邊）
 const MER_BOX: DrawBox = { l: -60, t: -106, r: 48, b: 14 };
@@ -251,6 +252,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 輸入（Q5：搖桿、鍵盤、累積的指令） */
   private readonly inp = new InputSystem();
   private btnText: Phaser.GameObjects.Text[] = [];
+  private discs!: DiscLayer;
   /** 桌機（沒有觸控）在按鈕右上角標快捷鍵（D-265） */
   private keyBadges: (Phaser.GameObjects.Text | null)[] = [];
   private joyBadge: Phaser.GameObjects.Text | null = null;
@@ -629,6 +631,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.stormView = null;
     this.ringG = this.add.graphics().setDepth(46); // 巢穴邊界（D-185）：要蓋過樹冠與霧
     this.ui = this.add.graphics().setDepth(50);
+    this.discs = new DiscLayer(this, 49.5); // 按鈕底（第 154 輪）：在 ui 畫筆底下，冷卻扇形／MP 環畫在它上面
     // 頂部標題列（蓋在世界之上；底部漸層避免硬切）
     const hdr = this.add.graphics().setDepth(48);
     hdr.fillStyle(0x0b1410, 0.94).fillRect(0, 0, GAME_WIDTH, VIEW_TOP);
@@ -4786,8 +4789,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     // 搖桿
     this.joyBadge?.setPosition(this.JOY.x, Math.min(this.JOY.y + this.JOY.r + 8, GAME_HEIGHT - 28));
-    g.fillStyle(0xffffff, 0.08).fillCircle(this.JOY.x, this.JOY.y, this.JOY.r);
-    g.lineStyle(2, 0xffffff, 0.3).strokeCircle(this.JOY.x, this.JOY.y, this.JOY.r);
+    this.discs.show(7, this.JOY.x, this.JOY.y, { r: this.JOY.r, fill: 0xffffff, fillA: 0.08, lw: 2, stroke: 0xffffff, strokeA: 0.3 });
     if (this.inp.stick) {
       g.fillStyle(0xffffff, 0.15).fillCircle(this.inp.stick.bx, this.inp.stick.by, this.JOY.r);
       g.fillStyle(0xffd27a, 0.7).fillCircle(this.inp.stick.bx + (this.inp.stick.dx / 1000) * 50, this.inp.stick.by + (this.inp.stick.dy / 1000) * 50, 34);
@@ -4799,8 +4801,7 @@ export class RtBattleScene extends Phaser.Scene {
       const R = this.btnR(i);
       const cd = id === 'dodge' ? playerDef(this.s).dodge.cooldownTicks : skillDef(this.s, id)!.cooldownTicks;
       const left = Math.max(0, (p.ready[id] ?? 0) - s.tick);
-      g.fillStyle(i === 4 ? 0x2a4a6a : 0x3a2a14, 0.95).fillCircle(x, y, R);
-      g.lineStyle(3, left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, 1).strokeCircle(x, y, R);
+      this.discs.show(i, x, y, { r: R, fill: i === 4 ? 0x2a4a6a : 0x3a2a14, fillA: 0.95, lw: 3, stroke: left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, strokeA: 1 });
       if (this.editing?.pick === i) g.lineStyle(5, 0x7dffb0, 0.6 + 0.4 * Math.sin(this.time.now / 120)).strokeCircle(x, y, R + 8);
       if (left > 0) {
         g.fillStyle(0x000000, 0.6);
@@ -4826,8 +4827,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (this.s.weapon === 'staff' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_staff', '法杖：狼貼過來先按「冰霜新星」凍住，再拉開距離放星焰彈', '#dcc0ff');
       if (ok && !this.bot && !this.menu) this.tipOnce('jg_tip_ult', `大招充滿了！按右下粉紅色「${ult.name}」`, '#ff9ae0');
       const now = this.time.now;
-      g.fillStyle(ok ? 0x5a1a3a : 0x2a1420, 0.95).fillCircle(x, y, R);
-      g.lineStyle(5, 0x333344, 1).strokeCircle(x, y, R);
+      this.discs.show(5, x, y, { r: R, fill: ok ? 0x5a1a3a : 0x2a1420, fillA: 0.95, lw: 5, stroke: 0x333344, strokeA: 1 });
       g.lineStyle(5, ok ? 0xff7ad0 : 0xa0507a, 1);
       g.beginPath().arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p.mp / need), false).strokePath();
       if (ok) g.lineStyle(3, 0xffd0f0, 0.4 + 0.4 * Math.sin(now / 120)).strokeCircle(x, y, R + 6 + 3 * Math.sin(now / 160));
@@ -4845,8 +4845,7 @@ export class RtBattleScene extends Phaser.Scene {
       const pt = playerDef(this.s).potion;
       const left = Math.max(0, (p.ready['potion'] ?? 0) - s.tick);
       const low = p.hp < p.maxHp * 0.4 && left === 0 && s.potions > 0;
-      g.fillStyle(0x3a1414, 0.95).fillCircle(x, y, R);
-      g.lineStyle(3, left || !s.potions ? 0x555566 : low && Math.floor(this.time.now / 250) % 2 ? 0xffffff : 0xff6a6a, 1).strokeCircle(x, y, R);
+      this.discs.show(6, x, y, { r: R, fill: 0x3a1414, fillA: 0.95, lw: 3, stroke: left || !s.potions ? 0x555566 : low && Math.floor(this.time.now / 250) % 2 ? 0xffffff : 0xff6a6a, strokeA: 1 });
       if (left > 0) {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / pt.cooldownTicks), false).fillPath();
