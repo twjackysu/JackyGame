@@ -4,6 +4,7 @@ import { createGameConfig } from './game/config';
 import { applySettings } from './game/settings';
 import { installFpsGuard } from './game/perf/fpsGuard';
 import { installBackButton } from './game/backButton';
+import { installPressFx } from './game/fx/pressFx';
 import { installOrientationGuard } from './game/orientation';
 import { browserSwEnv, installSwUpdates } from './swUpdate';
 import { installVersionCheck } from './versionCheck';
@@ -19,6 +20,7 @@ for (const evt of ['gesturestart', 'gesturechange', 'dblclick'] as const) {
 
 const game = new Phaser.Game(createGameConfig('game'));
 installFpsGuard(game);
+installPressFx(game);
 installBackButton();
 installOrientationGuard(game);
 if (import.meta.env.PROD) {
