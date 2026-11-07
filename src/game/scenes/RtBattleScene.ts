@@ -1065,6 +1065,10 @@ export class RtBattleScene extends Phaser.Scene {
       setSkillMods(this.s, this.allMods(this.bagSt));
     }
     const p = playerOf(this.s);
+    // 伺服器擲的金幣／粉塵／結晶（第 151 輪）：本機撿到的不飄字了，改飄伺服器給的（跟 HUD 一致）
+    drops.forEach((d, i) => {
+      if (d.kind === 'gold' || d.kind === 'dust' || d.kind === 'crystal') this.time.delayedCall(i * 120, () => this.scene.isActive() && this.pickupFloat(d.kind, d.amount));
+    });
     drops.forEach((d, i) => {
       if (d.kind !== 'gear' || !d.itemId) return;
       const it = characterCache.get()?.items.find((x) => x.id === d.itemId);
@@ -1077,6 +1081,15 @@ export class RtBattleScene extends Phaser.Scene {
     this.announceBounty(done, defId);
     this.refreshBounty();
     if (done.length && this.bountyTxt) this.tweens.add({ targets: this.bountyTxt, scale: 1.12, duration: 160, yoyo: true });
+  }
+
+  /** 撿到金幣／粉塵／結晶／藥水的小字（離線：本機撿到時；線上：伺服器 loot.claim 回來時） */
+  private pickupFloat(kind: string, amount: number): void {
+    const p = playerOf(this.s);
+    const L: [string, string] =
+      kind === 'gold' ? [`+${amount} 金`, '#ffd27a'] : kind === 'dust' ? [`粉塵 +${amount}`, '#9fd8ff'] : kind === 'crystal' ? [`結晶 +${amount}`, '#d0a0ff'] : [`藥水 +${amount}`, '#7dffb0'];
+    floatNumber(this, this.sx(p.x) + 40, this.sy(p.y) - 70, L[0], { color: L[1], size: kind === 'gold' ? 22 : 24 });
+    if (kind !== 'gold') SFX.itemGet();
   }
 
   private announceBounty(done: readonly BountyDoneView[], defId: string): void {
@@ -3349,12 +3362,9 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'pickup' && e.kind === 'gear') {
         this.gotGear(e.item, e.rarity ?? 1, e.amount);
       } else if (e.type === 'pickup') {
-        const p = playerOf(this.s);
-        // 只是畫面上的字（這些東西是試玩場景的戰利品統計，不是主線玩家資產）
-        const L: [string, string] =
-          e.kind === 'gold' ? [`+${e.amount} 金`, '#ffd27a'] : e.kind === 'dust' ? [`粉塵 +${e.amount}`, '#9fd8ff'] : e.kind === 'crystal' ? [`結晶 +${e.amount}`, '#d0a0ff'] : [`藥水 +${e.amount}`, '#7dffb0'];
-        floatNumber(this, this.sx(p.x) + 40, this.sy(p.y) - 70, L[0], { color: L[1], size: e.kind === 'gold' ? 22 : 24 });
-        if (e.kind !== 'gold') SFX.itemGet();
+        // 線上版（第 151 輪）：金幣／粉塵／結晶是伺服器擲的（loot.claim 回來時在 onlineBounty 飄字）；本機撿到的數字不準、被拒時更不該飄
+        if (import.meta.env.VITE_SERVER_URL && this.tracked && !this.bot && e.kind !== 'potion') continue;
+        this.pickupFloat(e.kind, e.amount);
       } else if (e.type === 'levelUp') {
         if (this.tracked) this.ptsLeft = this.skillPointsLeft();
         // 升級（D-090）：金色光柱＋大字＋數值浮字，立刻存檔
