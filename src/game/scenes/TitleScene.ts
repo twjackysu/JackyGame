@@ -3,6 +3,7 @@ import { fadeOutThen } from '../fx/feel';
 import { openSettings } from '../ui/settingsPanel';
 import { openRoster } from '../ui/rosterPanel';
 import { loadRoster } from '../../client/roster';
+import { forgetRank } from '../rankCache';
 import { SFX } from '../../audio/sfx';
 import { bossKillsOf, mapOpen } from '../rtRecord';
 import { chapterSeen } from '../chapters';
@@ -409,7 +410,10 @@ export class TitleScene extends Phaser.Scene {
       this.busy = true;
       void openRoster(this).then((switched) => {
         this.busy = false;
-        if (switched) this.go(() => this.scene.restart());
+        if (switched) {
+          forgetRank();
+          this.go(() => this.scene.restart());
+        }
       });
     });
     menu.add(b);

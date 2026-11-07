@@ -93,6 +93,9 @@ import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../came
 import { fightKeep, hiddenEliteBannerY } from '../fx/bannerStack';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
 import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
+import { drawRankAura } from '../fx/rankAura';
+import { pveRankAura, refreshRank } from '../rankCache';
+import { pvpOps } from '../pvpOps';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
 /** 兩則教學提示之間至少安靜多久（D-176） */
@@ -187,6 +190,10 @@ export class RtBattleScene extends Phaser.Scene {
   private seed = 1;
   private acc = 0;
   private g!: Phaser.GameObjects.Graphics;
+  /** 段位光環（每幀從 rankCache 讀；沒到荊棘段位＝null） */
+  private get rankAura(): ReturnType<typeof pveRankAura> {
+    return pveRankAura();
+  }
   private ui!: Phaser.GameObjects.Graphics;
   private evIdx = 0;
   private k = 0.4;
@@ -432,6 +439,7 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    refreshRank(() => pvpOps.ladder());
     // Bot 示範也帶著玩家的等級與裝備（只讀、不存）
     const big = !!STAGES[this.stageId]?.bossZone && !!STAGES[this.stageId]?.spawnGroups?.length && !!worldMap(this.stageId);
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
@@ -5517,6 +5525,8 @@ export class RtBattleScene extends Phaser.Scene {
       // 腳下：陰影＋陣營圈（RO 式）
       g.fillStyle(0x000000, 0.4).fillEllipse(px, py + r * 0.15, r * 2.4, r * 1.0);
       g.lineStyle(isP ? 3 : 2, isP ? 0x7dc8ff : winding ? 0xff5a5a : boss ? 0xffb0d0 : 0xd0d0e0, sp ? 0.75 : 1).strokeEllipse(px, py + r * 0.15, r * 2.3, r * 0.95);
+      // 競技場段位光環（第 149 輪，D-318）：荊棘段位以上，冒險時腳下也有（只是外觀）
+      if (isP && this.rankAura) drawRankAura(g, this.rankAura, px, py + r * 0.15, r, now);
       if (x.defId === 'thorn_mother') {
         // 荊棘母樹（D-107）：腳下一圈搖曳的荊棘根＋淡綠光（程式美術備援）
         g.fillStyle(0x6aff7a, 0.1 + 0.05 * Math.sin(now / 500)).fillEllipse(px, py + r * 0.15, r * 4.2, r * 1.8);

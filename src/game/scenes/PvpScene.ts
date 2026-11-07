@@ -9,6 +9,7 @@ import { PVP_MAX_CMDS_PER_TICK, PVP_STAGE, startPvp, type PvpInputs } from '../.
 import type { PlayerBot } from '../../core/battle/rt/sim';
 import { TICKS_PER_SEC, UNIT, type BattleCommand, type BattleState, type Shape, type Unit } from '../../core/battle/rt/types';
 import { rankAura, rankName } from '../../core/meta/pvpRank';
+import { auraCss, drawRankAura } from '../fx/rankAura';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -23,11 +24,6 @@ const DIR = 1000;
 /** 競技場縮放：14×16 格整塊放進畫面上半部 */
 const K = 0.44;
 const ME = 0x6ab8ff;
-/** 段位顏色（排行榜的段位字用光環顏色；見習灰） */
-const auraCss = (r: number): string => {
-  const a = rankAura(r);
-  return a ? `#${a.color.toString(16).padStart(6, '0')}` : '#9aa4b8';
-};
 const FOE = 0xff6a5a;
 type Phase = 'lobby' | 'loading' | 'intro' | 'fight' | 'judging' | 'result' | 'replay' | 'error';
 /** 重播速度（第 146 輪：結算畫面「看重播」） */
@@ -313,19 +309,7 @@ export class PvpScene extends Phaser.Scene {
   /** 段位外觀（rankAura）：腳下往外擴散的光圈＋高段位的環繞光點；只是外觀，不影響戰鬥 */
   private drawAura(g: Phaser.GameObjects.Graphics, u: Unit, x: number, y: number, r: number, now: number): void {
     const a = rankAura(u.pid ? this.open!.foeRating : this.open!.rating);
-    if (!a) return;
-    const period = 1400;
-    for (let i = 0; i < a.rings; i++) {
-      const t = ((now + (i * period) / a.rings) % period) / period;
-      g.lineStyle(5 - t * 3, a.color, 0.85 * (1 - t)).strokeEllipse(x, y, r * (2.7 + t * 2.2), r * (1.05 + t * 0.9));
-    }
-    for (let i = 0; i < a.motes; i++) {
-      const ang = now / 700 + (i * Math.PI * 2) / a.motes;
-      const mx = x + Math.cos(ang) * r * 1.5;
-      const my = y - r * 0.9 + Math.sin(ang) * r * 0.55 - Math.sin(now / 300 + i) * r * 0.15;
-      g.fillStyle(a.color, 0.4).fillCircle(mx, my, 9);
-      g.fillStyle(0xffffff, 0.95).fillCircle(mx, my, 4);
-    }
+    if (a) drawRankAura(g, a, x, y, r, now);
   }
 
   private shapePath(g: Phaser.GameObjects.Graphics, sh: Shape, ox: number, oy: number, dx: number, dy: number, fill: boolean): void {

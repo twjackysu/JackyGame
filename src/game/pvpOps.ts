@@ -4,6 +4,7 @@
 import type { PvpInputs, PvpMatchSetup } from '../core/battle/rt/pvpMatch';
 import type { PvpLadderView } from '../net/views';
 import { captureLegacy, legacyOp } from '../client/legacyOps';
+import { setRank } from './rankCache';
 
 export interface PvpOpen {
   matchId: string;
@@ -21,7 +22,10 @@ export interface PvpResult {
 export const pvpOps = {
   /** 天梯排行（只讀；一樣先同步舊存檔，角色才會是最新的） */
   ladder: (): Promise<PvpLadderView | null> =>
-    legacyOp(captureLegacy(), [], async (c, me) => ({ v: await c.call('pvp.ladder', { characterId: me.id }), me }), (r) => r.me, true).then((r) => r?.v ?? null),
+    legacyOp(captureLegacy(), [], async (c, me) => ({ v: await c.call('pvp.ladder', { characterId: me.id }), me }), (r) => r.me, true).then((r) => {
+      if (r) setRank(r.v.rating);
+      return r?.v ?? null;
+    }),
   /** 開一局（伺服器挑對手、發種子）；伺服器壞了回 null */
   start: (): Promise<PvpOpen | null> =>
     legacyOp(
@@ -34,7 +38,10 @@ export const pvpOps = {
       },
       (r) => r.me,
       true,
-    ).then((r) => r?.open ?? null),
+    ).then((r) => {
+      if (r) setRank(r.open.rating);
+      return r?.open ?? null;
+    }),
   /** 交出指令紀錄，伺服器重跑判勝負；紀錄被拒（rejected）或伺服器壞了回 null */
   finish: (matchId: string, inputs: PvpInputs): Promise<PvpResult | null> =>
     legacyOp(
@@ -43,5 +50,8 @@ export const pvpOps = {
       async (c, me) => ({ res: await c.call('pvp.finish', { characterId: me.id, matchId, inputs }), me }),
       (r) => r.me,
       true,
-    ).then((r) => r?.res ?? null),
+    ).then((r) => {
+      if (r) setRank(r.res.rating);
+      return r?.res ?? null;
+    }),
 };
