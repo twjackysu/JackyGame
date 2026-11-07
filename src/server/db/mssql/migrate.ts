@@ -4,10 +4,11 @@ import * as m0001 from './migrations/0001_init';
 import * as m0002 from './migrations/0002_market';
 import * as m0003 from './migrations/0003_trade';
 import * as m0004 from './migrations/0004_roster';
+import * as m0005 from './migrations/0005_sold_index';
 
 type Step = { up(db: Kysely<unknown>, schema: string): Promise<void>; down(db: Kysely<unknown>, schema: string): Promise<void> };
 /** 依名稱排序執行；新增遷移就在這裡加一行（不用檔案系統掃描，打包成單一檔案也能跑） */
-export const MIGRATIONS: Record<string, Step> = { '0001_init': m0001, '0002_market': m0002, '0003_trade': m0003, '0004_roster': m0004 };
+export const MIGRATIONS: Record<string, Step> = { '0001_init': m0001, '0002_market': m0002, '0003_trade': m0003, '0004_roster': m0004, '0005_sold_index': m0005 };
 
 export function migrator(db: Kysely<unknown>, schema = 'game'): Migrator {
   const migrations: Record<string, Migration> = {};

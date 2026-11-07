@@ -228,7 +228,7 @@ function reposOf(t: Trx, now: () => number): Repos {
         return rows.map(listingRow);
       },
       listBySeller: async (c, limit) => (await t.selectFrom('MarketListing').selectAll().where('SellerCharacterId', '=', c).orderBy('CreatedAt', 'desc').orderBy('Id', 'desc').offset(0).fetch(limit).execute()).map(listingRow),
-      // 最近成交（第 153 輪）：IX_MarketListing_Search 的前三欄（Status, Slot, Rarity）篩得到；量大了再加 ClosedAt 索引
+      // 最近成交（第 153 輪）：索引 IX_MarketListing_Sold（Status, Slot, Rarity, ClosedAt desc，遷移 0005，第 154 輪）
       listSold: async (q) =>
         (await t.selectFrom('MarketListing').selectAll().where('Status', '=', 'sold').where('Slot', '=', q.slot).where('Rarity', '=', q.rarity).orderBy('ClosedAt', 'desc').orderBy('Id', 'desc').offset(0).fetch(q.limit).execute()).map(listingRow),
     },
