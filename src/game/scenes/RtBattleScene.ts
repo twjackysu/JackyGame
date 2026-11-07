@@ -98,6 +98,7 @@ const MER_BOX: DrawBox = { l: -60, t: -106, r: 48, b: 14 };
 const RIVAL_BOX: DrawBox = { l: -64, t: -124, r: 46, b: 14 };
 const NPC_BOX: DrawBox = { l: -95, t: -106, r: 70, b: 24 };
 const NPC_CACHE_MAX = 4;
+const GATE_BOX: DrawBox = { l: -108, t: -196, r: 108, b: 40 };
 import { tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, pressBack, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
@@ -246,7 +247,7 @@ export class RtBattleScene extends Phaser.Scene {
     gates: () => this.gates,
     menuOpen: () => !!this.menu,
   });
-  private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean; revealAt?: number }[] = [];
+  private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean; revealAt?: number; art: CachedDraw }[] = [];
   private ox = 0;
   private oy = 0;
   /** 輸入（Q5：搖桿、鍵盤、累積的指令） */
@@ -3907,7 +3908,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.drawChoiceMark(g, now);
     this.drawBossRing(this.ringG.clear(), now);
-    this.drawGate(this.ringG, now);
+    this.drawGate(now);
     // 每幀共用同一個 view（不配置），只更新會變的縮放
     const sv = (this.stormView ??= { lo: this.stormLo, hi: this.stormHi, k: this.k, viewTop: VIEW_TOP, sx: (x) => this.sx(x), sy: (y) => this.sy(y) });
     sv.k = this.k;
@@ -4443,8 +4444,10 @@ export class RtBattleScene extends Phaser.Scene {
     const add = (to: string, at: [number, number] | null, back: boolean): void => {
       const m = worldMap(to);
       if (!m || !at || this.gates.some((q) => q.to === to)) return;
+      // 光門的圖畫進小貼圖（第 154 輪，D-332）；要在門上的字之前建立（同 depth 46，字才會在上面）
+      const art = new CachedDraw(this, this.k * (back ? 1.7 : 2.2), GATE_BOX).setDepth(46);
       const label = this.add.text(0, 0, back ? `▼ 回${m.name}` : `▲ 前往${m.name}`, { fontFamily: TITLE_FONT, fontSize: '24px', color: back ? '#ffe8c0' : '#d8f8ff', stroke: '#0a1a2a', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(46).setVisible(false);
-      this.gates.push({ x: at[0], y: at[1], to, label, back, armed: Math.hypot(p.x - at[0], p.y - at[1]) > UNIT * 2 });
+      this.gates.push({ x: at[0], y: at[1], to, label, back, art, armed: Math.hypot(p.x - at[0], p.y - at[1]) > UNIT * 2 });
     };
     const nx = worldMap(this.stageId)?.next;
     const bz = STAGES[this.stageId]?.bossZone;
@@ -4521,7 +4524,7 @@ export class RtBattleScene extends Phaser.Scene {
     });
   }
 
-  private drawGate(g: Phaser.GameObjects.Graphics, now: number): void {
+  private drawGate(now: number): void {
     // 第 63 輪：再挑戰 Boss 時往下一張圖的門就在巢穴裡，門上的字蓋在 Boss 身上 → Boss 交戰中先不寫（門照畫）
     const bossFight = this.gates.some((q) => !q.back) && enemiesOf(this.s).some((e) => ENEMIES[e.defId]?.boss && e.mode === 'combat');
     const shut = bossFight && this.bossEngaged();
@@ -4532,10 +4535,11 @@ export class RtBattleScene extends Phaser.Scene {
       const vis = !(cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 260 || cy > VIEW_BOTTOM + 120);
       if (!vis) {
         gt.label.setVisible(false);
+        gt.art.hide();
         continue;
       }
       const k = this.k * (gt.back ? 1.7 : 2.2);
-      drawGateArt(g, cx, cy, k, !!gt.back, sealed, now / 1000);
+      gt.art.show(cx, cy, now, sealed ? 'sealed' : 'open', (ag, fx, fy, t) => drawGateArt(ag, fx, fy, k, !!gt.back, sealed, t / 1000));
       // 字在石柱頂上；太靠上會壓到 HUD／Boss 血條（y 170 以內）就先不寫
       let ly = cy - 98 * k;
       // 第 55 輪：回程門就在出生點旁，門上的字常和畫面中間的「點怪物開打」字條疊在一起 → 字往上讓開
