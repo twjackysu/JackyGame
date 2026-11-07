@@ -22,6 +22,8 @@ const PVP_MATCH_TTL = 30 * 60 * 1000;
 
 interface StoredMatch extends PvpMatchSetup {
   id: string;
+  /** 對手的帳號 id（第 150 輪：戰績「再挑一次」用；舊對局沒有） */
+  foeId?: string;
   foeName: string;
   foeRating: number;
   at: number;
@@ -53,11 +55,19 @@ const LADDER_TOP = 10;
 /** 戰績留幾場 */
 export const PVP_HISTORY = 5;
 
+/** 存著的一場戰績（foeId 只在伺服器裡；畫面拿到的是 revenge 旗標＋foeId） */
+type StoredRecent = Omit<PvpRecentView, 'revenge'>;
+
 /** 存著的戰績（壞掉的資料當沒有，不讓一筆壞資料擋住天梯） */
-function historyOf(c: { pvpHistory?: string }): PvpRecentView[] {
+function historyOf(c: { pvpHistory?: string }): StoredRecent[] {
   try {
     const h = JSON.parse(c.pvpHistory ?? '[]') as unknown;
-    return Array.isArray(h) ? (h as PvpRecentView[]).filter((r) => r && typeof r.foeName === 'string' && ['victory', 'defeat', 'timeout'].includes(r.outcome)).slice(0, PVP_HISTORY) : [];
+    return Array.isArray(h)
+      ? (h as StoredRecent[])
+          .filter((r) => r && typeof r.foeName === 'string' && ['victory', 'defeat', 'timeout'].includes(r.outcome))
+          .map((r) => ({ outcome: r.outcome, foeName: r.foeName, delta: Number(r.delta) || 0, at: Number(r.at) || 0, ...(typeof r.foeId === 'string' ? { foeId: r.foeId } : {}) }))
+          .slice(0, PVP_HISTORY)
+      : [];
   } catch {
     return [];
   }
@@ -77,7 +87,12 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const mine = all.find((r) => r.me)!;
     const rows = all.slice(0, LADDER_TOP);
     if (mine.pos > LADDER_TOP) rows.push(mine);
-    return { rows, recent: historyOf(c), rating, pos: mine.pos, total: all.length };
+    // 復仇（第 150 輪，D-323）：輸掉的場次、對手還在、分差在指名範圍內 → 可以「再挑一次」（pvp.start 會再檢查一次）
+    const recent = historyOf(c).map((r) => {
+      const foe = r.foeId ? simRoster().find((s) => s.accountId === r.foeId) : undefined;
+      return { ...r, revenge: r.outcome === 'defeat' && !!foe && canChallenge(rating, simRating(foe)) };
+    });
+    return { rows, recent, rating, pos: mine.pos, total: all.length };
   },
 
 
@@ -104,7 +119,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
         .slice(0, 5);
       foe = near[Math.floor(ctx.rng() * near.length)]!.s;
     }
-    const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: sideOf(c.weapon, gear), foe: simSide(foe), foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
+    const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: sideOf(c.weapon, gear), foe: simSide(foe), foeId: foe.accountId, foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
     await ctx.r.characters.save({ ...c, pvpMatch: JSON.stringify(m) });
     return { matchId: m.id, seed: m.seed, me: m.me as never, foe: m.foe as never, foeName: m.foeName, foeRating: m.foeRating, rating };
   },
@@ -127,7 +142,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const delta = eloDelta(before, m.foeRating, outcome);
     const rating = Math.max(1, before + delta);
     const { pvpMatch: _done, ...rest } = c;
-    const pvpHistory = JSON.stringify([{ outcome, foeName: m.foeName, delta: rating - before, at: ctx.clock.now() }, ...historyOf(c)].slice(0, PVP_HISTORY));
+    const pvpHistory = JSON.stringify([{ outcome, foeName: m.foeName, ...(m.foeId ? { foeId: m.foeId } : {}), delta: rating - before, at: ctx.clock.now() }, ...historyOf(c)].slice(0, PVP_HISTORY));
     await ctx.r.characters.save({ ...rest, pvpRating: rating, pvpHistory });
     await ctx.r.audit.add({ accountId: ctx.accountId, action: 'pvp.finish', detail: JSON.stringify({ match: m.id, foe: m.foeName, outcome, before, rating, hash: r.hash, ticks: r.s.tick }), at: ctx.clock.now() });
     return { outcome, rating, delta };

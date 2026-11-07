@@ -145,6 +145,10 @@ export interface PvpRecentView {
   foeName: string;
   delta: number;
   at: number;
+  /** 對手的帳號 id（指名挑戰用；舊戰績沒有） */
+  foeId?: string;
+  /** 能不能「再挑一次」：輸掉、對手還在、分差在範圍內（伺服器算的） */
+  revenge: boolean;
 }
 /** 天梯排行（pvp.ladder）：前幾名；自己不在前幾名時另外附在最後 */
 export interface PvpLadderView {

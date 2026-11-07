@@ -18,6 +18,8 @@ import { InputSystem } from '../rt/InputSystem';
 import { buttonPos, loadControls } from '../rtControls';
 import { pvpOps, type PvpOpen, type PvpResult } from '../pvpOps';
 import { heroKey, WEAPON_NAME } from '../weapon';
+import { agoText, recentLook } from '../pvpRecent';
+import type { PvpRecentView } from '../../net/views';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
 const DIR = 1000;
@@ -137,10 +139,9 @@ export class PvpScene extends Phaser.Scene {
         sub.setText('伺服器沒有回應，排行讀不到');
         return;
       }
-      // 最近戰績（第 149 輪）：段位那行後面接「勝敗和」小字
-      const rec = lad.recent.map((r) => (r.outcome === 'victory' ? '勝' : r.outcome === 'defeat' ? '敗' : '和')).join('');
       sub.setText(`你的段位：${rankName(lad.rating)} ${lad.rating}　第 ${lad.pos} / ${lad.total} 名`);
-      if (rec) box.add(this.add.text(W - 60, top + 44, `近況\n${rec}`, { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0e0', align: 'right', lineSpacing: 2 }).setOrigin(1, 0.5));
+      // 最近戰績（第 149 輪）：右上角「近況 勝敗和」（照勝敗上色）；點一下展開最近 5 場，輸掉的可以「⚔ 再挑一次」（第 150 輪，D-323）
+      if (lad.recent.length) this.recentBadge(box, W - 60, top + 44, lad.recent, top + 120, (id, name) => start(id, name));
       lad.rows.forEach((r, i) => {
         const y = top + 145 + i * 44 + (i >= 10 ? 12 : 0);
         const col = r.me ? '#ffd27a' : '#ffffff';
@@ -167,6 +168,74 @@ export class PvpScene extends Phaser.Scene {
       });
       box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n勝負由伺服器重播判定・荊棘段位起冒險時腳下也有光環', { fontFamily: UI_FONT, fontSize: '20px', color: '#7a8296', align: 'center' }).setOrigin(0.5));
     });
+  }
+
+  /** 右上角「近況」：一個字一場（勝金、敗紅、和灰），點了展開／收起最近 5 場的清單 */
+  private recentBadge(box: Phaser.GameObjects.Container, rx: number, cy: number, recent: PvpRecentView[], listTop: number, challenge: (foeId: string, foeName: string) => void): void {
+    const label = this.add.text(rx, cy - 13, '近況 ▾', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0e0' }).setOrigin(1, 0.5);
+    box.add(label);
+    let x = rx;
+    for (const r of [...recent].reverse()) {
+      const o = recentLook(r.outcome);
+      const t = this.add.text(x, cy + 11, o.ch, { fontFamily: UI_FONT, fontSize: '20px', color: o.color }).setOrigin(1, 0.5);
+      x -= t.width + 1;
+      box.add(t);
+    }
+    const w = Math.max(label.width, rx - x) + 20;
+    const hit = this.add.rectangle(rx - w / 2 + 10, cy, w, 56, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
+    box.add(hit);
+    let panel: Phaser.GameObjects.Container | null = null;
+    hit.on('pointerdown', () => {
+      SFX.uiTap();
+      if (panel) {
+        panel.destroy();
+        panel = null;
+        label.setText('近況 ▾');
+        return;
+      }
+      label.setText('近況 ▴');
+      panel = this.recentPanel(recent, listTop, challenge);
+      box.add(panel);
+    });
+  }
+
+  /** 最近 5 場的清單（蓋在排行上面）：結果、對手、分數變化、多久以前；可以復仇的有按鈕 */
+  private recentPanel(recent: PvpRecentView[], top: number, challenge: (foeId: string, foeName: string) => void): Phaser.GameObjects.Container {
+    const W = GAME_WIDTH;
+    const rowH = 70;
+    const h = 64 + recent.length * rowH;
+    const c = this.add.container(0, 0);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x070912, 0.97).fillRoundedRect(52, top, W - 104, h, 16);
+    bg.lineStyle(2, 0xffd27a, 0.5).strokeRoundedRect(52, top, W - 104, h, 16);
+    // 吃掉點擊：別讓底下的天梯列被點到
+    const block = this.add.rectangle(W / 2, top + h / 2, W - 104, h, 0x000000, 0.001).setInteractive();
+    c.add([bg, block, this.add.text(W / 2, top + 32, '最近戰績', { fontFamily: UI_FONT, fontSize: '24px', color: '#ffd27a' }).setOrigin(0.5)]);
+    const now = Date.now();
+    recent.forEach((r, i) => {
+      const y = top + 64 + i * rowH + rowH / 2;
+      const o = recentLook(r.outcome);
+      const d = r.delta > 0 ? `+${r.delta}` : `${r.delta}`;
+      c.add([
+        this.add.text(78, y, o.ch, { fontFamily: UI_FONT, fontSize: '30px', color: o.color }).setOrigin(0, 0.5),
+        this.add.text(124, y - 12, r.foeName, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff' }).setOrigin(0, 0.5),
+        this.add.text(124, y + 16, `${d} 分・${agoText(now - r.at)}`, { fontFamily: UI_FONT, fontSize: '18px', color: r.delta >= 0 ? '#a8d8a0' : '#e8a098' }).setOrigin(0, 0.5),
+      ]);
+      if (r.revenge && r.foeId) {
+        const bx = W - 150;
+        const btn = this.add.graphics();
+        btn.fillStyle(0x5a1f1f, 1).fillRoundedRect(bx - 78, y - 24, 156, 48, 12);
+        btn.lineStyle(2, 0xff9a80, 0.9).strokeRoundedRect(bx - 78, y - 24, 156, 48, 12);
+        const bh = this.add.rectangle(bx, y, 156, 48, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
+        const foeId = r.foeId;
+        bh.on('pointerdown', () => {
+          SFX.confirm();
+          challenge(foeId, r.foeName);
+        });
+        c.add([btn, this.add.text(bx, y, '⚔ 再挑一次', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffe0d0' }).setOrigin(0.5), bh]);
+      }
+    });
+    return c;
   }
 
   private begin(o: PvpOpen | null): void {

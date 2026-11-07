@@ -64,7 +64,7 @@ for (const be of BACKENDS)
       expect(lad.rows.slice(0, 10).every((r, i, xs) => i === 0 || xs[i - 1]!.rating >= r.rating)).toBe(true);
       expect(lad.total).toBeGreaterThan(20);
       // 戰績（第 149 輪）：剛打完那場在最前面；中間 migrate.sync 也還在
-      expect(lad.recent).toEqual([{ outcome: res.outcome, foeName: st.foeName, delta: res.delta, at: expect.any(Number) }]);
+      expect(lad.recent).toEqual([{ outcome: res.outcome, foeName: st.foeName, foeId: expect.any(String), delta: res.delta, at: expect.any(Number), revenge: res.outcome === 'defeat' }]);
       expect(await code(b.call('pvp.ladder', { characterId }))).toBe('not_found');
       // 匯出 → 匯入（第 146 輪）：段位分跟著存檔走
       const blob = await a.call('account.export', {});
@@ -142,3 +142,32 @@ describe('PvP 戰績（第 149 輪）', () => {
     await db.close();
   });
 });
+
+for (const be of BACKENDS)
+  describe(`PvP 復仇（第 150 輪，${be.name}）`, () => {
+    it('輸掉的場次可以再挑一次同一個對手；贏的不行', async () => {
+      const { db } = await be.fresh(() => 0);
+      const clock = new FakeClock();
+      const server = new GameServer({ db, auth, clock, ids: new SeqIds(), local: true, rng: () => 0.4 });
+      let n = 0;
+      const a = new GameClient(new LocalTransport((j) => server.handle(j)), { token: 'accR', timeoutMs: 15000, retries: 1, newRequestId: () => `r${++n}` });
+      const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
+      // 站著不動 → 一定輸（伺服器重跑一樣）
+      const st = await a.call('pvp.start', { characterId });
+      const res = await a.call('pvp.finish', { characterId, matchId: st.matchId, inputs: [] });
+      expect(res.outcome).toBe('defeat');
+      const lad = await a.call('pvp.ladder', { characterId });
+      const last = lad.recent[0]!;
+      expect(last.foeName).toBe(st.foeName);
+      expect(last.revenge).toBe(canChallenge(lad.rating, st.foeRating));
+      expect(last.revenge).toBe(true); // 才輸一場，分差一定在 200 內
+      const again = await a.call('pvp.start', { characterId, foeId: last.foeId! });
+      expect(again.foeName).toBe(st.foeName);
+      // 贏的場次不給復仇
+      const win = await a.call('pvp.finish', { characterId, matchId: again.matchId, inputs: fight(again).inputs });
+      const lad2 = await a.call('pvp.ladder', { characterId });
+      expect(lad2.recent[0]!.revenge).toBe(win.outcome === 'defeat');
+      expect(lad2.recent[1]!.foeId).toBe(last.foeId);
+      await db.close();
+    });
+  });
