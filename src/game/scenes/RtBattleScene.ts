@@ -80,6 +80,7 @@ import { FieldFx } from '../fx/fieldFx';
 import { makeGround } from '../rt/ground';
 import { Companion } from '../fx/companion';
 import { drawChoiceMarkArt, drawGateArt } from '../fx/landmarks';
+import { eliteFall } from '../fx/eliteFall';
 import { drawStorm, type StormView } from '../fx/stormFx';
 import { GroundHazards, LAVA_ATTACKS, METEOR_ATTACKS } from '../fx/groundHazards';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
@@ -3159,37 +3160,7 @@ export class RtBattleScene extends Phaser.Scene {
             this.bossRays(this.sx(d.x), this.sy(d.y), Phaser.Display.Color.HexStringToColor(worldMap(this.stageId)?.color ?? '#ffd27a').color, long);
           }
           if (ENEMIES[d.defId]?.boss && STAGES[this.stageId]?.spawnGroups?.length) this.bossSlain(`${d.fury ? '暴怒的' : ''}${ENEMIES[d.defId]!.name}`, !!d.fury);
-          else if (d.defId === 'thorn_mother') {
-            // 荊棘母樹倒下（D-107）：綠色衝擊波＋葉片＋大字
-            this.cameras.main.shake(220, 0.007);
-            shockRing(this, this.sx(d.x), this.sy(d.y), 0x6aff7a, 220, 560, 10);
-            sparks(this, this.sx(d.x), this.sy(d.y), 26, 'ember', 0x9aff7a, 700);
-            bigText(this, GAME_WIDTH / 2, 470, '荊棘母樹 倒下了！', '#9aff8a', 46, 900);
-          } else if (d.defId === 'thorn_stalker') {
-            this.cameras.main.shake(180, 0.006);
-            shockRing(this, this.sx(d.x), this.sy(d.y), 0xff8a5c, 180, 480, 8);
-            sparks(this, this.sx(d.x), this.sy(d.y), 22, 'ember', 0xffa07a, 600);
-            bigText(this, GAME_WIDTH / 2, 470, '荊棘巡獵者 倒下了！', '#ffb07a', 44, 900);
-          } else if (d.defId === 'magma_stalker' || d.defId === 'obsidian_alpha') {
-            // 熔核巡者／黑曜首領倒下：熔岩衝擊環＋火星＋大字
-            this.cameras.main.shake(180, 0.006);
-            shockRing(this, this.sx(d.x), this.sy(d.y), 0xff6a2a, 190, 500, 9);
-            sparks(this, this.sx(d.x), this.sy(d.y), 24, 'ember', 0xffa050, 640);
-            bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]!.name} 倒下了！`, '#ffa868', 44, 900);
-          } else if (d.defId === 'comet_stalker' || d.defId === 'astral_alpha' || d.defId === 'eclipse_wolf') {
-            // 彗星巡者／星輝首領倒下（D-138）：藍白星爆環＋碎星
-            this.cameras.main.shake(180, 0.006);
-            shockRing(this, this.sx(d.x), this.sy(d.y), 0x8aa8ff, 190, 500, 9);
-            shockRing(this, this.sx(d.x), this.sy(d.y), 0xffffff, 110, 300, 4);
-            sparks(this, this.sx(d.x), this.sy(d.y), 24, 'spark', 0xc8d8ff, 640);
-            bigText(this, GAME_WIDTH / 2, 470, `${ENEMIES[d.defId]!.name} 倒下了！`, '#c8d8ff', 44, 900);
-          } else if (d.defId === 'mist_warden') {
-            // 迷霧巡守倒下（D-120）：青色霧環＋霧粒散開
-            this.cameras.main.shake(160, 0.005);
-            shockRing(this, this.sx(d.x), this.sy(d.y), 0x6ae8d0, 180, 480, 8);
-            sparks(this, this.sx(d.x), this.sy(d.y), 22, 'ember', 0xbaf8ee, 620);
-            bigText(this, GAME_WIDTH / 2, 470, '迷霧巡守 倒下了！', '#9af0e0', 44, 900);
-          }
+          else eliteFall(this, d.defId, this.sx(d.x), this.sy(d.y), ENEMIES[d.defId]?.name ?? ''); // 精英／巡守倒下的演出（fx/eliteFall）
         }
       } else if (e.type === 'phase2') {
         const [t2, c2] = worldMap(this.stageId)?.phase2 ?? WORLD_MAPS[0]!.phase2;
