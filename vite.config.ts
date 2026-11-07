@@ -78,6 +78,9 @@ export default defineConfig({
         globIgnores: ['**/version.json'],
         // Phaser bundle exceeds the 2 MiB default.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // 線上版客戶端放在同一個網站的 online/ 子路徑（deploy-pages 有設 ONLINE_API_URL 才建，第 148 輪）：
+        // 離線版的 service worker 不能把 online/ 的網址導回離線版首頁
+        navigateFallbackDenylist: [/\/online\//],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

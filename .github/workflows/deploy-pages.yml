@@ -29,6 +29,17 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       - run: npm run build
+      # 線上版客戶端（第 148 輪）：Jacky 部署好 API、在 repo 的 Actions variables 設 ONLINE_API_URL 才建，放在 /JackyGame/online/。
+      # 沒設就跳過（Pages 只有離線版，跟以前一樣）。正式版不開 dev 登入。
+      - name: Build online client (only when ONLINE_API_URL is set)
+        if: ${{ vars.ONLINE_API_URL != '' }}
+        run: |
+          npm run build:online
+          node scripts/check-online-bundle.mjs
+          cp -r dist-online dist/online
+        env:
+          VITE_SERVER_URL: ${{ vars.ONLINE_API_URL }}
+          VITE_AUTH_MODE: 'off'
       - uses: actions/configure-pages@v5
         with:
           enablement: true
