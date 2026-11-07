@@ -4,7 +4,7 @@
 import type { PvpInputs, PvpMatchSetup } from '../core/battle/rt/pvpMatch';
 import type { PvpLadderView } from '../net/views';
 import { captureLegacy, legacyOp } from '../client/legacyOps';
-import { setRank } from './rankCache';
+import { setRank, setSeasonBest } from './rankCache';
 
 export interface PvpOpen {
   matchId: string;
@@ -29,7 +29,10 @@ export const pvpOps = {
   /** 天梯排行（只讀；一樣先同步舊存檔，角色才會是最新的） */
   ladder: (): Promise<PvpLadderView | null> =>
     legacyOp(captureLegacy(), [], async (c, me) => ({ v: await c.call('pvp.ladder', { characterId: me.id }), me }), (r) => r.me, true).then((r) => {
-      if (r) setRank(r.v.rating);
+      if (r) {
+        setRank(r.v.rating);
+        if (r.v.season) setSeasonBest(r.v.season);
+      }
       return r?.v ?? null;
     }),
   /** 開一局（伺服器挑對手、發種子；foeId＝天梯上指名挑戰）；伺服器壞了或不能挑回 null */

@@ -1,6 +1,6 @@
 // 冒險地圖上的段位光環（第 149 輪，D-318）：荊棘（1100）以上才顯示；每次開遊戲只問伺服器一次，失敗下次再問；競技場結果直接更新。
 import { describe, expect, it } from 'vitest';
-import { forgetRank, pveAuraFor, pveRankAura, PVE_AURA_MIN, refreshRank, setRank } from '../src/game/rankCache';
+import { forgetRank, pveAuraFor, pveRankAura, PVE_AURA_MIN, refreshRank, setRank, setSeasonBest } from '../src/game/rankCache';
 import { PVP_START_RATING, rankAura, rankName } from '../src/core/meta/pvpRank';
 
 describe('冒險地圖的段位光環', () => {
@@ -38,5 +38,19 @@ describe('冒險地圖的段位光環', () => {
     expect(pveRankAura()).toBeNull();
     refreshRank(ask);
     expect(asks).toBe(3);
+  });
+
+  it('賽季（D-328）：上季或這季到過的最高段位也算；掉分後光環留著；換角色清掉', () => {
+    forgetRank();
+    setRank(1050);
+    setSeasonBest({ peak: 1080, last: 1270 });
+    expect(pveRankAura()).toEqual(rankAura(1270)); // 上季燼紅 → 這季照樣燼紅光環
+    setRank(1300);
+    expect(pveRankAura()).toEqual(rankAura(1300));
+    setRank(1120); // 這季最高 1300 還記得
+    expect(pveRankAura()).toEqual(rankAura(1300));
+    forgetRank();
+    setRank(1000);
+    expect(pveRankAura()).toBeNull(); // 換角色：上一個角色的賽季不帶過來
   });
 });
