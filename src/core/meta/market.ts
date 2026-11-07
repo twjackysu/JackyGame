@@ -21,6 +21,21 @@ export const sellerGets = (price: number): number => price - saleFee(price);
 
 /** 最近成交看幾筆（market.history，第 153 輪） */
 export const HISTORY_N = 12;
+/** 逛逛時一頁最多附幾組「部位×稀有度」的行情（第 154 輪，D-333；每組一次查詢，限制伺服器負擔） */
+export const REF_COMBOS_MAX = 8;
+/** 至少幾筆成交才算有行情（太少的中位數沒意義） */
+export const REF_MIN_SALES = 3;
+/** 開價低於行情這麼多 % 以上，逛逛時標「便宜」 */
+export const BARGAIN_PCT = 10;
+
+export const refKey = (slot: string, rarity: number): string => `${slot}:${rarity}`;
+
+/** 開價比行情便宜幾 %（整數）；沒有行情或沒有便宜到 BARGAIN_PCT 回 0 */
+export function bargainPct(price: number, median: number | undefined): number {
+  if (!median || median <= 0 || !validPrice(price)) return 0;
+  const pct = Math.floor(((median - price) * 100) / median);
+  return pct >= BARGAIN_PCT ? pct : 0;
+}
 
 /**
  * 最近成交的行情（第 153 輪，D-329）：中位數＋最低／最高。給上架時參考定價（畫面只顯示，價格還是賣家自己定）。

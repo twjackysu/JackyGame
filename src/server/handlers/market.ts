@@ -3,7 +3,7 @@
 // 綁定的物品不能上架；不能買自己帳號的掛單（左手換右手走面對面交易）；過期的掛單買不到，賣家看「我的掛單」時退回行囊。
 import { BAG_MAX } from '../../core/meta/bag';
 import { GEAR_SLOTS } from '../../core/battle/rt/gear';
-import { HISTORY_N, LISTING_MS, MARKET_PAGE, MAX_OPEN_LISTINGS, listFee, saleFee, sellerGets, validPrice } from '../../core/meta/market';
+import { HISTORY_N, LISTING_MS, MARKET_PAGE, MAX_OPEN_LISTINGS, REF_COMBOS_MAX, REF_MIN_SALES, listFee, priceStats, refKey, saleFee, sellerGets, validPrice } from '../../core/meta/market';
 import { ApiError } from '../../net/protocol';
 import type { ListingView } from '../../net/views';
 import type { ListingRow } from '../repos/types';
@@ -82,8 +82,20 @@ export const marketHandlers: Pick<HandlerTable, 'market.list' | 'market.cancel' 
     if (rarity !== undefined && (typeof rarity !== 'number' || !Number.isInteger(rarity) || rarity < 0 || rarity > 5)) throw new ApiError('bad_request', 'rarity');
     const page = p?.page ?? 0;
     if (typeof page !== 'number' || !Number.isInteger(page) || page < 0 || page > 500) throw new ApiError('bad_request', 'page');
+    if (p?.refs !== undefined && typeof p.refs !== 'boolean') throw new ApiError('bad_request', 'refs');
     const rows = await ctx.r.listings.listOpen({ slot, rarity, aliveAt: ctx.clock.now(), offset: page * MARKET_PAGE, limit: MARKET_PAGE });
-    return { listings: rows.map((l) => view(l, ctx.accountId)), page };
+    const listings = rows.map((l) => view(l, ctx.accountId));
+    if (!p?.refs) return { listings, page };
+    // 行情（第 154 輪，D-333）：這頁出現的「部位×稀有度」各自最近成交的中位數；最多 REF_COMBOS_MAX 組、成交太少的不給。
+    // 只有中位數一個數字，不帶任何成交明細（同 market.history，不洩漏其他玩家資料）。模擬冒險者逛的時候不要（refs 不帶）
+    const combos = [...new Set(rows.map((l) => refKey(l.slot, l.rarity)))].slice(0, REF_COMBOS_MAX);
+    const refs: Record<string, number> = {};
+    for (const key of combos) {
+      const [s, r] = key.split(':');
+      const st = priceStats((await ctx.r.listings.listSold({ slot: s!, rarity: Number(r), limit: HISTORY_N })).map((l) => l.price));
+      if (st && st.n >= REF_MIN_SALES) refs[key] = st.median;
+    }
+    return { listings, page, refs };
   },
 
   'market.history': async (ctx, p) => {

@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, isGear, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
-import { MARKET_FEE_PCT, MARKET_PAGE, PRICE_MAX, listFee, priceStats, sellerGets } from '../../core/meta/market';
+import { MARKET_FEE_PCT, MARKET_PAGE, PRICE_MAX, bargainPct, listFee, priceStats, refKey, sellerGets } from '../../core/meta/market';
 import { buyPrice, sellPrice } from '../../core/meta/shop';
 import type { ListingView } from '../../net/views';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -196,7 +196,9 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
       const g = gearOf(l);
       if (!g) return;
       const up = isUpgrade(st, g);
-      items.push(...row(-325 + i * 70, g, `${up ? '▲ ' : ''}【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `${l.mine ? '你的掛單' : `賣家 ${l.sellerName}`}・物品等級 ${g.ilvl}`, `${l.price} 金`, l.mine ? '#a8b8d0' : coin >= l.price ? '#ffe08a' : '#ff8a7a', () => {
+      // 比最近成交便宜 10% 以上：副標加「便宜 N%」（第 154 輪，D-333；行情是伺服器給的中位數）
+      const cheap = l.mine ? 0 : bargainPct(l.price, d.refs?.[refKey(g.slot, g.rarity)]);
+      items.push(...row(-325 + i * 70, g, `${up ? '▲ ' : ''}【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `${l.mine ? '你的掛單' : `賣家 ${l.sellerName}`}・物品等級 ${g.ilvl}${cheap ? `・▼便宜 ${cheap}%` : ''}`, `${l.price} 金`, l.mine ? '#a8b8d0' : coin >= l.price ? '#ffe08a' : '#ff8a7a', () => {
         detail = { kind: 'listing', l };
         render();
       }));
@@ -205,7 +207,7 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
     const prev = page || sub ? () => (sub ? ((sub = 0), render()) : ((page -= 1), (sub = 1), run(() => ctx.ops.view(slot, page)))) : null;
     const next = more ? () => (sub === 0 && d.listings.length > ROWS ? ((sub = 1), render()) : ((page += 1), (sub = 0), run(() => ctx.ops.view(slot, page)))) : null;
     pager(items, 325, `第 ${page * 2 + sub + 1} 頁`, prev, next);
-    items.push(scene.add.text(0, 385, '▲＝比身上同部位的好　照價格由低到高排', { fontFamily: UI_FONT, fontSize: '17px', color: '#8890a8' }).setOrigin(0.5));
+    items.push(scene.add.text(0, 385, '▲＝比身上同部位的好　▼＝比最近成交便宜　照價格由低到高排', { fontFamily: UI_FONT, fontSize: '17px', color: '#8890a8' }).setOrigin(0.5));
   }
 
   function sellTab(items: Phaser.GameObjects.GameObject[], st: BagState): void {

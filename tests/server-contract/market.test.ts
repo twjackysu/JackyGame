@@ -8,7 +8,7 @@ import type { CharacterView } from '../../src/net/views';
 import { FakeClock, SeqIds } from '../../src/server/clock';
 import { GameServer } from '../../src/server/GameServer';
 import type { Db } from '../../src/server/repos/types';
-import { LISTING_MS, MAX_OPEN_LISTINGS, listFee, sellerGets } from '../../src/core/meta/market';
+import { LISTING_MS, MAX_OPEN_LISTINGS, bargainPct, listFee, refKey, sellerGets } from '../../src/core/meta/market';
 import { BACKENDS } from './backends';
 import { LEGACY_SAMPLE } from './fixtures';
 
@@ -185,6 +185,30 @@ for (const be of BACKENDS)
       for (const s of h.sales) expect(Object.keys(s).sort()).toEqual(['at', 'ilvl', 'price']);
       // 別的稀有度看不到這幾筆
       expect((await b.call('market.history', { slot: g0.slot, rarity: g0.rarity === 1 ? 2 : 1 })).sales).toEqual([]);
+      await db.close();
+    });
+
+    it('逛逛帶行情（refs）：同部位同稀有度成交 3 筆以上才給中位數；不要就不給；refs 型別錯擋掉', async () => {
+      const { db } = await be.fresh(() => 0);
+      const { a, b, ca, cb, clock } = await setup(db);
+      const it = bagOf(ca)[0]!;
+      const g = it.gear as { slot: string; rarity: number };
+      const key = refKey(g.slot, g.rarity);
+      // 同一件在 A、B 之間轉手：A 賣 300 → B 賣 500 → A 賣 400（成交 3 筆，中位數 400）
+      const hops: [GameClient, CharacterView, GameClient, CharacterView, number][] = [[a, ca, b, cb, 300], [b, cb, a, ca, 500], [a, ca, b, cb, 400]];
+      for (const [k, [seller, sc, buyer, bc, price]] of hops.entries()) {
+        clock.advance(60_000);
+        const r = await seller.call('market.list', { characterId: sc.id, itemId: it.id, price });
+        if (k === 1) expect((await a.call('market.browse', { refs: true })).refs?.[key]).toBeUndefined(); // 只有 1 筆成交：不給
+        await buyer.call('market.buy', { characterId: bc.id, listingId: r.listing.id });
+      }
+      // 現在在 B 手上：掛 300（比行情 400 便宜 25%）
+      await b.call('market.list', { characterId: cb.id, itemId: it.id, price: 300 });
+      const br = await a.call('market.browse', { refs: true });
+      expect(br.refs).toEqual({ [key]: 400 });
+      expect(bargainPct(br.listings[0]!.price, br.refs![key])).toBe(25);
+      expect((await a.call('market.browse', {})).refs).toBeUndefined();
+      expect(await code(a.call('market.browse', { refs: 'yes' as unknown as boolean }))).toBe('bad_request');
       await db.close();
     });
   });

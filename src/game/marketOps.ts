@@ -10,6 +10,8 @@ import { ApiError } from '../net/protocol';
 export interface MarketPage {
   listings: ListingView[];
   page: number;
+  /** 這頁各「部位:稀有度」最近成交的中位數（第 154 輪，D-333；成交太少的沒有） */
+  refs: Record<string, number>;
   /** 我的掛單（開著的在前） */
   mine: ListingView[];
   /** 上次看過之後才賣出的掛單（伺服器算，第 149 輪） */
@@ -41,9 +43,9 @@ function step(act: ((c: Parameters<Parameters<typeof legacyOp>[2]>[0], me: Chara
           if (!(e instanceof ApiError) || e.code === 'internal') throw e;
           failed = e.message;
         }
-      const b = await c.call('market.browse', slot ? { slot, page } : { page });
+      const b = await c.call('market.browse', slot ? { slot, page, refs: true } : { page, refs: true });
       const m = await c.call('market.mine', { characterId: me.id });
-      return { listings: b.listings, page: b.page, mine: sortMine(m.listings), news: m.news ?? [], character: m.character, failed };
+      return { listings: b.listings, page: b.page, refs: b.refs ?? {}, mine: sortMine(m.listings), news: m.news ?? [], character: m.character, failed };
     },
     (r) => r.character,
     true,
