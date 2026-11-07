@@ -6,16 +6,24 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 154 輪起先做（V5／V6 收尾＋美術，11/7–11/11；11/12 12:00 凍結）
-**已經有的（到第 153 輪）**：美術 `fx/nightLight.ts`、`fx/pressFx.ts`、`floatNumber` 的 `tier`、`rt/ground.ts` 的 `paintVariety`、`fx/ambient.ts`（第 153 輪：每層 `parallax`／`margin`、森林霧與落葉、星隕流星）、**`fx/arenaArt.ts`（競技場場地，烤成貼圖 `arena_bg_WxH`＋火盆＋`cheer()` 彩紙）**、**`fx/vsIntro.ts`**、`fx/bossCues.ts`；`simGearRating`（D-326）；**賽季 `taipeiWeek`／`seasonLeftMs`／`pvpSeasonNow`／`pvpSeasonAfter`（D-328，角色 `pvpSeason`）**、**`market.history`＋`priceStats`（D-329）**；`src/game/shopOps.ts`（`shopOps.deal`、`cardOps`）、`ui/memoryBook.ts`；以及：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核；登入 PKCE＋續期＋登出；段位光環。**畫面拆出來的**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`、`landmarks`、`eliteFall`、`dashFx`、`coinFly`、`bossCues`）、`src/game/rt/`（`ground`、`offscreenArrows`）、`src/game/pvpRecent.ts`（`streakLine`、`seasonLines`）。Wiki `docs/wiki/online.md`（手寫）。
-1. CI 每輪開頭看一次（第 153 輪最後的程式 commit 是「競技場：①場地美術烤成一張貼圖 ②VS 開場」；之前的都綠，含 mssql）。
-2. **效能巡檢（第 153 輪的教訓，D-331）**：Graphics 每幀都會重跑全部指令。找其他「畫一次就不動、但指令很多」的 Graphics（PvP 大廳框、各面板底、`drawUi` 裡靜態的部分），量 `__game.loop.actualFps`（無頭約 8～10 是正常），多的就 `generateTexture` 烤起來。中階手機 60fps 是驗收條件之一。
-3. **美術續**：A1／A2 等 Jacky 的圖；A5 面板 9-slice 外框（範圍保護第 2 項，可以不做）。可以做的小項：競技場觀眾在大招命中時歡呼（`ArenaArt` 加 `cheer` 的小版本）、拍賣所／交易面板的標題列。**改外觀要附舊／新截圖**。
-4. **交易續（選做）**：拍賣所「逛逛」的掛單標「低於最近成交」（要避免每列一次 `market.history`：伺服器 `market.browse` 一次帶回每個部位×稀有度的中位數，或面板只對看得到的組合各問一次並快取）。SQL 版 `listSold` 量大時加 `ClosedAt` 索引要新遷移 0005（只 CREATE INDEX、在 `game` schema）。
+## ★ 第 155 輪起先做（V5／V6 收尾＋美術，11/7–11/11；11/12 12:00 凍結）
+**已經有的（到第 154 輪）**：美術 `fx/nightLight.ts`、`fx/pressFx.ts`、`floatNumber` 的 `tier`、`rt/ground.ts` 的 `paintVariety`、`fx/ambient.ts`、`fx/arenaArt.ts`（場地貼圖＋火盆＋`cheer()` 勝利彩紙＋**`roar()` 大招小歡呼**）、`fx/vsIntro.ts`、`fx/bossCues.ts`；**效能：`fx/cachedDraw.ts`（CachedDraw：旅商／燼牌對手／相遇人物／光門畫進 RenderTexture，24fps 重畫）、`rt/uiDisc.ts`（DiscLayer：按鈕圓底貼圖，冒險地圖與競技場共用）、競技場血條貼圖＋setCrop（D-332）**；`simGearRating`（D-326）；賽季（D-328）；`market.history`＋`priceStats`（D-329）、**`market.browse { refs: true }`＋`bargainPct`／`refKey`（D-333）、SQL 遷移 0005 `IX_MarketListing_Sold`**；**`src/server/ledgerCheck.ts` 的 `reconcileCharacter`（D-334）**；`src/game/shopOps.ts`、`ui/memoryBook.ts`；`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核；登入 PKCE＋續期＋登出；段位光環。**畫面拆出來的**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`、`landmarks`、`eliteFall`、`dashFx`、`coinFly`、`bossCues`）、`src/game/rt/`（`ground`、`offscreenArrows`、`uiDisc`）、`src/game/pvpRecent.ts`。Wiki `docs/wiki/online.md`（手寫）。
+1. CI 每輪開頭看一次（第 154 輪最後的程式 commit 是「帳本對帳（D-334）」；之前的都綠）。**0005 遷移只在 CI 的 mssql job 真的跑**，第一件事確認它綠。
+2. **效能續（D-332 的方法）**：量法見下面「第 154 輪注意」。剩下比較大的：冒險地圖主畫筆 `g` 的**單位**（每隻怪的影子 fillEllipse＋外圈 strokeEllipse＋血條，24 隻約 1,150 筆；要注意影子圖片跟 g 裡其他東西的上下順序）、`companion`（幽靈小狼，430 筆）、`drawMinimap`。各面板（燼牌 837 行、行商）開著時也可以量一次。
+3. **帳本對帳接排程（選做）**：`server/main.ts` 每天（或啟動時）對最近有異動的角色跑 `reconcileCharacter`，對不上寫 `audit`（action `ledger.mismatch`）＋ log；要一個「列出最近有帳的角色」的 repo 方法（三種 DB＋SQL 用 `LedgerEntry.At` 索引）。
+4. **美術續**：A1／A2 等 Jacky 的圖；A5 面板 9-slice 外框（範圍保護第 2 項，可以不做）。小項：拍賣所／交易面板的標題列。**改外觀要附舊／新截圖**。
 5. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`（大工程，V7 前不一定做）。
-6. **Q5 拆場景繼續**（`RtBattleScene` 4,880 行，範圍保護：停在 < 4,000 不強求）。剩下的大塊：`draw()` 545 行、`playEvents()` 約 470 行、`drawUi()` 198 行、`toggleMenu()` 122 行（跟場景綁很緊，不划算）、`openBag()`。驗證方法見第 151 輪（舊／新 build 比 `commandBuffer`）或第 153 輪（比選單物件的種類／座標／文字）。
-7. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰；風險低。
-8. **V7（11/12 12:00 起凍結）**：截圖（競技場 VS 開場、結果「今日首勝」＋彩紙、拍賣所上架卡片的最近成交、天梯賽季字）、版本 1.2.0、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、手機效能、`npm run wiki`、開發數字（輪數、commit 數、測試數）。截圖用 `scripts/shot-newsave.mjs`（要先 `npx vite --port 5173`）。
+6. **Q5 拆場景繼續**（`RtBattleScene` 約 4,900 行，範圍保護：停在 < 4,000 不強求）。剩下的大塊：`draw()` 545 行、`playEvents()` 約 470 行、`drawUi()` 約 190 行、`toggleMenu()`、`openBag()`。
+7. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰；風險低、工程大。
+8. **V7（11/12 12:00 起凍結）**：截圖（競技場 VS 開場、結果「今日首勝」＋彩紙、拍賣所「▼便宜」列表與掛單卡片行情、天梯賽季字）、版本 1.2.0、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查（遷移已到 0005）、手機效能、`npm run wiki`、開發數字（輪數、commit 數、測試數）。截圖用 `scripts/shot-newsave.mjs`（要先 `npx vite --port 5173`）。
+
+**第 154 輪注意**：
+- **量哪個物件慢**：Playwright 進場後把 `scene.children.list` 每個物件的 `renderWebGL` 包一層計時（`performance.now()`），再包 `game.renderer.render` 數幀數 → 每幀每個物件幾 ms。`Graphics.commandBuffer.length` 是「指令＋參數」的數量，只能當參考；**真正貴的是圓／弧／圓角**（每段弧 100 個點）。無頭瀏覽器的 fps 主要卡在軟體繪圖，看不出 JS 的差別，要看 renderWebGL 時間。
+- `CachedDraw` 要在**同 depth、該在它上面的東西之前**建立（同 depth 照加入順序）：營火／相遇的在 `this.g` 之前（create 裡），光門在門上的字之前（`setupGate`）。範圍不夠會被切掉：用 `screenshots/bounds.js` 的作法（Proxy 假畫筆收所有座標，跑 10 秒的 now）量。
+- `DiscLayer.show(i, …)` 用固定編號；按鈕收掉時 `hideFrom(n)`。
+- `market.browse` 的 `refs` 只有面板（`marketOps.step`）帶；模擬冒險者（`SimMarket`）不要帶。
+- 開場故事／選武器：截圖腳本先點「略過 ▶▶」(335, 33)、再點「選長劍」(69, 590)。
+- `screenshots/` 是 gitignore 的，每輪要自己重寫腳本（這輪的：`probe*.mjs`、`prof2.mjs`、`pvpprof.mjs`、`cmp.mjs`、`mkt.mjs`、`roar.mjs`、`res.mjs`）。
 
 **第 153 輪注意**：
 - **Graphics 很多筆畫又不動 → 烤成貼圖**（`arenaArt` 的做法：`scene.make.graphics({}, false)` 畫完 `generateTexture(KEY, W, H)`、`destroy`，`textures.exists(KEY)` 就跳過）。無頭 fps 掉到 3 時 Phaser 的 delta 有上限，`time.delayedCall` 會被拖慢好幾倍（看起來像「卡在某個 phase」）。

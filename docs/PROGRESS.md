@@ -1,5 +1,13 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-07 20:11–21:00（台北）第 154 輪 — 效能巡檢（冒險地圖／競技場的 Graphics 改貼圖）、拍賣所「▼便宜 N%」、SQL 遷移 0005、帳本對帳、看台小歡呼
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠。
+- **效能（D-332）**：量每個 Graphics 每幀的 renderWebGL 時間。發現 Phaser 的 Graphics 每畫一個圓／弧要算 100 個點（`iterStep = 0.01`）、每幀重配置，而且「靜態」的 Graphics 也每幀重拆三角形。改法：①`fx/cachedDraw.ts`（RenderTexture、每秒重畫 24 次、其他幀只移動）：營火旁旅商／燼牌對手、路上的相遇人物、光門；②`rt/uiDisc.ts`（DiscLayer，同色同半徑烤一次）：冒險地圖 7 顆按鈕＋搖桿底、競技場技能鍵；③競技場頂端血條烤成貼圖、每幀只裁切寬度。結果（無頭、霧語森林營火旁）：主畫筆 2.5 → 1.3ms、ui 0.8 → 0.35ms、荊棘谷 ringG 0.32 → <0.05ms、競技場 hud 1.3 → ~0ms。外觀差別只有競技場血條減少端從圓角變直邊。
+- **拍賣所行情（D-333）**：`market.browse { refs: true }` 一起帶回這頁各「部位×稀有度」最近成交中位數（最多 8 組、少於 3 筆不給、模擬冒險者不要）；逛逛列表副標「▼便宜 N%」（≥10%），掛單卡片「最近成交中位數 N 金・這筆便宜 X%／開得比行情高」。SQL 遷移 **0005** 加 `IX_MarketListing_Sold`（Status, Slot, Rarity, ClosedAt desc）。
+- **帳本對帳（D-334，26 §3.3）**：`src/server/ledgerCheck.ts` 的 `reconcileCharacter`；契約測試三種 DB 轉手 6 次＋取消後對得上。順手修 docDb 同一毫秒的帳排序（36 進位序號字串比較，"10" 排在 "z" 前）。
+- **競技場看台小歡呼**：有人放大招時灑一小撮彩紙＋看台亮一下（`ArenaArt.roar`，1.2 秒冷卻）。
+- 驗證：每步 typecheck、eslint、build、vitest（最後 125 檔 911 項全過，含通關機器人、契約測試）；Playwright：營火／光門／按鈕舊新並排、冷卻扇形、競技場血條舊新、結果畫面按鈕底藏起、拍賣所假資料列表＋卡片；Kysely mssql 編譯器印 0005 的 DDL 核對（DROP INDEX 名稱不能帶 schema）。
+
 ## 2026-11-07 18:11–19:15（台北）第 153 輪 — 競技場每週賽季、拍賣所最近成交、競技場場地美術＋VS 開場＋觀眾彩紙、A4 氛圍補完、Q5 三塊（RtBattleScene 4,985 → 4,880 行）
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（43350b5）。
 - **每週賽季（D-328）**：一季＝台北一週（週一 00:00），伺服器記本季／上季最高分與歷來最好（角色 `pvpSeason`，SQL 版在 Data JSON）；換季不重置分數。天梯左上「本季 剩 N 天／最高／上季」，結果畫面「★ 本季首次到達 X」＋段位色光圈；冒險地圖腳下光環照「現在、本季最高、上季最高」取大。測試：core 單元＋契約四種 DB（換週、migrate.sync 不掉）＋rank-cache。
