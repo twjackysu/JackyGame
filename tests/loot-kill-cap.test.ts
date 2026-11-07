@@ -1,8 +1,9 @@
 // 數量上限（第 148 輪，26-security §3.1）不能擋到正常玩家：Bot 在四張大地圖（白天／深夜）實際打，
-// 每打倒一隻會掉東西的怪就照 loot.claim 的規則檢查 killCap（用遊戲時間、不加寬限＝比伺服器更嚴），一隻都不能超過。
+// 每打倒一隻會掉東西的怪就照 loot.claim 的規則檢查 killCap 與速度權杖桶（用遊戲時間、不加寬限＝比伺服器更嚴），一隻都不能超過。
 import { describe, expect, it } from 'vitest';
 import { createBattle, step } from '../src/core/battle/rt/engine';
 import { hasLoot, killCap, killSource, type LootContext } from '../src/core/battle/rt/loot';
+import { KILL_BURST, KILLS_PER_MIN } from '../src/server/handlers/loot';
 import { stageDef, WORLD_ORDER } from '../src/core/battle/rt/maps/world';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec, type Unit } from '../src/core/battle/rt/types';
@@ -22,6 +23,9 @@ function run(stageId: string, night: boolean, seed: number, boss: boolean): { cl
   let worst = '';
   let worstPct = 0;
   let ev = 0;
+  // 打怪速度的權杖桶（loot.claim 的 rateNow，用遊戲時間）
+  let tokens = KILL_BURST;
+  let at = 0;
   const byId = new Map<number, Unit>();
   while (s.tick < sec(MIN * 60) && s.outcome === 'running') {
     for (const u of s.units) byId.set(u.id, u);
@@ -42,6 +46,10 @@ function run(stageId: string, night: boolean, seed: number, boss: boolean): { cl
         worstPct = n / cap;
         worst = `${src} ${n}/${cap}`;
       }
+      tokens = Math.min(KILL_BURST, tokens + ((e.tick - at) / 30 / 60) * KILLS_PER_MIN);
+      at = e.tick;
+      if (tokens < 1) over.push(`速度上限 @${Math.round(e.tick / 30)}s（${src}）`);
+      tokens -= 1;
       kills[src] = n;
       claims++;
       if (src === 'hidden') hidden++;

@@ -7,7 +7,7 @@ import { ApiError } from '../../src/net/protocol';
 import { LocalTransport } from '../../src/net/LocalTransport';
 import { FakeClock, SeqIds } from '../../src/server/clock';
 import { GameServer } from '../../src/server/GameServer';
-import { KILL_BURST, KILLS_PER_MIN, PVE_BATTLE_TTL } from '../../src/server/handlers/loot';
+import { KILL_BURST, KILLS_PER_MIN, NIGHT_CHEST_REFILL_MS, PVE_BATTLE_TTL } from '../../src/server/handlers/loot';
 import { BAG_MAX } from '../../src/core/meta/bag';
 import { hasLoot, killXp } from '../../src/core/battle/rt/loot';
 import { stageDef } from '../../src/core/battle/rt/maps/world';
@@ -147,7 +147,7 @@ for (const be of BACKENDS)
     });
 
     it('寶箱（第 147 輪）：內容照地圖資料、白天的每個角色一次、夜光的每場一次；沒有的寶箱、白天開夜光、別人的都拒絕', async () => {
-      const { a, b } = await setup(be);
+      const { a, b, clock } = await setup(be);
       const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
       const me = await a.call('character.get', { id: characterId });
       const chests = stageDef('mistwood')!.chests!;
@@ -170,6 +170,10 @@ for (const be of BACKENDS)
       battleId = (await a.call('battle.start', { characterId, stageId: 'mistwood', night: true })).battleId;
       expect(await code(a.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('ok');
       expect(await code(a.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('conflict');
+      // 第 148 輪：馬上出去再進來還沒補滿（線上版不能靠重開一場無限開），NIGHT_CHEST_REFILL_MS 後才又是滿的
+      battleId = (await a.call('battle.start', { characterId, stageId: 'mistwood', night: true })).battleId;
+      expect(await code(a.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('conflict');
+      clock.advance(NIGHT_CHEST_REFILL_MS);
       battleId = (await a.call('battle.start', { characterId, stageId: 'mistwood', night: true })).battleId;
       expect(await code(a.call('loot.chest', { characterId, battleId, chestId: night.id }))).toBe('ok');
     });
@@ -190,6 +194,11 @@ for (const be of BACKENDS)
       clock.advance(60_000 / KILLS_PER_MIN);
       expect(await claim()).toBe('ok');
       expect(await claim()).toBe('rate_limited');
+      // 第 148 輪：重開一場不會補滿（以前每次 battle.start 又有 KILL_BURST 隻）
+      const again = (await a.call('battle.start', { characterId, stageId: 'mistwood' })).battleId;
+      expect(await code(a.call('loot.claim', { characterId, battleId: again, killSeq: 1, enemyId: 'wolf', groupId: 'entry' }))).toBe('rate_limited');
+      clock.advance(60_000 / KILLS_PER_MIN);
+      expect(await code(a.call('loot.claim', { characterId, battleId: again, killSeq: 2, enemyId: 'wolf', groupId: 'entry' }))).toBe('ok');
     });
 
     it('數量上限（第 148 輪）：同一個重生點、Boss、暴動、隱藏精英都不能比重生規則算得出的還多；重開一場 Boss 也要等重生時間', async () => {
@@ -249,11 +258,12 @@ for (const be of BACKENDS)
     });
 
     it('行囊滿了：照單機規則（分解最差的普通裝，或這件撿不起來），行囊不會超過上限', async () => {
-      const { a } = await setup(be, () => 0.01);
+      const { a, clock } = await setup(be, () => 0.01);
       const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
       // 塞滿行囊：亂數 0.01 → 狼每隻都掉一件普通裝（每場重開避開速度上限）
       let full = false;
       for (let i = 0; i < BAG_MAX + 2 && !full; i++) {
+        clock.advance(60_000 / KILLS_PER_MIN); // 速度上限跨場帶著走
         const { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
         const r = await a.call('loot.claim', { characterId, battleId, killSeq: 1, enemyId: 'wolf', groupId: 'entry' });
         expect(r.drops.some((d) => d.kind === 'gear' && d.rarity === 1)).toBe(true);

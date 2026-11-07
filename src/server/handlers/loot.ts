@@ -26,6 +26,8 @@ export const KILLS_PER_MIN = 40;
 export const KILL_BURST = 10;
 /** 一場最多申請幾次 */
 export const MAX_CLAIMS = 3000;
+/** 夜光寶箱（D-108：每次進深夜都是滿的）在同一張圖最快多久補滿一次（線上版；出去再進來不能無限開，第 148 輪） */
+export const NIGHT_CHEST_REFILL_MS = 5 * 60 * 1000;
 /** 數量上限的寬限（battle.start 回來前引擎已經在跑、時鐘誤差）：多算這麼久的重生 */
 export const KILL_GRACE_MS = 15_000;
 
@@ -41,6 +43,10 @@ interface StoredBattle {
   kills?: Record<string, number>;
   /** 每張圖最後一次打倒 Boss 的時間（牆鐘 ms）：重開一場也帶過去，Boss 不能靠「出去再進來」比重生規則更快刷（第 148 輪） */
   bossAt?: Record<string, number>;
+  /** 打怪速度的權杖桶（開場 KILL_BURST 個、每分鐘補 KILLS_PER_MIN 個）：跨場帶著走，重開一場不會補滿（第 148 輪） */
+  rate?: { tokens: number; at: number };
+  /** 每個夜光寶箱（圖:寶箱）最後一次打開的時間：跨場帶著走 */
+  nightAt?: Record<string, number>;
   /** 這場開過的夜光寶箱（每次進深夜都是滿的，D-108） */
   nightChests?: string[];
 }
@@ -51,6 +57,19 @@ function parse(json: string | undefined): StoredBattle | null {
   } catch {
     return null;
   }
+}
+
+/** 打怪速度權杖桶現在有幾個（舊資料沒有 rate：照以前「開戰時滿的」算） */
+function rateNow(b: StoredBattle, now: number): { tokens: number; at: number } {
+  const r = b.rate ?? { tokens: KILL_BURST, at: b.at };
+  return { tokens: Math.min(KILL_BURST, r.tokens + (Math.max(0, now - r.at) * KILLS_PER_MIN) / 60000), at: now };
+}
+
+/** 過了補滿時間的夜光寶箱紀錄丟掉（角色列不會一直變大） */
+function pruneNight(m: Record<string, number> | undefined, now: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, t] of Object.entries(m ?? {})) if (now - t < NIGHT_CHEST_REFILL_MS) out[k] = t;
+  return out;
 }
 
 const optStr = (v: unknown, what: string): string | undefined => (v === undefined ? undefined : idParam(v, what));
@@ -70,7 +89,7 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
     // 還沒開放的地圖、還沒解鎖的深夜不能開（跟畫面層 mapOpen／nightUnlocked 同一條規則）
     if (!worldStageOpen(stageId, c.maps) || (night && !worldNightOpen(stageId, c.maps))) throw new ApiError('rejected', 'locked');
     const prev = parse(c.pveBattle);
-    const b: StoredBattle = { id: ctx.ids.next('pve'), stageId, night, at: ctx.clock.now(), seq: 0, claims: 0, ...(prev?.bossAt ? { bossAt: prev.bossAt } : {}) };
+    const b: StoredBattle = { id: ctx.ids.next('pve'), stageId, night, at: ctx.clock.now(), seq: 0, claims: 0, ...(prev?.bossAt ? { bossAt: prev.bossAt } : {}), ...(prev ? { rate: rateNow(prev, ctx.clock.now()) } : {}), ...(prev?.nightAt ? { nightAt: prev.nightAt } : {}) };
     await ctx.r.characters.save({ ...c, pveBattle: JSON.stringify(b) });
     return { battleId: b.id };
   },
@@ -92,7 +111,8 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
     const now = ctx.clock.now();
     if (!b || b.id !== bid || now - b.at > PVE_BATTLE_TTL) throw new ApiError('not_found', 'battle');
     if (seq <= b.seq) throw new ApiError('conflict', 'killSeq');
-    if (b.claims >= MAX_CLAIMS || b.claims + 1 > KILL_BURST + Math.floor(((now - b.at) * KILLS_PER_MIN) / 60000)) throw new ApiError('rate_limited', 'kills');
+    const rate = rateNow(b, now);
+    if (b.claims >= MAX_CLAIMS || rate.tokens < 1) throw new ApiError('rate_limited', 'kills');
 
     const prog = c.maps[b.stageId] ?? {};
     const lc: LootContext = { stageId: b.stageId, defId: enemyId, night: b.night, fury, affix, firstKill: !(prog.bossKills ?? 0) };
@@ -149,7 +169,7 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
 
     // 這場的進度；打倒 Boss 記在地圖進度（伺服器記，firstRare 保底只有第一次）
     const cur = (await ctx.r.characters.get(c.id))!;
-    const next = { ...cur, pveBattle: JSON.stringify({ ...b, seq, claims: b.claims + 1, kills: { ...kills, [src]: (kills[src] ?? 0) + 1 }, ...(boss ? { bossAt: { ...b.bossAt, [b.stageId]: now } } : {}) }) };
+    const next = { ...cur, pveBattle: JSON.stringify({ ...b, seq, claims: b.claims + 1, rate: { tokens: rate.tokens - 1, at: now }, kills: { ...kills, [src]: (kills[src] ?? 0) + 1 }, ...(boss ? { bossAt: { ...b.bossAt, [b.stageId]: now } } : {}) }) };
     // 經驗與升級也由伺服器算（26-security：經驗是敏感邏輯）；規則和引擎同一份（killXp、xpToNext）
     const xp = killXp(lc);
     const maxLevel = stageDef(b.stageId)?.progression?.maxLevel ?? 1;
@@ -194,13 +214,16 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
     const mp = c.maps[b.stageId] ?? {};
     const opened = chest.nightOnly ? (b.nightChests ?? []) : (mp.chests ?? []);
     if (opened.includes(chestId)) throw new ApiError('conflict', 'opened');
+    const nk = `${b.stageId}:${chestId}`;
+    const lastNight = chest.nightOnly ? b.nightAt?.[nk] : undefined;
+    if (lastNight !== undefined && now - lastNight < NIGHT_CHEST_REFILL_MS) throw new ApiError('conflict', 'refilling');
     // 內容是地圖資料寫死的（不擲骰；藥水是戰鬥中的消耗品，伺服器不記）
     const got = { coin: chest.loot.gold ?? 0, dust: chest.loot.dust ?? 0, crystal: chest.loot.crystal ?? 0 };
     if (got.coin) await ctx.r.wallets.apply(c.id, 'coin', got.coin, 'chest', `${b.stageId}:${chestId}`);
     if (got.dust) await ctx.r.wallets.apply(c.id, 'dust', got.dust, 'chest', `${b.stageId}:${chestId}`);
     if (got.crystal) await ctx.r.wallets.apply(c.id, 'crystal', got.crystal, 'chest', `${b.stageId}:${chestId}`);
     const cur = (await ctx.r.characters.get(c.id))!;
-    if (chest.nightOnly) await ctx.r.characters.save({ ...cur, pveBattle: JSON.stringify({ ...b, nightChests: [...opened, chestId] }) });
+    if (chest.nightOnly) await ctx.r.characters.save({ ...cur, pveBattle: JSON.stringify({ ...b, nightChests: [...opened, chestId], nightAt: { ...pruneNight(b.nightAt, now), [nk]: now } }) });
     else await ctx.r.characters.save({ ...cur, maps: { ...cur.maps, [b.stageId]: { ...(cur.maps[b.stageId] ?? {}), chests: [...opened, chestId] } } });
     return { ...got, character: await freshView(ctx, c.id) };
   },
