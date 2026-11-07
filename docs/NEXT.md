@@ -6,14 +6,21 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 149 輪起先做（V5／V6 收尾，11/7–11/11；11/12 12:00 凍結）
-**已經有的（到第 148 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`（**`killSource`／`killCap` 數量上限**）、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`（**跨場速度桶、Boss 重生時間、夜光 5 分鐘，D-313**）；**被拒絕的敏感請求寫 AuditLog（D-314，`audit.recent`）**；HTTP 1 MB／其他方法 16 KB（D-315）；即時 PvP（D-310，不部署）；`characterCache`；`src/game/rt/`（`MinimapSystem`、**`BountyBoard`**）、`hudText.hudLine`。
-1. CI 每輪開頭看一次（第 148 輪最後的程式 commit 是「Q5：頂端 HUD 一行的排字搬到 hudText.hudLine」；**確認 mssql job 的 `concurrency.test.ts` 過了**——它是 SQL 版交易鎖的真正驗收；紅了就看 MssqlDb.tx 的隔離等級／`UPDLOCK`，不要放寬測試）。
-2. **登入收尾**（D-317 已做 PKCE 登入；過期時 `GameClient.onUnauthorized` 問一次「要重新登入嗎？」）：refresh token（`offline_access` 已要，可以不轉頁就續期）；標題顯示登入中的帳號／登出鈕。Jacky 建好 Entra 前用假 IdP 測（PROGRESS 第 148 輪有做法：node 起一個 /t/oauth2/v2.0/authorize 302 回 redirect_uri＋/token 回 id_token）。
-3. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取，persist 不再加本機金幣，D-313 那輪修了大半）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`。夜光寶箱／Boss 被伺服器拒絕時，本機仍會飄「+金幣」字（HUD 是對的）——可以在 `onlineLoot` 收到 rejected 時公告「寶箱還沒補滿」。
+## ★ 第 150 輪起先做（V5／V6 收尾，11/7–11/11；11/12 12:00 凍結）
+**已經有的（到第 149 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（**`canChallenge`／`PVP_CHALLENGE_RANGE`**）、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`（`killSource`／`killCap`）、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`（**`market.mine` 帶 `news`，D-320**）、`pvp.*`（**`pvp.start` 可帶 `foeId` 指名挑戰 D-319；`pvp.ladder` 帶 `recent` 戰績 D-321**）、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核（D-314）；HTTP 1 MB／其他 16 KB（D-315）；即時 PvP（D-310，不部署）；`characterCache`；`src/game/rt/`（`MinimapSystem`、`BountyBoard`）、`hudText.hudLine`；**登入 PKCE＋refresh token 續期＋標題帳號／登出（D-317、D-322）**；**冒險地圖段位光環（`src/game/rankCache.ts`＋`fx/rankAura.ts`，D-318）**。
+1. CI 每輪開頭看一次（第 149 輪最後的程式 commit 是「競技場戰績」d81789a；前一個 cb7ef74 全綠含 mssql）。
+2. **競技場「復仇」（小）**：戰績（`pvpHistory`）多存 `foeId`，天梯點「近況」展開最近 5 場，敗場有「⚔ 再挑一次」（走 `pvp.start foeId`，分差規則一樣由伺服器檢查）。近況字可以照勝敗上色。
+3. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`。夜光寶箱／Boss 被伺服器拒絕時，本機仍會飄「+金幣」字（HUD 是對的；夜光寶箱已有公告）。
 4. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰：`battle.start` 給種子、客戶端記 Boss 區域內的指令紀錄，`loot.claim`（Boss）附紀錄、伺服器重跑那一段。數量上限（D-312）已經擋掉大部分偽造；暴怒／詞綴旗標還是客戶端說的。
-5. **Q5 拆場景繼續**（`RtBattleScene` 約 6,575 行，範圍保護：停在 < 4,000 不強求）：下一塊 `updateFireBtn`／營火捷徑列、`announce` 佇列。做法：純函式＋view 物件、測試對照搬家前的實機文字或截圖。
-6. **V7（11/12 12:00 起凍結）**：README 成果發表（架構圖「換掉連線字串／後端就能上線」、資安設計、交易、PvP 天梯、多角色）、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能、`npm run wiki`。
+5. **Q5 拆場景繼續**（`RtBattleScene` 約 6,580 行，範圍保護：停在 < 4,000 不強求）：下一塊 `updateFireBtn`／營火捷徑列、`announce` 佇列。做法：純函式＋view 物件、測試對照搬家前的實機文字或截圖。
+6. **V7（11/12 12:00 起凍結）**：README 成果發表（架構圖「換掉連線字串／後端就能上線」、資安設計、交易（拍賣所＋賣出通知、託管交易）、PvP 天梯（指名挑戰、戰績、段位光環）、多角色）、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能、`npm run wiki`。`scripts/shot-newsave.mjs` 的 Bot 掛法壞了（`sc().pending` 已不存在，改成 `commands = () => bot.decide(sc().s)`，第 149 輪本機副本 `screenshots/sn.mjs` 已驗證），V7 截圖前先修。
+
+**沙盒注意（第 149 輪）**：無頭 Chromium 的 IndexedDB 在這個沙盒**一次寫入約 3 秒**（裸 IDB 測過，不是遊戲的問題）→ 新存檔第一次開拍賣所（30 個模擬冒險者補跑）會逾時。截圖拍賣所時用假的 ops（`screenshots/r149mkt.mjs` 的做法），或只拍不需要大量寫入的畫面。
+
+**指名挑戰／戰績／賣出通知注意（第 149 輪）**：
+- 角色多了 `pvpHistory`、`marketSeenAt`（和 `pvpRating` 一樣：記憶體／本機 DB 存整列，SQL 版在 `Character.Data` 的 JSON——**新欄位要加進 `MssqlDb.ts` 的 `charRow` Pick 和 save 的 `Data`**，不然 SQL 版會掉）。匯出／匯入不帶這兩個（沒有就是空）。
+- `market.mine` 第一次看（`marketSeenAt` 沒有）只記時間、不通知舊的成交。
+- 冒險地圖的段位光環只在 **荊棘（1100）以上**才畫（起始 1000 是霧語，不想讓沒打過競技場的人腳下多一圈）；`refreshRank` 每次開遊戲第一次進地圖問一次 `pvp.ladder`。
 
 **登入注意（第 148 輪）**：
 - 只有 `import.meta.env.VITE_SERVER_URL` 分支裡才用（離線版 bundle 不含，已檢查）；`crypto.subtle` 要安全來源（https 或 localhost）。

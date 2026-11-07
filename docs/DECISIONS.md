@@ -2,6 +2,28 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-322 2026-11-07 線上版登入續期：存 refresh token、GameClient 先續期再問
+- **決策**：授權碼換 token 時一起存 Entra 回的 refresh token（localStorage `jg_online_refresh`）。啟動時 id_token 快過期就用它換新的（不轉頁）；玩到一半伺服器回 `unauthorized`：`GameClient.refreshToken` 先續期、用**同一個 requestId** 重送一次（同時好幾個請求被拒只續期一次），續不了才走 `onUnauthorized` 問要不要重新登入。OAuth 明確拒絕（`invalid_grant` 等）才丟掉 refresh token，網路／伺服器暫時壞掉留著。標題顯示帳號名（id_token 的 name／email）＋登出（清兩個 token、轉 Entra 登出頁）。
+- **理由**：id_token 只有約 1 小時，玩一場就可能過期；每次轉頁會打斷遊戲。SPA 的 refresh token 只活 24 小時、每用一次換新（Entra 的輪替），放 localStorage 的風險和 id_token 同級；離線版完全不含這段。
+- **替代**：iframe 靜默登入（第三方 cookie 被擋，手機上常失敗）；MSAL.js（大）。
+
+## D-321 2026-11-07 競技場戰績：角色存最近 5 場
+- **決策**：`pvp.finish` 把（結果、對手名字、分數變化、時間）放進角色的 `pvpHistory`（JSON 字串，新的在前，最多 5 場）；`pvp.ladder` 帶 `recent`。天梯右上角「近況 勝敗和」。
+- **理由**：打完一場回大廳只看到總分，看不出最近手感；V6 搬到 `game.PvpMatch` 表之前先放角色列（和 pvpRating 同一個做法，不用遷移）。
+
+## D-320 2026-11-07 拍賣所賣出通知由伺服器算
+- **決策**：角色多 `marketSeenAt`；`market.mine` 回 `news`＝上次看過之後才 `sold` 的掛單，回完把 `marketSeenAt` 推到最新成交時間。第一次看（沒有紀錄）只記時間，不翻舊帳。畫面：「你不在的時候賣出 N 件・+X 金」＋物品名；操作中模擬冒險者剛買走說「剛剛有人買走」。
+- **理由**：以前畫面用「金幣差」猜，不知道賣了什麼、線上版也不準；伺服器知道成交時間，換成真人買家也一樣。
+- **替代**：推播／信箱（要常駐連線，上線後再說）。
+
+## D-319 2026-11-07 競技場指名挑戰：段位分差 200 內
+- **決策**：`pvp.start` 可帶 `foeId`（天梯列的對手 id）；伺服器用**今天的**段位分檢查 `canChallenge`（差 ≤ 200），超過 `rejected`、不存在 `not_found`。天梯上可挑的名字前有 ⚔，點整列開局。沒帶 foeId 照舊挑分數最近的 5 人之一。
+- **理由**：想打特定對手（排行上一名、剛輸給的人）是天梯最好玩的地方；限制分差避免專挑低分（Elo 給得少）或高分亂打灌排行。上線後換成真人帳號一樣適用。
+
+## D-318 2026-11-07 冒險地圖也畫段位光環（荊棘以上）
+- **決策**：競技場段位分 ≥ 1100（荊棘）時，冒險地圖主角腳下畫和競技場一樣的光環（`fx/rankAura.ts` 共用）。分數是伺服器的，`src/game/rankCache.ts` 只做畫面快取：每次開遊戲第一次進地圖問一次 `pvp.ladder`（失敗下次再問）、競技場天梯／開局／結算直接更新、換角色重問。
+- **理由**：PvP 獎勵只給外觀（FOR_JACKY 預設），但外觀只在競技場看得到就沒感覺；起始 1000 分是「霧語」，從荊棘開始才顯示，沒打過競技場的人畫面完全不變。
+
 ## D-317 2026-11-07 線上版登入：授權碼＋PKCE 自己做（不用 MSAL.js）
 - **決策**：`src/client/oidcLogin.ts`（純函式：PKCE、登入頁網址、state 檢查、換 token、過期判斷）＋`boot.ts` 線上分支：建置時有 `VITE_ENTRA_AUTHORITY`／`VITE_ENTRA_CLIENT_ID` 才啟用；沒有有效 token 就整頁轉登入頁（同一分頁只自動轉一次）；拿 **id_token**（aud＝client id）當 API 的 token。deploy-pages 從 repo 變數 `ENTRA_AUTHORITY`／`ENTRA_CLIENT_ID` 帶進去。
 - **理由**：MSAL.js 幾百 KB、手機載入慢；我們只需要授權碼＋PKCE 一條路。id_token 不用另外在 Entra 開 API scope，設定最少。

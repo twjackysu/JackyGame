@@ -51,6 +51,7 @@ npm run build:server && cd dist-server && AUTH_MODE=dev node main.js
   1. 建 Entra External ID 租戶 → App registrations → 新增「單頁應用程式（SPA）」平台，重新導向 URI 填 `https://twjackysu.github.io/JackyGame/online/`（本機試加 `http://localhost:4174/`）。
   2. 建置變數：`VITE_ENTRA_AUTHORITY`＝`https://<租戶>.ciamlogin.com/<租戶>.onmicrosoft.com`、`VITE_ENTRA_CLIENT_ID`＝應用程式（用戶端）識別碼（GitHub Actions 的 Variables 也加這兩個，deploy-pages 的線上版建置會帶）。
   3. API 環境變數：`AUTH_MODE=jwt`、`JWT_ISSUER`＝`https://<租戶 id>.ciamlogin.com/<租戶 id>/v2.0`、`JWT_AUDIENCE`＝同一個 client id（我們送的是 id_token）、`JWT_JWKS_URL`＝`https://<租戶>.ciamlogin.com/<租戶 id>/discovery/v2.0/keys`。
+  第 149 輪（D-322）：拿到的 refresh token 存在 `jg_online_refresh`，id_token 過期（約 1 小時）時**不轉頁續期**（啟動時、或玩到一半伺服器回 unauthorized 時），Entra 不用多設定（SPA 平台本來就給 refresh token，24 小時內有效）；續不了才問要不要重新登入。標題版本號上面顯示「線上帳號：名字〔登出〕」（轉 Entra 登出頁再回來）。
   沒設 Entra 變數：不轉登入頁（跟以前一樣）。`VITE_AUTH_MODE=dev` 只給本機：自動產生 `dev:<亂數>`，只對 `AUTH_MODE=dev` 的伺服器有效。
 - **CORS**：API 的 `CORS_ORIGINS` 要列出客戶端網址（例如 `https://twjackysu.github.io`），不然瀏覽器會擋。
 - **放上 GitHub Pages（第 148 輪）**：API 部署好之後，到 GitHub repo → Settings → Secrets and variables → Actions → **Variables** 新增 `ONLINE_API_URL`＝API 網址（例如 `https://jackygame-api.<region>.azurecontainerapps.io`），下一次推 main（或手動跑 Deploy to GitHub Pages）就會把線上版放在 `https://twjackysu.github.io/JackyGame/online/`。沒設這個變數就跟以前一樣只有離線版。記得 API 的 `CORS_ORIGINS` 加 `https://twjackysu.github.io`。
@@ -64,4 +65,4 @@ npm run build:server && cd dist-server && AUTH_MODE=dev node main.js
   ```
 
 ## 還沒做（之後的輪次）
-- token 過期（約 1 小時）會在下次開遊戲時重新登入；還沒做 refresh token 與遊戲中途過期的提示。舊 key 完全退場。
+- refresh token 超過 24 小時（Entra SPA 的上限）要重新登入一次。舊 key 完全退場（線上版畫面全讀 `characterCache`）。

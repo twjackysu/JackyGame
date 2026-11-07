@@ -1,5 +1,16 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-07 10:12–11:10（台北）第 149 輪 — 登入續期＋登出、冒險地圖段位光環、競技場指名挑戰＋戰績、拍賣所賣出通知
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（05967c0）。
+- **登入續期（D-322）**：`oidcLogin` 存 refresh token（`jg_online_refresh`）、`refreshLogin`／`logout`／`tokenDisplayName`；`GameClient.refreshToken`：unauthorized 先續期、同一個 requestId 重送、同時被拒只續期一次。標題「線上帳號：名字〔登出〕」（`src/game/ui/onlineAccount.ts`，只在線上分支動態載入，離線 bundle 不含）。Playwright 對假 IdP＋假閘道（把有效 JWT 換成 dev token 轉給真的 dist-server）：登入、啟動時過期續期、玩到一半過期（並發兩個請求）續期一次後成功、登出 → Entra 登出頁 → 再登入；零錯誤。
+- **段位光環上冒險地圖（D-318）**：荊棘（1100）以上；`rankCache`＋`fx/rankAura`（競技場共用）。截圖：星隕（光圈＋光點）／荊棘（綠圈）／清掉（沒有）。
+- **指名挑戰（D-319）**：`pvp.start foeId`，伺服器用今天的分數檢查分差 ≤ 200；天梯可挑的名字前 ⚔、點整列開局。修：從天梯列開局時「開始對戰／離開」沒收掉（截圖抓到的）。
+- **戰績（D-321）**：`pvpHistory` 最近 5 場、`pvp.ladder.recent`；天梯右上「近況」。
+- **賣出通知（D-320）**：`market.mine.news`（`marketSeenAt`）；「你不在的時候賣出 N 件・+X 金」＋物品名，提示字改自動換行（第一版截圖超出畫面）。
+- **CI**：第一個 commit 的 mssql job 紅：`server.test.ts` 匯出入測試 `timeoutMs: 200 × 13` 不夠 SQL 容器跑 migrate.legacy（跟程式無關）→ 不掉包的測試逾時改 5 秒。之後全綠（cb7ef74 含 mssql）。
+- 驗證：每步 typecheck、eslint、build、build:online＋bundle 檢查、build:server、vitest（最後 119 檔 852 項全過，含通關機器人、契約測試四種 DB）。
+- **踩到的**：這個沙盒的無頭 Chromium IndexedDB 一次寫入約 3 秒（裸 IDB 量過）→ 新存檔開拍賣所逾時，不是遊戲問題；`scripts/shot-newsave.mjs` 的 Bot 掛法過時（`sc().pending`）。
+
 ## 2026-11-07 08:11–09:05（台北）第 148 輪 — PvE 防作弊上限、拒絕稽核、修線上 PvP 結算 413、HTTP 兩客戶端整合測試、並發測試、線上登入（PKCE）、Pages /online/、Q5 兩塊
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（46927dd）。
 - **PvE 數量上限（D-312）**：`core/battle/rt/loot.ts` `killSource`／`killCap`（重生點、Boss、暴動、隱藏精英各自照地圖重生規則算上限），`loot.claim` 超過回 rejected。`tests/loot-kill-cap.test.ts`：Bot 四張圖白天／深夜各 8 分鐘（刷怪＋打 Boss），一隻都沒超過。
@@ -98,36 +109,11 @@
 - **再追加（D-278）**：後端定案 Node.js＋TS、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（`Game` schema、權限隔離、各自遷移）；新增 `docs/design/25-azure-backend.md`，23／24／NEXT／FOR_JACKY 同步。
 - **再追加（D-279）**：新增 `docs/design/26-security.md`（敏感邏輯只在後端、防作弊、Web 安全、秘密管理）；DB 改用 `GAME_DB_CONNECTION_STRING`（開發 LocalDB＋`msnodesqlv8`、CI 用 SQL Server 容器）；資料庫已有小寫 `game` schema 與 8 張舊表 → 沿用 `game`、遷移不碰舊表。
 
-## 2026-11-05 22:17–22:40（台北）第 138 輪 — 檢查 Jacky 匯入的 R-018／R-019 新圖
-**背景**：Jacky 21:01 在本機匯入標題主視覺與三武器主角並 push，CI／Pages／APK 全綠（8f369e2）。沒有 Issue、art-inbox 空、FOR_JACKY「回覆」空。
-- 看過三張主角圖：都**面朝右**（弓往右拉），不用翻。即時遊玩截圖（390×844，霧語森林營火旁）長劍／長弓／法杖都換成新圖、沒有疊到程式武器。
-- 標題截圖 390×844 與 360×640：標題字壓在星空區、主角在左下、「點擊開始」可讀，沒有 console error。
-- README 最上面加標題主視覺截圖；`docs/screenshots/01-title.jpg` 換成新版（Wiki 畫面集同步）。
-- 驗證：typecheck、build、vitest 418 項全過（含通關機器人）。
-- 備註：`shot-newsave.mjs` 快轉截圖裡角色會變白色剪影（藏相機快轉的副作用，即時畫面正常），看美術要用即時等待的截圖。
-
-## 2026-11-05 20:18–20:33（台北）第 137 輪 — Jacky 回覆：README 精簡＋Wiki、技能樹、強化確認框、新主角圖 prompt
-**背景**：Jacky 20:06／20:08 在 FOR_JACKY「回覆」寫了四件事，本輪中途又追加兩件（技能樹要像暗黑、強化要寫出數值變化並跳確認框、綠升紅降）。沒有 Issue、art-inbox 空。
-- **D-274 強化確認框**：`gear.ts` 新 `enhanceDiff()`／`enhanceGain()`；行囊詳情卡多一行「成功後：…」，按「強化！」先開確認框（每列 原值 → 新值，綠／紅／灰），確定才強化。
-- **D-272 技能樹**：`rtSkillPanel.ts` 重寫成五欄樹狀（節點點一下加點、三個分支點一下換打法、下方說明框）；`rtSkills.ts` 新 `setVariant()`。
-- **D-273 Wiki**：`tests/wiki-gen.test.ts` 由遊戲資料產生 `docs/wiki/`（強化、技能樹、裝備與神裝、怪物與掉落），`npm run wiki` 寫檔；`gallery.md` 手寫（從舊 README 搬來的截圖集）。README 從 155 行縮到約 60 行。
-- **D-275 美術**：ART_REQUESTS 清掉已完成項目，新增 R-018（GPT 標題主視覺，沒有燈）、R-019（Gemini sheet 三武器 Q 版主角）；程式先寫好 `heroKey()`、`import-art.mjs` 的 `hero_` 前綴、`art-sheets.json`。
-- 驗證：build、vitest 418 項全過（含通關機器人、新 `rt-enhance-gain`／`rt-skill-setvariant`／`wiki-gen`）；Playwright 截圖看過行囊詳情、確認框、強化成功、技能樹（長劍 390×844、法杖 360×640、滿級解鎖分支）。截圖腳本 `screenshots/r137.mjs`、`r137s.mjs`（gitignored）。
-- 問題：8bb4502 的 CI／Pages 紅了——`npm run typecheck` 也檢查 `tests/`，wiki 產生器有沒用到的常數（本機只跑了 vitest）。843464c 修好，Pages／APK 綠。**推之前要跑 `npm run typecheck`（不是只有 vitest）**。
-
-## 2026-11-05 18:12–18:40（台北）第 136 輪 — 檢查 Jacky 匯入的 AI 怪物圖、修棘背狼朝向
-**背景**：Jacky 17:39 在本機匯入 R-012～R-017（六隻怪 AI 圖）並 push。CI／Pages／APK 全綠（27aa19c）；沒有 Issue、art-inbox 空、FOR_JACKY「回覆」空。
-- **棘背狼原圖朝左**，`SPRITE` 的 `flip` 假設原圖朝右（往左走才 flipX）→ 會倒著走、咬擊特效方向反。直接把 `public/art/enemy_thorn_wolf.webp` 左右翻轉（巡獵者、迷霧狼原圖都朝右；Boss／母樹／岩王不翻轉或對稱）。**之後匯入會左右走的怪要確認原圖朝右。**
-- README：版本 1.1.0、約 140 輪／1140+ commits／410+ 測試；美術說明拿掉「史萊姆、岩王是程式繪製」（已換 AI 圖）。
-- 驗證：build、vitest 412 項全過（含通關機器人）；`shot-meet.sh` 截圖看過荊棘谷狼后、燼紅裂谷岩王（390×844），新圖大小、位置正常。
-
-## 2026-11-05 16:13–16:50（台北）第 135 輪 — Jacky 回覆：改名、永遠最新版、APK 可覆蓋安裝（版本 1.1.0）
-**背景**：Jacky 14:32 在 FOR_JACKY「回覆」寫了試玩心得（因瀏覽器快取看到舊版）、要求改名、問怎麼保證最新版、要 FOR_JACKY 只寫重點、職業切換維持可換。沒有 Issue、art-inbox 空。
-- **D-269 改名**《命運之境：轉生後的異世界冒險》（英文 Realm of Fate）：i18n 標題／副標、結局副標與名單、index.html、manifest、Capacitor／Android strings／iOS Info.plist、package.json、README；劇中手遊《星燼回響》保留。
-- **D-270 永遠最新版**：`dist/version.json`（不進 precache）＋`src/versionCheck.ts`：標題畫面自動清快取帶 `?v=` 重整、冒險中 DOM 提示、重整過一次仍舊就只提示；App 提示下載 APK／iOS 改玩網頁版。`android/app/debug.keystore` 固定簽章、versionCode 用 CI run number。
-- **D-271** 職業維持可換；多角色＋共用倉庫列為之後方向。FOR_JACKY 重寫成 30 行重點版。
-- 驗證：typecheck、vitest 412 項全過（新 `tests/version-check.test.ts` 5 項）；preview 改假的新版 version.json → 自動跳到 `?debug=&v=zzzzzzz`，第二次出現「有新版本 9.9.9（你的是 1.1.0）・更新」，截圖看過（390×844）；標題新名字截圖正常。
-- CI／Pages／APK 全綠（0d5da18；APK 第一次用固定 debug 簽章建置成功）。雲端 shell 連不到 github.io，version.json 線上內容沒直接看。
+## 2026-11-05 16:13–22:40（台北）第 135～138 輪：每日摘要（第 149 輪合併）
+- **第 135 輪（Jacky 回覆）**：改名《命運之境：轉生後的異世界冒險》（D-269）；永遠最新版：`dist/version.json`＋`src/versionCheck.ts`（標題自動重整、冒險中提示，D-270）；APK 固定 debug 簽章可覆蓋安裝、版本 1.1.0；職業維持可換（D-271）。
+- **第 136 輪**：檢查 Jacky 匯入的六隻怪 AI 圖；棘背狼原圖朝左 → 翻成朝右（**匯入會左右走的怪要確認原圖朝右**）。
+- **第 137 輪（Jacky 回覆）**：強化確認框（數值變化綠升紅降，D-274）、暗黑式技能樹（D-272）、Wiki 由遊戲資料產生（`npm run wiki`，D-273）、README 精簡、R-018／R-019 美術需求（D-275）。教訓：**推之前跑 `npm run typecheck`（也檢查 tests/）**。
+- **第 138 輪**：Jacky 匯入的標題主視覺與三武器主角圖都面朝右、截圖正常；README 換新標題截圖。`shot-newsave.mjs` 快轉截圖角色會變白色剪影（看美術用即時等待截圖）。
 
 ## 2026-11-04 00:14～11-05 14:15（台北）第 115～134 輪：每日摘要（第 141 輪合併）
 - 11/4 功能凍結期，大多是健康檢查（CI／Pages／APK、Issue、art-inbox、FOR_JACKY 都看過，沒有要修的）。
