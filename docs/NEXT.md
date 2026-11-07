@@ -6,14 +6,21 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 152 輪起先做（V5／V6 收尾，11/7–11/11；11/12 12:00 凍結）
+## ★ 第 153 輪起先做（V5／V6 收尾＋美術，11/7–11/11；11/12 12:00 凍結）
 **已經有的（到第 151 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（`canChallenge`、`pvpStreakAfter`／`taipeiDay`、`simGearPlan`）、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`（`pvp.finish` 回 `streak`／`firstWin`、`pvp.ladder` 帶 `streak`，D-324；對手配裝 `simGearPlan(min(對手, 你))`，D-325）、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核；登入 PKCE＋續期＋登出；段位光環。**畫面拆出來的**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`、`landmarks`、`eliteFall`、`dashFx`、`coinFly`）、`src/game/rt/`（`ground`、`offscreenArrows`）、`src/game/pvpRecent.ts`（`streakLine`）。Wiki `docs/wiki/online.md`（手寫，導覽列在 `tests/wiki-gen.test.ts` 的 NAV）。
-1. CI 每輪開頭看一次（第 151 輪最後的程式 commit 是 D-325「競技場平衡點」；之前每個都綠）。
-2. **競技場平衡再看一眼（選做）**：D-325 後最強裝備（全身稀有 ilvl10）對模擬冒險者 100% 勝、停在約 1400（模擬冒險者最高約 1250，沒人打得過）——可以接受（冠軍），但也可以讓 1300 以上的模擬冒險者配裝再好一點。量法：`npx vitest run tests/pvp-ladder-balance.test.ts`（改裡面的 kind 清單、加 `console.log` 看每場 v/d）。**Bot 對 Bot 是確定性的，只看「Elo 找不找得到平衡點」，不要看單場勝率**。
+1. CI 每輪開頭看一次（第 152 輪最後的程式 commit 是「A3 深夜光照補傳送門」；之前每個都綠）。
+2. **美術續（A 系列，D-327）**：第 152 輪做了 A3 深夜光照（`fx/nightLight.ts`：`flash(x,y,r,ms)` 可以再接更多事件，例如法杖火系技能、寶箱打開）、A5 傷害數字分級（`floatNumber` 的 `tier`）＋全域按鈕回饋（`fx/pressFx.ts`）、A6 地面（`rt/ground.ts` 的 `paintVariety`）。還沒做：A5 面板 9-slice 外框（範圍保護第 2 項，可以不做）。**改了外觀要附舊／新截圖**（四張圖並排的做法見下面「第 152 輪注意」）。
+3. **競技場（D-326 後）**：好裝停在約 1318、80% 勝；全身稀有＋強化的人還會往上。若要再調：`simGearPlan` 的 `enh` 斜率（每 50 分 +1）或 `SIM_GEAR_TOP`。量法：`npx vitest run tests/pvp-ladder-balance.test.ts`（加 `console.log` 看每場 v/d）。**Bot 對 Bot 是確定性的，只看「Elo 找不找得到平衡點」**。
 3. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`（大工程，V7 前不一定做）。撿錢飄字已改伺服器（第 151 輪）。
 4. **Q5 拆場景繼續**（`RtBattleScene` 4,978 行，範圍保護：停在 < 4,000 不強求）。剩下的大塊：`draw()` 544 行、`playEvents()` 約 480 行（每種事件一段，可以照 `eliteFall` 的做法把「純演出」搬成表或函式）、`drawUi()` 198 行、`toggleMenu()` 122 行、`openBag()` 101 行。**驗證方法（第 151 輪最好用）**：`git stash` 建舊 build 到 `/tmp/claude-0/dist-old`、新 build 到 `dist-new`，兩個 `vite preview`（4181／4182），頁面裡 `__game.loop.sleep()`、`sc.time.now = 固定值`，新建 Graphics 呼叫舊方法／新方法，比 `JSON.stringify(g.commandBuffer)`（腳本思路 `screenshots/r151cmp.mjs`、`r151off2.mjs`，gitignored，照這段重寫）。
 5. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰。暴怒旗標伺服器已檢查解鎖（`furyOpenBy`），詞綴照地圖檢查；剩的風險低。
 6. **V7（11/12 12:00 起凍結）**：README 已有第二期一段＋Wiki 線上化頁（第 151 輪），V7 補：截圖（競技場結果「今日首勝」、拍賣所、交易、天梯）、版本 1.2.0、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、手機效能、`npm run wiki`、開發數字（輪數、commit 數、測試數）。截圖用 `scripts/shot-newsave.mjs`（要先 `npx vite --port 5173`）。
+
+**第 152 輪注意**：
+- 無頭 Chromium 截圖有約 1 秒延遲，短動畫拍不到：拍彈跳數字用 `tweens.killTweensOf(t)` 再 `setScale` 固定；按鈕回饋用 `scene.events.on('postupdate')` 逐幀記 scale（無頭約 5 fps）。dev server 裡 `await import('/src/game/fx/feel.ts')` 可以直接呼叫 `floatNumber(sc, …)`。
+- 深夜截圖：LS `jg_rt_mistwood`／`jg_rt_thornvale` 設 `{ level: 20, night: true, furyKills: 1, bossKills: 3 }` → `?debug&scene=RtBattle&stage=thornvale`；`__game.scene.getScene('RtBattle').nightLight` 有值就是新光照（省電畫質是 `nightShade`）。
+- 舊／新並排：`git stash && npx vite build --outDir /tmp/claude-0/dist-old && git stash pop`，兩個 `vite preview`（4181 舊、4182 新），PIL 左右拼。
+- 全域掛場景監聽：`game.isBooted` 在 READY 前就是 true，但 SceneManager 要到 READY 才加場景 → 看 `game.isRunning`；InputPlugin 關場景時會清自己的監聽，所以每次 CREATE 重掛（不會重複）。
 
 **第 151 輪注意**：
 - 連勝／首勝存在角色列 `pvpStreak`／`pvpWinDay`（SQL 版在 `Character.Data` JSON，已加進 `MssqlDb.ts` 的 Pick 與 save）；`account.export` 不帶（跟 `pvpHistory` 一樣）。
