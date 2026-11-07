@@ -9,7 +9,7 @@
 - **V6 驗收** `tests/server-http-flow.test.ts`：真的 HTTP 伺服器、兩個帳號從零打怪（伺服器擲）→ 拍賣所上架／購買 → 面對面交易換回 → 競技場重跑判勝負，金幣守恆。**V4 驗收** `tests/server-contract/concurrency.test.ts`：三人同時買同一筆、同時上架＋賣行商、雙方連點確認（四種 DB，mssql 在 CI）。
 - **線上版畫面**：persist 不再把本機撿的金幣／粉塵／結晶與本機等級寫進舊 key（Playwright：本機 +777 金後舊 key 錢包仍＝伺服器 15 金）；行囊標題 Lv、行商等級讀角色快取。
 - **Pages /online/（D-316）**：repo 變數 `ONLINE_API_URL` 有值才建線上版；離線 SW 排除 /online/（離線版標題冒煙截圖正常）。DEPLOY_AZURE.md 補設定步驟與防作弊說明。
-- **線上登入（D-317）**：`src/client/oidcLogin.ts` 授權碼＋PKCE（RFC 7636 向量、state 防重放測試）；Playwright 對假 IdP（node 小伺服器：authorize 302 帶 code 回來、token 回 id_token）走完轉頁→換 token→存 token→清網址、零錯誤。夜光寶箱被拒（refilling）時公告。
+- **線上登入（D-317）**：`src/client/oidcLogin.ts` 授權碼＋PKCE（RFC 7636 向量、state 防重放測試）；Playwright 對假 IdP（node 小伺服器：authorize 302 帶 code 回來、token 回 id_token）走完轉頁→換 token→存 token→清網址、零錯誤；登入過期（unauthorized）時問一次要不要重新登入。夜光寶箱被拒（refilling）時公告。
 - **Q5**：懸賞板文字 → `src/game/rt/BountyBoard.ts`、頂端 HUD → `hudText.hudLine`（字不變；快照測試＋實機文字比對）。RtBattleScene 6588 → 約 6575 行。
 - 驗證：每步 typecheck、eslint、build、build:online＋bundle 檢查、build:server、vitest（最後 115 檔 827 項全過，含通關機器人、golden hash）。
 - **踩到的**：`dev:` token 只能小寫英數底線（測試用 `flow_alice`）；`market.buy` 回的是 CharacterView 不是 `{character}`。
