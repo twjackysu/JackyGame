@@ -10,6 +10,8 @@ import type { PlayerBot } from '../../core/battle/rt/sim';
 import { TICKS_PER_SEC, UNIT, type BattleCommand, type BattleState, type Shape, type Unit } from '../../core/battle/rt/types';
 import { canChallenge, rankAura, rankName } from '../../core/meta/pvpRank';
 import { auraCss, drawRankAura } from '../fx/rankAura';
+import { ArenaArt } from '../fx/arenaArt';
+import { getSettings } from '../settings';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -66,6 +68,7 @@ export class PvpScene extends Phaser.Scene {
 
   /** 結果畫面按「⚔ 再挑一次」重開場景時帶進來的對手（第 150 輪） */
   private rematch: { foeId: string; foeName: string } | null = null;
+  private arenaArt: ArenaArt | null = null;
 
   init(data?: { rematch?: { foeId: string; foeName: string } }): void {
     this.rematch = data?.rematch ?? null;
@@ -181,7 +184,7 @@ export class PvpScene extends Phaser.Scene {
           this.add.text(W - 76, y, `${rankName(r.rating)} ${r.rating}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.me ? col : auraCss(r.rating) }).setOrigin(1, 0.5),
         ]);
       });
-      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n勝負由伺服器重播判定・荊棘段位起冒險時腳下也有光環', { fontFamily: UI_FONT, fontSize: '20px', color: '#7a8296', align: 'center' }).setOrigin(0.5));
+      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n勝負由伺服器重播判定・荊棘段位起冒險時腳下也有光環', { fontFamily: UI_FONT, fontSize: '20px', color: '#8a92a6', align: 'center', stroke: '#0b0e18', strokeThickness: 6 }).setOrigin(0.5));
     });
   }
 
@@ -328,7 +331,8 @@ export class PvpScene extends Phaser.Scene {
     return [...c, ...this.foeBot.decide(this.s)];
   }
 
-  update(_t: number, delta: number): void {
+  update(t: number, delta: number): void {
+    this.arenaArt?.update(t);
     if (this.phase === 'fight' || this.phase === 'replay') {
       const rp = this.phase === 'replay';
       this.acc += rp ? delta * REPLAY_SPEED : delta;
@@ -361,42 +365,8 @@ export class PvpScene extends Phaser.Scene {
   }
 
   private drawArena(): void {
-    const a = this.add.graphics().setDepth(1);
-    const w = 14 * UNIT * K;
-    const h = 16 * UNIT * K;
-    const { ox, oy } = this;
-    a.fillStyle(0x000000, 0.5).fillRoundedRect(ox - 14, oy - 14, w + 28, h + 28, 18);
-    a.fillStyle(0x3a3226, 1).fillRect(ox, oy, w, h);
-    // 石板地：格線＋深淺交錯
-    for (let gx = 0; gx < 14; gx++)
-      for (let gy = 0; gy < 16; gy++) if ((gx + gy) % 2 === 0) a.fillStyle(0x433a2c, 1).fillRect(ox + gx * UNIT * K, oy + gy * UNIT * K, UNIT * K, UNIT * K);
-    a.lineStyle(1, 0x2a241a, 0.8);
-    for (let gx = 1; gx < 14; gx++) a.lineBetween(ox + gx * UNIT * K, oy, ox + gx * UNIT * K, oy + h);
-    for (let gy = 1; gy < 16; gy++) a.lineBetween(ox, oy + gy * UNIT * K, ox + w, oy + gy * UNIT * K);
-    // 中線與中央紋章
-    a.lineStyle(3, 0xffd27a, 0.35).lineBetween(ox, oy + h / 2, ox + w, oy + h / 2);
-    a.lineStyle(3, 0xffd27a, 0.3).strokeCircle(ox + w / 2, oy + h / 2, 70);
-    a.lineStyle(2, 0xffd27a, 0.2).strokeCircle(ox + w / 2, oy + h / 2, 52);
-    // 兩邊出生區
-    a.fillStyle(ME, 0.1).fillRect(ox, oy + h - 2 * UNIT * K, w, 2 * UNIT * K);
-    a.fillStyle(FOE, 0.1).fillRect(ox, oy, w, 2 * UNIT * K);
-    // 外框（金邊）
-    a.lineStyle(6, 0x8a6a3a, 1).strokeRect(ox - 3, oy - 3, w + 6, h + 6);
-    a.lineStyle(2, 0xffd27a, 0.6).strokeRect(ox - 8, oy - 8, w + 16, h + 16);
-    // 掩體：石塊（上面亮、側面暗）
-    const rows = STAGES[PVP_STAGE]?.arena.solid?.rows ?? [];
-    rows.forEach((row, gy) =>
-      [...row].forEach((ch, gx) => {
-        if (ch !== '#') return;
-        const x = ox + gx * UNIT * K;
-        const y = oy + gy * UNIT * K;
-        const c = UNIT * K;
-        a.fillStyle(0x000000, 0.35).fillRect(x + 4, y + 6, c, c);
-        a.fillStyle(0x5a5650, 1).fillRect(x, y, c, c);
-        a.fillStyle(0x7a766e, 1).fillRect(x + 2, y + 2, c - 4, c * 0.55);
-        a.lineStyle(1, 0x2a2826, 1).strokeRect(x, y, c, c);
-      }),
-    );
+    // 第 153 輪（A7）：場地美術搬到 fx/arenaArt（石板、沙地紋章、看台、火盆）；格子與掩體位置不變
+    this.arenaArt = new ArenaArt(this, { ox: this.ox, oy: this.oy, cell: UNIT * K, cols: 14, rows: 16, solid: STAGES[PVP_STAGE]?.arena.solid?.rows ?? [], me: ME, foe: FOE, lowFx: getSettings().lowFx });
   }
 
   private lerp(u: Unit): { x: number; y: number } {
