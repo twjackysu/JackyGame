@@ -1,5 +1,5 @@
 // 大地圖的環境粒子（第 27 輪）：純畫面、不碰戰鬥亂數。
-// 霧語森林＝白天飄浮的光塵／深夜螢火蟲；荊棘谷＝飄落的紫紅花瓣與孢子；燼紅裂谷＝往上竄的火星＋落下的灰燼；星隕高原＝閃爍的星塵＋斜斜落下的碎星（D-138）。
+// 霧語森林＝白天飄浮的光塵＋飄落的葉子＋低空的霧／深夜螢火蟲＋夜霧；荊棘谷＝飄落的紫紅花瓣與孢子；燼紅裂谷＝往上竄的火星＋落下的灰燼；星隕高原＝閃爍的星塵＋斜斜落下的碎星（D-138）＋偶爾劃過的流星（第 153 輪）。
 // 粒子存在畫面座標，鏡頭移動時跟著世界位移（視差 0.85），超出畫面就從另一邊繞回來。省電畫質數量減半。
 import Phaser from 'phaser';
 
@@ -18,6 +18,17 @@ interface Mote {
   tw: number;
   base: number;
   spin: number;
+  par: number;
+  mg: number;
+}
+
+/** 星隕高原的流星（第 153 輪，A4）：偶爾劃過畫面的一道光 */
+interface Meteor {
+  img: Phaser.GameObjects.Image;
+  vx: number;
+  vy: number;
+  life: number;
+  max: number;
 }
 
 interface Layer {
@@ -33,6 +44,10 @@ interface Layer {
   add: boolean;
   spin?: number;
   depth: number;
+  /** 視差（預設 0.85）；霧比較遠，動得慢 */
+  parallax?: number;
+  /** 繞回畫面另一邊前可以超出多少（大霧塊要大一點） */
+  margin?: number;
 }
 
 const PARALLAX = 0.85;
@@ -57,13 +72,48 @@ function ensureTextures(scene: Phaser.Scene): void {
     g.generateTexture('amb_flake', 12, 10);
     g.destroy();
   }
+  if (!scene.textures.exists('amb_leaf')) {
+    // 一片葉子：橢圓葉身＋中脈（中脈用較暗的半透明線，tint 之後仍看得出）
+    const g = scene.make.graphics({}, false);
+    g.fillStyle(0xffffff, 0.95).fillEllipse(9, 5, 16, 8);
+    g.fillStyle(0xffffff, 0.95).fillTriangle(16, 5, 19, 3, 19, 7);
+    g.lineStyle(1, 0x000000, 0.25).lineBetween(2, 5, 16, 5);
+    g.generateTexture('amb_leaf', 20, 10);
+    g.destroy();
+  }
+  if (!scene.textures.exists('amb_fog')) {
+    // 一團柔邊霧：同心橢圓疊出漸層（中心最濃）
+    const g = scene.make.graphics({}, false);
+    for (let i = 0; i < 14; i++) {
+      const k = 1 - i / 14;
+      g.fillStyle(0xffffff, 0.07).fillEllipse(128, 48, 256 * k, 96 * k);
+    }
+    g.generateTexture('amb_fog', 256, 96);
+    g.destroy();
+  }
+  if (!scene.textures.exists('amb_streak')) {
+    // 流星：頭亮尾淡的細長條（頭在右邊）
+    const g = scene.make.graphics({}, false);
+    for (let x = 0; x < 72; x++) g.fillStyle(0xffffff, Math.pow(x / 72, 2.2)).fillRect(x, 2, 1, 2);
+    g.fillStyle(0xffffff, 1).fillCircle(71, 3, 2.5);
+    g.generateTexture('amb_streak', 75, 6);
+    g.destroy();
+  }
 }
 
 function layersOf(kind: AmbientKind, night: boolean): Layer[] {
   if (kind === 'forest') {
     return night
-      ? [{ tex: 'amb_dot', n: 22, tint: [0xd8ff7a, 0xb8ff9a, 0xfff08a], scale: [0.5, 0.85], alpha: [0.55, 1], vx: [-12, 12], vy: [-10, 6], sway: 26, twinkle: 2.4, add: true, depth: 43 }]
-      : [{ tex: 'amb_dot', n: 18, tint: [0xe8fff0, 0xc8f0d8, 0xfff6d8], scale: [0.3, 0.55], alpha: [0.3, 0.65], vx: [-8, 10], vy: [-16, -4], sway: 18, twinkle: 1.2, add: true, depth: 41 }];
+      ? [
+          { tex: 'amb_dot', n: 22, tint: [0xd8ff7a, 0xb8ff9a, 0xfff08a], scale: [0.5, 0.85], alpha: [0.55, 1], vx: [-12, 12], vy: [-10, 6], sway: 26, twinkle: 2.4, add: true, depth: 43 },
+          { tex: 'amb_fog', n: 3, tint: [0x9ab0c8, 0x8aa0b8], scale: [1.6, 2.4], alpha: [0.25, 0.4], vx: [4, 10], vy: [-2, 2], sway: 0, twinkle: 0.2, add: false, depth: 40, parallax: 0.6, margin: 300 },
+        ]
+      : [
+          { tex: 'amb_dot', n: 18, tint: [0xe8fff0, 0xc8f0d8, 0xfff6d8], scale: [0.3, 0.55], alpha: [0.3, 0.65], vx: [-8, 10], vy: [-16, -4], sway: 18, twinkle: 1.2, add: true, depth: 41 },
+          // 第 153 輪（A4）：慢慢飄落的葉子＋低空飄過的霧
+          { tex: 'amb_leaf', n: 9, tint: [0x7aa04a, 0x9ab85a, 0xc8a048, 0x6a8a3a], scale: [0.7, 1.1], alpha: [0.65, 0.9], vx: [8, 26], vy: [22, 40], sway: 34, twinkle: 0, add: false, spin: 1.8, depth: 41 },
+          { tex: 'amb_fog', n: 4, tint: [0xe8f4ee, 0xd8ece4], scale: [1.4, 2.2], alpha: [0.45, 0.7], vx: [6, 14], vy: [-2, 2], sway: 0, twinkle: 0.25, add: false, depth: 40, parallax: 0.6, margin: 280 },
+        ];
   }
   if (kind === 'thorn') {
     return [
@@ -88,8 +138,12 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 export class Ambient {
   private motes: Mote[] = [];
   private lastOx: number | null = null;
+  private scene: Phaser.Scene;
   private lastOy = 0;
   private t = 0;
+  private meteors: Meteor[] = [];
+  /** 下一顆流星還要幾秒；null＝這張圖沒有流星 */
+  private nextMeteor: number | null = null;
 
   constructor(
     scene: Phaser.Scene,
@@ -99,6 +153,8 @@ export class Ambient {
     private box: { x: number; y: number; w: number; h: number },
   ) {
     ensureTextures(scene);
+    this.scene = scene;
+    if (kind === 'star' && !lowFx) this.nextMeteor = rnd(1.5, 4);
     for (const L of layersOf(kind, night)) {
       const n = lowFx ? Math.ceil(L.n / 2) : L.n;
       for (let i = 0; i < n; i++) {
@@ -106,7 +162,7 @@ export class Ambient {
         if (L.add) img.setBlendMode(Phaser.BlendModes.ADD);
         const base = rnd(...L.alpha);
         img.setAlpha(base);
-        this.motes.push({ img, x: box.x + Math.random() * box.w, y: box.y + Math.random() * box.h, vx: rnd(...L.vx), vy: rnd(...L.vy), ph: Math.random() * Math.PI * 2, sw: L.sway, tw: L.twinkle, base, spin: L.spin ? rnd(-L.spin, L.spin) : 0 });
+        this.motes.push({ img, x: box.x + Math.random() * box.w, y: box.y + Math.random() * box.h, vx: rnd(...L.vx), vy: rnd(...L.vy), ph: Math.random() * Math.PI * 2, sw: L.sway, tw: L.twinkle, base, spin: L.spin ? rnd(-L.spin, L.spin) : 0, par: L.parallax ?? PARALLAX, mg: L.margin ?? 20 });
       }
     }
   }
@@ -115,26 +171,67 @@ export class Ambient {
   update(dt: number, ox: number, oy: number): void {
     const s = dt / 1000;
     this.t += s;
-    const dx = this.lastOx === null ? 0 : (ox - this.lastOx) * PARALLAX;
-    const dy = this.lastOx === null ? 0 : (oy - this.lastOy) * PARALLAX;
+    const dx = this.lastOx === null ? 0 : ox - this.lastOx;
+    const dy = this.lastOx === null ? 0 : oy - this.lastOy;
     this.lastOx = ox;
     this.lastOy = oy;
     const { x: bx, y: by, w, h } = this.box;
     for (const m of this.motes) {
-      m.x += m.vx * s + dx;
-      m.y += m.vy * s + dy;
-      if (m.x < bx - 20) m.x += w + 40;
-      else if (m.x > bx + w + 20) m.x -= w + 40;
-      if (m.y < by - 20) m.y += h + 40;
-      else if (m.y > by + h + 20) m.y -= h + 40;
+      m.x += m.vx * s + dx * m.par;
+      m.y += m.vy * s + dy * m.par;
+      const g = m.mg;
+      if (m.x < bx - g) m.x += w + 2 * g;
+      else if (m.x > bx + w + g) m.x -= w + 2 * g;
+      if (m.y < by - g) m.y += h + 2 * g;
+      else if (m.y > by + h + g) m.y -= h + 2 * g;
       const sway = Math.sin(this.t * 1.3 + m.ph) * m.sw;
       m.img.setPosition(m.x + sway, m.y);
       if (m.tw) m.img.setAlpha(m.base * (0.55 + 0.45 * Math.sin(this.t * m.tw + m.ph * 3)));
       if (m.spin) m.img.rotation += m.spin * s;
     }
+    if (this.nextMeteor !== null) this.updateMeteors(s);
   }
 
+  private updateMeteors(s: number): void {
+    this.nextMeteor! -= s;
+    if (this.nextMeteor! <= 0 && this.visible) {
+      this.nextMeteor = rnd(3, 7);
+      const { x: bx, y: by, w, h } = this.box;
+      // 從畫面上半部往左下劃過（跟碎星落下同一個方向）
+      const ang = Math.PI - rnd(0.45, 0.75);
+      const sp = rnd(520, 760);
+      const img = this.scene.add
+        .image(bx + rnd(0.35, 1.05) * w, by + rnd(0.02, 0.4) * h, 'amb_streak')
+        .setDepth(42)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setTint([0xffffff, 0xd8e4ff, 0xe8d8ff][Math.floor(Math.random() * 3)]!)
+        .setScale(rnd(1.2, 1.8), 1.4)
+        .setRotation(ang)
+        .setAlpha(0);
+      const max = rnd(0.55, 0.85);
+      this.meteors.push({ img, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: max, max });
+    }
+    for (let i = this.meteors.length - 1; i >= 0; i--) {
+      const m = this.meteors[i]!;
+      m.life -= s;
+      if (m.life <= 0) {
+        m.img.destroy();
+        this.meteors.splice(i, 1);
+        continue;
+      }
+      m.img.x += m.vx * s;
+      m.img.y += m.vy * s;
+      // 很快亮起、慢慢淡掉
+      const k = 1 - m.life / m.max;
+      m.img.setAlpha(k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85);
+    }
+  }
+
+  private visible = true;
+
   setVisible(v: boolean): void {
+    this.visible = v;
     for (const m of this.motes) m.img.setVisible(v);
+    for (const m of this.meteors) m.img.setVisible(v);
   }
 }
