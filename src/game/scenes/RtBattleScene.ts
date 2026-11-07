@@ -78,6 +78,7 @@ import { getSettings, updateSettings } from '../settings';
 import { RangedFx } from '../fx/rangedFx';
 import { FieldFx } from '../fx/fieldFx';
 import { makeGround } from '../rt/ground';
+import { Companion } from '../fx/companion';
 import { drawStorm, type StormView } from '../fx/stormFx';
 import { GroundHazards, LAVA_ATTACKS, METEOR_ATTACKS } from '../fx/groundHazards';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
@@ -255,6 +256,8 @@ export class RtBattleScene extends Phaser.Scene {
   private drawnOnce = false;
   private camY = 0;
   private dotNum = new Map<number, { t: Phaser.GameObjects.Text; at: number; sum: number; skill: string }>();
+  /** 霧中小狼等小跟班（第 150 輪拆出去） */
+  private readonly cub = new Companion({ k: () => this.k, sx: (x) => this.sx(x), sy: (y) => this.sy(y), viewTop: VIEW_TOP, viewBottom: VIEW_BOTTOM });
   /** 共用小特效（第 150 輪拆出去） */
   private readonly ffx = new FieldFx(this, { k: () => this.k, sx: (x) => this.sx(x), sy: (y) => this.sy(y) });
   /** 地上的荊棘／熔岩／冰晶（第 150 輪拆出去） */
@@ -502,7 +505,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.idleHinted = false;
     this.afterChoice = [];
     this.choiceMarkSaid = false;
-    { const p0 = playerOf(this.s); this.cub = null; if (loadChoices()[this.stageId] === 'spare') this.spawnCub(p0.x - UNIT, p0.y + UNIT); }
+    { const p0 = playerOf(this.s); this.cub.clear(); if (loadChoices()[this.stageId] === 'spare') this.spawnCub(p0.x - UNIT, p0.y + UNIT); }
     { const bz = STAGES[this.stageId]?.bossZone; const cp = loadChoices()[this.stageId]; this.choiceMark = bz && cp && this.tracked ? { x: bz.x + UNIT * 1.6, y: bz.y + UNIT * 1.2, map: this.stageId, pick: cp } : null; }
     this.zoneName = null;
     this.zoneSeenAt.clear();
@@ -1769,7 +1772,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       const p = playerOf(this.s);
-      if (pick === 'spare' && !this.cub) {
+      if (pick === 'spare' && !this.cub.active) {
         // 選了「還」：小跟班當場從巢穴（Boss 倒下的地方）出來，不用等下次進地圖
         const bz = STAGES[this.stageId]?.bossZone;
         const ox = bz && Math.hypot(bz.x - p.x, bz.y - p.y) < UNIT * 10 ? bz.x : p.x + UNIT * 3;
@@ -3713,91 +3716,10 @@ export class RtBattleScene extends Phaser.Scene {
    * 取：斷掉的霧角石座／枯掉的荊棘／冷掉的黑岩。走近時說一句話（每次進地圖一次）。純畫面。
    */
   private choiceMarkSaid = false;
-  /** 霧中小狼（D-157：霧語森林選了「還」）：半透明、跟在你身後，戰鬥時躲進霧裡（變淡）。純畫面 */
-  private cub: { x: number; y: number; a: number; t: number; face: number; kind: 'cub' | 'flower' | 'wisp' | 'star' } | null = null;
-  /** 「還」的小跟班（D-158）：重進地圖時在主角旁；剛選完「還」就從 Boss 倒下的地方飛過來（D-190） */
+  /** 「還」的小跟班（D-158）：重進地圖時在主角旁；剛選完「還」就從 Boss 倒下的地方飛過來（D-190）。畫法在 fx/companion.ts */
   private spawnCub(x: number, y: number): boolean {
-    const kinds: Record<string, 'cub' | 'flower' | 'wisp' | 'star'> = { mistwood: 'cub', thornvale: 'flower', emberrift: 'wisp', starfall: 'star' };
-    const kind = kinds[this.stageId];
-    if (!this.tracked || this.bot || !kind) return false;
-    this.cub = { x, y, a: 0, t: this.time.now, face: 1, kind };
-    return true;
-  }
-  private drawCub(g: Phaser.GameObjects.Graphics, now: number): void {
-    const c = this.cub;
-    if (!c) return;
-    const p = playerOf(this.s);
-    const dt = Math.min(0.1, Math.max(0, (now - c.t) / 1000));
-    c.t = now;
-    const fl = Math.hypot(p.facingX, p.facingY) || 1;
-    const fx = p.facingX / fl;
-    const fy = p.facingY / fl;
-    const tx = p.x - fx * UNIT * 1.1 + fy * UNIT * 0.5;
-    const ty = p.y - fy * UNIT * 1.1 - fx * UNIT * 0.5;
-    const d = Math.hypot(tx - c.x, ty - c.y);
-    if (d > UNIT * 12) {
-      c.x = tx;
-      c.y = ty;
-    } else if (d > UNIT * 0.3) {
-      const k0 = Math.min(1, dt * (d > UNIT * 3 ? 5 : 2.5));
-      if (Math.abs(tx - c.x) > 4) c.face = tx > c.x ? 1 : -1;
-      c.x += (tx - c.x) * k0;
-      c.y += (ty - c.y) * k0;
-    }
-    const fight = p.dead || enemiesOf(this.s).some((e) => e.mode === 'combat');
-    c.a += ((fight ? 0.08 : 0.5) - c.a) * Math.min(1, dt * 3);
-    const cx = this.sx(c.x);
-    const cy = this.sy(c.y);
-    if (cx < -60 || cx > GAME_WIDTH + 60 || cy < VIEW_TOP - 80 || cy > VIEW_BOTTOM + 60) return;
-    const k = this.k * 1.7;
-    const moving = d > UNIT * 0.4;
-    if (c.kind !== 'cub') {
-      // 荊棘谷＝母樹的白花精（浮著轉）、燼紅裂谷＝燼心的小火靈（跳動的火球）
-      const bob = Math.sin(now / 400) * 6 * k;
-      const hy = cy - 40 * k + bob;
-      if (c.kind === 'star') {
-        // 星隕高原＝回到夜空的那顆星留下的小星星：四芒星慢慢轉、拖一道淡藍光尾（D-158）
-        const tw = 0.75 + 0.25 * Math.sin(now / 230);
-        const rot = now / 1400;
-        g.fillStyle(0x9fc8ff, c.a * 0.3 * tw).fillCircle(cx, hy, 26 * k);
-        if (moving) g.fillStyle(0xbcd8ff, c.a * 0.35).fillEllipse(cx - c.face * 16 * k, hy + 3 * k, 26 * k, 6 * k);
-        const al = Math.min(1, c.a * 1.9);
-        for (let q = 0; q < 4; q++) {
-          const an = rot + (q * Math.PI) / 2;
-          const L = (q % 2 ? 13 : 20) * k * tw;
-          const ox = Math.cos(an);
-          const oy = Math.sin(an);
-          g.fillStyle(0xeaf4ff, al).fillTriangle(cx + ox * L, hy + oy * L, cx - oy * 4 * k, hy + ox * 4 * k, cx + oy * 4 * k, hy - ox * 4 * k);
-        }
-        g.fillStyle(0xffffff, al).fillCircle(cx, hy, 4.5 * k);
-      } else if (c.kind === 'flower') {
-        g.fillStyle(0xffffff, c.a * 0.3).fillCircle(cx, hy, 18 * k);
-        for (let q = 0; q < 5; q++) {
-          const an = (q / 5) * Math.PI * 2 + now / 900;
-          g.fillStyle(0xf8f4ff, c.a * 1.6 > 1 ? 1 : c.a * 1.6).fillEllipse(cx + Math.cos(an) * 7 * k, hy + Math.sin(an) * 6 * k, 10 * k, 8 * k);
-        }
-        g.fillStyle(0xffe08a, Math.min(1, c.a * 2)).fillCircle(cx, hy, 3.5 * k);
-      } else {
-        const beat = Math.max(0, Math.sin(now / 160)) ** 3;
-        g.fillStyle(0xff8a3a, c.a * 0.35).fillCircle(cx, hy, (16 + 4 * beat) * k);
-        g.fillStyle(0xff6a1a, Math.min(1, c.a * 1.8)).fillTriangle(cx - 7 * k, hy + 3 * k, cx + 7 * k, hy + 3 * k, cx + Math.sin(now / 120) * 3 * k, hy - 16 * k);
-        g.fillStyle(0xff6a1a, Math.min(1, c.a * 1.8)).fillCircle(cx, hy + 2 * k, 7 * k);
-        g.fillStyle(0xffd04a, Math.min(1, c.a * 2)).fillCircle(cx, hy + 2 * k, 3.5 * k);
-      }
-      g.fillStyle(0x000000, c.a * 0.3).fillEllipse(cx, cy, 20 * k, 6 * k);
-      return;
-    }
-    const hop = moving ? Math.abs(Math.sin(now / 110)) * 5 * k : 0;
-    const f = c.face;
-    const a = c.a * (0.85 + 0.15 * Math.sin(now / 500));
-    g.fillStyle(0xcfe4ff, a * 0.25).fillEllipse(cx, cy - 12 * k, 64 * k, 34 * k);
-    g.fillStyle(0xd8e8ff, a).fillEllipse(cx, cy - 12 * k - hop, 30 * k, 20 * k);
-    g.fillCircle(cx + f * 13 * k, cy - 24 * k - hop, 10 * k);
-    g.fillTriangle(cx + f * 8 * k, cy - 30 * k - hop, cx + f * 10 * k, cy - 42 * k - hop, cx + f * 14 * k, cy - 31 * k - hop);
-    g.fillTriangle(cx + f * 14 * k, cy - 31 * k - hop, cx + f * 18 * k, cy - 42 * k - hop, cx + f * 20 * k, cy - 28 * k - hop);
-    const sw = Math.sin(now / (moving ? 90 : 300)) * 5 * k;
-    g.lineStyle(5 * k, 0xd8e8ff, a).lineBetween(cx - f * 13 * k, cy - 14 * k - hop, cx - f * 24 * k, cy - 24 * k - hop + sw);
-    g.fillStyle(0x6ab8ff, Math.min(1, a * 1.8)).fillCircle(cx + f * 16 * k, cy - 26 * k - hop, 1.8 * k);
+    if (!this.tracked || this.bot) return false;
+    return this.cub.spawn(this.stageId, x, y, this.time.now);
   }
   /**
    * 巢穴邊界（第 54 輪，D-185）：Boss 交戰中、玩家走到巢穴外圈（> 55% 半徑）時，地上浮出紅色虛線圈，越靠近邊越亮。
@@ -4192,7 +4114,7 @@ export class RtBattleScene extends Phaser.Scene {
     sv.k = this.k;
     drawStorm(sv, this.s, now);
     this.drawEncounters(g, now);
-    this.drawCub(g, now);
+    this.cub.draw(g, now, this.s);
     // 前世的記憶（D-137）：紫色的光點在原地浮著，遠遠就看得到
     for (const mem of this.memLeft) {
       const cx = this.sx(mem.tx * UNIT + UNIT / 2);
