@@ -66,12 +66,13 @@ import { WORLD_MAPS, worldMap, prevMap, FINALE_MAP } from '../worldMaps';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { BTN_COUNT, JOY_INDEX, buttonPos, buttonR, clampPos, fireRowLayout, inStickZone, keyBadge, BTN_ACTIONS, loadControls, saveControls, swapSlots, type RtControls } from '../rtControls';
 import { openRtControlsPanel } from '../ui/rtControlsPanel';
-import { bountyIdsHere, bountyKill, bountyTargetsOf, cleanBounties } from '../rtBounty';
+import { bountyKill, cleanBounties } from '../rtBounty';
 import { cleanRanks, cleanVariants, mergeMods, rankMods, skillPoints, usedPoints } from '../rtSkills';
 import { openRtSkillPanel } from '../ui/rtSkillPanel';
 import { InputSystem } from '../rt/InputSystem';
 import { captureLegacy, legacyOp } from '../../client/legacyOps';
 import { characterCache } from '../../client/characterCache';
+import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard';
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
@@ -174,7 +175,6 @@ function timesDue(key: string, times: number): boolean {
 /** 巡邏怪的仇恨圈／視線顏色（D-117） */
 const PATROL_COLOR: Record<string, number> = { thorn_stalker: 0xff8a5c, shade_wolf: 0xa88aff, mist_warden: 0x6ae8d0, magma_stalker: 0xff5a2a, comet_stalker: 0x8ab0ff, eclipse_wolf: 0x9a7aff };
 /** 懸賞名稱：兩張地圖共用（D-114，棘背狼算野狼、狼后算狼王） */
-const BOUNTY_LABEL: Record<string, string> = { wolf: '野狼／棘背狼／燼鬃狼／星痕狼', wolf_king: '狼王／狼后／岩王／守望者', thorn_shooter: '荊棘射手／燼芯菇／星芒菇', alpha_wolf: '首領級精英' };
 const fx0 = (x: Unit): number => x.facingX / 1000;
 const fy0 = (x: Unit): number => x.facingY / 1000;
 
@@ -1021,16 +1021,8 @@ export class RtBattleScene extends Phaser.Scene {
     // 線上版（第 147 輪）：懸賞由伺服器計數，看角色快取
     const oc = import.meta.env.VITE_SERVER_URL ? characterCache.get() : null;
     const st = cleanBounties(oc ? oc.bounty : loadRecord(this.stageId).bounty);
-    // 懸賞三張地圖共用：這張地圖打不到的目標標「別圖」（例：燼紅裂谷沒有荊棘母樹；第 52 輪從「別張地圖」縮短，以前右緣伸到記憶卡底下）
-    const stg = STAGES[this.stageId];
-    const ids = [...(stg?.spawnGroups ?? []).map((g) => g.enemyId), ...(stg?.enemies ?? []).map((e) => e.enemyId)];
-    const here = bountyTargetsOf(ids);
-    // 第 43 輪：這張圖打得到的只寫這張圖的怪名（以前一律「野狼／棘背狼／燼鬃狼／星痕狼」，小字又長又難讀）；精英類照舊寫「首領級精英」
-    const nameOf = (t: string): string => {
-      if (t === 'alpha_wolf' || !here.has(t)) return BOUNTY_LABEL[t] ?? ENEMIES[t]?.name ?? t;
-      return bountyIdsHere(t, ids).map((id) => ENEMIES[id]?.name ?? id).join('／');
-    };
-    this.bountyTxt.setText(['懸賞', ...st.list.map((b) => `${nameOf(b.target)} ${b.got}/${b.need}${here.has(b.target) ? '' : '（別圖）'}`)].join('\n'));
+    // 懸賞三張地圖共用：這張地圖打不到的目標標「別圖」（文字規則在 rt/BountyBoard.ts）
+    this.bountyTxt.setText(bountyBoardText(st.list, stageEnemyIds(STAGES[this.stageId])));
   }
 
   private bountyKill(defId: string): void {
