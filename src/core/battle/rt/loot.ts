@@ -3,7 +3,7 @@
 // - 伺服器 loot.claim（26-security §3.1）：rand＝伺服器自己的亂數，place 只記下來（不用位置）。客戶端只能說「我打倒了誰、在哪一群」，數量與稀有度由這裡決定。
 import { ENEMIES } from './data';
 import { stageDef } from './maps/world';
-import type { LootId } from './types';
+import { TICKS_PER_SEC, type LootId } from './types';
 
 /** 精英群組 id（引擎與伺服器共用） */
 export const HIDDEN_GROUP = 'hidden';
@@ -109,3 +109,50 @@ export function killXp(c: Pick<LootContext, 'stageId' | 'defId' | 'groupId' | 'f
   const pct = 100 + (g?.hpPct ?? fixed?.hpPct ?? 0);
   return Math.round(((rule.xp[c.defId] ?? 0) * pct) / 100);
 }
+
+/**
+ * 一場裡「同一個出生來源」最多能打倒幾隻（第 148 輪，26-security §3.1 數量上限）：伺服器沒跑戰鬥，
+ * 但重生規則是地圖資料寫死的，所以能算出「開戰到現在，最快的人類也只可能打倒這麼多」——
+ * 擋掉「同一場一直申請 Boss／精英」這種偽造（以前只有全場每分鐘 40 隻的總上限）。
+ * - 重生點 g：開場 maxAlive 隻，之後每 respawnTicks 最多補 maxAlive 隻（每死一隻排一次重生）。
+ * - 固定怪（有 fixedIdx＝關卡有 bossZone.respawnTicks）：1＋每 respawnTicks 一次；沒有 fixedIdx：地圖上有幾隻就幾隻。
+ * - 狼群暴動：最快每 everyTicks[0] 一次、一次最多 count[1] 隻（第一次也要等 everyTicks[0]）。
+ * - 隱藏精英：每連續打倒 streak 隻普通怪才出一隻 → floor(其他擊殺÷streak)。
+ * elapsedTicks 是伺服器的牆鐘換算（真的遊戲時間只會更少：切到背景、開面板都不算）；呼叫端自己加寬限。
+ */
+export function killSource(c: Pick<LootContext, 'defId' | 'groupId' | 'fixedIdx'>): string {
+  if (c.groupId === RIOT_GROUP) return 'riot';
+  if (c.groupId === HIDDEN_GROUP) return 'hidden';
+  if (c.groupId !== undefined) return `g:${c.groupId}`;
+  if (c.fixedIdx !== undefined) return `f:${c.fixedIdx}`;
+  return `e:${c.defId}`;
+}
+
+export function killCap(c: Pick<LootContext, 'stageId' | 'defId' | 'groupId' | 'fixedIdx'>, elapsedTicks: number, otherKills: number): number {
+  const st = stageDef(c.stageId);
+  if (!st) return 0;
+  const t = Math.max(0, elapsedTicks);
+  const g0 = c.groupId;
+  if (g0 === RIOT_GROUP) {
+    const r = st.riot;
+    if (!r) return 0;
+    return Math.floor(t / Math.max(1, r.everyTicks[0])) * r.count[1];
+  }
+  if (g0 === HIDDEN_GROUP) {
+    const h = st.hiddenElite;
+    return h ? Math.floor(Math.max(0, otherKills) / Math.max(1, h.streak)) : 0;
+  }
+  if (g0 !== undefined) {
+    const g = st.spawnGroups?.find((x) => x.id === g0);
+    if (!g) return 0;
+    return g.respawnTicks > 0 ? g.maxAlive * (1 + Math.floor(t / g.respawnTicks)) : g.maxAlive;
+  }
+  if (c.fixedIdx !== undefined) {
+    const rt = st.bossZone?.respawnTicks;
+    return rt ? 1 + Math.floor(t / rt) : 1;
+  }
+  return st.enemies.filter((e) => e.enemyId === c.defId).length;
+}
+
+/** 牆鐘毫秒 → tick（伺服器用） */
+export const msToTicks = (ms: number): number => Math.floor((Math.max(0, ms) * TICKS_PER_SEC) / 1000);

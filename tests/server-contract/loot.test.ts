@@ -16,6 +16,8 @@ import { xpToNext } from '../../src/core/battle/rt/engine';
 import { BACKENDS } from './backends';
 import { LEGACY_SAMPLE } from './fixtures';
 
+/** 霧語森林的狼重生點（輪流用，避開同一個重生點的數量上限） */
+const WOLF_GROUPS = stageDef('mistwood')!.spawnGroups!.filter((g) => g.enemyId === 'wolf' && !g.nightOnly).map((g) => g.id);
 const auth = { resolve: async (t?: string) => t ?? 'anon' };
 const code = async (p: Promise<unknown>): Promise<string> => {
   try {
@@ -101,7 +103,7 @@ for (const be of BACKENDS)
     });
 
     it('還沒開放的地圖、還沒解鎖的深夜不能開；暴怒 Boss 記暴怒討伐（解鎖深夜）', async () => {
-      const { a } = await setup(be);
+      const { a, clock } = await setup(be);
       const fresh = { ...LEGACY_SAMPLE, jg_rt_mistwood: JSON.stringify({ ...JSON.parse(LEGACY_SAMPLE.jg_rt_mistwood!), bossKills: 0, furyKills: 0 }), jg_rt_thornvale: '{}' };
       const { characterId } = await a.call('migrate.legacy', { snapshot: fresh });
       expect(await code(a.call('battle.start', { characterId, stageId: 'thornvale' }))).toBe('rejected');
@@ -110,6 +112,7 @@ for (const be of BACKENDS)
       // 還沒打倒過狼王：暴怒還沒解鎖
       expect(await code(a.call('loot.claim', { characterId, battleId, killSeq: 1, enemyId: 'wolf_king', fixedIdx: 0, fury: true }))).toBe('rejected');
       await a.call('loot.claim', { characterId, battleId, killSeq: 2, enemyId: 'wolf_king', fixedIdx: 0 });
+      clock.advance(60_000); // Boss 重生（bossZone.respawnTicks）
       const r = await a.call('loot.claim', { characterId, battleId, killSeq: 3, enemyId: 'wolf_king', fixedIdx: 0, fury: true });
       expect(r.character.maps.mistwood).toMatchObject({ bossKills: 2, furyKills: 1 });
       expect(await code(a.call('battle.start', { characterId, stageId: 'thornvale' }))).toBe('ok');
@@ -131,7 +134,7 @@ for (const be of BACKENDS)
       let dustLoot = 0;
       for (let i = 0; i < left; i++) {
         clock.advance(3000);
-        last = await a.call('loot.claim', { characterId, battleId, killSeq: ++seq, enemyId: 'wolf', groupId: 'entry' });
+        last = await a.call('loot.claim', { characterId, battleId, killSeq: ++seq, enemyId: 'wolf', groupId: WOLF_GROUPS[i % WOLF_GROUPS.length]! });
         dustLoot += last.drops.filter((d) => d.kind === 'dust').reduce((x, d) => x + d.amount, 0) + last.drops.reduce((x, d) => x + (d.salvaged ?? 0), 0);
         if (i < left - 1) expect(last.bounty).toEqual([]);
       }
@@ -180,12 +183,56 @@ for (const be of BACKENDS)
       const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
       const { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
       let k = 0;
-      const claim = () => code(a.call('loot.claim', { characterId, battleId, killSeq: ++k, enemyId: 'wolf', groupId: 'entry' }));
+      // 輪流用狼的重生點（同一個重生點有數量上限，見下一個測試）
+      const claim = () => code(a.call('loot.claim', { characterId, battleId, killSeq: ++k, enemyId: 'wolf', groupId: WOLF_GROUPS[k % WOLF_GROUPS.length]! }));
       for (let i = 0; i < KILL_BURST; i++) expect(await claim()).toBe('ok');
       expect(await claim()).toBe('rate_limited');
       clock.advance(60_000 / KILLS_PER_MIN);
       expect(await claim()).toBe('ok');
       expect(await claim()).toBe('rate_limited');
+    });
+
+    it('數量上限（第 148 輪）：同一個重生點、Boss、暴動、隱藏精英都不能比重生規則算得出的還多；重開一場 Boss 也要等重生時間', async () => {
+      const { a, clock } = await setup(be);
+      const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
+      let { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
+      let k = 0;
+      const claim = (x: Record<string, unknown>) => code(a.call('loot.claim', { characterId, battleId, killSeq: ++k, enemyId: 'wolf', ...x } as never));
+      const entry = stageDef('mistwood')!.spawnGroups!.find((g) => g.id === 'entry')!;
+      // 開場：entry 只有 maxAlive 隻
+      for (let i = 0; i < entry.maxAlive; i++) expect(await claim({ groupId: 'entry' })).toBe('ok');
+      expect(await claim({ groupId: 'entry' })).toBe('rejected');
+      // 別的重生點不受影響
+      expect(await claim({ groupId: 'den_a' })).toBe('ok');
+      // 過了一次重生時間：再補 maxAlive 隻
+      clock.advance((entry.respawnTicks * 1000) / 30);
+      for (let i = 0; i < entry.maxAlive; i++) expect(await claim({ groupId: 'entry' })).toBe('ok');
+      expect(await claim({ groupId: 'entry' })).toBe('rejected');
+      // Boss：一隻，要等 bossZone.respawnTicks
+      expect(await claim({ enemyId: 'wolf_king', fixedIdx: 0 })).toBe('ok');
+      expect(await claim({ enemyId: 'wolf_king', fixedIdx: 0 })).toBe('rejected');
+      // 重開一場也一樣（出去再進來不能更快）
+      battleId = (await a.call('battle.start', { characterId, stageId: 'mistwood' })).battleId;
+      k = 0;
+      expect(await claim({ enemyId: 'wolf_king', fixedIdx: 0 })).toBe('rejected');
+      clock.advance(60_000);
+      expect(await claim({ enemyId: 'wolf_king', fixedIdx: 0 })).toBe('ok');
+      // 暴動：開戰 5 分鐘內不會有
+      expect(await claim({ groupId: 'riot' })).toBe('rejected');
+      // 隱藏精英：連續 streak 隻普通怪之後才有
+      const streak = stageDef('mistwood')!.hiddenElite!.streak;
+      expect(await claim({ enemyId: 'alpha_wolf', groupId: 'hidden' })).toBe('rejected');
+      for (let i = 0; i < streak - 1; i++) {
+        clock.advance(2000);
+        expect(await claim({ groupId: WOLF_GROUPS[i % WOLF_GROUPS.length]! })).toBe('ok');
+      }
+      expect(await claim({ enemyId: 'alpha_wolf', groupId: 'hidden' })).toBe('ok');
+      expect(await claim({ enemyId: 'alpha_wolf', groupId: 'hidden' })).toBe('rejected');
+      // 5 分鐘後暴動可以（一次最多 count[1] 隻）
+      clock.advance(300_000);
+      const riot = stageDef('mistwood')!.riot!;
+      for (let i = 0; i < riot.count[1]; i++) expect(await claim({ groupId: 'riot' })).toBe('ok');
+      expect(await claim({ groupId: 'riot' })).toBe('rejected');
     });
 
     it('狼王：第一次保底一件稀有、記在地圖進度；之後照權重', async () => {

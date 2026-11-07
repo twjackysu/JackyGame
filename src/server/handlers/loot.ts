@@ -1,14 +1,16 @@
 // PvE 掉落由伺服器擲（V5，26-security §3.1、24 §7，第 146 輪 D-307）：
 // - battle.start：開一場（角色列存 pveBattle），回 battleId。一個角色同時只有一場，重開就換掉。
 // - loot.claim：客戶端只說「這場第幾隻、打倒了誰、在哪一群／第幾個固定怪、暴怒？詞綴？」——
-//   伺服器檢查：這場是我的、還沒過期、killSeq 遞增、速度不超過人類上限（每分鐘 40 隻＋開場 10 隻）、這張圖真的有這隻怪在這一群（validKill）；
+//   伺服器檢查：這場是我的、還沒過期、killSeq 遞增、速度不超過人類上限（每分鐘 40 隻＋開場 10 隻）、這張圖真的有這隻怪在這一群（validKill）、
+//   同一個出生來源不超過重生規則算得出的數量（killCap：Boss 每 60 秒一隻、重生點每 respawnTicks 補 maxAlive 隻……，第 148 輪）；
 //   通過才用「伺服器的亂數」照同一份規則（core/battle/rt/loot.ts）擲掉落，直接入錢包／行囊（行囊滿了照單機規則自動分解，D-100）；經驗與升級也在這裡算。
 // - loot.chest（第 147 輪）：寶箱內容是地圖資料寫死的；白天的每個角色只能開一次（記在地圖進度），夜光的每場一次。沒有位置可查（伺服器沒跑戰鬥），之後抽查重跑。
 // 深夜、暴怒、詞綴是客戶端說的（伺服器沒跑這場戰鬥），只能檢查「這張圖有沒有」；之後抽查重跑指令紀錄（26 §3.1）。
 import { genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
 import { furyOpenBy, stageDef, worldNightOpen, worldStageOpen } from '../../core/battle/rt/maps/world';
 import { xpToNext } from '../../core/battle/rt/engine';
-import { isStageBoss, killXp, rollEnemyLoot, validKill, type LootContext } from '../../core/battle/rt/loot';
+import { TICKS_PER_SEC } from '../../core/battle/rt/types';
+import { isStageBoss, killCap, killSource, killXp, msToTicks, rollEnemyLoot, validKill, type LootContext } from '../../core/battle/rt/loot';
 import { addWithAutoSalvage } from '../../core/meta/bag';
 import { bountyKill, cleanBounties } from '../../core/meta/bounty';
 import { ApiError } from '../../net/protocol';
@@ -24,6 +26,8 @@ export const KILLS_PER_MIN = 40;
 export const KILL_BURST = 10;
 /** 一場最多申請幾次 */
 export const MAX_CLAIMS = 3000;
+/** 數量上限的寬限（battle.start 回來前引擎已經在跑、時鐘誤差）：多算這麼久的重生 */
+export const KILL_GRACE_MS = 15_000;
 
 interface StoredBattle {
   id: string;
@@ -33,6 +37,10 @@ interface StoredBattle {
   /** 最後一次的 killSeq */
   seq: number;
   claims: number;
+  /** 每個出生來源打倒幾隻（killSource → 數量；第 148 輪，數量上限用） */
+  kills?: Record<string, number>;
+  /** 每張圖最後一次打倒 Boss 的時間（牆鐘 ms）：重開一場也帶過去，Boss 不能靠「出去再進來」比重生規則更快刷（第 148 輪） */
+  bossAt?: Record<string, number>;
   /** 這場開過的夜光寶箱（每次進深夜都是滿的，D-108） */
   nightChests?: string[];
 }
@@ -61,7 +69,8 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
     if (!st?.loot || (night && !st.night)) throw new ApiError('rejected', 'stage');
     // 還沒開放的地圖、還沒解鎖的深夜不能開（跟畫面層 mapOpen／nightUnlocked 同一條規則）
     if (!worldStageOpen(stageId, c.maps) || (night && !worldNightOpen(stageId, c.maps))) throw new ApiError('rejected', 'locked');
-    const b: StoredBattle = { id: ctx.ids.next('pve'), stageId, night, at: ctx.clock.now(), seq: 0, claims: 0 };
+    const prev = parse(c.pveBattle);
+    const b: StoredBattle = { id: ctx.ids.next('pve'), stageId, night, at: ctx.clock.now(), seq: 0, claims: 0, ...(prev?.bossAt ? { bossAt: prev.bossAt } : {}) };
     await ctx.r.characters.save({ ...c, pveBattle: JSON.stringify(b) });
     return { battleId: b.id };
   },
@@ -92,6 +101,15 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
     if (!validKill(lc)) throw new ApiError('rejected', 'kill');
     // 暴怒版要先解鎖（跟畫面層 furyUnlocked 同規則）
     if (fury && !furyOpenBy(prog.bossKills ?? 0, c.level)) throw new ApiError('rejected', 'fury locked');
+    // 同一個出生來源的數量上限（重生規則是地圖資料，core/battle/rt/loot.ts killCap）：擋「同一場一直申請 Boss」
+    const src = killSource(lc);
+    const kills = b.kills ?? {};
+    const others = b.claims - (kills.hidden ?? 0);
+    if ((kills[src] ?? 0) + 1 > killCap(lc, msToTicks(now - b.at + KILL_GRACE_MS), others)) throw new ApiError('rejected', 'spawn');
+    const boss = isStageBoss(lc);
+    const bossRt = stageDef(b.stageId)?.bossZone?.respawnTicks ?? 0;
+    const lastBoss = b.bossAt?.[b.stageId];
+    if (boss && bossRt && lastBoss !== undefined && now - lastBoss + KILL_GRACE_MS < (bossRt * 1000) / TICKS_PER_SEC) throw new ApiError('rejected', 'boss cooldown');
 
     const rolled: LootDropView[] = [];
     rollEnemyLoot(lc, ctx.rng, (kind, amount, rarity) => rolled.push(rarity ? { kind, amount, rarity } : { kind, amount }));
@@ -131,7 +149,7 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
 
     // 這場的進度；打倒 Boss 記在地圖進度（伺服器記，firstRare 保底只有第一次）
     const cur = (await ctx.r.characters.get(c.id))!;
-    const next = { ...cur, pveBattle: JSON.stringify({ ...b, seq, claims: b.claims + 1 }) };
+    const next = { ...cur, pveBattle: JSON.stringify({ ...b, seq, claims: b.claims + 1, kills: { ...kills, [src]: (kills[src] ?? 0) + 1 }, ...(boss ? { bossAt: { ...b.bossAt, [b.stageId]: now } } : {}) }) };
     // 經驗與升級也由伺服器算（26-security：經驗是敏感邏輯）；規則和引擎同一份（killXp、xpToNext）
     const xp = killXp(lc);
     const maxLevel = stageDef(b.stageId)?.progression?.maxLevel ?? 1;
@@ -156,7 +174,7 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
         if (x.reward.crystal) await ctx.r.wallets.apply(c.id, 'crystal', x.reward.crystal, 'bounty', b.id);
       }
     }
-    if (isStageBoss(lc)) {
+    if (boss) {
       const mp = cur.maps[b.stageId] ?? {};
       next.maps = { ...cur.maps, [b.stageId]: { ...mp, bossKills: (mp.bossKills ?? 0) + 1, ...(fury ? { furyKills: (mp.furyKills ?? 0) + 1 } : {}) } };
     }
