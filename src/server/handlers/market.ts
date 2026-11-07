@@ -96,6 +96,11 @@ export const marketHandlers: Pick<HandlerTable, 'market.list' | 'market.cancel' 
         out.push(await ctx.r.listings.save({ ...l, status: 'expired', closedAt: now }));
       } else out.push(l);
     }
-    return { listings: out.map((l) => view(l, ctx.accountId)), character: await freshView(ctx, c.id) };
+    // 賣出通知（第 149 輪，D-320）：上次看過之後才成交的（模擬冒險者／別的玩家在你不在時買走）。第一次看拍賣所只記時間、不通知舊的
+    const seen = c.marketSeenAt;
+    const news = seen === undefined ? [] : out.filter((l) => l.status === 'sold' && (l.closedAt ?? 0) > seen);
+    const upTo = Math.max(seen ?? now, ...news.map((l) => l.closedAt ?? 0));
+    if (upTo !== seen) await ctx.r.characters.save({ ...(await ownCharacter(ctx, c.id)), marketSeenAt: upTo });
+    return { listings: out.map((l) => view(l, ctx.accountId)), news: news.map((l) => view(l, ctx.accountId)), character: await freshView(ctx, c.id) };
   },
 };

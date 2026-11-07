@@ -12,6 +12,8 @@ export interface MarketPage {
   page: number;
   /** 我的掛單（開著的在前） */
   mine: ListingView[];
+  /** 上次看過之後才賣出的掛單（伺服器算，第 149 輪） */
+  news: ListingView[];
   character: CharacterView;
   /** 這次的動作被伺服器拒絕（錢不夠、已經被買走…）：錯誤碼與訊息；畫面照樣更新 */
   failed?: string;
@@ -41,7 +43,7 @@ function step(act: ((c: Parameters<Parameters<typeof legacyOp>[2]>[0], me: Chara
         }
       const b = await c.call('market.browse', slot ? { slot, page } : { page });
       const m = await c.call('market.mine', { characterId: me.id });
-      return { listings: b.listings, page: b.page, mine: sortMine(m.listings), character: m.character, failed };
+      return { listings: b.listings, page: b.page, mine: sortMine(m.listings), news: m.news ?? [], character: m.character, failed };
     },
     (r) => r.character,
     true,

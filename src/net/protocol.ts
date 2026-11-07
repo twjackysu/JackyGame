@@ -77,7 +77,8 @@ export interface Api {
   'market.buy': { params: { characterId: string; listingId: string }; result: CharacterView; write: true };
   'market.browse': { params: { slot?: string; rarity?: number; page?: number }; result: { listings: ListingView[]; page: number }; write: false };
   /** 自己的掛單；過期的物品在這裡退回行囊（所以算寫入） */
-  'market.mine': { params: { characterId: string }; result: { listings: ListingView[]; character: CharacterView }; write: true };
+  /** news＝上次看過之後才賣出的掛單（第 149 輪：「你不在的時候賣出了…」） */
+  'market.mine': { params: { characterId: string }; result: { listings: ListingView[]; news: ListingView[]; character: CharacterView }; write: true };
   // 非同步 PvP 天梯（core/battle/rt/pvpMatch.ts，24 §6.2）：伺服器發種子與雙方配裝 → 客戶端打完送自己的指令紀錄 → 伺服器重跑判勝負、改段位分
   /** foeId＝天梯上指名挑戰的對手（第 149 輪；段位分差 PVP_CHALLENGE_RANGE 內）；沒有＝伺服器挑分數接近的 */
   'pvp.start': { params: { characterId: string; foeId?: string }; result: PvpStartView; write: true };

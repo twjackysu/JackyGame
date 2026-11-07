@@ -35,6 +35,8 @@ export interface CharacterRow {
   pvpMatch?: string;
   /** PvP 段位分（沒有＝起始分） */
   pvpRating?: number;
+  /** 拍賣所「賣出通知」看到哪裡（掛單 closedAt；第 149 輪 market.mine 的 news）。沒有＝還沒看過拍賣所 */
+  marketSeenAt?: number;
   /** 進行中的 PvE 戰鬥（battle.start 存、loot.claim 更新；JSON 字串，第 146 輪 D-307）。一個角色同時只有一場 */
   pveBattle?: string;
   createdAt: number;

@@ -11,6 +11,7 @@ import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { gearIcon } from '../fx/gearIcons';
 import type { MarketOps, MarketPage } from '../marketOps';
+import { soldNewsText } from '../marketNews';
 import { BAG_MAX, isUpgrade, type BagState } from '../rtBag';
 import { gearTitleW, skillNames } from '../weapon';
 
@@ -50,11 +51,11 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
 
   let lastToast: Phaser.GameObjects.Text | null = null;
-  const toast = (msg: string, col = '#ffd27a'): void => {
+  const toast = (msg: string, col = '#ffd27a', size = 32, hold = 1100): void => {
     lastToast?.destroy();
     const y0 = GAME_HEIGHT / 2 + 410;
-    const t = (lastToast = scene.add.text(GAME_WIDTH / 2, y0, msg, { fontFamily: TITLE_FONT, fontSize: '32px', color: col, stroke: '#000', strokeThickness: 6, align: 'center' }).setOrigin(0.5).setDepth(990));
-    scene.tweens.add({ targets: t, y: y0 - 40, alpha: 0, delay: 1100, duration: 700, onComplete: () => t.destroy() });
+    const t = (lastToast = scene.add.text(GAME_WIDTH / 2, y0, msg, { fontFamily: TITLE_FONT, fontSize: `${size}px`, color: col, stroke: '#000', strokeThickness: 6, align: 'center', wordWrap: { width: GAME_WIDTH - 40, useAdvancedWrap: true } }).setOrigin(0.5).setDepth(990));
+    scene.tweens.add({ targets: t, y: y0 - 40, alpha: 0, delay: hold, duration: 700, onComplete: () => t.destroy() });
   };
   root.once('destroy', () => {
     if (lastToast) scene.tweens.killTweensOf(lastToast);
@@ -76,19 +77,24 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
       }
       error = false;
       data = d;
-      if (first) {
-        first = false;
+      if (d.failed) {
+        detail = null;
+        toast(failText(d.failed), '#ff9a8a');
+      }
+      else ok?.(d);
+      // 賣出通知（第 149 輪；放在動作結果後面：比「上架了」更值得看）：伺服器說上次看過之後賣掉了哪些；舊存檔第一次打開（伺服器還沒有紀錄）照舊用金幣差
+      const news = soldNewsText(d.news, first);
+      if (news) {
+        SFX.itemGet();
+        toast(news, '#7dffb0', 26, 2600);
+      } else if (first) {
         const gained = d.character.wallet.coin - ctx.coinBefore;
         if (gained > 0) {
           SFX.itemGet();
           toast(`你不在的時候有人買走掛單\n+${gained} 金`, '#7dffb0');
         }
       }
-      if (d.failed) {
-        detail = null;
-        toast(failText(d.failed), '#ff9a8a');
-      }
-      else ok?.(d);
+      first = false;
       render();
     });
   };

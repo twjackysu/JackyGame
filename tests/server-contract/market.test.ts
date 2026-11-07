@@ -126,3 +126,33 @@ for (const be of BACKENDS)
       await db.close();
     });
   });
+
+for (const be of BACKENDS)
+  describe(`拍賣所賣出通知（${be.name}，第 149 輪）`, () => {
+    it('market.mine 的 news：第一次看只記時間；之後不在時賣掉的列一次，看過就不再列；取消／過期不算', async () => {
+      const { db } = await be.fresh(() => 0);
+      const { a, b, ca, cb, clock } = await setup(db);
+      const [i1, i2] = bagOf(ca);
+      const l1 = (await a.call('market.list', { characterId: ca.id, itemId: i1!.id, price: 300 })).listing;
+      clock.advance(1000);
+      // 還沒看過拍賣所就賣掉的：第一次看不通知（舊存檔不會一打開就跳一堆舊消息）
+      await b.call('market.buy', { characterId: cb.id, listingId: l1.id });
+      clock.advance(1000);
+      expect((await a.call('market.mine', { characterId: ca.id })).news).toEqual([]);
+      const l3 = (await a.call('market.list', { characterId: ca.id, itemId: i2!.id, price: 500 })).listing;
+      clock.advance(1000);
+      await a.call('market.cancel', { characterId: ca.id, listingId: l3.id });
+      const l2 = (await a.call('market.list', { characterId: ca.id, itemId: i2!.id, price: 400 })).listing;
+      clock.advance(1000);
+      await b.call('market.buy', { characterId: cb.id, listingId: l2.id });
+      clock.advance(1000);
+      const m = await a.call('market.mine', { characterId: ca.id });
+      expect(m.news.map((l) => [l.id, l.status, l.price])).toEqual([[l2.id, 'sold', 400]]);
+      // 看過了：再看一次沒有
+      expect((await a.call('market.mine', { characterId: ca.id })).news).toEqual([]);
+      // 存回去的時間點不受 migrate.sync 影響
+      await a.call('migrate.sync', { snapshot: LEGACY_SAMPLE });
+      expect((await a.call('market.mine', { characterId: ca.id })).news).toEqual([]);
+      await db.close();
+    });
+  });
