@@ -1,6 +1,6 @@
 // 競技場的場地美術（第 153 輪，A7）：石板地（每塊深淺不同、灰縫、裂紋）、中央沙地與交叉雙劍紋章、
 // 兩邊出生區的漸層、上下看台的觀眾剪影、兩側火盆（光暈會閃）、掩體石塊的亮邊。
-// 純畫面：用自己的小亂數（固定種子，每次都長一樣），不碰戰鬥 PRNG；場地只在 create 畫一次，每幀只動四個火盆的光。
+// 純畫面：用自己的小亂數（固定種子，每次都長一樣），不碰戰鬥 PRNG；場地只在第一次 create 畫一次並烤成貼圖，每幀只動四個火盆的光。
 import Phaser from 'phaser';
 
 export interface ArenaArtOpts {
@@ -41,11 +41,28 @@ export class ArenaArt {
   private standY: [number, number] = [0, 0];
 
   constructor(private scene: Phaser.Scene, o: ArenaArtOpts) {
-    const r = deco(0x5eed_a7);
     const { ox, oy, cell: c, cols, rows } = o;
     const w = cols * c;
     const h = rows * c;
-    const a = scene.add.graphics().setDepth(1);
+    this.standY = [oy - 30, oy + h + 30];
+    const spots = [[ox - 26, oy + h * 0.22], [ox + w + 26, oy + h * 0.22], [ox - 26, oy + h * 0.78], [ox + w + 26, oy + h * 0.78]] as const;
+    // 場地很多筆畫（每塊石板、觀眾）：畫一次烤成貼圖，之後每幀只畫一張圖（Graphics 每幀都會重跑全部指令；重開場景直接用烤好的）
+    const KEY = `arena_bg_${scene.scale.width}x${scene.scale.height}`;
+    if (!scene.textures.exists(KEY)) {
+      const a = scene.make.graphics({}, false);
+      this.paint(a, o, w, h);
+      for (const [fx, fy] of spots) brazierBase(a, fx, fy);
+      a.generateTexture(KEY, scene.scale.width, scene.scale.height);
+      a.destroy();
+    }
+    scene.add.image(0, 0, KEY).setOrigin(0, 0).setDepth(1);
+    // 兩側火盆的火（光暈每幀閃）
+    for (const [fx, fy] of spots) this.flame(fx, fy, o.lowFx);
+  }
+
+  private paint(a: Phaser.GameObjects.Graphics, o: ArenaArtOpts, w: number, h: number): void {
+    const r = deco(0x5eed_a7);
+    const { ox, oy, cell: c, cols, rows } = o;
     this.stands(a, r, oy, h);
     a.fillStyle(0x000000, 0.5).fillRoundedRect(ox - 14, oy - 14, w + 28, h + 28, 18);
     // 石板：灰縫底色＋每塊各自的深淺（棋盤交錯的感覺保留，但不再是兩個死板的顏色）
@@ -108,8 +125,6 @@ export class ArenaArt {
         a.lineStyle(1, 0x2a2826, 1).strokeRect(x, y, c, c);
       }),
     );
-    // 兩側火盆（光暈每幀閃）：放在場地兩邊的空白處
-    for (const [fx, fy] of [[ox - 26, oy + h * 0.22], [ox + w + 26, oy + h * 0.22], [ox - 26, oy + h * 0.78], [ox + w + 26, oy + h * 0.78]] as const) this.brazier(a, fx, fy, o.lowFx);
   }
 
   /** 上下看台：石頭欄杆＋一排排觀眾的頭（暗色剪影，偶爾一面小旗） */
@@ -133,7 +148,6 @@ export class ArenaArt {
         }
       }
     };
-    this.standY = [oy - 30, oy + h + 30];
     const top0 = Math.max(96, oy - 74);
     band(top0, oy - 16, -1);
     band(oy + h + 16, Math.min(oy + h + 100, this.scene.scale.height - 300), 1);
@@ -157,16 +171,13 @@ export class ArenaArt {
     }
   }
 
-  private brazier(a: Phaser.GameObjects.Graphics, x: number, y: number, lowFx: boolean): void {
-    // 盆：三腳架＋碗
-    a.lineStyle(3, 0x3a3026, 1).lineBetween(x - 9, y + 22, x, y + 6).lineBetween(x + 9, y + 22, x, y + 6);
-    a.fillStyle(0x4a3c2c, 1).fillEllipse(x, y + 4, 26, 12);
-    a.fillStyle(0x2a2018, 1).fillEllipse(x, y + 1, 20, 6);
+  private flame(x: number, y: number, lowFx: boolean): void {
     const tex = ensureGlow(this.scene);
     const glow = this.scene.add.image(x, y - 4, tex).setDepth(2).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff9a4a).setScale(lowFx ? 1.2 : 1.8).setAlpha(0.45);
     const core = this.scene.add.image(x, y - 6, tex).setDepth(2).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffe0a0).setScale(0.32).setAlpha(0.95);
     this.flames.push({ glow, core, ph: this.flames.length * 1.7 });
   }
+
 
   /**
    * 觀眾歡呼（第 153 輪）：贏了從上下看台灑彩紙（金／藍／白小紙片飄落、翻轉、淡出）。純外觀，省電畫質減半。
@@ -198,6 +209,13 @@ export class ArenaArt {
       f.core.setScale(0.28 + 0.07 * k, 0.34 + 0.1 * k);
     }
   }
+}
+
+/** 火盆：三腳架＋碗（烤進場地貼圖） */
+function brazierBase(a: Phaser.GameObjects.Graphics, x: number, y: number): void {
+  a.lineStyle(3, 0x3a3026, 1).lineBetween(x - 9, y + 22, x, y + 6).lineBetween(x + 9, y + 22, x, y + 6);
+  a.fillStyle(0x4a3c2c, 1).fillEllipse(x, y + 4, 26, 12);
+  a.fillStyle(0x2a2018, 1).fillEllipse(x, y + 1, 20, 6);
 }
 
 function ensureGlow(scene: Phaser.Scene): string {

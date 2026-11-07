@@ -11,6 +11,7 @@ import { TICKS_PER_SEC, UNIT, type BattleCommand, type BattleState, type Shape, 
 import { canChallenge, rankAura, rankName } from '../../core/meta/pvpRank';
 import { auraCss, drawRankAura } from '../fx/rankAura';
 import { ArenaArt } from '../fx/arenaArt';
+import { vsIntro } from '../fx/vsIntro';
 import { getSettings } from '../settings';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
@@ -280,7 +281,9 @@ export class PvpScene extends Phaser.Scene {
     // 開場：雙方介紹 1.6 秒
     this.phase = 'intro';
     const foeW = WEAPON_NAME[o.setup.foe.weapon];
-    this.status.setText(`${rankName(o.rating)} ${o.rating}　你（${WEAPON_NAME[o.setup.me.weapon]}）\nVS\n${o.foeName}（${foeW}）　${rankName(o.foeRating)} ${o.foeRating}`).setFontSize(30);
+    // 第 153 輪：VS 橫幅演出（以前是置中三行字）
+    this.status.setText('');
+    vsIntro(this, GAME_WIDTH / 2, this.status.y, { name: '你', sub: `${WEAPON_NAME[o.setup.me.weapon]}・${rankName(o.rating)} ${o.rating}`, color: ME }, { name: o.foeName, sub: `${foeW}・${rankName(o.foeRating)} ${o.foeRating}`, color: FOE }, 1450);
     SFX.warn(false);
     this.time.delayedCall(1600, () => {
       this.status.setText('開戰！').setFontSize(64).setColor('#ffd27a');
