@@ -6,15 +6,22 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 153 輪起先做（V5／V6 收尾＋美術，11/7–11/11；11/12 12:00 凍結）
-**已經有的（到第 152 輪）**：美術 `fx/nightLight.ts`（深夜光照）、`fx/pressFx.ts`（按鈕回饋）、`floatNumber` 的 `tier`、`rt/ground.ts` 的 `paintVariety`；`simGearRating`（D-326）；以及：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（`canChallenge`、`pvpStreakAfter`／`taipeiDay`、`simGearPlan`）、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`（`pvp.finish` 回 `streak`／`firstWin`、`pvp.ladder` 帶 `streak`，D-324；對手配裝 `simGearPlan(min(對手, 你))`，D-325）、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核；登入 PKCE＋續期＋登出；段位光環。**畫面拆出來的**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`、`landmarks`、`eliteFall`、`dashFx`、`coinFly`）、`src/game/rt/`（`ground`、`offscreenArrows`）、`src/game/pvpRecent.ts`（`streakLine`）。Wiki `docs/wiki/online.md`（手寫，導覽列在 `tests/wiki-gen.test.ts` 的 NAV）。
-1. CI 每輪開頭看一次（第 152 輪最後的程式 commit 是「Q5 拆場景：暗角圖與營火光暈材質搬到 fx/nightLight」；之前每個都綠）。
-2. **美術續（A 系列，D-327）**：第 152 輪做了 A3 深夜光照（`fx/nightLight.ts`：`flash(x,y,r,ms)` 可以再接更多事件，例如法杖火系技能、寶箱打開）、A5 傷害數字分級（`floatNumber` 的 `tier`）＋全域按鈕回饋（`fx/pressFx.ts`）、A6 地面（`rt/ground.ts` 的 `paintVariety`）。還沒做：A5 面板 9-slice 外框（範圍保護第 2 項，可以不做）。**改了外觀要附舊／新截圖**（四張圖並排的做法見下面「第 152 輪注意」）。
-3. **競技場（D-326 後）**：好裝停在約 1318、80% 勝；全身稀有＋強化的人還會往上。若要再調：`simGearPlan` 的 `enh` 斜率（每 50 分 +1）或 `SIM_GEAR_TOP`。量法：`npx vitest run tests/pvp-ladder-balance.test.ts`（加 `console.log` 看每場 v/d）。**Bot 對 Bot 是確定性的，只看「Elo 找不找得到平衡點」**。
-4. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`（大工程，V7 前不一定做）。撿錢飄字已改伺服器（第 151 輪）。
-5. **Q5 拆場景繼續**（`RtBattleScene` 4,985 行（第 152 輪加了深夜光照的接線、搬出兩個材質函式），範圍保護：停在 < 4,000 不強求）。剩下的大塊：`draw()` 544 行、`playEvents()` 約 480 行（每種事件一段，可以照 `eliteFall` 的做法把「純演出」搬成表或函式）、`drawUi()` 198 行、`toggleMenu()` 122 行、`openBag()` 101 行。**驗證方法（第 151 輪最好用）**：`git stash` 建舊 build 到 `/tmp/claude-0/dist-old`、新 build 到 `dist-new`，兩個 `vite preview`（4181／4182），頁面裡 `__game.loop.sleep()`、`sc.time.now = 固定值`，新建 Graphics 呼叫舊方法／新方法，比 `JSON.stringify(g.commandBuffer)`（腳本思路 `screenshots/r151cmp.mjs`、`r151off2.mjs`，gitignored，照這段重寫）。
-6. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰。暴怒旗標伺服器已檢查解鎖（`furyOpenBy`），詞綴照地圖檢查；剩的風險低。
-7. **V7（11/12 12:00 起凍結）**：README 已有第二期一段＋Wiki 線上化頁（第 151 輪），V7 補：截圖（競技場結果「今日首勝」、拍賣所、交易、天梯）、版本 1.2.0、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、手機效能、`npm run wiki`、開發數字（輪數、commit 數、測試數）。截圖用 `scripts/shot-newsave.mjs`（要先 `npx vite --port 5173`）。
+## ★ 第 154 輪起先做（V5／V6 收尾＋美術，11/7–11/11；11/12 12:00 凍結）
+**已經有的（到第 153 輪）**：美術 `fx/nightLight.ts`、`fx/pressFx.ts`、`floatNumber` 的 `tier`、`rt/ground.ts` 的 `paintVariety`、`fx/ambient.ts`（第 153 輪：每層 `parallax`／`margin`、森林霧與落葉、星隕流星）、**`fx/arenaArt.ts`（競技場場地，烤成貼圖 `arena_bg_WxH`＋火盆＋`cheer()` 彩紙）**、**`fx/vsIntro.ts`**、`fx/bossCues.ts`；`simGearRating`（D-326）；**賽季 `taipeiWeek`／`seasonLeftMs`／`pvpSeasonNow`／`pvpSeasonAfter`（D-328，角色 `pvpSeason`）**、**`market.history`＋`priceStats`（D-329）**；`src/game/shopOps.ts`（`shopOps.deal`、`cardOps`）、`ui/memoryBook.ts`；以及：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核；登入 PKCE＋續期＋登出；段位光環。**畫面拆出來的**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`、`landmarks`、`eliteFall`、`dashFx`、`coinFly`、`bossCues`）、`src/game/rt/`（`ground`、`offscreenArrows`）、`src/game/pvpRecent.ts`（`streakLine`、`seasonLines`）。Wiki `docs/wiki/online.md`（手寫）。
+1. CI 每輪開頭看一次（第 153 輪最後的程式 commit 是「競技場：①場地美術烤成一張貼圖 ②VS 開場」；之前的都綠，含 mssql）。
+2. **效能巡檢（第 153 輪的教訓，D-331）**：Graphics 每幀都會重跑全部指令。找其他「畫一次就不動、但指令很多」的 Graphics（PvP 大廳框、各面板底、`drawUi` 裡靜態的部分），量 `__game.loop.actualFps`（無頭約 8～10 是正常），多的就 `generateTexture` 烤起來。中階手機 60fps 是驗收條件之一。
+3. **美術續**：A1／A2 等 Jacky 的圖；A5 面板 9-slice 外框（範圍保護第 2 項，可以不做）。可以做的小項：競技場觀眾在大招命中時歡呼（`ArenaArt` 加 `cheer` 的小版本）、拍賣所／交易面板的標題列。**改外觀要附舊／新截圖**。
+4. **交易續（選做）**：拍賣所「逛逛」的掛單標「低於最近成交」（要避免每列一次 `market.history`：伺服器 `market.browse` 一次帶回每個部位×稀有度的中位數，或面板只對看得到的組合各問一次並快取）。SQL 版 `listSold` 量大時加 `ClosedAt` 索引要新遷移 0005（只 CREATE INDEX、在 `game` schema）。
+5. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`（大工程，V7 前不一定做）。
+6. **Q5 拆場景繼續**（`RtBattleScene` 4,880 行，範圍保護：停在 < 4,000 不強求）。剩下的大塊：`draw()` 545 行、`playEvents()` 約 470 行、`drawUi()` 198 行、`toggleMenu()` 122 行（跟場景綁很緊，不划算）、`openBag()`。驗證方法見第 151 輪（舊／新 build 比 `commandBuffer`）或第 153 輪（比選單物件的種類／座標／文字）。
+7. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰；風險低。
+8. **V7（11/12 12:00 起凍結）**：截圖（競技場 VS 開場、結果「今日首勝」＋彩紙、拍賣所上架卡片的最近成交、天梯賽季字）、版本 1.2.0、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、手機效能、`npm run wiki`、開發數字（輪數、commit 數、測試數）。截圖用 `scripts/shot-newsave.mjs`（要先 `npx vite --port 5173`）。
+
+**第 153 輪注意**：
+- **Graphics 很多筆畫又不動 → 烤成貼圖**（`arenaArt` 的做法：`scene.make.graphics({}, false)` 畫完 `generateTexture(KEY, W, H)`、`destroy`，`textures.exists(KEY)` 就跳過）。無頭 fps 掉到 3 時 Phaser 的 delta 有上限，`time.delayedCall` 會被拖慢好幾倍（看起來像「卡在某個 phase」）。
+- 賽季：`pvp.ladder` 是唯讀（write: false）→ 換季只在 `pvp.finish` 存；ladder 每次用 `pvpSeasonNow` 現算。測試用 `clock.advance(season.leftMs + 60_000)` 跳到下一季。
+- 角色新欄位照舊要加進 `MssqlDb.ts` 的 `charRow` Pick 和 save 的 `Data`（`pvpSeason` 已加）。
+- 截圖：競技場 VS 開場 `screenshots/r153vs.mjs`（點「開始對戰」→ 等 `phase === 'intro'` → 700ms → `cameras.main.resetFX()`＋`loop.sleep()`）；結果＋彩紙 `r153res.mjs`（`FREEZE=1 WAIT=700`）；上架卡片假 ops `r153mkt.mjs`（`openMarketPanel` 的 ops 要有 `history`）；假 ladder 資料：dev server 裡 `await import('/src/game/pvpOps.ts')` 改 `pvpOps.ladder` 再 `scene.restart()`（**改過檔案後要重開 vite**，HMR 的模組網址帶時間戳會對不上）。
 
 **第 152 輪注意**：
 - 無頭 Chromium 截圖有約 1 秒延遲，短動畫拍不到：拍彈跳數字用 `tweens.killTweensOf(t)` 再 `setScale` 固定；按鈕回饋用 `scene.events.on('postupdate')` 逐幀記 scale（無頭約 5 fps）。dev server 裡 `await import('/src/game/fx/feel.ts')` 可以直接呼叫 `floatNumber(sc, …)`。
