@@ -52,6 +52,108 @@ export function edgeShadeTexture(scene: Phaser.Scene, stageId: string): string {
   return key;
 }
 
+/** 格線淡一點（A6，第 152 輪）：以前 1.0，地面一格一格的感覺太重 */
+const GRID_ALPHA = 0.55;
+
+/** 座標雜湊亂數（分塊重畫時每塊結果一致；不碰戰鬥 PRNG） */
+function h01(i: number, salt: number): number {
+  let h = (i * 374761393 + salt * 668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** 顏色乘一個亮度係數（>1 變亮，<1 變暗） */
+function tone(c: number, f: number): number {
+  const ch = (v: number): number => Math.max(0, Math.min(255, Math.round(v * f)));
+  return (ch((c >> 16) & 255) << 16) | (ch((c >> 8) & 255) << 8) | ch(c & 255);
+}
+
+/**
+ * 地面去重複感（A6，第 152 輪）：畫在斑點底下。
+ * 1) 大塊明暗色塊：每 700 單位一塊，用 4 層半透明同心橢圓假裝柔邊，讓大地圖有「這片比較亮、那片比較暗」的起伏；
+ * 2) 小 decal：森林＝落葉＋小石子，荊棘谷＝乾裂紋＋紅褐石子，燼紅裂谷＝焦黑裂紋（少數帶暗橘餘燼）＋灰燼點，星隕高原＝碎星晶＋淡光點。
+ * 世界座標 × k；只畫這一塊附近的（亂數用索引雜湊，所以每塊畫出同一張圖）。
+ */
+function paintVariety(g: Phaser.GameObjects.Graphics, decor: 'forest' | 'thorn' | 'ember' | 'star', ground: number, aw: number, ah: number, k: number, bx0: number, by0: number, bx1: number, by1: number): void {
+  const out = (x: number, y: number, m: number): boolean => x < bx0 - m || x > bx1 + m || y < by0 - m || y > by1 + m;
+  const hiC = decor === 'forest' ? 0x1f3524 : tone(ground, 1.25);
+  const loC = tone(ground, 0.72);
+  const nPatch = Math.ceil((aw * ah) / (700 * 700));
+  for (let i = 0; i < nPatch; i++) {
+    const x = h01(i, 1) * aw * k;
+    const y = h01(i, 2) * ah * k;
+    const rw = (220 + h01(i, 3) * 320) * k;
+    const rh = rw * (0.55 + h01(i, 4) * 0.35);
+    if (out(x, y, rw)) continue;
+    const c = h01(i, 5) < 0.5 ? hiC : loC;
+    for (let l = 0; l < 4; l++) {
+      const f = 1 - l * 0.22;
+      g.fillStyle(c, 0.11).fillEllipse(x, y, rw * 2 * f, rh * 2 * f);
+    }
+  }
+  const nDecal = Math.ceil((aw * ah) / 45000);
+  for (let i = 0; i < nDecal; i++) {
+    const x = h01(i, 11) * aw * k;
+    const y = h01(i, 12) * ah * k;
+    if (out(x, y, 30)) continue;
+    const r = h01(i, 13);
+    const ang = h01(i, 14) * Math.PI * 2;
+    const sz = (6 + h01(i, 15) * 8) * k * 2.5;
+    if (decor === 'forest') {
+      if (r < 0.45) {
+        // 落葉：兩三片扁橢圓疊在一起（一小撮，比單片自然）
+        const col = r < 0.15 ? 0x5a4a22 : r < 0.3 ? 0x4a5226 : 0x5e3a1c;
+        const n = 2 + (h01(i, 16) < 0.5 ? 1 : 0);
+        for (let t = 0; t < n; t++) {
+          const lx = x + Math.cos(ang + t * 2.1) * sz * 0.35;
+          const ly = y + Math.sin(ang + t * 2.1) * sz * 0.25;
+          g.fillStyle(col, 0.38).fillEllipse(lx, ly, sz * 0.75, sz * 0.38);
+        }
+      } else if (r < 0.75) {
+        g.fillStyle(0x2a332c, 0.7).fillCircle(x, y, sz * 0.3);
+        g.fillStyle(0x4a554c, 0.5).fillCircle(x - sz * 0.08, y - sz * 0.08, sz * 0.14);
+      }
+      // 其餘（約 1/4）留白：地面不要每一處都有東西
+    } else if (decor === 'thorn' || decor === 'ember') {
+      if (r < 0.45) {
+        // 乾裂紋／焦黑裂紋：三段折線
+        let px = x;
+        let py = y;
+        const segs: number[] = [px, py];
+        for (let t = 0; t < 3; t++) {
+          const a2 = ang + (h01(i, 20 + t) - 0.5) * 1.4;
+          px += Math.cos(a2) * sz * 0.9;
+          py += Math.sin(a2) * sz * 0.9;
+          segs.push(px, py);
+        }
+        g.lineStyle(2, tone(ground, 0.55), 0.85);
+        for (let t = 0; t < 3; t++) g.lineBetween(segs[t * 2]!, segs[t * 2 + 1]!, segs[t * 2 + 2]!, segs[t * 2 + 3]!);
+        if (decor === 'ember' && h01(i, 25) < 0.3) {
+          g.lineStyle(1, 0xff6a2a, 0.35);
+          for (let t = 0; t < 3; t++) g.lineBetween(segs[t * 2]!, segs[t * 2 + 1]!, segs[t * 2 + 2]!, segs[t * 2 + 3]!);
+        }
+      } else if (decor === 'thorn') {
+        g.fillStyle(0x3a2620, 0.75).fillCircle(x, y, sz * 0.28);
+        g.fillStyle(0x5a3e30, 0.5).fillCircle(x - sz * 0.07, y - sz * 0.07, sz * 0.12);
+      } else {
+        // 灰燼點
+        g.fillStyle(0x5a5250, 0.35).fillCircle(x, y, sz * 0.18);
+        g.fillStyle(0x3a3230, 0.5).fillCircle(x + sz * 0.3, y + sz * 0.1, sz * 0.12);
+      }
+    } else {
+      if (r < 0.4) {
+        // 碎星晶：小菱形＋亮點
+        const w = sz * 0.22;
+        const hh = sz * 0.45;
+        g.fillStyle(0x4a56a8, 0.6).fillTriangle(x - w, y, x + w, y, x, y - hh).fillTriangle(x - w, y, x + w, y, x, y + hh * 0.5);
+        g.fillStyle(0xc8d4ff, 0.5).fillCircle(x, y - hh * 0.3, Math.max(1, sz * 0.07));
+      } else {
+        g.fillStyle(0xaab4ff, 0.18 + h01(i, 26) * 0.2).fillCircle(x, y, Math.max(1, sz * 0.1));
+      }
+    }
+  }
+}
+
 /** 地面：深綠＋格線＋零星草叢＋牆（世界座標 × k，原點在場地左上） */
 export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string, k: number, viewH: number): Phaser.GameObjects.Container {
   const a = s.arena;
@@ -95,6 +197,7 @@ export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string,
   const P = wmp.palette;
   const paint = (g: Phaser.GameObjects.Graphics, bx0: number, by0: number, bx1: number, by1: number): void => {
     g.fillStyle(P.ground, 1).fillRect(0, 0, W, H);
+    paintVariety(g, wmp.decor, P.ground, a.w, a.h, k, bx0, by0, bx1, by1);
     // 固定種子的地面斑點（不影響戰鬥 PRNG）
     let seed = 1234567;
     const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -156,7 +259,7 @@ export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string,
       g.fillStyle(0xff7a2a, 0.7).fillEllipse(vx, vy, vr * 0.36, vr * 0.26);
       g.lineStyle(2, 0x5a2a18, 0.8).strokeEllipse(vx, vy, vr * 2.0, vr * 1.7);
     }
-    g.lineStyle(1, P.grid, 1);
+    g.lineStyle(1, P.grid, GRID_ALPHA);
     for (let x = 0; x <= a.w; x += 100) g.lineBetween(x * k, 0, x * k, H);
     for (let y = 0; y <= a.h; y += 100) g.lineBetween(0, y * k, W, y * k);
     // 障礙物（D-070／D-071）：成片的（周圍 8 格有 5 格以上也是障礙）畫成樹林，零散的畫成圓石。
