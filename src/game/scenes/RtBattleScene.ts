@@ -3286,7 +3286,12 @@ export class RtBattleScene extends Phaser.Scene {
           this.nightLight?.flash(this.sx(p.x), this.sy(p.y), 900 * this.k * 1.5, 700);
           sparks(this, this.sx(p.x), this.sy(p.y), 26, 'ember', 0xff9ae0, 520);
           bigText(this, GAME_WIDTH / 2, 460, `${skillDef(this.s, 'blade_storm')!.name}！`, '#ff9ae0', 54, 700);
-        } else SFX.blip();
+        } else {
+          SFX.blip();
+          // 深夜：一般技能出手時身邊亮一下（法杖的魔法、劍氣、箭光）
+          const p = u(e.id) ?? playerOf(this.s);
+          this.nightLight?.flash(this.sx(p.x), this.sy(p.y), 360 * this.k * 1.5, 320);
+        }
       }
       else if (e.type === 'telegraph') {
         // 預告聲音提示（同一 tick 多隻只響一次）；Boss 低沉
@@ -3420,6 +3425,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (this.tracked) this.ptsLeft = this.skillPointsLeft();
         // 升級（D-090）：金色光柱＋大字＋數值浮字，立刻存檔
         const p = playerOf(this.s);
+        this.nightLight?.flash(this.sx(p.x), this.sy(p.y), 700 * this.k * 1.5, 1200); // 深夜：升級光柱照亮四周
         if (this.tracked && e.level === FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury && (loadRecord(this.stageId).bossKills ?? 0) >= 1 && (loadRecord(this.stageId).bossKills ?? 0) < FURY_UNLOCK.kills) this.furyUnlockedToast(); // D-247：還沒打倒過這張圖的 Boss 不算解鎖
         SFX.perfect();
         this.cameras.main.flash(180, 255, 230, 160);
@@ -3492,6 +3498,7 @@ export class RtBattleScene extends Phaser.Scene {
         const c = STAGES[this.stageId]?.chests?.find((q) => q.id === e.chest);
         const x = c ? this.sx(c.x) : GAME_WIDTH / 2;
         const y = c ? this.sy(c.y) : 600;
+        this.nightLight?.flash(x, y, 420 * this.k * 1.5, 1600); // 深夜：寶箱打開的光
         SFX.perfect();
         SFX.itemGet();
         this.cameras.main.flash(120, 255, 230, 160);
