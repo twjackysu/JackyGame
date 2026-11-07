@@ -40,6 +40,8 @@ jobs:
         env:
           VITE_SERVER_URL: ${{ vars.ONLINE_API_URL }}
           VITE_AUTH_MODE: 'off'
+          VITE_ENTRA_AUTHORITY: ${{ vars.ENTRA_AUTHORITY }}
+          VITE_ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
       - uses: actions/configure-pages@v5
         with:
           enablement: true
