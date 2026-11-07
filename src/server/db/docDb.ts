@@ -113,6 +113,12 @@ function reposOf(tx: Tx, now: () => number): Repos {
         const id = `${row.at.toString(36)}-${(ledgerSeq = (ledgerSeq + 1) % 1e9).toString(36)}`;
         tx.put('audit', id, { ...row, id });
       },
+      recent: async (a, limit) =>
+        tx
+          .scan('audit', (r) => r.accountId === a)
+          .sort((x, y) => y.at - x.at || auditSeq(y.id) - auditSeq(x.id))
+          .slice(0, Math.max(0, limit))
+          .map(({ accountId, action, detail, at }) => ({ accountId, action, detail, at })),
     },
     listings: {
       get: async (id) => tx.get('listings', id),
@@ -171,3 +177,6 @@ export class DocDb implements Db {
     await this.store.close();
   }
 }
+
+/** 稽核 id 的序號部分（`<at36>-<seq36>`；同一毫秒照寫入順序排） */
+const auditSeq = (id: string): number => parseInt(id.slice(id.indexOf('-') + 1), 36) || 0;

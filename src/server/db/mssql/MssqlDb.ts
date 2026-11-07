@@ -182,6 +182,12 @@ function reposOf(t: Trx, now: () => number): Repos {
       add: async (row) => {
         await t.insertInto('AuditLog').values({ AccountId: row.accountId, Action: row.action, Detail: row.detail, At: row.at }).execute();
       },
+      recent: async (a, limit) => {
+        const n = Math.floor(limit);
+        if (!(n > 0)) return [];
+        const rows = await t.selectFrom('AuditLog').select(['AccountId', 'Action', 'Detail', 'At']).where('AccountId', '=', a).orderBy('At', 'desc').orderBy('Id', 'desc').offset(0).fetch(n).execute();
+        return rows.map((r) => ({ accountId: r.AccountId, action: r.Action, detail: r.Detail, at: Number(r.At) }));
+      },
     },
     listings: {
       get: async (id) => {

@@ -34,6 +34,9 @@ const SIM_TRADE: ReadonlySet<string> = new Set(['trade.open', 'trade.offer', 'tr
 
 export type AnyHandler = (ctx: Ctx, p: unknown) => Promise<unknown>;
 
+/** 被規則拒絕時要留稽核的方法（作弊會先撞到這些：偽造擊殺、寶箱、PvP／燼牌結算、相遇獎勵） */
+const AUDIT_REJECTED: ReadonlySet<string> = new Set(['loot.claim', 'loot.chest', 'battle.start', 'pvp.finish', 'cards.finish', 'story.meet', 'story.thanks', 'story.choose']);
+
 export class GameServer {
   private readonly clock: Clock;
   private readonly ids: IdGen;
@@ -51,6 +54,7 @@ export class GameServer {
   /** 一則請求 → 一則回應（永遠回 JSON，不丟例外） */
   async handle(json: string): Promise<string> {
     let id = -1;
+    let who: { accountId: string; method: string; params: unknown } | null = null;
     try {
       const req = parseRequest(json);
       id = req.id;
@@ -61,14 +65,34 @@ export class GameServer {
       if (write && !req.requestId) throw new ApiError('bad_request', 'write needs requestId');
       const accountId = await this.o.auth.resolve(req.token);
       if (this.o.limiter && !this.o.limiter.take(accountId, method, this.clock.now())) throw new ApiError('rate_limited', method);
+      who = { accountId, method, params: req.params };
       if (this.sim && SIM_TRIGGER.has(method)) await this.sim.catchUp();
       let result = await this.run(accountId, method, req.params, write ? req.requestId! : undefined, HANDLERS[method] as AnyHandler);
       if (this.sim && SIM_TRADE.has(method)) result = (await this.simTrade(accountId, req.params, result)) ?? result;
       return `{"id":${id},"ok":true,"result":${result}}`;
     } catch (e) {
       const err = e instanceof ApiError ? { code: e.code, message: e.message } : { code: 'internal' as const, message: e instanceof Error ? e.message : String(e) };
+      if (who && err.code === 'rejected' && AUDIT_REJECTED.has(who.method)) await this.auditRejected(who, err.message);
       const res: Response = { id, ok: false, error: err };
       return JSON.stringify(res);
+    }
+  }
+
+  /**
+   * 敏感方法被規則拒絕（26-security §稽核，第 148 輪）：handler 丟例外時它那個交易整個回滾，稽核寫不進去，
+   * 所以在交易外另開一個寫一筆（參數截到 300 字；頻率限制已經擋住洗版）。寫不進去不影響回應。
+   */
+  private async auditRejected(who: { accountId: string; method: string; params: unknown }, message: string): Promise<void> {
+    try {
+      let p = '';
+      try {
+        p = JSON.stringify(who.params ?? null).slice(0, 300);
+      } catch {
+        p = '?';
+      }
+      await this.o.db.tx((r) => r.audit.add({ accountId: who.accountId, action: `rejected:${who.method}`, detail: JSON.stringify({ why: message.slice(0, 100), params: p }), at: this.clock.now() }));
+    } catch {
+      /* 稽核失敗不擋回應 */
     }
   }
 

@@ -36,7 +36,7 @@ async function setup(be: (typeof BACKENDS)[number], rng = () => 0.3) {
   const mk = (tok: string) => new GameClient(new LocalTransport((j) => server.handle(j)), { token: tok, timeoutMs: 15000, retries: 1, newRequestId: () => `${tok}${++n}` });
   const a = mk('accA');
   const b = mk('accB');
-  return { a, b, clock };
+  return { a, b, clock, db };
 }
 
 for (const be of BACKENDS)
@@ -242,6 +242,22 @@ for (const be of BACKENDS)
       const riot = stageDef('mistwood')!.riot!;
       for (let i = 0; i < riot.count[1]; i++) expect(await claim({ groupId: 'riot' })).toBe('ok');
       expect(await claim({ groupId: 'riot' })).toBe('rejected');
+    });
+
+    it('被規則拒絕的申請留稽核（交易外另寫一筆；接受的不寫）', async () => {
+      const { a, db } = await setup(be);
+      const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
+      const { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
+      const base = (await db.tx((r) => r.audit.recent('accA', 50))).length;
+      expect(await code(a.call('loot.claim', { characterId, battleId, killSeq: 1, enemyId: 'wolf_king', fixedIdx: 0 }))).toBe('ok');
+      expect(await code(a.call('loot.claim', { characterId, battleId, killSeq: 2, enemyId: 'wolf_king', fixedIdx: 0 }))).toBe('rejected');
+      expect(await code(a.call('loot.claim', { characterId, battleId, killSeq: 3, enemyId: 'thorn_queen' }))).toBe('rejected');
+      const rows = await db.tx((r) => r.audit.recent('accA', 50));
+      expect(rows.length).toBe(base + 2);
+      expect(rows[0]!.action).toBe('rejected:loot.claim');
+      expect(JSON.parse(rows[0]!.detail).params).toContain('thorn_queen');
+      expect(JSON.parse(rows[1]!.detail).why).toBe('spawn');
+      expect(await db.tx((r) => r.audit.recent('accA', 0))).toEqual([]);
     });
 
     it('狼王：第一次保底一件稀有、記在地圖進度；之後照權重', async () => {

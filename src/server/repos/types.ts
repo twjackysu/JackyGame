@@ -196,6 +196,8 @@ export interface Repos {
   };
   audit: {
     add(row: Omit<AuditRow, 'id'>): Promise<void>;
+    /** 這個帳號最近的稽核紀錄（新的在前；客服與測試用，不開放給客戶端） */
+    recent(accountId: string, limit: number): Promise<Omit<AuditRow, 'id'>[]>;
   };
   listings: {
     get(id: string): Promise<ListingRow | undefined>;
