@@ -10,6 +10,7 @@ import type { Db } from '../../src/server/repos/types';
 import { BACKENDS } from './backends';
 import { LEGACY_SAMPLE } from './fixtures';
 
+// 逾時：掉包測試要短（200ms 就重送）；不掉包的用 5 秒——CI 的 SQL Server 容器偶爾一個 migrate.legacy 就超過 13×200ms（第 149 輪 CI 紅過一次）
 function stack(db: Db, opts: { local?: boolean; auth?: Auth; drop?: number; seed?: number } = {}) {
   const clock = new FakeClock();
   const server = new GameServer({ db, auth: opts.auth ?? new LocalAuth(), clock, ids: new SeqIds(), local: opts.local ?? true });
@@ -17,7 +18,7 @@ function stack(db: Db, opts: { local?: boolean; auth?: Auth; drop?: number; seed
   const random = () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 2 ** 32);
   let rid = 0;
   const seen = { handled: 0 };
-  const client = new GameClient(new LocalTransport((j) => (seen.handled++, server.handle(j)), { dropPct: opts.drop ?? 0, random }), { token: LOCAL_TOKEN, timeoutMs: 200, retries: 12, newRequestId: () => `r${++rid}` });
+  const client = new GameClient(new LocalTransport((j) => (seen.handled++, server.handle(j)), { dropPct: opts.drop ?? 0, random }), { token: LOCAL_TOKEN, timeoutMs: opts.drop ? 200 : 5000, retries: 12, newRequestId: () => `r${++rid}` });
   return { server, client, clock, seen };
 }
 
