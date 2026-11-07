@@ -13,6 +13,8 @@
 7. **線上版要放上網時**：API 部署好後，在 GitHub repo 的 Settings → Secrets and variables → Actions → **Variables** 加 `ONLINE_API_URL`（API 網址），Pages 就會多一個 `/JackyGame/online/`（步驟在 `docs/DEPLOY_AZURE.md`）。
 8. **11/7 上午（第 149 輪）**：競技場可以**指名挑戰**（天梯上名字前有 ⚔ 的對手，點一下就打他；分差 200 內）、右上角看**最近 5 場戰績**；打到「荊棘」段位以上，**冒險時腳下也有段位光環**。拍賣所打開時會說「你不在的時候賣出了哪幾件、拿到多少金」。線上版登入會自動續期（玩到一半過期不用重登），標題有帳號名與登出。
 
+9. **11/7 中午（第 150 輪）**：競技場輸了可以**「⚔ 再挑一次」**同一個對手（結果畫面、天梯「近況」展開的列表都有）；程式整理：戰鬥畫面的特效拆成 6 個檔案，玩起來應該完全一樣（有不一樣就是 bug）。
+
 ## 後端（D-278，[design/25-azure-backend.md](design/25-azure-backend.md)）
 - Node.js＋TypeScript（才能跟遊戲共用同一份戰鬥引擎判勝負）＋Azure Container Apps＋**共用 JackyAIStudio 的 Azure SQL，遊戲全在既有的 `game` schema**（SQL Server 不分大小寫，`Game` 就是你現在那個 `game`），遊戲用的資料庫帳號只對 `game` 有權限、碰不到 `dbo`；遷移各管各的，**不會碰你那 8 張舊表**，你自己刪就好。
 - 連線用 `GAME_DB_CONNECTION_STRING`（ADO.NET 格式），開發用 LocalDB（Node 要裝 `msnodesqlv8` 才連得到 LocalDB，會寫在 `server/.env.example`），之後你換成 JackyAIStudio 的連線字串。資安規格：[design/26-security.md](design/26-security.md)。線上帳號從新開始，離線存檔不能匯入（可以改檔作弊）。

@@ -1,5 +1,13 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-07 12:13–12:55（台北）第 150 輪 — 競技場復仇（天梯近況＋結果畫面「⚔ 再挑一次」）、Q5 拆場景六塊（RtBattleScene 6,592 → 5,286 行）、修 V7 截圖腳本
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（d81789a 含 mssql）。
+- **競技場復仇（D-323）**：戰績多存對手 id；`pvp.ladder.recent[].revenge` 由伺服器算（輸掉、對手還在、分差在指名範圍內）；`pvp.start` 回 `foeId`。天梯右上「近況」照勝敗上色（勝金敗紅和灰），點了展開最近 5 場（對手、分數變化、多久以前），輸掉的有「⚔ 再挑一次」；**結果畫面**輸了也多一顆「⚔ 再挑一次」（場景 restart 帶 rematch，用完清 `settings.data`——Phaser 的 restart() 沒帶資料會沿用上次的，不清的話「再來一場」也會變成指名）。契約測試四種 DB（站著不動必輸 → 可復仇 → 同一個對手）；Playwright 走完輸 → 再挑一次 → 同一個對手 → 再來一場回大廳。
+- **Q5 拆場景（照搬、行為不變）**：`fx/rangedFx.ts`（長弓／法杖技能特效、時間凝滯、虛空奇點）、`fx/fieldFx.ts`（刀光、墜星、冰碎、弧月、地裂、六角護盾）、`rt/ground.ts`（地面材質）、`fx/groundHazards.ts`（荊棘／熔岩／冰晶＋預告佇列）、`fx/stormFx.ts`（劍刃風暴系列，view 物件每幀重用）、`fx/companion.ts`（「還」的小跟班）。驗證：三把武器五招全放＋風暴兩個變化＋四種地面特效＋四張圖的小跟班 Playwright 截圖、零錯誤；地面四張圖前後逐像素比對相同（差異只有主角待機幀與營火閃爍）。
+- **`scripts/shot-newsave.mjs`**：Bot 掛法改成 `commands = () => bot.decide(s)`，40 秒快轉實測會走、會升級。
+- 驗證：每步 typecheck、eslint、build、vitest（最後 119 檔 864 項全過，含通關機器人、契約測試）；CI 每個程式 commit 都綠（被後一個 push 取消的兩次除外）。
+- **踩到的**：測試座標忘了 UNIT＝100（荊棘長在畫面外，以為壞了）；搬方法時 `floatNumber(this, …)` 這種把場景當參數的呼叫要改成 `this.sc`（typecheck 會抓到）。
+
 ## 2026-11-07 10:12–11:10（台北）第 149 輪 — 登入續期＋登出、冒險地圖段位光環、競技場指名挑戰＋戰績、拍賣所賣出通知
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（05967c0）。
 - **登入續期（D-322）**：`oidcLogin` 存 refresh token（`jg_online_refresh`）、`refreshLogin`／`logout`／`tokenDisplayName`；`GameClient.refreshToken`：unauthorized 先續期、同一個 requestId 重送、同時被拒只續期一次。標題「線上帳號：名字〔登出〕」（`src/game/ui/onlineAccount.ts`，只在線上分支動態載入，離線 bundle 不含）。Playwright 對假 IdP＋假閘道（把有效 JWT 換成 dev token 轉給真的 dist-server）：登入、啟動時過期續期、玩到一半過期（並發兩個請求）續期一次後成功、登出 → Entra 登出頁 → 再登入；零錯誤。

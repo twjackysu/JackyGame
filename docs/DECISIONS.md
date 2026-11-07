@@ -2,6 +2,11 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-323 2026-11-07 競技場復仇：輸掉的場次可以再挑同一個對手（伺服器判斷能不能）
+- **決策**：`pvpHistory` 每場多存對手帳號 id；`pvp.ladder` 的 `recent` 每場帶 `revenge`（輸掉＋對手還在＋今天的分差在 `canChallenge` 範圍內，伺服器算）；`pvp.start` 回 `foeId`。天梯「近況」可展開、輸掉的列有「⚔ 再挑一次」；結果畫面輸了也有。實際開局照舊走 `pvp.start foeId`，分差再檢查一次。
+- **理由**：剛輸給某人想馬上討回來是天梯最有黏性的時刻；不用新規則（沿用 D-319 的指名範圍），客戶端只送意圖。舊戰績沒有 foeId 就不給復仇。
+- **替代**：無限制復仇（可能專挑剛輸的低分對手刷分）；復仇加成分數（PvP 獎勵不給數值，FOR_JACKY 預設）。
+
 ## D-322 2026-11-07 線上版登入續期：存 refresh token、GameClient 先續期再問
 - **決策**：授權碼換 token 時一起存 Entra 回的 refresh token（localStorage `jg_online_refresh`）。啟動時 id_token 快過期就用它換新的（不轉頁）；玩到一半伺服器回 `unauthorized`：`GameClient.refreshToken` 先續期、用**同一個 requestId** 重送一次（同時好幾個請求被拒只續期一次），續不了才走 `onUnauthorized` 問要不要重新登入。OAuth 明確拒絕（`invalid_grant` 等）才丟掉 refresh token，網路／伺服器暫時壞掉留著。標題顯示帳號名（id_token 的 name／email）＋登出（清兩個 token、轉 Entra 登出頁）。
 - **理由**：id_token 只有約 1 小時，玩一場就可能過期；每次轉頁會打斷遊戲。SPA 的 refresh token 只活 24 小時、每用一次換新（Entra 的輪替），放 localStorage 的風險和 id_token 同級；離線版完全不含這段。

@@ -6,14 +6,20 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 150 輪起先做（V5／V6 收尾，11/7–11/11；11/12 12:00 凍結）
-**已經有的（到第 149 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（**`canChallenge`／`PVP_CHALLENGE_RANGE`**）、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`（`killSource`／`killCap`）、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`（**`market.mine` 帶 `news`，D-320**）、`pvp.*`（**`pvp.start` 可帶 `foeId` 指名挑戰 D-319；`pvp.ladder` 帶 `recent` 戰績 D-321**）、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核（D-314）；HTTP 1 MB／其他 16 KB（D-315）；即時 PvP（D-310，不部署）；`characterCache`；`src/game/rt/`（`MinimapSystem`、`BountyBoard`）、`hudText.hudLine`；**登入 PKCE＋refresh token 續期＋標題帳號／登出（D-317、D-322）**；**冒險地圖段位光環（`src/game/rankCache.ts`＋`fx/rankAura.ts`，D-318）**。
-1. CI 每輪開頭看一次（第 149 輪最後的程式 commit 是「競技場戰績」d81789a；前一個 cb7ef74 全綠含 mssql）。
-2. **競技場「復仇」（小）**：戰績（`pvpHistory`）多存 `foeId`，天梯點「近況」展開最近 5 場，敗場有「⚔ 再挑一次」（走 `pvp.start foeId`，分差規則一樣由伺服器檢查）。近況字可以照勝敗上色。
-3. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`。夜光寶箱／Boss 被伺服器拒絕時，本機仍會飄「+金幣」字（HUD 是對的；夜光寶箱已有公告）。
+## ★ 第 151 輪起先做（V5／V6 收尾，11/7–11/11；11/12 12:00 凍結）
+**已經有的（到第 150 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（`canChallenge`／`PVP_CHALLENGE_RANGE`）、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`（`killSource`／`killCap`）、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`（`market.mine` 帶 `news`，D-320）、`pvp.*`（`pvp.start` 可帶 `foeId`、回 `foeId`；`pvp.ladder.recent` 帶 `foeId`／`revenge`，D-319／321／**323**）、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核（D-314）；HTTP 1 MB／其他 16 KB（D-315）；即時 PvP（D-310，不部署）；`characterCache`；登入 PKCE＋續期＋登出（D-317、D-322）；冒險地圖段位光環（D-318）。**畫面拆出來的（第 150 輪）**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`）、`src/game/rt/ground.ts`、`src/game/pvpRecent.ts`。
+1. CI 每輪開頭看一次（第 150 輪最後的程式 commit 是「小跟班拆出」；之前每個都綠）。
+2. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`。夜光寶箱／Boss 被伺服器拒絕時，本機仍會飄「+金幣」字（HUD 是對的；夜光寶箱已有公告）。
+3. **Q5 拆場景繼續**（`RtBattleScene` 5,286 行，範圍保護：停在 < 4,000 不強求）。候選（依獨立程度）：`drawChoiceMark`（約 90 行，狀態 `choiceMark`／`choiceMarkSaid`）、`drawGate`（約 89 行）、`drawOffscreen`（約 145 行，相依多：`mini`、`gateArrow`、`arrowLabels`、`bountyTxt`…，先做 view 物件）、`shadowGhost`／`blinkFx`、`updateFireBtn`／營火捷徑列、`announce` 佇列。**做法（第 150 輪那六塊都這樣做）**：Python 依方法名稱切出（含上面的註解）→ `this.add/tweens/time/cameras` 換 `this.sc.*`、`sparks(this,`／`floatNumber(this,` 換 `this.sc`、座標換算與縮放走 host 介面（`k()` 用函式，因為鏡頭會變）→ typecheck＋eslint → Playwright 觸發那個特效截圖＋聽 pageerror；確定性的東西（地面）用前後 build 逐像素比對。
 4. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰：`battle.start` 給種子、客戶端記 Boss 區域內的指令紀錄，`loot.claim`（Boss）附紀錄、伺服器重跑那一段。數量上限（D-312）已經擋掉大部分偽造；暴怒／詞綴旗標還是客戶端說的。
-5. **Q5 拆場景繼續**（`RtBattleScene` 約 6,580 行，範圍保護：停在 < 4,000 不強求）：下一塊 `updateFireBtn`／營火捷徑列、`announce` 佇列。做法：純函式＋view 物件、測試對照搬家前的實機文字或截圖。
-6. **V7（11/12 12:00 起凍結）**：README 成果發表（架構圖「換掉連線字串／後端就能上線」、資安設計、交易（拍賣所＋賣出通知、託管交易）、PvP 天梯（指名挑戰、戰績、段位光環）、多角色）、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能、`npm run wiki`。`scripts/shot-newsave.mjs` 的 Bot 掛法壞了（`sc().pending` 已不存在，改成 `commands = () => bot.decide(sc().s)`，第 149 輪本機副本 `screenshots/sn.mjs` 已驗證），V7 截圖前先修。
+5. **好玩度（有空再做）**：競技場每日第一勝給段位分小加成或稱號特效（不給數值，照 FOR_JACKY 預設）；拍賣所「我的掛單」被買走時的音效／金幣飛入動畫。
+6. **V7（11/12 12:00 起凍結）**：README 成果發表（架構圖「換掉連線字串／後端就能上線」、資安設計、交易（拍賣所＋賣出通知、託管交易）、PvP 天梯（指名挑戰、戰績、復仇、段位光環）、多角色）、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能、`npm run wiki`。截圖用 `scripts/shot-newsave.mjs`（第 150 輪已修好，要先 `npx vite --port 5173`）。
+
+**復仇／拆場景注意（第 150 輪）**：
+- PvP 場景 `scene.restart({ rematch })`：Phaser 的 `restart()` 沒帶資料會**沿用上一次的 data**，所以 `init` 讀完就把 `this.sys.settings.data` 清成 `{}`。其他場景如果也用 restart 帶資料，一樣要清。
+- 戰績每筆的 `foeId` 只有第 150 輪之後打的才有；`historyOf` 會把壞欄位修成安全值。
+- 拆出去的特效類別都是場景的欄位初始化（`ffx` 要在 `hz`、`rfx` 之前宣告，因為它們的 host 直接拿 `this.ffx`）。
+- Playwright 觸發技能：`window.__rt.send({ type: 'skill', id })`（id 三把武器共用：`heavy_slash`／`whirlwind`／`charge`／`parry`／`blade_storm`），先把 `me.mp = 9999`、`me.ready[*] = 0`；變化用 `s.skillVariants = ['blade_storm']`／`['blade_storm:b']`；地面特效可以直接 `scene.hz.queue({...})`（座標單位 UNIT＝100）。
 
 **沙盒注意（第 149 輪）**：無頭 Chromium 的 IndexedDB 在這個沙盒**一次寫入約 3 秒**（裸 IDB 測過，不是遊戲的問題）→ 新存檔第一次開拍賣所（30 個模擬冒險者補跑）會逾時。截圖拍賣所時用假的 ops（`screenshots/r149mkt.mjs` 的做法），或只拍不需要大量寫入的畫面。
 
