@@ -90,6 +90,13 @@ import { drawStorm, type StormView } from '../fx/stormFx';
 import { GroundHazards, LAVA_ATTACKS, METEOR_ATTACKS } from '../fx/groundHazards';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
+import { CachedDraw, type DrawBox } from '../fx/cachedDraw';
+
+// D-332：小貼圖的範圍（腳底為原點的設計單位；第 154 輪把每個人物每種樣子 10 秒內畫過的範圍量出來，再留 6～16 的邊）
+const MER_BOX: DrawBox = { l: -60, t: -106, r: 48, b: 14 };
+const RIVAL_BOX: DrawBox = { l: -64, t: -124, r: 46, b: 14 };
+const NPC_BOX: DrawBox = { l: -95, t: -106, r: 70, b: 24 };
+const NPC_CACHE_MAX = 4;
 import { tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, pressBack, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
@@ -322,6 +329,9 @@ export class RtBattleScene extends Phaser.Scene {
   /** 精英／Boss 邊緣箭頭的距離字（物件池） */
   /** 營火光暈（預先烘好的放射漸層，ADD 混色；每幀只改位置與縮放） */
   private glows: Phaser.GameObjects.Image[] = [];
+  /** 營火旁的旅商／燼牌對手、路上的相遇人物畫成小貼圖（D-332，每秒重畫 24 次；以前每幀上千筆 Graphics 指令） */
+  private fireCache: { mer: CachedDraw; rival: CachedDraw }[] = [];
+  private npcCache: CachedDraw[] = [];
   /** 大地圖目標列（沒有就 null） */
   private goal: Phaser.GameObjects.Text | null = null;
   /** Boss 大血條下的名稱＋剩餘％（第 52 輪：以前血條沒有名字，打起來不知道在打誰、還剩多少） */
@@ -607,6 +617,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.gateLabelFrom = this.via ? this.time.now + 1400 : 0;
     this.ground = makeGround(this, this.s, this.stageId, this.k, VIEW_BOTTOM - VIEW_TOP);
     this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, fireGlowTexture(this)).setBlendMode(Phaser.BlendModes.ADD));
+    // D-332：要排在 this.g 底下（同 depth 0、先加進場景）
+    this.fireCache = this.tracked ? (STAGES[this.stageId]?.campfires ?? []).map(() => ({ mer: new CachedDraw(this, this.k * 1.5 * 1.2, MER_BOX), rival: new CachedDraw(this, this.k * 1.5 * 1.1, RIVAL_BOX) })) : [];
+    this.npcCache = this.tracked && !this.bot ? Array.from({ length: NPC_CACHE_MAX }, () => new CachedDraw(this, this.k * 2.1, NPC_BOX)) : [];
     this.g = this.add.graphics();
     this.frostG = this.add.graphics().setDepth(9); // 霜旋的冰晶（在單位底下、地面之上）
     this.top = this.add.graphics().setDepth(45);
@@ -2238,13 +2251,17 @@ export class RtBattleScene extends Phaser.Scene {
   private drawEncounters(g: Phaser.GameObjects.Graphics, now: number): void {
     this.drawEscort(g, now);
     this.drawEncLeave(now);
+    let ni = 0;
     for (const [list, happy, bubble] of [[this.encOpen, false, true], [this.encThanks, true, true], [this.encDone, true, false], [this.encStay, false, false]] as const) {
       for (const e of list) {
         const at = this.encAt.get(e.id);
         const cx = this.sx(at?.x ?? e.tx * UNIT + UNIT / 2);
         const cy = this.sy(at?.y ?? e.ty * UNIT + UNIT / 2);
         if (cx < -120 || cx > GAME_WIDTH + 120 || cy < VIEW_TOP - 160 || cy > VIEW_BOTTOM + 80) continue;
-        drawEncounterNpc(g, e.npc, cx, cy, this.k * 2.1, now, happy);
+        // D-332：畫進小貼圖；同時看得到的超過 NPC_CACHE_MAX 個（不會發生）才退回直接畫
+        const nc = this.npcCache[ni++];
+        if (nc) nc.show(cx, cy, now, `${e.id}:${happy}`, (cg, fx, fy, t) => drawEncounterNpc(cg, e.npc, fx, fy, this.k * 2.1, t, happy));
+        else drawEncounterNpc(g, e.npc, cx, cy, this.k * 2.1, now, happy);
         if (!bubble) continue;
         // 頭上的提示：還沒選＝白色「…」氣泡；等著道謝＝綠色「！」
         const b = Math.sin(now / 300) * 4;
@@ -2258,6 +2275,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
     }
+    for (; ni < this.npcCache.length; ni++) this.npcCache[ni]!.hide();
   }
 
   /** 選「助」之後的人／騾子：一跳一跳往旁邊走開 2.6 秒，後半段淡出（純畫面，第 69 輪） */
@@ -3922,6 +3940,8 @@ export class RtBattleScene extends Phaser.Scene {
       const k = this.k * 1.5;
       const safeR = CAMPFIRE_RULES.safeUnits * UNIT * this.k;
       if (cx < -safeR || cx > GAME_WIDTH + safeR || cy < VIEW_TOP - safeR || cy > VIEW_BOTTOM + safeR) {
+        this.fireCache[fi]?.mer.hide();
+        this.fireCache[fi]?.rival.hide();
         this.glows[fi++]?.setVisible(false);
         continue;
       }
@@ -3937,11 +3957,16 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(i === 0 ? 0xff6a20 : i === 1 ? 0xffa83a : 0xfff0a0, 0.95).fillEllipse(cx + f * 3 * k, cy - fh / 2, (36 - i * 10) * k, fh);
       }
       // 營火旁的旅商（D-116 行商，有存檔的大地圖才有）
-      if (this.tracked) {
-        drawMerchant(g, cx + 95 * k, cy + 10 * k, 120 * k, now + fi * 1300);
+      // （fi 在上面拿光暈時已經 +1，這一堆營火是 fi - 1）
+      const fc = this.fireCache[fi - 1];
+      if (this.tracked && fc) {
+        const off = fi * 1300;
+        fc.mer.show(cx + 95 * k, cy + 10 * k, now, 'm', (cg, fx, fy, t) => drawMerchant(cg, fx, fy, 120 * k, t + off));
         // 這張地圖的燼牌對手坐在營火另一邊（D-129）
         const rival = opponentsAt(this.stageId).find((o) => o.map);
-        if (rival) drawCardRival(g, rival.id, cx - 95 * k, cy + 10 * k, 110 * k, now + fi * 900);
+        const offR = fi * 900;
+        if (rival) fc.rival.show(cx - 95 * k, cy + 10 * k, now, rival.id, (cg, fx, fy, t) => drawCardRival(cg, rival.id, fx, fy, 110 * k, t + offR));
+        else fc.rival.hide();
       }
     }
     // 預告：淡底＋由內往外填滿的進度＋外框（紫＝附狀態、黃框＝可格擋、粗紅＝不可格擋）
