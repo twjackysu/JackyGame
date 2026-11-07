@@ -137,7 +137,10 @@ export class PvpScene extends Phaser.Scene {
         sub.setText('伺服器沒有回應，排行讀不到');
         return;
       }
+      // 最近戰績（第 149 輪）：段位那行後面接「勝敗和」小字
+      const rec = lad.recent.map((r) => (r.outcome === 'victory' ? '勝' : r.outcome === 'defeat' ? '敗' : '和')).join('');
       sub.setText(`你的段位：${rankName(lad.rating)} ${lad.rating}　第 ${lad.pos} / ${lad.total} 名`);
+      if (rec) box.add(this.add.text(W - 60, top + 44, `近況\n${rec}`, { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0e0', align: 'right', lineSpacing: 2 }).setOrigin(1, 0.5));
       lad.rows.forEach((r, i) => {
         const y = top + 145 + i * 44 + (i >= 10 ? 12 : 0);
         const col = r.me ? '#ffd27a' : '#ffffff';

@@ -9,7 +9,7 @@ import { WEAPONS } from '../../core/battle/rt/data';
 import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, simLeague } from '../../core/meta/pvpRank';
 import { hashSeed } from '../../core/rng';
 import { ApiError } from '../../net/protocol';
-import type { WeaponView } from '../../net/views';
+import type { PvpRecentView, WeaponView } from '../../net/views';
 import type { HandlerTable } from '../router';
 import { simRoster, type SimPlayer } from '../sim/roster';
 import { ownCharacter } from './common';
@@ -50,6 +50,18 @@ const ratingOf = (c: { pvpRating?: number }): number => (Number.isSafeInteger(c.
 
 /** 天梯顯示前幾名 */
 const LADDER_TOP = 10;
+/** 戰績留幾場 */
+export const PVP_HISTORY = 5;
+
+/** 存著的戰績（壞掉的資料當沒有，不讓一筆壞資料擋住天梯） */
+function historyOf(c: { pvpHistory?: string }): PvpRecentView[] {
+  try {
+    const h = JSON.parse(c.pvpHistory ?? '[]') as unknown;
+    return Array.isArray(h) ? (h as PvpRecentView[]).filter((r) => r && typeof r.foeName === 'string' && ['victory', 'defeat', 'timeout'].includes(r.outcome)).slice(0, PVP_HISTORY) : [];
+  } catch {
+    return [];
+  }
+}
 
 export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.ladder'> = {
   'pvp.ladder': async (ctx, p) => {
@@ -65,7 +77,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const mine = all.find((r) => r.me)!;
     const rows = all.slice(0, LADDER_TOP);
     if (mine.pos > LADDER_TOP) rows.push(mine);
-    return { rows, rating, pos: mine.pos, total: all.length };
+    return { rows, recent: historyOf(c), rating, pos: mine.pos, total: all.length };
   },
 
 
@@ -115,7 +127,8 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const delta = eloDelta(before, m.foeRating, outcome);
     const rating = Math.max(1, before + delta);
     const { pvpMatch: _done, ...rest } = c;
-    await ctx.r.characters.save({ ...rest, pvpRating: rating });
+    const pvpHistory = JSON.stringify([{ outcome, foeName: m.foeName, delta: rating - before, at: ctx.clock.now() }, ...historyOf(c)].slice(0, PVP_HISTORY));
+    await ctx.r.characters.save({ ...rest, pvpRating: rating, pvpHistory });
     await ctx.r.audit.add({ accountId: ctx.accountId, action: 'pvp.finish', detail: JSON.stringify({ match: m.id, foe: m.foeName, outcome, before, rating, hash: r.hash, ticks: r.s.tick }), at: ctx.clock.now() });
     return { outcome, rating, delta };
   },

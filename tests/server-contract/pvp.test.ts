@@ -63,6 +63,8 @@ for (const be of BACKENDS)
       expect(me.rating).toBe(res.rating);
       expect(lad.rows.slice(0, 10).every((r, i, xs) => i === 0 || xs[i - 1]!.rating >= r.rating)).toBe(true);
       expect(lad.total).toBeGreaterThan(20);
+      // 戰績（第 149 輪）：剛打完那場在最前面；中間 migrate.sync 也還在
+      expect(lad.recent).toEqual([{ outcome: res.outcome, foeName: st.foeName, delta: res.delta, at: expect.any(Number) }]);
       expect(await code(b.call('pvp.ladder', { characterId }))).toBe('not_found');
       // 匯出 → 匯入（第 146 輪）：段位分跟著存檔走
       const blob = await a.call('account.export', {});
@@ -98,6 +100,7 @@ for (const be of BACKENDS)
       const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
       const lad = await a.call('pvp.ladder', { characterId });
       expect(lad.rows.find((r) => r.me)?.id).toBeUndefined();
+      expect(lad.recent).toEqual([]);
       // 天梯只列前 10；用 ladder 的分數挑一個近的、一個遠的（模擬冒險者分數照程度散開）
       const others = lad.rows.filter((r) => !r.me && r.id);
       expect(others.length).toBeGreaterThan(0);
@@ -115,3 +118,27 @@ for (const be of BACKENDS)
       expect(await code(a.call('pvp.start', { characterId, foeId: 'x'.repeat(65) }))).toBe('bad_request');
     });
   });
+
+describe('PvP 戰績（第 149 輪）', () => {
+  it('最多留 5 場、新的在前；delta 加起來＝段位分變化', async () => {
+    const be = BACKENDS[0]!;
+    const { db } = await be.fresh(() => 0);
+    const clock = new FakeClock();
+    const server = new GameServer({ db, auth, clock, ids: new SeqIds(), local: true, rng: () => 0.5 });
+    let n = 0;
+    const a = new GameClient(new LocalTransport((j) => server.handle(j)), { token: 'accH', timeoutMs: 15000, retries: 1, newRequestId: () => `h${++n}` });
+    const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
+    const ats: number[] = [];
+    for (let k = 0; k < 6; k++) {
+      clock.advance(60_000);
+      const st = await a.call('pvp.start', { characterId });
+      await a.call('pvp.finish', { characterId, matchId: st.matchId, inputs: fight(st).inputs });
+      ats.push(clock.now());
+    }
+    const lad = await a.call('pvp.ladder', { characterId });
+    expect(lad.recent.map((r) => r.at)).toEqual(ats.slice(1).reverse());
+    const all = lad.recent.reduce((s, r) => s + r.delta, 0);
+    expect(lad.rating - all).toBeGreaterThan(0); // 前 5 場之前的分數（第一場的結果）
+    await db.close();
+  });
+});
