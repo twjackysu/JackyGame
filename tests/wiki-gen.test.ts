@@ -10,7 +10,7 @@ import type { StageDefinition } from '../src/core/battle/rt/types';
 
 const SEC = 30;
 const sec = (t: number): string => `${+(t / SEC).toFixed(2)} 秒`;
-const NAV = '[Wiki 首頁](README.md)・[強化](enhance.md)・[技能樹](skills.md)・[裝備與神裝](gear.md)・[怪物與掉落](monsters.md)・[畫面集](gallery.md)';
+const NAV = '[Wiki 首頁](README.md)・[強化](enhance.md)・[技能樹](skills.md)・[裝備與神裝](gear.md)・[怪物與掉落](monsters.md)・[畫面集](gallery.md)・[交易與競技場](online.md)';
 const head = (title: string): string => `# ${title}\n\n> ${NAV}\n>\n> 本頁由 \`npm run wiki\` 從遊戲資料自動產生，數字與遊戲版本一致。\n\n`;
 
 function enhancePage(): string {
@@ -158,6 +158,7 @@ function indexPage(): string {
 | [裝備與神裝](gear.md) | 部位、稀有度、詞綴與技能特效範圍、各部位名稱、神裝清單與刷法 |
 | [怪物與掉落](monsters.md) | 四張地圖每隻怪的數值、金幣／粉塵／結晶／藥水機率、裝備掉率與稀有度權重 |
 | [畫面集](gallery.md) | 70 張遊戲截圖：三把武器的技能與變化、Boss、地圖、行囊、行商、燼牌… |
+| [交易・競技場・線上化](online.md) | 拍賣所、面對面交易、競技場天梯、多角色；「換掉連線字串就能上線」的架構與防作弊（手寫，不是產生的） |
 
 ## 新手三件事
 1. **紅色預告**走出去、**黃框**的攻擊按「格擋反擊」。

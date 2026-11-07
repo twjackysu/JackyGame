@@ -1,6 +1,6 @@
 # 強化系統
 
-> [Wiki 首頁](README.md)・[強化](enhance.md)・[技能樹](skills.md)・[裝備與神裝](gear.md)・[怪物與掉落](monsters.md)・[畫面集](gallery.md)
+> [Wiki 首頁](README.md)・[強化](enhance.md)・[技能樹](skills.md)・[裝備與神裝](gear.md)・[怪物與掉落](monsters.md)・[畫面集](gallery.md)・[交易與競技場](online.md)
 >
 > 本頁由 `npm run wiki` 從遊戲資料自動產生，數字與遊戲版本一致。
 

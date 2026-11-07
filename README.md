@@ -10,7 +10,7 @@
 
 **▶ 馬上玩**：[網頁版（可加入主畫面）](https://twjackysu.github.io/JackyGame/)・[Android APK](https://github.com/twjackysu/JackyGame/releases/tag/latest)・[iOS 安裝](#安裝)
 
-**📖 [遊戲 Wiki](docs/wiki/README.md)**：[強化](docs/wiki/enhance.md)・[技能樹](docs/wiki/skills.md)・[裝備與神裝](docs/wiki/gear.md)・[怪物與掉落](docs/wiki/monsters.md)・[畫面集](docs/wiki/gallery.md)
+**📖 [遊戲 Wiki](docs/wiki/README.md)**：[強化](docs/wiki/enhance.md)・[技能樹](docs/wiki/skills.md)・[裝備與神裝](docs/wiki/gear.md)・[怪物與掉落](docs/wiki/monsters.md)・[畫面集](docs/wiki/gallery.md)・[交易與競技場](docs/wiki/online.md)
 
 | 隕星術 | 星骸守望者 | 技能樹 | 營火燼牌 |
 |:-:|:-:|:-:|:-:|
@@ -23,6 +23,12 @@
 - **營火燼牌**：昆特牌風格三局兩勝卡牌小遊戲，五位對手，贏牌組牌。
 - **選擇與後果**：Boss 倒下後「取」或「還」、路上的人「取」或「助」，行商價格、同伴、結局都會跟著變。
 - **手機優先**：自動存檔、長螢幕填滿、按鈕位置可自訂；音效與音樂全部程式即時生成。電腦也能玩（WASD、1～4、空白閃避）。
+
+## 第二期：交易與競技場（1.2.0）
+- **拍賣所與面對面交易**：營火行商裡跟其他冒險者買賣裝備（單機版是 30 個模擬冒險者，上線後換成真人）。
+- **競技場天梯**：非同步 PvP，伺服器用同一份引擎重跑你的操作判勝負；指名挑戰、復仇、連勝、段位光環。
+- **多角色＋共用倉庫**。
+- **單機模擬線上版**：遊戲內建一台權威伺服器，畫面只用 JSON 跟它講話；換掉資料庫連線字串與後端網址就能上線（Node.js＋Azure Container Apps＋Azure SQL）。架構圖、防作弊設計見 [Wiki：交易・競技場・線上化](docs/wiki/online.md)，部署見 [`docs/DEPLOY_AZURE.md`](docs/DEPLOY_AZURE.md)。
 
 ## 十分鐘上手
 1. 點擊開始 → 看完序章 → 選武器（長劍最好上手）。
