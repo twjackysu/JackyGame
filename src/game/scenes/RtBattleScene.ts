@@ -76,6 +76,7 @@ import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { OffscreenArrows } from '../rt/offscreenArrows';
 import { buildMemoryBook } from '../ui/memoryBook';
 import { cardOps, shopOps } from '../shopOps';
+import { coreBurstCue, queenBloomCue, ventEruptCue } from '../fx/bossCues';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings, updateSettings } from '../settings';
 import { RangedFx } from '../fx/rangedFx';
@@ -3210,20 +3211,11 @@ export class RtBattleScene extends Phaser.Scene {
         if (e.attack === 'colossus_core_burst') {
           // 暴怒岩王的熔心爆發（第 26 輪）：胸口熔心亮起＋大圈警告
           const o = u(e.owner);
-          if (o) {
-            shockRing(this, this.sx(o.x), this.sy(o.y), 0xff8a3a, 5.2 * 100 * this.k, 1100, 8);
-            sparks(this, this.sx(o.x), this.sy(o.y) - 60, 30, 'ember', 0xffb36a, 900);
-          }
-          this.cameras.main.shake(300, 0.004);
-          SFX.warn(true);
-          bigText(this, GAME_WIDTH / 2, 520, '熔心爆發——跑出圈外！', '#ffb36a', 40, 900);
+          coreBurstCue(this, o ? { x: this.sx(o.x), y: this.sy(o.y) } : null, this.k);
         }
         if (e.attack === 'queen_bloom') {
           const o = u(e.owner);
-          if (o) {
-            shockRing(this, this.sx(o.x), this.sy(o.y), 0x8adf4a, 3.2 * 100 * this.k, 900, 6);
-            sparks(this, this.sx(o.x), this.sy(o.y), 26, 'ember', 0xc8ff8a, 900);
-          }
+          if (o) queenBloomCue(this, this.sx(o.x), this.sy(o.y), this.k);
           if (!this.bloomHinted) {
             this.bloomHinted = true;
             bigText(this, GAME_WIDTH / 2, 520, '荊棘綻放——跑出圈外！', '#c8ff8a', 40, 900);
@@ -3247,13 +3239,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14 && this.starMap) {
           // 墜星落地（D-138）：白色閃光＋藍色衝擊環＋碎星四濺
           this.ffx.starImpact(vx, vy, e.r * this.k);
-        } else if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) {
-          sparks(this, vx, vy, 22, 'ember', 0xff8a3a, 620);
-          sparks(this, vx, vy - 20, 10, 'spark', 0xffe0a0, 820);
-          shockRing(this, vx, vy, 0xff7a2a, e.r * this.k * 1.25, 380, 8);
-          const col = this.add.rectangle(vx, vy, e.r * this.k * 0.9, e.r * this.k * 3.2, 0xffa040, 0.55).setOrigin(0.5, 1).setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
-          this.tweens.add({ targets: col, scaleX: 0.2, alpha: 0, duration: 420, ease: 'Cubic.easeIn', onComplete: () => col.destroy() });
-        }
+        } else if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) ventEruptCue(this, vx, vy, e.r * this.k);
         if (near) {
           this.cameras.main.shake(110, 0.004);
           SFX.hitHeavy();
