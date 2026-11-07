@@ -67,6 +67,7 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
+import { NightLight, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
 import { openChoice } from '../ui/choicePanel';
@@ -617,7 +618,9 @@ export class RtBattleScene extends Phaser.Scene {
     hdr.fillStyle(0x0b1410, 0.94).fillRect(0, 0, GAME_WIDTH, VIEW_TOP);
     for (let i = 0; i < 12; i++) hdr.fillStyle(0x0b1410, 0.6 * (1 - i / 12)).fillRect(0, VIEW_TOP + i * 2, GAME_WIDTH, 2);
     // 深夜（D-103）：整個畫面壓暗、偏藍
-    this.nightShade = this.s.night ? this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
+    // 第 152 輪（A3）：一般畫質改成動態光照（主角＋營火＋閃光擦出黑幕）；省電畫質照舊用靜態暗角圖
+    this.nightLight = this.s.night && !getSettings().lowFx ? new NightLight(this, GAME_WIDTH, GAME_HEIGHT, 42) : null;
+    this.nightShade = this.s.night && !this.nightLight ? this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
     // 環境粒子（第 27 輪）：大地圖才有；光塵／螢火蟲、花瓣孢子、火星灰燼
     const amb = worldMap(this.stageId);
     this.ambient = amb ? new Ambient(this, amb.decor, getSettings().lowFx, !!this.s.night, { x: 0, y: VIEW_TOP, w: GAME_WIDTH, h: VIEW_BOTTOM - VIEW_TOP }) : null;
@@ -1647,6 +1650,25 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 深夜：主角身邊亮、越遠越暗的藍黑色暈影（中心透明） */
   private nightShade: Phaser.GameObjects.Image | null = null;
+  private nightLight: NightLight | null = null;
+  private readonly fireSpots: LightSpot[] = [];
+  /** 深夜光照（A3）：主角用插值後的位置，營火只算畫面內的 */
+  private drawNightLight(): void {
+    const pl = playerOf(this.s);
+    const pos = this.lerpPos(pl);
+    const k15 = this.k * 1.5;
+    const fireR = 480 * k15;
+    const spots = this.fireSpots;
+    spots.length = 0;
+    for (const c of STAGES[this.stageId]?.campfires ?? []) {
+      const cx = this.sx(c.x);
+      const cy = this.sy(c.y) - 10 * k15;
+      if (cx < -fireR || cx > GAME_WIDTH + fireR || cy < VIEW_TOP - fireR || cy > VIEW_BOTTOM + fireR) continue;
+      spots.push({ x: cx, y: cy });
+    }
+    this.nightLight!.update(this.time.now, this.sx(pos.x), this.sy(pos.y), spots, fireR);
+  }
+
   private nightTexture(): string {
     const key = 'rt_night_shade';
     if (this.textures.exists(key)) return key;
@@ -3177,6 +3199,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (d && d.side === 'enemy') {
           SFX.hitHeavy();
           sparks(this, this.sx(d.x), this.sy(d.y), 18, 'spark', 0xffd27a, 420);
+          this.nightLight?.flash(this.sx(d.x), this.sy(d.y), (ENEMIES[d.defId]?.boss ? 520 : 220) * this.k * 1.5, ENEMIES[d.defId]?.boss ? 1400 : 420);
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
           this.killSprite(d.id);
           this.bountyKill(d.defId);
@@ -3251,6 +3274,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.cameras.main.flash(140, 255, 140, 220);
           this.cameras.main.shake(160, 0.006);
           shockRing(this, this.sx(p.x), this.sy(p.y), 0xff7ad0, 260, 520, 10);
+          this.nightLight?.flash(this.sx(p.x), this.sy(p.y), 900 * this.k * 1.5, 700);
           sparks(this, this.sx(p.x), this.sy(p.y), 26, 'ember', 0xff9ae0, 520);
           bigText(this, GAME_WIDTH / 2, 460, `${skillDef(this.s, 'blade_storm')!.name}！`, '#ff9ae0', 54, 700);
         } else SFX.blip();
@@ -3907,6 +3931,7 @@ export class RtBattleScene extends Phaser.Scene {
       const pl = playerOf(this.s);
       this.nightShade.setPosition(this.sx(pl.x), this.sy(pl.y));
     }
+    if (this.nightLight) this.drawNightLight();
     const g = this.g.clear();
     const top = this.top.clear();
     const s = this.s;
