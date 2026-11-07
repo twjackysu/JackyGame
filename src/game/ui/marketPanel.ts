@@ -266,6 +266,12 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
     let y = gearHead(out, g) + 40;
     out.push(scene.add.text(0, y, l.mine ? `你的掛單・${hoursLeft(l)}` : `賣家 ${l.sellerName}・行商賣這種貨約 ${buyPrice(g)} 金`, { fontFamily: UI_FONT, fontSize: '19px', color: '#a8b8d0' }).setOrigin(0.5));
+    // 最近成交行情（第 154 輪，D-333）：逛逛那頁伺服器帶回的中位數；比行情便宜就寫便宜幾 %
+    const ref = data?.refs?.[refKey(g.slot, g.rarity)];
+    if (ref) {
+      const cheap = l.mine ? 0 : bargainPct(l.price, ref);
+      out.push(scene.add.text(0, (y += 32), `最近成交中位數 ${ref} 金${cheap ? `・這筆便宜 ${cheap}%` : l.price > ref ? '・這筆開得比行情高' : ''}`, { fontFamily: UI_FONT, fontSize: '19px', color: cheap ? '#7dffb0' : '#c8b88a' }).setOrigin(0.5));
+    }
     if (!l.mine && isUpgrade(st, g)) out.push(scene.add.text(0, (y += 34), '這件比你身上的好！', { fontFamily: UI_FONT, fontSize: '21px', color: '#7dffb0' }).setOrigin(0.5));
     y += 70;
     if (l.mine) {
