@@ -572,7 +572,10 @@ export class PvpScene extends Phaser.Scene {
     const up = rankName(r.rating) !== rankName(before) ? `\n段位：${rankName(before)} → ${rankName(r.rating)}${r.seasonTier ? `\n★ 本季首次到達${rankName(r.rating)}` : ''}` : `\n段位：${rankName(r.rating)}`;
     this.status.setText(`${title}\n段位分 ${r.rating}（${r.delta >= 0 ? '+' : ''}${r.delta}）${up}`).setFontSize(40).setColor(r.outcome === 'victory' ? '#ffd27a' : '#ffffff');
     this.tweens.add({ targets: this.status, scale: { from: 1.25, to: 1 }, duration: 300, ease: 'Back.Out' });
-    if (r.outcome === 'victory') this.cameras.main.flash(250, 255, 220, 150);
+    if (r.outcome === 'victory') {
+      this.cameras.main.flash(250, 255, 220, 150);
+      this.arenaArt?.cheer(getSettings().lowFx); // 觀眾灑彩紙（第 153 輪）
+    }
     // 本季第一次到達這個段位（D-328）：段位色的光圈從結果字往外擴
     if (r.seasonTier) {
       const col = rankAura(r.rating)?.color ?? 0xffd27a;

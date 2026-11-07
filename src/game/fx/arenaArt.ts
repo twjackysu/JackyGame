@@ -37,6 +37,8 @@ const mix = (a: number, b: number, t: number): number => {
 
 export class ArenaArt {
   private flames: { glow: Phaser.GameObjects.Image; core: Phaser.GameObjects.Image; ph: number }[] = [];
+  /** 看台的上下緣（觀眾歡呼的彩紙從這裡灑出來） */
+  private standY: [number, number] = [0, 0];
 
   constructor(private scene: Phaser.Scene, o: ArenaArtOpts) {
     const r = deco(0x5eed_a7);
@@ -131,6 +133,7 @@ export class ArenaArt {
         }
       }
     };
+    this.standY = [oy - 30, oy + h + 30];
     const top0 = Math.max(96, oy - 74);
     band(top0, oy - 16, -1);
     band(oy + h + 16, Math.min(oy + h + 100, this.scene.scale.height - 300), 1);
@@ -163,6 +166,27 @@ export class ArenaArt {
     const glow = this.scene.add.image(x, y - 4, tex).setDepth(2).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff9a4a).setScale(lowFx ? 1.2 : 1.8).setAlpha(0.45);
     const core = this.scene.add.image(x, y - 6, tex).setDepth(2).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffe0a0).setScale(0.32).setAlpha(0.95);
     this.flames.push({ glow, core, ph: this.flames.length * 1.7 });
+  }
+
+  /**
+   * 觀眾歡呼（第 153 輪）：贏了從上下看台灑彩紙（金／藍／白小紙片飄落、翻轉、淡出）。純外觀，省電畫質減半。
+   * @returns 灑了幾片（測試用）
+   */
+  cheer(lowFx: boolean): number {
+    const sc = this.scene;
+    const W = sc.scale.width;
+    const n = lowFx ? 18 : 40;
+    const cols = [0xffd27a, 0x6ab8ff, 0xffffff, 0xffe8a8];
+    for (let i = 0; i < n; i++) {
+      const top = i % 2 === 0;
+      const x = 20 + Math.random() * (W - 40);
+      const y = top ? this.standY[0] : this.standY[1];
+      const p = sc.add.rectangle(x, y, 10 + Math.random() * 6, 5 + Math.random() * 3, cols[i % cols.length]!, 0.95).setDepth(70).setAngle(Math.random() * 360);
+      const dy = top ? 90 + Math.random() * 220 : -(140 + Math.random() * 220);
+      sc.tweens.add({ targets: p, x: x + (Math.random() - 0.5) * 120, y: y + dy, angle: p.angle + (Math.random() < 0.5 ? -1 : 1) * (200 + Math.random() * 300), scaleY: { from: 1, to: 0.2 }, yoyo: false, duration: 1200 + Math.random() * 900, delay: Math.random() * 350, ease: top ? 'Sine.easeIn' : 'Cubic.easeOut' });
+      sc.tweens.add({ targets: p, alpha: 0, delay: 1300 + Math.random() * 600, duration: 500, onComplete: () => p.destroy() });
+    }
+    return n;
   }
 
   /** 每幀：火盆閃動（t＝毫秒） */
