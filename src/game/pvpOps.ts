@@ -9,6 +9,7 @@ import { setRank } from './rankCache';
 export interface PvpOpen {
   matchId: string;
   setup: PvpMatchSetup;
+  foeId: string;
   foeName: string;
   foeRating: number;
   rating: number;
@@ -33,7 +34,7 @@ export const pvpOps = {
       [],
       async (c, me) => {
         const v = await c.call('pvp.start', { characterId: me.id, ...(foeId ? { foeId } : {}) });
-        const open: PvpOpen = { matchId: v.matchId, setup: { seed: v.seed, me: v.me, foe: v.foe }, foeName: v.foeName, foeRating: v.foeRating, rating: v.rating };
+        const open: PvpOpen = { matchId: v.matchId, setup: { seed: v.seed, me: v.me, foe: v.foe }, foeId: v.foeId, foeName: v.foeName, foeRating: v.foeRating, rating: v.rating };
         return { open, me };
       },
       (r) => r.me,

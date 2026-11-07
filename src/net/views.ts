@@ -123,6 +123,8 @@ export interface PvpStartView {
   seed: number;
   me: PvpSideView;
   foe: PvpSideView;
+  /** 對手的帳號 id（輸了「再挑一次」用，第 150 輪） */
+  foeId: string;
   foeName: string;
   foeRating: number;
   rating: number;

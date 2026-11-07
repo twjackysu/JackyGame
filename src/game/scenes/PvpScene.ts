@@ -64,7 +64,13 @@ export class PvpScene extends Phaser.Scene {
     super('Pvp');
   }
 
-  init(): void {
+  /** 結果畫面按「⚔ 再挑一次」重開場景時帶進來的對手（第 150 輪） */
+  private rematch: { foeId: string; foeName: string } | null = null;
+
+  init(data?: { rematch?: { foeId: string; foeName: string } }): void {
+    this.rematch = data?.rematch ?? null;
+    // Phaser 的 restart() 沒帶資料時會沿用上一次的 → 用完就清掉，「再來一場」才不會又變成指名
+    this.sys.settings.data = {};
     this.phase = 'lobby';
     this.open = null;
     this.inputs = [];
@@ -133,6 +139,13 @@ export class PvpScene extends Phaser.Scene {
       ['開始對戰', () => start()],
       ['離開', () => this.leave()],
     ]);
+    // 輸了直接再挑同一個對手（第 150 輪）：不等排行，馬上下戰帖（分差規則伺服器會再檢查，不行就回到錯誤畫面）
+    if (this.rematch) {
+      const r = this.rematch;
+      this.rematch = null;
+      start(r.foeId, r.foeName);
+      return;
+    }
     void pvpOps.ladder().then((lad) => {
       if (!this.scene.isActive() || !box.active) return;
       if (!lad) {
@@ -622,7 +635,11 @@ export class PvpScene extends Phaser.Scene {
       b.cd.setVisible(false);
     }
     this.buttons = [];
-    if (this.last && this.open) mk(cx, '▶ 看重播', () => this.replay(), y - 110);
+    // 輸了、對手還在指名範圍內（第 150 輪）：重播旁邊多一顆「⚔ 再挑一次」
+    const o = this.open;
+    const rematch = !!o && this.last?.outcome === 'defeat' && canChallenge(this.last.rating, o.foeRating);
+    if (this.last && o) mk(rematch ? cx - 150 : cx, '▶ 看重播', () => this.replay(), y - 110);
+    if (rematch && o) mk(cx + 150, '⚔ 再挑一次', () => fadeOutThen(this, 200, () => this.scene.restart({ rematch: { foeId: o.foeId, foeName: o.foeName } })), y - 110);
     mk(cx - 150, '再來一場', () => fadeOutThen(this, 200, () => this.scene.restart()));
     mk(cx + 150, '離開', () => this.leave());
     return close;

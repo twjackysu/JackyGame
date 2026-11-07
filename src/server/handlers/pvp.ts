@@ -121,7 +121,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     }
     const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: sideOf(c.weapon, gear), foe: simSide(foe), foeId: foe.accountId, foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
     await ctx.r.characters.save({ ...c, pvpMatch: JSON.stringify(m) });
-    return { matchId: m.id, seed: m.seed, me: m.me as never, foe: m.foe as never, foeName: m.foeName, foeRating: m.foeRating, rating };
+    return { matchId: m.id, seed: m.seed, me: m.me as never, foe: m.foe as never, foeId: foe.accountId, foeName: m.foeName, foeRating: m.foeRating, rating };
   },
 
   'pvp.finish': async (ctx, p) => {

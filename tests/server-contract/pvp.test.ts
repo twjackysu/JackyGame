@@ -163,6 +163,7 @@ for (const be of BACKENDS)
       expect(last.revenge).toBe(true); // 才輸一場，分差一定在 200 內
       const again = await a.call('pvp.start', { characterId, foeId: last.foeId! });
       expect(again.foeName).toBe(st.foeName);
+      expect(again.foeId).toBe(st.foeId);
       // 贏的場次不給復仇
       const win = await a.call('pvp.finish', { characterId, matchId: again.matchId, inputs: fight(again).inputs });
       const lad2 = await a.call('pvp.ladder', { characterId });
