@@ -26,13 +26,13 @@ export const pvpOps = {
       if (r) setRank(r.v.rating);
       return r?.v ?? null;
     }),
-  /** 開一局（伺服器挑對手、發種子）；伺服器壞了回 null */
-  start: (): Promise<PvpOpen | null> =>
+  /** 開一局（伺服器挑對手、發種子；foeId＝天梯上指名挑戰）；伺服器壞了或不能挑回 null */
+  start: (foeId?: string): Promise<PvpOpen | null> =>
     legacyOp(
       captureLegacy(),
       [],
       async (c, me) => {
-        const v = await c.call('pvp.start', { characterId: me.id });
+        const v = await c.call('pvp.start', { characterId: me.id, ...(foeId ? { foeId } : {}) });
         const open: PvpOpen = { matchId: v.matchId, setup: { seed: v.seed, me: v.me, foe: v.foe }, foeName: v.foeName, foeRating: v.foeRating, rating: v.rating };
         return { open, me };
       },

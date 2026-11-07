@@ -8,7 +8,7 @@ import { playerDef, playerOf, skillDef, skillShape, step } from '../../core/batt
 import { PVP_MAX_CMDS_PER_TICK, PVP_STAGE, startPvp, type PvpInputs } from '../../core/battle/rt/pvpMatch';
 import type { PlayerBot } from '../../core/battle/rt/sim';
 import { TICKS_PER_SEC, UNIT, type BattleCommand, type BattleState, type Shape, type Unit } from '../../core/battle/rt/types';
-import { rankAura, rankName } from '../../core/meta/pvpRank';
+import { canChallenge, rankAura, rankName } from '../../core/meta/pvpRank';
 import { auraCss, drawRankAura } from '../fx/rankAura';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
@@ -118,14 +118,17 @@ export class PvpScene extends Phaser.Scene {
     const title = this.add.text(W / 2, top + 44, '⚔ 競技場天梯', { fontFamily: UI_FONT, fontSize: '38px', color: '#ffd27a' }).setOrigin(0.5);
     const sub = this.add.text(W / 2, top + 92, '讀取排行…', { fontFamily: UI_FONT, fontSize: '24px', color: '#c8d0e0' }).setOrigin(0.5);
     box.add([bg, title, sub]);
-    const start = () => {
+    let closeButtons = (): void => undefined;
+    const start = (foeId?: string, foeName?: string) => {
+      if (!box.active) return;
+      closeButtons();
       box.destroy();
       this.phase = 'loading';
-      this.status.setText('尋找對手…');
-      void pvpOps.start().then((o) => (this.scene.isActive() ? this.begin(o) : undefined));
+      this.status.setText(foeName ? `向 ${foeName} 下戰帖…` : '尋找對手…');
+      void pvpOps.start(foeId).then((o) => (this.scene.isActive() ? this.begin(o) : undefined));
     };
-    this.endButtons([
-      ['開始對戰', start],
+    closeButtons = this.endButtons([
+      ['開始對戰', () => start()],
       ['離開', () => this.leave()],
     ]);
     void pvpOps.ladder().then((lad) => {
@@ -142,14 +145,24 @@ export class PvpScene extends Phaser.Scene {
           const hl = this.add.graphics().fillStyle(0xffd27a, 0.14).fillRoundedRect(56, y - 20, W - 112, 40, 8);
           box.add(hl);
         }
+        // 指名挑戰（第 149 輪，D-319）：段位分差 200 內的對手名字前面有 ⚔，點整列就挑他（伺服器會再檢查一次）
+        const can = !r.me && !!r.id && canChallenge(lad.rating, r.rating);
+        if (can) {
+          const hit = this.add.rectangle(W / 2, y, W - 112, 40, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
+          hit.on('pointerdown', () => {
+            SFX.confirm();
+            start(r.id, r.name);
+          });
+          box.add(hit);
+        }
         box.add([
           this.add.text(76, y, `${r.pos}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.pos <= 3 ? '#ffd27a' : '#9aa4b8' }).setOrigin(0, 0.5),
-          this.add.text(136, y, r.me ? `${r.name}（你）` : r.name, { fontFamily: UI_FONT, fontSize: '24px', color: col }).setOrigin(0, 0.5),
+          this.add.text(136, y, r.me ? `${r.name}（你）` : can ? `⚔ ${r.name}` : r.name, { fontFamily: UI_FONT, fontSize: '24px', color: can ? '#ffe7b0' : col }).setOrigin(0, 0.5),
           this.add.text(W - 250, y, WEAPON_NAME[r.weapon], { fontFamily: UI_FONT, fontSize: '22px', color: '#9aa4b8' }).setOrigin(0, 0.5),
           this.add.text(W - 76, y, `${rankName(r.rating)} ${r.rating}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.me ? col : auraCss(r.rating) }).setOrigin(1, 0.5),
         ]);
       });
-      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '對手是其他冒險者的配裝（電腦操作）\n勝負由伺服器重播你的操作判定・段位越高腳下光環越華麗', { fontFamily: UI_FONT, fontSize: '20px', color: '#7a8296', align: 'center' }).setOrigin(0.5));
+      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n勝負由伺服器重播判定・荊棘段位起冒險時腳下也有光環', { fontFamily: UI_FONT, fontSize: '20px', color: '#7a8296', align: 'center' }).setOrigin(0.5));
     });
   }
 
@@ -506,7 +519,8 @@ export class PvpScene extends Phaser.Scene {
     this.endButtons();
   }
 
-  private endButtons(list?: [string, () => void][]): void {
+  /** @returns 把這組按鈕收掉（大廳點天梯列指名挑戰時用） */
+  private endButtons(list?: [string, () => void][]): () => void {
     const cx = GAME_WIDTH / 2;
     const y = GAME_HEIGHT - 220;
     const made: Phaser.GameObjects.Container[] = [];
@@ -524,9 +538,12 @@ export class PvpScene extends Phaser.Scene {
         fn();
       });
     };
+    const close = () => {
+      for (const m of made) m.destroy();
+    };
     if (list) {
       list.forEach(([label, fn], i) => mk(cx + (i ? 150 : -150), label, fn));
-      return;
+      return close;
     }
     for (const b of this.buttons) {
       b.label.setVisible(false);
@@ -536,6 +553,7 @@ export class PvpScene extends Phaser.Scene {
     if (this.last && this.open) mk(cx, '▶ 看重播', () => this.replay(), y - 110);
     mk(cx - 150, '再來一場', () => fadeOutThen(this, 200, () => this.scene.restart()));
     mk(cx + 150, '離開', () => this.leave());
+    return close;
   }
 
   /** 重播剛才那場（第 146 輪）：同一個種子＋你的指令紀錄＋對手 Bot，跟伺服器重跑的是同一場；兩倍速 */

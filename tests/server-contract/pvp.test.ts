@@ -9,7 +9,7 @@ import { GameServer } from '../../src/server/GameServer';
 import { playPvp } from '../../src/core/battle/rt/pvpMatch';
 import { BOT_PROFILES, PlayerBot } from '../../src/core/battle/rt/sim';
 import type { BattleCommandBody } from '../../src/core/battle/rt/types';
-import { PVP_START_RATING, eloDelta } from '../../src/core/meta/pvpRank';
+import { PVP_START_RATING, canChallenge, eloDelta } from '../../src/core/meta/pvpRank';
 import type { PvpStartView } from '../../src/net/views';
 import { BACKENDS } from './backends';
 import { LEGACY_SAMPLE } from './fixtures';
@@ -85,5 +85,33 @@ for (const be of BACKENDS)
       expect(await code(a.call('pvp.finish', { characterId, matchId: 'pvp_nope', inputs: local.inputs }))).toBe('not_found');
       clock.advance(31 * 60 * 1000);
       expect(await code(a.call('pvp.finish', { characterId, matchId: st.matchId, inputs: local.inputs }))).toBe('not_found');
+    });
+  });
+
+for (const be of BACKENDS)
+  describe(`PvP 指名挑戰（${be.name}，第 149 輪）`, () => {
+    it('天梯列有對手 id；分差 200 內可以指名、超過拒絕、不存在 not_found、格式不對 bad_request；分數照伺服器的', async () => {
+      const { db } = await be.fresh(() => 0);
+      const server = new GameServer({ db, auth, clock: new FakeClock(), ids: new SeqIds(), local: true, rng: () => 0.3 });
+      let n = 0;
+      const a = new GameClient(new LocalTransport((j) => server.handle(j)), { token: 'accA', timeoutMs: 15000, retries: 1, newRequestId: () => `c${++n}` });
+      const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
+      const lad = await a.call('pvp.ladder', { characterId });
+      expect(lad.rows.find((r) => r.me)?.id).toBeUndefined();
+      // 天梯只列前 10；用 ladder 的分數挑一個近的、一個遠的（模擬冒險者分數照程度散開）
+      const others = lad.rows.filter((r) => !r.me && r.id);
+      expect(others.length).toBeGreaterThan(0);
+      const near = others.find((r) => canChallenge(lad.rating, r.rating));
+      const far = others.find((r) => !canChallenge(lad.rating, r.rating));
+      if (near) {
+        const st = await a.call('pvp.start', { characterId, foeId: near.id! });
+        expect(st.foeName).toBe(near.name);
+        expect(st.foeRating).toBe(near.rating);
+      }
+      if (far) expect(await code(a.call('pvp.start', { characterId, foeId: far.id! }))).toBe('rejected');
+      expect(near && far).toBeTruthy(); // 起始 1000 分：前 10 名裡兩種都有
+      expect(await code(a.call('pvp.start', { characterId, foeId: 'nobody' }))).toBe('not_found');
+      expect(await code(a.call('pvp.start', { characterId, foeId: 42 as unknown as string }))).toBe('bad_request');
+      expect(await code(a.call('pvp.start', { characterId, foeId: 'x'.repeat(65) }))).toBe('bad_request');
     });
   });

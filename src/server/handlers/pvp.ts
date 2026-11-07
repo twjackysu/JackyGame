@@ -6,7 +6,7 @@ import { GEAR_SLOTS, gearBonus, genGear, isGear, type RtGear } from '../../core/
 import { pvpGear } from '../../core/battle/rt/pvp';
 import { replayPvp, type PvpMatchSetup, type PvpSide } from '../../core/battle/rt/pvpMatch';
 import { WEAPONS } from '../../core/battle/rt/data';
-import { DAY_MS, PVP_START_RATING, eloDelta, simLeague } from '../../core/meta/pvpRank';
+import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, simLeague } from '../../core/meta/pvpRank';
 import { hashSeed } from '../../core/rng';
 import { ApiError } from '../../net/protocol';
 import type { WeaponView } from '../../net/views';
@@ -58,7 +58,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const sr = simRatings(ctx.clock.now());
     const simRating = (s: SimPlayer) => sr.get(s.accountId)!;
     // 同分時自己排前面（剛打贏追平的人看得到自己往上爬）；模擬玩家依帳號 id 固定順序
-    const all = [{ name: c.name, weapon: c.weapon, rating, me: true }, ...simRoster().map((s) => ({ name: s.name, weapon: s.weapon, rating: simRating(s), me: false }))]
+    const all = [{ name: c.name, weapon: c.weapon, rating, me: true }, ...simRoster().map((s) => ({ name: s.name, weapon: s.weapon, rating: simRating(s), me: false, id: s.accountId }))]
       .map((r, i) => ({ ...r, i }))
       .sort((a, b) => b.rating - a.rating || a.i - b.i)
       .map(({ i: _i, ...r }, k) => ({ ...r, pos: k + 1 }));
@@ -76,12 +76,22 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const rating = ratingOf(c);
     const sr = simRatings(ctx.clock.now());
     const simRating = (s: SimPlayer) => sr.get(s.accountId)!;
-    // 對手：段位分最接近的 5 個模擬玩家裡隨機一個
-    const near = simRoster()
-      .map((s) => ({ s, d: Math.abs(simRating(s) - rating) }))
-      .sort((a, b) => a.d - b.d || (a.s.accountId < b.s.accountId ? -1 : 1))
-      .slice(0, 5);
-    const foe = near[Math.floor(ctx.rng() * near.length)]!.s;
+    let foe: SimPlayer;
+    if (p?.foeId !== undefined) {
+      // 指名挑戰（D-319）：對手要存在、段位分差在範圍內（分數照伺服器今天的，不信客戶端）
+      const fid = idParam(p.foeId, 'foeId');
+      const want = simRoster().find((s) => s.accountId === fid);
+      if (!want) throw new ApiError('not_found', 'foe');
+      if (!canChallenge(rating, simRating(want))) throw new ApiError('rejected', 'range');
+      foe = want;
+    } else {
+      // 對手：段位分最接近的 5 個模擬玩家裡隨機一個
+      const near = simRoster()
+        .map((s) => ({ s, d: Math.abs(simRating(s) - rating) }))
+        .sort((a, b) => a.d - b.d || (a.s.accountId < b.s.accountId ? -1 : 1))
+        .slice(0, 5);
+      foe = near[Math.floor(ctx.rng() * near.length)]!.s;
+    }
     const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: sideOf(c.weapon, gear), foe: simSide(foe), foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
     await ctx.r.characters.save({ ...c, pvpMatch: JSON.stringify(m) });
     return { matchId: m.id, seed: m.seed, me: m.me as never, foe: m.foe as never, foeName: m.foeName, foeRating: m.foeRating, rating };

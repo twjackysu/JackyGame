@@ -79,7 +79,8 @@ export interface Api {
   /** 自己的掛單；過期的物品在這裡退回行囊（所以算寫入） */
   'market.mine': { params: { characterId: string }; result: { listings: ListingView[]; character: CharacterView }; write: true };
   // 非同步 PvP 天梯（core/battle/rt/pvpMatch.ts，24 §6.2）：伺服器發種子與雙方配裝 → 客戶端打完送自己的指令紀錄 → 伺服器重跑判勝負、改段位分
-  'pvp.start': { params: { characterId: string }; result: PvpStartView; write: true };
+  /** foeId＝天梯上指名挑戰的對手（第 149 輪；段位分差 PVP_CHALLENGE_RANGE 內）；沒有＝伺服器挑分數接近的 */
+  'pvp.start': { params: { characterId: string; foeId?: string }; result: PvpStartView; write: true };
   'pvp.finish': { params: { characterId: string; matchId: string; inputs: unknown[] }; result: { outcome: 'victory' | 'defeat' | 'timeout'; rating: number; delta: number }; write: true };
   // 面對面交易（託管，core/meta/trade.ts，24 §4.2）：放進去的物品與金幣先由伺服器保管；雙方鎖定＋對目前版本確認才交換
   'trade.open': { params: { characterId: string; partnerCharacterId: string }; result: { trade: TradeView; character: CharacterView }; write: true };

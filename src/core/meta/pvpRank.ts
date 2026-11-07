@@ -3,6 +3,10 @@ import { hashSeed } from '../rng';
 
 export const PVP_START_RATING = 1000;
 export const PVP_K = 32;
+/** 指名挑戰（第 149 輪，D-319）：只能挑段位分差這麼多以內的對手（不能專挑低分刷；Elo 本來就給得少，但排行也不該被灌） */
+export const PVP_CHALLENGE_RANGE = 200;
+export const canChallenge = (me: number, foe: number): boolean => Math.abs(foe - me) <= PVP_CHALLENGE_RANGE;
+
 /** 超時算和局 */
 export function eloDelta(me: number, foe: number, outcome: 'victory' | 'defeat' | 'timeout'): number {
   const expect = 1 / (1 + 10 ** ((foe - me) / 400));

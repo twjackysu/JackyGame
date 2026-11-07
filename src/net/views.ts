@@ -136,6 +136,8 @@ export interface PvpLadderRowView {
   weapon: WeaponView;
   rating: number;
   me: boolean;
+  /** 對手的 id（指名挑戰用，第 149 輪；自己沒有） */
+  id?: string;
 }
 /** 天梯排行（pvp.ladder）：前幾名；自己不在前幾名時另外附在最後 */
 export interface PvpLadderView {
