@@ -2,14 +2,14 @@
 // 用 HttpTransport＋GameClient 走完一段：兩個帳號建角色、看拍賣所、碰不到別人的角色；離線存檔匯入被拒；健康檢查、大小、CORS、亂 token。
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createHttp } from '../server/http';
+import { createHttp, MAX_BODY } from '../server/http';
 import { DevAuth } from '../server/devAuth';
 import { GameClient } from '../src/client/GameClient';
 import { HttpTransport } from '../src/net/HttpTransport';
 import { ApiError } from '../src/net/protocol';
 import { DocDb } from '../src/server/db/docDb';
 import { MemoryStore } from '../src/server/db/memory/MemoryDb';
-import { GameServer } from '../src/server/GameServer';
+import { GameServer, SMALL_BODY } from '../src/server/GameServer';
 import { RateLimiter } from '../src/server/rateLimit';
 import { LEGACY_SAMPLE } from './server-contract/fixtures';
 
@@ -41,7 +41,10 @@ describe('HTTP 伺服器', () => {
     expect((await fetch(`${base}/nope`)).status).toBe(404);
     expect((await fetch(`${base}/api`)).status).toBe(405);
     expect((await fetch(`${base}/api`, { method: 'POST', body: '{}', headers: { 'Content-Type': 'text/plain' } })).status).toBe(415);
-    expect((await fetch(`${base}/api`, { method: 'POST', body: 'x'.repeat(20_000), headers: { 'Content-Type': 'application/json' } })).status).toBe(413);
+    expect((await fetch(`${base}/api`, { method: 'POST', body: 'x'.repeat(MAX_BODY + 1), headers: { 'Content-Type': 'application/json' } })).status).toBe(413);
+    // 第 148 輪：HTTP 層放到 1 MB（PvP 指令紀錄），其他方法超過 16 KB 由 GameServer 擋
+    const big = JSON.stringify({ v: 1, id: 7, method: 'character.list', params: { pad: 'x'.repeat(SMALL_BODY) }, token: 'dev:big' });
+    expect(await (await fetch(`${base}/api`, { method: 'POST', body: big, headers: { 'Content-Type': 'application/json' } })).json()).toMatchObject({ ok: false, error: { code: 'bad_request', message: 'too large' } });
     const ok = await fetch(`${base}/api`, { method: 'OPTIONS', headers: { Origin: 'https://ok.example' } });
     expect(ok.status).toBe(204);
     expect(ok.headers.get('access-control-allow-origin')).toBe('https://ok.example');

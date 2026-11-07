@@ -34,6 +34,10 @@ const SIM_TRADE: ReadonlySet<string> = new Set(['trade.open', 'trade.offer', 'tr
 
 export type AnyHandler = (ctx: Ctx, p: unknown) => Promise<unknown>;
 
+/** 一般請求的大小上限（字元）；只有要帶整場指令紀錄的方法可以更大（HTTP 層的總上限見 server/http.ts MAX_BODY） */
+export const SMALL_BODY = 16 * 1024;
+const LARGE_BODY_METHODS: ReadonlySet<string> = new Set(['pvp.finish']);
+
 /** 被規則拒絕時要留稽核的方法（作弊會先撞到這些：偽造擊殺、寶箱、PvP／燼牌結算、相遇獎勵） */
 const AUDIT_REJECTED: ReadonlySet<string> = new Set(['loot.claim', 'loot.chest', 'battle.start', 'pvp.finish', 'cards.finish', 'story.meet', 'story.thanks', 'story.choose']);
 
@@ -61,6 +65,7 @@ export class GameServer {
       if (req.v !== PROTOCOL_VERSION) throw new ApiError('version', `protocol ${req.v} != ${PROTOCOL_VERSION}`);
       if (!Object.prototype.hasOwnProperty.call(HANDLERS, req.method)) throw new ApiError('unknown_method', req.method);
       const method = req.method as Method;
+      if (json.length > SMALL_BODY && !LARGE_BODY_METHODS.has(method)) throw new ApiError('bad_request', 'too large');
       const write = WRITE_METHODS.has(method);
       if (write && !req.requestId) throw new ApiError('bad_request', 'write needs requestId');
       const accountId = await this.o.auth.resolve(req.token);

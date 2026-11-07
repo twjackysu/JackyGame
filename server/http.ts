@@ -14,7 +14,11 @@ export interface HttpOptions {
   now?: () => number;
 }
 
-export const MAX_BODY = 16 * 1024;
+/**
+ * 一則請求最大多少（第 148 輪）：PvP 結算要帶整場的指令紀錄（弓、法杖風箏時每個 tick 一個移動，45 秒就 25 KB；
+ * 一場最多 180 秒＝5,400 筆，最壞約 0.9 MB）。其他方法還是 16 KB 以內——由 GameServer 依方法再擋（SMALL_BODY）。
+ */
+export const MAX_BODY = 1024 * 1024;
 
 export function createHttp(game: { handle(json: string): Promise<string> }, o: HttpOptions = {}): Server {
   const maxBody = o.maxBody ?? MAX_BODY;
