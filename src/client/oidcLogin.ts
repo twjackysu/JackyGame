@@ -12,6 +12,8 @@ export interface EntraConfig {
 
 export const LOGIN_STATE_KEY = 'jg_login_state';
 export const LOGIN_VERIFIER_KEY = 'jg_login_verifier';
+/** refresh token（第 149 輪，D-318）：id_token 約 1 小時就過期；有它就能不轉頁續期（Entra 的 SPA refresh token 24 小時、每用一次換新的） */
+export const REFRESH_TOKEN_KEY = 'jg_online_refresh';
 
 const B64URL = /[+/=]/g;
 export function base64url(bytes: Uint8Array): string {
@@ -53,6 +55,17 @@ export function tokenRequest(cfg: EntraConfig, code: string, verifier: string): 
   return { url: `${trim(cfg.authority)}/oauth2/v2.0/token`, body: body.toString() };
 }
 
+/** 用 refresh token 換新的 id_token（不轉頁） */
+export function refreshRequest(cfg: EntraConfig, refreshToken: string): { url: string; body: string } {
+  const body = new URLSearchParams({ client_id: cfg.clientId, grant_type: 'refresh_token', refresh_token: refreshToken, scope: 'openid offline_access' });
+  return { url: `${trim(cfg.authority)}/oauth2/v2.0/token`, body: body.toString() };
+}
+
+/** 登出頁網址（Entra 清掉它那邊的登入，再回到遊戲） */
+export function logoutUrl(cfg: EntraConfig): string {
+  return `${trim(cfg.authority)}/oauth2/v2.0/logout?${new URLSearchParams({ post_logout_redirect_uri: cfg.redirectUri }).toString()}`;
+}
+
 /** 登入回來的網址：有 code 而且 state 對得上才算（擋 CSRF）；error 也回報 */
 export function parseRedirect(search: string, expectState: string | null): { code: string } | { error: string } | null {
   const q = new URLSearchParams(search);
@@ -64,16 +77,34 @@ export function parseRedirect(search: string, expectState: string | null): { cod
   return { code };
 }
 
-/** JWT 還有多久過期（秒；不驗簽章，只是決定要不要重新登入——驗簽章是伺服器的事） */
-export function tokenSecondsLeft(token: string, nowMs: number): number {
+/** JWT 的內容（不驗簽章——只拿來顯示名字、判斷過期；驗簽章是伺服器的事） */
+function jwtClaims(token: string): Record<string, unknown> | null {
   const p = token.split('.')[1];
-  if (!p) return -1;
+  if (!p) return null;
   try {
-    const json = JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: unknown };
-    return typeof json.exp === 'number' ? json.exp - Math.floor(nowMs / 1000) : -1;
+    const bin = atob(p.replace(/-/g, '+').replace(/_/g, '/'));
+    const json = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))) as unknown;
+    return json && typeof json === 'object' ? (json as Record<string, unknown>) : null;
   } catch {
-    return -1;
+    return null;
   }
+}
+
+/** JWT 還有多久過期（秒） */
+export function tokenSecondsLeft(token: string, nowMs: number): number {
+  const exp = jwtClaims(token)?.exp;
+  return typeof exp === 'number' ? exp - Math.floor(nowMs / 1000) : -1;
+}
+
+/** 標題畫面顯示的帳號名：name → email → preferred_username（都沒有＝空字串）；最多 24 字 */
+export function tokenDisplayName(token: string): string {
+  const c = jwtClaims(token);
+  if (!c) return '';
+  const emails = Array.isArray(c.emails) ? c.emails : [];
+  for (const v of [c.name, c.email, emails[0], c.preferred_username]) {
+    if (typeof v === 'string' && v.trim()) return [...v.trim()].slice(0, 24).join('');
+  }
+  return '';
 }
 
 /** 儲存（localStorage 放 token；sessionStorage 放這次登入的 state／verifier） */
@@ -120,11 +151,49 @@ export async function finishLogin(d: LoginDeps, search: string, tokenKey: string
     const res = await d.fetch(req.url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: req.body });
     const j = (await res.json()) as { id_token?: unknown; error?: unknown };
     if (!res.ok || typeof j.id_token !== 'string') return { error: typeof j.error === 'string' ? j.error : 'token', handled: true };
-    d.local.setItem(tokenKey, j.id_token);
+    storeTokens(d, tokenKey, j);
     return { token: j.id_token, handled: true };
   }
   const saved = d.local.getItem(tokenKey);
   // 開發用的 dev: token 不是 JWT；正式版遇到就當沒登入
-  if (!saved || saved.startsWith('dev:') || tokenSecondsLeft(saved, d.now()) < 60) return { handled: false };
-  return { token: saved, handled: false };
+  if (saved && !saved.startsWith('dev:') && tokenSecondsLeft(saved, d.now()) >= 60) return { token: saved, handled: false };
+  // 過期了：有 refresh token 就不轉頁續期
+  const fresh = await refreshLogin(d, tokenKey);
+  return fresh ? { token: fresh, handled: false } : { handled: false };
+}
+
+function storeTokens(d: LoginDeps, tokenKey: string, j: { id_token?: unknown; refresh_token?: unknown }): void {
+  if (typeof j.id_token === 'string') d.local.setItem(tokenKey, j.id_token);
+  if (typeof j.refresh_token === 'string') d.local.setItem(REFRESH_TOKEN_KEY, j.refresh_token);
+}
+
+/**
+ * 用存著的 refresh token 換新的 id_token（啟動時過期、或玩到一半伺服器回 unauthorized 時）。
+ * 成功回新 token（也存起來）；失敗（沒有、被撤銷、網路錯）回 undefined，並OAuth 明確拒絕時清掉 refresh token。
+ */
+export async function refreshLogin(d: LoginDeps, tokenKey: string): Promise<string | undefined> {
+  const rt = d.local.getItem(REFRESH_TOKEN_KEY);
+  if (!rt) return undefined;
+  try {
+    const req = refreshRequest(d.cfg, rt);
+    const res = await d.fetch(req.url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: req.body });
+    const j = (await res.json()) as { id_token?: unknown; refresh_token?: unknown; error?: unknown };
+    if (!res.ok || typeof j.id_token !== 'string') {
+      // OAuth 回了錯誤（invalid_grant＝過期／被撤銷）才丟掉；其他（伺服器暫時壞掉）留著下次再試
+      if (typeof j.error === 'string') d.local.removeItem(REFRESH_TOKEN_KEY);
+      return undefined;
+    }
+    storeTokens(d, tokenKey, j);
+    return j.id_token;
+  } catch {
+    return undefined; // 網路錯：refresh token 留著，下次再試
+  }
+}
+
+/** 登出：清掉本機的 token，轉到 Entra 的登出頁（回來後會再轉登入頁） */
+export function logout(d: Pick<LoginDeps, 'cfg' | 'local' | 'session' | 'go'>, tokenKey: string): void {
+  d.local.removeItem(tokenKey);
+  d.local.removeItem(REFRESH_TOKEN_KEY);
+  d.session.removeItem('jg_login_tried');
+  d.go(logoutUrl(d.cfg));
 }

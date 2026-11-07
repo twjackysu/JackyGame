@@ -37,10 +37,10 @@ export function apiUrl(base: string, path: '/api' | '/health'): string {
   return base.replace(/\/+$/, '') + path;
 }
 
-export async function startOnlineClient(base: string, token: string | undefined, onUnauthorized?: () => void): Promise<GameClient> {
+export async function startOnlineClient(base: string, token: string | undefined, onUnauthorized?: () => void, refreshToken?: () => Promise<string | undefined>): Promise<GameClient> {
   // 冷啟動預熱（25 §4.3：API 縮到 0，第一次要幾秒）；失敗不管，之後的呼叫自己會重送
   void fetch(apiUrl(base, '/health')).catch(() => undefined);
-  return new GameClient(new HttpTransport(apiUrl(base, '/api')), { token, timeoutMs: 15000, ...(onUnauthorized ? { onUnauthorized } : {}) });
+  return new GameClient(new HttpTransport(apiUrl(base, '/api')), { token, timeoutMs: 15000, ...(onUnauthorized ? { onUnauthorized } : {}), ...(refreshToken ? { refreshToken } : {}) });
 }
 
 /**

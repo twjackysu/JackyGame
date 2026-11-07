@@ -16,6 +16,8 @@ export interface BootResult {
   kind: 'idb' | 'kv' | 'memory' | 'online';
   migrate?: MigrateResult;
   error?: string;
+  /** 線上版正式登入（Entra）才有：標題顯示帳號名＋登出（第 149 輪） */
+  account?: { name: string; logout: () => void };
 }
 
 /** localStorage 裡 jg_ 開頭的 key（不含備份） */
@@ -47,9 +49,11 @@ export function bootServer(): Promise<BootResult> {
       let token = onlineToken(ls, import.meta.env.VITE_AUTH_MODE === 'dev');
       let loginError: string | undefined;
       let relogin: (() => void) | undefined;
+      let refresh: (() => Promise<string | undefined>) | undefined;
+      let account: ((t: string) => BootResult['account']) | undefined;
       // 正式登入（第 148 輪）：建置時設了 Entra 才走 PKCE；沒登入就整頁轉去登入頁（同一個分頁只自動轉一次，失敗不會一直轉）
       if (import.meta.env.VITE_ENTRA_AUTHORITY && import.meta.env.VITE_ENTRA_CLIENT_ID && ls) {
-        const { beginLogin, finishLogin } = await import('./oidcLogin');
+        const { beginLogin, finishLogin, refreshLogin, logout, tokenDisplayName } = await import('./oidcLogin');
         const { ONLINE_TOKEN_KEY } = await import('./onlineClient');
         const deps = {
           cfg: { authority: import.meta.env.VITE_ENTRA_AUTHORITY, clientId: import.meta.env.VITE_ENTRA_CLIENT_ID, redirectUri: location.origin + location.pathname },
@@ -62,12 +66,18 @@ export function bootServer(): Promise<BootResult> {
           now: () => Date.now(),
         };
         // 玩到一半登入過期（id_token 約 1 小時）：問一次要不要重新登入（伺服器的進度都在，轉頁不會掉東西）
+        // （有 refresh token 的話 GameClient 會先不轉頁續期，續不了才問）
         relogin = () => {
           if (!confirm('線上登入已過期，要重新登入嗎？')) return;
           ls?.removeItem(ONLINE_TOKEN_KEY);
           sessionStorage.removeItem('jg_login_tried');
           void beginLogin(deps);
         };
+        refresh = () => refreshLogin(deps, ONLINE_TOKEN_KEY);
+        account = (t: string) => ({
+          name: tokenDisplayName(t) || '冒險者',
+          logout: () => logout(deps, ONLINE_TOKEN_KEY),
+        });
         try {
           const r = await finishLogin(deps, location.search, ONLINE_TOKEN_KEY);
           if (r.handled) history.replaceState(null, '', location.pathname);
@@ -82,8 +92,9 @@ export function bootServer(): Promise<BootResult> {
           loginError = e instanceof Error ? e.message : String(e);
         }
       }
-      const client = await startOnlineClient(import.meta.env.VITE_SERVER_URL, token, relogin);
-      return { client, kind: 'online' as const, ...(loginError ? { error: `login: ${loginError}` } : {}) };
+      const client = await startOnlineClient(import.meta.env.VITE_SERVER_URL, token, relogin, refresh);
+      const acct = token && account ? account(token) : undefined;
+      return { client, kind: 'online' as const, ...(acct ? { account: acct } : {}), ...(loginError ? { error: `login: ${loginError}` } : {}) };
     }
     const { startLocalServer } = await import('./localServer');
     const { client, kind } = await startLocalServer();

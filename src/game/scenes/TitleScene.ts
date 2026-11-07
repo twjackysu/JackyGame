@@ -242,6 +242,8 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setAlpha(0.8);
+    // 線上版正式登入（第 149 輪）：版本號上面一行「線上帳號：名字　登出」（離線版整段拿掉）
+    if (import.meta.env.VITE_SERVER_URL) void import('../ui/onlineAccount').then((m) => m.accountLine(this, cx, GAME_HEIGHT - 66, () => this.busy));
     // Camera: vignette + fade in.
     const cam = this.cameras.main;
     if (isWebGL && cam.postFX) {
