@@ -6,14 +6,20 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 151 輪起先做（V5／V6 收尾，11/7–11/11；11/12 12:00 凍結）
-**已經有的（到第 150 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（`canChallenge`／`PVP_CHALLENGE_RANGE`）、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`（`killSource`／`killCap`）、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`（`market.mine` 帶 `news`，D-320）、`pvp.*`（`pvp.start` 可帶 `foeId`、回 `foeId`；`pvp.ladder.recent` 帶 `foeId`／`revenge`，D-319／321／**323**）、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核（D-314）；HTTP 1 MB／其他 16 KB（D-315）；即時 PvP（D-310，不部署）；`characterCache`；登入 PKCE＋續期＋登出（D-317、D-322）；冒險地圖段位光環（D-318）。**畫面拆出來的（第 150 輪）**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`）、`src/game/rt/ground.ts`、`src/game/pvpRecent.ts`。
-1. CI 每輪開頭看一次（第 150 輪最後的程式 commit 是「小跟班拆出」；之前每個都綠）。
-2. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`。夜光寶箱／Boss 被伺服器拒絕時，本機仍會飄「+金幣」字（HUD 是對的；夜光寶箱已有公告）。
-3. **Q5 拆場景繼續**（`RtBattleScene` 5,286 行，範圍保護：停在 < 4,000 不強求）。候選（依獨立程度）：`drawChoiceMark`（約 90 行，狀態 `choiceMark`／`choiceMarkSaid`）、`drawGate`（約 89 行）、`drawOffscreen`（約 145 行，相依多：`mini`、`gateArrow`、`arrowLabels`、`bountyTxt`…，先做 view 物件）、`shadowGhost`／`blinkFx`、`updateFireBtn`／營火捷徑列、`announce` 佇列。**做法（第 150 輪那六塊都這樣做）**：Python 依方法名稱切出（含上面的註解）→ `this.add/tweens/time/cameras` 換 `this.sc.*`、`sparks(this,`／`floatNumber(this,` 換 `this.sc`、座標換算與縮放走 host 介面（`k()` 用函式，因為鏡頭會變）→ typecheck＋eslint → Playwright 觸發那個特效截圖＋聽 pageerror；確定性的東西（地面）用前後 build 逐像素比對。
-4. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰：`battle.start` 給種子、客戶端記 Boss 區域內的指令紀錄，`loot.claim`（Boss）附紀錄、伺服器重跑那一段。數量上限（D-312）已經擋掉大部分偽造；暴怒／詞綴旗標還是客戶端說的。
-5. **好玩度（有空再做）**：競技場每日第一勝給段位分小加成或稱號特效（不給數值，照 FOR_JACKY 預設）；拍賣所「我的掛單」被買走時的音效／金幣飛入動畫。
-6. **V7（11/12 12:00 起凍結）**：README 成果發表（架構圖「換掉連線字串／後端就能上線」、資安設計、交易（拍賣所＋賣出通知、託管交易）、PvP 天梯（指名挑戰、戰績、復仇、段位光環）、多角色）、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能、`npm run wiki`。截圖用 `scripts/shot-newsave.mjs`（第 150 輪已修好，要先 `npx vite --port 5173`）。
+## ★ 第 152 輪起先做（V5／V6 收尾，11/7–11/11；11/12 12:00 凍結）
+**已經有的（到第 151 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`（`canChallenge`、`pvpStreakAfter`／`taipeiDay`、`simGearPlan`）、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`（`pvp.finish` 回 `streak`／`firstWin`、`pvp.ladder` 帶 `streak`，D-324；對手配裝 `simGearPlan(min(對手, 你))`，D-325）、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核；登入 PKCE＋續期＋登出；段位光環。**畫面拆出來的**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`、`landmarks`、`eliteFall`、`dashFx`、`coinFly`）、`src/game/rt/`（`ground`、`offscreenArrows`）、`src/game/pvpRecent.ts`（`streakLine`）。Wiki `docs/wiki/online.md`（手寫，導覽列在 `tests/wiki-gen.test.ts` 的 NAV）。
+1. CI 每輪開頭看一次（第 151 輪最後的程式 commit 是 D-325「競技場平衡點」；之前每個都綠）。
+2. **競技場平衡再看一眼（選做）**：D-325 後最強裝備（全身稀有 ilvl10）對模擬冒險者 100% 勝、停在約 1400（模擬冒險者最高約 1250，沒人打得過）——可以接受（冠軍），但也可以讓 1300 以上的模擬冒險者配裝再好一點。量法：`npx vitest run tests/pvp-ladder-balance.test.ts`（改裡面的 kind 清單、加 `console.log` 看每場 v/d）。**Bot 對 Bot 是確定性的，只看「Elo 找不找得到平衡點」，不要看單場勝率**。
+3. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`（大工程，V7 前不一定做）。撿錢飄字已改伺服器（第 151 輪）。
+4. **Q5 拆場景繼續**（`RtBattleScene` 4,978 行，範圍保護：停在 < 4,000 不強求）。剩下的大塊：`draw()` 544 行、`playEvents()` 約 480 行（每種事件一段，可以照 `eliteFall` 的做法把「純演出」搬成表或函式）、`drawUi()` 198 行、`toggleMenu()` 122 行、`openBag()` 101 行。**驗證方法（第 151 輪最好用）**：`git stash` 建舊 build 到 `/tmp/claude-0/dist-old`、新 build 到 `dist-new`，兩個 `vite preview`（4181／4182），頁面裡 `__game.loop.sleep()`、`sc.time.now = 固定值`，新建 Graphics 呼叫舊方法／新方法，比 `JSON.stringify(g.commandBuffer)`（腳本思路 `screenshots/r151cmp.mjs`、`r151off2.mjs`，gitignored，照這段重寫）。
+5. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰。暴怒旗標伺服器已檢查解鎖（`furyOpenBy`），詞綴照地圖檢查；剩的風險低。
+6. **V7（11/12 12:00 起凍結）**：README 已有第二期一段＋Wiki 線上化頁（第 151 輪），V7 補：截圖（競技場結果「今日首勝」、拍賣所、交易、天梯）、版本 1.2.0、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、手機效能、`npm run wiki`、開發數字（輪數、commit 數、測試數）。截圖用 `scripts/shot-newsave.mjs`（要先 `npx vite --port 5173`）。
+
+**第 151 輪注意**：
+- 連勝／首勝存在角色列 `pvpStreak`／`pvpWinDay`（SQL 版在 `Character.Data` JSON，已加進 `MssqlDb.ts` 的 Pick 與 save）；`account.export` 不帶（跟 `pvpHistory` 一樣）。
+- 競技場結果畫面截圖：`?debug&scene=Pvp` → 點「開始對戰」(105, 724 @390×844) → 等 `phase === 'fight'` → `sc.showResult({ outcome: 'victory', rating, delta, streak: 3, firstWin: true })`（直接呼叫，不用真的打贏；`this.open` 要是真的，所以要先開局）。
+- 拍賣所假 ops 截圖：dev server（5173）頁面裡 `await import('/src/game/ui/marketPanel.ts')` 再 `openMarketPanel(sc, { ops: { view, list, cancel, buy 都回同一個假 page }, bag, coin, coinBefore }, () => {})`（`screenshots/r151mkt.mjs` 的做法）。
+- 線上整套飄字驗證：`screenshots/r151online.mjs` 思路：hook `sc.add.text` 收集含「金／粉塵／結晶」的字、推 death 事件殺 6 隻，最後用頁面的 `jg_online_token` 打 `character.list` 比錢包。
 
 **復仇／拆場景注意（第 150 輪）**：
 - PvP 場景 `scene.restart({ rematch })`：Phaser 的 `restart()` 沒帶資料會**沿用上一次的 data**，所以 `init` 讀完就把 `this.sys.settings.data` 清成 `{}`。其他場景如果也用 restart 帶資料，一樣要清。

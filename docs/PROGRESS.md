@@ -1,5 +1,16 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-07 14:12–15:00（台北）第 151 輪 — 競技場連勝／今日首勝、天梯平衡點、拍賣所金幣飛入、線上版撿錢飄字跟伺服器、Q5 四塊（RtBattleScene 5,286 → 4,978 行）、Wiki 線上化頁
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（126c0b3）。
+- **連勝與今日首勝（D-324）**：`pvp.finish` 由伺服器算（勝 +1、輸歸零、平手不變；台北日第一次贏），角色多 `pvpStreak`／`pvpWinDay`（SQL 版在 Data JSON）；結果畫面「今日首勝！・N 連勝」大字＋光環火花＋音效，天梯段位列帶「N 連勝」。只給外觀。契約測試四種 DB（含隔天、migrate.sync）。
+- **天梯平衡點（D-325）**：量出來只有一把武器或全身普通的人一場都贏不了（一路掉到 646 分），好裝備 100%。模擬冒險者配裝改照「它和你比較低的段位分」（`simGearPlan`）→ 弱裝掉到 750～900 有輸有贏（最後 15 場 27～60%）、中等裝在 1000 附近五五波。新測試 `tests/pvp-ladder-balance.test.ts`（真伺服器連打 30 場）。
+- **拍賣所**：賣出通知時金幣沿弧線飛進金幣數字＋`SFX.coins`（`fx/coinFly.ts`），面板關掉一起收。
+- **線上版撿錢**：金幣／粉塵／結晶不再飄本機擲的數字，改在 `loot.claim` 回來時飄伺服器給的；Playwright 6 隻怪飄字加總＝伺服器錢包。
+- **Q5 拆場景**：`fx/landmarks.ts`（抉擇痕跡、光門）、`fx/eliteFall.ts`（精英倒下演出資料表）、`rt/offscreenArrows.ts`（畫面外箭頭與距離字）、`fx/dashFx.ts`（殘影、閃現）。驗證方法：舊／新 build 在同一時間點畫出的 Graphics `commandBuffer` 逐項比對（四張圖 × 兩種螢幕完全相同）；eliteFall 用假場景記錄呼叫比對舊數字。
+- **文件**：`docs/wiki/online.md`（交易・競技場・線上化、mermaid 架構圖、防作弊），README 加第二期亮點（V7 底稿），wiki 導覽由 `npm run wiki` 產生。
+- 驗證：每步 typecheck、eslint、build（線上版加 build:online＋bundle 檢查）、vitest（最後 123 檔 880 項全過，含通關機器人、契約測試）；CI 每個程式 commit 都綠（被後一個 push 取消的除外）。
+- **踩到的**：契約測試的 `LEGACY_SAMPLE` 只穿一把劍 → Bot 永遠輸（因此發現 D-325）；Bot 對 Bot 是確定性的，裝備差一點勝率就從 0 跳到 100%，平衡要看「Elo 能不能找到平衡點」而不是單場勝率。
+
 ## 2026-11-07 12:13–12:55（台北）第 150 輪 — 競技場復仇（天梯近況＋結果畫面「⚔ 再挑一次」）、Q5 拆場景六塊（RtBattleScene 6,592 → 5,286 行）、修 V7 截圖腳本
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（d81789a 含 mssql）。
 - **競技場復仇（D-323）**：戰績多存對手 id；`pvp.ladder.recent[].revenge` 由伺服器算（輸掉、對手還在、分差在指名範圍內）；`pvp.start` 回 `foeId`。天梯右上「近況」照勝敗上色（勝金敗紅和灰），點了展開最近 5 場（對手、分數變化、多久以前），輸掉的有「⚔ 再挑一次」；**結果畫面**輸了也多一顆「⚔ 再挑一次」（場景 restart 帶 rematch，用完清 `settings.data`——Phaser 的 restart() 沒帶資料會沿用上次的，不清的話「再來一場」也會變成指名）。契約測試四種 DB（站著不動必輸 → 可復仇 → 同一個對手）；Playwright 走完輸 → 再挑一次 → 同一個對手 → 再來一場回大廳。
@@ -72,50 +83,12 @@
 - 驗證：每步 typecheck、lint、build、vitest（最後 95 檔 690 項全過，含通關機器人、golden hash）。Playwright 360×640（腳本在 /tmp，沒進 repo）：標題看得到「⚔ 競技場」；大廳、開戰、結算截圖；三把武器各打一場，劍 115 筆、法杖 111 筆指令被伺服器接受、結果和本機一致、零頁面錯誤。CI：平衡（9978f90）、冒煙測試（77ff4d8）、交易規則（913e005）全綠；交易伺服器端（b830b7b）的 mssql job 綠（遷移 0003 在 SQL Server 上過）；交易畫面之後的幾個 commit 收尾時還在跑（下一輪開頭看）。
 - **踩到的**：無頭瀏覽器 `pvp.start` 第一次要 5 秒以上（模擬玩家建角色）；`__game` 只有 `?debug` 或 dev 才掛。
 
-## 2026-11-06 22:12–23:45（台北）第 143 輪 — 模擬玩家＋拍賣所畫面、隊伍引擎（Q6）、PvP 競技場與天梯伺服器端
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（9a97f14）。
-- **模擬玩家（D-293）**：`src/server/sim/`；`GameServer.run(accountId, …)`。`npm run sim:economy`：30 人 14 天，物價（掛單價／行商買價中位數）0.63～0.69、掛單 85～100 筆；第一版模擬玩家金幣一路漲到 21 萬 → 加「超過 2,500 去行商買材料」後停在約 7.7 萬。
-- **拍賣所畫面（D-294）**：行商第四個分頁。Playwright 390×844／360×640：買 2400→2377、上架 →2376，舊 key 與伺服器一致、零錯誤。第一次打開只有 5 筆 → 模擬玩家前兩次一定上架。新契約測試：掛單中的物品不被 sync 刪、模擬玩家買走的收入不被下一次 sync 蓋掉（第一版測試寫錯：1 金掛單在 browse 時就被買走）。
-- **Q6 隊伍引擎（D-296）**五步：`PlayerCtl`／`ctlOf`、指令帶 pid、`teamOf`／`hostile`；每個玩家都行動、怪找最近的敵對玩家、全倒才輸；`addPlayer`＋`PlayerBot(pid)`；各玩家自己的武器／技能變化／修正。`tests/rt-multi.test.ts`：狼王 6 種子，單人 6 勝平均 82 秒、兩人 6 勝平均 39 秒。golden hash、效能基準、通關機器人全程不變。
-- **PvP（D-295、D-297）**：`pvp.ts` 數值；`pvp_arena`（14×16、沒有怪、還沒有掩體）；HP ×3、玩家互打傷害 ×0.5、控制遞減、最後站著的隊伍贏。**三武器互打（Bot 各 20 場）：劍 20:0 勝弓與法杖、法杖 20:0 勝弓**——Bot 不會 PvP 走位；試了「遠程被貼近就後退」（KITE_AT 0.5／0.7／0.85）完全沒改變（後退時不會出手），已還原。平衡是下一步。
-- **非同步天梯（D-297）**：`pvpMatch.ts`（`startPvp`／`playPvp`／`replayPvp`＋紀錄白名單）；伺服器 `pvp.start`／`pvp.finish`（對手＝段位分最接近的模擬玩家、配裝由伺服器照身上裝備壓縮計算、Elo）。契約測試三種 DB：本機打＝伺服器重跑、造假 rejected、同局領兩次 not_found、過期作廢；第一版存在 story → 發現 `migrate.sync` 會用舊 key 蓋掉 story → 改存角色列 `pvpMatch`／`pvpRating`。還沒有畫面。
-- **Q5**：`src/game/rt/BannerSystem.ts`（原 `menuBanners`），前後版本同一支腳本比對一樣。場景 6,602 → 6,582 行。
-- 驗證：每步 typecheck、lint、build、vitest（最後 94 檔 668 項全過）。CI：模擬玩家（ed28964）、拍賣所 sync 測試（236aa45）、Q6（a49ccdf）、pvpMatch（92e4507）全綠；最後的 6a32125（掩體）mssql job 綠（PvP／模擬玩家／拍賣所契約測試在 SQL Server 上過）、check job 的測試與 build 綠，Smoke test 收尾時還在跑。另外加了競技場掩體（四塊石頭）。
-
-## 2026-11-06 20:17–21:00（台北）第 142 輪 — 燼牌下注與抉擇走伺服器、src/game 棘輪、拍賣所伺服器端
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（d273b66）。
-- **燼牌下注（D-289）**：`core/meta/cards.ts`（戰績解析、隱藏對手、`replayMatch`）；`cards.start`（扣賭注、伺服器種子、牌組與獎勵牌）→ 面板用同一種子開局、記玩家每一手 → `cards.finish` 伺服器重播判勝負發獎金。契約測試三種 DB（贏兩倍＋牌、輸不退、少出／亂出／多出整筆拒絕、同局不能領兩次、隱藏對手與錢不夠拒絕）；core 測試「畫面一步步打＝伺服器重播」五位對手各 30 局。Playwright：下注一局 999→959→1039、`opStatus.done`、零警告；結算畫面截圖正常。
-- **討伐後抉擇（D-290）**：`core/meta/choices.ts`＋`story.choose`（要打倒過 Boss、只能選一次、取的結晶伺服器發）。第一次 Playwright 跳 `already chosen`——快照拿在存抉擇之後；改到 `makeChoice` 之前，伺服器 crystal 2→5 和舊 key 一致。
-- **棘輪測試**：`tests/game-ratchet.test.ts`。第一次推上去的版本基準數字算錯（沒扣掉註解）→ 下一個 commit 修正，CI 只跑到修正版。
-- **拍賣所伺服器端（D-291，V4 先行）**：`core/meta/market.ts`、`market.list/cancel/buy/browse/mine`、`ListingRow`（三種 DB）、遷移 `0002_market`（`game.MarketListing`）、`account.import` 把拍賣中的物品放回行囊。契約測試：物品換主人、金幣守恆（只少手續費＋上架費）、回滾、取消、過期退回、綁定不能賣、重送只成交一次。沒有畫面，玩家看不到。
-- 驗證：每步 typecheck、lint、build、vitest（最後 85 檔 618 項全過，含通關機器人、golden hash）。截圖腳本 `screenshots/r142*.mjs`（gitignored）：`r142` 下注打完一局（`menu.getData('start')(true)`＋`getData('auto')` 迴圈）、`r142b` 看 opStatus、`r142c` 抉擇（`sc.showChoice(choiceOf('mistwood'))`，點 600×160 的卡再點最後一個可點物件）。
-
-## 2026-11-06 18:12–18:55（台北）第 141 輪 — V2：規則進 core/meta、伺服器 handler、四個面板走伺服器
-- **Q3（core/meta）**：`rtShop`／`rtBag`／`rtSkills` 搬到 `src/core/meta/`（原檔改 re-export，畫面行為不變）；新增 `enhanceRoll(g, rng)`、`replaceGear`、`discountOf`（抉擇折扣，`tests/core-meta.test.ts` 檢查和 `BOSS_CHOICES` 一致）。
-- **伺服器 handler**：`inventory.equip/unequip/salvage`、`enhance.do`（`ctx.rng`＝crypto）、`shop.open/buy/buyGoods/sell/reroll`（價格、特價、抉擇折扣、買下的 uid 都伺服器算）、`skills.add/variant/reset`、`migrate.sync`（本機限定，D-285）。契約測試三種 DB 都跑：順序同第一期、別人的物品 not_found、重送只做一次、材料／金幣不夠整筆回滾、貨架和第一期面板一模一樣；`fuzz.test.ts` 所有方法 × 16 種垃圾參數只回預期錯誤碼（D-286）。
-- **面板切換（D-285）**：`src/client/legacyMirror.ts`＋`legacyOps.ts`。技能樹、行囊（穿脫、全部換最好、分解）先存再送伺服器（分歧就以伺服器為準＋警告）；**強化與行商等伺服器結果**（擲骰、成交只在伺服器）。Playwright 四個面板都跑過：舊 key 和伺服器的錢包、行囊、貨架、技能完全一致，`diverged 0`、零錯誤；面板截圖和之前一樣。
-- **Q5**：`src/game/rt/InputSystem.ts`（D-288）；Playwright 鍵盤 D／S、搖桿、點地移動方向都對。
-- **CI**：8 新測試在 mssql job 逾時——所有測試檔共用同一個 SQL 資料庫、平行跑會互相清表；改成 `--no-file-parallelism --test-timeout=60000`、新測試 client 逾時 15 秒，70bda69 全綠。
-- **踩到的**：一開始 legacyMirror 每次都補 `spent: {}`／改 equip 欄位順序 → 被當成分歧；改成值一樣不動。無頭瀏覽器每次寫入 300 ms（Phaser 軟體繪圖吃滿事件迴圈，不是 IndexedDB），IndexedDB 仍改 relaxed（D-287）。
-- 驗證：每步 typecheck、lint、build、vitest（最後 81 檔 579 項全過，含通關機器人與 golden hash）。截圖腳本 `screenshots/r141*.mjs`（gitignored）：`r141` 技能、`r141b` 強化、`r141d` 行商、`r141e` 行囊、`r141f` 輸入，都是「設 LS → `?debug&scene=RtBattle&stage=mistwood` → 呼叫 `sc.openXxx()` → CLICK(文字)」。
-
-## 2026-11-06 16:12–16:55（台北）第 140 輪 — V1 地基完成＋V2 db/mssql
-- **Q1 確定性（D-280）**：`src/core/fixedMath.ts`（產生器 `scripts/gen-fixed-math.mjs`）取代引擎的 `Math.asin/sin/cos/pow`；`tests/rt-golden-hash.test.ts`（120 組 hash 快照）、`tests/fixed-math.test.ts`（和舊公式比對 3 萬點）、`core-boundary` 加禁用清單。扇形與 XP 替換 hash 完全不變；角度量化後更新快照。
-- **Q2 本機伺服器骨架（D-281）**：`src/net`、`src/server`（GameServer／冪等／DocDb：Memory、IndexedDB、localStorage）、`src/client`（GameClient、boot）。開機複製舊存檔到角色 1（先備份 `jg_backup_<時間>`），遊戲仍讀寫舊 key。`tests/server-contract`（memory／local-idb／local-kv 同一組：遷移、重送只執行一次、35% 掉包、匯出匯入、回滾、錢包、樂觀鎖、重開）、`tests/layer-boundary.test.ts`。Playwright：真 Chromium 用 IndexedDB 遷移一次、重開不重複、零錯誤。
-- **Q4 效能（D-282）**：`tests/rt-perf.test.ts` 基準 **54 μs/tick**（暴動、最多 33 隻）；距離場改環狀桶（逐格相同、快 22%）。`separate()` 空間雜湊暫緩（只佔約 10%）。
-- **Q8 ESLint（D-283）**：`eslint.config.js` 守邊界，CI 加 `npm run lint`。
-- **V2 db/mssql（D-284）**：Kysely＋tedious、`0001_init`（game schema 7 張表）、ADO.NET 連線字串解析（`tests/conn-string.test.ts`）、CI 新 job `mssql`（SQL Server 2022 service container）跑契約測試＋舊表不變檢查。本機沒有 Docker daemon，SQL 版只能看 CI：第一次紅（`EXEC('CREATE SCHEMA ' + QUOTENAME(...))` 是語法錯誤），改成先組進變數後 acc05e8 的 mssql job 全綠。
-- 驗證：每步 typecheck、build、lint、vitest（最後 77 檔全過，含通關機器人）；golden hash 在效能改動前後不變。
-
-## 2026-11-06 12:11–12:40（台北）第 139 輪 — 開第二期（到 11/13）：寫路線圖
-**背景**：排程第 0 步要停用迴圈，但停用被權限擋下；Jacky 接著回覆要繼續做到 11/13，請我自己列新功能、美術、程式品質（複雜度、連線多人架構）計畫，並保留 FOR_JACKY。
-- 新增 `docs/design/23-v2-roadmap.md`（D-276）：現況盤點（`RtBattleScene` 6,495 行、13 個檔案約 50 處 localStorage、`separate()` O(n²)、核心用 `Math.asin/sin/cos`、`playerOf = units[0]`、規則放在畫面層）→ Q1～Q8、F1～F5、A1～A6、里程碑 V1～V7、範圍保護。
-- PLAN 改寫成第二期；NEXT 最上面換成 V1 的具體步驟；FOR_JACKY 加「想聽你意見的」四題（多人型態、AI 隊友、多角色、GPT 額度）。
-- ART_REQUESTS 新增 R-020（星隕高原怪物 sheet）、R-021（狼變種 sheet），兩張 Gemini；`scripts/art-sheets.json` 加好切格設定。
-- 只改文件與 `art-sheets.json`，沒動遊戲程式；CI 最新一次（8f369e2）全綠。
-- **追加（D-277）**：Jacky 要求線上化以**交易與 PvP** 為主、先用單機模擬線上版、之後只換資料庫或後端。新增 `docs/design/24-online-architecture.md`（本機權威伺服器、LocalTransport 只傳 JSON、Repository／LocalDb、資料模型、拍賣所＋託管交易、模擬玩家、PvP 非同步驗證＋即時 BattleRoom）；23 的 Q2／Q6／Q7、F 系列、里程碑、範圍保護照它改寫；NEXT 的 V1 第 2 項改成伺服器骨架。
-- **再追加（D-278）**：後端定案 Node.js＋TS、Azure Container Apps、與 JackyAIStudio 共用 Azure SQL（`Game` schema、權限隔離、各自遷移）；新增 `docs/design/25-azure-backend.md`，23／24／NEXT／FOR_JACKY 同步。
-- **再追加（D-279）**：新增 `docs/design/26-security.md`（敏感邏輯只在後端、防作弊、Web 安全、秘密管理）；DB 改用 `GAME_DB_CONNECTION_STRING`（開發 LocalDB＋`msnodesqlv8`、CI 用 SQL Server 容器）；資料庫已有小寫 `game` schema 與 8 張舊表 → 沿用 `game`、遷移不碰舊表。
+## 2026-11-06 12:11–23:45（台北）第 139～143 輪：每日摘要（第 151 輪合併）
+- **第 139 輪**：開第二期（D-276）：`23-v2-roadmap.md`；Jacky 追加線上化以交易與 PvP 為主（D-277，`24-online-architecture.md`）、後端 Node.js＋Azure Container Apps＋共用 Azure SQL `game` schema（D-278，`25-azure-backend.md`）、資安（D-279，`26-security.md`）。
+- **第 140 輪 V1 地基**：確定性數學（`fixedMath`、golden hash，D-280）、本機伺服器骨架（GameServer／冪等／DocDb，D-281）、效能基準 54 μs/tick（D-282）、ESLint 邊界（D-283）、db/mssql（Kysely＋tedious、`0001_init`、CI mssql job，D-284）。
+- **第 141 輪 V2**：規則進 `core/meta`；伺服器 handler（行囊、強化、行商、技能）；四個面板走伺服器（`legacyOps`，D-285）；InputSystem 拆出（D-288）；CI mssql 測試改不平行。
+- **第 142 輪**：燼牌下注伺服器重播判勝負（D-289）、討伐後抉擇（D-290）、`src/game` 棘輪測試、拍賣所伺服器端＋遷移 0002（D-291）。
+- **第 143 輪**：模擬玩家（D-293，`sim:economy`）＋拍賣所畫面（D-294）、隊伍引擎 Q6（D-296）、PvP 數值與競技場（D-295）、非同步天梯 `pvp.start/finish`＋Elo（D-297）、BannerSystem 拆出。
 
 ## 2026-11-05 16:13–22:40（台北）第 135～138 輪：每日摘要（第 149 輪合併）
 - **第 135 輪（Jacky 回覆）**：改名《命運之境：轉生後的異世界冒險》（D-269）；永遠最新版：`dist/version.json`＋`src/versionCheck.ts`（標題自動重整、冒險中提示，D-270）；APK 固定 debug 簽章可覆蓋安裝、版本 1.1.0；職業維持可換（D-271）。
