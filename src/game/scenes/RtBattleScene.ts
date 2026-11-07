@@ -75,6 +75,7 @@ import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, enco
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { OffscreenArrows } from '../rt/offscreenArrows';
 import { buildMemoryBook } from '../ui/memoryBook';
+import { cardOps, shopOps } from '../shopOps';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings, updateSettings } from '../settings';
 import { RangedFx } from '../fx/rangedFx';
@@ -1287,27 +1288,7 @@ export class RtBattleScene extends Phaser.Scene {
         // V2（D-285）：價格、庫存、扣款都伺服器算，結果寫回舊 key 後場景重讀
         server: !this.tracked ? undefined : async (intent) => {
           this.persist();
-          const region = this.stageId;
-          const res = await legacyOp(
-            captureLegacy(),
-            ['items', 'wallet', 'shop'],
-            async (c, me) => {
-              const itemOf = (uid: string) => {
-                const it = me.items.find((i) => i.gear.uid === uid);
-                if (!it) throw new Error('item not synced');
-                return it.id;
-              };
-              if (intent.kind === 'goods') return c.call('shop.buyGoods', { characterId: me.id, goodsId: intent.id });
-              if (intent.kind === 'reroll') return (await c.call('shop.reroll', { characterId: me.id, region })).character;
-              if (intent.kind === 'sell') return (await c.call('shop.sell', { characterId: me.id, itemIds: intent.uids.map(itemOf) })).character;
-              const v = (await c.call('shop.buy', { characterId: me.id, region, uid: intent.uid })).character;
-              if (!intent.wear) return v;
-              const mine = v.items.filter((i) => i.location === 'bag').sort((a, b) => a.pos - b.pos)[0]!;
-              return c.call('inventory.equip', { characterId: me.id, itemId: mine.id });
-            },
-            (v) => v,
-            true,
-          );
+          const res = await shopOps.deal(intent, this.stageId);
           if (!res || !this.scene.isActive()) return null;
           const rec = loadRecord(this.stageId);
           this.bagSt = cleanBag(rec);
@@ -1411,12 +1392,12 @@ export class RtBattleScene extends Phaser.Scene {
           : {
               start: async (opponentId) => {
                 this.persist();
-                const r = await legacyOp(captureLegacy(), ['wallet'], (c, me) => c.call('cards.start', { characterId: me.id, opponentId }), (x) => x.character, true);
+                const r = await cardOps.start(opponentId);
                 if (this.scene.isActive()) this.coinBase = coinOf(loadRecord(this.stageId));
                 return r;
               },
               finish: async (matchId, moves) => {
-                const r = await legacyOp(captureLegacy(), ['wallet'], (c, me) => c.call('cards.finish', { characterId: me.id, matchId, moves }), (x) => x.character, true);
+                const r = await cardOps.finish(matchId, moves);
                 if (this.scene.isActive()) this.coinBase = coinOf(loadRecord(this.stageId));
                 return r;
               },
