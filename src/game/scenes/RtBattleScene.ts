@@ -81,6 +81,7 @@ import { makeGround } from '../rt/ground';
 import { Companion } from '../fx/companion';
 import { drawChoiceMarkArt, drawGateArt } from '../fx/landmarks';
 import { eliteFall } from '../fx/eliteFall';
+import { DashFx } from '../fx/dashFx';
 import { drawStorm, type StormView } from '../fx/stormFx';
 import { GroundHazards, LAVA_ATTACKS, METEOR_ATTACKS } from '../fx/groundHazards';
 import { drawCardRival, drawMerchant } from '../fx/merchant';
@@ -212,6 +213,8 @@ export class RtBattleScene extends Phaser.Scene {
   private via = '';
   /** 這次是從上次休息的營火出發（D-230） */
   private resumed = false;
+  /** 位移招殘影／法杖閃現（第 151 輪拆出去） */
+  private readonly dash = new DashFx(this, () => this.s);
   /** 畫面外的箭頭與距離字（fx 拆出去，第 151 輪） */
   private readonly offArrows = new OffscreenArrows({
     scene: this,
@@ -382,7 +385,6 @@ export class RtBattleScene extends Phaser.Scene {
   /** 碎甲（D-121 演出收尾，第 26 輪）：每隻怪上一次看到的破甲結束 tick；變大＝剛被破甲 → 盾片碎裂 */
   private breakSeen = new Map<number, number>();
   /** 影步殘影（第 26 輪）：上一次留下分身的時間 */
-  private ghostAt = 0;
   private bountyTxt: Phaser.GameObjects.Text | null = null;
   /** 還沒點的技能點（☰ 紅點用；升級與改動時更新） */
   private ptsLeft = 0;
@@ -657,7 +659,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.veteran = this.tracked && bossKillsOf(WORLD_MAPS[0]!.id) > 0;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.hz.reset();
-    this.breakSeen.clear(); this.ghostAt = 0;
+    this.breakSeen.clear(); this.dash.reset();
     // 第 46 輪：95 會壓在 MP 條（96～104）與經驗條（104～110）上，往下挪到 Boss 血條的位置（打 Boss 時目標字條本來就藏起來）
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 114, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)', align: 'center', lineSpacing: 4 }).setPadding(12, 3, 12, 3).setOrigin(0.5, 0).setDepth(49) : null;
     this.bossTxt = this.add.text(GAME_WIDTH / 2, 136, '', { fontFamily: UI_FONT, fontSize: '19px', fontStyle: '700', color: '#ffd0e4', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 0).setDepth(49).setVisible(false);
@@ -3674,23 +3676,6 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
-  /** 影步（變化二）殘影（第 26 輪）：衝刺中每 45ms 在原地留一個紫色分身，0.35 秒淡出 */
-  private shadowGhost(p: Unit, sp: Phaser.GameObjects.Image, now: number): void {
-    const a = p.action;
-    if (!a || a.kind !== 'skill' || now - this.ghostAt < 45) return;
-    const sk = skillDef(this.s, a.id);
-    if (!sk?.dash || this.s.weapon === 'staff') return;
-    // 第 71 輪：所有劍／弓的位移招（衝鋒、流星衝、後躍…）都留殘影；以前只有影步，衝鋒凍結看只有腳下三條細線
-    const k = this.s.tick - a.start;
-    if (k < sk.dash.fromTick || k > sk.dash.fromTick + sk.dash.ticks) return;
-    const weak = sk.hits.some((h) => h.status?.id === 'weak');
-    this.ghostAt = now;
-    const gh = this.add.image(sp.x, sp.y, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setDepth(sp.depth - 0.5).setTint(weak ? 0x7a4aff : this.s.weapon === 'bow' ? 0x8ad870 : 0x5ab0ff).setAlpha(weak ? 0.5 : 0.42);
-    if (!weak) gh.setBlendMode(Phaser.BlendModes.ADD);
-    this.tweens.add({ targets: gh, alpha: 0, scaleX: sp.scaleX * 1.08, duration: 350, ease: 'Cubic.easeOut', onComplete: () => gh.destroy() });
-  }
-
-  /** 法杖擋下攻擊（第 34 輪）：身邊一圈六角形星輝護盾亮起、碎成光點（純畫面） */
   /** 世界座標在不在畫面裡（含一點邊界；短命特效用，畫面外就不產生粒子） */
   private onScreen(x: number, y: number): boolean {
     const px = this.sx(x);
@@ -3767,42 +3752,6 @@ export class RtBattleScene extends Phaser.Scene {
         const line = CHOICE_ECHO[`${map}:${pick}`];
         if (line) floatNumber(this, cx, cy - 70 * k, line, { color: pick === 'spare' ? '#c8f0dc' : '#d8ccb8', size: 24 });
       }
-    }
-  }
-
-  /** 法杖的閃現類位移（第 34 輪）：起點一圈紫光「消失」、路上星屑、終點白紫閃光「出現」（純畫面） */
-  private blinkMark = '';
-  private blinkFx(p: Unit, sp: Phaser.GameObjects.Image): void {
-    const a = p.action;
-    const cx = sp.x;
-    const cy = sp.y - sp.displayHeight * 0.4;
-    const appear = (): void => {
-      const fl = this.add.circle(cx, cy, 20, 0xffffff, 0.85).setDepth(sp.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
-      this.tweens.add({ targets: fl, scale: 3, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => fl.destroy() });
-      shockRing(this, cx, cy, 0xffffff, 60, 200, 4);
-    };
-    // 畫面幀數低、跳過位移結束那一幀時：動作結束就補「出現」
-    if (this.blinkMark.endsWith(':s') && (!a || `${a.start}:s` !== this.blinkMark)) {
-      this.blinkMark = this.blinkMark.replace(':s', ':e');
-      appear();
-    }
-    if (!a || a.kind !== 'skill') return;
-    const d = skillDef(this.s, a.id)?.dash;
-    if (!d) return;
-    const k = this.s.tick - a.start;
-    if (k >= d.fromTick && this.blinkMark !== `${a.start}:s`) {
-      if (this.blinkMark === `${a.start}:e`) return;
-      this.blinkMark = `${a.start}:s`;
-      shockRing(this, cx, cy, 0xc89aff, 70, 240, 6);
-      sparks(this, cx, cy, 14, 'spark', 0xe0c8ff, 420);
-      const fl = this.add.circle(cx, cy, 46, 0xd8c0ff, 0.6).setDepth(sp.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
-      this.tweens.add({ targets: fl, scale: 0.2, alpha: 0, duration: 220, onComplete: () => fl.destroy() });
-      return;
-    }
-    if (k > d.fromTick && k < d.fromTick + d.ticks) sparks(this, cx, cy, 2, 'spark', 0xc89aff, 260);
-    if (k >= d.fromTick + d.ticks && this.blinkMark === `${a.start}:s`) {
-      this.blinkMark = `${a.start}:e`;
-      appear();
     }
   }
 
@@ -4219,8 +4168,8 @@ export class RtBattleScene extends Phaser.Scene {
           }
         }
         if (isP) {
-          this.shadowGhost(x, sp, now);
-          if (this.s.weapon === 'staff') this.blinkFx(x, sp);
+          this.dash.shadowGhost(x, sp, now);
+          if (this.s.weapon === 'staff') this.dash.blinkFx(x, sp);
           this.drawUltAim(g, x, now);
           if (this.s.weapon === 'bow' && !x.dead) {
             // 長弓（D-147）：主角身前一把長弓（程式畫的；拉弓時弦往後拉）
