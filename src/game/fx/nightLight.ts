@@ -94,3 +94,39 @@ export class NightLight {
     this.rt.destroy();
   }
 }
+
+/** 省電畫質的深夜暗角（D-103 原本的做法：一張跟著主角的靜態圖；第 152 輪從 RtBattleScene 搬來） */
+export function nightShadeTexture(scene: Phaser.Scene): string {
+  const key = 'rt_night_shade';
+  if (scene.textures.exists(key)) return key;
+  const tex = scene.textures.createCanvas(key, 512, 512);
+  if (!tex) return key;
+  const ctx = tex.getContext();
+  const gr = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+  gr.addColorStop(0, 'rgba(6,10,36,0)');
+  gr.addColorStop(0.1, 'rgba(6,10,36,0.05)');
+  gr.addColorStop(0.28, 'rgba(6,10,36,0.5)');
+  gr.addColorStop(0.5, 'rgba(6,10,36,0.68)');
+  gr.addColorStop(1, 'rgba(6,10,36,0.74)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(0, 0, 512, 512);
+  tex.refresh();
+  return key;
+}
+
+/** 營火的暖色光暈（ADD 疊加；第 152 輪從 RtBattleScene 搬來） */
+export function fireGlowTexture(scene: Phaser.Scene): string {
+  const key = 'rt_fire_glow';
+  if (scene.textures.exists(key)) return key;
+  const tex = scene.textures.createCanvas(key, 256, 256);
+  if (!tex) return key;
+  const ctx = tex.getContext();
+  const gr = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, 'rgba(255,190,90,0.8)');
+  gr.addColorStop(0.35, 'rgba(255,140,50,0.32)');
+  gr.addColorStop(1, 'rgba(255,100,30,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(0, 0, 256, 256);
+  tex.refresh();
+  return key;
+}

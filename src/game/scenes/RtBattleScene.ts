@@ -67,7 +67,7 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { Ambient } from '../fx/ambient';
-import { NightLight, type LightSpot } from '../fx/nightLight';
+import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
 import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_DISCOUNT, type BossChoice, type ChoicePick } from '../choices';
 import { openChoice } from '../ui/choicePanel';
@@ -603,7 +603,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.gateLabelFrom = this.via ? this.time.now + 1400 : 0;
     this.ground = makeGround(this, this.s, this.stageId, this.k, VIEW_BOTTOM - VIEW_TOP);
-    this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, this.glowTexture()).setBlendMode(Phaser.BlendModes.ADD));
+    this.glows = (STAGES[this.stageId]?.campfires ?? []).map(() => this.add.image(0, 0, fireGlowTexture(this)).setBlendMode(Phaser.BlendModes.ADD));
     this.g = this.add.graphics();
     this.frostG = this.add.graphics().setDepth(9); // 霜旋的冰晶（在單位底下、地面之上）
     this.top = this.add.graphics().setDepth(45);
@@ -620,7 +620,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 深夜（D-103）：整個畫面壓暗、偏藍
     // 第 152 輪（A3）：一般畫質改成動態光照（主角＋營火＋閃光擦出黑幕）；省電畫質照舊用靜態暗角圖
     this.nightLight = this.s.night && !getSettings().lowFx ? new NightLight(this, GAME_WIDTH, GAME_HEIGHT, 42) : null;
-    this.nightShade = this.s.night && !this.nightLight ? this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, this.nightTexture()).setDisplaySize(3200, 3200).setDepth(42) : null;
+    this.nightShade = this.s.night && !this.nightLight ? this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, nightShadeTexture(this)).setDisplaySize(3200, 3200).setDepth(42) : null;
     // 環境粒子（第 27 輪）：大地圖才有；光塵／螢火蟲、花瓣孢子、火星灰燼
     const amb = worldMap(this.stageId);
     this.ambient = amb ? new Ambient(this, amb.decor, getSettings().lowFx, !!this.s.night, { x: 0, y: VIEW_TOP, w: GAME_WIDTH, h: VIEW_BOTTOM - VIEW_TOP }) : null;
@@ -1676,40 +1676,6 @@ export class RtBattleScene extends Phaser.Scene {
       spots.push({ x: cx, y: cy, r, a: !gt.back && (shut ??= this.bossEngaged()) ? 0.35 : 0.75, flicker: false });
     }
     this.nightLight!.update(this.time.now, this.sx(pos.x), this.sy(pos.y), spots);
-  }
-
-  private nightTexture(): string {
-    const key = 'rt_night_shade';
-    if (this.textures.exists(key)) return key;
-    const tex = this.textures.createCanvas(key, 512, 512);
-    if (!tex) return key;
-    const ctx = tex.getContext();
-    const gr = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
-    gr.addColorStop(0, 'rgba(6,10,36,0)');
-    gr.addColorStop(0.1, 'rgba(6,10,36,0.05)');
-    gr.addColorStop(0.28, 'rgba(6,10,36,0.5)');
-    gr.addColorStop(0.5, 'rgba(6,10,36,0.68)');
-    gr.addColorStop(1, 'rgba(6,10,36,0.74)');
-    ctx.fillStyle = gr;
-    ctx.fillRect(0, 0, 512, 512);
-    tex.refresh();
-    return key;
-  }
-
-  private glowTexture(): string {
-    const key = 'rt_fire_glow';
-    if (this.textures.exists(key)) return key;
-    const tex = this.textures.createCanvas(key, 256, 256);
-    if (!tex) return key;
-    const ctx = tex.getContext();
-    const gr = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-    gr.addColorStop(0, 'rgba(255,190,90,0.8)');
-    gr.addColorStop(0.35, 'rgba(255,140,50,0.32)');
-    gr.addColorStop(1, 'rgba(255,100,30,0)');
-    ctx.fillStyle = gr;
-    ctx.fillRect(0, 0, 256, 256);
-    tex.refresh();
-    return key;
   }
 
   /** 地圖上的 Boss 倒下（刷怪地圖不會因此結束）：金色閃光＋討伐大字＋首殺紀錄（獨立 localStorage，不碰主線存檔） */
