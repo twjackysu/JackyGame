@@ -85,3 +85,21 @@ describe('線上版登入（PKCE）', () => {
     expect(tokenSecondsLeft('garbage', 0)).toBe(-1);
   });
 });
+
+describe('登入過期（GameClient.onUnauthorized）', () => {
+  it('伺服器回 unauthorized：叫一次 onUnauthorized（之後不再叫），錯誤照樣丟給呼叫的人；其他錯誤不叫', async () => {
+    const { GameClient } = await import('../src/client/GameClient');
+    const { LocalTransport } = await import('../src/net/LocalTransport');
+    let code = 'unauthorized';
+    const t = new LocalTransport(async (j) => JSON.stringify({ id: (JSON.parse(j) as { id: number }).id, ok: false, error: { code, message: 'x' } }));
+    let n = 0;
+    const c = new GameClient(t, { token: 'old', onUnauthorized: () => n++ });
+    await expect(c.call('character.list', {})).rejects.toMatchObject({ code: 'unauthorized' });
+    await expect(c.call('character.list', {})).rejects.toMatchObject({ code: 'unauthorized' });
+    expect(n).toBe(1);
+    code = 'rejected';
+    const c2 = new GameClient(t, { onUnauthorized: () => n++ });
+    await expect(c2.call('character.list', {})).rejects.toMatchObject({ code: 'rejected' });
+    expect(n).toBe(1);
+  });
+});

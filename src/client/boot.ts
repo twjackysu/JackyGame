@@ -46,6 +46,7 @@ export function bootServer(): Promise<BootResult> {
       }
       let token = onlineToken(ls, import.meta.env.VITE_AUTH_MODE === 'dev');
       let loginError: string | undefined;
+      let relogin: (() => void) | undefined;
       // 正式登入（第 148 輪）：建置時設了 Entra 才走 PKCE；沒登入就整頁轉去登入頁（同一個分頁只自動轉一次，失敗不會一直轉）
       if (import.meta.env.VITE_ENTRA_AUTHORITY && import.meta.env.VITE_ENTRA_CLIENT_ID && ls) {
         const { beginLogin, finishLogin } = await import('./oidcLogin');
@@ -59,6 +60,13 @@ export function bootServer(): Promise<BootResult> {
           fetch: (url: string, init: { method: 'POST'; headers: Record<string, string>; body: string }) => fetch(url, init),
           go: (url: string) => location.assign(url),
           now: () => Date.now(),
+        };
+        // 玩到一半登入過期（id_token 約 1 小時）：問一次要不要重新登入（伺服器的進度都在，轉頁不會掉東西）
+        relogin = () => {
+          if (!confirm('線上登入已過期，要重新登入嗎？')) return;
+          ls?.removeItem(ONLINE_TOKEN_KEY);
+          sessionStorage.removeItem('jg_login_tried');
+          void beginLogin(deps);
         };
         try {
           const r = await finishLogin(deps, location.search, ONLINE_TOKEN_KEY);
@@ -74,7 +82,7 @@ export function bootServer(): Promise<BootResult> {
           loginError = e instanceof Error ? e.message : String(e);
         }
       }
-      const client = await startOnlineClient(import.meta.env.VITE_SERVER_URL, token);
+      const client = await startOnlineClient(import.meta.env.VITE_SERVER_URL, token, relogin);
       return { client, kind: 'online' as const, ...(loginError ? { error: `login: ${loginError}` } : {}) };
     }
     const { startLocalServer } = await import('./localServer');

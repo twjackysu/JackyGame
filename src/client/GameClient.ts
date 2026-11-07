@@ -10,6 +10,8 @@ export interface GameClientOptions {
   retries?: number;
   /** requestId 產生器（測試用固定的） */
   newRequestId?: () => string;
+  /** 伺服器回 unauthorized（線上版登入過期，第 148 輪）：每個 client 只叫一次，讓畫面請玩家重新登入 */
+  onUnauthorized?: () => void;
 }
 
 let seq = 0;
@@ -20,6 +22,7 @@ const defaultRequestId = (): string => {
 
 export class GameClient {
   private msgId = 0;
+  private unauthorizedSeen = false;
   constructor(
     private readonly transport: Transport,
     private readonly o: GameClientOptions = {},
@@ -40,7 +43,13 @@ export class GameClient {
       }
       const res = JSON.parse(text) as Response;
       if (res.id !== req.id) continue; // 晚到的舊回應：丟掉
-      if (!res.ok) throw new ApiError(res.error.code, res.error.message);
+      if (!res.ok) {
+        if (res.error.code === 'unauthorized' && this.o.onUnauthorized && !this.unauthorizedSeen) {
+          this.unauthorizedSeen = true;
+          this.o.onUnauthorized();
+        }
+        throw new ApiError(res.error.code, res.error.message);
+      }
       return res.result as ResultOf<M>;
     }
   }
