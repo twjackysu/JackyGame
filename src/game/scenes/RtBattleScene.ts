@@ -72,7 +72,7 @@ import { choiceOf, loadChoices, makeChoice, saveChoices, shopDiscountPct, SPARE_
 import { openChoice } from '../ui/choicePanel';
 import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, encountersOf, leftMapsExcept, loadEncounters, markMetThisVisit, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
-import { showOffscreenArrow } from '../arrowRules';
+import { OffscreenArrows } from '../rt/offscreenArrows';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings, updateSettings } from '../settings';
 import { RangedFx } from '../fx/rangedFx';
@@ -212,7 +212,25 @@ export class RtBattleScene extends Phaser.Scene {
   private via = '';
   /** 這次是從上次休息的營火出發（D-230） */
   private resumed = false;
-  private gateArrow: Phaser.GameObjects.Text | null = null;
+  /** 畫面外的箭頭與距離字（fx 拆出去，第 151 輪） */
+  private readonly offArrows = new OffscreenArrows({
+    scene: this,
+    viewTop: VIEW_TOP,
+    s: () => this.s,
+    now: () => this.time.now,
+    k: () => this.k,
+    sx: (x) => this.sx(x),
+    sy: (y) => this.sy(y),
+    goalBounds: () => (this.goal?.visible && this.goal.text ? this.goal.getBounds() : this.bossTxt?.visible ? this.bossTxt.getBounds() : null),
+    bountyBounds: () => (this.bountyTxt?.visible && this.bountyTxt.text ? this.bountyTxt.getBounds() : null),
+    mini: () => this.mini,
+    btnPos: (i) => this.btnPos(i),
+    btnR: (i) => this.btnR(i),
+    zoneTexts: () => this.zoneTexts,
+    clearOfHudPanels: (x, y, ax, w) => this.clearOfHudPanels(x, y, ax, w),
+    gates: () => this.gates,
+    menuOpen: () => !!this.menu,
+  });
   private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean; revealAt?: number }[] = [];
   private ox = 0;
   private oy = 0;
@@ -295,7 +313,6 @@ export class RtBattleScene extends Phaser.Scene {
   /** 玩家有沒有主動點過怪／按過技能（刷怪關 30 秒沒動作就提示） */
   private engaged = false;
   /** 精英／Boss 邊緣箭頭的距離字（物件池） */
-  private arrowLabels: Phaser.GameObjects.Text[] = [];
   /** 營火光暈（預先烘好的放射漸層，ADD 混色；每幀只改位置與縮放） */
   private glows: Phaser.GameObjects.Image[] = [];
   /** 大地圖目標列（沒有就 null） */
@@ -517,7 +534,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.gates = [];
     this.gateWaits = '';
     this.camPeek = null;
-    this.gateArrow = null;
+    this.offArrows.reset();
     { const p0 = playerOf(this.s); this.spawnAt = { x: p0.x, y: p0.y }; }
     this.setupGate();
     this.resumed = this.resumeAtFire();
@@ -569,7 +586,6 @@ export class RtBattleScene extends Phaser.Scene {
     this.introText = null;
     this.introStr = '';
     this.streakHinted = false;
-    this.arrowLabels = [];
     const p0 = playerOf(this.s);
     this.camX = p0.x;
     this.camY = p0.y;
@@ -2917,7 +2933,7 @@ export class RtBattleScene extends Phaser.Scene {
       calmText: this.calmText,
       children: this.children.list,
       zoneTexts: this.zoneTexts,
-      hud: (t) => this.arrowLabels.includes(t) || t === this.gateArrow || t === this.bountyTxt,
+      hud: (t) => this.offArrows.labels.includes(t) || t === this.offArrows.gateArrow || t === this.bountyTxt,
     });
   }
 
@@ -4476,153 +4492,8 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
     }
-    this.drawOffscreen(top);
+    this.offArrows.draw(top);
     this.drawUi();
-  }
-
-  /** 畫面外的敵人：邊緣箭頭（正在預告攻擊的閃紅） */
-  private drawOffscreen(g: Phaser.GameObjects.Graphics): void {
-    const s = this.s;
-    const now = this.time.now;
-    const p = playerOf(s);
-    let li = 0;
-    const placed: { x: number; y: number; ax: number; ay: number }[] = [];
-    const gb = this.goal?.visible && this.goal.text ? this.goal.getBounds() : this.bossTxt?.visible ? this.bossTxt.getBounds() : null;
-    for (const e of enemiesOf(s)) {
-      const px = this.sx(e.x);
-      const py = this.sy(e.y);
-      const M = 30;
-      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960 + TALL) continue;
-      const boss = !!ENEMIES[e.defId]?.boss;
-      const elite = e.tier === 'elite' || boss;
-      // 有小地圖的大地圖：待機的一般怪只在小地圖上，箭頭只留給追過來的怪、附近的精英與 Boss（design/20 B6、D-176）
-      if (!showOffscreenArrow({ mini: !!this.mini, elite, boss, combat: e.mode === 'combat', distM: Math.hypot(e.x - p.x, e.y - p.y) / UNIT })) continue;
-      let cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
-      // 技能鍵／藥水鍵（照操作設定的位置，左手模式也算）：箭頭與距離字不要壓在按鈕上，挪到按鈕上方（第 46 輪）
-      let yMax = 960 + TALL;
-      for (let pass = 0; pass < 2; pass++)
-        for (let i = 0; i <= 6; i++) {
-          const b = this.btnPos(i);
-          const r = this.btnR(i) + 34;
-          if (Math.abs(cx - b.x) < r && yMax > b.y - r) yMax = b.y - r;
-        }
-      let cy = Math.max(VIEW_TOP + M, Math.min(yMax, py));
-      // 落在左上小地圖上的箭頭挪到小地圖右邊（第 41 輪：以前箭頭和距離字壓在小地圖上）
-      const mm = this.mini;
-      if (mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M) cx = mm.x + mm.w + M;
-      // 小地圖下面的懸賞板也一樣（第 49 輪：左邊的箭頭距離字「17m」壓在「野狼 0/12」上）
-      const bb = this.bountyTxt?.visible && this.bountyTxt.text ? this.bountyTxt.getBounds() : null;
-      if (bb && cx < bb.right + M && cy > bb.top - M && cy < bb.bottom + M) cx = bb.right + M;
-      // 上緣中間的「目標：…」字條（第 44 輪：以前大箭頭蓋在字條上，「打倒霧角狼王」看不清楚）→ 箭頭挪到字條下面
-      let top = VIEW_TOP + M;
-      const gy = gb ? gb.bottom + (elite ? 36 : 22) : 0; // 大箭頭尖端離中心約 31px
-      if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = top = gy;
-      // 第 57 輪：剛走進一區的地區名稱（「— 熔渣坡 —」，y 約 235～290）被上緣的 Boss 大箭頭與距離字壓住 → 箭頭挪到字的旁邊
-      for (const z of this.zoneTexts) {
-        if (!z.active || z.alpha < 0.05) continue;
-        const zb = z.getBounds();
-        if (cx > zb.left - M && cx < zb.right + M && cy > zb.top - M - 30 && cy < zb.bottom + M + 30) {
-          const cx0 = cx;
-          cx = cx < zb.centerX ? Math.max(M, zb.left - M) : Math.min(GAME_WIDTH - M, zb.right + M);
-          // 第 84 輪：往左讓開又躲回小地圖／懸賞板底下（360×640 深夜裂谷「岔路：…」字從畫面左邊開始）→ 箭頭被板子蓋住、只剩距離字 → 改成留在原處、讓到字的下面
-          const underMini = mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M;
-          const underBounty = bb && cx < bb.right + M && cy > bb.top - M && cy < bb.bottom + M;
-          if (underMini || underBounty) {
-            cx = cx0;
-            cy = Math.min(yMax, zb.bottom + M + 31);
-          }
-        }
-      }
-      // 同方向好幾隻精英／Boss：大箭頭沿著邊緣錯開，不疊成一團
-      if (elite) {
-        const onTop = cy <= top + 1;
-        // 第 49 輪：40／44 → 56／60（大箭頭含光圈直徑約 52，被小地圖推過來的兩個箭頭以前幾乎貼在一起）
-        for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.ax - cx) < 56 && Math.abs(q.ay - cy) < 56); k++) {
-          if (onTop) {
-            cx = Math.min(GAME_WIDTH - M, cx + 60);
-            // 第 61 輪：錯開後滑進「目標：…」字條底下（第二個箭頭和距離字蓋在字條上）→ 一樣挪到字條下面
-            if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = gy;
-          } else cy = Math.min(yMax, cy + 60);
-        }
-      }
-      const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
-      const hot = s.telegraphs.some((t) => t.ownerId === e.id);
-      const col = hot ? (Math.floor(now / 100) % 2 ? 0xff3a3a : 0xffffff) : ENEMIES[e.defId]?.boss ? 0xffb0d0 : 0xffd27a;
-      const c = Math.cos(an);
-      const sn = Math.sin(an);
-      // 精英／Boss：大一號的橘金箭頭＋脈動光圈（值得特地去打）
-      const big = elite;
-      const z = big ? 1.7 : 1;
-      if (big && !hot) g.fillStyle(0xff9a3a, 0.25 + 0.15 * Math.sin(now / 180)).fillCircle(cx, cy, 26);
-      g.fillStyle(big && !hot ? 0xffa040 : col, 0.9).fillTriangle(cx + c * 18 * z, cy + sn * 18 * z, cx - c * 10 * z - sn * 12 * z, cy - sn * 10 * z + c * 12 * z, cx - c * 10 * z + sn * 12 * z, cy - sn * 10 * z - c * 12 * z);
-      if (big && this.mini) {
-        // 距離（1 格＝1 公尺），字放在箭頭內側
-        let tx = this.arrowLabels[li];
-        if (!tx) {
-          tx = this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(51);
-          this.arrowLabels.push(tx);
-        }
-        li++;
-        // 兩個箭頭靠太近時距離字往下錯開，不疊成「50m10m」
-        let lx = cx - c * 40;
-        let ly = cy - sn * 40;
-        // 第 84 輪：箭頭被推到小地圖／懸賞板右邊後，距離字放在「箭頭內側」＝又回到板子上（360×640「44m」壓小地圖、「21m」壓「懸賞」）→ 改放箭頭外側
-        lx = Math.max(26, Math.min(GAME_WIDTH - 26, this.clearOfHudPanels(lx, ly, cx)));
-        for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.x - lx) < 46 && Math.abs(q.y - ly) < 22); k++) ly += 24;
-        placed.push({ x: lx, y: ly, ax: cx, ay: cy });
-        tx.setVisible(true).setText(`${Math.round(Math.hypot(e.x - p.x, e.y - p.y) / UNIT)}m`).setPosition(lx, ly);
-      }
-    }
-    for (let i = li; i < this.arrowLabels.length; i++) this.arrowLabels[i]!.setVisible(false);
-    // 往下一張的光門在畫面外（第 55 輪）：剛亮起的 25 秒內、或 40 公尺內，邊緣一個青色箭頭＋「光門 Nm」
-    let gateShown = false;
-    const bossFight = enemiesOf(s).some((e) => e.mode === 'combat' && !!ENEMIES[e.defId]?.boss);
-    for (const gt of this.gates) {
-      if (bossFight) break;
-      if (gt.back || this.menu) continue;
-      const px = this.sx(gt.x);
-      const py = this.sy(gt.y) - 60 * this.k;
-      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960 + TALL) continue;
-      const dm = Math.hypot(gt.x - p.x, gt.y - p.y) / UNIT;
-      if (dm > 40 && !(gt.revealAt !== undefined && now - gt.revealAt < 25000)) continue;
-      const M = 34;
-      let cx = Math.max(M, Math.min(GAME_WIDTH - M, px));
-      let cy = Math.max(VIEW_TOP + M, Math.min(900 + TALL, py));
-      const mm = this.mini;
-      if (mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M) cx = mm.x + mm.w + M;
-      const gy = gb ? gb.bottom + 36 : 0;
-      if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = gy;
-      for (let k = 0; k < 3 && placed.some((q) => Math.abs(q.ax - cx) < 56 && Math.abs(q.ay - cy) < 56); k++) cx = cx > GAME_WIDTH / 2 ? cx - 60 : cx + 60;
-      const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
-      const c = Math.cos(an);
-      const sn = Math.sin(an);
-      const z = 1.6;
-      g.fillStyle(0x7ad8ff, 0.22 + 0.14 * Math.sin(now / 200)).fillCircle(cx, cy, 26);
-      g.fillStyle(0xbff0ff, 0.95).fillTriangle(cx + c * 18 * z, cy + sn * 18 * z, cx - c * 10 * z - sn * 12 * z, cy - sn * 10 * z + c * 12 * z, cx - c * 10 * z + sn * 12 * z, cy - sn * 10 * z - c * 12 * z);
-      if (!this.gateArrow) this.gateArrow = this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: '#bff0ff', stroke: '#06121e', strokeThickness: 4 }).setOrigin(0.5).setDepth(51);
-      // 第 73 輪：360×640 上緣「光門 31m」和精英／Boss 的「25m」以前貼在一起、又貼著目標字條 → 碰到別的距離字就往下錯開，也不進字條
-      let gly = cy - sn * 40;
-      const glx = this.clearOfHudPanels(Math.max(46, Math.min(GAME_WIDTH - 46, cx - c * 46)), gly, cx, 72);
-      if (gb && glx > gb.left - 40 && glx < gb.right + 40 && gly - 11 < gb.bottom + 4) gly = gb.bottom + 15;
-      for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.x - glx) < 72 && Math.abs(q.y - gly) < 24); k++) gly += 26;
-      this.gateArrow.setVisible(true).setText(`光門 ${Math.round(dm)}m`).setPosition(glx, gly);
-      gateShown = true;
-      break;
-    }
-    if (!gateShown) this.gateArrow?.setVisible(false);
-    // 畫面外地上的精良以上裝備（D-100）：邊緣閃爍菱形（稀有度顏色），提醒回去撿
-    for (const it of s.ground ?? []) {
-      if (it.kind !== 'gear' || (it.rarity ?? 1) < 2) continue;
-      const px = this.sx(it.x);
-      const py = this.sy(it.y);
-      if (px >= 0 && px <= GAME_WIDTH && py >= VIEW_TOP + 40 && py <= 960 + TALL) continue;
-      const cx = Math.max(24, Math.min(GAME_WIDTH - 24, px));
-      const cy = Math.max(VIEW_TOP + 24, Math.min(950 + TALL, py));
-      const r = 11 + 2 * Math.sin(now / 140);
-      g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 0.3).fillCircle(cx, cy, r + 8);
-      g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 1).fillPoints([{ x: cx, y: cy - r }, { x: cx + r * 0.7, y: cy }, { x: cx, y: cy + r }, { x: cx - r * 0.7, y: cy }], true);
-      g.lineStyle(2, 0xffffff, 0.8).strokePoints([{ x: cx, y: cy - r }, { x: cx + r * 0.7, y: cy }, { x: cx, y: cy + r }, { x: cx - r * 0.7, y: cy }], true);
-    }
   }
 
   /** 小地圖：場地面積超過畫面約 2.5 倍才顯示；石頭與邊框烘成材質，單位點每幀畫在 ui 上 */
