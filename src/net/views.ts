@@ -162,6 +162,8 @@ export interface PvpLadderView {
   total: number;
   /** 目前連勝（D-324；0＝沒有） */
   streak: number;
+  /** 賽季（第 153 輪 D-328，一季＝台北一週）：還剩幾毫秒、這季最高分、上季最高分、歷來最好的一季 */
+  season: { leftMs: number; peak: number; last?: number; best?: number };
 }
 
 /** 面對面交易一方放的東西（物品附快照給畫面顯示） */

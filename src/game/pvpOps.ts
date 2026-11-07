@@ -21,6 +21,8 @@ export interface PvpResult {
   /** 打完後的連勝、今天（台北）第一次贏（D-324，伺服器算的，只給外觀） */
   streak: number;
   firstWin: boolean;
+  /** 本季第一次到達這個段位（D-328） */
+  seasonTier?: boolean;
 }
 
 export const pvpOps = {

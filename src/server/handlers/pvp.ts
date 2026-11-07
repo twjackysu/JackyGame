@@ -6,7 +6,7 @@ import { GEAR_SLOTS, gearBonus, genGear, isGear, type RtGear } from '../../core/
 import { pvpGear } from '../../core/battle/rt/pvp';
 import { replayPvp, type PvpMatchSetup, type PvpSide } from '../../core/battle/rt/pvpMatch';
 import { WEAPONS } from '../../core/battle/rt/data';
-import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, pvpStreakAfter, simGearPlan, simGearRating, simLeague, taipeiDay } from '../../core/meta/pvpRank';
+import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, pvpSeasonAfter, pvpSeasonNow, pvpStreakAfter, seasonLeftMs, simGearPlan, simGearRating, simLeague, taipeiDay, taipeiWeek } from '../../core/meta/pvpRank';
 import { hashSeed } from '../../core/rng';
 import { ApiError } from '../../net/protocol';
 import type { PvpRecentView, WeaponView } from '../../net/views';
@@ -95,7 +95,11 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
       const foe = r.foeId ? simRoster().find((s) => s.accountId === r.foeId) : undefined;
       return { ...r, revenge: r.outcome === 'defeat' && !!foe && canChallenge(rating, simRating(foe)) };
     });
-    return { rows, recent, rating, pos: mine.pos, total: all.length, streak: pvpStreakAfter({ streak: c.pvpStreak }, 'timeout', 0).streak }; // 平手＝不變：拿來把壞資料修成安全值
+    // 賽季（D-328）：唯讀，換季只在 pvp.finish 存；這裡照現在的時間算給畫面看
+    const now = ctx.clock.now();
+    const ss = pvpSeasonNow(c.pvpSeason, rating, taipeiWeek(now));
+    const season = { leftMs: seasonLeftMs(now), peak: ss.peak, ...(ss.last ? { last: ss.last.peak } : {}), ...(ss.best !== undefined ? { best: ss.best } : {}) };
+    return { rows, recent, rating, pos: mine.pos, total: all.length, season, streak: pvpStreakAfter({ streak: c.pvpStreak }, 'timeout', 0).streak }; // 平手＝不變：拿來把壞資料修成安全值
   },
 
 
@@ -148,8 +152,10 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
     const pvpHistory = JSON.stringify([{ outcome, foeName: m.foeName, ...(m.foeId ? { foeId: m.foeId } : {}), delta: rating - before, at: ctx.clock.now() }, ...historyOf(c)].slice(0, PVP_HISTORY));
     // 連勝／今日首勝（D-324）：只給外觀；日子用伺服器的時間（台北）
     const st = pvpStreakAfter({ streak: c.pvpStreak, winDay: c.pvpWinDay }, outcome, taipeiDay(ctx.clock.now()));
-    await ctx.r.characters.save({ ...rest, pvpRating: rating, pvpHistory, pvpStreak: st.streak, ...(st.winDay !== undefined ? { pvpWinDay: st.winDay } : {}) });
+    // 賽季（D-328）：這季最高分；第一次到達更高段位只給字與光
+    const se = pvpSeasonAfter(c.pvpSeason, before, rating, taipeiWeek(ctx.clock.now()));
+    await ctx.r.characters.save({ ...rest, pvpRating: rating, pvpHistory, pvpSeason: JSON.stringify(se.season), pvpStreak: st.streak, ...(st.winDay !== undefined ? { pvpWinDay: st.winDay } : {}) });
     await ctx.r.audit.add({ accountId: ctx.accountId, action: 'pvp.finish', detail: JSON.stringify({ match: m.id, foe: m.foeName, outcome, before, rating, hash: r.hash, ticks: r.s.tick }), at: ctx.clock.now() });
-    return { outcome, rating, delta, streak: st.streak, firstWin: st.firstWin };
+    return { outcome, rating, delta, streak: st.streak, firstWin: st.firstWin, ...(se.newTier ? { seasonTier: true } : {}) };
   },
 };

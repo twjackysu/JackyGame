@@ -27,3 +27,16 @@ export function streakLine(r: { outcome: PvpRecentView['outcome']; streak: numbe
   const parts = [r.firstWin ? '今日首勝！' : '', r.streak >= 2 ? `${r.streak} 連勝` : ''].filter(Boolean);
   return parts.join('・');
 }
+
+/** 賽季還剩多久（第 153 輪，D-328）：一天以上說天、不到一天說小時、不到一小時說「即將換季」 */
+export function seasonLeftText(ms: number): string {
+  const h = Math.floor(Math.max(0, ms) / 3600000);
+  if (h >= 24) return `剩 ${Math.floor(h / 24)} 天`;
+  if (h >= 1) return `剩 ${h} 小時`;
+  return '即將換季';
+}
+
+/** 天梯左上的賽季小字（兩行）：「本季 剩 N 天」＋「最高 段位 分」；有上一季再加「上季 段位」 */
+export function seasonLines(s: { leftMs: number; peak: number; last?: number }, rankName: (r: number) => string): string {
+  return `本季 ${seasonLeftText(s.leftMs)}\n最高 ${rankName(s.peak)} ${s.peak}${s.last !== undefined ? `\n上季 ${rankName(s.last)} ${s.last}` : ''}`;
+}

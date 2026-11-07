@@ -18,7 +18,7 @@ import { InputSystem } from '../rt/InputSystem';
 import { buttonPos, loadControls } from '../rtControls';
 import { pvpOps, type PvpOpen, type PvpResult } from '../pvpOps';
 import { heroKey, WEAPON_NAME } from '../weapon';
-import { agoText, recentLook, streakLine } from '../pvpRecent';
+import { agoText, recentLook, seasonLines, streakLine } from '../pvpRecent';
 import type { PvpRecentView } from '../../net/views';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -154,6 +154,8 @@ export class PvpScene extends Phaser.Scene {
       }
       sub.setText(`你的段位：${rankName(lad.rating)} ${lad.rating}　第 ${lad.pos} / ${lad.total} 名${lad.streak >= 2 ? `・${lad.streak} 連勝` : ''}`);
       // 最近戰績（第 149 輪）：右上角「近況 勝敗和」（照勝敗上色）；點一下展開最近 5 場，輸掉的可以「⚔ 再挑一次」（第 150 輪，D-323）
+      // 賽季（第 153 輪，D-328）：左上角小字，一季＝台北一週，只給稱號
+      if (lad.season) box.add(this.add.text(58, top + 14, seasonLines(lad.season, rankName), { fontFamily: UI_FONT, fontSize: '18px', color: '#aab8d4', lineSpacing: 0 }).setOrigin(0, 0));
       if (lad.recent.length) this.recentBadge(box, W - 60, top + 44, lad.recent, top + 120, (id, name) => start(id, name));
       lad.rows.forEach((r, i) => {
         const y = top + 145 + i * 44 + (i >= 10 ? 12 : 0);
@@ -597,10 +599,19 @@ export class PvpScene extends Phaser.Scene {
     }
     const before = this.open!.rating;
     const title = r.outcome === 'victory' ? '勝利' : r.outcome === 'defeat' ? '落敗' : '平手';
-    const up = rankName(r.rating) !== rankName(before) ? `\n段位：${rankName(before)} → ${rankName(r.rating)}` : `\n段位：${rankName(r.rating)}`;
+    const up = rankName(r.rating) !== rankName(before) ? `\n段位：${rankName(before)} → ${rankName(r.rating)}${r.seasonTier ? `\n★ 本季首次到達${rankName(r.rating)}` : ''}` : `\n段位：${rankName(r.rating)}`;
     this.status.setText(`${title}\n段位分 ${r.rating}（${r.delta >= 0 ? '+' : ''}${r.delta}）${up}`).setFontSize(40).setColor(r.outcome === 'victory' ? '#ffd27a' : '#ffffff');
     this.tweens.add({ targets: this.status, scale: { from: 1.25, to: 1 }, duration: 300, ease: 'Back.Out' });
     if (r.outcome === 'victory') this.cameras.main.flash(250, 255, 220, 150);
+    // 本季第一次到達這個段位（D-328）：段位色的光圈從結果字往外擴
+    if (r.seasonTier) {
+      const col = rankAura(r.rating)?.color ?? 0xffd27a;
+      this.time.delayedCall(260, () => {
+        if (!this.scene.isActive() || this.phase !== 'result') return;
+        shockRing(this, this.status.x, this.status.y + 60, col, 320, 760, 10);
+        sparks(this, this.status.x, this.status.y + 60, 26, 'spark', col, 600);
+      });
+    }
     // 連勝／今日首勝（D-324）：伺服器說的，只有字和光
     const sl = streakLine(r);
     if (sl) {

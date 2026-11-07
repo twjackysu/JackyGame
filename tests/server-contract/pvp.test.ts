@@ -11,7 +11,7 @@ import { GEAR_SLOTS, genGear } from '../../src/core/battle/rt/gear';
 import { hashSeed } from '../../src/core/rng';
 import { BOT_PROFILES, PlayerBot } from '../../src/core/battle/rt/sim';
 import type { BattleCommandBody } from '../../src/core/battle/rt/types';
-import { PVP_START_RATING, canChallenge, eloDelta, taipeiDay } from '../../src/core/meta/pvpRank';
+import { PVP_START_RATING, WEEK_MS, canChallenge, eloDelta, taipeiDay } from '../../src/core/meta/pvpRank';
 import type { PvpStartView } from '../../src/net/views';
 import { BACKENDS } from './backends';
 import { LEGACY_SAMPLE } from './fixtures';
@@ -225,6 +225,42 @@ for (const be of BACKENDS)
       await a.call('migrate.sync', { snapshot: STRONG });
       expect((await a.call('pvp.ladder', { characterId })).streak).toBe(streak);
       expect(firsts).toBeGreaterThanOrEqual(1); // 真的有贏過（不然整段沒測到首勝）
+      await db.close();
+    });
+  });
+
+for (const be of BACKENDS)
+  describe(`競技場賽季（第 153 輪，D-328，${be.name}）`, () => {
+    it('本季最高分跟著打；換週（台北週一）時這季變上季、段位分不重置；migrate.sync 不會弄丟', async () => {
+      const { db } = await be.fresh(() => 0);
+      const clock = new FakeClock();
+      const server = new GameServer({ db, auth, clock, ids: new SeqIds(), local: true, rng: () => 0.45 });
+      let n = 0;
+      const a = new GameClient(new LocalTransport((j) => server.handle(j)), { token: 'accW', timeoutMs: 15000, retries: 1, newRequestId: () => `w${++n}` });
+      const { characterId } = await a.call('migrate.legacy', { snapshot: STRONG });
+      const l0 = await a.call('pvp.ladder', { characterId });
+      expect(l0.season.peak).toBe(PVP_START_RATING);
+      expect(l0.season.last).toBeUndefined();
+      expect(l0.season.leftMs).toBeGreaterThan(0);
+      expect(l0.season.leftMs).toBeLessThanOrEqual(WEEK_MS);
+      let peak = PVP_START_RATING;
+      for (let k = 0; k < 3; k++) {
+        clock.advance(60_000);
+        const st = await a.call('pvp.start', { characterId });
+        const res = await a.call('pvp.finish', { characterId, matchId: st.matchId, inputs: fight(st).inputs });
+        peak = Math.max(peak, res.rating);
+      }
+      await a.call('migrate.sync', { snapshot: STRONG });
+      const l1 = await a.call('pvp.ladder', { characterId });
+      expect(l1.season.peak).toBe(peak);
+      // 換季：剩下的時間走完再一分鐘
+      clock.advance(l1.season.leftMs + 60_000);
+      const l2 = await a.call('pvp.ladder', { characterId });
+      expect(l2.rating).toBe(l1.rating); // 段位分不重置
+      expect(l2.season.last).toBe(peak);
+      expect(l2.season.best).toBe(peak);
+      expect(l2.season.peak).toBe(l1.rating);
+      expect(l2.season.leftMs).toBeGreaterThan(WEEK_MS - 120_000);
       await db.close();
     });
   });

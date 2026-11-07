@@ -120,3 +120,53 @@ export function simGearRating(you: number, foe: number): number {
   const lo = Math.min(you, foe);
   return you > SIM_GEAR_TOP ? Math.min(you, foe + (you - SIM_GEAR_TOP)) : lo;
 }
+
+/**
+ * 競技場賽季（第 153 輪，D-328；F4「賽季外觀獎勵」）：一季＝台北時間的一週（週一 00:00 起）。
+ * 只記「這季最高分」「上一季最高分」「歷來最好的一季」，換季**不重置段位分**（不會讓分數一週一歸零），只給稱號：
+ * 天梯顯示「本季最高／上季」，打出本季新段位時結果畫面報「本季首次到達 X」。
+ * 1970-01-01 是週四 → 加 3 天讓週一變成一週的第一天。
+ */
+export const WEEK_MS = 7 * DAY_MS;
+const WEEK_SHIFT_MS = TAIPEI_OFFSET_MS + 3 * DAY_MS;
+export const taipeiWeek = (ms: number): number => Math.floor((ms + WEEK_SHIFT_MS) / WEEK_MS);
+/** 這季還剩多少毫秒 */
+export const seasonLeftMs = (ms: number): number => (taipeiWeek(ms) + 1) * WEEK_MS - (ms + WEEK_SHIFT_MS);
+
+export interface PvpSeason {
+  /** 這季是第幾週（taipeiWeek） */
+  week: number;
+  /** 這季最高段位分（換季時從當時的分數起算） */
+  peak: number;
+  /** 上一季（有打過的最近一季）的最高分 */
+  last?: { week: number; peak: number };
+  /** 歷來最好的一季最高分（不含這季） */
+  best?: number;
+}
+
+const okRating = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) > 0 && (n as number) < 100000;
+
+/** 讀存著的賽季（壞資料當沒有）並換到 `week` 這季；rating＝目前段位分（新的一季從它起算） */
+export function pvpSeasonNow(stored: string | undefined, rating: number, week: number): PvpSeason {
+  let p: Partial<PvpSeason> | null = null;
+  try {
+    p = JSON.parse(stored ?? 'null') as Partial<PvpSeason> | null;
+  } catch {
+    p = null;
+  }
+  if (!p || typeof p !== 'object' || !Number.isSafeInteger(p.week) || !okRating(p.peak)) return { week, peak: rating };
+  const best = okRating(p.best) ? p.best : undefined;
+  const last = p.last && Number.isSafeInteger(p.last.week) && okRating(p.last.peak) ? { week: p.last.week, peak: p.last.peak } : undefined;
+  // 同一季（或時鐘倒退）：照舊
+  if (p.week! >= week) return { week: p.week!, peak: Math.max(p.peak!, rating), ...(last ? { last } : {}), ...(best !== undefined ? { best } : {}) };
+  // 換季：存著的那季變成「上季」
+  const nb = Math.max(best ?? 0, p.peak!);
+  return { week, peak: rating, last: { week: p.week!, peak: p.peak! }, best: nb };
+}
+
+/** 打完一場後的賽季：最高分往上推；newTier＝這場讓本季第一次到達更高的段位（只給字與光） */
+export function pvpSeasonAfter(stored: string | undefined, before: number, after: number, week: number): { season: PvpSeason; newTier: boolean } {
+  const s = pvpSeasonNow(stored, before, week);
+  const peak = Math.max(s.peak, after);
+  return { season: { ...s, peak }, newTier: after > s.peak && rankName(after) !== rankName(s.peak) };
+}

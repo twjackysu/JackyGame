@@ -45,7 +45,7 @@ export function createKysely(connectionString: string, max = 10): Kysely<GameDb>
 type Trx = Transaction<GameDb>;
 
 function charRow(r: GameDb['Character'] extends infer T ? { [K in keyof T]: unknown } : never): CharacterRow {
-  const d = JSON.parse(String(r.Data)) as Pick<CharacterRow, 'stats' | 'skills' | 'variants' | 'bounty' | 'shop' | 'maps' | 'story' | 'cardMatch' | 'pvpMatch' | 'pvpRating' | 'pvpHistory' | 'pvpStreak' | 'pvpWinDay' | 'pveBattle' | 'marketSeenAt'>;
+  const d = JSON.parse(String(r.Data)) as Pick<CharacterRow, 'stats' | 'skills' | 'variants' | 'bounty' | 'shop' | 'maps' | 'story' | 'cardMatch' | 'pvpMatch' | 'pvpRating' | 'pvpHistory' | 'pvpStreak' | 'pvpWinDay' | 'pvpSeason' | 'pveBattle' | 'marketSeenAt'>;
   return { id: String(r.Id), accountId: String(r.AccountId), slot: num(r.Slot as number), name: String(r.Name), weapon: r.Weapon as CharacterRow['weapon'], level: num(r.Level as number), xp: num(r.Xp as number), ...d, createdAt: num(r.CreatedAt as number), version: num(r.Version as number) };
 }
 function itemRow(r: { [K in keyof GameDb['Item']]: unknown }): ItemRow {
@@ -104,7 +104,7 @@ function reposOf(t: Trx, now: () => number): Repos {
       },
       listByAccount: async (a) => (await t.selectFrom('Character').selectAll().where('AccountId', '=', a).orderBy('Slot').execute()).map(charRow),
       save: async (row) => {
-        const v = { AccountId: row.accountId, Slot: row.slot, Name: row.name, Weapon: row.weapon, Level: row.level, Xp: row.xp, Data: JSON.stringify({ stats: row.stats, skills: row.skills, variants: row.variants, bounty: row.bounty, shop: row.shop, maps: row.maps, story: row.story, cardMatch: row.cardMatch, pvpMatch: row.pvpMatch, pvpRating: row.pvpRating, pvpHistory: row.pvpHistory, pvpStreak: row.pvpStreak, pvpWinDay: row.pvpWinDay, pveBattle: row.pveBattle, marketSeenAt: row.marketSeenAt }), CreatedAt: row.createdAt };
+        const v = { AccountId: row.accountId, Slot: row.slot, Name: row.name, Weapon: row.weapon, Level: row.level, Xp: row.xp, Data: JSON.stringify({ stats: row.stats, skills: row.skills, variants: row.variants, bounty: row.bounty, shop: row.shop, maps: row.maps, story: row.story, cardMatch: row.cardMatch, pvpMatch: row.pvpMatch, pvpRating: row.pvpRating, pvpHistory: row.pvpHistory, pvpStreak: row.pvpStreak, pvpWinDay: row.pvpWinDay, pvpSeason: row.pvpSeason, pveBattle: row.pveBattle, marketSeenAt: row.marketSeenAt }), CreatedAt: row.createdAt };
         const cur = await t.selectFrom('Character').select('Version').where('Id', '=', row.id).executeTakeFirst();
         if (!cur) {
           await t.insertInto('Character').values({ Id: row.id, ...v, Version: row.version }).execute();
