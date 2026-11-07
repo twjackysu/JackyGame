@@ -23,6 +23,7 @@ import { pvpOps, type PvpOpen, type PvpResult } from '../pvpOps';
 import { heroKey, WEAPON_NAME } from '../weapon';
 import { agoText, recentLook, seasonLines, streakLine } from '../pvpRecent';
 import type { PvpRecentView } from '../../net/views';
+import { DiscLayer } from '../rt/uiDisc';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
 const DIR = 1000;
@@ -52,6 +53,8 @@ export class PvpScene extends Phaser.Scene {
   private oy = 0;
   private g!: Phaser.GameObjects.Graphics;
   private hud!: Phaser.GameObjects.Graphics;
+  private discs!: DiscLayer;
+  private hpBars: [Phaser.GameObjects.Image, Phaser.GameObjects.Image][] = [];
   private sprites = new Map<number, Phaser.GameObjects.Image>();
   private flashUntil = new Map<number, number>();
   private fx: { kind: 'streak' | 'shape'; until: number; dur: number; col: number; x0: number; y0: number; x1: number; y1: number; shape?: Shape; dx?: number; dy?: number }[] = [];
@@ -97,6 +100,8 @@ export class PvpScene extends Phaser.Scene {
     this.drawArena();
     this.g = this.add.graphics().setDepth(20);
     this.hud = this.add.graphics().setDepth(60);
+    this.discs = new DiscLayer(this, 59.5); // 按鈕底烤成貼圖（第 154 輪，同冒險地圖）
+    this.hpBars = [];
     this.timer = this.add.text(W / 2, 58, '', { fontFamily: UI_FONT, fontSize: '34px', color: '#ffe0a0' }).setOrigin(0.5).setDepth(61);
     this.statusBg = this.add.graphics().setDepth(79);
     this.status = this.add.text(W / 2, this.oy + (16 * UNIT * K) / 2, '', { fontFamily: UI_FONT, fontSize: '36px', color: '#ffffff', align: 'center', lineSpacing: 10, stroke: '#000000', strokeThickness: 6 }).setOrigin(0.5).setDepth(80);
@@ -476,13 +481,15 @@ export class PvpScene extends Phaser.Scene {
     const s = this.s;
     const [me, foe] = [playerOf(s), playerOf(s, 1)];
     const W = GAME_WIDTH;
-    const bar = (x: number, y: number, w: number, pct: number, col: number, right: boolean) => {
-      h.fillStyle(0x000000, 0.7).fillRoundedRect(x - 3, y - 3, w + 6, 26, 6);
-      const fw = w * Math.max(0, Math.min(1, pct));
-      h.fillStyle(col, 1).fillRoundedRect(right ? x + w - fw : x, y, Math.max(1, fw), 20, 5);
+    // 血條（第 154 輪）：底和滿格烤成貼圖，每幀只裁切滿格的寬度（以前每幀 4 個圓角矩形＝16 段弧、每段 100 個點）
+    const bar = (i: number, x: number, y: number, w: number, pct: number, col: number, right: boolean) => {
+      const [back, fill] = (this.hpBars[i] ??= hpBarImages(this, x, y, w, col));
+      back.setVisible(true);
+      const fw = Math.max(1, w * Math.max(0, Math.min(1, pct)));
+      fill.setVisible(true).setCrop(right ? w - fw : 0, 0, fw, 20);
     };
-    bar(24, 40, 250, me.hp / me.maxHp, ME, false);
-    bar(W - 274, 40, 250, foe.hp / foe.maxHp, FOE, true);
+    bar(0, 24, 40, 250, me.hp / me.maxHp, ME, false);
+    bar(1, W - 274, 40, 250, foe.hp / foe.maxHp, FOE, true);
     h.fillStyle(0x9ac0ff, 0.9).fillRect(24, 70, (250 * me.mp) / Math.max(1, playerDef(s, me).mp), 6);
     const left = Math.max(0, Math.ceil((s.timeLimitTicks - s.tick) / TICKS_PER_SEC));
     this.timer.setText(this.phase === 'replay' ? `▶×${REPLAY_SPEED}  ${left}` : `${left}`);
@@ -495,17 +502,17 @@ export class PvpScene extends Phaser.Scene {
     }
     // 按鈕：冷卻中變暗＋剩幾秒
     const fight = this.phase === 'fight';
-    for (const b of this.buttons) {
+    this.buttons.forEach((b, bi) => {
       const id = b.id === 'dodge' ? 'dodge' : b.id;
       const left = Math.max(0, (me.ready[id] ?? 0) - s.tick);
       const ult = b.id === 'blade_storm';
       const noMp = ult && me.mp < (skillDef(s, 'blade_storm', me)?.mp ?? 0);
       const dim = left > 0 || noMp || !fight;
-      h.fillStyle(ult ? 0x3a1430 : b.id === 'dodge' ? 0x10283a : 0x1a1d2a, dim ? 0.55 : 0.9).fillCircle(b.x, b.y, b.r);
-      h.lineStyle(3, ult ? 0xff9ae0 : b.id === 'dodge' ? 0x7ad8ff : 0xffd27a, dim ? 0.35 : 0.9).strokeCircle(b.x, b.y, b.r);
+      this.discs.show(bi, b.x, b.y, { r: b.r, fill: ult ? 0x3a1430 : b.id === 'dodge' ? 0x10283a : 0x1a1d2a, fillA: dim ? 0.55 : 0.9, lw: 3, stroke: ult ? 0xff9ae0 : b.id === 'dodge' ? 0x7ad8ff : 0xffd27a, strokeA: dim ? 0.35 : 0.9 });
       b.label.setAlpha(dim ? 0.5 : 1);
       b.cd.setText(left > 0 ? `${Math.ceil(left / TICKS_PER_SEC)}` : '');
-    }
+    });
+    this.discs.hideFrom(this.buttons.length);
     const st = this.inp.stick;
     if (st && fight) {
       h.lineStyle(3, 0xffffff, 0.35).strokeCircle(st.bx, st.by, 80);
@@ -676,4 +683,23 @@ export class PvpScene extends Phaser.Scene {
   private leave(): void {
     fadeOutThen(this, 200, () => this.scene.start('Title'));
   }
+}
+
+/** 頂端血條的底（黑、圓角）與滿格（隊伍色、圓角）兩張圖片，深度跟 hud 畫筆一樣（第 154 輪） */
+function hpBarImages(scene: Phaser.Scene, x: number, y: number, w: number, col: number): [Phaser.GameObjects.Image, Phaser.GameObjects.Image] {
+  const kb = `pvp_hpbar_bg_${w}`;
+  const kf = `pvp_hpbar_${w}_${col}`;
+  if (!scene.textures.exists(kb)) {
+    const g = scene.make.graphics({}, false);
+    g.fillStyle(0x000000, 0.7).fillRoundedRect(0, 0, w + 6, 26, 6);
+    g.generateTexture(kb, w + 6, 26);
+    g.destroy();
+  }
+  if (!scene.textures.exists(kf)) {
+    const g = scene.make.graphics({}, false);
+    g.fillStyle(col, 1).fillRoundedRect(0, 0, w, 20, 5);
+    g.generateTexture(kf, w, 20);
+    g.destroy();
+  }
+  return [scene.add.image(x - 3, y - 3, kb).setOrigin(0).setDepth(59.4), scene.add.image(x, y, kf).setOrigin(0).setDepth(59.45)];
 }
