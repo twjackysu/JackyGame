@@ -3,7 +3,7 @@
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
 ## D-334 2026-11-07 帳本對帳函式（26 §3.3）先做成純讀取函式＋契約測試
-- **決策**：`reconcileCharacter(repos, characterId)` 檢查每種貨幣「錢包餘額＝帳本加總」且每行 `balanceAfter` 接得起來；現在由契約測試在完整交易流程後跑，上線後接每日排程（server/main.ts）告警。
+- **決策**：`reconcileCharacter(repos, characterId)` 檢查每種貨幣「錢包餘額＝帳本加總」且每行 `balanceAfter` 接得起來；`runLedgerAudit` 對某時間後有記帳的角色（repo `wallets.activeSince`）逐一對帳、不符寫稽核 `ledger.mismatch`；`server/main.ts` 啟動 1 分鐘後與每 24 小時跑一次，只寫 log／稽核、不擋服務。契約測試在完整交易流程後也跑。
 - **理由**：金錢只能透過 `wallets.apply` 異動，對帳是抓「有人繞過它」或資料庫被直接改的最後一道防線；先有函式與測試，排程上線再接。
 - **替代**：資料庫觸發器（綁死 SQL Server，本機兩種 DB 沒有）；每次 `character.get` 都對（帳本越長越慢）。
 

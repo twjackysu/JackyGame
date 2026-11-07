@@ -8,9 +8,9 @@
 
 ## ★ 第 155 輪起先做（V5／V6 收尾＋美術，11/7–11/11；11/12 12:00 凍結）
 **已經有的（到第 154 輪）**：美術 `fx/nightLight.ts`、`fx/pressFx.ts`、`floatNumber` 的 `tier`、`rt/ground.ts` 的 `paintVariety`、`fx/ambient.ts`、`fx/arenaArt.ts`（場地貼圖＋火盆＋`cheer()` 勝利彩紙＋**`roar()` 大招小歡呼**）、`fx/vsIntro.ts`、`fx/bossCues.ts`；**效能：`fx/cachedDraw.ts`（CachedDraw：旅商／燼牌對手／相遇人物／光門畫進 RenderTexture，24fps 重畫）、`rt/uiDisc.ts`（DiscLayer：按鈕圓底貼圖，冒險地圖與競技場共用）、競技場血條貼圖＋setCrop（D-332）**；`simGearRating`（D-326）；賽季（D-328）；`market.history`＋`priceStats`（D-329）、**`market.browse { refs: true }`＋`bargainPct`／`refKey`（D-333）、SQL 遷移 0005 `IX_MarketListing_Sold`**；**`src/server/ledgerCheck.ts` 的 `reconcileCharacter`（D-334）**；`src/game/shopOps.ts`、`ui/memoryBook.ts`；`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`；拒絕稽核；登入 PKCE＋續期＋登出；段位光環。**畫面拆出來的**：`src/game/fx/`（`rangedFx`、`fieldFx`、`groundHazards`、`stormFx`、`companion`、`landmarks`、`eliteFall`、`dashFx`、`coinFly`、`bossCues`）、`src/game/rt/`（`ground`、`offscreenArrows`、`uiDisc`）、`src/game/pvpRecent.ts`。Wiki `docs/wiki/online.md`（手寫）。
-1. CI 每輪開頭看一次（第 154 輪最後的程式 commit 是「帳本對帳（D-334）」；之前的都綠）。**0005 遷移只在 CI 的 mssql job 真的跑**，第一件事確認它綠。
+1. CI 每輪開頭看一次（第 154 輪最後的程式 commit 是「每日對帳接上線上伺服器」；0005 遷移那次 CI（含 mssql）已綠）。
 2. **效能續（D-332 的方法）**：量法見下面「第 154 輪注意」。剩下比較大的：冒險地圖主畫筆 `g` 的**單位**（每隻怪的影子 fillEllipse＋外圈 strokeEllipse＋血條，24 隻約 1,150 筆；要注意影子圖片跟 g 裡其他東西的上下順序）、`companion`（幽靈小狼，430 筆）、`drawMinimap`。各面板（燼牌 837 行、行商）開著時也可以量一次。
-3. **帳本對帳接排程（選做）**：`server/main.ts` 每天（或啟動時）對最近有異動的角色跑 `reconcileCharacter`，對不上寫 `audit`（action `ledger.mismatch`）＋ log；要一個「列出最近有帳的角色」的 repo 方法（三種 DB＋SQL 用 `LedgerEntry.At` 索引）。
+3. ~~帳本對帳接排程~~：第 154 輪做完（`wallets.activeSince`＋`runLedgerAudit`，server/main.ts 每 24 小時）。之後可選：LedgerEntry 加 At 索引（遷移 0006，量大了再說）。
 4. **美術續**：A1／A2 等 Jacky 的圖；A5 面板 9-slice 外框（範圍保護第 2 項，可以不做）。小項：拍賣所／交易面板的標題列。**改外觀要附舊／新截圖**。
 5. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取）；引擎本身的等級在進場時讀舊 key。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`（大工程，V7 前不一定做）。
 6. **Q5 拆場景繼續**（`RtBattleScene` 約 4,900 行，範圍保護：停在 < 4,000 不強求）。剩下的大塊：`draw()` 545 行、`playEvents()` 約 470 行、`drawUi()` 約 190 行、`toggleMenu()`、`openBag()`。

@@ -57,6 +57,7 @@ npm run build:server && cd dist-server && AUTH_MODE=dev node main.js
 - **放上 GitHub Pages（第 148 輪）**：API 部署好之後，到 GitHub repo → Settings → Secrets and variables → Actions → **Variables** 新增 `ONLINE_API_URL`＝API 網址（例如 `https://jackygame-api.<region>.azurecontainerapps.io`），下一次推 main（或手動跑 Deploy to GitHub Pages）就會把線上版放在 `https://twjackysu.github.io/JackyGame/online/`。沒設這個變數就跟以前一樣只有離線版。記得 API 的 `CORS_ORIGINS` 加 `https://twjackysu.github.io`。
 - 線上版現在能用的：競技場天梯（含看重播）、角色列表、拍賣所／交易、**PvE 掉落、經驗、懸賞、寶箱、相遇獎勵都由伺服器給**；HUD／行囊／行商面板的金幣與等級讀伺服器的角色。
 - 防作弊（26-security）：打怪有速度上限（跨場）、同一個重生點／Boss／暴動／隱藏精英的數量上限（照地圖的重生規則算）、Boss 出去再進來也要等重生時間、夜光寶箱 5 分鐘補滿；被拒絕的申請寫進 `game.AuditLog`（`action` 開頭是 `rejected:`），可以用 SQL 查可疑帳號。
+- 每日對帳（26 §3.3）：伺服器啟動 1 分鐘後、之後每 24 小時，對最近有記帳的角色檢查「錢包餘額＝帳本加總」；正常時 log 印 `[ledger] 對帳正常`，不符時印 `[ledger] 對帳不符` 並在 `game.AuditLog` 寫 `action = 'ledger.mismatch'`（不會擋服務；Container Apps 開好 log 查詢就看得到）。
 - 請求大小：HTTP 層最多 1 MB（只有 `pvp.finish` 帶整場指令紀錄會用到），其他方法超過 16 KB 直接拒絕。
 - 本機整套試：
   ```

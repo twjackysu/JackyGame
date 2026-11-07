@@ -5,6 +5,7 @@
 - **效能（D-332）**：量每個 Graphics 每幀的 renderWebGL 時間。發現 Phaser 的 Graphics 每畫一個圓／弧要算 100 個點（`iterStep = 0.01`）、每幀重配置，而且「靜態」的 Graphics 也每幀重拆三角形。改法：①`fx/cachedDraw.ts`（RenderTexture、每秒重畫 24 次、其他幀只移動）：營火旁旅商／燼牌對手、路上的相遇人物、光門；②`rt/uiDisc.ts`（DiscLayer，同色同半徑烤一次）：冒險地圖 7 顆按鈕＋搖桿底、競技場技能鍵；③競技場頂端血條烤成貼圖、每幀只裁切寬度。結果（無頭、霧語森林營火旁）：主畫筆 2.5 → 1.3ms、ui 0.8 → 0.35ms、荊棘谷 ringG 0.32 → <0.05ms、競技場 hud 1.3 → ~0ms。外觀差別只有競技場血條減少端從圓角變直邊。
 - **拍賣所行情（D-333）**：`market.browse { refs: true }` 一起帶回這頁各「部位×稀有度」最近成交中位數（最多 8 組、少於 3 筆不給、模擬冒險者不要）；逛逛列表副標「▼便宜 N%」（≥10%），掛單卡片「最近成交中位數 N 金・這筆便宜 X%／開得比行情高」。SQL 遷移 **0005** 加 `IX_MarketListing_Sold`（Status, Slot, Rarity, ClosedAt desc）。
 - **帳本對帳（D-334，26 §3.3）**：`src/server/ledgerCheck.ts` 的 `reconcileCharacter`；契約測試三種 DB 轉手 6 次＋取消後對得上。順手修 docDb 同一毫秒的帳排序（36 進位序號字串比較，"10" 排在 "z" 前）。
+- **每日對帳接上線上伺服器**：repo `wallets.activeSince`（三種 DB）＋`runLedgerAudit`（不符寫稽核 `ledger.mismatch`），`server/main.ts` 每 24 小時；build:server 後實際啟動過。
 - **競技場看台小歡呼**：有人放大招時灑一小撮彩紙＋看台亮一下（`ArenaArt.roar`，1.2 秒冷卻）。
 - 驗證：每步 typecheck、eslint、build、vitest（最後 125 檔 911 項全過，含通關機器人、契約測試）；Playwright：營火／光門／按鈕舊新並排、冷卻扇形、競技場血條舊新、結果畫面按鈕底藏起、拍賣所假資料列表＋卡片；Kysely mssql 編譯器印 0005 的 DDL 核對（DROP INDEX 名稱不能帶 schema）。
 
