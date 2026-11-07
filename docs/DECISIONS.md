@@ -2,6 +2,38 @@
 
 > 格式：編號、日期（台北）、決策、理由、替代方案。新的放最上面。
 
+## D-317 2026-11-07 線上版登入：授權碼＋PKCE 自己做（不用 MSAL.js）
+- **決策**：`src/client/oidcLogin.ts`（純函式：PKCE、登入頁網址、state 檢查、換 token、過期判斷）＋`boot.ts` 線上分支：建置時有 `VITE_ENTRA_AUTHORITY`／`VITE_ENTRA_CLIENT_ID` 才啟用；沒有有效 token 就整頁轉登入頁（同一分頁只自動轉一次）；拿 **id_token**（aud＝client id）當 API 的 token。deploy-pages 從 repo 變數 `ENTRA_AUTHORITY`／`ENTRA_CLIENT_ID` 帶進去。
+- **理由**：MSAL.js 幾百 KB、手機載入慢；我們只需要授權碼＋PKCE 一條路。id_token 不用另外在 Entra 開 API scope，設定最少。
+- **驗證**：RFC 7636 向量、state 防 CSRF／重放、整段換 token 的單元測試；Playwright 對假 IdP 走完整段。
+- **之後**：refresh token（`offline_access` 已要）、遊戲中途 token 過期時提示重新登入。
+- **替代**：MSAL.js（大）；access token＋自訂 API scope（Entra 多一步設定）。
+
+## D-316 2026-11-07 線上版客戶端放 Pages 子路徑 /JackyGame/online/（照 FOR_JACKY 預設）
+- **決策**：deploy-pages 在 repo Actions 變數 `ONLINE_API_URL` 有值時才 `build:online`（`VITE_AUTH_MODE=off`）＋bundle 檢查，複製到 `dist/online`；沒設就跟以前一樣。離線版 service worker 的 `navigateFallbackDenylist` 排除 `/online/`（不然會把線上版網址導回離線版首頁）。
+- **理由**：免費、不用新資源；Jacky 部署 API 後只要設一個變數。
+- **替代**：Static Web Apps 免費方案（多一個資源要管）。
+
+## D-315 2026-11-07 HTTP 請求上限：總共 1 MB，只有 pvp.finish 可以超過 16 KB
+- **決策**：`server/http.ts` `MAX_BODY` 1 MB；`GameServer.handle` 其他方法超過 `SMALL_BODY`（16 KB）回 `bad_request`。
+- **理由**：寫 V6 整合測試時發現：弓／法杖 45 秒一場的指令紀錄約 25 KB（風箏時每 tick 一個移動），以前 16 KB 上限讓**線上 PvP 每場都結算失敗**（413）。一場最多 180 秒＝5,400 筆，最壞約 0.9 MB。
+- **替代**：壓縮指令紀錄格式（改協定，之後真的太大再做）。
+
+## D-314 2026-11-07 被規則拒絕的敏感請求寫稽核（交易外另寫）
+- **決策**：`loot.*`、`battle.start`、`pvp.finish`、`cards.finish`、`story.*` 回 `rejected` 時，`GameServer` 在交易外另開一個寫 `AuditLog`（`action`＝`rejected:<方法>`，參數截 300 字）；repo 多 `audit.recent`（客服／測試用，不開放給客戶端）。
+- **理由**：handler 丟例外會讓整個交易回滾，以前作弊被擋下來的紀錄寫不進去（26 §稽核）。
+
+## D-313 2026-11-07 PvE 跨場上限：速度權杖桶、Boss 重生時間、夜光寶箱 5 分鐘補滿
+- **決策**：`loot.claim` 的打怪速度改成權杖桶（開場 10、每分鐘補 40），存在 pveBattle、`battle.start` 時帶到新的一場；每張圖最後一次打倒 Boss 的時間也帶著走（要等 `bossZone.respawnTicks`）；夜光寶箱同一張圖 5 分鐘才補滿（`NIGHT_CHEST_REFILL_MS`）。
+- **理由**：以前重開一場（`battle.start`）就全部重置，作弊的人可以一直重開刷 Boss、刷夜光寶箱。
+- **玩家看得到的差別（只有線上版）**：打倒 Boss 後馬上出去再進來，60 秒內再打倒不給掉落；深夜出去再進來 5 分鐘內夜光寶箱不給東西。離線版不變。
+
+## D-312 2026-11-07 PvE 數量上限：照地圖的重生規則算「最多可能打倒幾隻」
+- **決策**：`core/battle/rt/loot.ts` `killSource`／`killCap`：重生點 `maxAlive×(1＋經過÷respawnTicks)`、固定怪／Boss `1＋經過÷bossZone.respawnTicks`、暴動最快每 `everyTicks[0]` 一次×`count[1]`、隱藏精英每 `streak` 隻其他擊殺一隻；伺服器牆鐘加 15 秒寬限。超過回 `rejected`。
+- **理由**：伺服器沒跑戰鬥，但重生規則是資料寫死的；以前只有全場每分鐘 40 隻，可以一直申請 Boss。
+- **驗收**：`tests/loot-kill-cap.test.ts` Bot 在四張圖白天／深夜實打 8 分鐘（刷怪＋打 Boss），用遊戲時間、不加寬限，一隻都沒超過（含 Boss、暴動、隱藏精英、速度上限）。
+- **替代**：完整抽查重跑（26 §3.1，成本高，之後只對 Boss 戰做）。
+
 ## D-311 2026-11-07 角色改名：按一下換名字池的下一個（不讓打字）
 - **決策**：`character.rename(id, name)`（`cleanName` 同建立、稽核、交易類頻率限制）；角色面板「使用中」的角色多「改名」鈕，`nextName` 換名字池的下一個、跳過別的角色在用的。舊的拍賣掛單保留當時的賣家名字。
 - **理由**：D-302 說過之後再做改名；手機沒有輸入框、也避免要審查自由輸入的名字。

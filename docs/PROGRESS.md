@@ -1,5 +1,19 @@
 # 進度紀錄（新的在最上面）
 
+## 2026-11-07 08:11–09:05（台北）第 148 輪 — PvE 防作弊上限、拒絕稽核、修線上 PvP 結算 413、HTTP 兩客戶端整合測試、並發測試、線上登入（PKCE）、Pages /online/、Q5 兩塊
+**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（46927dd）。
+- **PvE 數量上限（D-312）**：`core/battle/rt/loot.ts` `killSource`／`killCap`（重生點、Boss、暴動、隱藏精英各自照地圖重生規則算上限），`loot.claim` 超過回 rejected。`tests/loot-kill-cap.test.ts`：Bot 四張圖白天／深夜各 8 分鐘（刷怪＋打 Boss），一隻都沒超過。
+- **跨場上限（D-313）**：速度權杖桶、Boss 最後討伐時間、夜光寶箱 5 分鐘補滿都跨 `battle.start` 帶著走（以前重開一場全部重置）。
+- **拒絕稽核（D-314）**：敏感方法被拒時交易外另寫 AuditLog；repo 多 `audit.recent`（含 mssql）。
+- **修 bug（D-315）**：寫 V6 整合測試時發現線上 PvP 結算的指令紀錄（弓／法杖約 25 KB）超過 HTTP 16 KB 上限 → 每場 413。改 HTTP 1 MB、其他方法 16 KB 由 GameServer 擋。
+- **V6 驗收** `tests/server-http-flow.test.ts`：真的 HTTP 伺服器、兩個帳號從零打怪（伺服器擲）→ 拍賣所上架／購買 → 面對面交易換回 → 競技場重跑判勝負，金幣守恆。**V4 驗收** `tests/server-contract/concurrency.test.ts`：三人同時買同一筆、同時上架＋賣行商、雙方連點確認（四種 DB，mssql 在 CI）。
+- **線上版畫面**：persist 不再把本機撿的金幣／粉塵／結晶與本機等級寫進舊 key（Playwright：本機 +777 金後舊 key 錢包仍＝伺服器 15 金）；行囊標題 Lv、行商等級讀角色快取。
+- **Pages /online/（D-316）**：repo 變數 `ONLINE_API_URL` 有值才建線上版；離線 SW 排除 /online/（離線版標題冒煙截圖正常）。DEPLOY_AZURE.md 補設定步驟與防作弊說明。
+- **線上登入（D-317）**：`src/client/oidcLogin.ts` 授權碼＋PKCE（RFC 7636 向量、state 防重放測試）；Playwright 對假 IdP（node 小伺服器：authorize 302 帶 code 回來、token 回 id_token）走完轉頁→換 token→存 token→清網址、零錯誤。夜光寶箱被拒（refilling）時公告。
+- **Q5**：懸賞板文字 → `src/game/rt/BountyBoard.ts`、頂端 HUD → `hudText.hudLine`（字不變；快照測試＋實機文字比對）。RtBattleScene 6588 → 約 6575 行。
+- 驗證：每步 typecheck、eslint、build、build:online＋bundle 檢查、build:server、vitest（最後 115 檔 827 項全過，含通關機器人、golden hash）。
+- **踩到的**：`dev:` token 只能小寫英數底線（測試用 `flow_alice`）；`market.buy` 回的是 CharacterView 不是 `{character}`。
+
 ## 2026-11-07 06:12–07:10（台北）第 147 輪 — 線上版畫面讀伺服器的角色、懸賞／寶箱／相遇改伺服器發、即時 PvP BattleRoom、角色改名、小地圖拆出
 **背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（df73b39）。
 - **角色快取（D-308）**：`src/client/characterCache.ts`；線上版 HUD 等級／金幣／粉塵、暫停選單、懸賞板讀快取；舊 key 在線上版變成伺服器角色的快取（`mirrorOnline`，行囊／錢包／等級／jg_encounters），本機擲的裝備不進行囊、改公告伺服器掉的。Playwright（build:online＋dist-server）：本機假劍進場被蓋掉；打倒狼王 → 行囊兩件跟伺服器一樣 →「全部換成最好的」→ 伺服器裝備欄一致；金幣、粉塵、等級和伺服器一樣、零錯誤。

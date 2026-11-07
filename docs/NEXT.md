@@ -6,16 +6,24 @@
 > **重構鐵律**：玩家看得到的行為不能變。每一步都跑 `npm run typecheck`、`npm run build`、`npx vitest run`（含通關機器人）；動到畫面就附前後截圖。**改了數值要 `npm run wiki`**（D-273）。
 > **加地圖的方法**（D-124）：`src/game/worldMaps.ts` 加一筆＋ `maps/<id>.ts`（產生器 `scripts/gen-*-draft.py`）＋敵人資料＋ `SPRITE`＋ 3 段記憶（`memories.ts`）。
 
-## ★ 第 148 輪起先做（V5／V6 收尾，11/7–11/11）
-**已經有的（到第 147 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、`trade`、`roster`、**`bounty`、`encounters`**）；`core/battle/rt/loot.ts`、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.choose`／**`story.meet`／`story.thanks`**、`market.*`、`pvp.*`、`trade.*`（`partners` 多 `cheapest`）、`character.*`（**`rename`**）、`warehouse.*`、`battle.start`／`loot.claim`（**含懸賞**）／**`loot.chest`**；**即時 PvP `src/net/realtime.ts`＋`src/server/realtime/BattleRoom.ts`＋`src/client/RoomClient.ts`（D-310，不部署）**；**`src/client/characterCache.ts`＋線上版舊 key 當快取（D-308）**；**`src/game/rt/MinimapSystem.ts`**。
-1. CI 每輪開頭看一次（第 147 輪最後的程式 commit 是「線上版相遇狀態以伺服器為準」）。
-2. **線上版還沒對上伺服器的**（D-308 之後）：(a) 行囊面板標題的「Lv」讀本機 `s.prog`（HUD 已經讀快取）；(b) 引擎本身的等級／技能點在進場時讀舊 key（已經寫回伺服器的等級，下一場才生效）；(c) 燼牌、行商面板的錢包讀舊 key（已經是快取，但本機撿的金幣會暫時多算到下一次寫回）——一次一個面板改讀 `characterCache`，最後刪掉 `mirrorOnline`。
-3. **線上版登入畫面**：`jg_online_token` 沒有時標題顯示「登入」（Entra External ID；MSAL.js 授權與大小要確認，或自己做 PKCE redirect 不加套件）。沒有登入前線上版只有 dev token 能用。
-4. **PvE 抽查重跑（26 §3.1）**：伺服器在 `battle.start` 給種子、客戶端記指令紀錄，`loot.audit` 抽查（擊殺數對不上作廢＋AuditLog）。成本：大地圖一場可能幾小時 → 只重跑最近 N 分鐘或 Boss 戰。寶箱位置、回禮時機也靠它。
-5. **即時 PvP 畫面**（選做，23 §6 #4）：競技場加「即時對戰（本機兩人）」用 `RoomClient`＋本地預測；WsTransport。不部署。
-6. **交易收尾**：SQL 版交易並發測試（V4 驗收，只能在 CI 跑）。
-7. **Q5 拆 HUD 繼續**：`drawUi` 的 HUD 字、懸賞板（MinimapSystem 的做法：純函式＋view 物件，前後截圖比對）。
-8. **V7（11/12 12:00 起凍結）**：README 成果發表、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能。
+## ★ 第 149 輪起先做（V5／V6 收尾，11/7–11/11；11/12 12:00 凍結）
+**已經有的（到第 148 輪）**：`src/core/meta/`（`shop`、`bag`、`skills`、`cards`、`choices`、`market`、`pvpRank`、`trade`、`roster`、`bounty`、`encounters`）；`core/battle/rt/loot.ts`（**`killSource`／`killCap` 數量上限**）、`maps/world.ts`；伺服器 handler：`inventory.*`、`enhance.do`、`shop.*`、`skills.*`、`migrate.*`、`cards.*`、`story.*`、`market.*`、`pvp.*`、`trade.*`、`character.*`、`warehouse.*`、`battle.start`／`loot.claim`／`loot.chest`（**跨場速度桶、Boss 重生時間、夜光 5 分鐘，D-313**）；**被拒絕的敏感請求寫 AuditLog（D-314，`audit.recent`）**；HTTP 1 MB／其他方法 16 KB（D-315）；即時 PvP（D-310，不部署）；`characterCache`；`src/game/rt/`（`MinimapSystem`、**`BountyBoard`**）、`hudText.hudLine`。
+1. CI 每輪開頭看一次（第 148 輪最後的程式 commit 是「Q5：頂端 HUD 一行的排字搬到 hudText.hudLine」；**確認 mssql job 的 `concurrency.test.ts` 過了**——它是 SQL 版交易鎖的真正驗收；紅了就看 MssqlDb.tx 的隔離等級／`UPDLOCK`，不要放寬測試）。
+2. **登入收尾**（D-317 已做 PKCE 登入）：token 快過期／API 回 unauthorized 時提示「重新登入」並 `beginLogin`（現在要重開遊戲）；refresh token；標題顯示登入中的帳號。Jacky 建好 Entra 前用假 IdP 測（PROGRESS 第 148 輪有做法：node 起一個 /t/oauth2/v2.0/authorize 302 回 redirect_uri＋/token 回 id_token）。
+3. **線上版還沒對上伺服器的**：燼牌面板的錢包仍讀舊 key（已是伺服器快取，persist 不再加本機金幣，D-313 那輪修了大半）；引擎本身的等級在進場時讀舊 key（已寫回伺服器的等級）。之後刪掉 `mirrorOnline`、畫面全讀 `characterCache`。夜光寶箱／Boss 被伺服器拒絕時，本機仍會飄「+金幣」字（HUD 是對的）——可以在 `onlineLoot` 收到 rejected 時公告「寶箱還沒補滿」。
+4. **PvE 抽查重跑（選做，26 §3.1）**：只對 Boss 戰：`battle.start` 給種子、客戶端記 Boss 區域內的指令紀錄，`loot.claim`（Boss）附紀錄、伺服器重跑那一段。數量上限（D-312）已經擋掉大部分偽造；暴怒／詞綴旗標還是客戶端說的。
+5. **Q5 拆場景繼續**（`RtBattleScene` 約 6,575 行，範圍保護：停在 < 4,000 不強求）：下一塊 `updateFireBtn`／營火捷徑列、`announce` 佇列。做法：純函式＋view 物件、測試對照搬家前的實機文字或截圖。
+6. **V7（11/12 12:00 起凍結）**：README 成果發表（架構圖「換掉連線字串／後端就能上線」、資安設計、交易、PvP 天梯、多角色）、`docs/DEPLOY_AZURE.md` 對照 Bicep 再檢查、版本 1.2.0、手機效能、`npm run wiki`。
+
+**登入注意（第 148 輪）**：
+- 只有 `import.meta.env.VITE_SERVER_URL` 分支裡才用（離線版 bundle 不含，已檢查）；`crypto.subtle` 要安全來源（https 或 localhost）。
+- 自動轉登入頁的防迴圈旗標是 sessionStorage `jg_login_tried`（拿到 token 就清）。
+
+**防作弊注意（第 148 輪）**：
+- 改地圖的重生規則（`maxAlive`、`respawnTicks`、`riot`、`hiddenElite`、`bossZone.respawnTicks`）會改到伺服器的上限——`tests/loot-kill-cap.test.ts` 會用 Bot 實打檢查不會擋到正常玩家；它紅了是上限算錯，不是 Bot 太強。
+- 新的「客戶端說我拿到了 X」類 handler：照 `loot.claim` 做「規則算得出的上限」＋跨 `battle.start` 帶著走；被拒絕的方法加進 `GameServer.ts` 的 `AUDIT_REJECTED`。
+- 帶大資料的新方法（像 `pvp.finish`）要加進 `LARGE_BODY_METHODS`，不然超過 16 KB 會被擋。
+- HTTP 整合測試 `tests/server-http-flow.test.ts`：dev token 只能 `dev:[a-z0-9_]`；交易類每秒 2 次，連續動作之間 `breath()`。
 
 **線上版注意（第 147 輪）**：
 - 線上版的伺服器結果一律走 `onlineLoot.ts` 的 `synced()`：更新快取 → `mirrorOnline`（items／wallet／level）＋`mirrorEncounters` → 通知場景 `onlineBounty` 重讀行囊。新的線上 handler 照這條走。

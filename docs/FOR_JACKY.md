@@ -12,6 +12,9 @@
 6. **11/7 凌晨（第 145 輪）**：**多角色**：標題「設定」左邊多一個「角色」鈕，最多 3 個角色（等級、行囊、金幣各自分開），建新角色時選武器；營火行商多「倉庫」分頁（40 格，同帳號角色共用）。競技場排行每天會變。線上版伺服器的程式也開始了（`server/`、`infra/main.bicep`），**只寫程式、沒有建任何雲端資源**；部署只能你手動觸發。
 7. **11/7 凌晨（第 146 輪）**：競技場打完可以「▶ 看重播」，腳下有段位光環（段位越高越華麗）；交易可以**只放金幣跟模擬冒險者買**東西。線上版客戶端能建置了（`npm run build:online`，不含本機伺服器），**打怪的掉落與經驗改由伺服器擲**（線上版才用；單機玩起來不變）。
 8. **11/7 早上（第 147 輪）**：線上版的畫面（金幣、等級、行囊、懸賞）改成看伺服器；懸賞、寶箱、路上的相遇的獎勵也改由伺服器發（單機玩起來不變）。即時 PvP 的伺服器房間寫好了，用模擬的爛網路（延遲＋掉包）測過雙方畫面一致，照省錢原則不部署。角色可以「改名」，交易列表會寫對方「賣 X 金起」。
+9. **11/7 早上（第 148 輪）**：線上版防作弊加強（同一隻 Boss、同一群怪不能比地圖的重生速度更快領獎勵；出去再進來也一樣；被擋下的會留紀錄）。**修了一個線上 PvP 結算一定失敗的 bug**（弓、法杖的操作紀錄太大被伺服器拒收）。用真的伺服器測了兩個玩家從零打怪 → 拍賣 → 交易 → 競技場整段。單機玩起來不變。
+10. **線上版登入**做好了（Entra External ID，不加大套件）；你建好 Entra 租戶後照 `docs/DEPLOY_AZURE.md`「登入」那幾步設定就能用。
+11. **線上版要放上網時**：API 部署好後，在 GitHub repo 的 Settings → Secrets and variables → Actions → **Variables** 加 `ONLINE_API_URL`（API 網址），Pages 就會多一個 `/JackyGame/online/`（步驟在 `docs/DEPLOY_AZURE.md`）。
 
 ## 後端（D-278，[design/25-azure-backend.md](design/25-azure-backend.md)）
 - Node.js＋TypeScript（才能跟遊戲共用同一份戰鬥引擎判勝負）＋Azure Container Apps＋**共用 JackyAIStudio 的 Azure SQL，遊戲全在既有的 `game` schema**（SQL Server 不分大小寫，`Game` 就是你現在那個 `game`），遊戲用的資料庫帳號只對 `game` 有權限、碰不到 `dbo`；遷移各管各的，**不會碰你那 8 張舊表**，你自己刪就好。
@@ -22,11 +25,11 @@
 ## 想聽你意見的（不回就照預設）
 - **能交易的範圍**：預設 Boss 神裝與劇情獎勵「綁定」不能交易，其他掉落都能賣；手續費 5%。
 - **PvP 獎勵**：預設只給段位稱號與外觀，不給數值。
-- **線上版客戶端放哪**：預設等你部署 API 後，放 GitHub Pages 的子路徑 `/JackyGame/online/`（免費）；想放別處跟我說。
 - **多角色**：已照預設做（3 個角色欄、倉庫 40 格、金幣分角色、換武器免費）；想改數字直接說。
 - **美術額度**：GPT 已用完。願意多給幾張的話，競技場和 Boss 圖會好很多。
 
 ## 只有你能做的
+- **線上版**：建 Entra External ID 租戶＋App registration（SPA）、部署 API，然後在 GitHub 的 Actions Variables 設 `ONLINE_API_URL`、`ENTRA_AUTHORITY`、`ENTRA_CLIENT_ID`（`docs/DEPLOY_AZURE.md`）。
 - **美術**：`docs/ART_REQUESTS.md` 的 R-020、R-021（Gemini）。
 - **iOS**：需要 Mac＋Xcode，步驟在 README「安裝」。
 - **要上架的話**：新名字還沒查商標；Android 需要你自己的 release keystore（不能放 repo；現在 repo 裡那把是公開的 debug 金鑰）。

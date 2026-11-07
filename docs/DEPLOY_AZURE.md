@@ -47,9 +47,16 @@ npm run build:server && cd dist-server && AUTH_MODE=dev node main.js
 
 ## 線上版客戶端（第 146 輪，D-306）
 - 建置：`VITE_SERVER_URL=https://<apiUrl> npm run build:online` → `dist-online/`（不打包本機伺服器，CI 用 `scripts/check-online-bundle.mjs` 檢查）。沒設就用 `.env.online` 的 `http://localhost:8080`（連本機 `npm run server:dev`）。
-- 登入：正式版不設 `VITE_AUTH_MODE`；token 放在 localStorage 的 `jg_online_token`（登入畫面還沒做，之後用 Entra External ID 的 MSAL 取得後寫進去）。`VITE_AUTH_MODE=dev` 只給本機：自動產生 `dev:<亂數>`，只對 `AUTH_MODE=dev` 的伺服器有效。
+- 登入（第 148 輪，D-317）：Entra External ID 授權碼＋PKCE（`src/client/oidcLogin.ts`，不加套件）。Jacky 要做的：
+  1. 建 Entra External ID 租戶 → App registrations → 新增「單頁應用程式（SPA）」平台，重新導向 URI 填 `https://twjackysu.github.io/JackyGame/online/`（本機試加 `http://localhost:4174/`）。
+  2. 建置變數：`VITE_ENTRA_AUTHORITY`＝`https://<租戶>.ciamlogin.com/<租戶>.onmicrosoft.com`、`VITE_ENTRA_CLIENT_ID`＝應用程式（用戶端）識別碼（GitHub Actions 的 Variables 也加這兩個，deploy-pages 的線上版建置會帶）。
+  3. API 環境變數：`AUTH_MODE=jwt`、`JWT_ISSUER`＝`https://<租戶 id>.ciamlogin.com/<租戶 id>/v2.0`、`JWT_AUDIENCE`＝同一個 client id（我們送的是 id_token）、`JWT_JWKS_URL`＝`https://<租戶>.ciamlogin.com/<租戶 id>/discovery/v2.0/keys`。
+  沒設 Entra 變數：不轉登入頁（跟以前一樣）。`VITE_AUTH_MODE=dev` 只給本機：自動產生 `dev:<亂數>`，只對 `AUTH_MODE=dev` 的伺服器有效。
 - **CORS**：API 的 `CORS_ORIGINS` 要列出客戶端網址（例如 `https://twjackysu.github.io`），不然瀏覽器會擋。
-- 線上版現在能用的：競技場天梯（含看重播）、角色列表、拍賣所／交易（打伺服器的角色）、**PvE 掉落由伺服器擲**（`battle.start`／`loot.claim`，打倒怪就入伺服器的角色）。畫面上的冒險進度（等級、行囊顯示）還是本機的，等畫面改讀伺服器才會一致。
+- **放上 GitHub Pages（第 148 輪）**：API 部署好之後，到 GitHub repo → Settings → Secrets and variables → Actions → **Variables** 新增 `ONLINE_API_URL`＝API 網址（例如 `https://jackygame-api.<region>.azurecontainerapps.io`），下一次推 main（或手動跑 Deploy to GitHub Pages）就會把線上版放在 `https://twjackysu.github.io/JackyGame/online/`。沒設這個變數就跟以前一樣只有離線版。記得 API 的 `CORS_ORIGINS` 加 `https://twjackysu.github.io`。
+- 線上版現在能用的：競技場天梯（含看重播）、角色列表、拍賣所／交易、**PvE 掉落、經驗、懸賞、寶箱、相遇獎勵都由伺服器給**；HUD／行囊／行商面板的金幣與等級讀伺服器的角色。
+- 防作弊（26-security）：打怪有速度上限（跨場）、同一個重生點／Boss／暴動／隱藏精英的數量上限（照地圖的重生規則算）、Boss 出去再進來也要等重生時間、夜光寶箱 5 分鐘補滿；被拒絕的申請寫進 `game.AuditLog`（`action` 開頭是 `rejected:`），可以用 SQL 查可疑帳號。
+- 請求大小：HTTP 層最多 1 MB（只有 `pvp.finish` 帶整場指令紀錄會用到），其他方法超過 16 KB 直接拒絕。
 - 本機整套試：
   ```
   npm run build:server && (cd dist-server && AUTH_MODE=dev CORS_ORIGINS=http://localhost:4174 node main.js) &
@@ -57,4 +64,4 @@ npm run build:server && cd dist-server && AUTH_MODE=dev node main.js
   ```
 
 ## 還沒做（之後的輪次）
-- 登入畫面（MSAL）；畫面改讀伺服器的角色（舊 key 退場）；線上客戶端要放哪裡（Pages 子路徑或 Static Web Apps 免費方案）由 Jacky 決定。
+- token 過期（約 1 小時）會在下次開遊戲時重新登入；還沒做 refresh token 與遊戲中途過期的提示。舊 key 完全退場。
