@@ -3072,7 +3072,7 @@ export class RtBattleScene extends Phaser.Scene {
           const t = floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}`, { color: e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: 22 });
           this.dotNum.set(d.id, { t, at: this.time.now, sum: e.amount, skill: e.skill });
         } else
-        floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : e.origin === 'dot' ? 22 : 26 });
+        floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : e.origin === 'dot' ? 22 : !toPlayer && e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult' ? 30 : 26, tier: toPlayer || e.origin === 'dot' ? undefined : e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult' ? 'ult' : e.crit ? 'crit' : undefined });
         if (!toPlayer && e.origin !== 'dot') {
           SFX.hitLight();
           sparks(this, this.sx(d.x), this.sy(d.y), 6, 'spark', 0xffffff, 260);

@@ -58,7 +58,14 @@ export interface NumberStyle {
   size: number;
   stroke?: string;
   label?: string;
+  /** 數字分級（A5，第 152 輪）：crit＝金色漸層＋光暈＋大彈跳；ult＝粉紫漸層＋光暈＋更大彈跳 */
+  tier?: 'crit' | 'ult';
 }
+
+const TIER: Record<'crit' | 'ult', { top: string; bottom: string; glow: string; pop: number; tilt: number }> = {
+  crit: { top: '#fff6c8', bottom: '#ffb020', glow: '#ff9a20', pop: 1.55, tilt: 8 },
+  ult: { top: '#ffe8ff', bottom: '#ff5ad0', glow: '#ff4ac0', pop: 1.7, tilt: 0 },
+};
 
 /** 最近跳出的數字（第 51 輪）：同一刻打中並排的兩隻怪，兩個「105」會黏成「105105」→ 新數字碰到還很新的就往上疊一層 */
 const recentNums = new WeakMap<Phaser.Scene, NumRect[]>();
@@ -85,8 +92,21 @@ export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: st
     .setOrigin(0.5)
     .setDepth(900)
     .setScale(0.3);
-  scene.tweens.add({ targets: t, scale: 1.25, duration: 110, ease: 'Back.Out' });
-  scene.tweens.add({ targets: t, scale: 1, delay: 110, duration: 120 });
+  const tier = st.tier ? TIER[st.tier] : null;
+  if (tier) {
+    // 漸層字＋光暈只算一次（文字貼圖產生時），之後每幀成本跟普通數字一樣
+    const glow = !getSettings().lowFx;
+    const pad = glow ? 12 : 0;
+    if (glow) t.setPadding(pad, pad, pad, pad); // 留白：不然光暈被字框切成方塊（要在算漸層之前，漸層照留白後的高度）
+    const grd = t.context.createLinearGradient(0, pad, 0, t.height - pad);
+    grd.addColorStop(0.15, tier.top);
+    grd.addColorStop(0.85, tier.bottom);
+    t.setFill(grd);
+    if (glow) t.setShadow(0, 0, tier.glow, 10, true, true);
+    if (tier.tilt) t.setAngle(Phaser.Math.Between(-tier.tilt, tier.tilt));
+  }
+  scene.tweens.add({ targets: t, scale: tier?.pop ?? 1.25, duration: tier ? 130 : 110, ease: 'Back.Out' });
+  scene.tweens.add({ targets: t, scale: 1, delay: tier ? 130 : 110, duration: tier ? 160 : 120 });
   scene.tweens.add({ targets: t, y: y - 70, duration: 900, ease: 'Cubic.Out' });
   scene.tweens.add({ targets: t, alpha: 0, delay: 650, duration: 350, onComplete: () => t.destroy() });
   if (st.label) {
