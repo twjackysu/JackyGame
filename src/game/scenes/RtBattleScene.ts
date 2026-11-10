@@ -2965,15 +2965,15 @@ export class RtBattleScene extends Phaser.Scene {
         if (src && src.side === 'player' && e.origin === 'normal' && this.s.weapon === 'staff') {
           // 法杖普攻（D-152）：一顆紫色魔彈
           this.rfx.magicBolt(src.x, src.y, d.x, d.y, e.crit ? 0xffd05a : 0xc89aff);
-          this.knock(d.id, d.x - src.x, d.y - src.y, 7);
+          this.knock(d.id, d.x - src.x, d.y - src.y, 7, e.crit);
         } else if (src && src.side === 'player' && e.origin === 'normal' && this.s.weapon === 'bow') {
           // 長弓普攻（D-147）：一支箭飛過去
           this.rfx.arrowShot(src.x, src.y, d.x, d.y, e.crit ? 0xffd05a : 0xd8f0ff);
-          this.knock(d.id, d.x - src.x, d.y - src.y, 6);
+          this.knock(d.id, d.x - src.x, d.y - src.y, 6, e.crit);
         } else if (src && src.side === 'player' && e.origin === 'normal') {
           this.ffx.slash(src.x, src.y, Math.atan2(d.y - src.y, d.x - src.x), 150, 110, e.crit ? 0xffd05a : 0xffffff, 5);
-          this.knock(d.id, d.x - src.x, d.y - src.y, 10);
-        } else if (src && src.side === 'player' && e.origin !== 'dot') this.knock(d.id, d.x - src.x, d.y - src.y, 16);
+          this.knock(d.id, d.x - src.x, d.y - src.y, 10, e.crit);
+        } else if (src && src.side === 'player' && e.origin !== 'dot') this.knock(d.id, d.x - src.x, d.y - src.y, 16, e.crit || e.origin === 'counter');
         // 持續傷害的數字合併（第 34 輪）：同一隻怪 1 秒內的灼燒＋中毒跳成同一個數字（狼群身上一堆小數字太吵）
         const dn = e.origin === 'dot' && !toPlayer ? this.dotNum.get(d.id) : undefined;
         if (dn && dn.t.active && this.time.now - dn.at < 1000) {
@@ -3471,13 +3471,18 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 受擊位移（只在畫面上，不影響模擬座標） */
-  private knock(id: number, dx: number, dy: number, px: number): void {
+  /** 受擊反應（純畫面）：往被打的方向退一下再滑回來＋繞著腳後仰；strong（暴擊／反擊）退得更遠、仰得更大、久一點（D-335） */
+  private knock(id: number, dx: number, dy: number, px: number, strong = false): void {
     const sp = this.sprites.get(id);
     if (!sp) return;
     const d = Math.hypot(dx, dy) || 1;
-    sp.setData('kx', (dx / d) * px);
-    sp.setData('ky', (dy / d) * px * 0.6);
-    sp.setData('kUntil', this.time.now + 110);
+    const m = strong ? 1.6 : 1;
+    const ms = strong ? 170 : 120;
+    sp.setData('kx', (dx / d) * px * m);
+    sp.setData('ky', (dy / d) * px * 0.6 * m);
+    sp.setData('kTilt', (dx >= 0 ? 1 : -1) * Math.min(16, px * (strong ? 1.3 : 0.8)));
+    sp.setData('kMs', ms);
+    sp.setData('kUntil', this.time.now + ms);
   }
 
   /** 技能每段命中的刀光（資料驅動：依命中形狀畫，不寫 switch(skillId)） */
@@ -4074,9 +4079,13 @@ export class RtBattleScene extends Phaser.Scene {
         const bob = moving ? Math.abs(Math.sin(now / 90 + x.id)) * r * 0.12 : Math.sin(now / 400 + x.id) * r * 0.03;
         // 蓄力：往後縮、放大一點點（敵人出招前的身體語言）
         const squash = winding ? 1 + 0.06 * Math.sin(now / 40) : 1;
-        const kOn = ((sp.getData('kUntil') as number | undefined) ?? 0) > now;
-        const kx = kOn ? ((sp.getData('kx') as number) ?? 0) : 0;
-        const ky = kOn ? ((sp.getData('ky') as number) ?? 0) : 0;
+        // 受擊：位移與後仰隨時間收回（以前是固定位移、時間到瞬間彈回）
+        const kLeft = ((sp.getData('kUntil') as number | undefined) ?? 0) - now;
+        const kOn = kLeft > 0;
+        const kf = kOn ? Math.min(1, (kLeft / ((sp.getData('kMs') as number | undefined) ?? 120)) * 1.6) : 0;
+        const kx = kOn ? ((sp.getData('kx') as number) ?? 0) * kf : 0;
+        const ky = kOn ? ((sp.getData('ky') as number) ?? 0) * kf : 0;
+        if (!isP) sp.setAngle(kOn ? ((sp.getData('kTilt') as number | undefined) ?? 0) * kf : 0);
         // 玩家普攻／施放時往前踏一點
         const lunge = isP && x.action && (x.action.kind === 'attack' || x.action.kind === 'skill') ? Math.min(1, (s.tick - x.action.start) / 6) * r * 0.25 : 0;
         sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - bob + ky + (fy0(x) * lunge)).setDepth(10 + Math.min(30, (pos.y / Math.max(1, s.arena.h)) * 30)); // 大地圖也不會蓋過 HUD／選單（深度 45 以上）
