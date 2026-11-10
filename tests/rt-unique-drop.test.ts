@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { EFFECTS } from '../src/core/battle/rt/effects';
 import { GEAR_SLOTS, UNIQUE_IDS, UNIQUE_TITLES, gearColor, gearEffects, gearLines, gearScore, gearTierName, genGear, isGear, RARITY_COLOR, type Rarity } from '../src/core/battle/rt/gear';
-import { HIDDEN_GROUP, UNIQUE_DROP, rollEnemyLoot, uniqueDropPct, type LootContext } from '../src/core/battle/rt/loot';
+import { HIDDEN_GROUP, UNIQUE_DROP, UNIQUE_POOLS, rollEnemyLoot, uniqueDropPct, uniquePoolOf, uniqueSources, type LootContext } from '../src/core/battle/rt/loot';
 import { stageDef } from '../src/core/battle/rt/maps/world';
 import { cleanBag } from '../src/game/rtRecord';
 import { effectsOf } from '../src/core/meta/bag';
@@ -104,6 +104,11 @@ describe('獨特效果裝備：來源', () => {
       expect(uniqueDropPct({ ...b, fury: true, night: true })).toBe(UNIQUE_DROP.fury + UNIQUE_DROP.nightPlus);
       const g = st.spawnGroups![0]!;
       expect(uniqueDropPct({ stageId: id, defId: g.enemyId, groupId: g.id, night: true, fury: false })).toBe(0);
+      // 帶詞綴的精英：最低的一層
+      expect(uniqueDropPct({ stageId: id, defId: g.enemyId, groupId: g.id, night: false, fury: false, affix: true })).toBe(UNIQUE_DROP.elite);
+      expect(UNIQUE_DROP.elite).toBeLessThan(UNIQUE_DROP.boss);
+      expect(UNIQUE_DROP.boss).toBeLessThan(UNIQUE_DROP.hidden);
+      expect(UNIQUE_DROP.hidden).toBeLessThanOrEqual(UNIQUE_DROP.fury);
       if (st.hiddenElite) expect(uniqueDropPct({ stageId: id, defId: st.hiddenElite.enemyId, groupId: HIDDEN_GROUP, night: false, fury: false })).toBe(UNIQUE_DROP.hidden);
     }
   });
@@ -126,7 +131,30 @@ describe('獨特效果裝備：來源', () => {
     expect(rare).toBeGreaterThan(50);
     const st = stageDef('mistwood')!;
     const g = st.spawnGroups!.find((x) => st.gearDrops?.[x.enemyId])!;
-    for (let seed = 1; seed <= 300; seed++) rollEnemyLoot({ stageId: 'mistwood', defId: g.enemyId, groupId: g.id, night: true, fury: false, affix: true, firstKill: false }, rng(seed), (_k, _a, _r, uq) => expect(uq).toBeUndefined());
+    for (let seed = 1; seed <= 300; seed++) rollEnemyLoot({ stageId: 'mistwood', defId: g.enemyId, groupId: g.id, night: true, fury: false, affix: false, firstKill: false }, rng(seed), (_k, _a, _r, uq) => expect(uq).toBeUndefined());
+  });
+});
+
+describe('獨特效果裝備：每張圖掉哪幾條（D-356）', () => {
+  it('四張圖各 4 條、都是合法的獨特效果；十條每一條至少有一張圖掉；招牌效果只有一張圖', () => {
+    for (const [st, ids] of Object.entries(UNIQUE_POOLS)) {
+      expect(stageDef(st), st).toBeTruthy();
+      expect(new Set(ids).size).toBe(4);
+      for (const id of ids) expect(UNIQUE_IDS).toContain(id);
+    }
+    for (const id of UNIQUE_IDS) expect(uniqueSources(id).length, id).toBeGreaterThanOrEqual(1);
+    expect(uniqueSources('venom_skill')).toEqual(['thornvale']);
+    expect(uniqueSources('ember_edge')).toEqual(['emberrift']);
+    expect(uniqueSources('storm_caller')).toEqual(['starfall']);
+    expect(uniquePoolOf('forest_entry')).toEqual(UNIQUE_IDS);
+  });
+
+  it('genGear 只會抽出那張圖的那幾條，而且四條都抽得到', () => {
+    for (const st of Object.keys(UNIQUE_POOLS)) {
+      const seen = new Set<string>();
+      for (let seed = 1; seed <= 400; seed++) seen.add(genGear(seed * 2654435761, 3, 12, { uniquePct: 100, uniquePool: uniquePoolOf(st) }).unique!);
+      expect([...seen].sort()).toEqual([...UNIQUE_POOLS[st]!].sort());
+    }
   });
 });
 
@@ -162,18 +190,20 @@ describe('獨特效果裝備：引擎與伺服器', () => {
     const p = playerOf(s);
     p.x = boss.x - 60;
     p.y = boss.y;
-    let drop: { rarity?: number; uq?: number } | undefined;
-    let pick: { rarity?: number; uq?: number } | undefined;
-    for (let i = 0; i < 900 && !pick; i++) {
+    const drops: (number | undefined)[] = [];
+    const picks: (number | undefined)[] = [];
+    for (let i = 0; i < 900 && (!picks.length || picks.length < drops.length); i++) {
       const from = s.events.length;
       step(s, []);
       for (const e of s.events.slice(from)) {
-        if (e.type === 'drop' && e.kind === 'gear' && e.rarity === 3) drop = e;
-        if (e.type === 'pickup' && e.kind === 'gear' && e.rarity === 3) pick = e;
+        if (e.type === 'drop' && e.kind === 'gear' && e.rarity === 3) drops.push(e.uq);
+        if (e.type === 'pickup' && e.kind === 'gear' && e.rarity === 3) picks.push(e.uq);
       }
     }
-    expect(drop?.uq).toBe(UNIQUE_DROP.boss);
-    expect(pick?.uq).toBe(UNIQUE_DROP.boss);
+    // 這張圖第一次打倒 Boss：保底的那件稀有一定是獨特（first），其餘的稀有照 Boss 的機率
+    expect(drops[0]).toBe(UNIQUE_DROP.first);
+    for (const u of drops.slice(1)) expect(u).toBe(UNIQUE_DROP.boss);
+    expect([...picks].sort()).toEqual([...drops].sort());
   });
 
   it('伺服器 loot.claim：獨特效果由伺服器的亂數擲出、存進行囊、回給客戶端；小怪掉的不會有', async () => {
@@ -200,12 +230,26 @@ describe('獨特效果裝備：引擎與伺服器', () => {
         if (d.unique) {
           uniq++;
           expect(d.rarity).toBe(3);
-          expect(UNIQUE_IDS).toContain(d.unique);
+          expect(UNIQUE_POOLS.mistwood).toContain(d.unique);
         }
       }
     }
     expect(rares).toBeGreaterThanOrEqual(40); // 第一次打倒保底稀有
-    expect(uniq).toBeGreaterThan(0);
-    expect(uniq).toBeLessThan(rares / 2);
+    expect(uniq).toBeGreaterThanOrEqual(40); // ……而且那一件一定是獨特
+    expect(uniq).toBeLessThan(rares);
+  });
+});
+
+describe('獨特效果裝備：第一次打倒 Boss', () => {
+  it('四張圖：第一次打倒保底的那件稀有一定帶獨特效果；第二次起照機率', () => {
+    for (const id of Object.keys(UNIQUE_POOLS)) {
+      const first: (number | undefined)[] = [];
+      rollEnemyLoot(bossCtx(id, { firstKill: true }), rng(3), (k, _a, r, uq) => k === 'gear' && r === 3 && first.push(uq));
+      expect(first[0], id).toBe(UNIQUE_DROP.first);
+      const again: (number | undefined)[] = [];
+      for (let seed = 1; seed < 40; seed++) rollEnemyLoot(bossCtx(id), rng(seed), (k, _a, r, uq) => k === 'gear' && r === 3 && again.push(uq));
+      expect(again.length).toBeGreaterThan(10);
+      for (const u of again) expect(u).toBe(UNIQUE_DROP.boss);
+    }
   });
 });

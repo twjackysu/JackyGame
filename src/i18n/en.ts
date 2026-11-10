@@ -31,5 +31,6 @@ export const en: Partial<Record<MessageKey, string>> = {
   'bless.listRule': 'Resting at a campfire or falling clears all blessings',
   'unique.got': 'Unique gear!',
   'unique.listLine': 'Gear effects: {names} (always on while equipped)',
+  'unique.tip': 'Unique gear carries one effect that changes how you fight\nActive while equipped (orange-ringed icon, top right)',
   'bless.listClose': 'Tap anywhere to close',
 };

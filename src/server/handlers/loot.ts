@@ -10,7 +10,7 @@ import { genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
 import { furyOpenBy, stageDef, worldNightOpen, worldStageOpen } from '../../core/battle/rt/maps/world';
 import { xpToNext } from '../../core/battle/rt/engine';
 import { TICKS_PER_SEC } from '../../core/battle/rt/types';
-import { isStageBoss, killCap, killSource, killXp, msToTicks, rollEnemyLoot, validKill, type LootContext } from '../../core/battle/rt/loot';
+import { isStageBoss, killCap, killSource, killXp, msToTicks, rollEnemyLoot, uniquePoolOf, validKill, type LootContext } from '../../core/battle/rt/loot';
 import { addWithAutoSalvage } from '../../core/meta/bag';
 import { bountyKill, cleanBounties } from '../../core/meta/bounty';
 import { ApiError } from '../../net/protocol';
@@ -149,7 +149,7 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
       else if (d.kind === 'dust') dust += d.amount;
       else if (d.kind === 'crystal') await ctx.r.wallets.apply(c.id, 'crystal', d.amount, 'loot', b.id);
       else if (d.kind === 'gear') {
-        const g = genGear(Math.floor(ctx.rng() * 4294967296) >>> 0, d.rarity ?? 1, d.amount, { night: b.night, region: b.stageId, uniquePct: uqOf.get(d) ?? 0 });
+        const g = genGear(Math.floor(ctx.rng() * 4294967296) >>> 0, d.rarity ?? 1, d.amount, { night: b.night, region: b.stageId, uniquePct: uqOf.get(d) ?? 0, uniquePool: uniquePoolOf(b.stageId) });
         if (g.unique) d.unique = g.unique;
         const r = addWithAutoSalvage(st, g);
         if (!r) {

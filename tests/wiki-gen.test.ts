@@ -3,8 +3,9 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, WEAPONS, WEAPON_IDS } from '../src/core/battle/rt/data';
-import { ENH_MAX, GEAR_ILVL_MAX, GEAR_SLOTS, PRO_SPECIAL_PCT, RARITY_NAME, SLOT_NAME, SPECIAL_KINDS, enhanceCost, genGear, type GearSlot, type Rarity } from '../src/core/battle/rt/gear';
-import { AFFIX_ILVL_PLUS, HIDDEN_ILVL_PLUS, dropIlvlRange } from '../src/core/battle/rt/loot';
+import { ENH_MAX, GEAR_ILVL_MAX, GEAR_SLOTS, PRO_SPECIAL_PCT, RARITY_NAME, SLOT_NAME, SPECIAL_KINDS, UNIQUE_IDS, UNIQUE_TITLES, enhanceCost, genGear, type GearSlot, type Rarity } from '../src/core/battle/rt/gear';
+import { AFFIX_ILVL_PLUS, HIDDEN_ILVL_PLUS, UNIQUE_DROP, dropIlvlRange, uniqueSources } from '../src/core/battle/rt/loot';
+import { effectDef } from '../src/core/battle/rt/effects';
 import { SKILL_MAX_RANK, SKILL_TREE } from '../src/core/meta/skills';
 import { WORLD_MAPS } from '../src/game/worldMaps';
 import type { StageDefinition } from '../src/core/battle/rt/types';
@@ -80,6 +81,18 @@ function gearPage(): string {
   s += '- **詞綴（✦）**：精良 1 條、稀有 2 條、**深夜的稀有 3 條**（名字「夜燼・…」）。\n';
   s += `- **技能特效（★）**：稀有必帶 1 條；精良有 ${PRO_SPECIAL_PCT}% 機率帶 1 條（數值減半）。\n`;
   s += '- 強化每級底數值 +10%，見 [強化](enhance.md)。\n\n';
+  // 獨特效果裝備（P3，D-355／D-356）
+  s += '## 獨特效果裝備（橘色、名字「○○之…」）\n\n';
+  s += '少數稀有裝備多帶**一條會改變打法的效果**（和燼火祝福同一池）：穿上就有、休息或倒下都不會消失；同一條穿兩件不疊加；**競技場不生效**。行囊裡是橘色外框、左上角一顆星。\n\n';
+  s += `- **哪裡掉**（每件「稀有」裝備帶獨特效果的機率）：帶詞綴的精英 ${UNIQUE_DROP.elite}%、Boss ${UNIQUE_DROP.boss}%、隱藏精英 ${UNIQUE_DROP.hidden}%、暴怒 Boss ${UNIQUE_DROP.fury}%；深夜各 +${UNIQUE_DROP.nightPlus}%。小怪不掉。\n`;
+  s += '- **每張圖第一次打倒 Boss**：保底的那件稀有一定是獨特。\n';
+  s += '- 暴怒 Boss 一次掉 2～3 件稀有，所以最划算；每張圖只掉自己那四條。\n\n';
+  s += '| 效果 | 裝備名字 | 作用（以長劍的招式名為例） | 哪張圖掉 |\n|---|---|---|---|\n';
+  for (const id of UNIQUE_IDS) {
+    const d = effectDef(id, 'sword')!;
+    s += `| ${d.name} | ${UNIQUE_TITLES[id]}之… | ${d.desc} | ${uniqueSources(id).map((st) => WORLD_MAPS.find((m) => m.id === st)?.name ?? st).join('、')} |\n`;
+  }
+  s += '\n';
   s += '## 底數值（未強化）\n| 部位 | ilvl 1 普通 | ilvl 6 精良 | ilvl 12 稀有 | ilvl 12 稀有 +10 |\n|---|---|---|---|---|\n';
   const fmt = (b: { atk?: number; hp?: number; def?: number }, m = 1): string => [b.atk && `攻擊 ${Math.round(b.atk * m)}`, b.hp && `HP ${Math.round(b.hp * m)}`, b.def && `防禦 ${Math.round(b.def * m)}`].filter(Boolean).join('・');
   for (const slot of GEAR_SLOTS) {

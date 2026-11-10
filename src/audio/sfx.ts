@@ -254,6 +254,17 @@ export const SFX = {
     playSfx({ wave: 'noise', freq: 700, freqEnd: 60, sustain: 0.04, release: 0.3, volume: 0.6, lowpass: 1800 });
     playSfx({ wave: 'sine', freq: 120, freqEnd: 35, sustain: 0.05, release: 0.35, volume: 0.6 });
   },
+  /** 獨特裝備掉下來（P3-b）：低一聲鐘＋往上三個音，和稀有的單音分得開 */
+  uniqueDrop: (): void => {
+    playSfx({ wave: 'sine', freq: 196, freqEnd: 190, sustain: 0.08, release: 0.9, volume: 0.35 });
+    [659.25, 880, 1318.5].forEach((f, i) => playSfx({ wave: 'triangle', freq: f, sustain: 0.04, release: 0.35, volume: 0.24, delay: 0.06 + i * 0.09 }));
+  },
+  /** 撿到獨特裝備：上行四個音＋尾音顫一下 */
+  uniqueGet: (): void => {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playSfx({ wave: 'triangle', freq: f, sustain: 0.05, release: 0.3, volume: 0.26, delay: i * 0.08 }));
+    playSfx({ wave: 'sine', freq: 1568, freqEnd: 2093, sustain: 0.1, release: 0.7, volume: 0.28, vibrato: 8, vibratoRate: 9, delay: 0.34 });
+    playSfx({ wave: 'sine', freq: 130.8, sustain: 0.1, release: 0.8, volume: 0.3 });
+  },
   perfect: (): void => {
     playSfx({ wave: 'sine', freq: 1568, freqEnd: 2093, sustain: 0.04, release: 0.4, volume: 0.3, vibrato: 8, vibratoRate: 9 });
     playSfx({ wave: 'triangle', freq: 1047, sustain: 0.03, release: 0.3, volume: 0.25, delay: 0.04 });

@@ -2,7 +2,7 @@
 // - 單機／PvE 引擎：rand＝引擎的掉落亂數，place＝丟到地上（會再抽兩次亂數決定位置）——亂數順序和以前一模一樣（golden hash 不變）。
 // - 伺服器 loot.claim（26-security §3.1）：rand＝伺服器自己的亂數，place 只記下來（不用位置）。客戶端只能說「我打倒了誰、在哪一群」，數量與稀有度由這裡決定。
 import { ENEMIES } from './data';
-import { GEAR_ILVL_MAX } from './gear';
+import { GEAR_ILVL_MAX, UNIQUE_IDS } from './gear';
 import { stageDef } from './maps/world';
 import { TICKS_PER_SEC, type LootId, type StageDefinition } from './types';
 
@@ -33,11 +33,31 @@ export type LootPlace = (kind: LootId, amount: number, rarity?: 1 | 2 | 3, uq?: 
  * 獨特效果裝備的來源（P3-a2，D-355；%＝這個來源掉的「稀有」裝備帶獨特效果的機率）。
  * 先只開 Boss（暴怒更高）與隱藏精英，深夜再加；一般精英、小怪不掉。分層細修在 P3-b。
  */
-export const UNIQUE_DROP = { boss: 15, fury: 35, hidden: 25, nightPlus: 10 } as const;
-export function uniqueDropPct(c: Pick<LootContext, 'stageId' | 'defId' | 'fixedIdx' | 'groupId' | 'night' | 'fury'>): number {
-  const base = c.groupId === HIDDEN_GROUP ? UNIQUE_DROP.hidden : isStageBoss(c) ? (c.fury ? UNIQUE_DROP.fury : UNIQUE_DROP.boss) : 0;
+export const UNIQUE_DROP = { elite: 4, boss: 6, hidden: 15, fury: 15, nightPlus: 5, first: 100 } as const;
+/**
+ * 來源分層（P3-b，D-356）：帶詞綴的精英 4% ＜ Boss 6% ＜ 隱藏精英／暴怒 Boss 15%；深夜各 +5%。小怪不掉。
+ * 這是「每件稀有」的機率：暴怒一次掉 2～3 件稀有，所以每次擊殺約三到四成、一般 Boss 約 7～10%（Boss 60 秒重生，太高就不稀奇了）。
+ * 另外：每張圖第一次打倒 Boss 保底的那件稀有一定是獨特（first）——主線一路會拿到四件，知道有這個東西、之後才有東西可刷。
+ */
+export function uniqueDropPct(c: Pick<LootContext, 'stageId' | 'defId' | 'fixedIdx' | 'groupId' | 'night' | 'fury'> & { affix?: boolean }): number {
+  const base = c.groupId === HIDDEN_GROUP ? UNIQUE_DROP.hidden : isStageBoss(c) ? (c.fury ? UNIQUE_DROP.fury : UNIQUE_DROP.boss) : c.affix ? UNIQUE_DROP.elite : 0;
   return base ? base + (c.night ? UNIQUE_DROP.nightPlus : 0) : 0;
 }
+
+/**
+ * 每張圖掉哪幾條獨特效果（P3-b，D-356）：照地區的元素分，讓「想要某條效果 → 去那張圖」有目的。
+ * 每張圖 4 條；招牌效果只有一張圖掉（蝕毒＝荊棘谷、餘燼＝燼紅裂谷、召雷與綻光＝星隕高原），其餘兩張圖都掉。
+ * 沒列的關卡（舊關卡、測試關）＝十條都可能。效果圖鑑（P3-c）也讀這張表。
+ */
+export const UNIQUE_POOLS: Record<string, readonly string[]> = {
+  mistwood: ['shadow_step', 'after_image', 'executioner', 'heavy_echo'],
+  thornvale: ['venom_skill', 'guard_pulse', 'heavy_echo', 'executioner'],
+  emberrift: ['ember_edge', 'ember_burst', 'guard_pulse', 'shadow_step'],
+  starfall: ['storm_caller', 'crit_bloom', 'ember_burst', 'after_image'],
+};
+export const uniquePoolOf = (stageId: string): readonly string[] => UNIQUE_POOLS[stageId] ?? UNIQUE_IDS;
+/** 這條效果在哪幾張圖掉（圖鑑用） */
+export const uniqueSources = (id: string): string[] => Object.keys(UNIQUE_POOLS).filter((st) => UNIQUE_POOLS[st]!.includes(id));
 
 /** 這隻怪會不會掉東西（伺服器拿來擋「這張圖沒有這種怪」之外的空申請） */
 export function hasLoot(defId: string): boolean {
@@ -106,7 +126,7 @@ export function rollEnemyLoot(c: LootContext, rand: () => number, place: LootPla
       const w: [number, number, number] = hidden ? [w0[0], w0[1], w0[2] * 2] : w0;
       const t = rand() * (w[0] + w[1] + w[2]);
       const rar = first && k === 0 ? 3 : t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3;
-      put('gear', ilvl, rar, (rar === 3 && uq) || undefined);
+      put('gear', ilvl, rar, rar === 3 ? (first && k === 0 ? UNIQUE_DROP.first : uq) || undefined : undefined);
     }
   }
 }

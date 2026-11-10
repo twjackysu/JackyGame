@@ -29,6 +29,7 @@ export const zhTW = {
   'bless.listRule': '回營火休息或倒下，祝福會全部消散',
   'unique.got': '獨特裝備！',
   'unique.listLine': '裝備效果：{names}（穿著就有，不會消散）',
+  'unique.tip': '獨特裝備：帶一條會改變打法的效果\n穿上就有（右上角橘框圖示），休息也不會消失',
   'bless.listClose': '點任何地方關閉',
 } as const;
 

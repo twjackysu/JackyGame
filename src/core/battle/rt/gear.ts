@@ -197,7 +197,7 @@ function affixValue(stat: AffixStat, L: number, t: number): number {
 /** 地區名稱標記（D-114）：荊棘谷掉的精良／稀有名字改成「荊芒／荊冠」，數值與亂數完全一樣 */
 const REGION_TAG: Record<string, [string, string]> = { mistwood: ['薄霧', '霧語'], thornvale: ['荊芒', '荊冠'], emberrift: ['燼紋', '燼心'], starfall: ['星紋', '星骸'] };
 
-export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string; slot?: GearSlot; uniquePct?: number }): RtGear {
+export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string; slot?: GearSlot; uniquePct?: number; uniquePool?: readonly string[] }): RtGear {
   const R = rng(seed);
   for (let i = 0; i < 3; i++) R();
   const L = Math.max(1, Math.min(GEAR_ILVL_MAX, Math.floor(ilvl)));
@@ -238,7 +238,10 @@ export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { nig
   }
   // 獨特效果（P3-a2，D-355）：只有稀有、而且來源給了機率（uniquePct，由 loot.ts 照來源決定）才抽；亂數接在最後，沒給機率的結果不變
   if (opts?.uniquePct && rarity === 3 && R() * 100 < opts.uniquePct) {
-    const id = UNIQUE_IDS[Math.floor(R() * UNIQUE_IDS.length)]!;
+    // uniquePool：這張圖會掉的那幾條（loot.ts UNIQUE_POOLS）；沒給＝十條都可能
+    const pool2 = opts.uniquePool?.filter((x) => UNIQUE_TITLES[x]) ?? [];
+    const ids = pool2.length ? pool2 : UNIQUE_IDS;
+    const id = ids[Math.floor(R() * ids.length)]!;
     g.unique = id;
     g.name = `${g.night ? '夜燼・' : ''}${UNIQUE_TITLES[id]}之${baseName}`;
   }

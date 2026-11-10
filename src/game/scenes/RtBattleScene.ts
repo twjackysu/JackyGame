@@ -8,6 +8,7 @@ import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { activeHazards, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setEffects, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, UNIQUE_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
+import { uniquePoolOf } from '../../core/battle/rt/loot';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
 import { openMarketPanel } from '../ui/marketPanel';
@@ -570,6 +571,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.flashUntil.clear();
     this.lastHitDx.clear();
     this.dropPop.clear();
+    this.uniqueOnGround.clear();
     this.hpGhost.clear();
     this.cdWas = [];
     this.cdReadyAt = [];
@@ -1322,7 +1324,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (!g) return;
       const r = (d.rarity ?? 1) as 1 | 2 | 3;
       const col = `#${(g.unique ? UNIQUE_COLOR : RARITY_COLOR[r]).toString(16).padStart(6, '0')}`;
-      this.time.delayedCall(i * 300, () => floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, gearName(g), { color: col, size: r >= 3 ? 30 : 24 }));
+      this.time.delayedCall(i * 300, () => (g.unique ? this.announceUnique(g) : floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, gearName(g), { color: col, size: r >= 3 ? 30 : 24 })));
     });
     this.announceBounty(done, defId);
     this.refreshBounty();
@@ -1353,16 +1355,52 @@ export class RtBattleScene extends Phaser.Scene {
   // ---------- 裝備（D-091） ----------
   /** 撿到裝備：用種子產生數值、放進行囊、立刻存檔；稀有以上大字 */
   /** 等著合成一則「稀有裝備！」大字的（250ms 內撿到的） */
-  private rareQueue: { name: string; night: boolean; col: string; uniq?: boolean }[] = [];
+  private rareQueue: { name: string; night: boolean; col: string }[] = [];
   /** 250ms 內自動分解的普通裝（合成一則） */
   private salvageQ = { n: 0, dust: 0, name: '' };
+
+  /** 這一場第 itemId 件掉落的實際裝備（種子＝這一趟＋掉落序號，掉在地上時和撿起來時算出來是同一件） */
+  private gearFor(itemId: number, rarity: 1 | 2 | 3, ilvl: number, uq: number): RtGear {
+    return genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId, uniquePct: uq, uniquePool: uniquePoolOf(this.stageId) });
+  }
+  /** 地上哪幾件是獨特裝備（P3-b：掉下來就看得出來；線上版由伺服器擲，地上看不出來） */
+  private uniqueOnGround = new Set<number>();
+
+  /** 撿到獨特裝備的公告（P3-b）：橘色大字＋那條效果的說明＋一圈光 */
+  private announceUnique(g: RtGear): void {
+    const d = g.unique ? effectDef(g.unique, this.s.weapon ?? 'sword') : undefined;
+    if (!d) return;
+    const p = playerOf(this.s);
+    const px = this.sx(p.x);
+    const py = this.sy(p.y);
+    SFX.uniqueGet();
+    shockRing(this, px, py, UNIQUE_COLOR, 230, 620, 10);
+    shockRing(this, px, py, 0xffe0b0, 130, 420, 5);
+    sparks(this, px, py - 30, getSettings().lowFx ? 12 : 28, 'ember', 0xffb070, 620);
+    this.nightLight?.flash(px, py, 700 * this.k * 1.5, 1100);
+    const css = `#${UNIQUE_COLOR.toString(16).padStart(6, '0')}`;
+    const show = (): void => {
+      if (!this.scene.isActive()) return;
+      if (this.time.now < this.chapterUntil) { this.time.delayedCall(this.chapterUntil - this.time.now + 100, show); return; }
+      this.rareAt = this.time.now;
+      // 大字＝「獨特裝備！＋名字」；效果說明是跟在大字正下方的小字（另開一則大字的話，矮螢幕上會排隊、等第一則消失才出來）
+      const name = gearName(g);
+      const line = `「${d.name}」${d.desc}`;
+      const t = bigText(this, GAME_WIDTH / 2, 550, `${tr('unique.got')}\n${name}`, css, Math.min(44, Math.floor(660 / Math.max(8, name.length))), 2200, true);
+      const sub = this.add.text(t.x, t.y, line, { fontFamily: UI_FONT, fontSize: `${Math.min(27, Math.floor(690 / line.length))}px`, fontStyle: '700', color: '#ffe6c8', stroke: '#140a04', strokeThickness: 6 }).setOrigin(0.5, 0).setDepth(t.depth).setAlpha(0);
+      this.tweens.addCounter({ from: 0, to: 1, duration: 9000, onUpdate: (tw) => { if (!t.active) { sub.destroy(); tw.stop(); return; } sub.setPosition(t.x, t.y + t.height / 2 + 6).setAlpha(t.alpha); }, onComplete: () => sub.destroy() });
+    };
+    this.time.delayedCall(250, show);
+    this.time.delayedCall(2600, () => this.tipSoon('jg_tip_unique', tr('unique.tip'), css));
+  }
 
   private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number, uq = 0): void {
     if (!this.tracked) return;
     // 線上版（第 147 輪）：裝備由伺服器擲（loot.claim），本機擲的不放進行囊；伺服器的回來時 onlineSynced 公告
     if (import.meta.env.VITE_SERVER_URL) return;
     const p = playerOf(this.s);
-    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId, uniquePct: uq });
+    const g = this.gearFor(itemId, rarity, ilvl, uq);
+    this.uniqueOnGround.delete(itemId);
     // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理
     const r = addWithAutoSalvage(this.bagSt, g);
     if (!r) {
@@ -1398,24 +1436,25 @@ export class RtBattleScene extends Phaser.Scene {
     const icon = this.add.container(this.sx(p.x), this.sy(p.y) - 70, gearIcon(this, 0, 0, g.slot, rarity, rarity >= 3 ? 64 : 48)).setDepth(70);
     this.tweens.add({ targets: icon, y: icon.y - 90, duration: 900, ease: 'Cubic.Out' });
     this.tweens.add({ targets: icon, alpha: 0, delay: 700, duration: 400, onComplete: () => icon.destroy(true) });
-    if (rarity >= 3) {
+    if (g.unique) this.announceUnique(g);
+    else if (rarity >= 3) {
       SFX.perfect();
       // 同一刻撿到好幾件稀有（Boss 掉落）合成一則大字（第 39 輪：以前兩則「稀有裝備！」上下疊在一起）
       const q = this.rareQueue;
-      q.push({ name: gearName(g), night: !!g.night, col, uniq: !!g.unique });
+      q.push({ name: gearName(g), night: !!g.night, col });
       if (q.length === 1) {
         const flush = (): void => {
           // 幕名卡（含「番外　完」）播放中：等卡片收起再出，不然稀有大字壓在卡片上（第 58 輪）
           if (this.scene.isActive() && this.time.now < this.chapterUntil) { this.time.delayedCall(this.chapterUntil - this.time.now + 100, flush); return; }
-          const list = this.rareQueue.splice(0).sort((a, b) => Number(!!b.uniq) - Number(!!a.uniq)); // 獨特的排最前面（P3-a2）
+          const list = this.rareQueue.splice(0);
           if (!list.length || !this.scene.isActive()) return;
           this.rareAt = this.time.now;
           const f = list[0]!;
-          const head = f.uniq ? tr('unique.got') : f.night ? '深夜的稀有！' : '稀有裝備！';
+          const head = f.night ? '深夜的稀有！' : '稀有裝備！';
           const pair = list.slice(0, 2).map((x) => x.name).join('／'); // 名稱自己可能有「・霧語」，用斜線分開；兩件最長 27 字 → 縮字放得進 720
           // 第 77 輪：patient——360×640 主角下方被地區說明佔住時，以前照原位 560 整塊蓋住主角（荊棘谷討伐後撿到稀有）；稍等一下沒關係
           // 第 76 輪：兩件以上改 ≤30px、兩件名稱排同一行（3 行 44px 在 360×640 主角下方放不下、整塊蓋住主角）
-          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [pair, ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night && !f.uniq ? '#b8a8ff' : f.col, list.length > 1 ? Math.min(30, Math.floor(680 / pair.length)) : 44, 1200 + 400 * (Math.min(3, list.length) - 1), true);
+          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [pair, ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night ? '#b8a8ff' : f.col, list.length > 1 ? Math.min(30, Math.floor(680 / pair.length)) : 44, 1200 + 400 * (Math.min(3, list.length) - 1), true);
         };
         this.time.delayedCall(250, flush);
       }
@@ -3559,6 +3598,11 @@ export class RtBattleScene extends Phaser.Scene {
         // 掉落彈出（Q4）：同一個 tick 有怪倒下就從牠身上拋出來，不然原地往上彈一下
         const it = this.s.ground?.find((q) => q.id === e.item);
         const ld = this.lastDeath;
+        // 獨特裝備掉下來就認得出來（P3-b）：單機的裝備數值由這一趟的種子決定，先算出來；線上版由伺服器擲，這裡不知道
+        if (it && e.kind === 'gear' && e.uq && this.tracked && !import.meta.env.VITE_SERVER_URL && this.gearFor(e.item, e.rarity ?? 1, e.amount, e.uq).unique) {
+          this.uniqueOnGround.add(e.item);
+          SFX.uniqueDrop();
+        }
         if (it) {
           if (this.dropPop.size > 64) this.dropPop.clear();
           this.dropPop.set(e.item, ld && ld.tick === e.tick ? { fx: ld.x, fy: ld.y, at: this.time.now } : { fx: it.x, fy: it.y, at: this.time.now });
@@ -4155,8 +4199,10 @@ export class RtBattleScene extends Phaser.Scene {
         if (pt >= 1) {
           this.dropPop.delete(it.id);
           if (it.kind === 'gear' && iy > VIEW_TOP) {
-            shockRing(this, ix, this.sy(it.y) + 4, RARITY_COLOR[it.rarity ?? 1], it.rarity === 3 ? 70 : 44, 280, 4);
-            if ((it.rarity ?? 1) >= 3) sparks(this, ix, iy, 10, 'ember', RARITY_COLOR[3], 300);
+            const uqd = this.uniqueOnGround.has(it.id);
+            shockRing(this, ix, this.sy(it.y) + 4, uqd ? UNIQUE_COLOR : RARITY_COLOR[it.rarity ?? 1], uqd ? 120 : it.rarity === 3 ? 70 : 44, uqd ? 420 : 280, uqd ? 7 : 4);
+            if ((it.rarity ?? 1) >= 3) sparks(this, ix, iy, uqd ? 22 : 10, 'ember', uqd ? 0xffb070 : RARITY_COLOR[3], uqd ? 520 : 300);
+            if (uqd) this.nightLight?.flash(ix, this.sy(it.y), 500 * this.k * 1.5, 900);
           }
         } else {
           ix = this.sx(pop.fx + (it.x - pop.fx) * pt);
@@ -4164,7 +4210,7 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       const popping = !!pop && this.dropPop.has(it.id);
-      if (iy < VIEW_TOP - 60 || iy > VIEW_BOTTOM + 200) continue; // 光柱往上 150
+      if (iy < VIEW_TOP - 60 || iy > VIEW_BOTTOM + 290) continue; // 光柱往上 150（獨特 270）
       const k = this.k;
       g.fillStyle(0x000000, 0.35).fillEllipse(ix, this.sy(it.y) + 6, 26 * k * 2, 8 * k * 2);
       if (it.kind === 'gold') {
@@ -4174,8 +4220,21 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x7ac8ff, 0.9).fillCircle(ix, iy, 8).fillCircle(ix + 11, iy + 4, 6).fillCircle(ix - 10, iy + 5, 6);
       } else if (it.kind === 'gear') {
         // 裝備：稀有度顏色的劍形圖示；精良以上有光柱（design/20 B5）
-        const col = RARITY_COLOR[it.rarity ?? 1];
-        if ((it.rarity ?? 1) >= 2 && !popping) {
+        const uqd = this.uniqueOnGround.has(it.id);
+        const col = uqd ? UNIQUE_COLOR : RARITY_COLOR[it.rarity ?? 1];
+        if (uqd && !popping) {
+          // 獨特：更高更寬的橘色光柱＋白芯＋地上一圈轉動的光點＋柱頂一顆星（不只靠顏色分：形狀也不一樣）
+          const a = 0.5 + 0.14 * Math.sin(now / 160 + it.id);
+          g.fillStyle(col, a * 0.35).fillRect(ix - 26, iy - 230, 52, 230);
+          g.fillStyle(col, a).fillRect(ix - 11, iy - 260, 22, 260);
+          g.fillStyle(0xfff0d8, a * 0.9).fillRect(ix - 3, iy - 260, 6, 260);
+          for (let q = 0; q < 6; q++) {
+            const an = now / 420 + (q * Math.PI) / 3;
+            g.fillStyle(0xffd0a0, 0.9).fillCircle(ix + Math.cos(an) * 34, this.sy(it.y) + 4 + Math.sin(an) * 12, 3.5);
+          }
+          const sy0 = iy - 272;
+          g.fillStyle(0xfff0d8, 1).fillTriangle(ix, sy0 - 16, ix - 6, sy0, ix + 6, sy0).fillTriangle(ix, sy0 + 16, ix - 6, sy0, ix + 6, sy0).fillTriangle(ix - 16, sy0, ix, sy0 - 6, ix, sy0 + 6).fillTriangle(ix + 16, sy0, ix, sy0 - 6, ix, sy0 + 6);
+        } else if ((it.rarity ?? 1) >= 2 && !popping) {
           const a = (it.rarity === 3 ? 0.35 : 0.22) + 0.1 * Math.sin(now / 200 + it.id);
           g.fillStyle(col, a).fillRect(ix - 7, iy - 150, 14, 150);
           g.fillStyle(col, a * 0.5).fillRect(ix - 16, iy - 120, 32, 120);
