@@ -12,7 +12,7 @@ export const zhTW = {
   'auto.descOn': '自動施放：開（冷卻好、打得到就自己放）',
   'auto.descOff': '自動施放：關（要自己按）',
   'auto.descLocked': '這一招永遠手動：看準紅圈再按，才擋得到',
-  'auto.tip': '攻擊技能會自己放了！你只管走位和閃避（MENU→技能樹可以改回手動）',
+  'auto.tip': '攻擊技能和大招會自己放了！你只管走位和閃避（MENU→技能樹可以改回手動）',
   'bless.title': '燼火祝福',
   'bless.sub': '選一個——這趟冒險都有效（回營火休息或倒下就消散）',
   'bless.have': '身上：',

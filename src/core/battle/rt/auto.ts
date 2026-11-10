@@ -8,8 +8,13 @@ const DIR = 1000;
 
 /** 可以切成自動的技能欄（依判斷的優先順序：大招 → 範圍 → 單體 → 位移） */
 export const AUTO_SKILL_IDS: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'charge'];
-/** 預設：兩個輸出技自動；位移技（會把人帶走）與大招（要留給 Boss）預設手動，可以自己開 */
-export const AUTO_SKILL_DEFAULT: readonly string[] = ['heavy_slash', 'whirlwind'];
+/**
+ * 預設：兩個輸出技與大招自動（Jacky 11/10：「全部都不用自己點比較好」，D-344）；
+ * 位移欄（衝鋒／後躍／閃現）先維持手動——它會把人帶走，Jacky 決定整組換成適合自動的招（NEXT 的 P1-c），換好再一起開。
+ */
+export const AUTO_SKILL_DEFAULT: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash'];
+/** 預設值的版本：設定裡存的版本比這個舊，就換成新的預設（玩家之後自己改的照舊留著） */
+export const AUTO_SKILL_VERSION = 2;
 
 /** 讀進來的設定一律檢查；不是陣列（舊存檔沒有這一欄）＝預設 */
 export function cleanAutoSkills(raw: unknown): string[] {

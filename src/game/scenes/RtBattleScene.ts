@@ -5098,7 +5098,7 @@ export class RtBattleScene extends Phaser.Scene {
       // 長弓第一次（D-147）：教「保持距離」
       if (this.s.weapon === 'bow' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_bow', '長弓：站遠一點射！狼貼過來就按「後躍射擊」拉開距離', '#c8f0a0');
       if (this.s.weapon === 'staff' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_staff', '法杖：狼貼過來先按「冰霜新星」凍住，再拉開距離放星焰彈', '#dcc0ff');
-      if (ok && !this.bot && !this.menu) this.tipOnce('jg_tip_ult', `大招充滿了！按右下粉紅色「${ult.name}」`, '#ff9ae0');
+      if (ok && !this.bot && !this.menu && !s.autoSkills?.includes('blade_storm')) this.tipOnce('jg_tip_ult', `大招充滿了！按右下粉紅色「${ult.name}」`, '#ff9ae0');
       const now = this.time.now;
       this.discs.show(5, x, y, { r: R, fill: ok ? 0x5a1a3a : 0x2a1420, fillA: 0.95, lw: 5, stroke: 0x333344, strokeA: 1 });
       g.lineStyle(5, ok ? 0xff7ad0 : 0xa0507a, 1);

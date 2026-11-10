@@ -25,9 +25,9 @@ function arrange(s: BattleState, at: [number, number][]): Unit[] {
 }
 
 describe('技能自動施放（P1）', () => {
-  it('設定檢查：舊存檔沒有這一欄＝預設（兩個輸出技）；閃避與格擋反擊永遠不能自動', () => {
+  it('設定檢查：舊存檔沒有這一欄＝預設（兩個輸出技＋大招）；閃避與格擋反擊永遠不能自動', () => {
     expect(cleanAutoSkills(undefined).sort()).toEqual([...AUTO_SKILL_DEFAULT].sort());
-    expect(cleanAutoSkills(undefined).sort()).toEqual(['heavy_slash', 'whirlwind']);
+    expect(cleanAutoSkills(undefined).sort()).toEqual(['blade_storm', 'heavy_slash', 'whirlwind']);
     expect(cleanAutoSkills([])).toEqual([]);
     expect(cleanAutoSkills(['parry', 'dodge', 'heavy_slash', 'x', 7]).sort()).toEqual(['heavy_slash']);
     const s = mk('sword');

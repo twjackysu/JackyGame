@@ -1,7 +1,7 @@
 // 玩家設定（每台裝置一份，存在 localStorage；讀寫失敗時用預設值）。
 import { setMuted, setVolume } from '../audio/sfx';
 import { setMusicEnabled } from '../audio/music';
-import { AUTO_SKILL_DEFAULT, cleanAutoSkills } from '../core/battle/rt/auto';
+import { AUTO_SKILL_DEFAULT, AUTO_SKILL_VERSION, cleanAutoSkills } from '../core/battle/rt/auto';
 
 export interface Settings {
   /** 自動時機：攻擊固定 Good、防守固定成功（照顧輕度玩家，03 §戰鬥） */
@@ -20,10 +20,12 @@ export interface Settings {
   autoTipShown: boolean;
   /** 自動施放的技能欄（P1，D-342）；舊設定沒有這一欄＝預設（重斬、旋風斬那兩欄自動） */
   autoSkills: string[];
+  /** autoSkills 是照哪一版預設存的（D-344：預設改了，舊版存的要換成新預設） */
+  autoVer: number;
 }
 
 const KEY = 'jackygame.settings';
-const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, volume: 1, textSpeed: 'normal', autoTipShown: false, lowFx: false, vibrate: true, autoSkills: [...AUTO_SKILL_DEFAULT] };
+const DEFAULTS: Settings = { autoTiming: false, bgm: true, sfx: true, volume: 1, textSpeed: 'normal', autoTipShown: false, lowFx: false, vibrate: true, autoSkills: [...AUTO_SKILL_DEFAULT], autoVer: AUTO_SKILL_VERSION };
 let cache: Settings | null = null;
 
 export function getSettings(): Settings {
@@ -38,7 +40,10 @@ export function getSettings(): Settings {
   const ok: Record<string, unknown> = {};
   if (s && typeof s === 'object') for (const k of Object.keys(DEFAULTS) as (keyof Settings)[]) if (typeof s[k] === typeof DEFAULTS[k] && !(typeof s[k] === 'number' && !Number.isFinite(s[k]))) ok[k] = s[k];
   cache = { ...DEFAULTS, ...(ok as Partial<Settings>) };
-  cache.autoSkills = cleanAutoSkills(s && typeof s === 'object' ? s.autoSkills : undefined);
+  // 存的是舊版預設（或沒存過版本）→ 換成新的預設
+  const old = !s || typeof s !== 'object' || s.autoVer !== AUTO_SKILL_VERSION;
+  cache.autoSkills = cleanAutoSkills(old ? undefined : s.autoSkills);
+  cache.autoVer = AUTO_SKILL_VERSION;
   return cache;
 }
 
