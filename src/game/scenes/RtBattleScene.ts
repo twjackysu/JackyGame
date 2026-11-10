@@ -7,8 +7,9 @@ import { cdText, hudLine, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { activeHazards, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setEffects, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
-import { RARITY_COLOR, UNIQUE_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
+import { RARITY_COLOR, UNIQUE_COLOR, UNIQUE_IDS, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { uniquePoolOf } from '../../core/battle/rt/loot';
+import { openCodexPanel } from '../ui/codexPanel';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
 import { openMarketPanel } from '../ui/marketPanel';
@@ -2553,6 +2554,21 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** ☰「前世的記憶」（D-137）：重讀想起來的記憶；沒想起來的只寫在哪張地圖 */
+  /** 現在擁有的獨特效果（行囊＋身上；不另外存紀錄——畫面層不新增自己的存檔，D-357） */
+  private uniqueOwned(): string[] {
+    const have = [...this.bagSt.bag, ...Object.values(this.bagSt.equip)].map((g) => g?.unique);
+    return UNIQUE_IDS.filter((id) => have.includes(id));
+  }
+
+  private openCodex(): void {
+    this.menu?.destroy();
+    this.menu = openCodexPanel(this, this.s.weapon ?? 'sword', this.uniqueOwned(), this.stageId, () => {
+      this.menu?.destroy();
+      this.menu = null;
+      this.toggleMenu();
+    });
+  }
+
   private openMemoryBook(): void {
     this.menu?.destroy();
     this.menu = buildMemoryBook(this, () => {
@@ -2939,7 +2955,10 @@ export class RtBattleScene extends Phaser.Scene {
           this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: '' }));
         }, false, 150);
       } else mk(-110, this.botName ? '改成自己操作' : '看 Bot 示範', () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ? '' : 'normal' })));
-      mk(-30, `重新進入${this.mw}`, () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })));
+      // 效果圖鑑（P3-c）：正式地圖、自己玩的時候和「重新進入」排同一列
+      const codex = this.tracked && !this.botName;
+      mk(-30, `重新進入${this.mw}`, () => this.leave(() => this.scene.restart({ stage: this.stageId, seed: this.seed + 1, bot: this.botName ?? '' })), false, codex ? -165 : 0);
+      if (codex) mk(-30, tr('codex.menu', { n: this.uniqueOwned().length, max: UNIQUE_IDS.length }), () => this.openCodex(), false, 165);
       let y = 50;
       if (this.tracked && STAGES[this.stageId]?.bossZone?.fury) {
         this.furyButton(mk, items, y);

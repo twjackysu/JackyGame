@@ -30,6 +30,15 @@ export const zhTW = {
   'unique.got': '獨特裝備！',
   'unique.listLine': '裝備效果：{names}（穿著就有，不會消散）',
   'unique.tip': '獨特裝備：帶一條會改變打法的效果\n穿上就有（右上角橘框圖示），休息也不會消失',
+  'codex.title': '獨特效果圖鑑　{n}/{max}',
+  'codex.sub': '少數稀有裝備會帶一條；穿上就有，休息也不會消失',
+  'codex.item': '裝備名「{title}之…」',
+  'codex.has': '✔ 擁有中',
+  'codex.none': '還沒有',
+  'codex.from': '掉落：{maps}',
+  'codex.rates': '稀有裝備帶獨特效果的機率：精英 {elite}%・Boss {boss}%\n隱藏精英 {hidden}%・暴怒 Boss {fury}%（深夜各 +{night}%）',
+  'codex.rule': '每張圖第一次打倒 Boss 必得一件\n▶＝現在這張圖會掉・競技場不生效',
+  'codex.menu': '效果圖鑑 {n}/{max}',
   'bless.listClose': '點任何地方關閉',
 } as const;
 
