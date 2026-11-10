@@ -36,6 +36,74 @@ export class FieldFx {
     this.sc.tweens.addCounter({ from: 0, to: 1, duration: 170, onUpdate: (tw) => draw(tw.getValue() ?? 1), onComplete: () => g.destroy() });
   }
 
+  /**
+   * 重斬的刀光（第 166 輪）：以前和普攻一樣是一道細弧，凍結看分不出這一下比較重。
+   * 一片中間厚、兩端尖的月牙掃過去（外層武器色、內層白芯）、刀鋒前緣一道亮線，掃到底在正前方迸一圈衝擊＋碎光。純畫面。
+   */
+  cleave(wx: number, wy: number, ang: number, wr: number, deg: number, color: number, lite = false): void {
+    const g = this.sc.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
+    const cx = this.h.sx(wx);
+    const cy = this.h.sy(wy);
+    const r = wr * this.h.k() * 1.06;
+    const h = (deg / 2) * (Math.PI / 180);
+    const N = 14;
+    const crescent = (a0: number, a1: number, thick: number, rr: number): { x: number; y: number }[] => {
+      const out: { x: number; y: number }[] = [];
+      for (let i = 0; i <= N; i++) { const a = a0 + ((a1 - a0) * i) / N; out.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr }); }
+      for (let i = N; i >= 0; i--) { const a = a0 + ((a1 - a0) * i) / N; const ri = rr * (1 - thick * Math.sin((Math.PI * i) / N)); out.push({ x: cx + Math.cos(a) * ri, y: cy + Math.sin(a) * ri }); }
+      return out;
+    };
+    const draw = (t: number) => {
+      g.clear();
+      const sweep = Math.min(1, t * 2.4);
+      const a0 = ang - h;
+      const a1 = a0 + 2 * h * sweep;
+      const fade = 1 - t * t;
+      // 尾端跟著收：掃完之後月牙從起點那一側消失，看起來是「揮過去」不是「一片扇形閃一下」
+      const tail = a0 + 2 * h * Math.max(0, t * 1.5 - 0.5);
+      g.fillStyle(color, 0.55 * fade).fillPoints(crescent(tail, a1, 0.42, r), true);
+      g.fillStyle(0xffffff, 0.9 * fade).fillPoints(crescent(tail, a1, 0.16, r), true);
+      g.lineStyle(3, 0xffffff, 0.8 * fade).beginPath().arc(cx, cy, r * 1.04, tail, a1).strokePath();
+      if (sweep < 1) g.lineStyle(5, 0xffffff, 0.95).lineBetween(cx + Math.cos(a1) * r * 0.5, cy + Math.sin(a1) * r * 0.5, cx + Math.cos(a1) * r * 1.1, cy + Math.sin(a1) * r * 1.1);
+    };
+    draw(0);
+    this.sc.tweens.addCounter({ from: 0, to: 1, duration: 260, onUpdate: (tw) => draw(tw.getValue() ?? 1), onComplete: () => g.destroy() });
+    // 掃到正前方的那一刻：衝擊環＋往前噴的碎光
+    const fx = cx + Math.cos(ang) * r * 0.8;
+    const fy = cy + Math.sin(ang) * r * 0.8;
+    this.sc.time.delayedCall(55, () => {
+      shockRing(this.sc, fx, fy, color, r * 0.55, 240, 6);
+      if (!lite) sparks(this.sc, fx, fy, 10, 'spark', 0xfff2c8, 380);
+    });
+  }
+
+  /**
+   * 縛足（第 166 輪）：被縛足箭射中的怪腳下一圈往內收緊的繩環＋四個釘點。以前三支直線箭（穿雲／縛足／風障）長得一模一樣。純畫面。
+   * r＝怪的半徑（世界單位）
+   */
+  snare(wx: number, wy: number, wr: number, color = 0x8affc0): void {
+    const g = this.sc.add.graphics().setDepth(688);
+    const cx = this.h.sx(wx);
+    const cy = this.h.sy(wy);
+    const R = Math.max(26, wr * this.h.k() * 1.5);
+    const draw = (t: number) => {
+      g.clear();
+      const k = 1.9 - 0.9 * Math.min(1, t * 3.2); // 前三成時間從外面收緊
+      const a = t < 0.75 ? 1 : (1 - t) / 0.25;
+      g.lineStyle(4, 0x0a2a1a, 0.5 * a).strokeEllipse(cx, cy + 2, R * 2 * k, R * 1.1 * k);
+      g.lineStyle(3, color, 0.95 * a).strokeEllipse(cx, cy, R * 2 * k, R * 1.1 * k);
+      g.lineStyle(1.5, 0xffffff, 0.8 * a).strokeEllipse(cx, cy, R * 2 * k * 0.8, R * 1.1 * k * 0.8);
+      for (let q = 0; q < 4; q++) {
+        const an = (q / 4) * Math.PI * 2 + 0.6 + t * 1.2;
+        const px = cx + Math.cos(an) * R * k;
+        const py = cy + Math.sin(an) * R * 0.55 * k;
+        g.fillStyle(0xffffff, a).fillCircle(px, py, 3.5).lineStyle(2, color, 0.8 * a).lineBetween(px, py, cx + Math.cos(an) * R * k * 0.45, cy + Math.sin(an) * R * 0.55 * k * 0.45);
+      }
+    };
+    draw(0);
+    this.sc.tweens.addCounter({ from: 0, to: 1, duration: 720, onUpdate: (tw) => draw(tw.getValue() ?? 1), onComplete: () => g.destroy() });
+  }
+
   /** 從右上方夜空落下的星星（f：0 → 1，1＝落地）；墜星與守望者的召喚墜星共用 */
   fallingStar(g: Phaser.GameObjects.Graphics, vx: number, vy: number, f: number): void {
     if (f <= 0) return;

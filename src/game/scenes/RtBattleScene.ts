@@ -73,7 +73,7 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
-import { hitLook, skillBadge } from '../fx/hitTint';
+import { bowLineLook, hitLook, skillBadge } from '../fx/hitTint';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -3292,6 +3292,12 @@ export class RtBattleScene extends Phaser.Scene {
           this.dotNum.set(d.id, { t, at: this.time.now, sum: e.amount, skill: e.skill });
         } else
         floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : e.origin === 'dot' ? 22 : !toPlayer && e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult' ? 30 : 26, tier: toPlayer || e.origin === 'dot' ? undefined : e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult' ? 'ult' : e.crit ? 'crit' : undefined });
+        // 縛足箭射中（第 166 輪）：怪腳下一圈收緊的繩環，看得出「這隻被綁住了」
+        if (!toPlayer && e.origin === 'skill' && this.s.weapon === 'bow' && src?.side === 'player' && this.onScreen(d.x, d.y)) {
+          const sd = skillDef(this.s, e.skill);
+          const h0 = sd?.hits[0];
+          if (sd && h0 && bowLineLook(sd, h0) === 'snare') this.ffx.snare(d.x, d.y, d.r);
+        }
         if (!toPlayer && e.origin !== 'dot') {
           SFX.hitLight();
           // 命中火花（D-335）：朝被打飛的方向噴、顏色看元素／武器；打在身體中段而不是腳底
@@ -3854,7 +3860,7 @@ export class RtBattleScene extends Phaser.Scene {
       const big = h.mult >= 150;
       const hs = skillShape(this.s, a.id, h.shape); // 裝備的範圍特效（D-098）
       if (this.s.weapon === 'bow') {
-        this.rfx.bowFx(p.x, p.y, ang, hs, sk.role === 'ult', !!sk.dash, h.status?.id === 'break', h.status?.id === 'freeze', h.status?.id);
+        this.rfx.bowFx(p.x, p.y, ang, hs, sk.role === 'ult', !!sk.dash, h.status?.id === 'break', h.status?.id === 'freeze', h.status?.id, bowLineLook(sk, h));
         return;
       }
       if (this.s.weapon === 'staff') {
@@ -3897,7 +3903,10 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       else if (hs.type === 'sector') {
-        this.ffx.slash(p.x, p.y, ang, hs.r, hs.deg + 30, big ? 0xffd05a : 0x9fd8ff, big ? 10 : 7);
+        // 第 166 輪：沒帶狀態的重擊扇形（重斬）＝一片厚月牙掃過去；護盾招的那一刀（鐵壁斬）＝銀白，和護盾欄的圖示同色。以前兩招都是和普攻一樣的細金弧
+        if (sk.role === 'guard') this.ffx.slash(p.x, p.y, ang, hs.r, hs.deg + 30, 0xe4ecff, 12);
+        else if (big && !h.status) this.ffx.cleave(p.x, p.y, ang, hs.r, hs.deg + 20, 0xffc84a, getSettings().lowFx);
+        else this.ffx.slash(p.x, p.y, ang, hs.r, hs.deg + 30, big ? 0xffd05a : 0x9fd8ff, big ? 10 : 7);
         if (big) this.cameras.main.shake(80, 0.004);
       } else if (hs.type === 'line') {
         // 第 162 輪：可以邊走邊放的直線招（破空劍氣／流星劍氣，D-346）＝飛出去的月牙劍氣；站定劈地的（裂地斬…）照舊是地裂
@@ -4793,7 +4802,10 @@ export class RtBattleScene extends Phaser.Scene {
             top.fillStyle(0xe8fcff, 0.85).fillTriangle(sx0 + Math.cos(a) * 10, sy0 + Math.sin(a) * 10, sx0 - Math.sin(a) * 4, sy0 + Math.cos(a) * 4, sx0 + Math.sin(a) * 4, sy0 - Math.cos(a) * 4);
           }
         }
-        if (h && !stormed) {
+        // 第 166 輪：最後一段打完就不再畫範圍（以前收招期間一塊平平的藍一直留在地上，全自動連放時地上老是有色塊）
+        const lastAt = sk?.hits.length ? sk.hits[sk.hits.length - 1]!.atTick : -1;
+        const spent = lastAt >= 0 && s.tick - x.action.start > lastAt + 2;
+        if (h && !stormed && !spent) {
           // 環形箭雨：以前一大片 0.2 的藍甜甜圈蓋掉整個畫面 → 淡一點＋內外兩圈細線
           const bowRing = s.weapon === 'bow' && h.shape.type === 'ring';
           if (bowRing && h.shape.type === 'ring') {

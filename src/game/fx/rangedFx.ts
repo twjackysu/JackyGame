@@ -400,6 +400,23 @@ export class RangedFx {
     if (heavy) this.sc.cameras.main.shake(110, 0.005);
   }
 
+  /** 穿雲箭的音爆環（第 166 輪）：箭道上三圈垂直於箭的扁環，一圈比一圈大、依序炸開。純畫面 */
+  private sonicRings(x: number, y: number, ang: number, len: number, color: number): void {
+    const px = this.h.sx(x);
+    const py = this.h.sy(y) - 20;
+    const L = len * this.h.k();
+    const n = getSettings().lowFx ? 2 : 3;
+    for (let i = 0; i < n; i++) {
+      const f = 0.22 + (0.6 * i) / Math.max(1, n - 1);
+      const g = this.sc.add.graphics().setDepth(691).setBlendMode(Phaser.BlendModes.ADD).setPosition(px + Math.cos(ang) * L * f, py + Math.sin(ang) * L * f).setRotation(ang).setAlpha(0);
+      const R = 22 + i * 10;
+      g.lineStyle(7, color, 0.5).strokeEllipse(0, 0, R * 0.7, R * 2);
+      g.lineStyle(3, 0xffffff, 0.95).strokeEllipse(0, 0, R * 0.7, R * 2);
+      g.setScale(0.35);
+      this.sc.tweens.add({ targets: g, alpha: { from: 1, to: 0 }, scale: 1.7, delay: 25 + i * 45, duration: 300, ease: 'Cubic.easeOut', onStart: () => g.setAlpha(1), onComplete: () => g.destroy() });
+    }
+  }
+
   /**
    * 破甲的大招箭（天穹一矢、星河貫射最後一箭；第 70 輪，D-202）：以前只有一條細白線，凍結看很單薄。
    * 加一道和判定一樣寬的光帶（外粉內白、從箭道往外淡）、沿途三圈衝擊環、起點一團光。純畫面。
@@ -434,7 +451,7 @@ export class RangedFx {
   }
 
   /** 長弓技能的畫面（D-147）：直線＝光箭、扇形＝一排扇形的箭（後躍射擊多一道往後的殘影）、圓＝四面射出 */
-  bowFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, leap: boolean, brk: boolean, frost = false, st?: string): void {
+  bowFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, leap: boolean, brk: boolean, frost = false, st?: string, look?: 'pierce' | 'snare' | 'guard'): void {
     // 變化二的箭（D-149）：灼燒＝火箭、中毒＝綠毒箭、虛弱＝紫色殘月
     const elem = st === 'burn' ? 0xff8a3a : st === 'poison' ? 0xa8ff6a : st === 'weak' ? 0xc8a0ff : 0;
     if (hs.type === 'ring' || (ult && hs.type === 'circle')) {
@@ -443,7 +460,10 @@ export class RangedFx {
       return;
     }
     if (hs.type === 'line') {
-      this.arrowBeam(x, y, ang, hs.len, hs.width, ult ? 0xff9ae0 : brk ? 0xff8a6a : elem || 0x9fe0ff, ult);
+      // 第 166 輪：三支原招的直線箭各有長相——穿雲箭＝白金重箭＋沿途音爆環、縛足箭＝翠綠細箭（命中的怪腳下收緊繩環，場景畫）、風障射擊＝和風障同色的薄荷綠
+      const lc = look === 'pierce' ? 0xffe6a0 : look === 'snare' ? 0x8affc0 : look === 'guard' ? 0x9dffc8 : 0x9fe0ff;
+      this.arrowBeam(x, y, ang, hs.len, hs.width, ult ? 0xff9ae0 : brk ? 0xff8a6a : elem || lc, ult || look === 'pierce');
+      if (look === 'pierce' && !ult) this.sonicRings(x, y, ang, hs.len, lc);
       if (st === 'burn') {
         // 燼火箭：沿著箭道留下一串火星
         for (let i = 1; i <= 5; i++) {

@@ -1,7 +1,7 @@
 // 命中火花的顏色（第三期 Q2，D-335）：照「元素視覺語言」一眼分得出來——
 // 火＝橘紅、冰＝淺藍、毒＝紫綠、減速＝灰藍、破甲／虛弱＝淡紫；沒有元素就看武器（劍＝白金、弓＝青白、杖＝紫）。
 // 純畫面資料：不影響傷害。
-import type { SkillDefinition } from '../../core/battle/rt/types';
+import type { SkillDefinition, SkillHit } from '../../core/battle/rt/types';
 
 export interface HitLook {
   color: number;
@@ -68,4 +68,17 @@ export function skillBadge(slot: string, def: SkillDefinition | undefined): Badg
   const el = def?.guard || slot === 'charge' ? undefined : skillElement(def);
   const rim = (el && BADGE_STATUS[el]) || BADGE_SLOT[slot] || BADGE_SLOT.heavy_slash!;
   return { fill: shade(rim, 0.3), rim, dim: shade(rim, 0.6) };
+}
+
+/**
+ * 長弓直線箭的長相（第 166 輪）：原招的穿雲箭／縛足箭／風障射擊以前是同一條白線，連放時分不出誰是誰。
+ * 照資料分（不寫招式 id）：護盾招＝guard（和風障同色）、帶減速的＝snare（翠綠＋命中的怪腳下繩環）、沒帶狀態的重箭＝pierce（白金＋音爆環）。
+ * 大招與其他元素（火／毒／冰／破甲）照原本的顏色，回 undefined。
+ */
+export function bowLineLook(def: SkillDefinition, hit: Pick<SkillHit, 'mult' | 'status' | 'shape'>): 'pierce' | 'snare' | 'guard' | undefined {
+  if (hit.shape.type !== 'line' || def.role === 'ult') return undefined;
+  if (def.guard) return hit.status ? undefined : 'guard';
+  if (hit.status?.id === 'slow') return 'snare';
+  if (!hit.status && hit.mult >= 150) return 'pierce';
+  return undefined;
 }
