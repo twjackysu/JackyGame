@@ -170,6 +170,9 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   comet_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xc8e0ff },
   eclipse_wolf: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0x7a5aff },
 };
+/** 掉落物從怪身上拋到落點的時間（毫秒，要比撿取延遲 0.3 秒短）與拋物線高度（px） */
+const DROP_POP_MS = 280;
+const DROP_POP_LIFT = 64;
 const HINT_KEY = 'jg_rt_hint_seen';
 /**
  * 第 68 輪：每次進圖都可能重講的說明，只講前 times 次（`key` 記次數，呼叫一次算一次）；讀不到 localStorage 就照講。
@@ -288,6 +291,11 @@ export class RtBattleScene extends Phaser.Scene {
   private flashUntil = new Map<number, number>();
   /** 最後一次被玩家打到時的方向（倒下往哪邊倒，純畫面） */
   private lastHitDx = new Map<number, number>();
+  /** 掉落物彈出（Q4，純畫面）：剛掉下來的東西從倒下的怪身上拋到落點；at＝開始時間 */
+  private dropPop = new Map<number, { fx: number; fy: number; at: number }>();
+  private lastDeath: { x: number; y: number; tick: number } | null = null;
+  /** 血條扣血殘影（Q6，純畫面）：每個單位「畫面上還沒追上的血量比例」 */
+  private hpGhost = new Map<number, number>();
   /** 命中停頓（hit-stop）剩餘毫秒：期間不推進模擬 */
   private hitStop = 0;
   /** Boss 倒下的慢動作（第 29 輪）：剩餘毫秒，期間戰鬥以 0.3 倍速前進 */
@@ -541,6 +549,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.sprites.clear();
     this.flashUntil.clear();
     this.lastHitDx.clear();
+    this.dropPop.clear();
+    this.hpGhost.clear();
+    this.lastDeath = null;
     this.fxDone.clear();
     this.hitStop = 0;
     this.slowMs = 0;
@@ -3119,6 +3130,7 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'death') {
         const d = u(e.id);
         if (d && d.side === 'enemy') {
+          this.lastDeath = { x: d.x, y: d.y, tick: e.tick };
           SFX.hitHeavy();
           sparks(this, this.sx(d.x), this.sy(d.y), 18, 'spark', 0xffd27a, 420);
           this.nightLight?.flash(this.sx(d.x), this.sy(d.y), (ENEMIES[d.defId]?.boss ? 520 : 220) * this.k * 1.5, ENEMIES[d.defId]?.boss ? 1400 : 420);
@@ -3309,6 +3321,14 @@ export class RtBattleScene extends Phaser.Scene {
       else if (e.type === 'summon') {
         const b = u(e.id);
         if (b) shockRing(this, this.sx(b.x), this.sy(b.y), 0xb080ff, 140, 400, 5);
+      } else if (e.type === 'drop') {
+        // 掉落彈出（Q4）：同一個 tick 有怪倒下就從牠身上拋出來，不然原地往上彈一下
+        const it = this.s.ground?.find((q) => q.id === e.item);
+        const ld = this.lastDeath;
+        if (it) {
+          if (this.dropPop.size > 64) this.dropPop.clear();
+          this.dropPop.set(e.item, ld && ld.tick === e.tick ? { fx: ld.x, fy: ld.y, at: this.time.now } : { fx: it.x, fy: it.y, at: this.time.now });
+        }
       } else if (e.type === 'despawn') {
         const d = u(e.id);
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 8, 'ember', 0x8a7aa8, 400);
@@ -3471,6 +3491,16 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 受擊位移（只在畫面上，不影響模擬座標） */
+  /** 血條殘影：回傳這一幀白色殘影畫到哪（≥ cur）；扣血後先停一下再追上，補血直接跟上 */
+  private ghostHp(id: number, cur: number): number {
+    const g0 = this.hpGhost.get(id);
+    if (g0 === undefined || g0 <= cur) { this.hpGhost.set(id, cur); return cur; }
+    const dt = Math.min(50, this.game.loop.delta);
+    const g1 = Math.max(cur, g0 - Math.max(0.0006 * dt, (g0 - cur) * dt * 0.006));
+    this.hpGhost.set(id, g1);
+    return g1;
+  }
+
   /** 受擊反應（純畫面）：往被打的方向退一下再滑回來＋繞著腳後仰；strong（暴擊／反擊）退得更遠、仰得更大、久一點（D-335） */
   private knock(id: number, dx: number, dy: number, px: number, strong = false): void {
     const sp = this.sprites.get(id);
@@ -3874,9 +3904,25 @@ export class RtBattleScene extends Phaser.Scene {
     this.drawVents(this.frostG, now);
     // 地面掉落：金幣（金色閃光）、粉塵（藍點）、結晶（紫菱形）、藥水（紅瓶）；上下浮動
     for (const it of s.ground ?? []) {
-      const ix = this.sx(it.x);
+      let ix = this.sx(it.x);
       if (ix < -60 || ix > GAME_WIDTH + 60) continue;
-      const iy = this.sy(it.y) - 6 - 4 * Math.sin(now / 260 + it.id);
+      let iy = this.sy(it.y) - 6 - 4 * Math.sin(now / 260 + it.id);
+      // 剛掉下來（Q4）：0.28 秒內從怪身上拋物線飛到落點；落地時裝備亮一圈稀有度顏色的環
+      const pop = this.dropPop.get(it.id);
+      if (pop) {
+        const pt = (now - pop.at) / DROP_POP_MS;
+        if (pt >= 1) {
+          this.dropPop.delete(it.id);
+          if (it.kind === 'gear' && iy > VIEW_TOP) {
+            shockRing(this, ix, this.sy(it.y) + 4, RARITY_COLOR[it.rarity ?? 1], it.rarity === 3 ? 70 : 44, 280, 4);
+            if ((it.rarity ?? 1) >= 3) sparks(this, ix, iy, 10, 'ember', RARITY_COLOR[3], 300);
+          }
+        } else {
+          ix = this.sx(pop.fx + (it.x - pop.fx) * pt);
+          iy = this.sy(pop.fy + (it.y - pop.fy) * pt) - 6 - DROP_POP_LIFT * 4 * pt * (1 - pt);
+        }
+      }
+      const popping = !!pop && this.dropPop.has(it.id);
       if (iy < VIEW_TOP - 60 || iy > VIEW_BOTTOM + 200) continue; // 光柱往上 150
       const k = this.k;
       g.fillStyle(0x000000, 0.35).fillEllipse(ix, this.sy(it.y) + 6, 26 * k * 2, 8 * k * 2);
@@ -3888,7 +3934,7 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (it.kind === 'gear') {
         // 裝備：稀有度顏色的劍形圖示；精良以上有光柱（design/20 B5）
         const col = RARITY_COLOR[it.rarity ?? 1];
-        if ((it.rarity ?? 1) >= 2) {
+        if ((it.rarity ?? 1) >= 2 && !popping) {
           const a = (it.rarity === 3 ? 0.35 : 0.22) + 0.1 * Math.sin(now / 200 + it.id);
           g.fillStyle(col, a).fillRect(ix - 7, iy - 150, 14, 150);
           g.fillStyle(col, a * 0.5).fillRect(ix - 16, iy - 120, 32, 120);
@@ -4296,7 +4342,10 @@ export class RtBattleScene extends Phaser.Scene {
       if (!boss) {
         const w = Math.max(56, r * 2.4);
         top.fillStyle(0x000000, 0.7).fillRect(px - w / 2, headY - 14, w, 8);
-        top.fillStyle(isP ? 0x7dffb0 : 0xff6a6a, 1).fillRect(px - w / 2, headY - 14, w * (x.hp / x.maxHp), 8);
+        const hr = Math.max(0, x.hp / x.maxHp);
+        const gr = this.ghostHp(x.id, hr);
+        if (gr > hr) top.fillStyle(isP ? 0xff8a8a : 0xffffff, 0.9).fillRect(px - w / 2 + w * hr, headY - 14, w * (gr - hr), 8);
+        top.fillStyle(isP ? 0x7dffb0 : 0xff6a6a, 1).fillRect(px - w / 2, headY - 14, w * hr, 8);
       }
       // 鎖定
       if (!isP && playerU.targetId === x.id) {
@@ -4799,7 +4848,10 @@ export class RtBattleScene extends Phaser.Scene {
       const w = 600;
       const x0 = (GAME_WIDTH - w) / 2;
       g.fillStyle(0x000000, 0.75).fillRect(x0 - 3, 113, w + 6, 20);
-      g.fillStyle(boss.phase === 2 ? 0xff5a3a : 0xc04a8a, 1).fillRect(x0, 116, w * (boss.hp / boss.maxHp), 14);
+      const bhr = Math.max(0, boss.hp / boss.maxHp);
+      const bgr = this.ghostHp(boss.id, bhr);
+      if (bgr > bhr) g.fillStyle(0xffffff, 0.9).fillRect(x0 + w * bhr, 116, w * (bgr - bhr), 14);
+      g.fillStyle(boss.phase === 2 ? 0xff5a3a : 0xc04a8a, 1).fillRect(x0, 116, w * bhr, 14);
       g.lineStyle(2, 0xffb0d0, 0.9).strokeRect(x0 - 3, 113, w + 6, 20);
       g.lineStyle(2, 0xffffff, 0.6).lineBetween(x0 + w * 0.5, 113, x0 + w * 0.5, 133);
     }
