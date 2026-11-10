@@ -12,10 +12,18 @@
 | ID | 子項 | 驗收 | 狀態 |
 |---|---|---|---|
 | P1-c0 | 大招預設自動＋設定版本遷移 | 測試 | **verified**（19:35，`tests/settings-auto-migrate.test.ts`） |
-| **P1-c1** | **第 4 欄（`parry`）三把武器 × 三種打法共 9 招，換成適合自動的招**（欄位 id 不改：存檔、技能點、裝備特效、按鍵順序都靠它）。方向（D-344）：「冷卻好、範圍內有敵人，放了就不虧」——沒有時機窗口；建議做成**攻守一體**（用原本反擊的形狀打一下＋給自己短時間護盾／減傷，`SkillDefinition` 加 `selfStatus`，護盾狀態引擎已經有），保留這一欄「保命」的定位。引擎的 `block` 機制留著（舊重播、敵人）但玩家招式不再用。**一起要改**：`SKILL_TREE` 的 parry 說明與 mod（blockTicks 沒用了）、裝備特效 `block`（舊裝備上的要換算成有作用的，例如護盾量或傷害；`genGear` 不再擲）、通關 Bot 的 `parries`（改成會用新招）、格擋教學提示、`hitTint`／音效、`auto.ts`（新招的時機：有敵人在範圍內就放；被預告鎖定時優先放）、Wiki、PvP 模擬冒險者與相剋表 | 每招行為測試；**三把武器 campaign Bot 仍能通關**（少了格擋的減傷，護盾量用 Bot 調）；PvP 天梯平衡測試；舊存檔／舊裝備不壞；未打完的舊 PvP 對局要能結算（查 D-338 的相容做法）；截圖每招 | **todo ← 下一輪從這裡開始** |
-| P1-c2 | **第 3 欄（`charge`）9 招（衝鋒／後躍射擊／閃現與變化）換成不會把人帶走的招**（Jacky 說「看要不要」——我的判斷是要換：自動位移等於替玩家走位，手動又違反「不用自己點」）。方向：不位移的遠距／標記／控場招（例：劍＝直線劍氣＋減速、弓＝縛足箭、杖＝連鎖閃電），role 改 `single`／`aoe`，不帶 `dash`。**一起要改**：裝備特效 `dist`（同上換算）、Bot 的 `backLeap`／衝鋒規則與 PvP 的 `kiteDir`、長弓／法杖的教學提示（「按後躍射擊拉開距離」）、Wiki、`SKILL_TREE` 的 charge（cd＋dist） | 同上 | todo（P1-c1 之後；可以分兩輪） |
-| P1-c3 | 兩欄換完：`AUTO_SKILL_IDS`／預設＝五欄全自動（`AUTO_SKILL_VERSION` +1），技能樹的「手動（鎖）」拿掉 | 測試 | todo |
-| P1-d | **戰鬥畫面不再留一大塊技能鍵**：技能自動後右下角只留**閃避**（大）與**藥水**；五個技能改成一排小的冷卻圖示（看得到在轉、放的時候亮一下、大招看得到 MP），不佔拇指區；玩家把某招切回手動時，那一招才變回可按的鍵。操作設定面板（拖曳位置、鍵盤 1～4）、左手模式、營火旁捷徑列（`fireRowLayout` 會避開按鈕）、教學提示裡「按右下…」的字都要跟著改 | 390／360 寬截圖前後對照；手動模式的鍵還按得到；桌機鍵盤照舊 | todo（可以先於 P1-c1 做——不依賴換招；先做哪個看哪個一輪做得完） |
+| P1-c1 | 第 4 欄（`parry`）9 招換成攻守一體（護盾＋打一下） | 每招行為測試、campaign、PvP 平衡、舊裝備、截圖 | **verified**（第 160 輪，D-345；`tests/rt-guard.test.ts`、`docs/screenshots/p1c1-guard-skills.jpg`；護盾量手感等 Jacky 實機） |
+| **P1-c2** | **第 3 欄（`charge`）9 招換成不位移的遠距／控場招** | 同上 | **in_progress ← 下一輪從這裡開始**：設計與接線都寫好了，存在 `docs/wip/p1c2-charge-slot.patch`（`git apply` 就回來，含 9 招、裝備「距離」併進範圍、Bot、設定版本 4＝P1-c3、文字、遠程 Bot 在 PvE 用走的拉開）。**PvE 已過**（campaign 劍／弓／杖 24.2／24.8／13.6 分鐘）；**卡在 PvP 平衡**：`rt-pvp-balance` 弓對劍 0–20、弓對杖 1–19、杖對劍 19–1（少了後躍／閃現／衝鋒，遠程甩不開、近戰追不上，結果一面倒；只調傷害與減速秒數會整個翻盤＝刀口）。要結構性的解法，見下面「第 160 輪注意」 |
+| P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | todo（已包含在 P1-c2 的 patch 裡，一起上） |
+| P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
+
+**第 160 輪注意（P1-c／P1-d）**：
+- **P1-c2 的 PvP**（先 `git apply docs/wip/p1c2-charge-slot.patch`，再 `PVP_PROBE=1 npx vitest run tests/rt-pvp-balance.test.ts` 看三組對戰的勝場，patch 裡已經加了這個開關）：試過「縛足箭 160%＋減速 3.5 秒、落雷 120%」→ 弓對杖從 1–19 翻成 20–0、弓對劍還是 0–20。方向候選：①PvP 的遠程 Bot 走位（`kiteDir`）現在只在普攻冷卻時走，少了後躍後應該「被近身就一直退、放縛足箭再射」；②第 3 欄在競技場給近戰一個追擊手段、給遠程一個脫身手段（例如縛足箭在 PvP 改成定身 0.8 秒，`pvpCc` 有遞減）；③調 `pvp.ts` 的武器別修正。也要重跑 `pvp-ladder-balance`（patch 上去後好裝的分數 1286，門檻 1343）。**做不出平衡就先讓競技場沿用舊的位移招**（`s.pvp` 時 `skillDef` 回舊定義）是保底方案，要記 DECISIONS。
+- patch 上去後還有約 20 個測試是「名字／位移距離」的舊斷言（rt-bow、rt-staff、rt-variants、rt-gear、rt-auto-skill 的位移技、settings-auto-migrate、rt-multi、rt-p5、rt-skills、rt-battle 的拉怪判斷）要改；golden hash 要重產。
+- 第 4 欄的護盾：`SkillDefinition.guard { hpPct, ticks }`，`startSkill` 裡直接給（事件 `guard`）；`blockTicks` 修正＝護盾量 +5%／點（`GUARD_PCT_PER_POINT`）。護盾量是用「只開自動、不閃不喝水」的腳本調的：長劍 12／18／6%、長弓 9／13／6%、法杖 12／7／9%（原招／變化／變化二）——再高的話（14～22%）不閃的玩家連精英群都穩過，太強。
+- 伺服器打怪速度上限改成每分鐘 48、開場 14（`src/server/handlers/loot.ts`）；之後祝福／獨特裝備讓清怪更快時，`tests/loot-kill-cap.test.ts` 會先紅，再調。
+- 小圖示排在 `RtBattleScene.btnPos／btnR` 的 `compactList()`；自動清單一變就 `makeButtons()` 重建文字。競技場（`PvpScene`）沒有自動施放，按鍵照舊。
+- 截圖腳本 `screenshots/guard.mjs`（沒進 git）：進霧語森林、把主角放到最近的狼旁邊、等 `guard` 事件後第 N tick 凍結截圖；`FULL=1` 拍整個畫面，否則裁主角周圍；第二個參數給 `parry`／`parry:b` 換打法、`ONE` 只留兩欄自動。
 
 ## ★★★ 第 158 輪起：Jacky 核准的三項玩法 P1～P3（第三期主軸；排在 Q 清單與剩下的 RF 前面）
 > 11/10 17:41 Jacky 核准：自動施放開關、燼火祝福（探索中三選一）、獨特效果裝備。三項共用同一池「會改變打法的效果」。每個子項一輪做得完、做完能 build 能通關；每個小樣做完在 FOR_JACKY 寫去哪裡試。外部審查「不要做局內三選一」這一點 Jacky 已決定不採納。

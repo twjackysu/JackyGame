@@ -1,0 +1,400 @@
+diff --git a/src/core/battle/rt/auto.ts b/src/core/battle/rt/auto.ts
+index 96dbbbd..ab966a5 100644
+--- a/src/core/battle/rt/auto.ts
++++ b/src/core/battle/rt/auto.ts
+@@ -10,11 +10,11 @@ const DIR = 1000;
+ export const AUTO_SKILL_IDS: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'parry', 'charge'];
+ /**
+  * 預設：兩個輸出技與大招自動（Jacky 11/10：「全部都不用自己點比較好」，D-344）；
+- * 第 4 欄換成攻守一體後也預設自動（D-345，版本 3）；位移欄（衝鋒／後躍／閃現）先維持手動——它會把人帶走，Jacky 決定整組換成適合自動的招（NEXT 的 P1-c），換好再一起開。
++ * 第 4 欄換成攻守一體（D-345，版本 3）、第 3 欄換成不位移的遠距／控場招（D-346，版本 4）後，五欄全部預設自動。
+  */
+-export const AUTO_SKILL_DEFAULT: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'parry'];
++export const AUTO_SKILL_DEFAULT: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'parry', 'charge'];
+ /** 預設值的版本：設定裡存的版本比這個舊，就換成新的預設（玩家之後自己改的照舊留著） */
+-export const AUTO_SKILL_VERSION = 3;
++export const AUTO_SKILL_VERSION = 4;
+ 
+ /** 讀進來的設定一律檢查；不是陣列（舊存檔沒有這一欄）＝預設 */
+ export function cleanAutoSkills(raw: unknown): string[] {
+diff --git a/src/core/battle/rt/data.ts b/src/core/battle/rt/data.ts
+index 221ab02..04f23a5 100644
+--- a/src/core/battle/rt/data.ts
++++ b/src/core/battle/rt/data.ts
+@@ -13,11 +13,10 @@ export const SKILLS: Record<string, SkillDefinition> = {
+     id: 'whirlwind', name: '旋風斬', cooldownTicks: sec(8), castTicks: sec(0.9), moveFactor: 0.7, role: 'aoe', useRange: u(2.2),
+     hits: [0, 1, 2].map((k) => ({ atTick: sec(0.3) * (k + 1) - 1, shape: { type: 'circle' as const, r: u(2.2) }, mult: 80 })),
+   },
+-  // 衝鋒：7s、施放 0.3s、直線 4／寬 1.2、140%、命中減速；同敵一次施放最多受傷一次
++  // 破空劍氣（D-346，取代衝鋒）：7s、施放 0.4s 可邊走；往前劈出 5 格直線劍氣 150%＋減速 1.5 秒。不位移
+   charge: {
+-    id: 'charge', name: '衝鋒', cooldownTicks: sec(7), castTicks: sec(0.3), moveFactor: 0, role: 'gap', useRange: u(4.5),
+-    dash: { fromTick: 0, ticks: sec(0.3), distance: u(4) },
+-    hits: [0, 3, 6].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 140, oncePerTarget: true, status: { id: 'slow' as const, ticks: sec(1) } })),
++    id: 'charge', name: '破空劍氣', cooldownTicks: sec(7), castTicks: sec(0.4), moveFactor: 0.7, role: 'single', useRange: u(5),
++    hits: [{ atTick: 4, shape: { type: 'line', len: u(5), width: u(1.2) }, mult: 150, status: { id: 'slow', ticks: sec(1.5) } }],
+   },
+   // 鐵壁斬（D-345，取代格擋反擊）：8s、施放 0.5s 可邊走；先架起護盾（最大 HP 12%、4 秒），再往前揮一刀 170%（前扇形 2）。沒有時機窗口
+   parry: {
+@@ -51,11 +50,10 @@ export const BOW_SKILLS: Record<string, SkillDefinition> = {
+     id: 'whirlwind', name: '散射', cooldownTicks: sec(7), castTicks: sec(0.75), moveFactor: 0.5, role: 'aoe', useRange: u(4),
+     hits: [0, 1, 2].map((k) => ({ atTick: sec(0.25) * (k + 1) - 1, shape: { type: 'sector' as const, r: u(4.5), deg: 70 }, mult: 75 })),
+   },
+-  // 後躍射擊：先對前方 3 格扇形射一箭 130%＋減速 2 秒，再往後跳 3.5 格；冷卻 6s
++  // 縛足箭（D-346，取代後躍射擊）：6s；7 格直線 130%＋減速 2.5 秒。不位移
+   charge: {
+-    id: 'charge', name: '後躍射擊', cooldownTicks: sec(6), castTicks: sec(0.4), moveFactor: 0, role: 'gap', useRange: u(2.5),
+-    dash: { fromTick: 2, ticks: sec(0.25), distance: -u(3.5) },
+-    hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 90 }, mult: 130, status: { id: 'slow', ticks: sec(2) } }],
++    id: 'charge', name: '縛足箭', cooldownTicks: sec(6), castTicks: sec(0.4), moveFactor: 0.7, role: 'single', useRange: u(7),
++    hits: [{ atTick: 4, shape: { type: 'line', len: u(7), width: u(1.0) }, mult: 130, status: { id: 'slow', ticks: sec(2.5) } }],
+   },
+   // 風障射擊（D-345，取代見切射擊）：8s；風障護盾（最大 HP 9%、4 秒）＋6 格直線 190%
+   parry: {
+@@ -84,12 +82,11 @@ export const BOW_VARIANTS: Record<string, SkillDefinition & { variantName: strin
+     cooldownTicks: sec(9), castTicks: sec(1.2), moveFactor: 1.0, role: 'aoe', useRange: u(2.8),
+     hits: [0, 1, 2, 3].map((k) => ({ atTick: sec(0.3) * (k + 1) - 1, shape: { type: 'circle' as const, r: u(3) }, mult: 60 })),
+   },
+-  // 霜箭後躍：射一箭 110%＋冰凍 1.2 秒（Boss 改減速），往後跳 4 格；冷卻 8s
++  // 霜箭（D-346，取代霜箭後躍）：8s；前方 4 格扇形 110%＋冰凍 1.2 秒（Boss 改減速）
+   charge: {
+-    id: 'charge', name: '霜箭後躍', variantName: '霜箭後躍', desc: '霜箭 110%＋冰凍 1.2 秒（Boss 減速），往後跳 4 格；冷卻 8 秒',
+-    cooldownTicks: sec(8), castTicks: sec(0.45), moveFactor: 0, role: 'gap', useRange: u(2.5),
+-    dash: { fromTick: 2, ticks: sec(0.28), distance: -u(4) },
+-    hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 100 }, mult: 110, status: { id: 'freeze', ticks: sec(1.2) } }],
++    id: 'charge', name: '霜箭', variantName: '霜箭', desc: '前方 4 格扇形霜箭 110%＋冰凍 1.2 秒（Boss 減速）；冷卻 8 秒',
++    cooldownTicks: sec(8), castTicks: sec(0.4), moveFactor: 0.7, role: 'aoe', useRange: u(4),
++    hits: [{ atTick: 4, shape: { type: 'sector', r: u(4), deg: 100 }, mult: 110, status: { id: 'freeze', ticks: sec(1.2) } }],
+   },
+   // 流光環（D-345，取代流光見切）：10s；護盾 13%、5 秒＋四面 2.6 格 140%＋減速 2 秒
+   parry: {
+@@ -123,12 +120,11 @@ export const BOW_VARIANTS_B: Record<string, SkillDefinition & { variantName: str
+     cooldownTicks: sec(8), castTicks: sec(0.8), moveFactor: 0.4, role: 'aoe', useRange: u(4.5),
+     hits: [0, 1].map((k) => ({ atTick: sec(0.4) * (k + 1) - 1, shape: { type: 'ring' as const, rIn: u(2), rOut: u(5) }, mult: 110, status: { id: 'slow' as const, ticks: sec(1.5) } })),
+   },
+-  // 蝕毒後躍：射一箭 100%＋中毒 5 秒（每秒 20%，可疊），往後跳 3.5 格；冷卻 5s
++  // 蝕毒箭（D-346，取代蝕毒後躍）：5s；6 格直線 100%＋中毒 5 秒（每秒 20%，可疊）
+   charge: {
+-    id: 'charge', name: '蝕毒後躍', variantName: '蝕毒後躍', desc: '毒箭 100%＋「中毒」5 秒（每秒 20%，可疊 5 層），往後跳 3.5 格；冷卻 5 秒',
+-    cooldownTicks: sec(5), castTicks: sec(0.4), moveFactor: 0, role: 'gap', useRange: u(2.5),
+-    dash: { fromTick: 2, ticks: sec(0.25), distance: -u(3.5) },
+-    hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 90 }, mult: 100, status: { id: 'poison', ticks: sec(5), powerPct: 20 } }],
++    id: 'charge', name: '蝕毒箭', variantName: '蝕毒箭', desc: '6 格直線毒箭 100%＋「中毒」5 秒（每秒 20%，可疊 5 層）；冷卻 5 秒',
++    cooldownTicks: sec(5), castTicks: sec(0.4), moveFactor: 0.7, role: 'single', useRange: u(6),
++    hits: [{ atTick: 4, shape: { type: 'line', len: u(6), width: u(1.0) }, mult: 100, status: { id: 'poison', ticks: sec(5), powerPct: 20 } }],
+   },
+   // 殘月箭（D-345，取代殘月見切）：8s；護盾 6%、4 秒＋前方 4.5 格大扇形 180%＋虛弱 4 秒
+   parry: {
+@@ -150,7 +146,7 @@ export const BOW_VARIANTS_B: Record<string, SkillDefinition & { variantName: str
+ export const SWORD_DESC: Record<string, string> = {
+   heavy_slash: '前方 90° 扇形 2 格重擊 180%；冷卻 4 秒',
+   whirlwind: '身邊 2.2 格旋轉三段（每段 80%），可以邊轉邊走；冷卻 8 秒',
+-  charge: '往前衝 4 格，路上的敵人 140%＋減速 1 秒；冷卻 7 秒',
++  charge: '往前劈出 5 格直線劍氣 150%＋減速 1.5 秒；冷卻 7 秒',
+   parry: '護盾（最大 HP 12%）4 秒，同時往前揮一刀 170%；冷卻 8 秒',
+   blade_storm: '身邊 3 格旋轉 8 段＋最後一擊，共 800%，可以邊轉邊走；40 MP',
+ };
+@@ -158,7 +154,7 @@ export const SWORD_DESC: Record<string, string> = {
+ export const BOW_DESC: Record<string, string> = {
+   heavy_slash: '往前射出 7 格穿透箭，整排 200%；冷卻 4 秒',
+   whirlwind: '前方 70° 扇形三輪齊射（每輪 75%），射的時候能慢慢走；冷卻 7 秒',
+-  charge: '對近身的敵人射一箭 130%＋減速，同時往後跳 3.5 格；冷卻 6 秒',
++  charge: '7 格直線縛足箭 130%＋減速 2.5 秒；冷卻 6 秒',
+   parry: '風障護盾（最大 HP 9%）4 秒，射出 6 格直線 190%；冷卻 8 秒',
+   blade_storm: '瞄準 0.5 秒後射出 9 格星光，6 段共 660%＋破甲；40 MP',
+ };
+@@ -180,15 +176,11 @@ export const SKILL_VARIANTS: Record<string, SkillDefinition & { variantName: str
+     cooldownTicks: sec(9), castTicks: sec(1.8), moveFactor: 1.0, role: 'aoe', useRange: u(1.8),
+     hits: [0, 1, 2, 3, 4, 5].map((k) => ({ atTick: sec(0.3) * (k + 1) - 1, shape: { type: 'circle' as const, r: u(1.8) }, mult: 55 })),
+   },
+-  // 流星衝：衝 6 格、路上 120%＋減速，衝到底再爆一圈 90%；冷卻 8s
++  // 流星劍氣（D-346，取代流星衝）：8s；6.5 格寬劍氣兩段各 95%＋減速 1.5 秒
+   charge: {
+-    id: 'charge', name: '流星衝', variantName: '流星衝', desc: '衝 6 格、路上 120%＋減速，落地再爆一圈 90%；冷卻 8 秒',
+-    cooldownTicks: sec(8), castTicks: sec(0.5), moveFactor: 0, role: 'gap', useRange: u(6.5),
+-    dash: { fromTick: 0, ticks: sec(0.4), distance: u(6) },
+-    hits: [
+-      ...[0, 4, 8].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.1) }, mult: 120, oncePerTarget: true, status: { id: 'slow' as const, ticks: sec(1.5) } })),
+-      { atTick: sec(0.4) + 2, shape: { type: 'circle' as const, r: u(1.8) }, mult: 90 },
+-    ],
++    id: 'charge', name: '流星劍氣', variantName: '流星劍氣', desc: '6.5 格寬劍氣連劈兩段（各 95%）＋減速 1.5 秒；冷卻 8 秒',
++    cooldownTicks: sec(8), castTicks: sec(0.4), moveFactor: 0.7, role: 'single', useRange: u(6.5),
++    hits: [4, 9].map((t) => ({ atTick: t, shape: { type: 'line' as const, len: u(6.5), width: u(1.8) }, mult: 95, status: { id: 'slow' as const, ticks: sec(1.5) } })),
+   },
+   // 不動架勢（D-345 改）：10s；厚護盾（最大 HP 18%、5 秒）＋四面 2.6 格 140%
+   parry: {
+@@ -222,12 +214,11 @@ export const SKILL_VARIANTS_B: Record<string, SkillDefinition & { variantName: s
+     cooldownTicks: sec(11), castTicks: sec(0.6), moveFactor: 0, role: 'aoe', useRange: u(2.4),
+     hits: [{ atTick: sec(0.6) - 1, shape: { type: 'circle', r: u(2.6) }, mult: 140, status: { id: 'freeze', ticks: sec(1.5) } }],
+   },
+-  // 影步：短衝 3 格、路上 150%＋虛弱 4 秒（敵人傷害 −20%）；冷卻 4s
++  // 影襲（D-346，取代影步）：4s；前方 3 格扇形 130%＋虛弱 4 秒（敵人傷害 −20%）
+   charge: {
+-    id: 'charge', name: '影步', variantName: '影步', desc: '快速短衝 3 格、路上 150%，打中的敵人「虛弱」4 秒（傷害 −20%）；冷卻 4 秒',
+-    cooldownTicks: sec(4), castTicks: sec(0.3), moveFactor: 0, role: 'gap', useRange: u(3.5),
+-    dash: { fromTick: 0, ticks: sec(0.2), distance: u(3) },
+-    hits: [0, 3].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 150, oncePerTarget: true, status: { id: 'weak' as const, ticks: sec(4) } })),
++    id: 'charge', name: '影襲', variantName: '影襲', desc: '前方 3 格扇形 130%，打中的敵人「虛弱」4 秒（傷害 −20%）；冷卻 4 秒',
++    cooldownTicks: sec(4), castTicks: sec(0.4), moveFactor: 0.7, role: 'aoe', useRange: u(3),
++    hits: [{ atTick: 4, shape: { type: 'sector', r: u(3), deg: 100 }, mult: 130, status: { id: 'weak', ticks: sec(4) } }],
+   },
+   // 迴光一閃（D-345 改）：7s；薄護盾（最大 HP 6%、3 秒）＋6 格直線 300%
+   parry: {
+@@ -301,11 +292,10 @@ export const STAFF_SKILLS: Record<string, SkillDefinition> = {
+     id: 'whirlwind', name: '冰霜新星', cooldownTicks: sec(10), castTicks: sec(0.4), moveFactor: 0, role: 'aoe', useRange: u(2.4),
+     hits: [{ atTick: sec(0.4) - 1, shape: { type: 'circle', r: u(2.8) }, mult: 130, status: { id: 'freeze', ticks: sec(1.5) } }],
+   },
+-  // 閃現：0.33 秒閃過 5 格（每 tick 最多 50，太快會卡進障礙物裡——第 34 輪 4 ticks 時 Bot 被卡在牆裡），落地爆一圈 140%＋減速；冷卻 6s
++  // 落雷（D-346，取代閃現）：6s；前方 3.5 格落下一道雷（範圍 1.8 格）150%＋減速 1.5 秒。不位移
+   charge: {
+-    id: 'charge', name: '閃現', cooldownTicks: sec(6), castTicks: sec(0.45), moveFactor: 0, role: 'gap', useRange: u(5.5),
+-    dash: { fromTick: 0, ticks: 10, distance: u(5) },
+-    hits: [{ atTick: 11, shape: { type: 'circle', r: u(1.8) }, mult: 140, status: { id: 'slow', ticks: sec(1.5) } }],
++    id: 'charge', name: '落雷', cooldownTicks: sec(6), castTicks: sec(0.4), moveFactor: 0.7, role: 'aoe', useRange: u(5.3),
++    hits: [{ atTick: 6, shape: { type: 'circle', r: u(1.8) }, mult: 150, status: { id: 'slow', ticks: sec(1.5) }, ahead: u(3.5) }],
+   },
+   // 星輝屏障（D-345 改）：10s；護盾（最大 HP 12%、5 秒）＋四面 3 格 150%＋減速 2 秒
+   parry: {
+@@ -324,7 +314,7 @@ export const STAFF_SKILLS: Record<string, SkillDefinition> = {
+ export const STAFF_DESC: Record<string, string> = {
+   heavy_slash: '6.5 格直線火球 170%，打中的敵人「灼燒」3 秒；冷卻 4 秒',
+   whirlwind: '身邊 2.8 格冰爆 130%，小怪冰凍 1.5 秒、Boss 減速；冷卻 10 秒',
+-  charge: '往前瞬移 5 格，落地爆一圈 140%＋減速；冷卻 6 秒',
++  charge: '前方 3.5 格落下一道雷（範圍 1.8 格）150%＋減速 1.5 秒；冷卻 6 秒',
+   parry: '護盾（最大 HP 12%）5 秒，四面 3 格炸開 150%＋減速；冷卻 10 秒',
+   blade_storm: '蓄力 1.2 秒（自動瞄準），在前方 3.5 格砸下隕星（範圍 3 格）900%＋破甲；40 MP',
+ };
+@@ -341,11 +331,11 @@ export const STAFF_VARIANTS: Record<string, SkillDefinition & { variantName: str
+     cooldownTicks: sec(10), castTicks: sec(1.5), moveFactor: 0.8, role: 'aoe', useRange: u(2.4),
+     hits: [0, 1, 2, 3, 4].map((k) => ({ atTick: sec(0.3) * (k + 1) - 1, shape: { type: 'circle' as const, r: u(2.6) }, mult: 50, status: { id: 'slow' as const, ticks: sec(1) } })),
+   },
++  // 寒霜結界（D-346，取代星界轉移）：7s；身邊 2.4 格 120%＋冰凍 1 秒
+   charge: {
+-    id: 'charge', name: '星界轉移', variantName: '星界轉移', desc: '原地留下寒霜 120%＋冰凍 1 秒，往後瞬移 5 格；冷卻 7 秒',
+-    cooldownTicks: sec(7), castTicks: sec(0.45), moveFactor: 0, role: 'gap', useRange: u(2.5),
+-    dash: { fromTick: 2, ticks: 10, distance: -u(5) },
+-    hits: [{ atTick: 1, shape: { type: 'circle', r: u(2.2) }, mult: 120, status: { id: 'freeze', ticks: sec(1) } }],
++    id: 'charge', name: '寒霜結界', variantName: '寒霜結界', desc: '身邊 2.4 格結出寒霜 120%＋冰凍 1 秒（Boss 減速）；冷卻 7 秒',
++    cooldownTicks: sec(7), castTicks: sec(0.4), moveFactor: 0.7, role: 'aoe', useRange: u(2.4),
++    hits: [{ atTick: 4, shape: { type: 'circle', r: u(2.4) }, mult: 120, status: { id: 'freeze', ticks: sec(1) } }],
+   },
+   parry: {
+     id: 'parry', name: '稜鏡光束', variantName: '稜鏡光束', desc: '薄護盾（最大 HP 7%）4 秒，射出一道 7 格光束 260%；冷卻 8 秒',
+@@ -375,14 +365,11 @@ export const STAFF_VARIANTS_B: Record<string, SkillDefinition & { variantName: s
+     cooldownTicks: sec(9), castTicks: sec(0.8), moveFactor: 0.4, role: 'aoe', useRange: u(3.6),
+     hits: [0, 1].map((k) => ({ atTick: sec(0.4) * (k + 1) - 1, shape: { type: 'ring' as const, rIn: u(1.5), rOut: u(4) }, mult: 90, status: { id: 'burn' as const, ticks: sec(3), powerPct: 30 } })),
+   },
++  // 暗影束（D-346，取代影界穿梭）：5s；6 格直線兩段各 100%＋虛弱 4 秒
+   charge: {
+-    id: 'charge', name: '影界穿梭', variantName: '影界穿梭', desc: '瞬移 4 格、路上 100%＋「虛弱」4 秒，落地再爆 100%；冷卻 5 秒',
+-    cooldownTicks: sec(5), castTicks: sec(0.4), moveFactor: 0, role: 'gap', useRange: u(4.5),
+-    dash: { fromTick: 0, ticks: 8, distance: u(4) },
+-    hits: [
+-      ...[0, 3, 6].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 100, oncePerTarget: true, status: { id: 'weak' as const, ticks: sec(4) } })),
+-      { atTick: 9, shape: { type: 'circle' as const, r: u(1.6) }, mult: 100 },
+-    ],
++    id: 'charge', name: '暗影束', variantName: '暗影束', desc: '6 格直線暗影束兩段（各 100%），打中的敵人「虛弱」4 秒；冷卻 5 秒',
++    cooldownTicks: sec(5), castTicks: sec(0.4), moveFactor: 0.7, role: 'single', useRange: u(6),
++    hits: [4, 8].map((t) => ({ atTick: t, shape: { type: 'line' as const, len: u(6), width: u(1.2) }, mult: 100, status: { id: 'weak' as const, ticks: sec(4) } })),
+   },
+   parry: {
+     id: 'parry', name: '時間凝滯', variantName: '時間凝滯', desc: '護盾（最大 HP 9%）4 秒，周圍 4 格 110%＋冰凍 1.5 秒（Boss 減速）；冷卻 11 秒',
+diff --git a/src/core/battle/rt/engine.ts b/src/core/battle/rt/engine.ts
+index 8e5abf5..72d3ce3 100644
+--- a/src/core/battle/rt/engine.ts
++++ b/src/core/battle/rt/engine.ts
+@@ -1372,7 +1372,10 @@ function drinkPotion(s: BattleState, p: Unit): boolean {
+ 
+ /** 套上範圍修正後的技能形狀（areaPct；沒有修正就回傳原物件） */
+ export function skillShape(s: BattleState, skillId: string, shape: Shape, p?: Unit): Shape {
+-  const pct = Math.min(SKILL_MOD_CAPS.areaPct, Math.max(0, modsOf(s, p)?.[skillId]?.areaPct ?? 0));
++  const m = modsOf(s, p)?.[skillId];
++  // D-346：第 3 欄換成不位移的招後，「位移距離」修正（技能點、舊裝備）在沒有位移的招上併進範圍（合計照範圍上限截斷）
++  const dist = m?.distPct && !skillDef(s, skillId, p)?.dash ? Math.max(0, m.distPct) : 0;
++  const pct = Math.min(SKILL_MOD_CAPS.areaPct, Math.max(0, m?.areaPct ?? 0) + dist);
+   if (!pct) return shape;
+   const k = (n: number) => Math.round((n * (100 + pct)) / 100);
+   switch (shape.type) {
+diff --git a/src/core/battle/rt/gear.ts b/src/core/battle/rt/gear.ts
+index 6d4549e..f9278eb 100644
+--- a/src/core/battle/rt/gear.ts
++++ b/src/core/battle/rt/gear.ts
+@@ -62,7 +62,7 @@ function specialValue(kind: SpecialKind, t: number): number {
+ }
+ 
+ /** 可以出現在特效上的技能（名稱只給顯示用） */
+-export const SPECIAL_SKILLS: Record<string, string> = { heavy_slash: '重斬', whirlwind: '旋風斬', charge: '衝鋒', parry: '鐵壁斬', blade_storm: '劍刃風暴' };
++export const SPECIAL_SKILLS: Record<string, string> = { heavy_slash: '重斬', whirlwind: '旋風斬', charge: '破空劍氣', parry: '鐵壁斬', blade_storm: '劍刃風暴' };
+ 
+ export const ENH_MAX = 10;
+ /** 強化 +N → +N+1 的費用與成功率（+1～+5 必成；之後逐級下降；失敗只扣材料，不會掉級） */
+@@ -305,7 +305,7 @@ export function specialText(sp: NonNullable<RtGear['special']>, names: Record<st
+     case 'block':
+       return `★ ${n}護盾 +${Math.min(SKILL_MOD_CAPS.blockTicks, sp.value) * GUARD_PCT_PER_POINT}%`; // D-345：以前是格擋判定秒數，舊裝備照樣有用
+     case 'dist':
+-      return `★ ${n}距離 +${sp.value}%`;
++      return `★ ${n}範圍 +${sp.value}%`; // D-346：以前是位移距離，舊裝備照樣有用
+   }
+ }
+ 
+diff --git a/src/core/battle/rt/sim.ts b/src/core/battle/rt/sim.ts
+index 0490251..95e7752 100644
+--- a/src/core/battle/rt/sim.ts
++++ b/src/core/battle/rt/sim.ts
+@@ -271,11 +271,12 @@ export class PlayerBot implements BattleController {
+     }
+     else if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
+     else if (d <= (skillDef(s, 'heavy_slash', p)!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
+-    else if (ready('charge') && (backLeap(s, p) ? d <= (skillDef(s, 'charge', p)!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge', p)!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' });
++    else if (ready('charge') && (backLeap(s, p) || !skillDef(s, 'charge', p)!.dash ? d <= (skillDef(s, 'charge', p)!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge', p)!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' }); // D-346：第 3 欄不位移了＝射程內就放
+     else if (near.length >= 1 && ready('whirlwind') && es.length === 1) out.push({ type: 'skill', id: 'whirlwind' });
+     // 3. PvP 遠程拉開距離（第 144 輪，邊退邊射）：沒放技能、普攻還在冷卻、對手太近 → 往遠離對手的方向走；
+     //    普攻好了就站住讓自動普攻出手（手動移動在出手前會蓋掉普攻，命中後才可以取消後搖）。PvE 不走這段。
+-    if (s.pvp && !out.some((c) => c.type === 'skill')) {
++    // D-346：第 3 欄不再往後跳——遠程在 PvE 也改用走的拉開（真人就是這樣玩）；只有會看預告的 Bot 才走
++    if ((s.pvp || (this.prof.reactTicks !== undefined && !skillDef(s, 'charge', p)!.dash)) && !out.some((c) => c.type === 'skill')) {
+       const kd = kiteDir(s, p, tgt);
+       if (kd) out.push({ type: 'move', dx: kd[0], dy: kd[1] });
+     }
+diff --git a/src/core/meta/skills.ts b/src/core/meta/skills.ts
+index b450de7..a7ba6da 100644
+--- a/src/core/meta/skills.ts
++++ b/src/core/meta/skills.ts
+@@ -10,7 +10,7 @@ export const SKILL_MAX_RANK = 5;
+ export const SKILL_TREE: readonly { id: string; name: string; per: string; mod: (rank: number) => SkillMod }[] = [
+   { id: 'heavy_slash', name: '重斬', per: '傷害 +8%', mod: (r) => ({ dmgPct: 8 * r }) },
+   { id: 'whirlwind', name: '旋風斬', per: '範圍 +6%・傷害 +3%', mod: (r) => ({ areaPct: 6 * r, dmgPct: 3 * r }) },
+-  { id: 'charge', name: '衝鋒', per: '冷卻 −5%・距離 +4%', mod: (r) => ({ cdPct: 5 * r, distPct: 4 * r }) },
++  { id: 'charge', name: '破空劍氣', per: '冷卻 −5%・範圍 +4%', mod: (r) => ({ cdPct: 5 * r, distPct: 4 * r }) },
+   { id: 'parry', name: '鐵壁斬', per: '傷害 +6%・每 2 級護盾 +5%', mod: (r) => ({ dmgPct: 6 * r, blockTicks: Math.floor(r / 2) }) },
+   { id: 'blade_storm', name: '劍刃風暴', per: '傷害 +8%・冷卻 −3%', mod: (r) => ({ dmgPct: 8 * r, cdPct: 3 * r }) },
+ ];
+@@ -29,7 +29,7 @@ export function rankTotalText(id: string, rank: number): string {
+   if (m.areaPct) out.push(`範圍 +${m.areaPct}%`);
+   if (m.dmgPct) out.push(`傷害 +${m.dmgPct}%`);
+   if (m.cdPct) out.push(`冷卻 −${m.cdPct}%`);
+-  if (m.distPct) out.push(`距離 +${m.distPct}%`);
++  if (m.distPct) out.push(`範圍 +${m.distPct}%`);
+   if (m.blockTicks) out.push(`護盾 +${m.blockTicks * GUARD_PCT_PER_POINT}%`);
+   return out.join('・');
+ }
+@@ -44,7 +44,7 @@ export function modApplies(def: SkillDefinition, key: keyof SkillMod): boolean {
+     case 'areaPct':
+       return def.hits.length > 0 || !!def.block;
+     case 'distPct':
+-      return !!def.dash && def.dash.distance !== 0;
++      return def.dash ? def.dash.distance !== 0 : def.hits.length > 0; // D-346：沒有位移的招，距離修正併進範圍
+     case 'blockTicks':
+       return !!def.block || !!def.guard;
+   }
+diff --git a/src/game/scenes/RtBattleScene.ts b/src/game/scenes/RtBattleScene.ts
+index 5b5c698..7a313ff 100644
+--- a/src/game/scenes/RtBattleScene.ts
++++ b/src/game/scenes/RtBattleScene.ts
+@@ -5155,7 +5155,7 @@ export class RtBattleScene extends Phaser.Scene {
+       const left = Math.max(0, (p.ready['blade_storm'] ?? 0) - s.tick);
+       const ok = left === 0 && p.mp >= need;
+       // 長弓第一次（D-147）：教「保持距離」
+-      if (this.s.weapon === 'bow' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_bow', '長弓：站遠一點射！狼貼過來就按「後躍射擊」拉開距離', '#c8f0a0');
++      if (this.s.weapon === 'bow' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_bow', '長弓：站遠一點射！狼貼過來就走開，拉開距離再射', '#c8f0a0');
+       if (this.s.weapon === 'staff' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_staff', '法杖：狼貼過來先按「冰霜新星」凍住，再拉開距離放星焰彈', '#dcc0ff');
+       if (ok && !this.bot && !this.menu && !s.autoSkills?.includes('blade_storm')) this.tipOnce('jg_tip_ult', `大招充滿了！按右下粉紅色「${ult.name}」`, '#ff9ae0');
+       const now = this.time.now;
+diff --git a/src/game/scenes/TitleScene.ts b/src/game/scenes/TitleScene.ts
+index 83198ef..49c840b 100644
+--- a/src/game/scenes/TitleScene.ts
++++ b/src/game/scenes/TitleScene.ts
+@@ -379,7 +379,7 @@ export class TitleScene extends Phaser.Scene {
+         saveWeapon(nextWeapon(loadWeapon()));
+         paint();
+         this.tweens.add({ targets: w, scale: { from: 1.12, to: 1 }, duration: 220, ease: 'Back.easeOut' });
+-        const msg = this.add.text(cx, y - (items.length - 1) * 100 - 80, ({ sword: '長劍：近身連斬、旋風斬清群、鐵壁斬護身', bow: '長弓：普攻 5 格遠距、靠後躍拉開距離', staff: '法杖：冰凍控場、閃現、蓄力隕星' } as const)[loadWeapon()], { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(60);
++        const msg = this.add.text(cx, y - (items.length - 1) * 100 - 80, ({ sword: '長劍：近身連斬、旋風斬清群、鐵壁斬護身', bow: '長弓：普攻 5 格遠距、縛足箭拖住敵人', staff: '法杖：冰凍控場、落雷、蓄力隕星' } as const)[loadWeapon()], { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(60);
+         this.tweens.add({ targets: msg, y: msg.y - 30, alpha: 0, delay: 1200, duration: 600, onComplete: () => msg.destroy() });
+       });
+       menu.add(w);
+diff --git a/src/game/settings.ts b/src/game/settings.ts
+index 3921f98..13dad30 100644
+--- a/src/game/settings.ts
++++ b/src/game/settings.ts
+@@ -41,10 +41,10 @@ export function getSettings(): Settings {
+   if (s && typeof s === 'object') for (const k of Object.keys(DEFAULTS) as (keyof Settings)[]) if (typeof s[k] === typeof DEFAULTS[k] && !(typeof s[k] === 'number' && !Number.isFinite(s[k]))) ok[k] = s[k];
+   cache = { ...DEFAULTS, ...(ok as Partial<Settings>) };
+   // 存的是舊版預設（或沒存過版本）→ 換成新的預設
+-  // 版本 2 → 3（D-345）：第 4 欄換成可以自動的招——玩家在版本 2 自己調過的留著，有開任何一欄的再加上第 4 欄；全關的維持全關
+-  const v2list = s && typeof s === 'object' && s.autoVer === 2 && Array.isArray(s.autoSkills) ? (s.autoSkills as unknown[]) : null;
++  // 版本 2／3 → 4（D-345、D-346）：第 4 欄、第 3 欄換成可以自動的招——玩家自己調過的留著，有開任何一欄的再加上這兩欄；全關的維持全關
++  const v2list = s && typeof s === 'object' && (s.autoVer === 2 || s.autoVer === 3) && Array.isArray(s.autoSkills) ? (s.autoSkills as unknown[]) : null;
+   const old = !s || typeof s !== 'object' || s.autoVer !== AUTO_SKILL_VERSION;
+-  cache.autoSkills = v2list ? cleanAutoSkills(v2list.length ? [...v2list, 'parry'] : []) : cleanAutoSkills(old ? undefined : s.autoSkills);
++  cache.autoSkills = v2list ? cleanAutoSkills(v2list.length ? [...v2list, 'parry', 'charge'] : []) : cleanAutoSkills(old ? undefined : s.autoSkills);
+   cache.autoVer = AUTO_SKILL_VERSION;
+   return cache;
+ }
+diff --git a/src/game/ui/weaponPick.ts b/src/game/ui/weaponPick.ts
+index ecb9c01..4b2b331 100644
+--- a/src/game/ui/weaponPick.ts
++++ b/src/game/ui/weaponPick.ts
+@@ -21,8 +21,8 @@ export function weaponChosen(): boolean {
+ 
+ const INFO: Record<WeaponId, { tag: string; play: string; col: number; css: string }> = {
+   sword: { tag: '近身連斬・護盾', play: '貼上去砍，旋風斬清狼群，\n鐵壁斬會自己架起護盾。\n血厚、上手最快。', col: 0xffb35a, css: '#ffd27a' },
+-  bow: { tag: '遠距穿透・後躍拉開', play: '站在 5 格外射，\n狼貼過來就後躍射擊，\n一箭穿過一整排。', col: 0x8ad8ff, css: '#a8e4ff' },
+-  staff: { tag: '元素魔法・冰凍控場', play: '冰霜新星凍住狼群，\n閃現穿過去落地爆炸，\n蓄力隕星砸大圈。', col: 0xc89aff, css: '#dcc0ff' },
++  bow: { tag: '遠距穿透・減速牽制', play: '站在 5 格外射，\n縛足箭拖慢衝過來的狼，\n一箭穿過一整排。', col: 0x8ad8ff, css: '#a8e4ff' },
++  staff: { tag: '元素魔法・冰凍控場', play: '冰霜新星凍住狼群，\n落雷轟在遠處的狼身上，\n蓄力隕星砸大圈。', col: 0xc89aff, css: '#dcc0ff' },
+ };
+ 
+ export function openWeaponPick(scene: Phaser.Scene, onPick: (w: WeaponId) => void): Phaser.GameObjects.Container {
+diff --git a/tests/rt-pvp-balance.test.ts b/tests/rt-pvp-balance.test.ts
+index 5a0f537..7e9a562 100644
+--- a/tests/rt-pvp-balance.test.ts
++++ b/tests/rt-pvp-balance.test.ts
+@@ -46,10 +46,11 @@ describe('PvP 競技場', () => {
+           else wb++;
+         }
+         rows.push(`| ${a} vs ${b} | ${wa} | ${wb} | ${to} |`);
++        (globalThis as any).process.stdout.write(rows[rows.length - 1] + '\n');
+         expect(wa + wb + to).toBe(20);
+         // 目標 40～60%（第 144 輪：8～12 勝）；護欄放寬到 30～70%，改到 PvE 數值時才不會一碰就紅
+-        expect(wa).toBeGreaterThanOrEqual(6);
+-        expect(wa).toBeLessThanOrEqual(14);
++        if (!process.env.PVP_PROBE) expect(wa).toBeGreaterThanOrEqual(6);
++        if (!process.env.PVP_PROBE) expect(wa).toBeLessThanOrEqual(14);
+       }
+     if (process.env.RT_REPORT) console.log(['| 對戰 | 左勝 | 右勝 | 超時 |', '|---|---|---|---|', ...rows].join('\n'));
+   }, 120_000);
+diff --git a/tests/tip-text.test.ts b/tests/tip-text.test.ts
+index bbf746a..2489225 100644
+--- a/tests/tip-text.test.ts
++++ b/tests/tip-text.test.ts
+@@ -7,14 +7,14 @@ import { makeThornvaleStage } from '../src/core/battle/rt/maps/thornvale';
+ describe('提示大字換行（第 37 輪）', () => {
+   it('短的不動、長的在標點後斷成兩行，每行不超過一行的寬度', () => {
+     expect(wrapTip('紅色範圍填滿就命中——走出去！')).toBe('紅色範圍填滿就命中——走出去！');
+-    for (const t of ['長弓：站遠一點射！狼貼過來就按「後躍射擊」拉開距離', '法杖：狼貼過來先按「冰霜新星」凍住，再拉開距離放星焰彈', '星光碎片：落星之後地上會留 5 秒，撿起來回 MP 與 HP', '荊棘巡獵者在巡邏——別走進牠的範圍，或正面迎戰', '黃框＝可以格擋！敵人打到前按「格擋反擊」', '沒有標點的一段很長很長很長很長很長很長的文字']) {
++    for (const t of ['長弓：站遠一點射！狼貼過來就走開，拉開距離再射', '法杖：狼貼過來先按「冰霜新星」凍住，再拉開距離放星焰彈', '星光碎片：落星之後地上會留 5 秒，撿起來回 MP 與 HP', '荊棘巡獵者在巡邏——別走進牠的範圍，或正面迎戰', '黃框＝可以格擋！敵人打到前按「格擋反擊」', '沒有標點的一段很長很長很長很長很長很長的文字']) {
+       const w = wrapTip(t);
+       expect(w.replace('\n', '')).toBe(t);
+       const lines = w.split('\n');
+       expect(lines.length).toBe(2);
+       for (const l of lines) expect([...l].length, l).toBeLessThanOrEqual(TIP_LINE_MAX + 4);
+     }
+-    expect(wrapTip('長弓：站遠一點射！狼貼過來就按「後躍射擊」拉開距離')).toBe('長弓：站遠一點射！\n狼貼過來就按「後躍射擊」拉開距離');
++    expect(wrapTip('長弓：站遠一點射！狼貼過來就走開，拉開距離再射')).toBe('長弓：站遠一點射！\n狼貼過來就走開，拉開距離再射');
+   });
+   it('不會斷出只有標點的一行（第 45 輪）；四張圖的 Boss 提示每行都有字', async () => {
+     expect(wrapTip('（記得……狼后衝鋒撞到岩壁會暈很久！）')).toBe('（記得……\n狼后衝鋒撞到岩壁會暈很久！）');
+diff --git a/tests/wiki-gen.test.ts b/tests/wiki-gen.test.ts
+index 4748fd1..272d0f2 100644
+--- a/tests/wiki-gen.test.ts
++++ b/tests/wiki-gen.test.ts
+@@ -99,7 +99,7 @@ function gearPage(): string {
+   ];
+   for (const [n, pre, f, u] of aff) s += `| ${n} | ${pre} | ${f(6, 0)}～${f(6, 0.999)}${u} | ${f(12, 0)}～${f(12, 0.999)}${u} |\n`;
+   s += '\n## 技能特效（★，稀有的數值；精良減半）\n| 種類 | 範圍 | 可能出現在 |\n|---|---|---|\n';
+-  const kinds: Record<string, [string, string]> = { cd: ['冷卻 −%', '8～15%'], dmg: ['傷害 +%', '12～25%'], area: ['範圍 +%', '15～30%'], block: ['護盾 +%', '10～20%'], dist: ['衝鋒距離 +%', '20～40%'] };
++  const kinds: Record<string, [string, string]> = { cd: ['冷卻 −%', '8～15%'], dmg: ['傷害 +%', '12～25%'], area: ['範圍 +%', '15～30%'], block: ['護盾 +%', '10～20%'], dist: ['第 3 欄範圍 +%', '20～40%（和「範圍 +%」合計上限 50%）'] };
+   for (const [k, [n, r]] of Object.entries(kinds)) {
+     const on = Object.entries(SPECIAL_KINDS).filter(([, ks]) => ks.includes(k as never)).map(([id]) => WEAPON_IDS.map((w) => WEAPONS[w].skills[id]?.name).filter(Boolean).join('／'));
+     s += `| ${n} | ${r} | ${on.join('、')} |\n`;
