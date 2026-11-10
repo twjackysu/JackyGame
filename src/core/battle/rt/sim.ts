@@ -178,6 +178,8 @@ export class PlayerBot implements BattleController {
     const p = playerOf(s, this.pid);
     const ctl = ctlOf(s, p);
     const out: BattleCommand[] = [];
+    // 燼火祝福（P2）：有三選一在等就選第一張（只有開了祝福的場次才會有）
+    if (!this.pid && s.bless?.offer) out.push({ type: 'bless', pick: 0 });
     const ready = (id: string) => (p.ready[id] ?? 0) <= s.tick + 1;
     const busy = !!p.action && p.action.kind !== 'attack';
     // 地圖怪：沒有戰鬥中的怪時，休息到 restUntilPct 再點下一隻待機的怪（D-073）

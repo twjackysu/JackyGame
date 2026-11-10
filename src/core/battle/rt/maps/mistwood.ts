@@ -124,6 +124,7 @@ export const WARDEN_PATROL: readonly { x: number; y: number }[] = [
 export function makeMistwoodStage(): StageDefinition {
   return {
     id: 'mistwood', name: '霧語森林', timeLimitTicks: sec(60 * 60), player: { x: c(24), y: c(92) },
+    bless: true, // 燼火祝福小樣（P2，D-343）：先只開這張圖；要 BattleSetup.bless 才會真的開
     mapAi: true, reviveAtCampfire: true, loot: true, // 撿粉塵自動強化（lootEnhance）在第 18 輪拿掉：改成真的裝備強化（D-092）
     // 經驗值與等級（D-090）：Lv2 約 8 隻狼（D-165）、Lv10 累計約 1 萬經驗（2～3 小時）
     // 裝備掉落（D-091）：小怪偶爾、首領常常、狼王必掉兩件（精良以上）

@@ -361,7 +361,12 @@ export type BattleEvent =
   | { tick: number; type: 'leash'; id: number }
   | { tick: number; type: 'reset'; id: number }
   /** 自然恢復（D-073）：脫戰 5 秒後每秒回 2% */
-  | { tick: number; type: 'regen'; id: number; heal: number };
+  | { tick: number; type: 'regen'; id: number; heal: number }
+  // 燼火祝福（P2，D-343）：出現三選一／選了／清空（rest＝回營火休息、down＝倒下）／效果觸發（畫面演出用）
+  | { tick: number; type: 'blessOffer'; ids: string[] }
+  | { tick: number; type: 'blessPick'; id: string }
+  | { tick: number; type: 'blessClear'; reason: 'rest' | 'down'; count: number }
+  | { tick: number; type: 'blessProc'; id: string; x: number; y: number };
 
 /** 玩家（或 Bot）的輸入：一個 tick 可以送多個 */
 /** 指令（pid＝哪個玩家下的；沒有＝0，單人的舊呼叫不用改） */
@@ -376,7 +381,9 @@ export type BattleCommandBody =
   /** 點地移動（D-071）：A* 走到該點；搖桿一動或點敵人就取消 */
   | { type: 'moveTo'; x: number; y: number }
   /** 在營火旁休息（design/20 B4）：HP 全滿、補藥水、設復活點；附近有戰鬥中的怪時無效 */
-  | { type: 'rest' };
+  | { type: 'rest' }
+  /** 燼火祝福（P2）：選第 pick 個；reroll＝重抽（有次數） */
+  | { type: 'bless'; pick?: number; reroll?: boolean };
 
 export interface Arena {
   /** 可走範圍（整數座標，0..w、0..h），邊界即牆 */
@@ -456,6 +463,8 @@ export const RESPAWN_MIN_PLAYER_UNITS = 9;
 export interface StageDefinition {
   /** PvP 競技場（Q6／24 §6.1）：玩家 HP ×3、玩家互打傷害 ×0.5、控制減半＋遞減；勝負＝最後還站著的隊伍 */
   pvp?: boolean;
+  /** 這張圖可以開燼火祝福（P2 小樣先只開霧語森林；BattleSetup.bless 也要給才會開） */
+  bless?: boolean;
   id: string;
   name: string;
   arena: Arena;
@@ -637,6 +646,13 @@ export interface BattleState extends PlayerCtl {
   shards?: { idx: number; until: number }[];
   /** PvP 競技場（StageDefinition.pvp） */
   pvp?: boolean;
+  /**
+   * 燼火祝福（P2，D-343；只有 BattleSetup.bless 且關卡允許才有）：這趟暫時擁有的效果。
+   * rng＝獨立亂數（不動戰鬥亂數）；meter＝累積的擊殺點數；taken＝已選的效果 id；offer＝等玩家選的三張；
+   * fresh＝有剛選的還沒套到技能上（施放中要等這一招打完，同 RF-01）；mods／vars＝套用後的技能修正與變化打法；
+   * critUntil＝「下一擊必暴」的期限
+   */
+  bless?: { rng: number; meter: number; taken: string[]; offer?: string[]; rerolls: number; fresh?: boolean; mods?: Record<string, SkillMod>; vars?: Record<string, 1 | 2>; critUntil?: number };
   /** pid 1 以後的玩家的控制狀態（Q6；單人沒有） */
   others?: PlayerCtl[];
 }

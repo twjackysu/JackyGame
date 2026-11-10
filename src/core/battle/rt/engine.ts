@@ -2,6 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import { autoPick, cleanAutoSkills } from './auto';
+import { BLESS_RULES, EFFECT_IDS, blessNeed, effectDef, mergeEffectMods, tryVariantId, type EffectDef } from './effects';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
 import { HIDDEN_GROUP, killXp, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
@@ -95,6 +96,8 @@ export interface BattleSetup {
   autoSkills?: readonly string[];
   /** 深夜模式（需要 StageDefinition.night，D-103） */
   night?: boolean;
+  /** 燼火祝福（P2，D-343；需要 StageDefinition.bless）。沒給＝沒有祝福（測試、Bot、PvP 預設都不給） */
+  bless?: boolean;
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
   level?: number;
   xp?: number;
@@ -146,6 +149,10 @@ export function createBattle(setup: BattleSetup): BattleState {
     p.hp = p.maxHp;
   }
   if (setup.night && stage.night) s.night = true;
+  if (setup.bless && stage.bless) {
+    s.bless = { rng: ((setup.seed ^ 0x2545f491) >>> 0) || 1, meter: 0, taken: [], rerolls: BLESS_RULES.rerolls };
+    for (let i = 0; i < 8; i++) blessRand(s); // 打散初始種子（相鄰的種子第一手不會都一樣）
+  }
   stage.enemies.forEach((_, i) => s.units.push(makeFixed(s, stage, i)));
   for (const g of stage.spawnGroups ?? []) {
     if (g.nightOnly && !s.night) continue;
@@ -524,6 +531,9 @@ export function skillDef(s: BattleState, id: string, p?: Unit): SkillDefinition 
   const v = c.skillVariants;
   // 武器表（D-152）：技能欄同一組 id，招式整組換掉；變化（D-112／148）、變化二（D-121／149）
   const w = WEAPONS[c.weapon ?? 'sword'];
+  // 燼火祝福「試招」（P2）：這趟暫時改用變化打法，蓋過玩家平常選的（只有主角）
+  const bv = c === s ? s.bless?.vars?.[id] : undefined;
+  if (bv) return (bv === 1 ? w.variants[id] : w.variantsB[id]) ?? w.skills[id];
   if (!v) return w.skills[id];
   return (v.includes(id) ? w.variants[id] : v.includes(variantB(id)) ? w.variantsB[id] : undefined) ?? w.skills[id];
 }
@@ -554,6 +564,155 @@ export function setSkillMods(s: BattleState, mods: Record<string, SkillMod>): vo
   }
   if (Object.keys(mods).length) s.skillMods = mods;
   else delete s.skillMods;
+  if (s.bless) applyBless(s);
+}
+
+// ---------------- 燼火祝福（P2，D-343；效果資料在 effects.ts） ----------------
+function blessRand(s: BattleState): number {
+  let x = s.bless!.rng;
+  x ^= x << 13;
+  x >>>= 0;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  x >>>= 0;
+  s.bless!.rng = x || 1;
+  return x / 0x100000000;
+}
+
+/** 主角身上的祝福效果（沒有祝福＝空的；不配置新陣列的常見路徑） */
+const NO_EFFECTS: readonly EffectDef[] = [];
+function blessEffects(s: BattleState): readonly EffectDef[] {
+  const b = s.bless;
+  if (!b || b.taken.length === 0) return NO_EFFECTS;
+  const out: EffectDef[] = [];
+  for (const id of b.taken) {
+    const d = effectDef(id, s.weapon ?? 'sword');
+    if (d) out.push(d);
+  }
+  return out;
+}
+
+/** 把已選的祝福套到技能上（技能修正、試招）；施放中不套（等這一招打完，同 RF-01） */
+function applyBless(s: BattleState): void {
+  const b = s.bless!;
+  if (castingSkill(s)) {
+    b.fresh = true;
+    return;
+  }
+  delete b.fresh;
+  const fx = blessEffects(s);
+  const mods = mergeEffectMods(s.skillMods, fx);
+  if (mods && mods !== s.skillMods) b.mods = mods;
+  else delete b.mods;
+  let vars: Record<string, 1 | 2> | undefined;
+  for (const e of fx) if (e.variant) (vars ??= {})[e.variant.skill] = e.variant.idx;
+  if (vars) b.vars = vars;
+  else delete b.vars;
+}
+
+/** 玩家平常選的打法是第幾種（0＝原招） */
+const chosenIdx = (s: BattleState, id: string): 0 | 1 | 2 => (s.skillVariants?.includes(id) ? 1 : s.skillVariants?.includes(variantB(id)) ? 2 : 0);
+
+/**
+ * 抽三張：不重複、不出現已經有的；「試招」每次最多一張，而且只出玩家現在沒在用的打法、同一欄一趟只試一種。
+ * avoid＝重抽時盡量不要再出現的（上一手的三張）。
+ */
+function rollBlessOffer(s: BattleState, avoid: readonly string[] = []): string[] {
+  const b = s.bless!;
+  const w = WEAPONS[s.weapon ?? 'sword'];
+  const ok = (id: string): boolean => !b.taken.includes(id);
+  const fixed = EFFECT_IDS.filter((id) => ok(id) && (!effectDef(id)!.weapons || effectDef(id)!.weapons!.includes(w.id)));
+  const tries: string[] = [];
+  for (const skill of Object.keys(w.skills)) {
+    if (b.taken.some((id) => id.startsWith(`try:${skill}:`))) continue;
+    for (const k of [1, 2] as const) if ((k === 1 ? w.variants : w.variantsB)[skill] && chosenIdx(s, skill) !== k) tries.push(tryVariantId(skill, k));
+  }
+  const pickFrom = (pool: string[]): string | undefined => {
+    if (!pool.length) return undefined;
+    const fresh = pool.filter((id) => !avoid.includes(id));
+    const from = fresh.length ? fresh : pool;
+    const id = from[Math.floor(blessRand(s) * from.length)]!;
+    pool.splice(pool.indexOf(id), 1);
+    return id;
+  };
+  const out: string[] = [];
+  const wantTry = tries.length > 0 && blessRand(s) < 0.6;
+  if (wantTry) out.push(pickFrom(tries)!);
+  while (out.length < BLESS_RULES.choices) {
+    const id = pickFrom(fixed);
+    if (!id) break;
+    out.push(id);
+  }
+  // 固定效果快拿完了：用「試招」補（不同欄）
+  while (out.length < BLESS_RULES.choices && tries.length) {
+    const id = pickFrom(tries)!;
+    const skill = id.split(':')[1];
+    if (!out.some((o) => o.startsWith(`try:${skill}:`))) out.push(id);
+  }
+  return out;
+}
+
+/** 計量滿了就出三選一（已經有一手在等、或這趟拿滿了就不出） */
+function maybeBlessOffer(s: BattleState): void {
+  const b = s.bless!;
+  if (b.offer || b.taken.length >= BLESS_RULES.max || b.meter < blessNeed(b.taken.length)) return;
+  const ids = rollBlessOffer(s);
+  if (!ids.length) return;
+  b.offer = ids;
+  emit(s, { tick: s.tick, type: 'blessOffer', ids });
+}
+
+/** 玩家的選擇（只有在等選的時候有效） */
+function blessCommand(s: BattleState, c: { pick?: number; reroll?: boolean }): void {
+  const b = s.bless;
+  if (!b?.offer) return;
+  if (c.reroll) {
+    if (b.rerolls <= 0) return;
+    b.rerolls--;
+    const ids = rollBlessOffer(s, b.offer);
+    if (ids.length) {
+      b.offer = ids;
+      emit(s, { tick: s.tick, type: 'blessOffer', ids });
+    }
+    return;
+  }
+  const id = typeof c.pick === 'number' ? b.offer[c.pick] : undefined;
+  if (!id) return;
+  b.meter = Math.max(0, b.meter - blessNeed(b.taken.length));
+  b.taken.push(id);
+  delete b.offer;
+  emit(s, { tick: s.tick, type: 'blessPick', id });
+  applyBless(s);
+  maybeBlessOffer(s);
+}
+
+/** 回營火休息或倒下：祝福清空（計量也歸零、重抽次數補回） */
+function clearBless(s: BattleState, reason: 'rest' | 'down'): void {
+  const b = s.bless;
+  if (!b || (b.taken.length === 0 && b.meter === 0 && !b.offer)) return;
+  const count = b.taken.length;
+  s.bless = { rng: b.rng, meter: 0, taken: [], rerolls: BLESS_RULES.rerolls };
+  emit(s, { tick: s.tick, type: 'blessClear', reason, count });
+}
+
+let burstDepth = 0;
+/** 主角打倒敵人：累積計量、觸發擊殺效果（爆炸可以連鎖，最多四層） */
+function blessKill(s: BattleState, p: Unit, dead: Unit): void {
+  const b = s.bless!;
+  if (!dead.summonedBy) b.meter += dead.tier === 'boss' ? 5 : dead.tier === 'elite' ? 2 : 1;
+  for (const e of blessEffects(s)) {
+    const k = e.onKill;
+    if (!k) continue;
+    if (k.healPct && !p.dead && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + Math.max(1, Math.round((p.maxHp * k.healPct) / 100)));
+    if (k.burst && burstDepth < 4) {
+      emit(s, { tick: s.tick, type: 'blessProc', id: e.id, x: dead.x, y: dead.y });
+      burstDepth++;
+      // 只波及交戰中的敵人（不會把旁邊睡著的怪炸醒）
+      for (const o of enemiesOf(s)) if ((!o.mode || o.mode === 'combat') && dist(o.x, o.y, dead.x, dead.y) <= k.burst.r + o.r) dealDamage(s, p, o, k.burst.mult, 'skill', e.id);
+      burstDepth--;
+    }
+  }
+  if (burstDepth === 0) maybeBlessOffer(s);
 }
 
 /** 切換自動施放的技能欄（P1，D-342）：馬上生效（只影響「下一招要不要自己放」，不動正在放的招） */
@@ -795,7 +954,7 @@ export function playerDef(s?: Pick<BattleState, 'weapon' | 'others'>, p?: Unit):
   return WEAPONS[w ?? 'sword'].player;
 }
 /** 這個玩家的技能修正（沒給玩家＝主角） */
-const modsOf = (s: BattleState, p?: Unit): Record<string, SkillMod> | undefined => (p ? ctlOf(s, p) : s).skillMods;
+const modsOf = (s: BattleState, p?: Unit): Record<string, SkillMod> | undefined => (p?.pid ? ctlOf(s, p).skillMods : (s.bless?.mods ?? s.skillMods));
 
 function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 'normal' | 'skill' | 'counter' | 'enemy', skill: string, reducePct = 0): number {
   if (dst.dead) return 0;
@@ -819,6 +978,15 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
     if (nextRand(s) * 100 < pd.critRate) {
       crit = true;
       critMul = pd.critDmg / 100;
+    }
+    // 祝福「閃避後下一擊必暴」（P2）：亂數照擲（不動戰鬥亂數的順序），結果改成暴擊
+    const b = src.pid ? undefined : s.bless;
+    if (b?.critUntil !== undefined) {
+      if (b.critUntil >= s.tick && !crit) {
+        crit = true;
+        critMul = pd.critDmg / 100;
+      }
+      delete b.critUntil;
     }
   }
   let amount = computeDamage(atk, mult, pool, dst.def, critMul);
@@ -866,6 +1034,7 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
     if (dst.side === 'enemy' && STAGES[s.stageId]?.hiddenElite && dst.tier === 'normal' && !dst.summonedBy) s.streak = (s.streak ?? 0) + 1;
     if (s.ground && dst.side === 'enemy' && !dst.summonedBy) rollDrops(s, dst);
     if (s.prog && dst.side === 'enemy') gainXp(s, dst);
+    if (s.bless && dst.side === 'enemy' && src.side === 'player' && !src.pid) blessKill(s, src, dst);
     if (dst.mode && ENEMIES[dst.defId]?.boss && !(s.bossKills ??= []).includes(dst.defId)) s.bossKills.push(dst.defId);
     if (dst.fury) s.furyKills = (s.furyKills ?? 0) + 1;
     const rt = STAGES[s.stageId]?.bossZone?.respawnTicks;
@@ -1076,6 +1245,7 @@ function startDodge(s: BattleState, p: Unit, dx: number, dy: number): boolean {
   p.action = { kind: 'dodge', id: 'dodge', start: s.tick, end: s.tick + pd.dodge.ticks, dirX: fx, dirY: fy, ox: p.x, oy: p.y };
   p.invulnUntil = s.tick + pd.dodge.invulnTo;
   emit(s, { tick: s.tick, type: 'dodge', id: p.id });
+  if (s.bless && !p.pid) for (const e of blessEffects(s)) if (e.onDodge) s.bless.critUntil = s.tick + e.onDodge.critTicks;
   return true;
 }
 
@@ -1099,6 +1269,7 @@ function applyCommands(s: BattleState, cmds: readonly BattleCommand[]): void {
     else if (c.type === 'dodge') startDodge(s, p, c.dx, c.dy);
     else if (c.type === 'potion') drinkPotion(s, p);
     else if (c.type === 'rest') restAtCampfire(s, p);
+    else if (c.type === 'bless' && !c.pid) blessCommand(s, c);
   }
 }
 
@@ -1122,6 +1293,7 @@ function restAtCampfire(s: BattleState, p: Unit): boolean {
   ctl.campfireId = c.id;
   ctl.moveGoal = null;
   emit(s, { tick: s.tick, type: 'rest', id: p.id, campfire: c.id });
+  if (!p.pid) clearBless(s, 'rest');
   return true;
 }
 
@@ -1154,6 +1326,7 @@ function reviveAtCampfire(s: BattleState, p: Unit): boolean {
   }
   s.telegraphs = [];
   emit(s, { tick: s.tick, type: 'revive', id: p.id, campfire: c.id });
+  if (!p.pid) clearBless(s, 'down');
   return true;
 }
 
@@ -1221,8 +1394,21 @@ function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillI
     if (!inShape(shape, h.ahead ? p.x + Math.round((a.dirX * h.ahead) / DIR) : p.x, h.ahead ? p.y + Math.round((a.dirY * h.ahead) / DIR) : p.y, a.dirX, a.dirY, e.x, e.y, e.r)) continue;
     a.hitIds?.push(e.id);
     const dmgPct = modsOf(s, p)?.[skillId]?.dmgPct ?? 0;
-    dealDamage(s, p, e, dmgPct ? Math.round((h.mult * (100 + dmgPct)) / 100) : h.mult, origin, skillId);
+    const mult = dmgPct ? Math.round((h.mult * (100 + dmgPct)) / 100) : h.mult;
+    dealDamage(s, p, e, mult, origin, skillId);
     if (h.status && !e.dead) addStatus(s, e, h.status, p);
+    // 祝福：技能命中的追加效果（P2；反擊不算）
+    if (s.bless && !p.pid && origin === 'skill') {
+      for (const fx of blessEffects(s)) {
+        const k = fx.onSkillHit;
+        if (!k || (k.skill && k.skill !== skillId) || e.dead) continue;
+        if (k.status) addStatus(s, e, k.status, p);
+        if (k.echoPct) {
+          emit(s, { tick: s.tick, type: 'blessProc', id: fx.id, x: e.x, y: e.y });
+          dealDamage(s, p, e, Math.max(1, Math.round((mult * k.echoPct) / 100)), 'skill', fx.id);
+        }
+      }
+    }
   }
 }
 
@@ -1269,7 +1455,11 @@ function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
       if ((ctl.manualMove || ctl.moveGoal) && k > pd.attackWindupTicks) p.action = null;
       else if (k === pd.attackWindupTicks) {
         const t = unitById(s, a.targetId);
-        if (t && !t.dead && dist(p.x, p.y, t.x, t.y) <= pd.attackRange + p.r + t.r + 30) dealDamage(s, p, t, 100, 'normal', 'attack');
+        if (t && !t.dead && dist(p.x, p.y, t.x, t.y) <= pd.attackRange + p.r + t.r + 30) {
+          const dealt = dealDamage(s, p, t, 100, 'normal', 'attack');
+          // 祝福：普攻命中的追加效果（P2）
+          if (dealt > 0 && s.bless && !p.pid && !t.dead) for (const fx of blessEffects(s)) if (fx.onAttack) addStatus(s, t, fx.onAttack.status, p);
+        }
       }
     }
     if (p.action && s.tick >= p.action.end) p.action = null;
@@ -1610,6 +1800,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   if (s.outcome !== 'running') return;
   s.tick++;
   if (s.pendingSkill) flushPendingSkill(s);
+  if (s.bless?.fresh) applyBless(s);
   applyCommands(s, cmds);
   // 自動施放（P1）：排在玩家指令之後——這個 tick 玩家自己按了技能／閃避，就照玩家的
   for (const p of playersOf(s)) {
@@ -1714,6 +1905,11 @@ export function stateHash(s: BattleState): string {
     // 只有開啟等級時才加入（舊紀錄的雜湊不變）
     mix(s.prog.level);
     mix(s.prog.xp);
+  }
+  if (s.bless) {
+    // 只有開祝福時才加入
+    mix(s.bless.meter);
+    for (const id of s.bless.taken) for (let i = 0; i < id.length; i++) mix(id.charCodeAt(i));
   }
   mix(s.events.length);
   mix(s.potions);
