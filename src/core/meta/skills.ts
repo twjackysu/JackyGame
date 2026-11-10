@@ -2,7 +2,7 @@
 // 第 141 輪（Q3）從 src/game/rtSkills.ts 搬到 core/meta；伺服器 handler（src/server/handlers/skills.ts）用同一份規則。
 // 純資料函式（有測試）；存在霧語森林獨立紀錄 `RtRecord.skills`。效果用核心既有的 SkillMod（和裝備特效相加、照上限截斷）。
 import { SKILL_VARIANTS, WEAPONS, variantB, type WeaponKind } from '../battle/rt/data';
-import { SKILL_MOD_CAPS, type SkillMod } from '../battle/rt/types';
+import { SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, type SkillDefinition, type SkillMod } from '../battle/rt/types';
 
 export const SKILL_MAX_RANK = 5;
 
@@ -16,6 +16,48 @@ export const SKILL_TREE: readonly { id: string; name: string; per: string; mod: 
 ];
 
 export type SkillRanks = Record<string, number>;
+
+/**
+ * 點到 rank 級時「現在的加成」寫成字（面板用；直接從 mod(rank) 算，和實際套用的數字是同一份）。
+ * 0 級回空字串。格擋的傷害加成叫「反擊」。
+ */
+export function rankTotalText(id: string, rank: number): string {
+  const t = SKILL_TREE.find((x) => x.id === id);
+  if (!t || rank <= 0) return '';
+  const m = t.mod(Math.min(SKILL_MAX_RANK, rank));
+  const out: string[] = [];
+  if (m.areaPct) out.push(`範圍 +${m.areaPct}%`);
+  if (m.dmgPct) out.push(`${id === 'parry' ? '反擊' : '傷害'} +${m.dmgPct}%`);
+  if (m.cdPct) out.push(`冷卻 −${m.cdPct}%`);
+  if (m.distPct) out.push(`距離 +${m.distPct}%`);
+  if (m.blockTicks) out.push(`窗口 +${(m.blockTicks / TICKS_PER_SEC).toFixed(2)} 秒`);
+  return out.join('・');
+}
+
+/** 這個修正在這一招上有沒有作用（RF-05b：面板只該寫有作用的；tests/rt-skills 檢查三把武器每一種打法都吃得到技能點的加成） */
+export function modApplies(def: SkillDefinition, key: keyof SkillMod): boolean {
+  switch (key) {
+    case 'cdPct':
+      return def.cooldownTicks > 0;
+    case 'dmgPct':
+      return def.hits.some((h) => h.mult > 0) || (def.block?.counter.mult ?? 0) > 0;
+    case 'areaPct':
+      return def.hits.length > 0 || !!def.block;
+    case 'distPct':
+      return !!def.dash && def.dash.distance !== 0;
+    case 'blockTicks':
+      return !!def.block;
+  }
+}
+
+/** 這一招附帶的持續傷害狀態（灼燒／中毒）。技能點與裝備的「傷害 +%」只加在直接命中，不加在持續傷害上——面板要講清楚 */
+export function dotOf(def: SkillDefinition): 'burn' | 'poison' | null {
+  for (const h of [...def.hits, ...(def.block ? [def.block.counter] : [])]) {
+    const st = h.status;
+    if (st && STATUS_RULES[st.id].dot && (st.powerPct ?? 0) > 0 && (st.id === 'burn' || st.id === 'poison')) return st.id;
+  }
+  return null;
+}
 
 /** 這個等級總共有幾點 */
 export function skillPoints(level: number): number {

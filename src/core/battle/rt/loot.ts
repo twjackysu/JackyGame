@@ -2,8 +2,9 @@
 // - 單機／PvE 引擎：rand＝引擎的掉落亂數，place＝丟到地上（會再抽兩次亂數決定位置）——亂數順序和以前一模一樣（golden hash 不變）。
 // - 伺服器 loot.claim（26-security §3.1）：rand＝伺服器自己的亂數，place 只記下來（不用位置）。客戶端只能說「我打倒了誰、在哪一群」，數量與稀有度由這裡決定。
 import { ENEMIES } from './data';
+import { GEAR_ILVL_MAX } from './gear';
 import { stageDef } from './maps/world';
-import { TICKS_PER_SEC, type LootId } from './types';
+import { TICKS_PER_SEC, type LootId, type StageDefinition } from './types';
 
 /** 精英群組 id（引擎與伺服器共用） */
 export const HIDDEN_GROUP = 'hidden';
@@ -32,6 +33,34 @@ export function hasLoot(defId: string): boolean {
   return !!ENEMIES[defId]?.drops;
 }
 
+/** 掉落設定算出來的物品等級（還沒套成品上限；genGear 會截在 GEAR_ILVL_MAX） */
+function rawDropIlvl(base: number, hpPct: number, furyPlus: number, hidden: boolean, nightPlus: number, affix: boolean): number {
+  return base + Math.floor(hpPct / 25) + furyPlus + (hidden ? HIDDEN_ILVL_PLUS : 0) + nightPlus + (affix ? AFFIX_ILVL_PLUS : 0);
+}
+/** 隱藏精英（D-100）／帶詞綴的精英：物品等級加成 */
+export const HIDDEN_ILVL_PLUS = 2;
+export const AFFIX_ILVL_PLUS = 1;
+
+/**
+ * 這隻怪在這張圖「實際掉到手上」的裝備物品等級範圍（D-340，Wiki 與說明用；和 rollEnemyLoot 同一條算式、再套成品上限）。
+ * 範圍來自牠出現的各個區域（區域 HP 加成越高、等級越高）。`capped`＝設定值超過上限、被截掉了。
+ * 這個情況下不會掉（沒設裝備、白天沒有這種怪、不是 Boss 卻問暴怒）就回 null。
+ */
+export function dropIlvlRange(st: StageDefinition, defId: string, o: { night?: boolean; fury?: boolean; affix?: boolean; hidden?: boolean } = {}): { min: number; max: number; capped: boolean } | null {
+  const gd = st.gearDrops?.[defId];
+  if (!gd || (o.night && !st.night)) return null;
+  const fixed = st.enemies.filter((e) => e.enemyId === defId).map((e) => e.hpPct ?? 0);
+  const groups = (st.spawnGroups ?? []).filter((g) => g.enemyId === defId && (!g.nightOnly || o.night)).map((g) => g.hpPct ?? 0);
+  const fury = o.fury ? st.bossZone?.fury : undefined;
+  if (o.fury && (!fury || !fixed.length)) return null;
+  const riot = st.riot && (st.riot.enemyId === defId || st.riot.eliteId === defId) ? [0] : [];
+  const hps = o.hidden ? (st.hiddenElite?.enemyId === defId ? [100] : []) : o.fury ? fixed : [...fixed, ...groups, ...riot];
+  if (!hps.length) return null;
+  const raws = hps.map((h) => rawDropIlvl(gd.ilvl, h, fury?.ilvlPlus ?? 0, !!o.hidden, o.night ? (st.night?.ilvlPlus ?? 0) : 0, !!o.affix));
+  const cap = (n: number): number => Math.max(1, Math.min(GEAR_ILVL_MAX, n));
+  return { min: cap(Math.min(...raws)), max: cap(Math.max(...raws)), capped: Math.max(...raws) > GEAR_ILVL_MAX };
+}
+
 export function rollEnemyLoot(c: LootContext, rand: () => number, place: LootPlace): void {
   const d = ENEMIES[c.defId]?.drops;
   if (!d) return;
@@ -57,7 +86,7 @@ export function rollEnemyLoot(c: LootContext, rand: () => number, place: LootPla
     const fury = c.fury ? st?.bossZone?.fury : undefined;
     // 隱藏精英（D-100）：物品等級再 +2、稀有權重 ×2
     const hidden = g0 === HIDDEN_GROUP;
-    const ilvl = gd.ilvl + Math.floor(hpPct / 25) + (fury?.ilvlPlus ?? 0) + (hidden ? 2 : 0) + (nt?.ilvlPlus ?? 0) + (c.affix ? 1 : 0);
+    const ilvl = rawDropIlvl(gd.ilvl, hpPct, fury?.ilvlPlus ?? 0, hidden, nt?.ilvlPlus ?? 0, !!c.affix);
     const first = !!gd.firstRare && c.firstKill;
     for (let k = 0; k < (fury?.count ?? gd.count ?? 1); k++) {
       if (rand() * 100 >= (gd.chance * (100 + bonus)) / 100) continue;

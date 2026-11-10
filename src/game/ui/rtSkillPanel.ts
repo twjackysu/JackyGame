@@ -7,7 +7,7 @@ import { SFX } from '../../audio/sfx';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { WEAPONS, type WeaponKind } from '../../core/battle/rt/data';
-import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, setVariant, skillPoints, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
+import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, dotOf, rankTotalText, setVariant, skillPoints, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
 
 const COL_X = [-276, -138, 0, 138, 276];
 const NODE_Y = -350;
@@ -149,7 +149,8 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     if (sel.node === -1) {
       title = `${nm}　Lv ${rank}/${SKILL_MAX_RANK}`;
       desc = W.desc?.[t.id] ?? '';
-      sub = `每級 ${t.per}${W.variants[t.id] && !full ? '・5 級開放下面的分支' : ''}`;
+      // RF-05b：寫出「現在加了多少」（和實際套用的同一份數字），不只寫每級多少
+      sub = `每級 ${t.per}${W.variants[t.id] && !full ? '・5 級開放下面的分支' : ''}${rank > 0 ? `\n現在（Lv ${rank}）：${rankTotalText(t.id, rank)}` : ''}`;
       const can = !!addRank(r, t.id, level);
       action = btn(0, by + 106, full ? '已滿級' : can ? '+1 加點' : '沒有技能點了', () => {
         addPoint(sel.col);
@@ -162,6 +163,10 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
       desc = k === 0 ? (W.desc?.[t.id] ?? '') : (alt?.desc ?? '');
       const using = full && variantIndex(v, t.id) === k;
       sub = full ? (using ? '使用中' : '點「改用」就換成這種打法（隨時可以換回來）') : `${nm}滿 5 級才能選（現在 ${rank}/${SKILL_MAX_RANK}）`;
+      // 持續傷害不吃「傷害 +%」（只加在直接命中）：有灼燒／中毒的打法講清楚
+      const def = k === 0 ? W.skills[t.id] : alt;
+      const dot = def ? dotOf(def) : null;
+      if (dot && t.mod(1).dmgPct) sub += `\n技能點的傷害加成只算直接命中，${dot === 'burn' ? '灼燒' : '中毒'}的傷害不變`;
       action = btn(0, by + 106, using ? '使用中' : full ? '改用這招' : '還沒解鎖', () => {
         pickBranch(sel.col, k);
         render();
@@ -169,7 +174,7 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     }
     items.push(scene.add.text(-300, by - 122, title, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: sel.node > 0 ? '#ffb6f0' : '#ffffff' }).setOrigin(0, 0));
     items.push(scene.add.text(-300, by - 78, desc, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc0', wordWrap: { width: 600, useAdvancedWrap: true }, lineSpacing: 4 }).setOrigin(0, 0));
-    items.push(scene.add.text(-300, by + 52, sub, { fontFamily: UI_FONT, fontSize: '17px', color: '#c8a060', wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0, 0.5));
+    items.push(scene.add.text(-300, by + 50, sub, { fontFamily: UI_FONT, fontSize: '19px', color: '#e0b870', wordWrap: { width: 600, useAdvancedWrap: true }, lineSpacing: 3 }).setOrigin(0, 0.5));
     items.push(action);
     if (justUnlocked >= 0) {
       const j = SKILL_TREE[justUnlocked]!;

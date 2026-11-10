@@ -3,7 +3,8 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, WEAPONS, WEAPON_IDS } from '../src/core/battle/rt/data';
-import { ENH_MAX, GEAR_SLOTS, PRO_SPECIAL_PCT, RARITY_NAME, SLOT_NAME, SPECIAL_KINDS, enhanceCost, genGear, type GearSlot, type Rarity } from '../src/core/battle/rt/gear';
+import { ENH_MAX, GEAR_ILVL_MAX, GEAR_SLOTS, PRO_SPECIAL_PCT, RARITY_NAME, SLOT_NAME, SPECIAL_KINDS, enhanceCost, genGear, type GearSlot, type Rarity } from '../src/core/battle/rt/gear';
+import { AFFIX_ILVL_PLUS, HIDDEN_ILVL_PLUS, dropIlvlRange } from '../src/core/battle/rt/loot';
 import { SKILL_MAX_RANK, SKILL_TREE } from '../src/core/meta/skills';
 import { WORLD_MAPS } from '../src/game/worldMaps';
 import type { StageDefinition } from '../src/core/battle/rt/types';
@@ -118,6 +119,7 @@ function monstersPage(): string {
   let s = head('怪物與掉落');
   s += '每隻怪都會掉金幣；粉塵、結晶、藥水照下表機率各自判定。**裝備**另外判定：「裝備機率」是每件的機率，稀有度權重是 普通：精良：稀有。\n';
   s += '區域加成（越深的區域掉落越多）、深夜、狼群暴動、隱藏首領都會再提高機率與物品等級。\n\n';
+  s += `**物品等級最高 ${GEAR_ILVL_MAX}**：表裡的「基礎 ilvl」加上各種加成後超過 ${GEAR_ILVL_MAX} 的，掉出來就是 ${GEAR_ILVL_MAX}。每張圖下面的「實際掉到手上的物品等級」是成品的等級（標 ＊ 的是已經頂到上限——這時深夜／暴怒多給的是**件數、稀有機率和深夜第三條詞綴**，不是等級）。\n\n`;
   const seen = new Set<string>();
   for (const m of WORLD_MAPS) {
     const st: StageDefinition = m.make();
@@ -125,7 +127,7 @@ function monstersPage(): string {
     if (st.riot) ids.add(st.riot.enemyId), st.riot.eliteId && ids.add(st.riot.eliteId);
     if (st.hiddenElite) ids.add(st.hiddenElite.enemyId);
     s += `## ${m.name}${m.postGame ? '（通關後）' : ''}\nBoss：**${m.boss}**・建議等級 Lv${m.bossLv}${st.night ? `・深夜：怪物 HP +${st.night.hpPct}%、攻擊 +${st.night.atkPct}%、掉落 +${st.night.lootPct}%、物品等級 +${st.night.ilvlPlus}` : ''}\n\n`;
-    s += '| 怪物 | HP | 攻擊 | 防禦 | 金幣 | 粉塵 | 結晶 | 藥水 | 裝備機率 | ilvl | 稀有度權重 |\n|---|--:|--:|--:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|\n';
+    s += '| 怪物 | HP | 攻擊 | 防禦 | 金幣 | 粉塵 | 結晶 | 藥水 | 裝備機率 | 基礎 ilvl | 稀有度權重 |\n|---|--:|--:|--:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|\n';
     const rows = [...ids].map((id) => ENEMIES[id]).filter((e): e is NonNullable<typeof e> => !!e).sort((a, b) => a.hp - b.hp);
     for (const e of rows) {
       const it = (k: string): string => {
@@ -133,11 +135,23 @@ function monstersPage(): string {
         return x ? `${x.chance}%${x.count ? `×${x.count[0]}～${x.count[1]}` : ''}` : '—';
       };
       const gd = st.gearDrops?.[e.id];
-      s += `| ${e.name} | ${e.hp} | ${e.atk} | ${e.def} | ${e.drops ? `${e.drops.gold[0]}～${e.drops.gold[1]}` : '—'} | ${it('dust')} | ${it('crystal')} | ${it('potion')} | ${gd ? `${gd.chance}%${gd.count && gd.count > 1 ? ` ×${gd.count} 次` : ''}${gd.firstRare ? '（首殺保底稀有）' : ''}` : '—'} | ${gd ? gd.ilvl : '—'} | ${gd ? gd.rarity.join('：') : '—'} |\n`;
+      s += `| ${e.name} | ${e.hp} | ${e.atk} | ${e.def} | ${e.drops ? `${e.drops.gold[0]}～${e.drops.gold[1]}` : '—'} | ${it('dust')} | ${it('crystal')} | ${it('potion')} | ${gd ? `${gd.chance}%${gd.count && gd.count > 1 ? ` ×${gd.count} 次` : ''}${gd.firstRare ? '（首殺保底稀有）' : ''}` : '—'} | ${gd ? Math.min(GEAR_ILVL_MAX, gd.ilvl) : '—'} | ${gd ? gd.rarity.join('：') : '—'} |\n`;
       seen.add(e.id);
     }
+    // 成品物品等級對照（D-340）：和掉落擲骰同一條算式＋上限
+    const cell = (id: string, o: { night?: boolean; fury?: boolean }): string => {
+      const r = dropIlvlRange(st, id, o);
+      return r ? `${r.min === r.max ? r.min : `${r.min}～${r.max}`}${r.capped ? '＊' : ''}` : '—';
+    };
+    s += `\n**實際掉到手上的物品等級**（同一種怪在越深的區域越高${st.eliteAffixes ? `；帶詞綴的精英再 +${AFFIX_ILVL_PLUS}` : ''}${st.hiddenElite ? `；隱藏首領再 +${HIDDEN_ILVL_PLUS}` : ''}；最高 ${GEAR_ILVL_MAX}）\n\n`;
+    s += `| 怪物 | 白天 |${st.night ? ' 深夜 |' : ''}${st.bossZone?.fury ? ` 暴怒 |${st.night ? ' 暴怒＋深夜 |' : ''}` : ''}\n|---|:-:|${st.night ? ':-:|' : ''}${st.bossZone?.fury ? `:-:|${st.night ? ':-:|' : ''}` : ''}\n`;
+    for (const e of rows) {
+      const cells = [cell(e.id, {}), ...(st.night ? [cell(e.id, { night: true })] : []), ...(st.bossZone?.fury ? [cell(e.id, { fury: true }), ...(st.night ? [cell(e.id, { fury: true, night: true })] : [])] : [])];
+      if (cells.every((c) => c === '—')) continue;
+      s += `| ${e.name} | ${cells.join(' | ')} |\n`;
+    }
     const fury = st.bossZone?.fury;
-    if (fury) s += `\n**暴怒版 ${m.boss}**：HP +${fury.hpPct}%、攻擊 +${fury.atkPct}%、冷卻 −${fury.cdPct}%；掉 ${fury.count} 次裝備、物品等級 +${fury.ilvlPlus}、稀有度權重 ${fury.rarity.join('：')}。\n`;
+    if (fury) s += `\n**暴怒版 ${m.boss}**：HP +${fury.hpPct}%、攻擊 +${fury.atkPct}%、冷卻 −${fury.cdPct}%；掉 ${fury.count} 次裝備、物品等級 +${fury.ilvlPlus}（最高 ${GEAR_ILVL_MAX}）、稀有度權重 ${fury.rarity.join('：')}。\n`;
     if (st.hiddenElite) s += `\n**隱藏首領**：不倒下連殺 ${st.hiddenElite.streak} 隻出現（${ENEMIES[st.hiddenElite.enemyId]?.name ?? ''}，掉落 +${st.hiddenElite.lootPct ?? 0}%、物品等級 +2、稀有權重 ×2）。\n`;
     if (st.riot) s += `\n**狼群暴動**：不定時一群 ${ENEMIES[st.riot.enemyId]?.name ?? ''} 衝過來，掉落 +${st.riot.lootPct ?? 0}%。\n`;
     s += '\n';

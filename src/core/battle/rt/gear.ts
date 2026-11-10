@@ -116,8 +116,11 @@ function rng(seed: number): () => number {
 
 const MULT: Record<Rarity, number> = { 1: 1, 2: 1.25, 3: 1.5 };
 
+/** 成品的物品等級上限（D-340：刻意的終點，「神裝」＝ 12；掉落設定算出來超過的一律當 12） */
+export const GEAR_ILVL_MAX = 12;
+
 /** 某部位、物品等級、稀有度的底數值（PvP 的 ilvl 壓縮用，pvp.ts） */
-export const gearBase = (slot: GearSlot, ilvl: number, rarity: Rarity): RtGear['base'] => baseOf(slot, Math.max(1, Math.min(12, Math.floor(ilvl))), MULT[rarity]);
+export const gearBase = (slot: GearSlot, ilvl: number, rarity: Rarity): RtGear['base'] => baseOf(slot, Math.max(1, Math.min(GEAR_ILVL_MAX, Math.floor(ilvl))), MULT[rarity]);
 
 /** 底數值：部位決定吃哪些屬性 */
 function baseOf(slot: GearSlot, L: number, m: number): RtGear['base'] {
@@ -160,7 +163,7 @@ const REGION_TAG: Record<string, [string, string]> = { mistwood: ['薄霧', '霧
 export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string; slot?: GearSlot }): RtGear {
   const R = rng(seed);
   for (let i = 0; i < 3; i++) R();
-  const L = Math.max(1, Math.min(12, Math.floor(ilvl)));
+  const L = Math.max(1, Math.min(GEAR_ILVL_MAX, Math.floor(ilvl)));
   // opts.slot：指定部位（第 25 輪行商「為你挑選」）；照樣抽一次亂數，其他結果與沒指定時相同
   const drawn = GEAR_SLOTS[Math.floor(R() * GEAR_SLOTS.length)]!;
   const slot = opts?.slot ?? drawn;
