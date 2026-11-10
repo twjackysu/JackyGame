@@ -4346,11 +4346,26 @@ export class RtBattleScene extends Phaser.Scene {
       // HP 條（Boss 用畫面上方大條）
       if (!boss) {
         const w = Math.max(56, r * 2.4);
-        top.fillStyle(0x000000, 0.7).fillRect(px - w / 2, headY - 14, w, 8);
+        // 精英（RF-07）：血條加粗、金框、左端一顆金菱形——不靠顏色也認得出（省電畫質一樣畫；只多幾個矩形）
+        const elite = !isP && x.tier === 'elite';
+        const bh = elite ? 11 : 8;
+        const by = headY - 14 - (elite ? 3 : 0);
+        if (elite) {
+          top.fillStyle(0x2a1a06, 1).fillRect(px - w / 2 - 4, by - 4, w + 8, bh + 8);
+          top.fillStyle(0xffd27a, 1).fillRect(px - w / 2 - 2, by - 2, w + 4, bh + 4);
+        }
+        top.fillStyle(0x000000, elite ? 1 : 0.7).fillRect(px - w / 2, by, w, bh);
         const hr = Math.max(0, x.hp / x.maxHp);
         const gr = this.ghostHp(x.id, hr);
-        if (gr > hr) top.fillStyle(isP ? 0xff8a8a : 0xffffff, 0.9).fillRect(px - w / 2 + w * hr, headY - 14, w * (gr - hr), 8);
-        top.fillStyle(isP ? 0x7dffb0 : 0xff6a6a, 1).fillRect(px - w / 2, headY - 14, w * hr, 8);
+        if (gr > hr) top.fillStyle(isP ? 0xff8a8a : 0xffffff, 0.9).fillRect(px - w / 2 + w * hr, by, w * (gr - hr), bh);
+        top.fillStyle(isP ? 0x7dffb0 : elite ? 0xff5a4a : 0xff6a6a, 1).fillRect(px - w / 2, by, w * hr, bh);
+        if (elite) {
+          const dx = px - w / 2 - 4;
+          const dy = by + bh / 2;
+          top.fillStyle(0x2a1a06, 1).fillTriangle(dx - 13, dy, dx, dy - 13, dx + 13, dy).fillTriangle(dx - 13, dy, dx, dy + 13, dx + 13, dy);
+          top.fillStyle(0xffd27a, 1).fillTriangle(dx - 10, dy, dx, dy - 10, dx + 10, dy).fillTriangle(dx - 10, dy, dx, dy + 10, dx + 10, dy);
+          top.fillStyle(0xfff4c8, 1).fillTriangle(dx - 4, dy, dx, dy - 4, dx + 4, dy);
+        }
       }
       // 鎖定
       if (!isP && playerU.targetId === x.id) {
