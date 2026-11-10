@@ -6,7 +6,7 @@
 - **RF-05b（D-340，verified）**｜在最新 main 逐一檢查 45 種打法：技能點的每一項加成都吃得到，審查的說法大部分不成立（加測試鎖住）。真的會誤會的是「傷害 +%」不含灼燒／中毒 → 那四種打法在面板寫明；技能節點多一行「現在（Lv 5）：傷害 +40%」，說明小字 17 → 19px。**玩家感覺**：看得到自己點的技能現在到底加了多少。截圖 `docs/screenshots/skill-panel-rank-total.jpg`（390×844 實際開面板）。
 - **RF-07 精英辨識（verified）**｜先截圖看現況（燼紅裂谷白天、星隕高原深夜）：精英已經比較大、有標記、有詞綴環，但血條和小怪一樣。加了金框粗血條＋左端金菱形。**玩家感覺**：一群狼裡哪隻是精英，看血條就知道，不用比顏色。對照圖 `docs/screenshots/elite-hpbar-before-after.jpg`。
 - **RF-03 箭的時序（D-341，verified）**｜逐幀截圖確認：以前命中那一幀怪先白閃跳數字，箭／魔彈才出發、約 6 幀後才到。改成命中前 3～4 tick 離手、命中那一刻剛好飛到（純畫面，核心沒動）。**玩家感覺**：弓和法杖的普攻變成「箭到 → 怪痛」，不再是「怪痛 → 箭到」。對照圖 `docs/screenshots/rf03-shot-timing-before-after.jpg`（上＝舊、下＝新；每格隔 2 幀）。
-- **驗證**：typecheck、lint、build、vitest 130 檔 939 項全過（3 跳過；新測試 `tests/drop-ilvl-and-skill-text.test.ts` 5 項）；`npm run wiki` 重產只有 monsters.md 變；`build:online`、`build:server` 過（在第一個 commit 時跑的）；Playwright：技能面板三張、精英兩張圖前後、弓／杖逐幀前後各 6 格、弓與法杖 Bot 各跑 45 秒無錯誤。golden hash／campaign 不變。CI 見本則最後一行。
+- **驗證**：typecheck、lint、build、vitest 130 檔 939 項全過（3 跳過；新測試 `tests/drop-ilvl-and-skill-text.test.ts` 5 項）；`npm run wiki` 重產只有 monsters.md 變；`build:online`、`build:server` 過（在第一個 commit 時跑的）；Playwright：技能面板三張、精英兩張圖前後、弓／杖逐幀前後各 6 格、弓與法杖 Bot 各跑 45 秒無錯誤。golden hash／campaign 不變。**CI**：c6d4a68、dbcd68c、f9e4f6d 三次都全綠（最後一次含 check＋mssql）。
 - **沒驗到的**：省電畫質沒有另外截圖（精英血條與箭的時序都沒有畫質分支）；箭的時序在真機 60fps 的觀感、普攻 25ms 停頓會不會太頻繁，要 Jacky 實機看（已寫 FOR_JACKY）；競技場的箭沒改。
 - **下一輪**：Q 清單第 1 項「常用技能特效逐招檢查」（先截三把武器 × 5 招的凍結圖，挑最單薄的補）；有空再量 RF-02b 的「刷哪張圖最划算」。
 
