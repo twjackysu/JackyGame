@@ -17,6 +17,12 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | todo（已包含在 P1-c2 的 patch 裡，一起上） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 161 輪注意（Jacky 21:05 的三件事，D-347～349，已上線）**：
+- 邊走邊打＝`engine.ts` 的 `moveAttack`（只在玩家自己走的時候）；施放中自己走＝`MOVE_CAST_FACTOR` 0.6；疊放＝`Unit.casts`（`startSkill` 裡 `stack`，`updatePlayer` 開頭跑每一招的命中）；遠程不貼怪＝`updatePlayer` 技能分支的 `ranged`。
+- **競技場（`s.pvp`）沒開邊走邊打（普攻）與遠程不貼怪**：做 P1-c2 的 PvP 平衡時一起開、一起調（開了之後杖對劍 18–2、弓對劍 19–1）。PvpScene 的操作因此和冒險地圖不一樣，是暫時的。
+- 待看：①`castingSkill` 現在包含疊放中的招——全自動連續疊放時，換打法／祝福要等全部放完才套用，實測有沒有等太久 ②PvpScene 沒畫疊放招的特效（它用事件畫，應該有，沒截圖確認）③Jacky 對 60% 施放移速與疊放的回饋。
+- 截圖腳本 `screenshots/move.mjs`（沒進 git）：`sc().commands = () => [{type:'move',…}]` 模擬搖桿繞圈。
+
 **第 160 輪注意（P1-c／P1-d）**：
 - **P1-c2 的 PvP**（先 `git apply docs/wip/p1c2-charge-slot.patch`，再 `PVP_PROBE=1 npx vitest run tests/rt-pvp-balance.test.ts` 看三組對戰的勝場，patch 裡已經加了這個開關）：試過「縛足箭 160%＋減速 3.5 秒、落雷 120%」→ 弓對杖從 1–19 翻成 20–0、弓對劍還是 0–20。方向候選：①PvP 的遠程 Bot 走位（`kiteDir`）現在只在普攻冷卻時走，少了後躍後應該「被近身就一直退、放縛足箭再射」；②第 3 欄在競技場給近戰一個追擊手段、給遠程一個脫身手段（例如縛足箭在 PvP 改成定身 0.8 秒，`pvpCc` 有遞減）；③調 `pvp.ts` 的武器別修正。也要重跑 `pvp-ladder-balance`（patch 上去後好裝的分數 1286，門檻 1343）。**做不出平衡就先讓競技場沿用舊的位移招**（`s.pvp` 時 `skillDef` 回舊定義）是保底方案，要記 DECISIONS。
 - patch 上去後還有約 20 個測試是「名字／位移距離」的舊斷言（rt-bow、rt-staff、rt-variants、rt-gear、rt-auto-skill 的位移技、settings-auto-migrate、rt-multi、rt-p5、rt-skills、rt-battle 的拉怪判斷）要改；golden hash 要重產。

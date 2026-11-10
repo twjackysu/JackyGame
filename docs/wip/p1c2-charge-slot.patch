@@ -1,5 +1,5 @@
 diff --git a/src/core/battle/rt/auto.ts b/src/core/battle/rt/auto.ts
-index 96dbbbd..ab966a5 100644
+index ca89dbb..955ca1a 100644
 --- a/src/core/battle/rt/auto.ts
 +++ b/src/core/battle/rt/auto.ts
 @@ -10,11 +10,11 @@ const DIR = 1000;
@@ -200,10 +200,10 @@ index 221ab02..04f23a5 100644
    parry: {
      id: 'parry', name: '時間凝滯', variantName: '時間凝滯', desc: '護盾（最大 HP 9%）4 秒，周圍 4 格 110%＋冰凍 1.5 秒（Boss 減速）；冷卻 11 秒',
 diff --git a/src/core/battle/rt/engine.ts b/src/core/battle/rt/engine.ts
-index 8e5abf5..72d3ce3 100644
+index 3042450..b6059b8 100644
 --- a/src/core/battle/rt/engine.ts
 +++ b/src/core/battle/rt/engine.ts
-@@ -1372,7 +1372,10 @@ function drinkPotion(s: BattleState, p: Unit): boolean {
+@@ -1381,7 +1381,10 @@ function drinkPotion(s: BattleState, p: Unit): boolean {
  
  /** 套上範圍修正後的技能形狀（areaPct；沒有修正就回傳原物件） */
  export function skillShape(s: BattleState, skillId: string, shape: Shape, p?: Unit): Shape {
@@ -238,16 +238,18 @@ index 6d4549e..f9278eb 100644
  }
  
 diff --git a/src/core/battle/rt/sim.ts b/src/core/battle/rt/sim.ts
-index 0490251..95e7752 100644
+index 3e23eea..73cabc4 100644
 --- a/src/core/battle/rt/sim.ts
 +++ b/src/core/battle/rt/sim.ts
-@@ -271,11 +271,12 @@ export class PlayerBot implements BattleController {
+@@ -271,13 +271,14 @@ export class PlayerBot implements BattleController {
      }
      else if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
      else if (d <= (skillDef(s, 'heavy_slash', p)!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
 -    else if (ready('charge') && (backLeap(s, p) ? d <= (skillDef(s, 'charge', p)!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge', p)!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' });
 +    else if (ready('charge') && (backLeap(s, p) || !skillDef(s, 'charge', p)!.dash ? d <= (skillDef(s, 'charge', p)!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge', p)!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' }); // D-346：第 3 欄不位移了＝射程內就放
      else if (near.length >= 1 && ready('whirlwind') && es.length === 1) out.push({ type: 'skill', id: 'whirlwind' });
+     // 第 161 輪：第 4 欄（護盾＋打一下，D-345）沒別招可放時也當輸出技用（PvE；真人開自動就是這樣）——遠程站在射程邊緣時只有它和穿雲箭打得到
+     else if (!s.pvp && this.prof.parries && ready('parry') && d <= (skillDef(s, 'parry', p)!.useRange ?? 0) + tgt.r) out.push({ type: 'skill', id: 'parry' });
      // 3. PvP 遠程拉開距離（第 144 輪，邊退邊射）：沒放技能、普攻還在冷卻、對手太近 → 往遠離對手的方向走；
      //    普攻好了就站住讓自動普攻出手（手動移動在出手前會蓋掉普攻，命中後才可以取消後搖）。PvE 不走這段。
 -    if (s.pvp && !out.some((c) => c.type === 'skill')) {
@@ -288,10 +290,10 @@ index b450de7..a7ba6da 100644
        return !!def.block || !!def.guard;
    }
 diff --git a/src/game/scenes/RtBattleScene.ts b/src/game/scenes/RtBattleScene.ts
-index 5b5c698..7a313ff 100644
+index 52b8ca0..7d80465 100644
 --- a/src/game/scenes/RtBattleScene.ts
 +++ b/src/game/scenes/RtBattleScene.ts
-@@ -5155,7 +5155,7 @@ export class RtBattleScene extends Phaser.Scene {
+@@ -5158,7 +5158,7 @@ export class RtBattleScene extends Phaser.Scene {
        const left = Math.max(0, (p.ready['blade_storm'] ?? 0) - s.tick);
        const ok = left === 0 && p.mp >= need;
        // 長弓第一次（D-147）：教「保持距離」
@@ -347,14 +349,11 @@ index ecb9c01..4b2b331 100644
  
  export function openWeaponPick(scene: Phaser.Scene, onPick: (w: WeaponId) => void): Phaser.GameObjects.Container {
 diff --git a/tests/rt-pvp-balance.test.ts b/tests/rt-pvp-balance.test.ts
-index 5a0f537..7e9a562 100644
+index e28f751..7e9a562 100644
 --- a/tests/rt-pvp-balance.test.ts
 +++ b/tests/rt-pvp-balance.test.ts
-@@ -46,10 +46,11 @@ describe('PvP 競技場', () => {
-           else wb++;
-         }
-         rows.push(`| ${a} vs ${b} | ${wa} | ${wb} | ${to} |`);
-+        (globalThis as any).process.stdout.write(rows[rows.length - 1] + '\n');
+@@ -49,8 +49,8 @@ describe('PvP 競技場', () => {
+         (globalThis as any).process.stdout.write(rows[rows.length - 1] + '\n');
          expect(wa + wb + to).toBe(20);
          // 目標 40～60%（第 144 輪：8～12 勝）；護欄放寬到 30～70%，改到 PvE 數值時才不會一碰就紅
 -        expect(wa).toBeGreaterThanOrEqual(6);
