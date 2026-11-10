@@ -19,7 +19,7 @@ import { AFFIX_COLOR, drawMinimap } from '../rt/MinimapSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
 import { cardSummary, grantCard, openEmberCardPanel, syncChestCards } from '../ui/emberCardPanel';
-import { openBlessPanel } from '../ui/blessPanel';
+import { openBlessList, openBlessPanel } from '../ui/blessPanel';
 import { BLESS_RULES, blessNeed, effectDef, type EffectDef } from '../../core/battle/rt/effects';
 import { ELEMENT_LOOK, drawEffectIcon } from '../fx/effectIcon';
 import { addWithAutoSalvage } from '../rtBag';
@@ -378,6 +378,8 @@ export class RtBattleScene extends Phaser.Scene {
   private restAskUntil = 0;
   private blessRoot: Phaser.GameObjects.Container | null = null;
   private blessTxt: Phaser.GameObjects.Text | null = null;
+  private blessZone: Phaser.GameObjects.Zone | null = null;
+  private blessZoneW = 0;
   /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
   private openRun = 0;
   private nightRun = 0;
@@ -757,7 +759,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.tipCalmUntil = 0;
     this.storySoon = false;
-    this.blessSent = null; this.blessSeen = null; this.blessTxt = null; this.blessRoot = null; this.restAskUntil = 0;
+    this.blessSent = null; this.blessSeen = null; this.blessTxt = null; this.blessZone = null; this.blessZoneW = 0; this.blessRoot = null; this.restAskUntil = 0;
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; if (on) leftMapsExcept(this.stageId); this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
@@ -1182,9 +1184,35 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu = root;
   }
 
+  /** 點右上角的火苗／祝福圖示：列出身上的祝福（P2-c ⑤）。再點任何地方關掉 */
+  private openBlessList(): void {
+    const b = this.s.bless;
+    if (!b || this.menu || this.s.outcome !== 'running') return;
+    SFX.uiTap();
+    const root = openBlessList(this, this.blessDefs(b.taken), Math.min(b.meter, blessNeed(b.taken.length)), blessNeed(b.taken.length), b.taken.length >= BLESS_RULES.max, () => {
+      root.destroy();
+      if (this.menu === root) this.menu = null;
+    });
+    this.menu = root;
+  }
+
   private drawBlessHud(g: Phaser.GameObjects.Graphics): void {
     const b = this.s.bless;
     if (!b) return;
+    // 點擊區：火苗＋往左排的圖示（跟著祝福數變寬）
+    const zw = 92 + b.taken.length * 50;
+    if (!this.blessZone) {
+      this.blessZone = this.add.zone(0, 0, 10, 10).setOrigin(1, 0.5).setDepth(61).setInteractive({ useHandCursor: true });
+      this.blessZone.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+        ev.stopPropagation();
+        this.openBlessList();
+      });
+    }
+    if (this.blessZoneW !== zw) {
+      this.blessZoneW = zw;
+      this.blessZone.setPosition(GAME_WIDTH, 204).setSize(zw, 104);
+      this.blessZone.input?.hitArea.setTo(0, 0, zw, 104);
+    }
     const full = b.taken.length >= BLESS_RULES.max;
     const need = blessNeed(b.taken.length);
     const x0 = GAME_WIDTH - 46;

@@ -76,3 +76,41 @@ export function openBlessPanel(scene: Phaser.Scene, offer: readonly EffectDef[],
   scene.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 240, ease: 'Back.Out' });
   return root;
 }
+
+/**
+ * 身上的祝福清單（第 162 輪，P2-c ⑤）：點右上角的火苗／圖示打開——HUD 只有圖示沒有名字，選過幾個之後記不得各是什麼。
+ * 每個一列（圖示＋名字＋說明），最下面寫離下一次選擇還差幾隻、怎樣會消散；點任何地方關掉。戰鬥暫停（和其他面板一樣）。
+ */
+export function openBlessList(scene: Phaser.Scene, have: readonly EffectDef[], meter: number, need: number, full: boolean, onClose: () => void): Phaser.GameObjects.Container {
+  const cx = GAME_WIDTH / 2;
+  const root = scene.add.container(0, 0).setDepth(1850);
+  const shade = scene.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x06040a, 0.78).setInteractive();
+  root.add(shade);
+  const ROW = have.length >= 7 ? 94 : 104; // 帶滿 8 個時在 16:9 的畫面上也放得下（最下面兩行說明不壓到「關閉」）
+  const total = Math.max(1, have.length) * ROW;
+  const top = Math.max(250, Math.round(GAME_HEIGHT / 2 - total / 2 - 20));
+  root.add(scene.add.text(cx, top - 96, t('bless.listTitle', { n: have.length }), { fontFamily: TITLE_FONT, fontSize: '46px', color: '#ffd27a', stroke: '#2a1404', strokeThickness: 7 }).setOrigin(0.5));
+  const g = scene.add.graphics();
+  root.add(g);
+  if (!have.length) root.add(scene.add.text(cx, top + ROW / 2, t('bless.listEmpty'), { fontFamily: UI_FONT, fontSize: '25px', color: '#e8dcc0', align: 'center', wordWrap: { width: 600, useAdvancedWrap: true } }).setOrigin(0.5));
+  have.forEach((d, i) => {
+    const y = top + i * ROW + ROW / 2;
+    const L = ELEMENT_LOOK[d.element];
+    g.fillStyle(0x1c140c, 0.97).fillRoundedRect(cx - 320, y - ROW / 2 + 5, 640, ROW - 10, 12);
+    g.lineStyle(3, L.color, 0.9).strokeRoundedRect(cx - 320, y - ROW / 2 + 5, 640, ROW - 10, 12);
+    drawEffectIcon(g, cx - 262, y, 34, d.element, false, d.glyph);
+    root.add(scene.add.text(cx - 206, y - 22, d.name, { fontFamily: TITLE_FONT, fontSize: '30px', color: L.css, stroke: '#140a04', strokeThickness: 4 }).setOrigin(0, 0.5));
+    root.add(scene.add.text(cx - 206, y + 20, d.desc, { fontFamily: UI_FONT, fontSize: d.desc.length > 26 ? '18px' : '21px', color: '#f4ecd8', wordWrap: { width: 500, useAdvancedWrap: true } }).setOrigin(0, 0.5));
+  });
+  const foot = `${full ? t('bless.listFull') : t('bless.listNext', { n: Math.max(0, need - meter) })}\n${t('bless.listRule')}`;
+  root.add(scene.add.text(cx, top + total + 26, foot, { fontFamily: UI_FONT, fontSize: '21px', color: '#b8a888', align: 'center', lineSpacing: 8, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5, 0));
+  root.add(scene.add.text(cx, GAME_HEIGHT - 120, t('bless.listClose'), { fontFamily: UI_FONT, fontSize: '22px', color: '#8a8270' }).setOrigin(0.5));
+  const openedAt = Date.now();
+  shade.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+    ev.stopPropagation();
+    if (Date.now() - openedAt < 250) return;
+    SFX.uiTap();
+    onClose();
+  });
+  return root;
+}

@@ -24,4 +24,10 @@ export const en: Partial<Record<MessageKey, string>> = {
   'bless.gone': 'Your ember blessings fade',
   'bless.restAsk': 'Resting clears your {n} blessing(s)\nTap the campfire again to confirm',
   'bless.tip': 'Ember Blessings: kills fill the flame (top right); pick one when full. Resting or falling clears them',
+  'bless.listTitle': 'Active Ember Blessings ({n})',
+  'bless.listEmpty': 'No blessings yet\nFill the flame (top right) with kills to pick one',
+  'bless.listNext': '{n} more kill(s) until the next pick',
+  'bless.listFull': 'You are carrying the maximum',
+  'bless.listRule': 'Resting at a campfire or falling clears all blessings',
+  'bless.listClose': 'Tap anywhere to close',
 };

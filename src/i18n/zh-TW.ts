@@ -22,6 +22,12 @@ export const zhTW = {
   'bless.gone': '燼火祝福消散了',
   'bless.restAsk': '休息會讓 {n} 個燼火祝福消散\n確定的話再點一次營火',
   'bless.tip': '燼火祝福：打怪累積右上角的火，滿了就能選一個；回營火休息或倒下會消散',
+  'bless.listTitle': '身上的燼火祝福（{n}）',
+  'bless.listEmpty': '還沒有祝福\n打怪讓右上角的火燒滿，就能選一個',
+  'bless.listNext': '再打倒 {n} 隻就能再選一個',
+  'bless.listFull': '已經帶滿了',
+  'bless.listRule': '回營火休息或倒下，祝福會全部消散',
+  'bless.listClose': '點任何地方關閉',
 } as const;
 
 export type MessageKey = keyof typeof zhTW;
