@@ -17,6 +17,13 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 166 輪注意（技能特效逐招檢查，D-361／362）**：
+- **下一輪**先看 Jacky 的回覆；沒有就接著逐招（Q 清單第 1 項，**in_progress**：45 招裡 40 招看過；**還沒看**＝法杖 A 的雷暴（怪要擺近：`DIST=2`）、四把大招截圖逾時）；或 Boss 招牌招的預告。
+- 逐招截圖：`npx vite --port 5173` → `node scripts/shot-skills.mjs sword|bow|staff ''|a|b 標籤 [W H]`（`ONLY=`、`DIST=`、`NIGHT=1`、`LOWFX=1`）；一次最多同時跑三個。圓形招半徑小於 3.5 格的要 `DIST=2`，不然拍到的是普攻（看輸出的 `hitAt` 是不是等於那招的 atTick）。命中停頓會讓「命中後第 n 幀」前後差一兩個 tick。
+- 技能長相的分支都照資料：劍在 `RtBattleScene.skillFxOf`（扇形：護盾招銀白／重擊沒狀態 `ffx.cleave` 金／虛弱 `cleave` 紫；圓：護盾招加金環）；弓的直線箭在 `fx/hitTint.ts` 的 `bowLineLook`（pierce／snare／guard）→ `rangedFx.bowFx` 最後一個參數；繩環 `ffx.snare` 在傷害事件畫。新招只要資料像，就會自動拿到同一種長相。
+- 一般技能要全畫面染色用 `feel.ts` 的 `softFlash(scene, 顏色)`，不要再用 `cameras.main.flash`（留給大招與 Boss）。
+- 省電畫質的 localStorage：`jackygame.settings` = `{"lowFx":true}`（第 157 輪沒查到的那個）。
+
 **第 165 輪注意（P3-d 收尾、小圖示分色、祝福音效、安全區說明）**：
 - **下一輪**先看 Jacky 的回覆；沒有就挑：①Q 清單第 1 項技能特效逐招檢查 ②Boss 招牌招的預告與演出（RF-07 還沒看；`scripts/shot-boss.py` 這次一進場 Boss 就脫戰——主角被放在巢穴紅圈外或被撞出去，要先把主角釘在紅圈內）③P1-d 剩下的小項（操作設定面板說明字）。P1～P3 的子項表全部 verified 了，剩下的是 Jacky 的實機回饋。
 - **這輪進 git 的腳本**：`scripts/shot-unique.mjs`（塞獨特裝備進行囊、照 STEPS 一步一張；拍賣所會從伺服器重讀行囊，要 `inj()` 再塞一次）、`scripts/probe-clear-speed.test.ts.txt`（清怪效率）、`scripts/probe-sfx.mjs`（音效離線算波形：峰值／長度／RMS）。
@@ -124,7 +131,7 @@
 **已完成（第 155 輪，D-335／D-337）**：Q1 倒下依種類（`src/game/fx/deathFx.ts`：`deathKind(defId)`＋`playDeath`，新怪要加進 `KIND`／`DEBRIS` 表，沒加就是野獸倒地）、Q2 命中火花（`fx/feel.ts` 的 `hitSparks`＋`fx/hitTint.ts` 的 `hitLook`，新狀態要加進 `ELEMENT`）、Q3 受擊後仰（`RtBattleScene.knock(id, dx, dy, px, strong)`）、Q4 掉落彈出（`dropPop`＋`DROP_POP_MS`，在 `draw` 的地面掉落段）、Q5 技能冷卻轉好的提示（`cdWas`／`cdReadyAt`，在 `drawUi` 技能鍵段）、Q6 血條殘影（`ghostHp(id, 比例)`，怪頭上／主角／Boss 大血條）。
 
 0. **每輪開頭**：FOR_JACKY「回覆」、Issue、`art-inbox/`、Jacky 的 commit、CI（第 155 輪最後的程式 commit 是「Q5 技能冷卻剛轉好」daba688）。
-1. **常用技能特效逐招檢查（Level 2，階段 A 的主菜）**：第 155 輪沒有逐招看。先用 `window.__rt.send({ type: 'skill', id })`（見下面第 150 輪注意）把三把武器 × 5 招 × 兩種變化各截一張凍結圖，排成對照表存 `docs/screenshots/`，在 27-quality-review 補「哪幾招只有一層特效」，再挑最常用的（劍：普攻、重斬、旋風斬；弓：普攻；杖：星焰彈）補「施法前搖光／拖尾／命中爆點」（`fx/fieldFx.ts` 的 `slash`、`fx/rangedFx.ts`）。**驗收**：每招改動前後並排截圖；特效不改命中形狀（形狀在 core）。
+1. **常用技能特效逐招檢查（Level 2，階段 A 的主菜）**｜**in_progress**（第 166 輪：`scripts/shot-skills.mjs`；重斬／鐵壁斬／弓三支箭／影襲／不動架勢／範圍色塊／冰系閃白已修，見上面第 166 輪注意）：第 155 輪沒有逐招看。先用 `window.__rt.send({ type: 'skill', id })`（見下面第 150 輪注意）把三把武器 × 5 招 × 兩種變化各截一張凍結圖，排成對照表存 `docs/screenshots/`，在 27-quality-review 補「哪幾招只有一層特效」，再挑最常用的（劍：普攻、重斬、旋風斬；弓：普攻；杖：星焰彈）補「施法前搖光／拖尾／命中爆點」（`fx/fieldFx.ts` 的 `slash`、`fx/rangedFx.ts`）。**驗收**：每招改動前後並排截圖；特效不改命中形狀（形狀在 core）。
 2. ~~Q9 精英辨識~~：第 157 輪做完（血條金框＋金菱形；體型與詞綴環原本就有，沒加 postFX 光暈——截圖看已經夠分得出來）。原構想留著備查：**Q9 精英辨識（Level 2）**：13 種怪是霧狼染色。精英（`x.tier === 'elite'`）：體型 ×1.12（`spriteFor` 的 `hPx`）、腳下詞綴色的環（`AFFIX_COLOR`）、高畫質加 `postFX.addGlow`（只有畫面上的精英、最多 3 隻）。先截圖確認現況精英長什麼樣（可能已經有部分標記）。**驗收**：同畫面普通狼和精英狼一眼分得出來；純畫面。
 3. **UI 回饋剩下的（Level 2）**：①裝備稀有度在行囊／掉落提示的呈現（先截圖行囊面板再決定）②競技場（`PvpScene`）也套用 Q2 火花／Q3 後仰／Q6 殘影——競技場有自己的命中處理，第 155 輪沒動；血條是貼圖＋setCrop（D-332），殘影要另外畫一張白條。③主角被打的回饋（現在是鏡頭震動＋紅數字＋震動；可加畫面邊緣紅暈，血越少越明顯）。
 4. **Q7 效能：傷害數字池＋上限、粒子發射器共用**：①`floatNumber` 每個數字 `new Text`（建 canvas＋上傳貼圖）。先量：60 秒 Bot 戰鬥裡 `floatNumber` 呼叫次數與同時存在數的峰值（hook 計數）。做法候選：純數字（沒有 tier、沒有中文字）改用 `BitmapText`＋BootScene 用 canvas 產一張 `0-9!+` 字型貼圖（`RetroFont`）＋物件池（上限 24，超過時最舊的非暴擊數字直接收掉）；有 tier／中文的維持 Text。②`sparks`／`hitSparks`／`deathFx.puff` 每次 `add.particles` 再 destroy → 每個場景每張貼圖一個常駐 emitter，用 `emitter.setConfig`／`emitParticleAt`（Phaser 3.90 的 API 先查文件確認）。**驗收**：旋風斬掃 8 隻以上時新建的 Text 數 = 0；60 秒戰鬥中 `ParticleEmitter` 物件數峰值 ≤ 6；畫面舊新並排看不出差別。
