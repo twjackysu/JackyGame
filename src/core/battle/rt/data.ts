@@ -210,9 +210,9 @@ export const SKILL_VARIANTS: Record<string, SkillDefinition & { variantName: str
  * 存檔／BattleState 裡寫成 `${id}:b`（和第一種變化的 `${id}` 互斥），沒選的人結果完全不變。
  */
 export const SKILL_VARIANTS_B: Record<string, SkillDefinition & { variantName: string; desc: string }> = {
-  // 碎甲斬：前方扇形 190%＋破甲 6 秒（之後受到的傷害更容易爆擊）；冷卻 6s
+  // 碎甲斬：前方扇形 190%＋破甲 6 秒（破甲中受到的傷害 +30%，dealDamage 的 pool）；冷卻 6s
   heavy_slash: {
-    id: 'heavy_slash', name: '碎甲斬', variantName: '碎甲斬', desc: '前方大扇形 190%，打中的敵人「破甲」6 秒（更容易被爆擊）；冷卻 6 秒',
+    id: 'heavy_slash', name: '碎甲斬', variantName: '碎甲斬', desc: '前方大扇形 190%，打中的敵人「破甲」6 秒（受到的傷害 +30%）；冷卻 6 秒',
     cooldownTicks: sec(6), castTicks: sec(0.5), moveFactor: 0, role: 'single', useRange: u(1.8),
     hits: [{ atTick: sec(0.5) - 1, shape: { type: 'sector', r: u(2.1), deg: 130 }, mult: 190, status: { id: 'break', ticks: sec(6) } }],
   },
