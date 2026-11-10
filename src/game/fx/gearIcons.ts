@@ -2,7 +2,7 @@
 // 之後若有 AI 圖（ART_REQUESTS），只要換掉 gearIconKey 回傳的材質即可。
 import Phaser from 'phaser';
 import type { GearSlot, Rarity } from '../../core/battle/rt/gear';
-import { RARITY_COLOR } from '../../core/battle/rt/gear';
+import { RARITY_COLOR, UNIQUE_COLOR } from '../../core/battle/rt/gear';
 import { loadWeapon, type WeaponId } from '../weapon';
 
 const S = 96; // 材質邊長（放大縮小都清楚）
@@ -98,11 +98,12 @@ export function gearIconKey(scene: Phaser.Scene, slot: GearSlot): string {
  * 一個裝備圖示（含稀有度底光）。size＝顯示邊長（px）。
  * 稀有：金色底光慢慢脈動；精良：藍色淡底光。
  */
-export function gearIcon(scene: Phaser.Scene, x: number, y: number, slot: GearSlot, rarity: Rarity | 0, size: number): Phaser.GameObjects.GameObject[] {
+export function gearIcon(scene: Phaser.Scene, x: number, y: number, slot: GearSlot, rarity: Rarity | 0, size: number, unique = false): Phaser.GameObjects.GameObject[] {
   const out: Phaser.GameObjects.GameObject[] = [];
-  const col = rarity ? RARITY_COLOR[rarity] : 0x666677;
+  // 獨特效果裝備（P3-d）：圖示本身也是橘色、底光更亮（以前只有外框與名字是橘的，圖示還是稀有的金色）
+  const col = unique ? UNIQUE_COLOR : rarity ? RARITY_COLOR[rarity] : 0x666677;
   if (rarity >= 2) {
-    const glow = scene.add.circle(x, y, size * 0.55, col, rarity === 3 ? 0.35 : 0.2);
+    const glow = scene.add.circle(x, y, size * (unique ? 0.6 : 0.55), col, unique ? 0.45 : rarity === 3 ? 0.35 : 0.2);
     if (rarity === 3) {
       const tw = scene.tweens.add({ targets: glow, alpha: 0.12, scale: 1.12, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
       glow.once(Phaser.GameObjects.Events.DESTROY, () => tw.remove());

@@ -137,7 +137,7 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
     });
     return [
       bg,
-      ...gearIcon(scene, -292, y, g.slot, g.rarity, h * 0.78),
+      ...gearIcon(scene, -292, y, g.slot, g.rarity, h * 0.78, !!g.unique),
       scene.add.text(-255, y - 12, label, { fontFamily: UI_FONT, fontSize: '20px', color: hex(col) }).setOrigin(0, 0.5),
       scene.add.text(-255, y + 15, sub2, { fontFamily: UI_FONT, fontSize: '15px', color: '#a89880' }).setOrigin(0, 0.5),
       scene.add.text(310, y, right, { fontFamily: UI_FONT, fontSize: '21px', fontStyle: '700', color: rightCol }).setOrigin(1, 0.5),
@@ -244,7 +244,7 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
   /** 卡片底：圖示、名字、數值 */
   function gearHead(out: Phaser.GameObjects.GameObject[], g: RtGear): number {
     const col = gearColor(g);
-    out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
+    out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72, !!g.unique));
     out.push(scene.add.text(0, -290, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '32px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -248, `${gearTierName(g)}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));
     const gl = gearLines(g, skillNames());

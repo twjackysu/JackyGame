@@ -1447,7 +1447,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.time.delayedCall(900, () => this.tipSoon('jg_tip_gear', '撿到裝備了！☰「行囊」或營火旁可以換上', '#9fe8a0'));
     const col = `#${(g.unique ? UNIQUE_COLOR : RARITY_COLOR[rarity]).toString(16).padStart(6, '0')}`;
     // 撿到的裝備圖示從主角頭上飄起來（D-101）
-    const icon = this.add.container(this.sx(p.x), this.sy(p.y) - 70, gearIcon(this, 0, 0, g.slot, rarity, rarity >= 3 ? 64 : 48)).setDepth(70);
+    const icon = this.add.container(this.sx(p.x), this.sy(p.y) - 70, gearIcon(this, 0, 0, g.slot, rarity, rarity >= 3 ? 64 : 48, !!g.unique)).setDepth(70);
     this.tweens.add({ targets: icon, y: icon.y - 90, duration: 900, ease: 'Cubic.Out' });
     this.tweens.add({ targets: icon, alpha: 0, delay: 700, duration: 400, onComplete: () => icon.destroy(true) });
     if (g.unique) this.announceUnique(g);

@@ -1,4 +1,5 @@
 // 即時戰鬥「行囊」（P4-3，D-091）：6 格裝備、背包清單（▲＝比身上的好）、詳情與換上後的數值差、換上／卸下／丟棄。
+import { t } from '../../i18n';
 import Phaser from 'phaser';
 import { gearName, gearTitleW, skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
@@ -43,6 +44,8 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
   let detail: RtGear | null = null;
   /** 強化確認框（Jacky 11/5）：按「強化！」先跳框列出每項數值 10→13（綠＝變強、紅＝變弱），確定才強化 */
   let confirmEnh = false;
+  /** 獨特效果裝備分解前要再點一次（P3-d）：記住已經點過第一次的那件 */
+  let confirmDrop = '';
   /** 等伺服器回強化結果（連點不重送） */
   let rolling = false;
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
@@ -79,7 +82,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
       fn();
     });
     const sl = g?.slot ?? slot;
-    const icon = sl ? gearIcon(scene, x - w / 2 + 8 + h * 0.4, y, sl, g ? g.rarity : 0, h * 0.78) : [];
+    const icon = sl ? gearIcon(scene, x - w / 2 + 8 + h * 0.4, y, sl, g ? g.rarity : 0, h * 0.78, !!g?.unique) : [];
     const t = scene.add.text(x - w / 2 + 14 + (sl ? h * 0.8 : 0), y, label, { fontFamily: UI_FONT, fontSize: '21px', color: g ? hex(col) : '#777788' }).setOrigin(0, 0.5);
     const out: Phaser.GameObjects.GameObject[] = [bg, ...icon, t];
     // 獨特效果裝備（P3-a2）：左上角一顆橘色星（不只靠外框顏色分）
@@ -163,7 +166,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     const worn = st.equip[g.slot]?.uid === g.uid;
     const col = gearColor(g);
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
-    out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
+    out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72, !!g.unique));
     const title = scene.add.text(0, -300, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5);
     // 第 62 輪：長名字（「+4 嗜血的王牙大劍・霧語」）縮字＋往右挪，不壓到左邊的圖示（圖示右緣 x≈−204）
     if (title.width > 400) title.setFontSize(Math.max(24, Math.floor((36 * 400) / title.width)));
@@ -290,17 +293,28 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
         detail = null;
         render();
       }, true, 28));
-      out.push(btn(0, btnY, ctx ? `分解 +${salvageDust(g)} 粉塵` : '丟掉', () => {
+      const armed = confirmDrop === g.uid;
+      const drop = btn(0, btnY, armed ? t('bag.uniqueConfirm') : ctx ? `分解 +${salvageDust(g)} 粉塵` : '丟掉', () => {
+        // 獨特效果裝備：第一次點只變成紅色的確認鍵（手滑一下就沒了的話，十隻 Boss 才一件）
+        if (g.unique && !armed) {
+          confirmDrop = g.uid;
+          render();
+          return;
+        }
+        confirmDrop = '';
         shadow({ kind: 'salvage', uid: g.uid }, () => {
           if (ctx) ctx.spend(-salvageDust(g), 0);
           change({ ...st, bag: st.bag.filter((x) => x.uid !== g.uid) });
         });
         detail = null;
         render();
-      }));
+      });
+      if (armed) drop.setBackgroundColor('#a8281a');
+      out.push(drop);
     }
     out.push(btn(worn ? 120 : 200, btnY, '返回', () => {
       detail = null;
+      confirmDrop = '';
       confirmEnh = false;
       render();
     }));

@@ -1,4 +1,5 @@
 // 營火行商（D-116）：用金幣自由買賣。買＝貨架 4 件裝備＋材料＋付費換一批；賣＝背包裡的裝備換金幣。
+import { t } from '../../i18n';
 import Phaser from 'phaser';
 import { gearName, gearTitleW, skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
@@ -48,6 +49,8 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   const EXIT_Y = 560 + Math.round(TALL * 0.4);
   let page = 0;
   let detail: { g: RtGear; buy: boolean } | null = null;
+  /** 獨特效果裝備賣出前要再點一次（P3-d） */
+  let confirmSell = '';
   // 一半機率說出「為你挑選」的部位（第 25 輪：行商看得出你缺什麼）
   const pickNow = withPick(ctx.rec(), weakestSlot(ctx.bag(), shopIlvl(ctx.level)));
   const pickSlot = cleanShop(pickNow.shop).pick;
@@ -94,7 +97,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       SFX.uiTap();
       fn();
     });
-    const out: Phaser.GameObjects.GameObject[] = [bg, ...gearIcon(scene, -317 + h * 0.4, y, g.slot, g.rarity, h * 0.78)];
+    const out: Phaser.GameObjects.GameObject[] = [bg, ...gearIcon(scene, -317 + h * 0.4, y, g.slot, g.rarity, h * 0.78, !!g.unique)];
     out.push(scene.add.text(-310 + h * 0.85, y, `${mark}${label}`, { fontFamily: UI_FONT, fontSize: '21px', color: hex(col) }).setOrigin(0, 0.5));
     out.push(scene.add.text(310, y, right, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: rightCol }).setOrigin(1, 0.5));
     return out;
@@ -276,7 +279,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     const st = ctx.bag();
     const col = gearColor(g);
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
-    out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
+    out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72, !!g.unique));
     out.push(scene.add.text(0, -290, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '34px', color: hex(col) }).setOrigin(0.5));
     out.push(scene.add.text(0, -245, `${gearTierName(g)}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     // 第 48 輪：從上面往下排，5 行以上的稀有裝不再壓到副標
@@ -300,6 +303,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     else if (isUpgrade(st, g)) out.push(scene.add.text(0, deltaY, '這件比你身上的好！', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb07a' }).setOrigin(0.5));
     const back = () => {
       detail = null;
+      confirmSell = '';
       render();
     };
     if (buy) {
@@ -329,7 +333,15 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
       if (up && ok) out.push(btn(60, btnY, '買下並換上', () => doBuy(true), true, 24));
       out.push(btn(up && ok ? 230 : 150, btnY, '返回', back));
     } else {
-      out.push(btn(-130, btnY, `賣出（+${sellPrice(g)} 金）`, () => {
+      const armed = confirmSell === g.uid;
+      const sell = btn(-130, btnY, armed ? t('shop.uniqueConfirm') : `賣出（+${sellPrice(g)} 金）`, () => {
+        // 獨特效果裝備：第一次點只變成紅色的確認鍵（P3-d）
+        if (g.unique && !armed) {
+          confirmSell = g.uid;
+          render();
+          return;
+        }
+        confirmSell = '';
         const done = () => {
           coinFx();
           toast(`+${sellPrice(g)} 金`);
@@ -343,7 +355,9 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
           ctx.setBag({ ...cur, bag: cur.bag.filter((x) => x.uid !== g.uid) });
           done();
         });
-      }, true, 24));
+      }, !armed, 24);
+      if (armed) sell.setBackgroundColor('#a8281a');
+      out.push(sell);
       out.push(btn(150, btnY, '返回', back));
     }
     return out;

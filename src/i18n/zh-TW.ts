@@ -30,6 +30,8 @@ export const zhTW = {
   'unique.got': '獨特裝備！',
   'unique.listLine': '裝備效果：{names}（穿著就有，不會消散）',
   'unique.tip': '獨特裝備：帶一條會改變打法的效果\n穿上就有（右上角橘框圖示），休息也不會消失',
+  'bag.uniqueConfirm': '確定分解★獨特？',
+  'shop.uniqueConfirm': '確定賣掉★獨特？',
   'codex.title': '獨特效果圖鑑　{n}/{max}',
   'codex.sub': '少數稀有裝備會帶一條；穿上就有，休息也不會消失',
   'codex.item': '裝備名「{title}之…」',
