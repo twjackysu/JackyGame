@@ -139,6 +139,37 @@ export function sparks(
   scene.time.delayedCall(900, () => p.destroy());
 }
 
+/** 同一瞬間的命中火花上限：旋風斬掃到一整群狼時不一次開十幾個發射器（手機） */
+const hitBudget = new WeakMap<Phaser.Scene, { at: number; n: number }>();
+const HIT_WINDOW_MS = 90;
+const HIT_MAX = 6;
+
+/**
+ * 命中火花（第三期 Q2）：朝被打飛的方向噴成一個扇形（ang 弧度），顏色看元素／武器（fx/hitTint）。
+ * 回傳 false＝這一瞬間已經噴太多、這次省略。
+ */
+export function hitSparks(scene: Phaser.Scene, x: number, y: number, ang: number, n: number, tex: string, tint: number, speed = 340, spread = 40): boolean {
+  const now = scene.time.now;
+  let b = hitBudget.get(scene);
+  if (!b || now - b.at > HIT_WINDOW_MS) { b = { at: now, n: 0 }; hitBudget.set(scene, b); }
+  if (b.n >= (getSettings().lowFx ? 3 : HIT_MAX)) return false;
+  b.n++;
+  const deg = Phaser.Math.RadToDeg(ang);
+  const p = scene.add.particles(x, y, tex, {
+    speed: { min: speed * 0.35, max: speed },
+    angle: { min: deg - spread, max: deg + spread },
+    scale: { start: tex === 'ember' ? 0.7 : 1.3, end: 0 },
+    lifespan: { min: 160, max: 380 },
+    blendMode: Phaser.BlendModes.ADD,
+    tint,
+    emitting: false,
+  });
+  p.setDepth(800);
+  p.explode(getSettings().lowFx ? Math.max(2, Math.round(n * 0.5)) : n);
+  scene.time.delayedCall(480, () => p.destroy());
+  return true;
+}
+
 /** 擴散衝擊環 */
 export function shockRing(scene: Phaser.Scene, x: number, y: number, color: number, maxR = 160, ms = 380, width = 8): void {
   const g = scene.add.graphics().setDepth(790).setBlendMode(Phaser.BlendModes.ADD);

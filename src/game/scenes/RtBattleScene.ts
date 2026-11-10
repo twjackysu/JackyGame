@@ -65,7 +65,9 @@ import { characterCache } from '../../client/characterCache';
 import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard';
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
+import { playDeath } from '../fx/deathFx';
+import { hitLook } from '../fx/hitTint';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -284,6 +286,8 @@ export class RtBattleScene extends Phaser.Scene {
   private pathPreview: { key: string; pts: [number, number][] } | null = null;
   /** 點了營火：走到旁邊就自動休息 */
   private flashUntil = new Map<number, number>();
+  /** 最後一次被玩家打到時的方向（倒下往哪邊倒，純畫面） */
+  private lastHitDx = new Map<number, number>();
   /** 命中停頓（hit-stop）剩餘毫秒：期間不推進模擬 */
   private hitStop = 0;
   /** Boss 倒下的慢動作（第 29 輪）：剩餘毫秒，期間戰鬥以 0.3 倍速前進 */
@@ -536,6 +540,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.prev.clear();
     this.sprites.clear();
     this.flashUntil.clear();
+    this.lastHitDx.clear();
     this.fxDone.clear();
     this.hitStop = 0;
     this.slowMs = 0;
@@ -2983,7 +2988,16 @@ export class RtBattleScene extends Phaser.Scene {
         floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : e.origin === 'dot' ? 22 : !toPlayer && e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult' ? 30 : 26, tier: toPlayer || e.origin === 'dot' ? undefined : e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult' ? 'ult' : e.crit ? 'crit' : undefined });
         if (!toPlayer && e.origin !== 'dot') {
           SFX.hitLight();
-          sparks(this, this.sx(d.x), this.sy(d.y), 6, 'spark', 0xffffff, 260);
+          // 命中火花（D-335）：朝被打飛的方向噴、顏色看元素／武器；打在身體中段而不是腳底
+          const hs = this.sprites.get(d.id);
+          const hx = this.sx(d.x);
+          const hy = hs ? hs.y - hs.displayHeight * 0.45 : this.sy(d.y) - 24;
+          const fromPlayer = !!src && src.side === 'player';
+          if (fromPlayer) this.lastHitDx.set(d.id, d.x - src.x);
+          const look = hitLook(fromPlayer ? this.s.weapon : undefined, e.origin === 'skill' || e.origin === 'counter' ? skillDef(this.s, e.skill) : undefined, e.crit);
+          const ang = src ? Math.atan2(d.y - src.y, d.x - src.x) : -Math.PI / 2;
+          const strong = e.crit || e.origin === 'counter';
+          if (this.onScreen(d.x, d.y) && hitSparks(this, hx, hy, ang, strong ? 14 : e.origin === 'skill' ? 9 : 6, look.tex, look.color, strong ? 460 : 340, strong ? 55 : 40) && strong) shockRing(this, hx, hy, look.color, 52, 200, 4);
         }
         if (toPlayer) {
           this.cameras.main.shake(90, 0.004);
@@ -3109,7 +3123,7 @@ export class RtBattleScene extends Phaser.Scene {
           sparks(this, this.sx(d.x), this.sy(d.y), 18, 'spark', 0xffd27a, 420);
           this.nightLight?.flash(this.sx(d.x), this.sy(d.y), (ENEMIES[d.defId]?.boss ? 520 : 220) * this.k * 1.5, ENEMIES[d.defId]?.boss ? 1400 : 420);
           this.hitStop = Math.max(this.hitStop, ENEMIES[d.defId]?.boss ? 260 : 90);
-          this.killSprite(d.id);
+          this.killSprite(d.id, d.defId);
           this.bountyKill(d.defId);
           if (this.tracked && !this.bot) onlineLoot.kill(d);
           if (this.ventHit.get(d.id) === e.tick) this.ventKill(d.x, d.y);
@@ -3796,10 +3810,17 @@ export class RtBattleScene extends Phaser.Scene {
     } else burst();
   }
 
-  private killSprite(id: number): void {
+  /** defId 有給＝被打倒（依種類播倒下演出，fx/deathFx）；沒給＝只是消失（離場），照舊淡出 */
+  private killSprite(id: number, defId?: string): void {
     const sp = this.sprites.get(id);
+    const dx = this.lastHitDx.get(id);
+    this.lastHitDx.delete(id);
     if (!sp) return;
     this.sprites.delete(id);
+    if (defId) {
+      playDeath(this, sp, defId, { dir: dx ?? (sp.flipX ? -1 : 1), tint: SPRITE[defId]?.tint, boss: !!ENEMIES[defId]?.boss });
+      return;
+    }
     sp.setTintFill(0xffffff);
     this.tweens.add({ targets: sp, alpha: 0, scaleX: sp.scaleX * 1.25, scaleY: sp.scaleY * 0.6, duration: 420, ease: 'Cubic.Out', onComplete: () => sp.destroy() });
   }
