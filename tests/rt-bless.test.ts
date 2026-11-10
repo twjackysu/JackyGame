@@ -109,8 +109,8 @@ describe('燼火祝福核心（P2-a）', () => {
     expect(s.bless!.offer).toBeUndefined();
     expect(s.bless!.meter).toBe(0);
     expect(evs(s, 'blessPick')[0]!.id).toBe(offer[1]);
-    expect(blessNeed(1)).toBe(5);
-    killWolves(s, 4);
+    expect(blessNeed(1)).toBe(4); // D-351：3／5／7／8／9／10 → 3／4／5／5／6／6
+    killWolves(s, 3);
     expect(s.bless!.offer).toBeUndefined();
     killWolves(s, 1);
     expect(s.bless!.offer!.length).toBe(3);

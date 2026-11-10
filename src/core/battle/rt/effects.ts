@@ -74,8 +74,12 @@ function buildEffect(id: string, weapon: WeaponKind): EffectDef | undefined {
   return { id, name: `試招・${alt.variantName}`, desc: `「${base.name}」這趟改用：${alt.desc}`, element: 'dark', glyph: 1, variant: { skill, idx } };
 }
 
-/** 祝福的節奏（P2 小樣；實測後再調）：第 n 個祝福要累積幾點（小怪 1、精英 2、Boss 5）；一趟最多幾個；重抽次數 */
-export const BLESS_RULES = { need: [3, 5, 7, 8, 9, 10], max: 8, rerolls: 1, choices: 3 } as const;
+/**
+ * 祝福的節奏：第 n 個祝福要累積幾點（小怪 1、精英 2、Boss 5）；一趟最多幾個；重抽次數。
+ * 第 162 輪（D-351）3／5／7／8／9／10 → 3／4／5／5／6／6：用「五欄自動、只管走位」的 Bot 在霧語森林量 10 分鐘（三把武器 × 3 種子），
+ * 舊門檻第三個之後要等 100～250 秒才有下一次選擇（目標 40～90 秒）；新門檻大多落在 30～100 秒。
+ */
+export const BLESS_RULES = { need: [3, 4, 5, 5, 6, 6], max: 8, rerolls: 1, choices: 3 } as const;
 export const blessNeed = (taken: number): number => BLESS_RULES.need[Math.min(taken, BLESS_RULES.need.length - 1)]!;
 
 /** 把效果的技能修正疊到基礎修正上（不改原物件；上限由使用的地方照 SKILL_MOD_CAPS 夾） */
