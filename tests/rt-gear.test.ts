@@ -177,7 +177,10 @@ describe('稀有裝備的技能特效（D-094）', () => {
     const ra = a.units[0]!.ready.heavy_slash!;
     const rb = b.units[0]!.ready.heavy_slash!;
     expect(rb - b.tick).toBeLessThan(ra - a.tick);
+    // 第 156 輪（D-339）：重斬還在施放 → 這一招打完後的下一個 tick 才拿掉（以前是立刻，會讓施放中的招式中途變）
     setSkillMods(b, {});
+    expect(b.skillMods).toEqual({ heavy_slash: { cdPct: 40 } });
+    for (let i = 0; i < 30 && b.pendingSkill; i++) step(b);
     expect(b.skillMods).toBeUndefined();
   });
 });

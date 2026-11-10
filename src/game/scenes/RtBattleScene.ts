@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { cdText, hudLine, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { activeHazards, attacksOf, createBattle, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
+import { activeHazards, attacksOf, chosenVariants, createBattle, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
@@ -1064,7 +1064,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu = openRtSkillPanel(
       this,
       cleanRanks(loadRecord(this.stageId).skills, lv),
-      this.s.skillVariants ?? [],
+      chosenVariants(this.s), // 施放到一半開面板改的打法要等這一招打完才套用（D-339），面板顯示「選的」
       lv,
       (r, v, intent) => {
         // V2（D-285）：伺服器照同一份規則處理「意圖」，做完寫回舊 key；畫面先照舊存檔

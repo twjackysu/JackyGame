@@ -514,7 +514,6 @@ export function setGearBonus(s: BattleState, bonus: { hp: number; atk: number; d
   if (!p.dead) p.hp = Math.max(1, Math.min(p.maxHp, Math.round(p.maxHp * ratio)));
 }
 
-/** 戰鬥中換裝時更新技能修正（D-094） */
 /** 這場戰鬥實際用的技能定義（有選技能變化就用變化版，D-112） */
 export function skillDef(s: BattleState, id: string, p?: Unit): SkillDefinition | undefined {
   const c = p ? ctlOf(s, p) : s;
@@ -525,16 +524,46 @@ export function skillDef(s: BattleState, id: string, p?: Unit): SkillDefinition 
   return (v.includes(id) ? w.variants[id] : v.includes(variantB(id)) ? w.variantsB[id] : undefined) ?? w.skills[id];
 }
 
-/** 換技能變化；正在施放的技能照舊打完（下一次施放才換） */
+/** 主角是不是正在放技能（施放中改打法／技能修正要等這一招打完，RF-01） */
+const castingSkill = (s: BattleState): boolean => s.units[0]?.action?.kind === 'skill';
+
+/**
+ * 換技能變化；正在施放的技能照舊打完（下一次施放才換）。
+ * 第 156 輪（D-339，RF-01）：以前註解這樣寫，實際上立刻換——命中表每個 tick 重新取、動作結束時間卻是舊招的，
+ * 出手後切成施放比較久的打法，整招就沒有傷害。現在施放中先記在 `pendingSkill`，這一招結束後的下一個 tick 才套用。
+ */
 export function setSkillVariants(s: BattleState, ids: readonly string[]): void {
   const v = ids.filter((id) => WEAPONS.sword.variants[id] || (id.endsWith(':b') && WEAPONS.sword.variantsB[id.slice(0, -2)])).sort();
+  if (castingSkill(s)) {
+    (s.pendingSkill ??= {}).variants = v;
+    return;
+  }
   if (v.length) s.skillVariants = v;
   else delete s.skillVariants;
 }
 
+/** 戰鬥中換裝／點技能時更新技能修正（D-094）；施放中一樣等這一招打完（傷害、範圍、冷卻都不會中途變） */
 export function setSkillMods(s: BattleState, mods: Record<string, SkillMod>): void {
+  if (castingSkill(s)) {
+    (s.pendingSkill ??= {}).mods = mods;
+    return;
+  }
   if (Object.keys(mods).length) s.skillMods = mods;
   else delete s.skillMods;
+}
+
+/** 玩家現在「選的」打法（含施放中還沒套用的）：面板顯示用 */
+export function chosenVariants(s: BattleState): string[] {
+  return s.pendingSkill?.variants ?? s.skillVariants ?? [];
+}
+
+/** 這一招打完了：把施放中改的打法／技能修正套上去 */
+function flushPendingSkill(s: BattleState): void {
+  const pd = s.pendingSkill;
+  if (!pd || castingSkill(s)) return;
+  delete s.pendingSkill;
+  if (pd.mods) setSkillMods(s, pd.mods);
+  if (pd.variants) setSkillVariants(s, pd.variants);
 }
 
 /** 打倒怪物得經驗；滿了就升級（一次可能連升） */
@@ -1569,6 +1598,7 @@ function updateEnemy(s: BattleState, e: Unit): void {
 export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void {
   if (s.outcome !== 'running') return;
   s.tick++;
+  if (s.pendingSkill) flushPendingSkill(s);
   applyCommands(s, cmds);
   for (const p of playersOf(s)) updatePlayer(s, p);
   for (const e of s.units) {

@@ -597,6 +597,8 @@ export interface BattleState extends PlayerCtl {
   skillMods?: Record<string, SkillMod>;
   /** 技能變化（D-112）：技能 id 列在這裡就改用 SKILL_VARIANTS 的版本（id 不變，冷卻／按鈕共用） */
   skillVariants?: string[];
+  /** 施放中改的打法／技能修正（RF-01，D-339）：這一招打完後的下一個 tick 才套用；沒有＝沒有待套用的 */
+  pendingSkill?: { variants?: string[]; mods?: Record<string, SkillMod> };
   /** 武器（D-147）：沒有＝劍士；'bow'＝長弓（普攻遠距、技能整組換成弓的招式） */
   weapon?: 'bow' | 'staff';
   /** 等級與經驗（progression）；base＝等級與強化加成前的數值 */
