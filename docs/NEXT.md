@@ -14,14 +14,21 @@
 |---|---|---|---|
 | **P1-a** | 自動施放開關：core 規則＋技能樹開關＋技能鍵小標＋存設定 | 測試證明時機與目標由 core 決定、可重播；實際跑三把武器 | **verified**（第 158 輪，D-342；`tests/rt-auto-skill.test.ts` 14 項、`docs/screenshots/p1-auto-cast.jpg`；手感等 Jacky 實機） |
 | P1-b | 自動施放收尾（看 Jacky 回饋）：位移／大招預設要不要改、戰鬥中長按技能鍵直接切、競技場要不要接 | Jacky 試過再決定；沒回饋就不做 | todo（低） |
-| **P2-a** | 效果池＋祝福核心（`src/core/battle/rt/effects.ts`）：資料驅動的效果清單（id、名稱、說明、標籤、作用）；`BattleState.bless`（計量、已選、待選三張、重抽次數）；擊殺累計→滿了出三選一（**core 暫停**，用獨立亂數、不動戰鬥亂數）→ 指令 `{type:'bless', pick}`；回營火休息／死亡清空；只在 `stage.bless` 開的地圖（先霧語森林）。先做 9 個：三把武器各至少 3 個合用，優先用 SkillMod／技能變化／既有狀態，其中一類是「這趟暫時用某招的變化打法」 | 行為測試（每個效果）、可重播、不開的地圖 hash 不變；RF-01 的 pendingSkill 涵蓋祝福生效時機 | **todo ← 下一輪從這裡開始** |
-| P2-b | 祝福畫面：三選一面板（直式單手、字短）、HUD 顯示身上的祝福、每個效果看得見的表現（顏色／粒子／範圍）、選到時的演出與音效 | 390／360 寬截圖、日夜、lowFx；實際玩 10 分鐘（Bot 走位＋自動選）看節奏（目標 40～90 秒一次、前幾個來得快） | todo |
-| P2-c | 小樣驗證與調整：帶／不帶祝福跑 Bot 比 Boss 討伐時間；主線不靠祝福仍能通關；斷線／重開＝視同回營火；不帶進 PvP、不進永久存檔 | 數據表＋FOR_JACKY 請他試 | todo |
+| **P2-a** | 效果池＋祝福核心（`src/core/battle/rt/effects.ts`、`BattleState.bless`） | 每個效果的行為測試、可重播、不開的場次雜湊不變 | **verified**（第 158 輪，D-343；`tests/rt-bless.test.ts` 13 項） |
+| **P2-b** | 祝福畫面：三選一面板、HUD 計量與圖示、選到／觸發／消散的演出；霧語森林開放 | 390／360 寬、深夜＋省電截圖；實際點擊（換一批、選第二張） | **verified**（第 158 輪；`docs/screenshots/p2-bless-sample.jpg`）；**好不好玩 `awaiting_visual`（等 Jacky 實機）** |
+| P2-c | 小樣驗證與調整 **← 下一輪從這裡開始**：①用「刷滿 6～8 個祝福再打狼王」的 Bot 條件比討伐時間（現在的通關 Bot 直衝，一趟只拿 1～3 個，量不出強度）②每個效果單獨比過一次（第 158 輪，normal Bot 6 級直衝狼王、4 種子、祝福固定在身上；**雜訊很大**，王戰同一組設定種子間就差 ±30 秒）：不帶 長劍／弓／杖王戰 123／141／201 秒；八個全帶 76／113／89 秒（約快四成）；單一效果最突出的是餘燼之刃（已 20% → 15%），其餘分不出高下——要量得準得加種子數（≥12）或改量「清一組 5 隻狼的秒數」；燼爆對直衝的 Bot 幾乎沒用（一次只拉一組），真人拉多隻時才看得出來③實際玩 10 分鐘看節奏（現在 3／5／7／8／9／10 點）④~~手上有祝福時點營火休息先問一句~~（第 158 輪做了：第一下提醒、6 秒內再點才休息；鍵盤／其他休息入口沒有，只有點營火這一條路）⑤HUD 圖示只有圖沒有名字——點一下列出身上的祝福；同元素的圖示再分清楚 ⑥看 Jacky 的回饋 | 數據表；Jacky 的回饋優先 | todo |
 | P2-d | 擴到其他三張圖與深夜／暴怒 Boss（小樣好玩才擴） | campaign 全綠 | todo |
 | P3-a | 獨特效果裝備（P2 小樣驗證後）：裝備多一條 `unique`（從效果池取），8～10 條；伺服器端產生與擲骰；存檔版本與遷移；`isGear` 檢查 | 每條行為測試；舊存檔不壞；契約測試 | todo |
 | P3-b | 掉落演出（專屬名稱、光效、音效、取得提示）＋掉落來源分層（精英／隱藏精英／Boss／暴怒／深夜；參考 `docs/wiki/monsters.md` 成品表） | 截圖；一般稀有與獨特一眼分得出來 | todo |
 | P3-c | 效果圖鑑（已取得／未取得／來源）＝ RF-09 的「下一趟去哪」；打贏特定 Boss 把效果解鎖進祝福池 | 截圖 | todo |
 | P3-d | 交易市場顯示與交易獨特裝備；**PvP 預設不生效並在介面標明**（記 DECISIONS、FOR_JACKY 一行）；Bot 比有無效果的討伐時間 | 契約測試、平衡表 | todo |
+
+**第 158 輪注意（P2）**：
+- 加新效果：在 `effects.ts` 的 `EFFECTS` 加一筆資料（說明裡 `{heavy_slash}` 會換成那把武器的招式名、要短），需要新的觸發時機才動 `engine.ts`（`blessEffects(s)` 的呼叫點：普攻命中、`resolveSkillHit`、`blessKill`、`startDodge`、`dealDamage` 的暴擊）；圖示在 `src/game/fx/effectIcon.ts`（元素＋`glyph`），演出在 `RtBattleScene.playBlessEvent`（`blessProc` 事件帶位置）。P3 的裝備要用同一池：把 `blessEffects` 改成「祝福＋裝備上的效果」即可。
+- 開關：場景 `createBattle({ bless: this.tracked && !this.bot })`；地圖要 `stage.bless`（現在只有 `maps/mistwood.ts`）。
+- **無頭瀏覽器的場景時鐘比真實時間慢**（每幀 delta 被夾住）：面板的「0.45 秒不收點擊」已改用 `Date.now()`；截圖腳本裡真的滑鼠點擊前要等 6 秒左右（`screenshots/p2click.mjs`，沒進 git）。
+- 截圖腳本 `screenshots/p2.mjs`（沒進 git）：`window.HOLD=1` 讓面板停著拍、`PICK=n` 自動選第 n 張；手動 `__game.step` 之後直接 `page.screenshot` 會逾時，要先 `__game.loop.sleep()`。
+- 討伐後的「抉擇」面板如果剛好蓋掉祝福面板：祝福面板會留在底下，抉擇關掉後還能選（`blessRoot`）；送出的選擇 1.5 秒沒被 core 處理會重開面板。
 
 **第 158 輪注意（P1）**：
 - 自動施放的開關：`getSettings().autoSkills`（`jackygame.settings`）；場景在 `createBattle` 帶進去（有 `?bot=` 就不帶）。測試／截圖要關掉：`LS='{"jackygame.settings":{"autoSkills":[]}}'`。
