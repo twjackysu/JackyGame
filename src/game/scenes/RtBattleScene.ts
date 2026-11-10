@@ -494,7 +494,7 @@ export class RtBattleScene extends Phaser.Scene {
   init(data: { stage?: string; seed?: number; bot?: string; via?: string }): void {
     this.via = data.via ?? '';
     this.warpAt = -1;
-    this.chapterUntil = 0; this.rareAt = -1e9; this.slainUntil = 0;
+    this.chapterUntil = 0; this.rareAt = -1e9; this.slainUntil = 0; this.uniqueUntil = 0; this.uniqueBanner = null;
     const q = new URLSearchParams(window.location.search);
     this.stageId = data.stage ?? q.get('stage') ?? 'forest_entry';
     // 除錯：48×96 測試大地圖（分塊地面／大地圖效能檢查用，不進選單）
@@ -1366,6 +1366,11 @@ export class RtBattleScene extends Phaser.Scene {
   }
   /** 地上哪幾件是獨特裝備（P3-b：掉下來就看得出來；線上版由伺服器擲，地上看不出來） */
   private uniqueOnGround = new Set<number>();
+  /** 獨特裝備的公告排到／播到什麼時候（討伐後的抉擇面板會等它） */
+  private uniqueUntil = 0;
+  private uniqueBanner: Phaser.GameObjects.Text | null = null;
+  /** 最多等那一則大字到什麼時候（很卡的裝置上大字會排很久，抉擇面板不能被它卡住） */
+  private uniqueCap = 0;
 
   /** 撿到獨特裝備的公告（P3-b）：橘色大字＋那條效果的說明＋一圈光 */
   private announceUnique(g: RtGear): void {
@@ -1383,14 +1388,22 @@ export class RtBattleScene extends Phaser.Scene {
     const show = (): void => {
       if (!this.scene.isActive()) return;
       if (this.time.now < this.chapterUntil) { this.time.delayedCall(this.chapterUntil - this.time.now + 100, show); return; }
+      // Boss 同時掉稀有與獨特：等「稀有裝備！」那一則播完再出（以前五則大字疊在一起）；討伐後的抉擇面板會等 rareAt，所以排在它前面
+      // 面板開著（三選一、抉擇…）大字會被蓋住：等關掉再出
+      const wait = this.menu ? 300 : this.rareQueue.length ? 400 : this.rareAt + 1700 - this.time.now;
+      if (wait > 0) { this.uniqueUntil = this.time.now + wait + 2600; this.time.delayedCall(wait + 50, show); return; }
       this.rareAt = this.time.now;
+      this.uniqueUntil = this.time.now + 2500;
+      this.uniqueCap = this.time.now + 7000;
       // 大字＝「獨特裝備！＋名字」；效果說明是跟在大字正下方的小字（另開一則大字的話，矮螢幕上會排隊、等第一則消失才出來）
       const name = gearName(g);
       const line = `「${d.name}」${d.desc}`;
-      const t = bigText(this, GAME_WIDTH / 2, 550, `${tr('unique.got')}\n${name}`, css, Math.min(44, Math.floor(660 / Math.max(8, name.length))), 2200, true);
+      const t = (this.uniqueBanner = bigText(this, GAME_WIDTH / 2, 550, `${tr('unique.got')}\n${name}`, css, Math.min(44, Math.floor(660 / Math.max(8, name.length))), 2200));
+      // ↑ 不用「排隊等位置」的模式：討伐後的「首次討伐！…」會一直留到抉擇面板打開，而抉擇面板在等這一則——排隊會互相等
       const sub = this.add.text(t.x, t.y, line, { fontFamily: UI_FONT, fontSize: `${Math.min(27, Math.floor(690 / line.length))}px`, fontStyle: '700', color: '#ffe6c8', stroke: '#140a04', strokeThickness: 6 }).setOrigin(0.5, 0).setDepth(t.depth).setAlpha(0);
       this.tweens.addCounter({ from: 0, to: 1, duration: 9000, onUpdate: (tw) => { if (!t.active) { sub.destroy(); tw.stop(); return; } sub.setPosition(t.x, t.y + t.height / 2 + 6).setAlpha(t.alpha); }, onComplete: () => sub.destroy() });
     };
+    this.uniqueUntil = this.time.now + 2800;
     this.time.delayedCall(250, show);
     this.time.delayedCall(2600, () => this.tipSoon('jg_tip_unique', tr('unique.tip'), css));
   }
@@ -2013,7 +2026,9 @@ export class RtBattleScene extends Phaser.Scene {
   /** 討伐後的抉擇（D-157）：戰鬥暫停（當成 menu）；取＝馬上拿結晶、還＝之後行商便宜。有面板開著就晚一點再跳 */
   private showChoice(ch: BossChoice): void {
     if (this.ended) return;
-    if (this.menu || this.editing) {
+    // 獨特裝備的公告還在等／還在播：晚一點再跳（不然面板一開就把它蓋掉）
+    // （大字在掉幀時走補間自己的時鐘、可能還在排隊，所以也看那一則大字本身還在不在）
+    if (this.menu || this.editing || this.time.now < this.uniqueUntil || (this.uniqueBanner?.active && this.time.now < this.uniqueCap)) {
       this.time.delayedCall(1200, () => this.showChoice(ch));
       return;
     }
