@@ -22,5 +22,6 @@ export const en: Partial<Record<MessageKey, string>> = {
   'bless.noReroll': 'No rerolls left',
   'bless.got': 'Blessing: {name}',
   'bless.gone': 'Your ember blessings fade',
+  'bless.restAsk': 'Resting clears your {n} blessing(s)\nTap the campfire again to confirm',
   'bless.tip': 'Ember Blessings: kills fill the flame (top right); pick one when full. Resting or falling clears them',
 };

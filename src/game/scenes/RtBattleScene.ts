@@ -375,6 +375,7 @@ export class RtBattleScene extends Phaser.Scene {
   private blessSeen: string[] | null = null;
   private blessAt = 0;
   private blessSentAt = 0;
+  private restAskUntil = 0;
   private blessRoot: Phaser.GameObjects.Container | null = null;
   private blessTxt: Phaser.GameObjects.Text | null = null;
   /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
@@ -756,7 +757,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.tipCalmUntil = 0;
     this.storySoon = false;
-    this.blessSent = null; this.blessSeen = null; this.blessTxt = null; this.blessRoot = null;
+    this.blessSent = null; this.blessSeen = null; this.blessTxt = null; this.blessRoot = null; this.restAskUntil = 0;
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; if (on) leftMapsExcept(this.stageId); this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
@@ -885,7 +886,16 @@ export class RtBattleScene extends Phaser.Scene {
     const fire = (STAGES[this.stageId]?.campfires ?? []).find((c) => Math.hypot(c.x - wx, c.y - wy) <= UNIT * 0.9);
     if (fire && !this.bot) {
       this.inp.push({ type: 'moveTo', x: fire.x, y: fire.y + UNIT });
-      this.inp.restOnArrive = true;
+      // 身上有燼火祝福（P2）：休息會全部消散 → 第一下只走過去並提醒，6 秒內再點一次才休息
+      const nb = this.s.bless?.taken.length ?? 0;
+      if (nb > 0 && this.time.now > this.restAskUntil) {
+        this.restAskUntil = this.time.now + 6000;
+        this.inp.restOnArrive = false;
+        bigText(this, GAME_WIDTH / 2, 600, tr('bless.restAsk', { n: nb }), '#ffd27a', 30, 1800, true);
+      } else {
+        this.restAskUntil = 0;
+        this.inp.restOnArrive = true;
+      }
       this.tapMarker(p.x, p.y);
       return;
     }

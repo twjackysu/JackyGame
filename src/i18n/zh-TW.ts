@@ -20,6 +20,7 @@ export const zhTW = {
   'bless.noReroll': '這趟不能再換了',
   'bless.got': '祝福：{name}',
   'bless.gone': '燼火祝福消散了',
+  'bless.restAsk': '休息會讓 {n} 個燼火祝福消散\n確定的話再點一次營火',
   'bless.tip': '燼火祝福：打怪累積右上角的火，滿了就能選一個；回營火休息或倒下會消散',
 } as const;
 
