@@ -2,7 +2,7 @@
 // 第 141 輪（Q3）從 src/game/rtSkills.ts 搬到 core/meta；伺服器 handler（src/server/handlers/skills.ts）用同一份規則。
 // 純資料函式（有測試）；存在霧語森林獨立紀錄 `RtRecord.skills`。效果用核心既有的 SkillMod（和裝備特效相加、照上限截斷）。
 import { SKILL_VARIANTS, WEAPONS, variantB, type WeaponKind } from '../battle/rt/data';
-import { SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, type SkillDefinition, type SkillMod } from '../battle/rt/types';
+import { GUARD_PCT_PER_POINT, SKILL_MOD_CAPS, STATUS_RULES, type SkillDefinition, type SkillMod } from '../battle/rt/types';
 
 export const SKILL_MAX_RANK = 5;
 
@@ -11,7 +11,7 @@ export const SKILL_TREE: readonly { id: string; name: string; per: string; mod: 
   { id: 'heavy_slash', name: '重斬', per: '傷害 +8%', mod: (r) => ({ dmgPct: 8 * r }) },
   { id: 'whirlwind', name: '旋風斬', per: '範圍 +6%・傷害 +3%', mod: (r) => ({ areaPct: 6 * r, dmgPct: 3 * r }) },
   { id: 'charge', name: '衝鋒', per: '冷卻 −5%・距離 +4%', mod: (r) => ({ cdPct: 5 * r, distPct: 4 * r }) },
-  { id: 'parry', name: '格擋反擊', per: '反擊 +6%・每 2 級窗口 +0.03 秒', mod: (r) => ({ dmgPct: 6 * r, blockTicks: Math.floor(r / 2) }) },
+  { id: 'parry', name: '鐵壁斬', per: '傷害 +6%・每 2 級護盾 +5%', mod: (r) => ({ dmgPct: 6 * r, blockTicks: Math.floor(r / 2) }) },
   { id: 'blade_storm', name: '劍刃風暴', per: '傷害 +8%・冷卻 −3%', mod: (r) => ({ dmgPct: 8 * r, cdPct: 3 * r }) },
 ];
 
@@ -19,7 +19,7 @@ export type SkillRanks = Record<string, number>;
 
 /**
  * 點到 rank 級時「現在的加成」寫成字（面板用；直接從 mod(rank) 算，和實際套用的數字是同一份）。
- * 0 級回空字串。格擋的傷害加成叫「反擊」。
+ * 0 級回空字串。
  */
 export function rankTotalText(id: string, rank: number): string {
   const t = SKILL_TREE.find((x) => x.id === id);
@@ -27,10 +27,10 @@ export function rankTotalText(id: string, rank: number): string {
   const m = t.mod(Math.min(SKILL_MAX_RANK, rank));
   const out: string[] = [];
   if (m.areaPct) out.push(`範圍 +${m.areaPct}%`);
-  if (m.dmgPct) out.push(`${id === 'parry' ? '反擊' : '傷害'} +${m.dmgPct}%`);
+  if (m.dmgPct) out.push(`傷害 +${m.dmgPct}%`);
   if (m.cdPct) out.push(`冷卻 −${m.cdPct}%`);
   if (m.distPct) out.push(`距離 +${m.distPct}%`);
-  if (m.blockTicks) out.push(`窗口 +${(m.blockTicks / TICKS_PER_SEC).toFixed(2)} 秒`);
+  if (m.blockTicks) out.push(`護盾 +${m.blockTicks * GUARD_PCT_PER_POINT}%`);
   return out.join('・');
 }
 
@@ -46,7 +46,7 @@ export function modApplies(def: SkillDefinition, key: keyof SkillMod): boolean {
     case 'distPct':
       return !!def.dash && def.dash.distance !== 0;
     case 'blockTicks':
-      return !!def.block;
+      return !!def.block || !!def.guard;
   }
 }
 

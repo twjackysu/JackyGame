@@ -70,7 +70,7 @@ export const WORLD_MAPS: readonly WorldMap[] = [
   {
     id: 'emberrift', name: '燼紅裂谷', make: makeEmberriftStage, bossAt: EMBERRIFT_COLOSSUS,
     boss: '燼心岩王', bw: '岩王', mw: '裂谷', lord: '燼紅裂谷之主', color: '#ffb36a',
-    firstKill: '首次討伐！裂谷的熔岩暗了下來…', bossTip: '（記得……岩王很慢！紅圈跑出去，黃框的拳頭能格擋！）', phase2: ['岩王的熔心沸騰了！', '#ff8a3a'], blink: ['岩王沉入熔岩——小心背後！', '#ffb36a'], blinkFx: [0xff9a4a, 0xff6a2a, 0xffd08a],
+    firstKill: '首次討伐！裂谷的熔岩暗了下來…', bossTip: '（記得……岩王很慢！紅圈跑出去，拳頭揮下來前閃開！）', phase2: ['岩王的熔心沸騰了！', '#ff8a3a'], blink: ['岩王沉入熔岩——小心背後！', '#ffb36a'], blinkFx: [0xff9a4a, 0xff6a2a, 0xffd08a],
     firstGoal: '穿過裂谷往北，打倒燼心岩王', next: 'starfall', recLevel: 10, bossLv: 10,
     palette: { ground: 0x1d1715, spotA: 0x241c19, spotB: 0x171210, grass: 0x5a3a24, grid: 0x2a201c, under: 0x0d0909, crownA: 0x2a2422, crownB: 0x332b28, crownHi: 0x463c38, crownTop: 0x6a5a52, edge: 0x8a4a2a, mini: 0x2e2420, miniSolid: 0x6a3a22 }, decor: 'ember',
   },

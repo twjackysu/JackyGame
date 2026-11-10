@@ -109,7 +109,7 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
       items.push(scene.add.text(x, NODE_Y + 22, `${rank}/${SKILL_MAX_RANK}`, { fontFamily: UI_FONT, fontSize: '19px', color: full ? '#ffd27a' : '#c8c0a8' }).setOrigin(0.5));
       // 等級點（節點下方 5 顆）
       for (let k = 0; k < SKILL_MAX_RANK; k++) g.fillStyle(k < rank ? 0xffd27a : 0x3a3020, 1).fillCircle(x - 32 + k * 16, NODE_Y + 70, 5);
-      // 自動／手動開關（P1）：等級點下面一顆小藥丸；格擋反擊永遠手動（鎖住）
+      // 自動／手動開關（P1）：等級點下面一顆小藥丸（第 4 欄換成攻守一體後也能自動，D-345）
       if (auto) {
         const can = AUTO_SKILL_IDS.includes(t.id);
         const on = can && autoIds.includes(t.id);

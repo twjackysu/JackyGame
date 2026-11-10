@@ -1,20 +1,20 @@
 // 技能自動施放（第三期 P1，D-342）：每個技能欄可以切「自動／手動」。
 // 自動的時機與目標在這裡決定（core、確定性、不用亂數）；畫面層只切開關、不決定放不放。
-// 閃避與格擋反擊永遠手動（吃技巧的部分不自動化）。
+// 閃避永遠手動（吃技巧的部分不自動化）；第 4 欄已換成不看時機的攻守一體招（D-345），可以自動。
 import { ctlOf, dist, enemiesOf, foesOf, inShape, playerDef, skillDef, skillShape } from './engine';
 import { UNIT, type BattleState, type SkillDefinition, type Unit } from './types';
 
 const DIR = 1000;
 
 /** 可以切成自動的技能欄（依判斷的優先順序：大招 → 範圍 → 單體 → 位移） */
-export const AUTO_SKILL_IDS: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'charge'];
+export const AUTO_SKILL_IDS: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'parry', 'charge'];
 /**
  * 預設：兩個輸出技與大招自動（Jacky 11/10：「全部都不用自己點比較好」，D-344）；
- * 位移欄（衝鋒／後躍／閃現）先維持手動——它會把人帶走，Jacky 決定整組換成適合自動的招（NEXT 的 P1-c），換好再一起開。
+ * 第 4 欄換成攻守一體後也預設自動（D-345，版本 3）；位移欄（衝鋒／後躍／閃現）先維持手動——它會把人帶走，Jacky 決定整組換成適合自動的招（NEXT 的 P1-c），換好再一起開。
  */
-export const AUTO_SKILL_DEFAULT: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash'];
+export const AUTO_SKILL_DEFAULT: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'parry'];
 /** 預設值的版本：設定裡存的版本比這個舊，就換成新的預設（玩家之後自己改的照舊留著） */
-export const AUTO_SKILL_VERSION = 2;
+export const AUTO_SKILL_VERSION = 3;
 
 /** 讀進來的設定一律檢查；不是陣列（舊存檔沒有這一欄）＝預設 */
 export function cleanAutoSkills(raw: unknown): string[] {
@@ -77,7 +77,10 @@ export function autoPick(s: BattleState, p: Unit): { id: string; aim?: Unit } | 
   }
   let foes: Unit[] | null = null;
   const moving = !!ctl.manualMove || !!ctl.moveGoal;
-  for (const id of AUTO_SKILL_IDS) {
+  // 攻守一體的招（D-345）：敵人的預告快打到自己時優先放（護盾先墊著）；平常照順序
+  const hot = threatened(s, p, 12);
+  const order = hot ? [...AUTO_SKILL_IDS].sort((x, y) => Number(!!skillDef(s, y, p)?.guard) - Number(!!skillDef(s, x, p)?.guard)) : AUTO_SKILL_IDS;
+  for (const id of order) {
     if (!on.includes(id) || (p.ready[id] ?? 0) > s.tick) continue;
     const sk = skillDef(s, id, p);
     if (!sk || sk.block || (sk.mp && p.mp < sk.mp)) continue;

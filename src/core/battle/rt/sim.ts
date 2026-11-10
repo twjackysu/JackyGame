@@ -220,7 +220,8 @@ export class PlayerBot implements BattleController {
       const t = seen.sort((a, b) => a.hitTick - b.hitTick)[0];
       if (t) {
         const left = t.hitTick - (s.tick + 1);
-        const parryOk = this.prof.parries && t.blockable && ready('parry') && !busy && left <= 6 && left >= 0;
+        // D-345：第 4 欄是「護盾＋打一下」，不看時機也不分可不可格擋——快被打到就先墊護盾（閃避好了的不可格擋招還是用閃的）
+        const parryOk = this.prof.parries && (t.blockable || !ready('dodge')) && ready('parry') && !busy && left <= 6 && left >= 0;
         if (parryOk) return [{ type: 'skill', id: 'parry' }];
         let dx = p.x - t.ox;
         let dy = p.y - t.oy;

@@ -48,7 +48,7 @@ describe('霧語森林的裝備掉落與換裝', () => {
   });
 
   it('普通 Bot 打到狼王會撿到裝備；狼王必掉兩件精良以上', () => {
-    const s = createBattle({ stageId: 'mistwood', seed: 1 });
+    const s = createBattle({ stageId: 'mistwood', seed: 2 }); // 第 160 輪：種子 1 在第 4 欄換招後剛好路上一件都沒掉（Bot 直衝狼王），換一個路上有掉的種子
     const bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING }, 'normal');
     let kingTick = -1;
     while (s.tick < sec(600) && (kingTick < 0 || s.tick < kingTick + sec(20))) {
@@ -212,13 +212,17 @@ describe('精良也可能帶特效（D-106）', () => {
 
 describe('參數型技能特效（D-098）', () => {
   it('範圍、格擋窗口、衝鋒距離都會生效，而且有上限', async () => {
-    const { skillShape, blockWindow, dashDistance } = await import('../src/core/battle/rt/engine');
+    const { skillShape, guardAmount, dashDistance, playerOf } = await import('../src/core/battle/rt/engine');
     const { gearSkillMods, specialText, SPECIAL_KINDS } = await import('../src/core/battle/rt/gear');
     const s = createBattle({ stageId: 'forest_entry', seed: 1, skillMods: { whirlwind: { areaPct: 80 }, parry: { blockTicks: 9 }, charge: { distPct: 30 } } });
     const base = { type: 'circle' as const, r: 220 };
     expect(skillShape(s, 'whirlwind', base)).toEqual({ type: 'circle', r: 330 }); // 夾在 +50%
     expect(skillShape(s, 'heavy_slash', base)).toBe(base);
-    expect(blockWindow(s, 'parry')).toBe(12 + 6); // 夾在 +6
+    {
+      // D-345：舊裝備的「格擋窗口」在攻守一體招上＝護盾量 +5%／點，夾在 6 點（+30%）
+      const p0 = playerOf(s);
+      expect(guardAmount(s, 'parry', p0)).toBe(Math.floor((p0.maxHp * 12 * 130) / 10000));
+    }
     expect(dashDistance(s, 'charge')).toBe(520);
     // 衝鋒距離真的變長
     const a = createBattle({ stageId: 'forest_entry', seed: 1 });
@@ -229,7 +233,7 @@ describe('參數型技能特效（D-098）', () => {
     }
     expect(y0 - s.units[0]!.y).toBeGreaterThan(y0 - a.units[0]!.y + 80);
     // 裝備合計與文字
-    expect(specialText({ skill: 'parry', kind: 'block', value: 3 })).toBe('★ 格擋反擊判定 +0.10 秒');
+    expect(specialText({ skill: 'parry', kind: 'block', value: 3 })).toBe('★ 鐵壁斬護盾 +15%');
     const g = genGear(5, 3, 4);
     expect(gearSkillMods([{ ...g, special: { skill: 'whirlwind', kind: 'area', value: 30 } }, { ...g, special: { skill: 'whirlwind', kind: 'area', value: 30 } }])).toEqual({ whirlwind: { areaPct: 50 } });
     // 稀有裝備抽得到每一種特效

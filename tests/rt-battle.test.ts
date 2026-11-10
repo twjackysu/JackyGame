@@ -103,7 +103,7 @@ describe('技能與閃避', () => {
     expect(t0).toBeDefined();
     const snap = { ...t0! };
     const p = playerOf(s);
-    // 等到命中前 3 tick 才格擋
+    // 等到命中前 3 tick 才放（不用看準：早放晚放護盾都在）
     while (s.tick < t0!.hitTick - 3) {
       step(s);
       expect(s.telegraphs.find((t) => t.hitTick === snap.hitTick && t.ownerId === snap.ownerId)?.ox ?? snap.ox).toBe(snap.ox);
@@ -113,13 +113,13 @@ describe('技能與閃避', () => {
     p.y = snap.oy + Math.round((snap.dirY / 1000) * u(0.8));
     step(s, [{ type: 'skill', id: 'parry' }]);
     while (s.tick < snap.hitTick) step(s);
-    const blk = s.events.find((e) => e.type === 'block');
-    expect(blk).toBeDefined();
+    // D-345：第 4 欄換成攻守一體（鐵壁斬）——沒有格擋判定，護盾吸掉這一下
+    expect(s.events.some((e) => e.type === 'block')).toBe(false);
+    expect(s.events.some((e) => e.type === 'guard' && e.id === p.id)).toBe(true);
     const taken = s.events.filter((e) => e.type === 'damage' && e.dst === p.id && e.tick === snap.hitTick);
-    const full = computeDamage(ENEMIES.wolf!.atk, 100, 0, p.def, 1);
     expect(taken.length).toBe(1);
-    expect(taken[0]!.type === 'damage' && taken[0]!.amount).toBeLessThan(full);
-    expect(s.events.some((e) => e.type === 'damage' && e.origin === 'counter')).toBe(true);
+    expect(taken[0]!.type === 'damage' && taken[0]!.absorbed).toBe(taken[0]!.type === 'damage' && taken[0]!.amount);
+    expect(p.hp).toBe(p.maxHp);
   });
 });
 

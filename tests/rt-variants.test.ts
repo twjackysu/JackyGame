@@ -1,7 +1,7 @@
 // 技能變化（D-112）：技能滿 5 級可以切換成另一種招式（同一顆按鈕、同一個 id）。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SKILL_VARIANTS, SKILL_VARIANTS_B, SKILLS, STAGES } from '../src/core/battle/rt/data';
-import { blockWindow, createBattle, dashDistance, setBossFury, setSkillVariants, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
+import { createBattle, dashDistance, setBossFury, setSkillVariants, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec, u } from '../src/core/battle/rt/types';
@@ -50,7 +50,7 @@ describe('技能變化（D-112）', () => {
     expect(skillDef(a, 'charge')!.name).toBe('衝鋒');
     expect(dashDistance(b, 'charge')).toBe(u(6));
     expect(dashDistance(a, 'charge')).toBe(u(4));
-    expect(blockWindow(b, 'parry')).toBe(24);
+    expect(skillDef(b, 'parry')!.guard).toEqual({ hpPct: 18, ticks: 150 }); // D-345：不動架勢＝厚護盾
     step(a, [{ type: 'skill', id: 'heavy_slash' }]);
     step(b, [{ type: 'skill', id: 'heavy_slash' }]);
     expect(a.units[0]!.ready.heavy_slash! - a.tick).toBe(sec(4));
@@ -134,7 +134,7 @@ describe('技能第二種變化（D-121）', () => {
     expect(s.skillVariants).toEqual(['heavy_slash:b', 'parry:b']);
     expect(skillDef(s, 'heavy_slash')!.name).toBe('碎甲斬');
     expect(skillDef(s, 'parry')!.name).toBe('迴光一閃');
-    expect(blockWindow(s, 'parry')).toBe(9);
+    expect(skillDef(s, 'parry')!.guard).toEqual({ hpPct: 6, ticks: 90 });
     expect(skillDef(s, 'charge')!.name).toBe('衝鋒');
   });
 

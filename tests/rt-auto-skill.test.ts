@@ -25,13 +25,13 @@ function arrange(s: BattleState, at: [number, number][]): Unit[] {
 }
 
 describe('技能自動施放（P1）', () => {
-  it('設定檢查：舊存檔沒有這一欄＝預設（兩個輸出技＋大招）；閃避與格擋反擊永遠不能自動', () => {
+  it('設定檢查：舊存檔沒有這一欄＝預設（兩個輸出技＋大招＋第 4 欄，D-345）；閃避永遠不能自動', () => {
     expect(cleanAutoSkills(undefined).sort()).toEqual([...AUTO_SKILL_DEFAULT].sort());
-    expect(cleanAutoSkills(undefined).sort()).toEqual(['blade_storm', 'heavy_slash', 'whirlwind']);
+    expect(cleanAutoSkills(undefined).sort()).toEqual(['blade_storm', 'heavy_slash', 'parry', 'whirlwind']);
     expect(cleanAutoSkills([])).toEqual([]);
-    expect(cleanAutoSkills(['parry', 'dodge', 'heavy_slash', 'x', 7]).sort()).toEqual(['heavy_slash']);
+    expect(cleanAutoSkills(['parry', 'dodge', 'heavy_slash', 'x', 7]).sort()).toEqual(['heavy_slash', 'parry']);
     const s = mk('sword');
-    setAutoSkills(s, ['parry', 'dodge']);
+    setAutoSkills(s, ['dodge']);
     expect(s.autoSkills).toBeUndefined();
   });
 
@@ -65,7 +65,7 @@ describe('技能自動施放（P1）', () => {
     expect(stateHash(run(mk('bow'), 700))).not.toBe(stateHash(a));
   });
 
-  it('格擋反擊不會自己放（四個可切的欄位全開也一樣）', () => {
+  it('第 4 欄沒開就不會自己放（D-345 之後它也可以開，見 tests/rt-guard.test.ts）', () => {
     for (const w of ['sword', 'bow', 'staff'] as W[]) {
       const s = run(mk(w, ALL), 900);
       expect(casts(s).some((c) => c.type === 'cast' && c.skill === 'parry')).toBe(false);

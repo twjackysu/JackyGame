@@ -91,8 +91,8 @@ describe('技能點說明（RF-05b）', () => {
     expect(rankTotalText('heavy_slash', 3)).toBe(`傷害 +${rankMods({ heavy_slash: 3 }).heavy_slash!.dmgPct}%`);
     expect(rankTotalText('whirlwind', 5)).toBe('範圍 +30%・傷害 +15%');
     expect(rankTotalText('charge', 2)).toBe('冷卻 −10%・距離 +8%');
-    expect(rankTotalText('parry', 1)).toBe('反擊 +6%');
-    expect(rankTotalText('parry', 4)).toBe('反擊 +24%・窗口 +0.07 秒');
+    expect(rankTotalText('parry', 1)).toBe('傷害 +6%');
+    expect(rankTotalText('parry', 4)).toBe('傷害 +24%・護盾 +10%');
     expect(rankTotalText('blade_storm', 5)).toBe('傷害 +40%・冷卻 −15%');
   });
 

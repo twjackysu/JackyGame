@@ -6,7 +6,7 @@ import { BLESS_RULES, EFFECT_IDS, blessNeed, effectDef, mergeEffectMods, tryVari
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
 import { HIDDEN_GROUP, killXp, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
-import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
+import { AGGRO_RULES, aggroUnitsOf, CAMPFIRE_RULES, CHEST_RULES, GUARD_PCT_PER_POINT, ELITE_AFFIX_IDS, ELITE_AFFIXES, LOOT_RULES, MAP_AI_LIMITS, RESPAWN_MIN_PLAYER_UNITS, SKILL_MOD_CAPS, STATUS_RULES, TICKS_PER_SEC, UNIT } from './types';
 import { cellIndex, clearLine, flowField, gridOf, nextWaypoint } from './path';
 import { cosStep, evenStep, inSectorAngle, randStep, sinStep, xpCurve } from '../../fixedMath';
 
@@ -441,7 +441,11 @@ function processRiot(s: BattleState): void {
   for (let i = 0; i < n; i++) {
     const def = ENEMIES[elite && i === 0 ? r.eliteId! : r.enemyId]!;
     const a = evenStep(i, n);
-    const m = makeEnemy(s, def, at.x + Math.round(cosStep(a) * 1.5 * UNIT), at.y + Math.round(sinStep(a) * 1.5 * UNIT));
+    // 第 160 輪：散開的位置如果落在障礙物裡（荊棘牆很厚時推不出來，怪會卡在牆裡），就生在中心點（ringSpot 保證是空地）
+    let mx = at.x + Math.round(cosStep(a) * 1.5 * UNIT);
+    let my = at.y + Math.round(sinStep(a) * 1.5 * UNIT);
+    if (s.arena.solid && isSolidAt(s.arena.solid, mx, my)) [mx, my] = [at.x, at.y];
+    const m = makeEnemy(s, def, mx, my);
     if (r.hpPct) m.hp = m.maxHp = Math.round((m.maxHp * (100 + r.hpPct)) / 100);
     clampArena(s, m);
     m.tier = elite && i === 0 ? 'elite' : 'normal';
@@ -1231,6 +1235,17 @@ function startSkill(s: BattleState, p: Unit, id: string, aim?: Unit): boolean {
   if (sk.mp) p.mp -= sk.mp;
   p.action = { kind: 'skill', id, start: s.tick, end: s.tick + sk.castTicks, dirX: p.facingX, dirY: p.facingY, ox: p.x, oy: p.y, hitIds: [], targetId: t?.id };
   emit(s, aim ? { tick: s.tick, type: 'cast', id: p.id, skill: id, auto: true } : { tick: s.tick, type: 'cast', id: p.id, skill: id });
+  if (sk.guard) {
+    // 攻守一體（D-345）：護盾在施放的瞬間就有（不看時機）；同一層護盾取大、不疊加
+    const amount = guardAmount(s, id, p);
+    const until = s.tick + sk.guard.ticks;
+    const cur = p.statuses.find((q) => q.id === 'shield');
+    if (cur) {
+      cur.value = Math.max(cur.until > s.tick ? cur.value : 0, amount);
+      cur.until = Math.max(cur.until, until);
+    } else p.statuses.push({ id: 'shield', until, stacks: 1, value: amount, srcId: p.id, next: 0 });
+    emit(s, { tick: s.tick, type: 'guard', id: p.id, skill: id, amount, ticks: sk.guard.ticks });
+  }
   return true;
 }
 
@@ -1370,6 +1385,14 @@ export function skillShape(s: BattleState, skillId: string, shape: Shape, p?: Un
     case 'ring':
       return { type: 'ring', rIn: shape.rIn, rOut: k(shape.rOut) };
   }
+}
+
+/** 攻守一體的護盾量（D-345）：最大 HP × hpPct%，技能修正的 blockTicks 每點再 +5%；上限最大 HP 的一半 */
+export function guardAmount(s: BattleState, skillId: string, p: Unit): number {
+  const g = skillDef(s, skillId, p)?.guard;
+  if (!g) return 0;
+  const pts = Math.min(SKILL_MOD_CAPS.blockTicks, Math.max(0, Math.floor(modsOf(s, p)?.[skillId]?.blockTicks ?? 0)));
+  return Math.min(Math.floor(p.maxHp / 2), Math.floor((p.maxHp * g.hpPct * (100 + GUARD_PCT_PER_POINT * pts)) / 10000));
 }
 
 /** 格擋有效窗口（ticks），含裝備的 blockTicks */

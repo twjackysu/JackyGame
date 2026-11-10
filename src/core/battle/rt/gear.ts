@@ -1,7 +1,7 @@
 // 即時戰鬥的裝備（P4-2，D-091）：純資料與純函式，不依賴 Phaser。
 // 掉落「有沒有、什麼稀有度、物品等級」由核心決定（獨立掉落亂數，不影響戰鬥）；撿到後用 (種子) 產生實際裝備。
 import type { SkillMod } from './types';
-import { SKILL_MOD_CAPS } from './types';
+import { GUARD_PCT_PER_POINT, SKILL_MOD_CAPS } from './types';
 
 export type GearSlot = 'weapon' | 'head' | 'body' | 'hands' | 'ring' | 'amulet';
 export const GEAR_SLOTS: GearSlot[] = ['weapon', 'head', 'body', 'hands', 'ring', 'amulet'];
@@ -62,7 +62,7 @@ function specialValue(kind: SpecialKind, t: number): number {
 }
 
 /** 可以出現在特效上的技能（名稱只給顯示用） */
-export const SPECIAL_SKILLS: Record<string, string> = { heavy_slash: '重斬', whirlwind: '旋風斬', charge: '衝鋒', parry: '格擋反擊', blade_storm: '劍刃風暴' };
+export const SPECIAL_SKILLS: Record<string, string> = { heavy_slash: '重斬', whirlwind: '旋風斬', charge: '衝鋒', parry: '鐵壁斬', blade_storm: '劍刃風暴' };
 
 export const ENH_MAX = 10;
 /** 強化 +N → +N+1 的費用與成功率（+1～+5 必成；之後逐級下降；失敗只扣材料，不會掉級） */
@@ -283,7 +283,7 @@ export function enhanceGain(g: RtGear, names: Record<string, string> = SPECIAL_S
   return enhanceDiff(g, names).map((r) => (r.label.startsWith('★') ? `${r.label} ${r.to}（原 ${r.from}）` : `${r.label} ${r.from}→${r.to}${r.delta > 0 ? `（+${r.delta}）` : ''}`));
 }
 
-/** 強化讓特效變強（D-102）：+7 起 ×1.25、+10 ×1.5（格擋判定 +1／+2 ticks） */
+/** 強化讓特效變強（D-102）：+7 起 ×1.25、+10 ×1.5（第 4 欄的護盾特效 +1／+2 點＝+5%／+10%） */
 export function specialOf(g: RtGear): RtGear['special'] {
   const sp = g.special;
   if (!sp) return undefined;
@@ -303,7 +303,7 @@ export function specialText(sp: NonNullable<RtGear['special']>, names: Record<st
     case 'area':
       return `★ ${n}範圍 +${sp.value}%`;
     case 'block':
-      return `★ ${n}判定 +${(sp.value / 30).toFixed(2)} 秒`;
+      return `★ ${n}護盾 +${Math.min(SKILL_MOD_CAPS.blockTicks, sp.value) * GUARD_PCT_PER_POINT}%`; // D-345：以前是格擋判定秒數，舊裝備照樣有用
     case 'dist':
       return `★ ${n}距離 +${sp.value}%`;
   }

@@ -3238,7 +3238,18 @@ export class RtBattleScene extends Phaser.Scene {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 50, '回滿', { color: '#7dffb0', size: 22 });
       } else if (e.type === 'dodge') SFX.dodge();
-      else if (e.type === 'block') {
+      else if (e.type === 'guard') {
+        // 攻守一體（D-345）：護盾架起來的瞬間——身上一圈武器色的光環往外擴、冒「護盾 +N」
+        const d = u(e.id);
+        if (d) {
+          const col = this.s.weapon === 'staff' ? 0x9fd0ff : this.s.weapon === 'bow' ? 0x9dffc8 : 0xffd27a;
+          SFX.parry();
+          if (this.s.weapon === 'staff') this.ffx.hexShield(d.x, d.y);
+          shockRing(this, this.sx(d.x), this.sy(d.y) - 30, col, 95, 320, 7);
+          sparks(this, this.sx(d.x), this.sy(d.y) - 30, 10, 'spark', col, 380);
+          floatNumber(this, this.sx(d.x), this.sy(d.y) - 96, `護盾 +${e.amount}`, { color: this.s.weapon === 'staff' ? '#bfe0ff' : this.s.weapon === 'bow' ? '#b8ffd8' : '#ffe08a', size: 22 });
+        }
+      } else if (e.type === 'block') {
         SFX.parry();
         this.buzz(18); // 第 80 輪：格擋成功輕震一下（D-212）
         this.hitStop = Math.max(this.hitStop, 110);
@@ -3385,9 +3396,9 @@ export class RtBattleScene extends Phaser.Scene {
         // 新手引導（第 23 輪）：第一次看到敵人預告、第一次看到可格擋的黃框，各提示一次（每台裝置一次）
         if (!this.bot) {
           const tg0 = this.s.telegraphs.find((t) => t.ownerId === e.owner && t.attackId === e.attack);
-          if (tg0?.blockable) this.tipOnce('jg_tip_block', `黃框＝可以格擋！敵人打到前按「${skillDef(this.s, 'parry')?.name ?? '格擋反擊'}」`, '#ffe08a');
+          // D-345：格擋已經換成不看時機的護盾招，黃框的提示拿掉（黃框／紅框都是「走出去或閃避」）
           // 墜星類畫成藍白色（D-177）：不要拿它講「紅色範圍」，等第一次真的紅圈再說
-          else if (!METEOR_ATTACKS.has(e.attack)) this.tipOnce('jg_tip_tele', '紅色範圍填滿就命中——走出去！', '#ff9a8a');
+          if (tg0 && !METEOR_ATTACKS.has(e.attack)) this.tipOnce('jg_tip_tele', '紅色範圍填滿就命中——走出去！', '#ff9a8a');
         }
         // 精英詞綴招式（D-118）：怪頭上飄招式名（詞綴顏色），一看就知道要閃還是格擋
         if (e.attack.startsWith('affix_')) {
@@ -4527,14 +4538,26 @@ export class RtBattleScene extends Phaser.Scene {
         top.lineStyle(3, 0xffd27a, 0.9);
         for (let k = 0; k < 4; k++) top.beginPath().arc(px, py + r * 0.15, rr, k * (Math.PI / 2) + 0.3, k * (Math.PI / 2) + 1.27).strokePath();
       }
+      // 護盾（D-345 攻守一體）：身上一顆武器色的護罩，剩得越少越淡、快消失時閃爍（不靠顏色也看得出來：有一圈＝有護盾）
+      if (isP && !x.dead) {
+        const sh = x.statuses.find((q) => q.id === 'shield' && q.until > s.tick && q.value > 0);
+        if (sh) {
+          const col = s.weapon === 'staff' ? 0x9fd0ff : s.weapon === 'bow' ? 0x9dffc8 : 0xffd27a;
+          const left = sh.until - s.tick;
+          const blink = left < 30 ? 0.5 + 0.5 * Math.sin(now / 45) : 1;
+          const full = Math.min(1, sh.value / Math.max(1, x.maxHp * 0.14));
+          const R0 = r * 1.9;
+          const cy0 = py - r * 0.6;
+          top.fillStyle(col, (0.06 + 0.08 * full) * blink).fillCircle(px, cy0, R0);
+          top.lineStyle(3 + 2 * full, col, (0.45 + 0.35 * full) * blink).strokeCircle(px, cy0, R0);
+          // 三段轉動的亮弧：靜止截圖也看得出是「罩子」不是選取圈
+          top.lineStyle(3, 0xffffff, 0.75 * blink);
+          for (let q = 0; q < 3; q++) top.beginPath().arc(px, cy0, R0, now / 260 + (q * Math.PI * 2) / 3, now / 260 + (q * Math.PI * 2) / 3 + 0.5).strokePath();
+        }
+      }
       // 玩家施放中：畫技能範圍
       if (isP && x.action?.kind === 'skill') {
         const sk = skillDef(this.s, x.action.id);
-        // 不動架勢（D-112）：完全不受傷的長窗口格擋 → 窗口內身上金色護罩
-        if (sk?.block && sk.block.reducePct >= 100 && s.tick - x.action.start <= sk.block.windowTicks) {
-          top.lineStyle(4, 0xffd27a, 0.6 + 0.3 * Math.sin(now / 60)).strokeCircle(px, py - r * 0.6, r * 1.9);
-          top.fillStyle(0xffd27a, 0.12).fillCircle(px, py - r * 0.6, r * 1.9);
-        }
         // 龍捲（D-112）：施放中可以全速移動的旋轉技能 → 腳下往上收窄的旋風
         if (sk && sk.role === 'aoe' && sk.moveFactor >= 1 && s.weapon === 'bow') {
           // 迴旋箭陣（第 71 輪）：繞身轉的光箭環（以前借用劍的龍捲線＋一大塊平平的藍圈）
@@ -5161,7 +5184,7 @@ export class RtBattleScene extends Phaser.Scene {
     bigText(this, GAME_WIDTH / 2, 420, win ? '勝利！' : r.outcome === 'timeout' ? (farming ? '刷怪結束' : '時間到') : '倒下了…', win || farming ? '#ffd27a' : '#ff8a8a', 72, -1);
     const lines = farming
       ? `擊殺 ${r.kills}　營火醒來 ${this.s.revives ?? 0} 次\n撿到：金幣 ${this.s.loot?.gold ?? 0}　粉塵 ${this.s.loot?.dust ?? 0}　結晶 ${this.s.loot?.crystal ?? 0}　武器 +${this.s.enhance?.level ?? 0}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}　藥水 ${r.potionsUsed}`
-      : `時間 ${(r.durationTicks / TICKS_PER_SEC).toFixed(1)} 秒　承傷 ${r.damageTaken}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）　格擋 ${r.blocks}`;
+      : `時間 ${(r.durationTicks / TICKS_PER_SEC).toFixed(1)} 秒　承傷 ${r.damageTaken}\n閃避 ${r.dodges}（躲掉 ${r.dodgedHits}）`;
     this.add.text(GAME_WIDTH / 2, 520, lines, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 8 }).setOrigin(0.5).setDepth(80);
     const mk = (y: number, label: string, fn: () => void) => {
       const t = this.add.text(GAME_WIDTH / 2, y, label, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '700', color: '#ffffff', backgroundColor: '#3a2a14' }).setOrigin(0.5).setPadding(30, 12, 30, 12).setDepth(80).setInteractive({ useHandCursor: true });

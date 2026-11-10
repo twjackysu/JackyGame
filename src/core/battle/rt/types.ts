@@ -36,6 +36,8 @@ export const ELITE_AFFIXES: Record<EliteAffix, { name: string; speedPct?: number
 };
 export const ELITE_AFFIX_IDS: readonly EliteAffix[] = ['swift', 'tough', 'frenzy'];
 
+/** 攻守一體招（D-345）：技能修正的 blockTicks 每點＝護盾量 +5% */
+export const GUARD_PCT_PER_POINT = 5;
 export const SKILL_MOD_CAPS = { cdPct: 40, areaPct: 50, blockTicks: 6, distPct: 50 } as const;
 
 export type StatusId = 'break' | 'slow' | 'stun' | 'atkUp' | 'burn' | 'poison' | 'freeze' | 'weak' | 'shield';
@@ -85,10 +87,15 @@ export interface SkillDefinition {
   aimTicks?: number;
   /** 格擋：施放後 [0, windowTicks] 內被「可格擋」攻擊命中 → 傷害 −reducePct% 並立即打出 counter */
   block?: { windowTicks: number; reducePct: number; counter: SkillHit };
+  /**
+   * 攻守一體（D-345）：施放的瞬間給自己一層護盾（最大 HP 的 hpPct%，持續 ticks）。沒有時機窗口——放了就有。
+   * 技能修正的 blockTicks（技能點、舊裝備上的「格擋窗口」）在這種招上改成「護盾量 +5%／點」。
+   */
+  guard?: { hpPct: number; ticks: number };
   /** 大招才耗 MP（D-063） */
   mp?: number;
   /** 自動施放（AUTO）時的用途提示 */
-  role: 'single' | 'aoe' | 'gap' | 'block' | 'ult';
+  role: 'single' | 'aoe' | 'gap' | 'block' | 'guard' | 'ult';
   /** 施放前要多近（整數座標；沒有＝不限） */
   useRange?: number;
 }
@@ -347,6 +354,7 @@ export type BattleEvent =
   | { tick: number; type: 'dodge'; id: number }
   | { tick: number; type: 'dodged'; id: number; attack: string }
   | { tick: number; type: 'block'; id: number; attack: string }
+  | { tick: number; type: 'guard'; id: number; skill: string; amount: number; ticks: number }
   | { tick: number; type: 'cast'; id: number; skill: string; auto?: boolean }
   | { tick: number; type: 'phase2'; id: number }
   | { tick: number; type: 'summon'; id: number; count: number }

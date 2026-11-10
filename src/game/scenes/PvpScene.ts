@@ -741,6 +741,15 @@ export class PvpScene extends Phaser.Scene {
         }
       } else if (e.type === 'dodge') SFX.dodge();
       else if (e.type === 'block') SFX.parry();
+      else if (e.type === 'guard') {
+        // 攻守一體（D-345）：護盾架起來——一圈光環＋「護盾 +N」
+        const gu = this.s.units.find((q) => q.id === e.id);
+        if (gu) {
+          if (!gu.pid) SFX.parry();
+          shockRing(this, this.sx(gu.x), this.sy(gu.y) - 20, 0xffe08a, 52, 300, 5);
+          floatNumber(this, this.sx(gu.x), this.sy(gu.y) - 70, `護盾 +${e.amount}`, { color: '#ffe08a', size: 18 });
+        }
+      }
       else if (e.type === 'death') {
         this.cameras.main.shake(300, 0.012);
         SFX.break();

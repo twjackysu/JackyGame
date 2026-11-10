@@ -20,7 +20,7 @@ export function weaponChosen(): boolean {
 }
 
 const INFO: Record<WeaponId, { tag: string; play: string; col: number; css: string }> = {
-  sword: { tag: '近身連斬・格擋反擊', play: '貼上去砍，旋風斬清狼群，\n看準預告按格擋反擊。\n血厚、上手最快。', col: 0xffb35a, css: '#ffd27a' },
+  sword: { tag: '近身連斬・護盾', play: '貼上去砍，旋風斬清狼群，\n鐵壁斬會自己架起護盾。\n血厚、上手最快。', col: 0xffb35a, css: '#ffd27a' },
   bow: { tag: '遠距穿透・後躍拉開', play: '站在 5 格外射，\n狼貼過來就後躍射擊，\n一箭穿過一整排。', col: 0x8ad8ff, css: '#a8e4ff' },
   staff: { tag: '元素魔法・冰凍控場', play: '冰霜新星凍住狼群，\n閃現穿過去落地爆炸，\n蓄力隕星砸大圈。', col: 0xc89aff, css: '#dcc0ff' },
 };

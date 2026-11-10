@@ -1,7 +1,7 @@
 // 長弓（D-147）：第二種武器。技能欄同一組 id、招式整組換掉；沒選長弓時結果跟以前完全一樣。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ARCHER, BOW_SKILLS, BOW_VARIANTS, BOW_VARIANTS_B, SKILLS, STAGES, SWORDSMAN } from '../src/core/battle/rt/data';
-import { blockWindow, createBattle, dashDistance, playerDef, setBossFury, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
+import { createBattle, dashDistance, playerDef, setBossFury, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
 import { toggleVariant } from '../src/core/meta/skills';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { makeStarfallStage, STARFALL_SENTINEL } from '../src/core/battle/rt/maps/starfall';
@@ -108,7 +108,7 @@ describe('長弓（D-147）', () => {
     const s = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow', skillVariants: ['charge', 'parry'] });
     expect(skillDef(s, 'charge')!.name).toBe('霜箭後躍');
     expect(dashDistance(s, 'charge')).toBe(-u(4));
-    expect(blockWindow(s, 'parry')).toBe(24);
+    expect(skillDef(s, 'parry')!.guard?.hpPct).toBe(13); // D-345：流光環
   });
 
   it('長弓＋變化：普通 Bot Lv11 打倒暴怒狼王', () => {
@@ -162,7 +162,7 @@ describe('長弓（D-147）', () => {
     const v = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow', skillVariants: ['charge:b', 'parry:b', 'blade_storm:b'] });
     expect(skillDef(v, 'charge')!.hits[0]!.status?.id).toBe('poison');
     expect(dashDistance(v, 'charge')).toBe(-u(3.5));
-    expect(blockWindow(v, 'parry')).toBe(15);
+    expect(skillDef(v, 'parry')!.guard?.hpPct).toBe(6); // D-345：殘月箭
     expect(skillDef(v, 'blade_storm')!.moveFactor).toBeGreaterThan(0);
   });
 

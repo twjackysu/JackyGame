@@ -19,11 +19,11 @@ export const SKILLS: Record<string, SkillDefinition> = {
     dash: { fromTick: 0, ticks: sec(0.3), distance: u(4) },
     hits: [0, 3, 6].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 140, oncePerTarget: true, status: { id: 'slow' as const, ticks: sec(1) } })),
   },
-  // 格擋反擊：8s、施放 0.6s；窗口 0～12 ticks（D-065 放寬） 被可格擋攻擊命中 → 傷害 −80% 並立即反擊 220%（前扇形 2）
+  // 鐵壁斬（D-345，取代格擋反擊）：8s、施放 0.5s 可邊走；先架起護盾（最大 HP 12%、4 秒），再往前揮一刀 170%（前扇形 2）。沒有時機窗口
   parry: {
-    id: 'parry', name: '格擋反擊', cooldownTicks: sec(8), castTicks: sec(0.6), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 12, reducePct: 80, counter: { atTick: 0, shape: { type: 'sector', r: u(2), deg: 120 }, mult: 220 } },
+    id: 'parry', name: '鐵壁斬', cooldownTicks: sec(8), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(2),
+    guard: { hpPct: 12, ticks: sec(4) },
+    hits: [{ atTick: 5, shape: { type: 'sector', r: u(2), deg: 120 }, mult: 170 }],
   },
   // 劍刃風暴（大招，design/20 A2）：45s、施放 2.4s、自身圓 R3、8×75%＋最後一擊 200%（總 800%）、40 MP；可邊轉邊走（50%）
   // 原型先做資料與模擬（NEXT 第 3 項），試玩鍵位還沒放
@@ -57,11 +57,11 @@ export const BOW_SKILLS: Record<string, SkillDefinition> = {
     dash: { fromTick: 2, ticks: sec(0.25), distance: -u(3.5) },
     hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 90 }, mult: 130, status: { id: 'slow', ticks: sec(2) } }],
   },
-  // 見切射擊：0.4 秒窗口、擋下完全不受傷，反擊 6 格直線 260%；冷卻 8s
+  // 風障射擊（D-345，取代見切射擊）：8s；風障護盾（最大 HP 9%、4 秒）＋6 格直線 190%
   parry: {
-    id: 'parry', name: '見切射擊', cooldownTicks: sec(8), castTicks: sec(0.6), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 12, reducePct: 100, counter: { atTick: 0, shape: { type: 'line', len: u(6), width: u(1.1) }, mult: 260 } },
+    id: 'parry', name: '風障射擊', cooldownTicks: sec(8), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(6),
+    guard: { hpPct: 9, ticks: sec(4) },
+    hits: [{ atTick: 5, shape: { type: 'line', len: u(6), width: u(1.1) }, mult: 190 }],
   },
   // 星河貫射（大招）：蓄力瞄準 0.5 秒後 9 格寬光束 6×110%（共 660%）＋破甲；40 MP
   blade_storm: {
@@ -91,12 +91,12 @@ export const BOW_VARIANTS: Record<string, SkillDefinition & { variantName: strin
     dash: { fromTick: 2, ticks: sec(0.28), distance: -u(4) },
     hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 100 }, mult: 110, status: { id: 'freeze', ticks: sec(1.2) } }],
   },
-  // 流光見切：窗口 0.8 秒、無傷，四面反擊 190%；冷卻 10s
+  // 流光環（D-345，取代流光見切）：10s；護盾 13%、5 秒＋四面 2.6 格 140%＋減速 2 秒
   parry: {
-    id: 'parry', name: '流光見切', variantName: '流光見切', desc: '見切 0.8 秒、擋下不受傷，四面反擊 190%；冷卻 10 秒',
-    cooldownTicks: sec(10), castTicks: sec(1.0), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 24, reducePct: 100, counter: { atTick: 0, shape: { type: 'circle', r: u(2.6) }, mult: 190 } },
+    id: 'parry', name: '流光環', variantName: '流光環', desc: '護盾（最大 HP 13%）5 秒，同時四面 2.6 格射出光箭 140%＋減速 2 秒；冷卻 10 秒',
+    cooldownTicks: sec(10), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(2.6),
+    guard: { hpPct: 13, ticks: sec(5) },
+    hits: [{ atTick: 5, shape: { type: 'circle', r: u(2.6) }, mult: 140, status: { id: 'slow', ticks: sec(2) } }],
   },
   // 天穹一矢：瞄準 0.7 秒、一箭 10 格寬 2.6 格 800%＋破甲；40 MP
   blade_storm: {
@@ -130,12 +130,12 @@ export const BOW_VARIANTS_B: Record<string, SkillDefinition & { variantName: str
     dash: { fromTick: 2, ticks: sec(0.25), distance: -u(3.5) },
     hits: [{ atTick: 1, shape: { type: 'sector', r: u(3), deg: 90 }, mult: 100, status: { id: 'poison', ticks: sec(5), powerPct: 20 } }],
   },
-  // 殘月見切：窗口 0.5 秒、無傷，反擊前方 4.5 格大扇形 240%＋虛弱 4 秒；冷卻 8s
+  // 殘月箭（D-345，取代殘月見切）：8s；護盾 6%、4 秒＋前方 4.5 格大扇形 180%＋虛弱 4 秒
   parry: {
-    id: 'parry', name: '殘月見切', variantName: '殘月見切', desc: '見切 0.5 秒、擋下不受傷，前方 4.5 格扇形反擊 240%＋「虛弱」4 秒；冷卻 8 秒',
-    cooldownTicks: sec(8), castTicks: sec(0.7), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 15, reducePct: 100, counter: { atTick: 0, shape: { type: 'sector', r: u(4.5), deg: 140 }, mult: 240, status: { id: 'weak', ticks: sec(4) } } },
+    id: 'parry', name: '殘月箭', variantName: '殘月箭', desc: '護盾（最大 HP 6%）4 秒，前方 4.5 格扇形 180%＋「虛弱」4 秒；冷卻 8 秒',
+    cooldownTicks: sec(8), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(4.5),
+    guard: { hpPct: 6, ticks: sec(4) },
+    hits: [{ atTick: 5, shape: { type: 'sector', r: u(4.5), deg: 140 }, mult: 180, status: { id: 'weak', ticks: sec(4) } }],
   },
   // 流星箭雨（大招）：2 秒內身邊 4.5 格落 10 波 70%（共 700%）＋減速，可以邊跑邊下（60%）；40 MP
   blade_storm: {
@@ -151,7 +151,7 @@ export const SWORD_DESC: Record<string, string> = {
   heavy_slash: '前方 90° 扇形 2 格重擊 180%；冷卻 4 秒',
   whirlwind: '身邊 2.2 格旋轉三段（每段 80%），可以邊轉邊走；冷卻 8 秒',
   charge: '往前衝 4 格，路上的敵人 140%＋減速 1 秒；冷卻 7 秒',
-  parry: '0.4 秒格擋窗口、擋下傷害 −80%，反擊前方 220%；冷卻 8 秒',
+  parry: '護盾（最大 HP 12%）4 秒，同時往前揮一刀 170%；冷卻 8 秒',
   blade_storm: '身邊 3 格旋轉 8 段＋最後一擊，共 800%，可以邊轉邊走；40 MP',
 };
 
@@ -159,7 +159,7 @@ export const BOW_DESC: Record<string, string> = {
   heavy_slash: '往前射出 7 格穿透箭，整排 200%；冷卻 4 秒',
   whirlwind: '前方 70° 扇形三輪齊射（每輪 75%），射的時候能慢慢走；冷卻 7 秒',
   charge: '對近身的敵人射一箭 130%＋減速，同時往後跳 3.5 格；冷卻 6 秒',
-  parry: '0.4 秒見切窗口、擋下完全不受傷，反擊 6 格直線 260%；冷卻 8 秒',
+  parry: '風障護盾（最大 HP 9%）4 秒，射出 6 格直線 190%；冷卻 8 秒',
   blade_storm: '瞄準 0.5 秒後射出 9 格星光，6 段共 660%＋破甲；40 MP',
 };
 
@@ -190,12 +190,12 @@ export const SKILL_VARIANTS: Record<string, SkillDefinition & { variantName: str
       { atTick: sec(0.4) + 2, shape: { type: 'circle' as const, r: u(1.8) }, mult: 90 },
     ],
   },
-  // 不動架勢：窗口 0.8s、完全不受傷，反擊改成全方位 180%；冷卻 10s
+  // 不動架勢（D-345 改）：10s；厚護盾（最大 HP 18%、5 秒）＋四面 2.6 格 140%
   parry: {
-    id: 'parry', name: '不動架勢', variantName: '不動架勢', desc: '格擋窗口 0.8 秒、擋下完全不受傷，四面反擊 180%；冷卻 10 秒',
-    cooldownTicks: sec(10), castTicks: sec(1.0), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 24, reducePct: 100, counter: { atTick: 0, shape: { type: 'circle', r: u(2.6) }, mult: 180 } },
+    id: 'parry', name: '不動架勢', variantName: '不動架勢', desc: '厚護盾（最大 HP 18%）5 秒，同時震開四面 2.6 格 140%；冷卻 10 秒',
+    cooldownTicks: sec(10), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(2.6),
+    guard: { hpPct: 18, ticks: sec(5) },
+    hits: [{ atTick: 5, shape: { type: 'circle', r: u(2.6) }, mult: 140 }],
   },
   // 星落一閃：0.9s 蓄力、一擊 760%（範圍 3.6）；不能移動
   blade_storm: {
@@ -229,12 +229,12 @@ export const SKILL_VARIANTS_B: Record<string, SkillDefinition & { variantName: s
     dash: { fromTick: 0, ticks: sec(0.2), distance: u(3) },
     hits: [0, 3].map((t) => ({ atTick: t, shape: { type: 'circle' as const, r: u(1.0) }, mult: 150, oncePerTarget: true, status: { id: 'weak' as const, ticks: sec(4) } })),
   },
-  // 迴光一閃：窗口只有 0.3 秒、完全不受傷，反擊一道 6 格直線 420%；冷卻 7s
+  // 迴光一閃（D-345 改）：7s；薄護盾（最大 HP 6%、3 秒）＋6 格直線 300%
   parry: {
-    id: 'parry', name: '迴光一閃', variantName: '迴光一閃', desc: '格擋窗口只有 0.3 秒（看準再按）、擋下完全不受傷，反擊 6 格直線 420%；冷卻 7 秒',
-    cooldownTicks: sec(7), castTicks: sec(0.6), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 9, reducePct: 100, counter: { atTick: 0, shape: { type: 'line', len: u(6), width: u(1.2) }, mult: 420 } },
+    id: 'parry', name: '迴光一閃', variantName: '迴光一閃', desc: '薄護盾（最大 HP 6%）3 秒，往前劈出 6 格直線劍氣 300%；冷卻 7 秒',
+    cooldownTicks: sec(7), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(6),
+    guard: { hpPct: 6, ticks: sec(3) },
+    hits: [{ atTick: 5, shape: { type: 'line', len: u(6), width: u(1.2) }, mult: 300 }],
   },
   // 破空斬月：0.7s 蓄力、前方 8 格長劍氣 720%＋破甲 8 秒（第 26 輪：蓄力前 0.5 秒自動對準目標）
   blade_storm: {
@@ -307,11 +307,11 @@ export const STAFF_SKILLS: Record<string, SkillDefinition> = {
     dash: { fromTick: 0, ticks: 10, distance: u(5) },
     hits: [{ atTick: 11, shape: { type: 'circle', r: u(1.8) }, mult: 140, status: { id: 'slow', ticks: sec(1.5) } }],
   },
-  // 星輝屏障：1 秒窗口、擋下不受傷，四面反擊 200%＋減速；冷卻 10s
+  // 星輝屏障（D-345 改）：10s；護盾（最大 HP 12%、5 秒）＋四面 3 格 150%＋減速 2 秒
   parry: {
-    id: 'parry', name: '星輝屏障', cooldownTicks: sec(10), castTicks: sec(1.1), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 30, reducePct: 100, counter: { atTick: 0, shape: { type: 'circle', r: u(3) }, mult: 200, status: { id: 'slow', ticks: sec(2) } } },
+    id: 'parry', name: '星輝屏障', cooldownTicks: sec(10), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(3),
+    guard: { hpPct: 12, ticks: sec(5) },
+    hits: [{ atTick: 5, shape: { type: 'circle', r: u(3) }, mult: 150, status: { id: 'slow', ticks: sec(2) } }],
   },
   // 隕星術（大招）：蓄力 1.2 秒（前 0.8 秒自動瞄準），在前方 3.5 格砸下隕星（範圍 3 格）900%＋破甲；40 MP（D-155：以前砸在自己身邊）
   blade_storm: {
@@ -325,7 +325,7 @@ export const STAFF_DESC: Record<string, string> = {
   heavy_slash: '6.5 格直線火球 170%，打中的敵人「灼燒」3 秒；冷卻 4 秒',
   whirlwind: '身邊 2.8 格冰爆 130%，小怪冰凍 1.5 秒、Boss 減速；冷卻 10 秒',
   charge: '往前瞬移 5 格，落地爆一圈 140%＋減速；冷卻 6 秒',
-  parry: '1 秒屏障、擋下不受傷，四面反擊 200%＋減速；冷卻 10 秒',
+  parry: '護盾（最大 HP 12%）5 秒，四面 3 格炸開 150%＋減速；冷卻 10 秒',
   blade_storm: '蓄力 1.2 秒（自動瞄準），在前方 3.5 格砸下隕星（範圍 3 格）900%＋破甲；40 MP',
 };
 
@@ -348,10 +348,10 @@ export const STAFF_VARIANTS: Record<string, SkillDefinition & { variantName: str
     hits: [{ atTick: 1, shape: { type: 'circle', r: u(2.2) }, mult: 120, status: { id: 'freeze', ticks: sec(1) } }],
   },
   parry: {
-    id: 'parry', name: '鏡像反射', variantName: '鏡像反射', desc: '0.5 秒鏡盾、擋下不受傷，反射一道 7 格光束 360%；冷卻 8 秒',
-    cooldownTicks: sec(8), castTicks: sec(0.7), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 15, reducePct: 100, counter: { atTick: 0, shape: { type: 'line', len: u(7), width: u(1.4) }, mult: 360 } },
+    id: 'parry', name: '稜鏡光束', variantName: '稜鏡光束', desc: '薄護盾（最大 HP 7%）4 秒，射出一道 7 格光束 260%；冷卻 8 秒',
+    cooldownTicks: sec(8), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(7),
+    guard: { hpPct: 7, ticks: sec(4) },
+    hits: [{ atTick: 5, shape: { type: 'line', len: u(7), width: u(1.4) }, mult: 260 }],
   },
   blade_storm: {
     id: 'blade_storm', name: '流星雨', variantName: '流星雨', desc: '2.4 秒內身邊 4 格落下 8 波流星（每波 90%）＋最後一顆 200%，可以邊走邊放；40 MP',
@@ -385,10 +385,10 @@ export const STAFF_VARIANTS_B: Record<string, SkillDefinition & { variantName: s
     ],
   },
   parry: {
-    id: 'parry', name: '時間凝滯', variantName: '時間凝滯', desc: '0.8 秒窗口、傷害 −80%，周圍 4 格 150%＋冰凍 2 秒（Boss 減速）；冷卻 11 秒',
-    cooldownTicks: sec(11), castTicks: sec(1.0), moveFactor: 0, role: 'block',
-    hits: [],
-    block: { windowTicks: 24, reducePct: 80, counter: { atTick: 0, shape: { type: 'circle', r: u(4) }, mult: 150, status: { id: 'freeze', ticks: sec(2) } } },
+    id: 'parry', name: '時間凝滯', variantName: '時間凝滯', desc: '護盾（最大 HP 9%）4 秒，周圍 4 格 110%＋冰凍 1.5 秒（Boss 減速）；冷卻 11 秒',
+    cooldownTicks: sec(11), castTicks: sec(0.5), moveFactor: 0.7, role: 'guard', useRange: u(4),
+    guard: { hpPct: 9, ticks: sec(4) },
+    hits: [{ atTick: 5, shape: { type: 'circle', r: u(4) }, mult: 110, status: { id: 'freeze', ticks: sec(1.5) } }],
   },
   blade_storm: {
     id: 'blade_storm', name: '虛空奇點', variantName: '虛空奇點', desc: '2 秒內身邊 4.5 格被黑洞撕扯 10 次（每次 80%）＋減速；40 MP',
