@@ -797,11 +797,36 @@ export class RtBattleScene extends Phaser.Scene {
   }
   /** 0–3 技能欄、4 閃避、5 大招（劍刃風暴，MP 40）、6 藥水；位置與大小照操作設定（D-088） */
   private btnPos(i: number): { x: number; y: number } {
+    const cl = this.compactList();
+    const k = cl.indexOf(i);
+    if (k >= 0) {
+      // 底部中間偏右一排（搖桿與閃避鍵之間，不在拇指落點上）；左手模式鏡射
+      const step = Math.round(58 * this.ctl.scale);
+      const x = 440 - ((cl.length - 1) * step) / 2 + k * step;
+      return { x: this.ctl.leftHand ? 720 - x : x, y: GAME_HEIGHT - 44 };
+    }
     return buttonPos(this.ctl, i);
   }
   private btnR(i: number): number {
+    const cl = this.compactList();
+    if (cl.includes(i)) return Math.round(25 * this.ctl.scale);
+    // 技能都自己放了：閃避是唯一要按的鍵，放大一號（玩家自己拖過位置的不動）
+    if (i === 4 && cl.length >= 4 && !this.ctl.pos[4]) return Math.round(62 * this.ctl.scale);
     return buttonR(this.ctl, i);
   }
+  /**
+   * P1-d（D-344）：自動施放的技能欄（0–3）與大招（5）不再佔右下的拇指區，縮成底部一排小冷卻圖示；
+   * 切回手動的那一招才是大鍵（小圖示點了也照樣會放）。調整按鈕位置時一律顯示大鍵。Bot 示範沒有自動設定＝照舊。
+   */
+  private compactList(): number[] {
+    const on = this.s?.autoSkills;
+    if (!on?.length || this.editing) return [];
+    const out: number[] = [];
+    for (let i = 0; i < 4; i++) if (on.includes(this.ctl.order[i]!)) out.push(i);
+    if (on.includes('blade_storm')) out.push(5);
+    return out;
+  }
+  private compactSig = '';
   private slotSkill(i: number): string {
     return this.ctl.order[i]!;
   }
@@ -815,9 +840,11 @@ export class RtBattleScene extends Phaser.Scene {
     for (const t of this.btnText) t.destroy();
     const names = [...this.ctl.order.map((id) => ((this.s ? skillDef(this.s, id) : undefined) ?? SKILLS[id])!.name), '閃避', '大招', '藥水'];
     const sc = this.ctl.scale;
+    const cl = this.compactList();
+    this.compactSig = cl.join(',');
     this.btnText = names.map((n, i) => {
       const { x, y } = this.btnPos(i);
-      return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((i === 4 ? 22 : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
+      return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((cl.includes(i) ? 14 : i === 4 ? (cl.length >= 4 ? 26 : 22) : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
     });
     for (const b of this.autoBadges) b?.destroy();
     this.autoBadges = names.map((_, i) => (i < 4 || i === 5 ? this.add.text(0, 0, tr('auto.badge'), { fontFamily: UI_FONT, fontSize: `${Math.round(14 * sc)}px`, fontStyle: '700', color: '#0a2a14', backgroundColor: '#7dffb0' }).setOrigin(0.5).setPadding(5, 1, 5, 1).setDepth(61).setVisible(false) : null));
@@ -827,7 +854,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (!this.sys.game.device.input.touch) {
       this.keyBadges = BTN_ACTIONS.map((a, i) => {
         const k = keyBadge(this.ctl.keys[a]);
-        if (!k) return null;
+        if (!k || cl.includes(i)) return null; // 小圖示不貼鍵名（鍵盤 1～4 照樣能按）
         const { x, y } = this.badgePos(i);
         return this.add.text(x, y, k, { fontFamily: UI_FONT, fontSize: `${Math.round(15 * sc)}px`, fontStyle: '700', color: '#1a0f08', backgroundColor: '#e8dcc0', align: 'center' }).setOrigin(0.5).setPadding(5, 1, 5, 1).setDepth(61).setAlpha(0.85);
       });
@@ -5080,10 +5107,13 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0xffd27a, 0.7).fillCircle(this.inp.stick.bx + (this.inp.stick.dx / 1000) * 50, this.inp.stick.by + (this.inp.stick.dy / 1000) * 50, 34);
     }
     // 技能鍵（冷卻遮罩）
+    const cl = this.compactList();
+    if (cl.join(',') !== this.compactSig) this.makeButtons(); // 自動／手動切換、進出調整模式：字的位置與大小跟著換
     const ids: string[] = [...this.ctl.order, 'dodge'];
     ids.forEach((id, i) => {
       const { x, y } = this.btnPos(i);
       const R = this.btnR(i);
+      const small = cl.includes(i);
       const cd = id === 'dodge' ? playerDef(this.s).dodge.cooldownTicks : skillDef(this.s, id)!.cooldownTicks;
       const left = Math.max(0, (p.ready[id] ?? 0) - s.tick);
       this.discs.show(i, x, y, { r: R, fill: i === 4 ? 0x2a4a6a : 0x3a2a14, fillA: 0.95, lw: 3, stroke: left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, strokeA: 1 });
@@ -5104,12 +5134,18 @@ export class RtBattleScene extends Phaser.Scene {
       // 冷卻中也留著招式名（第 45 輪：以前冷卻時只剩數字，新手打一陣子五顆鍵全是「4.8」「2.3」，記不住哪顆是哪招）
       const nm = i === 4 ? '閃避' : skillDef(this.s, id)!.name;
       const bt = this.btnText[i]!;
-      bt.setText(left > 0 ? `${nm}\n${cdText(left)}` : nm);
+      bt.setText(small ? (left > 0 ? cdText(left) : nm.slice(0, 2)) : left > 0 ? `${nm}\n${cdText(left)}` : nm);
       const bc = left > 0 ? '#a8a090' : '#ffffff';
       textColor(bt, bc);
-      this.autoBadges[i]?.setPosition(x, y + R - 2).setVisible(i < 4 && !!s.autoSkills?.includes(id));
+      this.autoBadges[i]?.setPosition(x, y + R - 2).setVisible(!small && i < 4 && !!s.autoSkills?.includes(id));
+      if (small) {
+        // 小圖示：下面一顆綠點＝自動；正在放這一招時整顆亮起來
+        g.fillStyle(0x7dffb0, 0.9).fillCircle(x, y + R + 7, 3);
+        if (p.action?.kind === 'skill' && p.action.id === id) g.fillStyle(0xffe08a, 0.45).fillCircle(x, y, R + 5).lineStyle(3, 0xfff2c0, 1).strokeCircle(x, y, R + 5);
+      }
     });
-    this.autoBadges[5]?.setPosition(this.btnPos(5).x, this.btnPos(5).y + this.btnR(5) - 2).setVisible(!!s.autoSkills?.includes('blade_storm'));
+    const ultSmall = cl.includes(5);
+    this.autoBadges[5]?.setPosition(this.btnPos(5).x, this.btnPos(5).y + this.btnR(5) - 2).setVisible(!ultSmall && !!s.autoSkills?.includes('blade_storm'));
     // 大招：MP 環（滿 40 才亮）＋冷卻
     {
       const ult = skillDef(this.s, 'blade_storm')!;
@@ -5131,7 +5167,11 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / ult.cooldownTicks), false).fillPath();
       }
-      this.btnText[5]!.setText(left > 0 ? cdText(left) : ok ? ultLabel(skillDef(s, 'blade_storm')!.name) : `MP\n${p.mp}/${need}`);
+      this.btnText[5]!.setText(ultSmall ? (left > 0 ? cdText(left) : ok ? ult.name.slice(0, 2) : `${p.mp}`) : left > 0 ? cdText(left) : ok ? ultLabel(skillDef(s, 'blade_storm')!.name) : `MP\n${p.mp}/${need}`);
+      if (ultSmall) {
+        g.fillStyle(0x7dffb0, 0.9).fillCircle(x, y + R + 7, 3);
+        if (p.action?.kind === 'skill' && p.action.id === 'blade_storm') g.fillStyle(0xff9ae0, 0.45).fillCircle(x, y, R + 5).lineStyle(3, 0xffd0f0, 1).strokeCircle(x, y, R + 5);
+      }
       textColor(this.btnText[5]!, ok ? '#ffffff' : '#c890b0');
     }
     // 藥水：剩餘數量＋冷卻；血少於 40% 時閃爍提醒
