@@ -39,3 +39,33 @@ export function hitLook(weapon: string | undefined, def: SkillDefinition | undef
   const el = skillElement(def);
   return (el && ELEMENT[el]) || WEAPON[weapon ?? 'sword'] || WEAPON.sword!;
 }
+
+/** 小冷卻圖示的底色與外框（第 165 輪）：五顆以前全是同一種棕色，冷卻中只剩數字，分不出哪顆是哪招 */
+export interface BadgeLook {
+  fill: number;
+  rim: number;
+  /** 冷卻中的外框（同色相、暗一階） */
+  dim: number;
+}
+
+/** 元素鮮明的招用元素色（和 effectIcon 的 ELEMENT_LOOK 同一套語言）：火橘、冰青、毒綠；減速／破甲這類附帶效果不算 */
+const BADGE_STATUS: Readonly<Record<string, number>> = { burn: 0xff7a2c, freeze: 0x4ad0ff, poison: 0x8ad838 };
+/** 其餘照技能欄固定一色，色相拉開：第一欄金、第二欄青綠、第三欄紫、護盾欄銀白、大招粉紅 */
+const BADGE_SLOT: Readonly<Record<string, number>> = { heavy_slash: 0xf0c050, whirlwind: 0x40c890, charge: 0x9a7aff, parry: 0xdfe6f2, blade_storm: 0xff7ad0 };
+
+/** 把顏色壓暗成底色（保留色相，亮度約三成） */
+function shade(c: number, k: number): number {
+  const r = Math.round(((c >> 16) & 255) * k);
+  const g = Math.round(((c >> 8) & 255) * k);
+  const b = Math.round((c & 255) * k);
+  return (r << 16) | (g << 8) | b;
+}
+
+/** slot＝技能欄 id（heavy_slash／whirlwind／charge／parry／blade_storm；換打法後 def.id 會變，欄位 id 不變） */
+export function skillBadge(slot: string, def: SkillDefinition | undefined): BadgeLook {
+  // 護盾招的「打一下」常帶狀態，但玩家認它是護盾 → 一律用護盾欄的顏色
+  // 第三欄也固定用自己的顏色：它的變化常和第一欄同元素（法杖的冰槍＋寒霜結界），兩顆會撞色
+  const el = def?.guard || slot === 'charge' ? undefined : skillElement(def);
+  const rim = (el && BADGE_STATUS[el]) || BADGE_SLOT[slot] || BADGE_SLOT.heavy_slash!;
+  return { fill: shade(rim, 0.3), rim, dim: shade(rim, 0.6) };
+}

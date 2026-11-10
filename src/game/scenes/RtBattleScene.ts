@@ -73,7 +73,7 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
-import { hitLook } from '../fx/hitTint';
+import { hitLook, skillBadge } from '../fx/hitTint';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -5255,7 +5255,9 @@ export class RtBattleScene extends Phaser.Scene {
       const small = cl.includes(i);
       const cd = id === 'dodge' ? playerDef(this.s).dodge.cooldownTicks : skillDef(this.s, id)!.cooldownTicks;
       const left = Math.max(0, (p.ready[id] ?? 0) - s.tick);
-      this.discs.show(i, x, y, { r: R, fill: i === 4 ? 0x2a4a6a : 0x3a2a14, fillA: 0.95, lw: 3, stroke: left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, strokeA: 1 });
+      // 小圖示（第 165 輪）：底色與外框照這一招的元素／用途，冷卻中只剩數字時也認得出哪顆是哪招
+      const bl = small ? skillBadge(id, skillDef(this.s, id)) : undefined;
+      this.discs.show(i, x, y, { r: R, fill: bl ? bl.fill : i === 4 ? 0x2a4a6a : 0x3a2a14, fillA: 0.95, lw: 3, stroke: bl ? (left ? bl.dim : bl.rim) : left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, strokeA: 1 });
       if (this.editing?.pick === i) g.lineStyle(5, 0x7dffb0, 0.6 + 0.4 * Math.sin(this.time.now / 120)).strokeCircle(x, y, R + 8);
       if (left > 0) {
         g.fillStyle(0x000000, 0.6);
