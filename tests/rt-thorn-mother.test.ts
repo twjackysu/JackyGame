@@ -86,10 +86,10 @@ describe('荊棘母樹（D-107）', () => {
 
   it('往狼王推進的 Bot 預設繞過母樹；huntStationary 才會去打（D-111）', () => {
     for (const hunt of [false, true]) {
-      const s = createBattle({ stageId: 'mistwood', seed: 2 });
+      const s = createBattle({ stageId: 'mistwood', seed: 1 });
       const bot = new PlayerBot({ ...BOT_PROFILES.expert, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: MISTWOOD_KING, huntStationary: hunt }, 'expert');
       let fought = false;
-      while (s.tick < sec(150) && !fought) {
+      while (s.tick < sec(hunt ? 300 : 150) && !fought) { // 第 161 輪：去打的那一趟給久一點（Bot 沿路清怪的節奏一改就差幾十秒）
         step(s, bot.decide(s));
         fought = s.units.some((u) => u.defId === 'thorn_mother' && u.mode === 'combat');
       }

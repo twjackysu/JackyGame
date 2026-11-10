@@ -74,7 +74,7 @@ describe('暴怒狼王專屬招式（D-105）', () => {
               used.add(e.attack);
               if (e.attack === 'king_charge2' && s.tick - lastChargeEnd <= 1) chained++;
             }
-            if (e.type === 'blink') {
+            if (e.type === 'blink' && e.id === king(s)?.id) { // 第 161 輪：只算狼王的（路上的霧影精英也會瞬移，Bot 路線一變就誤算）
               blinks++;
               // 落點在玩家附近（背後 2.2 格內，加上被夾在場地內的誤差）
               const k = s.units.find((x) => x.id === e.id)!;

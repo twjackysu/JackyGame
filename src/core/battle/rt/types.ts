@@ -217,6 +217,8 @@ export interface Action {
 }
 
 export interface Unit {
+  /** 疊放中的技能（D-348）：已經有一招在放時再放的招排在這裡，各自照自己的時間打完，互不打斷（只有玩家用） */
+  casts?: Action[];
   id: number;
   side: 'player' | 'enemy';
   /** 隊伍（Q6）：同隊不互打。沒有＝照 side（玩家 0、敵人 1）；PvP 時兩個玩家不同隊 */

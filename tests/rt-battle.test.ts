@@ -73,13 +73,16 @@ describe('判定形狀', () => {
 });
 
 describe('技能與閃避', () => {
-  it('冷卻從施放開始計；施放中不能再放別的主動技能', () => {
+  it('冷卻從施放開始計；施放中再放別招會疊上去（D-348），同一招不能重複、位移技不能疊', () => {
     const s = createBattle({ stageId: 'forest_entry', seed: 1 });
     step(s, [{ type: 'skill', id: 'heavy_slash' }]);
     const p = playerOf(s);
     expect(p.ready['heavy_slash']).toBe(1 + SKILLS.heavy_slash!.cooldownTicks);
     step(s, [{ type: 'skill', id: 'whirlwind' }]);
-    expect(p.ready['whirlwind']).toBeUndefined();
+    expect(p.ready['whirlwind']).toBe(2 + SKILLS.whirlwind!.cooldownTicks);
+    expect(p.casts?.map((c) => c.id)).toEqual(['whirlwind']);
+    step(s, [{ type: 'skill', id: 'charge' }]);
+    expect(p.ready['charge']).toBeUndefined();
   });
 
   it('閃避：無敵期間不受傷（事件記為 dodged），冷卻 5 秒', () => {

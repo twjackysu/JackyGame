@@ -72,9 +72,11 @@ export function autoPick(s: BattleState, p: Unit): { id: string; aim?: Unit } | 
   if (!on?.length || p.dead) return null;
   const a = p.action;
   if (a) {
-    if (a.kind !== 'attack') return null;
-    if (s.tick - a.start <= playerDef(s, p).attackWindupTicks) return null;
+    if (a.kind === 'dodge') return null;
+    if (a.kind === 'attack' && s.tick - a.start <= playerDef(s, p).attackWindupTicks) return null;
   }
+  // D-348：已經有一招在放也照樣放下一招（疊放，各自打完）；位移技不疊
+  const stacking = a?.kind === 'skill';
   let foes: Unit[] | null = null;
   const moving = !!ctl.manualMove || !!ctl.moveGoal;
   // 攻守一體的招（D-345）：敵人的預告快打到自己時優先放（護盾先墊著）；平常照順序
@@ -83,12 +85,13 @@ export function autoPick(s: BattleState, p: Unit): { id: string; aim?: Unit } | 
   for (const id of order) {
     if (!on.includes(id) || (p.ready[id] ?? 0) > s.tick) continue;
     const sk = skillDef(s, id, p);
-    if (!sk || sk.block || (sk.mp && p.mp < sk.mp)) continue;
-    const rooted = sk.moveFactor === 0 || !!sk.dash;
-    if (moving && rooted) continue;
+    if (!sk || sk.block || (sk.mp && p.mp < sk.mp) || (stacking && (sk.dash || a!.id === id))) continue;
+    // D-347：施放中都可以走了，走位時只剩位移技不放（它會把人帶走）
+    if (moving && sk.dash) continue;
     foes ??= (s.others?.length ? foesOf(s, p) : enemiesOf(s)).filter((e) => !e.mode || e.mode === 'combat');
     if (foes.length === 0) return null;
-    if (sk.moveFactor < 0.5 && threatened(s, p, sk.castTicks + 3)) continue;
+    // 站在快落下的預告裡：位移技不放（會帶著人亂衝）；其他招可以邊放邊走出去（D-347）
+    if (sk.dash && threatened(s, p, sk.castTicks + 3)) continue;
     const cur = foes.find((e) => e.id === p.targetId);
     if (sk.dash) {
       // 位移技看距離，不看形狀（打點在位移之後）

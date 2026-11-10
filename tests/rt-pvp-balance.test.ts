@@ -46,6 +46,7 @@ describe('PvP 競技場', () => {
           else wb++;
         }
         rows.push(`| ${a} vs ${b} | ${wa} | ${wb} | ${to} |`);
+        (globalThis as any).process.stdout.write(rows[rows.length - 1] + '\n');
         expect(wa + wb + to).toBe(20);
         // 目標 40～60%（第 144 輪：8～12 勝）；護欄放寬到 30～70%，改到 PvE 數值時才不會一碰就紅
         expect(wa).toBeGreaterThanOrEqual(6);

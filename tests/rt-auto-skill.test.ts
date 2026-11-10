@@ -81,13 +81,20 @@ describe('技能自動施放（P1）', () => {
     const c = casts(s2)[before]!;
     expect(c.type === 'cast' && c.skill).toBe('parry');
     expect(c.type === 'cast' && c.auto).toBeFalsy();
-    expect(casts(s2).length).toBe(before + 1);
+    // D-348：玩家按的那一招先放；自動的可以疊在後面（各自打完），但不會搶在玩家前面
+    expect(casts(s2).slice(before + 1).every((x) => x.type === 'cast' && x.auto)).toBe(true);
   });
 
-  it('玩家正在走位：不放會把人定住的招（重斬），可以邊走邊放的（旋風斬）照放', () => {
+  it('玩家正在走位：技能照放（D-347 施放中都可以走）；只有位移技不放（會把人帶走）', () => {
     const s = mk('sword', ['heavy_slash']);
     arrange(s, [[120, 0]]);
     expect(autoPick(s, playerOf(s))?.id).toBe('heavy_slash');
+    s.manualMove = { dx: 1, dy: 0 };
+    expect(autoPick(s, playerOf(s))?.id).toBe('heavy_slash');
+    setAutoSkills(s, ['charge']);
+    arrange(s, [[350, 0]]);
+    s.manualMove = null;
+    expect(autoPick(s, playerOf(s))?.id).toBe('charge');
     s.manualMove = { dx: 1, dy: 0 };
     expect(autoPick(s, playerOf(s))).toBeNull();
     setAutoSkills(s, ['heavy_slash', 'whirlwind']);
@@ -96,12 +103,15 @@ describe('技能自動施放（P1）', () => {
     expect(autoPick(s, playerOf(s))?.id).toBe('whirlwind');
   });
 
-  it('站在快落下的預告裡：不放會定住的招（讓玩家走／閃）', () => {
+  it('站在快落下的預告裡：一般招照放（可以邊放邊走出去，D-347）；位移技不放', () => {
     const s = mk('sword', ['heavy_slash']);
     const [e] = arrange(s, [[120, 0]]);
     const p = playerOf(s);
     expect(autoPick(s, p)?.id).toBe('heavy_slash');
     s.telegraphs.push({ ownerId: e!.id, attackId: 'x', shape: { type: 'circle', r: 200 }, ox: p.x, oy: p.y, dirX: 1000, dirY: 0, hitTick: s.tick + 8, startTick: s.tick, blockable: false });
+    expect(autoPick(s, p)?.id).toBe('heavy_slash');
+    setAutoSkills(s, ['charge']);
+    e!.x = p.x + 350;
     expect(autoPick(s, p)).toBeNull();
   });
 

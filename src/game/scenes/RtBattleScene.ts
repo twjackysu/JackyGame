@@ -3715,13 +3715,16 @@ export class RtBattleScene extends Phaser.Scene {
   /** 技能每段命中的刀光（資料驅動：依命中形狀畫，不寫 switch(skillId)） */
   private skillFx(): void {
     const p = playerOf(this.s);
-    const a = p.action;
-    if (!a || a.kind !== 'skill') return;
+    // 疊放中的技能（D-348）也各自出特效
+    for (const a of [p.action, ...(p.casts ?? [])]) if (a?.kind === 'skill') this.skillFxOf(p, a);
+  }
+
+  private skillFxOf(p: Unit, a: NonNullable<Unit['action']>): void {
     const sk = skillDef(this.s, a.id);
     if (!sk) return;
     const k = this.s.tick - a.start;
     sk.hits.forEach((h, i) => {
-      const key = `${a.start}:${i}`;
+      const key = `${a.id}:${a.start}:${i}`;
       if (k < h.atTick || this.fxDone.has(key)) return;
       this.fxDone.add(key);
       const ang = Math.atan2(a.dirY, a.dirX);
@@ -5141,7 +5144,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (small) {
         // 小圖示：下面一顆綠點＝自動；正在放這一招時整顆亮起來
         g.fillStyle(0x7dffb0, 0.9).fillCircle(x, y + R + 7, 3);
-        if (p.action?.kind === 'skill' && p.action.id === id) g.fillStyle(0xffe08a, 0.45).fillCircle(x, y, R + 5).lineStyle(3, 0xfff2c0, 1).strokeCircle(x, y, R + 5);
+        if ((p.action?.kind === 'skill' && p.action.id === id) || p.casts?.some((c) => c.id === id)) g.fillStyle(0xffe08a, 0.45).fillCircle(x, y, R + 5).lineStyle(3, 0xfff2c0, 1).strokeCircle(x, y, R + 5);
       }
     });
     const ultSmall = cl.includes(5);
@@ -5170,7 +5173,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.btnText[5]!.setText(ultSmall ? (left > 0 ? cdText(left) : ok ? ult.name.slice(0, 2) : `${p.mp}`) : left > 0 ? cdText(left) : ok ? ultLabel(skillDef(s, 'blade_storm')!.name) : `MP\n${p.mp}/${need}`);
       if (ultSmall) {
         g.fillStyle(0x7dffb0, 0.9).fillCircle(x, y + R + 7, 3);
-        if (p.action?.kind === 'skill' && p.action.id === 'blade_storm') g.fillStyle(0xff9ae0, 0.45).fillCircle(x, y, R + 5).lineStyle(3, 0xffd0f0, 1).strokeCircle(x, y, R + 5);
+        if ((p.action?.kind === 'skill' && p.action.id === 'blade_storm') || p.casts?.some((c) => c.id === 'blade_storm')) g.fillStyle(0xff9ae0, 0.45).fillCircle(x, y, R + 5).lineStyle(3, 0xffd0f0, 1).strokeCircle(x, y, R + 5);
       }
       textColor(this.btnText[5]!, ok ? '#ffffff' : '#c890b0');
     }

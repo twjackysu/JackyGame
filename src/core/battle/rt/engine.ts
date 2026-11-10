@@ -543,7 +543,7 @@ export function skillDef(s: BattleState, id: string, p?: Unit): SkillDefinition 
 }
 
 /** 主角是不是正在放技能（施放中改打法／技能修正要等這一招打完，RF-01） */
-const castingSkill = (s: BattleState): boolean => s.units[0]?.action?.kind === 'skill';
+const castingSkill = (s: BattleState): boolean => s.units[0]?.action?.kind === 'skill' || !!s.units[0]?.casts?.length;
 
 /**
  * 換技能變化；正在施放的技能照舊打完（下一次施放才換）。
@@ -1032,6 +1032,7 @@ function applyHp(s: BattleState, src: Unit, dst: Unit, amount: number, crit: boo
   if (dst.hp <= 0 && !dst.dead) {
     dst.dead = true;
     dst.action = null;
+    delete dst.casts;
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== dst.id);
     emit(s, { tick: s.tick, type: 'death', id: dst.id });
     if (dst.groupId) queueRespawn(s, dst.groupId);
@@ -1227,13 +1228,21 @@ function startSkill(s: BattleState, p: Unit, id: string, aim?: Unit): boolean {
   if (!sk || p.dead || disabled(p, s.tick)) return false;
   if ((p.ready[id] ?? 0) > s.tick) return false;
   if (sk.mp && p.mp < sk.mp) return false;
-  if (p.action && p.action.kind !== 'attack') return false; // 同時只能一個主動技能
+  // D-348（Jacky：「技能應該可以重複施展，兩個都有效果、不會彼此中斷」）：已經有一招在放時，新的一招疊上去各自打完。
+  // 位移技不能疊（一次只能往一個方向衝）；閃避中不能放。
+  const stack = p.action?.kind === 'skill';
+  if (p.action && p.action.kind !== 'attack' && !(stack && !sk.dash)) return false;
+  if (p.action?.id === id || p.casts?.some((c) => c.id === id)) return false;
   const t = aim ?? currentTarget(s, p);
-  if (t) face(p, t);
+  if (t && !stack) face(p, t);
   const cdPct = Math.min(SKILL_MOD_CAPS.cdPct, Math.max(0, modsOf(s, p)?.[id]?.cdPct ?? 0));
   p.ready[id] = s.tick + (cdPct ? Math.round((sk.cooldownTicks * (100 - cdPct)) / 100) : sk.cooldownTicks); // 冷卻從施放開始計
   if (sk.mp) p.mp -= sk.mp;
-  p.action = { kind: 'skill', id, start: s.tick, end: s.tick + sk.castTicks, dirX: p.facingX, dirY: p.facingY, ox: p.x, oy: p.y, hitIds: [], targetId: t?.id };
+  // 疊放的招有自己的方向（朝它的目標），不改主角的面向——正在放的那一招方向不受影響
+  const [sdx, sdy] = stack && t ? norm(t.x - p.x, t.y - p.y) : [p.facingX, p.facingY];
+  const act: Action = { kind: 'skill', id, start: s.tick, end: s.tick + sk.castTicks, dirX: sdx, dirY: sdy, ox: p.x, oy: p.y, hitIds: [], targetId: t?.id };
+  if (stack) (p.casts ??= []).push(act);
+  else p.action = act;
   emit(s, aim ? { tick: s.tick, type: 'cast', id: p.id, skill: id, auto: true } : { tick: s.tick, type: 'cast', id: p.id, skill: id });
   if (sk.guard) {
     // 攻守一體（D-345）：護盾在施放的瞬間就有（不看時機）；同一層護盾取大、不疊加
@@ -1435,10 +1444,54 @@ function resolveSkillHit(s: BattleState, p: Unit, a: Action, h: SkillHit, skillI
   }
 }
 
+/** 施放中自己走位的最低速度比例（D-347）：原本會定住的招（moveFactor 0）也能用這個速度走 */
+export const MOVE_CAST_FACTOR = 0.6;
+
+/**
+ * 邊走邊打（D-347，Jacky：「移動的時候不能攻擊或放技能很怪」）：玩家自己在走（搖桿／點地）時，普攻冷卻好了、
+ * 射程內有對象就照樣出手，不停下來、不追過去。對象＝目前鎖定的（在射程內）否則射程內最近的「交戰中」敵人——不會把路過的睡著的怪打醒。
+ */
+function moveAttack(s: BattleState, p: Unit, pd: PlayerDefinition): void {
+  if (s.pvp || s.tick < p.nextAttackTick) return;
+  let t = unitById(s, p.targetId);
+  const inReach = (e: Unit): boolean => dist(p.x, p.y, e.x, e.y) <= pd.attackRange + p.r + e.r;
+  if (!t || t.dead || t.mode === 'returning' || !inReach(t)) {
+    t = undefined;
+    let bd = Infinity;
+    for (const e of s.others?.length ? foesOf(s, p) : enemiesOf(s)) {
+      if (e.dead || (e.mode && e.mode !== 'combat') || !inReach(e)) continue;
+      const d = dist(p.x, p.y, e.x, e.y);
+      if (d < bd) {
+        bd = d;
+        t = e;
+      }
+    }
+  }
+  if (!t) return;
+  const [fx, fy] = norm(t.x - p.x, t.y - p.y);
+  p.nextAttackTick = s.tick + pd.attackIntervalTicks;
+  p.action = { kind: 'attack', id: 'attack', start: s.tick, end: s.tick + pd.attackWindupTicks + pd.attackRecoverTicks, dirX: fx, dirY: fy, ox: p.x, oy: p.y, targetId: t.id };
+}
+
 function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
   if (p.dead || disabled(p, s.tick)) return;
   const ctl = ctlOf(s, p);
   const pd = playerDef(s, p);
+  // 疊放中的技能（D-348）：各自照時間打自己的每一段，不管主角現在在做什麼（走路、普攻、放別招、閃避）
+  if (p.casts?.length) {
+    for (const c of p.casts) {
+      const sk = skillDef(s, c.id, p);
+      if (!sk) continue;
+      const k = s.tick - c.start;
+      if (sk.aimTicks && k < sk.aimTicks) {
+        const t = unitById(s, c.targetId);
+        if (t && !t.dead) [c.dirX, c.dirY] = norm(t.x - p.x, t.y - p.y);
+      }
+      for (const h of sk.hits) if (h.atTick === k) resolveSkillHit(s, p, c, h, c.id, 'skill');
+    }
+    p.casts = p.casts.filter((c) => s.tick < c.end);
+    if (!p.casts.length) delete p.casts;
+  }
   const a = p.action;
   if (a) {
     const k = s.tick - a.start;
@@ -1454,14 +1507,18 @@ function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
         p.x += Math.round((a.dirX / DIR) * step);
         p.y += Math.round((a.dirY / DIR) * step);
         clampArena(s, p);
-      } else if (sk.moveFactor > 0) {
-        if (ctl.manualMove) {
-          const [fx, fy] = norm(ctl.manualMove.dx, ctl.manualMove.dy);
-          moveDir(s, p, fx, fy, sk.moveFactor);
-        } else if (ctl.moveGoal) navToward(s, p, ctl.moveGoal.x, ctl.moveGoal.y, 0, sk.moveFactor);
-        else {
-          const t = currentTarget(s, p);
-          if (t) navToward(s, p, t.x, t.y, p.r + t.r, sk.moveFactor);
+      } else if (ctl.manualMove) {
+        // D-347：施放中一律可以自己走（原本會定住的招用 MOVE_CAST_FACTOR 的速度）；方向在施放時就鎖定，走位不會改變打的方向
+        const [fx, fy] = norm(ctl.manualMove.dx, ctl.manualMove.dy);
+        moveDir(s, p, fx, fy, Math.max(sk.moveFactor, MOVE_CAST_FACTOR));
+      } else if (ctl.moveGoal) navToward(s, p, ctl.moveGoal.x, ctl.moveGoal.y, 0, Math.max(sk.moveFactor, MOVE_CAST_FACTOR));
+      else if (sk.moveFactor > 0) {
+        // 施放中自動貼近目標：近戰照舊貼上去；遠程（長弓／法杖）已經在普攻射程內就不再靠近（D-349，Jacky：「到攻擊範圍內就不用再靠近了」）
+        const t = currentTarget(s, p);
+        if (t) {
+          const ranged = !s.pvp && pd.attackRange >= 3 * UNIT; // 競技場先照舊（遠程不貼近會讓三武器互打一面倒，等平衡一起調）
+          const stop = ranged ? pd.attackRange + p.r + t.r - 10 : p.r + t.r;
+          if (!ranged || dist(p.x, p.y, t.x, t.y) > stop) navToward(s, p, t.x, t.y, stop, sk.moveFactor);
         }
       }
       if (sk.aimTicks && k < sk.aimTicks) {
@@ -1474,9 +1531,18 @@ function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
       }
       for (const h of sk.hits) if (h.atTick === k) resolveSkillHit(s, p, a, h, a.id, 'skill');
     } else if (a.kind === 'attack') {
-      // 手動移動可以取消普攻後搖（命中前取消就沒打到）
-      if ((ctl.manualMove || ctl.moveGoal) && k > pd.attackWindupTicks) p.action = null;
-      else if (k === pd.attackWindupTicks) {
+      // D-347：普攻不再把人定住——出手前後都可以邊走邊打（以前出手前走不動、命中後移動只能取消後搖）
+      // 競技場先維持舊規則（出手前走不動、命中後移動取消後搖）：邊退邊射會讓遠程一面倒，等平衡一起調
+      if (s.pvp) {
+        if ((ctl.manualMove || ctl.moveGoal) && k > pd.attackWindupTicks) p.action = null;
+      } else if (ctl.manualMove) {
+        const [fx, fy] = norm(ctl.manualMove.dx, ctl.manualMove.dy);
+        moveDir(s, p, fx, fy);
+      } else if (ctl.moveGoal) {
+        if (dist(p.x, p.y, ctl.moveGoal.x, ctl.moveGoal.y) <= 12 || s.tick >= ctl.moveGoal.until) ctl.moveGoal = null;
+        else navToward(s, p, ctl.moveGoal.x, ctl.moveGoal.y, 0);
+      }
+      if (p.action && k === pd.attackWindupTicks) {
         const t = unitById(s, a.targetId);
         if (t && !t.dead && dist(p.x, p.y, t.x, t.y) <= pd.attackRange + p.r + t.r + 30) {
           const dealt = dealDamage(s, p, t, 100, 'normal', 'attack');
@@ -1494,6 +1560,7 @@ function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
     p.facingX = fx;
     p.facingY = fy;
     moveDir(s, p, fx, fy);
+    moveAttack(s, p, pd); // D-347：邊走邊打
     return;
   }
   // 點地移動中：走到目的地（期間不自動追擊），到了就恢復自動追擊
@@ -1501,6 +1568,7 @@ function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
     if (dist(p.x, p.y, ctl.moveGoal.x, ctl.moveGoal.y) <= 12 || s.tick >= ctl.moveGoal.until) ctl.moveGoal = null;
     else {
       navToward(s, p, ctl.moveGoal.x, ctl.moveGoal.y, 0);
+      moveAttack(s, p, pd);
       return;
     }
   }

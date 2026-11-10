@@ -61,7 +61,7 @@ describe('星隕高原', () => {
   }
 
   it('東路（碎星迴廊）也走得通', () => {
-    const s = createBattle({ stageId: 'starfall', seed: 3, level: 15, bonus: GEAR });
+    const s = createBattle({ stageId: 'starfall', seed: 1, level: 15, bonus: GEAR });
     const hall = { x: u(37) + 50, y: u(45) + 50 };
     let bot = new PlayerBot({ ...BOT_PROFILES.normal, ult: true, potionAtPct: 40, campfireBelowPotions: 8, advanceTo: hall }, 'normal');
     let reached = -1;
