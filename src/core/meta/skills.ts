@@ -10,7 +10,7 @@ export const SKILL_MAX_RANK = 5;
 export const SKILL_TREE: readonly { id: string; name: string; per: string; mod: (rank: number) => SkillMod }[] = [
   { id: 'heavy_slash', name: '重斬', per: '傷害 +8%', mod: (r) => ({ dmgPct: 8 * r }) },
   { id: 'whirlwind', name: '旋風斬', per: '範圍 +6%・傷害 +3%', mod: (r) => ({ areaPct: 6 * r, dmgPct: 3 * r }) },
-  { id: 'charge', name: '衝鋒', per: '冷卻 −5%・距離 +4%', mod: (r) => ({ cdPct: 5 * r, distPct: 4 * r }) },
+  { id: 'charge', name: '破空劍氣', per: '冷卻 −5%・範圍 +4%', mod: (r) => ({ cdPct: 5 * r, distPct: 4 * r }) },
   { id: 'parry', name: '鐵壁斬', per: '傷害 +6%・每 2 級護盾 +5%', mod: (r) => ({ dmgPct: 6 * r, blockTicks: Math.floor(r / 2) }) },
   { id: 'blade_storm', name: '劍刃風暴', per: '傷害 +8%・冷卻 −3%', mod: (r) => ({ dmgPct: 8 * r, cdPct: 3 * r }) },
 ];
@@ -29,7 +29,7 @@ export function rankTotalText(id: string, rank: number): string {
   if (m.areaPct) out.push(`範圍 +${m.areaPct}%`);
   if (m.dmgPct) out.push(`傷害 +${m.dmgPct}%`);
   if (m.cdPct) out.push(`冷卻 −${m.cdPct}%`);
-  if (m.distPct) out.push(`距離 +${m.distPct}%`);
+  if (m.distPct) out.push(`範圍 +${m.distPct}%`);
   if (m.blockTicks) out.push(`護盾 +${m.blockTicks * GUARD_PCT_PER_POINT}%`);
   return out.join('・');
 }
@@ -44,7 +44,7 @@ export function modApplies(def: SkillDefinition, key: keyof SkillMod): boolean {
     case 'areaPct':
       return def.hits.length > 0 || !!def.block;
     case 'distPct':
-      return !!def.dash && def.dash.distance !== 0;
+      return def.dash ? def.dash.distance !== 0 : def.hits.length > 0; // D-346：沒有位移的招，距離修正併進範圍
     case 'blockTicks':
       return !!def.block || !!def.guard;
   }

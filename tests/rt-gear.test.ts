@@ -211,8 +211,8 @@ describe('精良也可能帶特效（D-106）', () => {
 });
 
 describe('參數型技能特效（D-098）', () => {
-  it('範圍、格擋窗口、衝鋒距離都會生效，而且有上限', async () => {
-    const { skillShape, guardAmount, dashDistance, playerOf } = await import('../src/core/battle/rt/engine');
+  it('範圍、護盾、舊的「距離」（併進範圍，D-346）都會生效，而且有上限；競技場的衝鋒距離照舊', async () => {
+    const { skillShape, guardAmount, dashDistance, playerOf, addPlayer } = await import('../src/core/battle/rt/engine');
     const { gearSkillMods, specialText, SPECIAL_KINDS } = await import('../src/core/battle/rt/gear');
     const s = createBattle({ stageId: 'forest_entry', seed: 1, skillMods: { whirlwind: { areaPct: 80 }, parry: { blockTicks: 9 }, charge: { distPct: 30 } } });
     const base = { type: 'circle' as const, r: 220 };
@@ -223,15 +223,24 @@ describe('參數型技能特效（D-098）', () => {
       const p0 = playerOf(s);
       expect(guardAmount(s, 'parry', p0)).toBe(Math.floor((p0.maxHp * 12 * 130) / 10000));
     }
-    expect(dashDistance(s, 'charge')).toBe(520);
-    // 衝鋒距離真的變長
-    const a = createBattle({ stageId: 'forest_entry', seed: 1 });
+    // D-346：第 3 欄不位移了，舊的「距離 +30%」變成那一招的範圍 +30%
+    expect(dashDistance(s, 'charge')).toBe(0);
+    expect(skillShape(s, 'charge', { type: 'line', len: 500, width: 120 })).toEqual({ type: 'line', len: 650, width: 120 });
+    // 競技場沿用衝鋒（D-350）：距離照舊變長、範圍不重複加
+    const mkArena = (mods?: Record<string, { distPct: number }>) => {
+      const st = createBattle({ stageId: 'pvp_arena', seed: 1, skillMods: mods });
+      addPlayer(st, { team: 1, dy: -900 });
+      return st;
+    };
+    const [a, b] = [mkArena(), mkArena({ charge: { distPct: 30 } })];
+    expect(dashDistance(b, 'charge')).toBe(520);
+    expect(skillShape(b, 'charge', base)).toBe(base);
     const y0 = a.units[0]!.y;
-    for (const st of [a, s]) {
+    for (const st of [a, b]) {
       step(st, [{ type: 'skill', id: 'charge' }]);
       for (let i = 0; i < 9; i++) step(st, []);
     }
-    expect(y0 - s.units[0]!.y).toBeGreaterThan(y0 - a.units[0]!.y + 80);
+    expect(Math.abs(y0 - b.units[0]!.y)).toBeGreaterThan(Math.abs(y0 - a.units[0]!.y) + 80);
     // 裝備合計與文字
     expect(specialText({ skill: 'parry', kind: 'block', value: 3 })).toBe('★ 鐵壁斬護盾 +15%');
     const g = genGear(5, 3, 4);
@@ -244,6 +253,7 @@ describe('參數型技能特效（D-098）', () => {
       kinds.add(sp.kind);
     }
     expect([...kinds].sort()).toEqual(['area', 'block', 'cd', 'dist', 'dmg']);
+    expect(specialText({ skill: 'charge', kind: 'dist', value: 20 })).toBe('★ 破空劍氣範圍 +20%');
   });
 });
 

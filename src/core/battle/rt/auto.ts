@@ -10,11 +10,11 @@ const DIR = 1000;
 export const AUTO_SKILL_IDS: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'parry', 'charge'];
 /**
  * 預設：兩個輸出技與大招自動（Jacky 11/10：「全部都不用自己點比較好」，D-344）；
- * 第 4 欄換成攻守一體後也預設自動（D-345，版本 3）；位移欄（衝鋒／後躍／閃現）先維持手動——它會把人帶走，Jacky 決定整組換成適合自動的招（NEXT 的 P1-c），換好再一起開。
+ * 第 4 欄換成攻守一體（D-345，版本 3）、第 3 欄換成不位移的遠距／控場招（D-346，版本 4）後，五欄全部預設自動。
  */
-export const AUTO_SKILL_DEFAULT: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'parry'];
+export const AUTO_SKILL_DEFAULT: readonly string[] = ['blade_storm', 'whirlwind', 'heavy_slash', 'parry', 'charge'];
 /** 預設值的版本：設定裡存的版本比這個舊，就換成新的預設（玩家之後自己改的照舊留著） */
-export const AUTO_SKILL_VERSION = 3;
+export const AUTO_SKILL_VERSION = 4;
 
 /** 讀進來的設定一律檢查；不是陣列（舊存檔沒有這一欄）＝預設 */
 export function cleanAutoSkills(raw: unknown): string[] {

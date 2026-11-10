@@ -89,7 +89,7 @@ describe('技能疊放（D-348）', () => {
     expect(p.action?.kind ?? 'attack').toBe('attack');
   });
 
-  it('疊放的招不受閃避打斷；主角可以繼續普攻；位移技與同一招不能疊', () => {
+  it('疊放的招不受閃避打斷；主角可以繼續普攻；同一招不能疊（第 3 欄不位移了可以疊，D-346）', () => {
     const s = mk();
     const p = playerOf(s);
     const [e] = arrange(s, [[120, 0]]);
@@ -97,8 +97,6 @@ describe('技能疊放（D-348）', () => {
     p.mp = 100;
     step(s, [{ type: 'skill', id: 'heavy_slash' }]);
     step(s, [{ type: 'skill', id: 'blade_storm' }]);
-    step(s, [{ type: 'skill', id: 'charge' }]);
-    expect(p.ready['charge']).toBeUndefined();
     p.ready['blade_storm'] = 0;
     step(s, [{ type: 'skill', id: 'blade_storm' }]);
     expect(p.casts?.length).toBe(1);

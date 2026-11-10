@@ -200,7 +200,7 @@ export class RangedFx {
    * 直線＝飛出去的魔彈（灼燒＝火球、冰凍＝冰槍、中毒＝魂彈）、圓＝符文魔法陣爆開（大招單發＝隕星、多段＝流星）、
    * 環＝火環、扇形（不會出現在法杖，保底）＝刀光。blink：1＝瞬移落地（往前）、−1＝往後瞬移。
    */
-  staffFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, single: boolean, blink: number, st?: string): void {
+  staffFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, single: boolean, blink: number, st?: string, strike = false): void {
     const col = st === 'burn' ? 0xff8a3a : st === 'freeze' ? 0xa8ecff : st === 'poison' ? 0x9aff6a : st === 'weak' ? 0xb08aff : st === 'break' ? 0xffd05a : 0xc89aff;
     const vx = this.h.sx(x);
     const vy = this.h.sy(y);
@@ -302,6 +302,30 @@ export class RangedFx {
       }
       shockRing(this.sc, vx, vy, st === 'slow' ? 0x8a6aff : 0xc89aff, R, 260, 4);
       this.sc.cameras.main.shake(70, 0.004);
+      return;
+    }
+    if (strike && !ult && hs.type === 'circle') {
+      // 落雷（第 162 輪，D-346）：一道粗的藍白閃電從天上劈在落點，旁邊兩道細的分岔；地上一圈電光往外炸
+      const lite = getSettings().lowFx;
+      const bolt = this.sc.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
+      const H = 420;
+      const zig = (ox: number, top: number, amp: number, n: number): { x: number; y: number }[] => {
+        const pts: { x: number; y: number }[] = [];
+        for (let q = 0; q <= n; q++) pts.push({ x: vx + ox * (1 - q / n) + (q === n ? 0 : (Math.random() - 0.5) * amp), y: vy - top + (top * q) / n });
+        return pts;
+      };
+      const main = zig((Math.random() - 0.5) * 60, H, 44, 8);
+      bolt.lineStyle(26, 0x6a8aff, 0.18).strokePoints(main, false).lineStyle(13, 0x8ac4ff, 0.45).strokePoints(main, false).lineStyle(4, 0xffffff, 1).strokePoints(main, false);
+      if (!lite) for (const side of [-1, 1]) {
+        const br = zig(side * (50 + Math.random() * 40), H * 0.55, 30, 5);
+        bolt.lineStyle(7, 0x8ab0ff, 0.35).strokePoints(br, false).lineStyle(2, 0xf0f6ff, 0.9).strokePoints(br, false);
+      }
+      bolt.fillStyle(0xe8f4ff, 0.55).fillEllipse(vx, vy, R * 1.5, R * 0.75).fillStyle(0xffffff, 0.8).fillEllipse(vx, vy, R * 0.6, R * 0.3);
+      this.sc.tweens.add({ targets: bolt, alpha: 0, duration: 300, ease: 'Cubic.easeIn', onComplete: () => bolt.destroy() });
+      shockRing(this.sc, vx, vy, 0x9fd0ff, R, 280, 7);
+      shockRing(this.sc, vx, vy, 0xffffff, R * 0.55, 200, 3);
+      sparks(this.sc, vx, vy, lite ? 8 : 16, 'spark', 0xd0e6ff, 460);
+      this.sc.cameras.main.shake(80, 0.004);
       return;
     }
     if (!single && st === 'slow') {

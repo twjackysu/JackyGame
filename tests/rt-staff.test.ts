@@ -1,7 +1,7 @@
 // 法杖（D-152）：第三種武器；武器表 WEAPONS（劍／弓的結果不變由 stateHash 回歸檢查保證）。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MAGE, STAFF_SKILLS, STAFF_VARIANTS, STAFF_VARIANTS_B, STAGES, SWORDSMAN, WEAPONS, WEAPON_IDS, BOW_SKILLS, SKILLS } from '../src/core/battle/rt/data';
-import { createBattle, dashDistance, playerDef, skillDef, step } from '../src/core/battle/rt/engine';
+import { addPlayer, createBattle, dashDistance, playerDef, skillDef, step } from '../src/core/battle/rt/engine';
 import { toggleVariant } from '../src/core/meta/skills';
 import { gearName, gearTitleW } from '../src/game/weapon';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
@@ -16,6 +16,13 @@ beforeAll(() => {
 afterAll(() => {
   delete STAGES.mistwood;
 });
+
+/** 競技場的場次（第 3 欄沿用位移招，D-350）；放一個對手，場次才不會馬上結束 */
+function arena(o: Partial<Parameters<typeof createBattle>[0]> = {}) {
+  const s = createBattle({ stageId: 'pvp_arena', seed: 1, ...o });
+  addPlayer(s, { team: 1, dy: -900 });
+  return s;
+}
 
 describe('武器表與法杖（D-152）', () => {
   it('每把武器五招 id 相同、招式名（含兩種變化）三把武器之間都不重複', () => {
@@ -36,12 +43,15 @@ describe('武器表與法杖（D-152）', () => {
     expect(WEAPONS.bow.skills).toBe(BOW_SKILLS);
   });
 
-  it('法杖：普攻 4.5 格、比劍士脆、閃現往前 5 格、變化切換', () => {
+  it('法杖：普攻 4.5 格、比劍士脆、第 3 欄是落雷（競技場沿用閃現 5 格）、變化切換', () => {
     const s = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'staff' });
     expect(s.weapon).toBe('staff');
     expect(playerDef(s)).toBe(MAGE);
-    expect(skillDef(s, 'charge')!.name).toBe('閃現');
-    expect(dashDistance(s, 'charge')).toBe(u(5));
+    expect(skillDef(s, 'charge')!.name).toBe('落雷'); // D-346
+    expect(dashDistance(s, 'charge')).toBe(0);
+    const pv = arena({ weapon: 'staff' });
+    expect(skillDef(pv, 'charge')!.name).toBe('閃現'); // D-350
+    expect(dashDistance(pv, 'charge')).toBe(u(5));
     expect(s.units[0]!.maxHp).toBeLessThan(createBattle({ stageId: 'mistwood', seed: 1 }).units[0]!.maxHp);
     const v = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'staff', skillVariants: ['heavy_slash', 'charge:b'] });
     expect(skillDef(v, 'heavy_slash')).toBe(STAFF_VARIANTS.heavy_slash);
@@ -68,13 +78,24 @@ describe('武器表與法杖（D-152）', () => {
     expect(gearTitleW({ slot: 'weapon', name: '夜燼・嗜血的鐵劍', enh: 3 }, 'staff')).toBe('+3 夜燼・嗜血的鐵杖');
   });
 
-  it('閃現：瞬移 5 格（開場面向北）', () => {
-    const s = createBattle({ stageId: 'mistwood', seed: 3, weapon: 'staff' });
+  it('落雷（D-346）：不位移，雷落在前方 3.5 格；競技場的閃現照舊瞬移 5 格', () => {
+    const s = createBattle({ stageId: 'forest_entry', seed: 3, weapon: 'staff' });
     const p = s.units[0]!;
-    const y0 = p.y;
+    const w = s.units.find((x) => x.side === 'enemy')!;
+    w.x = w.homeX = p.x; w.y = w.homeY = p.y - u(4); w.mode = 'combat';
+    s.units.filter((x) => x.side === 'enemy' && x !== w).forEach((x) => { x.x = 0; x.y = 0; });
+    p.targetId = w.id;
+    const [x0, y0, h0] = [p.x, p.y, w.hp];
     step(s, [{ type: 'skill', id: 'charge' }]);
-    for (let i = 0; i < sec(0.5); i++) step(s, []);
-    expect(y0 - p.y).toBeGreaterThan(u(3.5));
+    for (let i = 0; i < 10; i++) step(s, []);
+    expect([p.x, p.y]).toEqual([x0, y0]);
+    expect(w.hp).toBeLessThan(h0);
+    const a = arena({ weapon: 'staff' });
+    const q = a.units[0]!;
+    const qy = q.y;
+    step(a, [{ type: 'skill', id: 'charge' }]);
+    for (let i = 0; i < sec(0.5); i++) step(a, []);
+    expect(Math.abs(q.y - qy)).toBeGreaterThan(u(3.5));
   });
 
   it('三種 Bot 用法杖（原招／變化／變化二）都打得倒霧角狼王', () => {

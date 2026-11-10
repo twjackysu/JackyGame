@@ -41,10 +41,11 @@ export function getSettings(): Settings {
   if (s && typeof s === 'object') for (const k of Object.keys(DEFAULTS) as (keyof Settings)[]) if (typeof s[k] === typeof DEFAULTS[k] && !(typeof s[k] === 'number' && !Number.isFinite(s[k]))) ok[k] = s[k];
   cache = { ...DEFAULTS, ...(ok as Partial<Settings>) };
   // 存的是舊版預設（或沒存過版本）→ 換成新的預設
-  // 版本 2 → 3（D-345）：第 4 欄換成可以自動的招——玩家在版本 2 自己調過的留著，有開任何一欄的再加上第 4 欄；全關的維持全關
-  const v2list = s && typeof s === 'object' && s.autoVer === 2 && Array.isArray(s.autoSkills) ? (s.autoSkills as unknown[]) : null;
+  // 版本 2／3 → 4（D-345、D-346）：第 4 欄、第 3 欄換成可以自動的招——玩家自己調過的留著，有開任何一欄的再加上這兩欄；全關的維持全關
+  const v2list = s && typeof s === 'object' && (s.autoVer === 2 || s.autoVer === 3) && Array.isArray(s.autoSkills) ? (s.autoSkills as unknown[]) : null;
+  const add = s && typeof s === 'object' && s.autoVer === 3 ? ['charge'] : ['parry', 'charge']; // 版本 3 已經問過第 4 欄了（玩家關掉的不要再打開）
   const old = !s || typeof s !== 'object' || s.autoVer !== AUTO_SKILL_VERSION;
-  cache.autoSkills = v2list ? cleanAutoSkills(v2list.length ? [...v2list, 'parry'] : []) : cleanAutoSkills(old ? undefined : s.autoSkills);
+  cache.autoSkills = v2list ? cleanAutoSkills(v2list.length ? [...v2list, ...add] : []) : cleanAutoSkills(old ? undefined : s.autoSkills);
   cache.autoVer = AUTO_SKILL_VERSION;
   return cache;
 }

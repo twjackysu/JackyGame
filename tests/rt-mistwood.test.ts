@@ -196,7 +196,7 @@ describe('隱藏精英 hiddenElite', () => {
     const bot = new PlayerBot({ ...BOT_PROFILES.expert, ult: true, potionAtPct: 50, campfireBelowPotions: 8 }, 'expert');
     let ev: (typeof s.events)[number] | undefined;
     let maxStreak = 0;
-    while (!ev && s.tick < sec(600)) {
+    while (!ev && s.tick < sec(1200)) { // D-346 換招後這個種子的路線不同，第 12 連殺落在 811 秒（擊殺速度和換招前一樣，600 秒都是 37～38 隻）
       step(s, bot.decide(s));
       maxStreak = Math.max(maxStreak, s.streak ?? 0);
       ev = s.events.find((e) => e.type === 'hiddenElite');

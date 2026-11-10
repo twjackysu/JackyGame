@@ -379,7 +379,7 @@ export class TitleScene extends Phaser.Scene {
         saveWeapon(nextWeapon(loadWeapon()));
         paint();
         this.tweens.add({ targets: w, scale: { from: 1.12, to: 1 }, duration: 220, ease: 'Back.easeOut' });
-        const msg = this.add.text(cx, y - (items.length - 1) * 100 - 80, ({ sword: '長劍：近身連斬、旋風斬清群、鐵壁斬護身', bow: '長弓：普攻 5 格遠距、靠後躍拉開距離', staff: '法杖：冰凍控場、閃現、蓄力隕星' } as const)[loadWeapon()], { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(60);
+        const msg = this.add.text(cx, y - (items.length - 1) * 100 - 80, ({ sword: '長劍：近身連斬、旋風斬清群、鐵壁斬護身', bow: '長弓：普攻 5 格遠距、縛足箭拖住敵人', staff: '法杖：冰凍控場、落雷、蓄力隕星' } as const)[loadWeapon()], { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(60);
         this.tweens.add({ targets: msg, y: msg.y - 30, alpha: 0, delay: 1200, duration: 600, onComplete: () => msg.destroy() });
       });
       menu.add(w);

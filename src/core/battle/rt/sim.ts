@@ -271,13 +271,14 @@ export class PlayerBot implements BattleController {
     }
     else if (near.length >= 2 && ready('whirlwind')) out.push({ type: 'skill', id: 'whirlwind' });
     else if (d <= (skillDef(s, 'heavy_slash', p)!.useRange ?? 0) + tgt.r && ready('heavy_slash')) out.push({ type: 'skill', id: 'heavy_slash' });
-    else if (ready('charge') && (backLeap(s, p) ? d <= (skillDef(s, 'charge', p)!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge', p)!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' });
+    else if (ready('charge') && (backLeap(s, p) || !skillDef(s, 'charge', p)!.dash ? d <= (skillDef(s, 'charge', p)!.useRange ?? 0) + tgt.r : d > 250 && d <= (skillDef(s, 'charge', p)!.useRange ?? 0))) out.push({ type: 'skill', id: 'charge' }); // D-346：第 3 欄不位移了＝射程內就放
     else if (near.length >= 1 && ready('whirlwind') && es.length === 1) out.push({ type: 'skill', id: 'whirlwind' });
     // 第 161 輪：第 4 欄（護盾＋打一下，D-345）沒別招可放時也當輸出技用（PvE；真人開自動就是這樣）——遠程站在射程邊緣時只有它和穿雲箭打得到
     else if (!s.pvp && this.prof.parries && ready('parry') && d <= (skillDef(s, 'parry', p)!.useRange ?? 0) + tgt.r) out.push({ type: 'skill', id: 'parry' });
     // 3. PvP 遠程拉開距離（第 144 輪，邊退邊射）：沒放技能、普攻還在冷卻、對手太近 → 往遠離對手的方向走；
     //    普攻好了就站住讓自動普攻出手（手動移動在出手前會蓋掉普攻，命中後才可以取消後搖）。PvE 不走這段。
-    if (s.pvp && !out.some((c) => c.type === 'skill')) {
+    // D-346：第 3 欄不再往後跳——遠程在 PvE 也改用走的拉開（真人就是這樣玩）；只有會看預告的 Bot 才走
+    if ((s.pvp || (this.prof.reactTicks !== undefined && !skillDef(s, 'charge', p)!.dash)) && !out.some((c) => c.type === 'skill')) {
       const kd = kiteDir(s, p, tgt);
       if (kd) out.push({ type: 'move', dx: kd[0], dy: kd[1] });
     }

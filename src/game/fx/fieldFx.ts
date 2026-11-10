@@ -119,6 +119,44 @@ export class FieldFx {
   }
 
   /** 裂地斬（D-112）：沿直線裂開的地面＋金色劍氣，從玩家往前一路炸開 */
+  /**
+   * 飛出去的劍氣（第 162 輪，D-346 的破空劍氣／流星劍氣）：一道月牙從主角往前飛到直線盡頭，後面拖一條淡光，到底碎成火花。
+   * 純畫面：命中在 core 的那一個 tick 就結算了，這裡只是把「一整條直線都打得到」畫成看得懂的東西。
+   */
+  swordWave(x: number, y: number, ang: number, len: number, width: number, color = 0x9fd8ff, lite = false): void {
+    const k = this.h.k();
+    const px = this.h.sx(x);
+    const py = this.h.sy(y) - 18;
+    const L = len * k;
+    const R = Math.max(26, width * k * 0.62);
+    const cx = Math.cos(ang);
+    const cy = Math.sin(ang);
+    const trail = this.sc.add.graphics().setDepth(689).setBlendMode(Phaser.BlendModes.ADD);
+    const w = this.sc.add.graphics().setDepth(691).setBlendMode(Phaser.BlendModes.ADD).setRotation(ang);
+    // 月牙：外圈淡色寬弧＋中間亮弧＋白芯，圓心在後面，弧往前鼓
+    w.lineStyle(R * 0.55, color, 0.28).beginPath().arc(-R * 0.7, 0, R, -1.05, 1.05).strokePath();
+    w.lineStyle(R * 0.3, color, 0.75).beginPath().arc(-R * 0.7, 0, R, -0.95, 0.95).strokePath();
+    w.lineStyle(Math.max(3, R * 0.1), 0xffffff, 1).beginPath().arc(-R * 0.7, 0, R * 1.04, -0.85, 0.85).strokePath();
+    const start = R * 0.9;
+    this.sc.tweens.addCounter({ from: 0, to: 1, duration: 190, ease: 'Sine.easeOut', onUpdate: (tw) => {
+      const t = tw.getValue() ?? 1;
+      const d = start + (L - start) * t;
+      const wx = px + cx * d;
+      const wy = py + cy * d;
+      w.setPosition(wx, wy).setScale(1 + 0.25 * t, 1 + 0.25 * t);
+      const d0 = start + (d - start) * 0.25;
+      trail.clear();
+      trail.lineStyle(R * 1.3, color, 0.12).lineBetween(px + cx * d0, py + cy * d0, wx, wy);
+      trail.lineStyle(R * 0.35, 0xffffff, 0.3).lineBetween(px + cx * (d0 + (d - d0) * 0.5), py + cy * (d0 + (d - d0) * 0.5), wx, wy);
+    }, onComplete: () => {
+      const ex = px + cx * L;
+      const ey = py + cy * L;
+      sparks(this.sc, ex, ey, lite ? 5 : 10, 'spark', 0xe8f6ff, 380);
+      this.sc.tweens.add({ targets: [w, trail], alpha: 0, duration: 140, onComplete: () => { w.destroy(); trail.destroy(); } });
+    } });
+    sparks(this.sc, px + cx * start, py + cy * start, lite ? 3 : 6, 'spark', color, 260);
+  }
+
   groundSplit(x: number, y: number, ang: number, len: number, width: number): void {
     const px = this.h.sx(x);
     const py = this.h.sy(y);

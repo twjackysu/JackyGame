@@ -219,7 +219,7 @@ export class PvpScene extends Phaser.Scene {
           this.add.text(W - 76, y, `${rankName(r.rating)} ${r.rating}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.me ? col : auraCss(r.rating) }).setOrigin(1, 0.5),
         ]);
       });
-      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n你的等級、裝備、技能點與選的打法都會帶進場\n（HP ×3、傷害減半、裝備等級差距縮小，打得久一點）', { fontFamily: UI_FONT, fontSize: '20px', color: '#8a92a6', align: 'center', stroke: '#0b0e18', strokeThickness: 6 }).setOrigin(0.5));
+      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n你的等級、裝備、技能點與選的打法都會帶進場\n（HP ×3、傷害減半、裝備等級差距縮小，打得久一點）\n競技場的第 3 招是位移招（衝鋒／後躍射擊／閃現），要自己按', { fontFamily: UI_FONT, fontSize: '20px', color: '#8a92a6', align: 'center', stroke: '#0b0e18', strokeThickness: 6 }).setOrigin(0.5));
     });
   }
 

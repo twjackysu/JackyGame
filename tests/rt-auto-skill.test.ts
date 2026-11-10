@@ -25,9 +25,9 @@ function arrange(s: BattleState, at: [number, number][]): Unit[] {
 }
 
 describe('技能自動施放（P1）', () => {
-  it('設定檢查：舊存檔沒有這一欄＝預設（兩個輸出技＋大招＋第 4 欄，D-345）；閃避永遠不能自動', () => {
+  it('設定檢查：舊存檔沒有這一欄＝預設（五欄全自動，D-346）；閃避永遠不能自動', () => {
     expect(cleanAutoSkills(undefined).sort()).toEqual([...AUTO_SKILL_DEFAULT].sort());
-    expect(cleanAutoSkills(undefined).sort()).toEqual(['blade_storm', 'heavy_slash', 'parry', 'whirlwind']);
+    expect(cleanAutoSkills(undefined).sort()).toEqual(['blade_storm', 'charge', 'heavy_slash', 'parry', 'whirlwind']);
     expect(cleanAutoSkills([])).toEqual([]);
     expect(cleanAutoSkills(['parry', 'dodge', 'heavy_slash', 'x', 7]).sort()).toEqual(['heavy_slash', 'parry']);
     const s = mk('sword');
@@ -85,7 +85,7 @@ describe('技能自動施放（P1）', () => {
     expect(casts(s2).slice(before + 1).every((x) => x.type === 'cast' && x.auto)).toBe(true);
   });
 
-  it('玩家正在走位：技能照放（D-347 施放中都可以走）；只有位移技不放（會把人帶走）', () => {
+  it('玩家正在走位：技能照放（D-347 施放中都可以走）；第 3 欄不位移了也照放（D-346）', () => {
     const s = mk('sword', ['heavy_slash']);
     arrange(s, [[120, 0]]);
     expect(autoPick(s, playerOf(s))?.id).toBe('heavy_slash');
@@ -96,14 +96,15 @@ describe('技能自動施放（P1）', () => {
     s.manualMove = null;
     expect(autoPick(s, playerOf(s))?.id).toBe('charge');
     s.manualMove = { dx: 1, dy: 0 };
-    expect(autoPick(s, playerOf(s))).toBeNull();
+    expect(skillDef(s, 'charge')!.dash).toBeUndefined();
+    expect(autoPick(s, playerOf(s))?.id).toBe('charge');
     setAutoSkills(s, ['heavy_slash', 'whirlwind']);
     arrange(s, [[120, 0], [0, 130]]);
     expect(skillDef(s, 'whirlwind')!.moveFactor).toBeGreaterThan(0);
     expect(autoPick(s, playerOf(s))?.id).toBe('whirlwind');
   });
 
-  it('站在快落下的預告裡：一般招照放（可以邊放邊走出去，D-347）；位移技不放', () => {
+  it('站在快落下的預告裡：五欄都照放（可以邊放邊走出去，D-347；第 3 欄不位移了，D-346）', () => {
     const s = mk('sword', ['heavy_slash']);
     const [e] = arrange(s, [[120, 0]]);
     const p = playerOf(s);
@@ -112,7 +113,7 @@ describe('技能自動施放（P1）', () => {
     expect(autoPick(s, p)?.id).toBe('heavy_slash');
     setAutoSkills(s, ['charge']);
     e!.x = p.x + 350;
-    expect(autoPick(s, p)).toBeNull();
+    expect(autoPick(s, p)?.id).toBe('charge');
   });
 
   it('普攻出手前不搶（不吃掉那一下普攻）', () => {
@@ -163,19 +164,24 @@ describe('技能自動施放（P1）', () => {
     expect(autoPick(s, playerOf(s))).toBeNull();
   });
 
-  it('位移技：衝鋒等目標在 2.5 格外、衝得到才放；長弓後躍等敵人貼近才放', () => {
+  it('第 3 欄（D-346 換成不位移的遠距／控場招）：打得到就放、太遠不放；三把武器都一樣', () => {
     const s = mk('sword', ['charge']);
     arrange(s, [[120, 0]]);
-    expect(autoPick(s, playerOf(s))).toBeNull();
+    expect(autoPick(s, playerOf(s))?.id).toBe('charge'); // 破空劍氣：貼身也放（以前衝鋒要等 2.5 格外）
     arrange(s, [[400, 0]]);
     expect(autoPick(s, playerOf(s))?.id).toBe('charge');
     arrange(s, [[900, 0]]);
     expect(autoPick(s, playerOf(s))).toBeNull();
     const b = mk('bow', ['charge']);
     arrange(b, [[600, 0]]);
+    expect(autoPick(b, playerOf(b))?.id).toBe('charge'); // 縛足箭 7 格：遠遠就放（以前後躍要等敵人貼近）
+    arrange(b, [[1100, 0]]);
     expect(autoPick(b, playerOf(b))).toBeNull();
-    arrange(b, [[150, 0]]);
-    expect(autoPick(b, playerOf(b))?.id).toBe('charge');
+    const m = mk('staff', ['charge']);
+    arrange(m, [[350, 0]]);
+    expect(autoPick(m, playerOf(m))?.id).toBe('charge'); // 落雷落在前方 3.5 格
+    arrange(m, [[1100, 0]]);
+    expect(autoPick(m, playerOf(m))).toBeNull();
   });
 
   it('大地圖：不會自己把睡著的怪打醒（沒有交戰中的敵人就不放）', () => {

@@ -187,8 +187,13 @@ for (const be of BACKENDS)
       const { characterId } = await a.call('migrate.legacy', { snapshot: LEGACY_SAMPLE });
       const { battleId } = await a.call('battle.start', { characterId, stageId: 'mistwood' });
       let k = 0;
-      // 輪流用狼的重生點（同一個重生點有數量上限，見下一個測試）
-      const claim = () => code(a.call('loot.claim', { characterId, battleId, killSeq: ++k, enemyId: 'wolf', groupId: WOLF_GROUPS[k % WOLF_GROUPS.length]! }));
+      // 輪流用白天的每個重生點、每點照 maxAlive 的隻數（同一個重生點有數量上限，見下一個測試；開場 18 隻比狼的重生點加起來還多，所以不只用狼）
+      const slots = stageDef('mistwood')!.spawnGroups!.filter((g) => !g.nightOnly && hasLoot(g.enemyId)).flatMap((g) => Array.from({ length: g.maxAlive }, () => g));
+      expect(slots.length).toBeGreaterThanOrEqual(KILL_BURST + 3); // 這個測試要 KILL_BURST + 3 次申請
+      const claim = () => {
+        const g = slots[k % slots.length]!;
+        return code(a.call('loot.claim', { characterId, battleId, killSeq: ++k, enemyId: g.enemyId, groupId: g.id }));
+      };
       for (let i = 0; i < KILL_BURST; i++) expect(await claim()).toBe('ok');
       expect(await claim()).toBe('rate_limited');
       clock.advance(60_000 / KILLS_PER_MIN);

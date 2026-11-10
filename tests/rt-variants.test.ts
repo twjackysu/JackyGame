@@ -1,7 +1,7 @@
 // 技能變化（D-112）：技能滿 5 級可以切換成另一種招式（同一顆按鈕、同一個 id）。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SKILL_VARIANTS, SKILL_VARIANTS_B, SKILLS, STAGES } from '../src/core/battle/rt/data';
-import { createBattle, dashDistance, setBossFury, setSkillVariants, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
+import { addPlayer, createBattle, dashDistance, setBossFury, setSkillVariants, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import { sec, u } from '../src/core/battle/rt/types';
@@ -15,6 +15,13 @@ beforeAll(() => {
 afterAll(() => {
   delete STAGES.mistwood;
 });
+
+/** 競技場的場次（第 3 欄沿用位移招，D-350）；放一個對手，場次才不會馬上結束 */
+function arena(o: Partial<Parameters<typeof createBattle>[0]> = {}) {
+  const s = createBattle({ stageId: 'pvp_arena', seed: 1, ...o });
+  addPlayer(s, { team: 1, dy: -900 });
+  return s;
+}
 
 describe('技能變化（D-112）', () => {
   it('五個技能都有變化版、id 相同、名字不同', () => {
@@ -46,10 +53,15 @@ describe('技能變化（D-112）', () => {
     const a = createBattle({ stageId: 'mistwood', seed: 1 });
     const b = createBattle({ stageId: 'mistwood', seed: 1, skillVariants: ['charge', 'parry', 'heavy_slash', 'nope'] });
     expect(b.skillVariants).toEqual(['charge', 'heavy_slash', 'parry']);
-    expect(skillDef(b, 'charge')!.name).toBe('流星衝');
-    expect(skillDef(a, 'charge')!.name).toBe('衝鋒');
-    expect(dashDistance(b, 'charge')).toBe(u(6));
-    expect(dashDistance(a, 'charge')).toBe(u(4));
+    expect(skillDef(b, 'charge')!.name).toBe('流星劍氣'); // D-346
+    expect(skillDef(a, 'charge')!.name).toBe('破空劍氣');
+    expect(skillDef(b, 'charge')!.hits.length).toBe(2);
+    // 競技場沿用位移招（D-350）：原招／變化／變化二都對得上
+    expect(skillDef(arena({ skillVariants: ['charge'] }), 'charge')!.name).toBe('流星衝');
+    expect(dashDistance(arena({ skillVariants: ['charge'] }), 'charge')).toBe(u(6));
+    expect(skillDef(arena(), 'charge')!.name).toBe('衝鋒');
+    expect(dashDistance(arena(), 'charge')).toBe(u(4));
+    expect(skillDef(arena({ skillVariants: ['charge:b'] }), 'charge')!.name).toBe('影步');
     expect(skillDef(b, 'parry')!.guard).toEqual({ hpPct: 18, ticks: 150 }); // D-345：不動架勢＝厚護盾
     step(a, [{ type: 'skill', id: 'heavy_slash' }]);
     step(b, [{ type: 'skill', id: 'heavy_slash' }]);
@@ -135,7 +147,7 @@ describe('技能第二種變化（D-121）', () => {
     expect(skillDef(s, 'heavy_slash')!.name).toBe('碎甲斬');
     expect(skillDef(s, 'parry')!.name).toBe('迴光一閃');
     expect(skillDef(s, 'parry')!.guard).toEqual({ hpPct: 6, ticks: 90 });
-    expect(skillDef(s, 'charge')!.name).toBe('衝鋒');
+    expect(skillDef(s, 'charge')!.name).toBe('破空劍氣');
   });
 
   for (const [id, status] of [['heavy_slash', 'break'], ['whirlwind', 'freeze'], ['charge', 'weak']] as const) {

@@ -1,7 +1,7 @@
 // 長弓（D-147）：第二種武器。技能欄同一組 id、招式整組換掉；沒選長弓時結果跟以前完全一樣。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ARCHER, BOW_SKILLS, BOW_VARIANTS, BOW_VARIANTS_B, SKILLS, STAGES, SWORDSMAN } from '../src/core/battle/rt/data';
-import { createBattle, dashDistance, playerDef, setBossFury, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
+import { addPlayer, createBattle, dashDistance, playerDef, setBossFury, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
 import { toggleVariant } from '../src/core/meta/skills';
 import { makeMistwoodStage, MISTWOOD_KING } from '../src/core/battle/rt/maps/mistwood';
 import { makeStarfallStage, STARFALL_SENTINEL } from '../src/core/battle/rt/maps/starfall';
@@ -19,8 +19,15 @@ afterAll(() => {
   delete STAGES.starfall;
 });
 
+/** 競技場的場次（第 3 欄沿用位移招，D-350）；放一個對手，場次才不會馬上結束 */
+function arena(o: Partial<Parameters<typeof createBattle>[0]> = {}) {
+  const s = createBattle({ stageId: 'pvp_arena', seed: 1, ...o });
+  addPlayer(s, { team: 1, dy: -900 });
+  return s;
+}
+
 describe('長弓（D-147）', () => {
-  it('五個技能都有弓版、id 相同、名字不同；普攻 5 格；後躍射擊往後跳', () => {
+  it('五個技能都有弓版、id 相同、名字不同；普攻 5 格；第 3 欄是縛足箭（競技場沿用後躍射擊）', () => {
     for (const id of SWORDSMAN.skills) {
       expect(BOW_SKILLS[id]?.id).toBe(id);
       expect(BOW_SKILLS[id]!.name).not.toBe(SKILLS[id]!.name);
@@ -28,22 +35,38 @@ describe('長弓（D-147）', () => {
     const s = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow' });
     expect(s.weapon).toBe('bow');
     expect(playerDef(s)).toBe(ARCHER);
-    expect(skillDef(s, 'charge')!.name).toBe('後躍射擊');
-    expect(dashDistance(s, 'charge')).toBe(-u(3.5));
+    expect(skillDef(s, 'charge')!.name).toBe('縛足箭'); // D-346
+    expect(dashDistance(s, 'charge')).toBe(0);
+    const pv = arena({ weapon: 'bow' });
+    expect(skillDef(pv, 'charge')!.name).toBe('後躍射擊'); // D-350：競技場沿用
+    expect(dashDistance(pv, 'charge')).toBe(-u(3.5));
     expect(s.units[0]!.maxHp).toBeLessThan(createBattle({ stageId: 'mistwood', seed: 1 }).units[0]!.maxHp);
     // 變化二（D-149）：`:b` 在弓這裡是弓自己的變化二
     const v = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow', skillVariants: ['heavy_slash:b'] });
     expect(skillDef(v, 'heavy_slash')!.name).toBe('燼火箭');
   });
 
-  it('後躍射擊：先射、再往面向的反方向跳 3.5 格', () => {
-    const s = createBattle({ stageId: 'mistwood', seed: 3, weapon: 'bow' });
+  it('縛足箭（D-346）：7 格直線、不位移、打中減速；競技場的後躍射擊照舊往後跳 3.5 格', () => {
+    const s = createBattle({ stageId: 'forest_entry', seed: 3, weapon: 'bow' });
     const p = s.units[0]!;
-    const y0 = p.y;
+    const w = s.units.find((x) => x.side === 'enemy')!;
+    w.x = w.homeX = p.x; w.y = w.homeY = p.y - u(6); w.mode = 'combat';
+    s.units.filter((x) => x.side === 'enemy' && x !== w).forEach((x) => { x.x = 0; x.y = 0; });
+    p.targetId = w.id;
+    const [x0, y0, h0] = [p.x, p.y, w.hp];
     step(s, [{ type: 'skill', id: 'charge' }]);
-    for (let i = 0; i < sec(0.5); i++) step(s, []);
-    // 開場面向北（-y），往後跳＝往南
-    expect(p.y - y0).toBeGreaterThan(u(2.5));
+    for (let i = 0; i < 8; i++) step(s, []);
+    expect(Math.abs(p.x - x0) + Math.abs(p.y - y0)).toBeLessThan(u(0.5)); // 沒有往後跳（以前 3.5 格）
+    expect(w.hp).toBeLessThan(h0);
+    expect(w.statuses.some((st) => st.id === 'slow')).toBe(true);
+    // 競技場
+    const a = arena({ weapon: 'bow' });
+    const q = a.units[0]!;
+    q.y -= u(5); // 離開底牆，後面才有地方跳
+    const qy = q.y;
+    step(a, [{ type: 'skill', id: 'charge' }]);
+    for (let i = 0; i < sec(0.5); i++) step(a, []);
+    expect(Math.abs(q.y - qy)).toBeGreaterThan(u(2.5));
   });
 
   it('沒選長弓＝劍士，stateHash 跟不帶 weapon 一樣', () => {
@@ -106,8 +129,11 @@ describe('長弓（D-147）', () => {
     expect(toggleVariant(a, 'heavy_slash', r, true)).toEqual(['heavy_slash:b']);
     expect(toggleVariant(['heavy_slash:b'], 'heavy_slash', r, true)).toEqual([]);
     const s = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow', skillVariants: ['charge', 'parry'] });
-    expect(skillDef(s, 'charge')!.name).toBe('霜箭後躍');
-    expect(dashDistance(s, 'charge')).toBe(-u(4));
+    expect(skillDef(s, 'charge')!.name).toBe('霜箭'); // D-346
+    expect(skillDef(s, 'charge')!.hits[0]!.status?.id).toBe('freeze');
+    const pv = arena({ weapon: 'bow', skillVariants: ['charge', 'parry'] });
+    expect(skillDef(pv, 'charge')!.name).toBe('霜箭後躍');
+    expect(dashDistance(pv, 'charge')).toBe(-u(4));
     expect(skillDef(s, 'parry')!.guard?.hpPct).toBe(13); // D-345：流光環
   });
 
@@ -161,7 +187,11 @@ describe('長弓（D-147）', () => {
     // 蝕毒、殘月：進到戰鬥的技能定義
     const v = createBattle({ stageId: 'mistwood', seed: 1, weapon: 'bow', skillVariants: ['charge:b', 'parry:b', 'blade_storm:b'] });
     expect(skillDef(v, 'charge')!.hits[0]!.status?.id).toBe('poison');
-    expect(dashDistance(v, 'charge')).toBe(-u(3.5));
+    expect(skillDef(v, 'charge')!.name).toBe('蝕毒箭'); // D-346
+    expect(dashDistance(v, 'charge')).toBe(0);
+    const pv = arena({ weapon: 'bow', skillVariants: ['charge:b'] });
+    expect(skillDef(pv, 'charge')!.name).toBe('蝕毒後躍');
+    expect(dashDistance(pv, 'charge')).toBe(-u(3.5));
     expect(skillDef(v, 'parry')!.guard?.hpPct).toBe(6); // D-345：殘月箭
     expect(skillDef(v, 'blade_storm')!.moveFactor).toBeGreaterThan(0);
   });

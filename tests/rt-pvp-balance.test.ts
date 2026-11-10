@@ -49,8 +49,8 @@ describe('PvP 競技場', () => {
         (globalThis as any).process.stdout.write(rows[rows.length - 1] + '\n');
         expect(wa + wb + to).toBe(20);
         // 目標 40～60%（第 144 輪：8～12 勝）；護欄放寬到 30～70%，改到 PvE 數值時才不會一碰就紅
-        expect(wa).toBeGreaterThanOrEqual(6);
-        expect(wa).toBeLessThanOrEqual(14);
+        if (!process.env.PVP_PROBE) expect(wa).toBeGreaterThanOrEqual(6);
+        if (!process.env.PVP_PROBE) expect(wa).toBeLessThanOrEqual(14);
       }
     if (process.env.RT_REPORT) console.log(['| 對戰 | 左勝 | 右勝 | 超時 |', '|---|---|---|---|', ...rows].join('\n'));
   }, 120_000);

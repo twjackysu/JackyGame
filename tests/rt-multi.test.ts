@@ -47,8 +47,8 @@ describe('多人協力（Q6）', () => {
   it('每個玩家可以帶不同武器：長弓的第二個玩家用弓的技能與數值', () => {
     const s = createBattle({ stageId: 'wolf_king', seed: 3 });
     const bow = addPlayer(s, { weapon: 'bow' });
-    expect(skillDef(s, 'charge', bow)?.dash?.distance ?? 0).toBeLessThan(0); // 弓的後躍
-    expect(skillDef(s, 'charge')?.dash?.distance ?? 0).toBeGreaterThan(0); // 主角還是劍
+    expect(skillDef(s, 'charge', bow)?.name).toBe('縛足箭'); // 弓的第 3 欄（D-346）
+    expect(skillDef(s, 'charge')?.name).toBe('破空劍氣'); // 主角還是劍
     expect(playerDef(s, bow)).toBe(WEAPONS.bow.player);
     expect(bow.maxHp).toBe(WEAPONS.bow.player.hp);
     const bots = [new PlayerBot(BOT_PROFILES.normal!, 'a'), new PlayerBot(BOT_PROFILES.normal!, 'b', 1)];

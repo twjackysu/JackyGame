@@ -3735,7 +3735,7 @@ export class RtBattleScene extends Phaser.Scene {
         return;
       }
       if (this.s.weapon === 'staff') {
-        this.rfx.staffFx(p.x + ((h.ahead ?? 0) * a.dirX) / 1000, p.y + ((h.ahead ?? 0) * a.dirY) / 1000, ang, hs, sk.role === 'ult', sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, h.status?.id);
+        this.rfx.staffFx(p.x + ((h.ahead ?? 0) * a.dirX) / 1000, p.y + ((h.ahead ?? 0) * a.dirY) / 1000, ang, hs, sk.role === 'ult', sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, h.status?.id, !!h.ahead && sk.role !== 'ult');
         return;
       }
       if (sk.dash) {
@@ -3777,7 +3777,9 @@ export class RtBattleScene extends Phaser.Scene {
         this.ffx.slash(p.x, p.y, ang, hs.r, hs.deg + 30, big ? 0xffd05a : 0x9fd8ff, big ? 10 : 7);
         if (big) this.cameras.main.shake(80, 0.004);
       } else if (hs.type === 'line') {
-        this.ffx.groundSplit(p.x, p.y, ang, hs.len, hs.width);
+        // 第 162 輪：可以邊走邊放的直線招（破空劍氣／流星劍氣，D-346）＝飛出去的月牙劍氣；站定劈地的（裂地斬…）照舊是地裂
+        if (sk.moveFactor > 0 && sk.role !== 'ult') this.ffx.swordWave(p.x, p.y, ang, hs.len, hs.width, 0x9fd8ff, getSettings().lowFx);
+        else this.ffx.groundSplit(p.x, p.y, ang, hs.len, hs.width);
       }
       // 星落一閃（D-112）：單發大招 → 天上落下一道光柱
       if (sk.role === 'ult' && sk.hits.length === 1 && hs.type !== 'line') this.rfx.starfall(p.x, p.y, hs.type === 'circle' ? hs.r : UNIT * 3);
@@ -4675,7 +4677,9 @@ export class RtBattleScene extends Phaser.Scene {
             }
           }
           g.fillStyle(venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.2);
-          this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x, pos.y, x.action.dirX, x.action.dirY, g, true);
+          // 第 162 輪：落在前方的圓（落雷，`ahead`）預告畫在落點，不是畫在主角腳下
+          const ah = h.ahead ?? 0;
+          this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x + (ah * x.action.dirX) / 1000, pos.y + (ah * x.action.dirY) / 1000, x.action.dirX, x.action.dirY, g, true);
         }
       }
     }
@@ -5158,7 +5162,7 @@ export class RtBattleScene extends Phaser.Scene {
       const left = Math.max(0, (p.ready['blade_storm'] ?? 0) - s.tick);
       const ok = left === 0 && p.mp >= need;
       // 長弓第一次（D-147）：教「保持距離」
-      if (this.s.weapon === 'bow' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_bow', '長弓：站遠一點射！狼貼過來就按「後躍射擊」拉開距離', '#c8f0a0');
+      if (this.s.weapon === 'bow' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_bow', '長弓：站遠一點射！狼貼過來就走開，拉開距離再射', '#c8f0a0');
       if (this.s.weapon === 'staff' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_staff', '法杖：狼貼過來先按「冰霜新星」凍住，再拉開距離放星焰彈', '#dcc0ff');
       if (ok && !this.bot && !this.menu && !s.autoSkills?.includes('blade_storm')) this.tipOnce('jg_tip_ult', `大招充滿了！按右下粉紅色「${ult.name}」`, '#ff9ae0');
       const now = this.time.now;

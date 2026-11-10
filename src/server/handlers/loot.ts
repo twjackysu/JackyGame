@@ -21,9 +21,9 @@ import { freshView, frontPos, idParam, loadInv } from './inv';
 
 /** 一場最久（超過就要重開；手機一次玩不會超過這麼久） */
 export const PVE_BATTLE_TTL = 3 * 60 * 60 * 1000;
-/** 人類打怪速度上限：開場可以先打 KILL_BURST 隻，之後每分鐘 KILLS_PER_MIN 隻（第 160 輪 40／10 → 48／14：第 4 欄換成自動的範圍招後，滿裝 Bot 在荊棘谷沼澤一波會超過舊上限，D-345） */
+/** 人類打怪速度上限：開場可以先打 KILL_BURST 隻，之後每分鐘 KILLS_PER_MIN 隻（第 160 輪 40／10 → 48／14：第 4 欄換成自動的範圍招後，滿裝 Bot 在荊棘谷沼澤一波會超過舊上限，D-345；第 162 輪開場 14 → 18：第 3 欄也換成自動的遠距招後，霧語森林狼窩一波連殺會把 14 用完，每分鐘 48 不用動，D-350） */
 export const KILLS_PER_MIN = 48;
-export const KILL_BURST = 14;
+export const KILL_BURST = 18;
 /** 一場最多申請幾次 */
 export const MAX_CLAIMS = 3000;
 /** 夜光寶箱（D-108：每次進深夜都是滿的）在同一張圖最快多久補滿一次（線上版；出去再進來不能無限開，第 148 輪） */

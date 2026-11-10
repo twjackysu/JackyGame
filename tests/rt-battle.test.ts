@@ -73,7 +73,7 @@ describe('判定形狀', () => {
 });
 
 describe('技能與閃避', () => {
-  it('冷卻從施放開始計；施放中再放別招會疊上去（D-348），同一招不能重複、位移技不能疊', () => {
+  it('冷卻從施放開始計；施放中再放別招會疊上去（D-348），同一招不能重複；第 3 欄不位移了也能疊（D-346），競技場的位移技不能疊', () => {
     const s = createBattle({ stageId: 'forest_entry', seed: 1 });
     step(s, [{ type: 'skill', id: 'heavy_slash' }]);
     const p = playerOf(s);
@@ -81,8 +81,16 @@ describe('技能與閃避', () => {
     step(s, [{ type: 'skill', id: 'whirlwind' }]);
     expect(p.ready['whirlwind']).toBe(2 + SKILLS.whirlwind!.cooldownTicks);
     expect(p.casts?.map((c) => c.id)).toEqual(['whirlwind']);
+    step(s, [{ type: 'skill', id: 'whirlwind' }]);
+    expect(p.casts?.map((c) => c.id)).toEqual(['whirlwind']);
     step(s, [{ type: 'skill', id: 'charge' }]);
-    expect(p.ready['charge']).toBeUndefined();
+    expect(p.casts?.map((c) => c.id)).toEqual(['whirlwind', 'charge']);
+    // 競技場沿用衝鋒（D-350）：位移技不能疊在別招上
+    const a = createBattle({ stageId: 'forest_entry', seed: 1 });
+    a.pvp = true;
+    step(a, [{ type: 'skill', id: 'heavy_slash' }]);
+    step(a, [{ type: 'skill', id: 'charge' }]);
+    expect(playerOf(a).ready['charge']).toBeUndefined();
   });
 
   it('閃避：無敵期間不受傷（事件記為 dodged），冷卻 5 秒', () => {
@@ -690,8 +698,9 @@ describe('同時追擊上限與沉睡（design/20 B1）', () => {
   });
 
   it('Bot 拉怪判斷：避開會連鎖到第二組的怪，先打落單的；只放著打的 Bot 照樣點最近的', () => {
-    // A 組（2 隻）離玩家 6 單位，旁邊 4 單位有 B 組；C 落單、離玩家 9 單位
-    const pack: [number, number][] = [[20, 24], [21, 24], [24.2, 23], [25.2, 23], [12, 28]];
+    // A 組（2 隻）離玩家 8 單位，旁邊 4 單位有 B 組；C 落單、離玩家 8.2 單位
+    // （D-346：第 3 欄改成遠距招後，Bot 是把落單的怪引過來打、不再衝過去，閃咬的那一滾會往 A 組靠近 2.5 單位——A 組原本放 6 單位會被滾進仇恨圈，改放 8）
+    const pack: [number, number][] = [[20, 22], [21, 22], [24.2, 21], [25.2, 21], [12, 28]];
     const { s, p, es } = openField(40, 40, 20, 30, pack);
     expect(pullRisk(s, es[0]!)).toEqual({ group: 2, extra: 2 });
     expect(pullRisk(s, es[4]!)).toEqual({ group: 1, extra: 0 });
@@ -709,7 +718,7 @@ describe('同時追擊上限與沉睡（design/20 B1）', () => {
       return most;
     };
     expect(peak(new PlayerBot(BOT_PROFILES.normal, 'normal'))).toBe(1);
-    expect(peak(new PlayerBot(BOT_PROFILES.auto, 'auto'))).toBeGreaterThanOrEqual(3);
+    expect(peak(new PlayerBot(BOT_PROFILES.auto, 'auto'))).toBeGreaterThanOrEqual(2); // 點最近的＝A 組兩隻一起來
   });
 });
 

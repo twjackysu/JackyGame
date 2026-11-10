@@ -62,7 +62,7 @@ function specialValue(kind: SpecialKind, t: number): number {
 }
 
 /** 可以出現在特效上的技能（名稱只給顯示用） */
-export const SPECIAL_SKILLS: Record<string, string> = { heavy_slash: '重斬', whirlwind: '旋風斬', charge: '衝鋒', parry: '鐵壁斬', blade_storm: '劍刃風暴' };
+export const SPECIAL_SKILLS: Record<string, string> = { heavy_slash: '重斬', whirlwind: '旋風斬', charge: '破空劍氣', parry: '鐵壁斬', blade_storm: '劍刃風暴' };
 
 export const ENH_MAX = 10;
 /** 強化 +N → +N+1 的費用與成功率（+1～+5 必成；之後逐級下降；失敗只扣材料，不會掉級） */
@@ -305,7 +305,7 @@ export function specialText(sp: NonNullable<RtGear['special']>, names: Record<st
     case 'block':
       return `★ ${n}護盾 +${Math.min(SKILL_MOD_CAPS.blockTicks, sp.value) * GUARD_PCT_PER_POINT}%`; // D-345：以前是格擋判定秒數，舊裝備照樣有用
     case 'dist':
-      return `★ ${n}距離 +${sp.value}%`;
+      return `★ ${n}範圍 +${sp.value}%`; // D-346：以前是位移距離，舊裝備照樣有用
   }
 }
 

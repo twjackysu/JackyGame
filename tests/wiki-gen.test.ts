@@ -99,7 +99,7 @@ function gearPage(): string {
   ];
   for (const [n, pre, f, u] of aff) s += `| ${n} | ${pre} | ${f(6, 0)}～${f(6, 0.999)}${u} | ${f(12, 0)}～${f(12, 0.999)}${u} |\n`;
   s += '\n## 技能特效（★，稀有的數值；精良減半）\n| 種類 | 範圍 | 可能出現在 |\n|---|---|---|\n';
-  const kinds: Record<string, [string, string]> = { cd: ['冷卻 −%', '8～15%'], dmg: ['傷害 +%', '12～25%'], area: ['範圍 +%', '15～30%'], block: ['護盾 +%', '10～20%'], dist: ['衝鋒距離 +%', '20～40%'] };
+  const kinds: Record<string, [string, string]> = { cd: ['冷卻 −%', '8～15%'], dmg: ['傷害 +%', '12～25%'], area: ['範圍 +%', '15～30%'], block: ['護盾 +%', '10～20%'], dist: ['第 3 欄範圍 +%', '20～40%（和「範圍 +%」合計上限 50%）'] };
   for (const [k, [n, r]] of Object.entries(kinds)) {
     const on = Object.entries(SPECIAL_KINDS).filter(([, ks]) => ks.includes(k as never)).map(([id]) => WEAPON_IDS.map((w) => WEAPONS[w].skills[id]?.name).filter(Boolean).join('／'));
     s += `| ${n} | ${r} | ${on.join('、')} |\n`;

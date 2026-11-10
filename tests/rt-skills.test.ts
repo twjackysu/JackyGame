@@ -1,7 +1,7 @@
 // 技能點（D-110）：純資料函式＋效果真的進到戰鬥。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SKILLS, STAGES } from '../src/core/battle/rt/data';
-import { createBattle, dashDistance, step } from '../src/core/battle/rt/engine';
+import { createBattle, skillShape, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
 import { SKILL_MOD_CAPS } from '../src/core/battle/rt/types';
 import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanRanks, mergeMods, rankMods, skillPoints, usedPoints } from '../src/core/meta/skills';
@@ -41,7 +41,10 @@ describe('技能點（D-110）', () => {
     expect(m.parry).toEqual({ dmgPct: 24, blockTicks: 2 });
     const a = createBattle({ stageId: 'mistwood', seed: 1 });
     const b = createBattle({ stageId: 'mistwood', seed: 1, skillMods: rankMods({ charge: 5 }) });
-    expect(dashDistance(b, 'charge')).toBeGreaterThan(dashDistance(a, 'charge'));
+    // D-346：第 3 欄不位移了，技能點的「距離」加在那一招的範圍上
+    const line = { type: 'line' as const, len: 500, width: 120 };
+    expect(skillShape(a, 'charge', line)).toBe(line);
+    expect((skillShape(b, 'charge', line) as typeof line).len).toBeGreaterThan(500);
     step(a, [{ type: 'skill', id: 'charge' }]);
     step(b, [{ type: 'skill', id: 'charge' }]);
     expect(b.units[0]!.ready.charge! - b.tick).toBeLessThan(a.units[0]!.ready.charge! - a.tick);

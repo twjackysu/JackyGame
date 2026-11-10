@@ -1,6 +1,6 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
-import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
+import { AFFIX_ATTACKS, ARENA_CHARGE, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import { autoPick, cleanAutoSkills } from './auto';
 import { BLESS_RULES, EFFECT_IDS, blessNeed, effectDef, mergeEffectMods, tryVariantId, type EffectDef } from './effects';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
@@ -535,6 +535,8 @@ export function skillDef(s: BattleState, id: string, p?: Unit): SkillDefinition 
   const v = c.skillVariants;
   // 武器表（D-152）：技能欄同一組 id，招式整組換掉；變化（D-112／148）、變化二（D-121／149）
   const w = WEAPONS[c.weapon ?? 'sword'];
+  // 競技場的第 3 欄沿用原本的位移招（D-350）：換成不位移的招後三把武器一面倒
+  if (s.pvp && id === 'charge') return ARENA_CHARGE[c.weapon ?? 'sword'][!v ? 0 : v.includes(id) ? 1 : v.includes(variantB(id)) ? 2 : 0];
   // 燼火祝福「試招」（P2）：這趟暫時改用變化打法，蓋過玩家平常選的（只有主角）
   const bv = c === s ? s.bless?.vars?.[id] : undefined;
   if (bv) return (bv === 1 ? w.variants[id] : w.variantsB[id]) ?? w.skills[id];
@@ -1381,7 +1383,10 @@ function drinkPotion(s: BattleState, p: Unit): boolean {
 
 /** 套上範圍修正後的技能形狀（areaPct；沒有修正就回傳原物件） */
 export function skillShape(s: BattleState, skillId: string, shape: Shape, p?: Unit): Shape {
-  const pct = Math.min(SKILL_MOD_CAPS.areaPct, Math.max(0, modsOf(s, p)?.[skillId]?.areaPct ?? 0));
+  const m = modsOf(s, p)?.[skillId];
+  // D-346：第 3 欄換成不位移的招後，「位移距離」修正（技能點、舊裝備）在沒有位移的招上併進範圍（合計照範圍上限截斷）
+  const dist = m?.distPct && !skillDef(s, skillId, p)?.dash ? Math.max(0, m.distPct) : 0;
+  const pct = Math.min(SKILL_MOD_CAPS.areaPct, Math.max(0, m?.areaPct ?? 0) + dist);
   if (!pct) return shape;
   const k = (n: number) => Math.round((n * (100 + pct)) / 100);
   switch (shape.type) {
