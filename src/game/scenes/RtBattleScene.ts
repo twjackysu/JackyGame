@@ -6,8 +6,8 @@ import Phaser from 'phaser';
 import { cdText, hudLine, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { activeHazards, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
-import { RARITY_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
+import { activeHazards, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setEffects, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
+import { RARITY_COLOR, UNIQUE_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
 import { openMarketPanel } from '../ui/marketPanel';
@@ -25,7 +25,7 @@ import { BLESS_RULES, blessNeed, effectDef, type EffectDef } from '../../core/ba
 import { ELEMENT_LOOK, drawEffectIcon } from '../fx/effectIcon';
 import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
-import { skillModsOf } from '../rtBag';
+import { effectsOf, skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
 import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, aggroUnitsOf } from '../../core/battle/rt/types';
@@ -524,7 +524,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined, autoSkills: this.bot ? undefined : getSettings().autoSkills, bless: this.tracked && !this.bot });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined, autoSkills: this.bot ? undefined : getSettings().autoSkills, bless: this.tracked && !this.bot, effects: this.tracked || big ? effectsOf(this.bagSt) : undefined });
     if (this.tracked && !this.bot) onlineLoot.start(this.stageId, !!this.s.night, loadWeapon(), (done, defId, drops) => this.onlineBounty(done, defId, drops));
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
@@ -1145,6 +1145,7 @@ export class RtBattleScene extends Phaser.Scene {
           (v) => v,
         );
         setSkillMods(this.s, this.allMods(this.bagSt));
+        setEffects(this.s, effectsOf(this.bagSt));
         setSkillVariants(this.s, v);
         this.ptsLeft = this.skillPointsLeft();
       },
@@ -1193,13 +1194,22 @@ export class RtBattleScene extends Phaser.Scene {
     const root = openBlessList(this, this.blessDefs(b.taken), Math.min(b.meter, blessNeed(b.taken.length)), blessNeed(b.taken.length), b.taken.length >= BLESS_RULES.max, () => {
       root.destroy();
       if (this.menu === root) this.menu = null;
-    });
+    }, this.blessDefs(b.perm ?? []));
     this.menu = root;
   }
 
   private drawBlessHud(g: Phaser.GameObjects.Graphics): void {
     const b = this.s.bless;
     if (!b) return;
+    // 裝備帶的獨特效果（P3-a2）：橘框小圖示；這張圖沒開祝福（b.off）時只畫這一排，不畫火苗
+    const perm = this.blessDefs(b.perm ?? []);
+    const permY = b.off ? 196 : 262;
+    perm.forEach((d, i) => {
+      const px = GAME_WIDTH - 46 - (b.off ? 0 : 66) - i * 44;
+      g.lineStyle(4, UNIQUE_COLOR, 1).strokeCircle(px, permY, 22);
+      drawEffectIcon(g, px, permY, 17, d.element, false, d.glyph);
+    });
+    if (b.off) return;
     // 點擊區：火苗＋往左排的圖示（跟著祝福數變寬）
     const zw = 92 + b.taken.length * 50;
     if (!this.blessZone) {
@@ -1298,6 +1308,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.bagSt = cleanBag(rec);
       setGearBonus(this.s, bonusOf(this.bagSt));
       setSkillMods(this.s, this.allMods(this.bagSt));
+      setEffects(this.s, effectsOf(this.bagSt));
     }
     const p = playerOf(this.s);
     // 伺服器擲的金幣／粉塵／結晶（第 151 輪）：本機撿到的不飄字了，改飄伺服器給的（跟 HUD 一致）
@@ -1310,7 +1321,7 @@ export class RtBattleScene extends Phaser.Scene {
       const g = it?.gear as RtGear | undefined;
       if (!g) return;
       const r = (d.rarity ?? 1) as 1 | 2 | 3;
-      const col = `#${RARITY_COLOR[r].toString(16).padStart(6, '0')}`;
+      const col = `#${(g.unique ? UNIQUE_COLOR : RARITY_COLOR[r]).toString(16).padStart(6, '0')}`;
       this.time.delayedCall(i * 300, () => floatNumber(this, this.sx(p.x), this.sy(p.y) - 110, gearName(g), { color: col, size: r >= 3 ? 30 : 24 }));
     });
     this.announceBounty(done, defId);
@@ -1342,16 +1353,16 @@ export class RtBattleScene extends Phaser.Scene {
   // ---------- 裝備（D-091） ----------
   /** 撿到裝備：用種子產生數值、放進行囊、立刻存檔；稀有以上大字 */
   /** 等著合成一則「稀有裝備！」大字的（250ms 內撿到的） */
-  private rareQueue: { name: string; night: boolean; col: string }[] = [];
+  private rareQueue: { name: string; night: boolean; col: string; uniq?: boolean }[] = [];
   /** 250ms 內自動分解的普通裝（合成一則） */
   private salvageQ = { n: 0, dust: 0, name: '' };
 
-  private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number): void {
+  private gotGear(itemId: number, rarity: 1 | 2 | 3, ilvl: number, uq = 0): void {
     if (!this.tracked) return;
     // 線上版（第 147 輪）：裝備由伺服器擲（loot.claim），本機擲的不放進行囊；伺服器的回來時 onlineSynced 公告
     if (import.meta.env.VITE_SERVER_URL) return;
     const p = playerOf(this.s);
-    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId });
+    const g = genGear((Math.imul(this.runSalt, 31) + itemId * 2246822519) >>> 0, rarity, ilvl, { night: !!this.s.night, region: this.stageId, uniquePct: uq });
     // 行囊滿了：自動分解最差的普通裝（D-100）；連普通裝都沒有才提示整理
     const r = addWithAutoSalvage(this.bagSt, g);
     if (!r) {
@@ -1382,7 +1393,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     // 第 66 輪：真的放進行囊才教「去換上」（以前行囊滿撿不起來，5 秒後還說「撿到裝備了！」）
     this.time.delayedCall(900, () => this.tipSoon('jg_tip_gear', '撿到裝備了！☰「行囊」或營火旁可以換上', '#9fe8a0'));
-    const col = `#${RARITY_COLOR[rarity].toString(16).padStart(6, '0')}`;
+    const col = `#${(g.unique ? UNIQUE_COLOR : RARITY_COLOR[rarity]).toString(16).padStart(6, '0')}`;
     // 撿到的裝備圖示從主角頭上飄起來（D-101）
     const icon = this.add.container(this.sx(p.x), this.sy(p.y) - 70, gearIcon(this, 0, 0, g.slot, rarity, rarity >= 3 ? 64 : 48)).setDepth(70);
     this.tweens.add({ targets: icon, y: icon.y - 90, duration: 900, ease: 'Cubic.Out' });
@@ -1391,20 +1402,20 @@ export class RtBattleScene extends Phaser.Scene {
       SFX.perfect();
       // 同一刻撿到好幾件稀有（Boss 掉落）合成一則大字（第 39 輪：以前兩則「稀有裝備！」上下疊在一起）
       const q = this.rareQueue;
-      q.push({ name: gearName(g), night: !!g.night, col });
+      q.push({ name: gearName(g), night: !!g.night, col, uniq: !!g.unique });
       if (q.length === 1) {
         const flush = (): void => {
           // 幕名卡（含「番外　完」）播放中：等卡片收起再出，不然稀有大字壓在卡片上（第 58 輪）
           if (this.scene.isActive() && this.time.now < this.chapterUntil) { this.time.delayedCall(this.chapterUntil - this.time.now + 100, flush); return; }
-          const list = this.rareQueue.splice(0);
+          const list = this.rareQueue.splice(0).sort((a, b) => Number(!!b.uniq) - Number(!!a.uniq)); // 獨特的排最前面（P3-a2）
           if (!list.length || !this.scene.isActive()) return;
           this.rareAt = this.time.now;
           const f = list[0]!;
-          const head = f.night ? '深夜的稀有！' : '稀有裝備！';
+          const head = f.uniq ? tr('unique.got') : f.night ? '深夜的稀有！' : '稀有裝備！';
           const pair = list.slice(0, 2).map((x) => x.name).join('／'); // 名稱自己可能有「・霧語」，用斜線分開；兩件最長 27 字 → 縮字放得進 720
           // 第 77 輪：patient——360×640 主角下方被地區說明佔住時，以前照原位 560 整塊蓋住主角（荊棘谷討伐後撿到稀有）；稍等一下沒關係
           // 第 76 輪：兩件以上改 ≤30px、兩件名稱排同一行（3 行 44px 在 360×640 主角下方放不下、整塊蓋住主角）
-          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [pair, ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night ? '#b8a8ff' : f.col, list.length > 1 ? Math.min(30, Math.floor(680 / pair.length)) : 44, 1200 + 400 * (Math.min(3, list.length) - 1), true);
+          bigText(this, GAME_WIDTH / 2, 560, `${list.length > 1 ? head.replace('！', ` ×${list.length}！`) : head}\n${list.length > 1 ? [pair, ...list.slice(2, 3).map((x) => x.name)].join('\n') : f.name}`, f.night && !f.uniq ? '#b8a8ff' : f.col, list.length > 1 ? Math.min(30, Math.floor(680 / pair.length)) : 44, 1200 + 400 * (Math.min(3, list.length) - 1), true);
         };
         this.time.delayedCall(250, flush);
       }
@@ -1490,6 +1501,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.saveBag();
           setGearBonus(this.s, bonusOf(st));
           setSkillMods(this.s, this.allMods(st));
+          setEffects(this.s, effectsOf(st));
         },
         level: (import.meta.env.VITE_SERVER_URL ? characterCache.get()?.level : undefined) ?? this.s.prog?.level ?? 1,
         region: this.stageId,
@@ -1508,6 +1520,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.dustBase = walletOf(rec).dust;
           setGearBonus(this.s, bonusOf(this.bagSt));
           setSkillMods(this.s, this.allMods(this.bagSt));
+          setEffects(this.s, effectsOf(this.bagSt));
           return true;
         },
       },
@@ -1531,6 +1544,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.dustBase = walletOf(rec).dust;
       setGearBonus(this.s, bonusOf(this.bagSt));
       setSkillMods(this.s, this.allMods(this.bagSt));
+      setEffects(this.s, effectsOf(this.bagSt));
     };
     const wrap = <A extends unknown[]>(f: (...a: A) => Promise<MarketPage | null>) => async (...a: A) => {
       const r = await f(...a);
@@ -1670,6 +1684,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.saveBag();
         setGearBonus(this.s, bonusOf(st));
         setSkillMods(this.s, this.allMods(st));
+        setEffects(this.s, effectsOf(st));
       },
       () => {
         this.menu?.destroy();
@@ -1722,6 +1737,7 @@ export class RtBattleScene extends Phaser.Scene {
                 this.dustBase = walletOf(rec).dust;
                 setGearBonus(this.s, bonusOf(this.bagSt));
                 setSkillMods(this.s, this.allMods(this.bagSt));
+                setEffects(this.s, effectsOf(this.bagSt));
               });
             },
         // V2（D-285）：強化的擲骰與扣材料只在伺服器；結果寫回舊 key 後場景重讀行囊（面板關了也一樣）
@@ -1744,6 +1760,7 @@ export class RtBattleScene extends Phaser.Scene {
           this.dustBase = walletOf(rec).dust;
           setGearBonus(this.s, bonusOf(this.bagSt));
           setSkillMods(this.s, this.allMods(this.bagSt));
+          setEffects(this.s, effectsOf(this.bagSt));
           const it = res.character.items.find((i) => i.gear.uid === g.uid);
           return { ok: res.ok, gear: (it?.gear as unknown as RtGear | undefined) ?? g };
         },
@@ -3551,7 +3568,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (d) sparks(this, this.sx(d.x), this.sy(d.y), 8, 'ember', 0x8a7aa8, 400);
         this.killSprite(e.id);
       } else if (e.type === 'pickup' && e.kind === 'gear') {
-        this.gotGear(e.item, e.rarity ?? 1, e.amount);
+        this.gotGear(e.item, e.rarity ?? 1, e.amount, e.uq ?? 0);
       } else if (e.type === 'pickup') {
         // 線上版（第 151 輪）：金幣／粉塵／結晶是伺服器擲的（loot.claim 回來時在 onlineBounty 飄字）；本機撿到的數字不準、被拒時更不該飄
         if (import.meta.env.VITE_SERVER_URL && this.tracked && !this.bot && e.kind !== 'potion') continue;

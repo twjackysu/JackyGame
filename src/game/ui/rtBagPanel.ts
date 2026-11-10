@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { gearName, gearTitleW, skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
 import { SWORDSMAN } from '../../core/battle/rt/data';
-import { ENH_MAX, GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, enhanceCost, enhanceDiff, enhanceGain, gearLines, gearScore, salvageDust, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
+import { ENH_MAX, GEAR_SLOTS, SLOT_NAME, enhanceCost, enhanceDiff, enhanceGain, gearLines, gearScore, salvageDust, gearColor, gearTierName, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
 import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, unequip, type BagState } from '../rtBag';
 
@@ -71,7 +71,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     return t;
   };
   const cell = (x: number, y: number, w: number, h: number, g: RtGear | undefined, label: string, fn: () => void, mark = '', slot?: GearSlot): Phaser.GameObjects.GameObject[] => {
-    const col = g ? RARITY_COLOR[g.rarity] : 0x555566;
+    const col = g ? gearColor(g) : 0x555566;
     const bg = scene.add.rectangle(x, y, w, h, 0x1a140c, 0.95).setStrokeStyle(g && g.rarity > 1 ? 3 : 2, col, g ? 0.95 : 0.5).setInteractive({ useHandCursor: true });
     bg.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
@@ -82,6 +82,8 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     const icon = sl ? gearIcon(scene, x - w / 2 + 8 + h * 0.4, y, sl, g ? g.rarity : 0, h * 0.78) : [];
     const t = scene.add.text(x - w / 2 + 14 + (sl ? h * 0.8 : 0), y, label, { fontFamily: UI_FONT, fontSize: '21px', color: g ? hex(col) : '#777788' }).setOrigin(0, 0.5);
     const out: Phaser.GameObjects.GameObject[] = [bg, ...icon, t];
+    // 獨特效果裝備（P3-a2）：左上角一顆橘色星（不只靠外框顏色分）
+    if (g?.unique) out.push(scene.add.text(x - w / 2 + 3, y - h / 2 + 1, '★', { fontFamily: UI_FONT, fontSize: '19px', color: hex(col), stroke: '#140a04', strokeThickness: 4 }).setOrigin(0, 0));
     if (mark) out.push(scene.add.text(x + w / 2 - 14, y, mark, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#7dffb0' }).setOrigin(1, 0.5));
     return out;
   };
@@ -159,7 +161,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
 
   function detailCard(g: RtGear): Phaser.GameObjects.GameObject[] {
     const worn = st.equip[g.slot]?.uid === g.uid;
-    const col = RARITY_COLOR[g.rarity];
+    const col = gearColor(g);
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
     out.push(...gearIcon(scene, -240, -300, g.slot, g.rarity, 72));
     const title = scene.add.text(0, -300, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '36px', color: hex(col) }).setOrigin(0.5);
@@ -167,7 +169,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     if (title.width > 400) title.setFontSize(Math.max(24, Math.floor((36 * 400) / title.width)));
     if (title.width / 2 > 180) title.setX(Math.min(84, title.width / 2 - 180)); // 太寬就往右挪（卡片右緣 300）
     out.push(title);
-    out.push(scene.add.text(0, -255, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}${worn ? '・裝備中' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
+    out.push(scene.add.text(0, -255, `${gearTierName(g)}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}${worn ? '・裝備中' : ''}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     // 第 48 輪：從上面往下排（以前置中在 -170，5 行以上的稀有裝第一行會壓到副標）
     const gl = gearLines(g, skillNames());
     const lines = scene.add.text(0, -226, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '26px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 10 }).setOrigin(0.5, 0);

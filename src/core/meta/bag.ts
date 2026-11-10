@@ -2,7 +2,7 @@
 // 第 141 輪（Q3）從 src/game/rtBag.ts 搬到 core/meta；強化擲骰 enhanceRoll 也在這裡（伺服器擲，客戶端只看結果）。
 import { SWORDSMAN } from '../battle/rt/data';
 import type { SkillMod } from '../battle/rt/types';
-import { ENH_MAX, GEAR_SLOTS, enhanceCost, gearBonus, gearScore, gearSkillMods, genGear, salvageDust, type GearSlot, type RtGear } from '../battle/rt/gear';
+import { ENH_MAX, GEAR_SLOTS, enhanceCost, gearBonus, gearEffects, gearScore, gearSkillMods, genGear, salvageDust, type GearSlot, type RtGear } from '../battle/rt/gear';
 import type { Rng } from '../rng';
 
 export interface BagState {
@@ -56,6 +56,11 @@ export function isUpgrade(st: BagState, g: RtGear): boolean {
 /** 身上裝備的技能特效合計（D-094） */
 export function skillModsOf(st: BagState): Record<string, SkillMod> {
   return gearSkillMods(GEAR_SLOTS.map((s) => st.equip[s]));
+}
+
+/** 身上裝備帶的獨特效果 id（P3，D-354／D-355） */
+export function effectsOf(st: BagState): string[] {
+  return gearEffects(GEAR_SLOTS.map((s) => st.equip[s]));
 }
 
 /**

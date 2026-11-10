@@ -201,6 +201,8 @@ export interface LootDropView {
   kind: 'gold' | 'dust' | 'crystal' | 'potion' | 'gear';
   amount: number;
   rarity?: 1 | 2 | 3;
+  /** 這件帶的獨特效果 id（P3-a2；伺服器擲的） */
+  unique?: string;
   itemId?: string;
   /** 行囊滿了自動分解最差的普通裝得到的粉塵（D-100，跟單機一樣） */
   salvaged?: number;

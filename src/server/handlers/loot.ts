@@ -132,7 +132,13 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
     if (boss && bossRt && lastBoss !== undefined && now - lastBoss + KILL_GRACE_MS < (bossRt * 1000) / TICKS_PER_SEC) throw new ApiError('rejected', 'boss cooldown');
 
     const rolled: LootDropView[] = [];
-    rollEnemyLoot(lc, ctx.rng, (kind, amount, rarity) => rolled.push(rarity ? { kind, amount, rarity } : { kind, amount }));
+    // 獨特效果的機率由來源決定（core 的 uniqueDropPct）；實際有沒有、哪一條在下面 genGear 用伺服器的亂數抽
+    const uqOf = new Map<LootDropView, number>();
+    rollEnemyLoot(lc, ctx.rng, (kind, amount, rarity, uq) => {
+      const d: LootDropView = rarity ? { kind, amount, rarity } : { kind, amount };
+      if (uq) uqOf.set(d, uq);
+      rolled.push(d);
+    });
 
     // 入帳：金幣／粉塵／結晶進錢包；裝備用伺服器的種子產生數值、放進行囊；藥水是戰鬥中的消耗品，伺服器不記
     let st = inv.st;
@@ -143,7 +149,8 @@ export const lootHandlers: Pick<HandlerTable, 'battle.start' | 'loot.claim' | 'l
       else if (d.kind === 'dust') dust += d.amount;
       else if (d.kind === 'crystal') await ctx.r.wallets.apply(c.id, 'crystal', d.amount, 'loot', b.id);
       else if (d.kind === 'gear') {
-        const g = genGear(Math.floor(ctx.rng() * 4294967296) >>> 0, d.rarity ?? 1, d.amount, { night: b.night, region: b.stageId });
+        const g = genGear(Math.floor(ctx.rng() * 4294967296) >>> 0, d.rarity ?? 1, d.amount, { night: b.night, region: b.stageId, uniquePct: uqOf.get(d) ?? 0 });
+        if (g.unique) d.unique = g.unique;
         const r = addWithAutoSalvage(st, g);
         if (!r) {
           d.full = true;

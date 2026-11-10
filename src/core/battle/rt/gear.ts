@@ -45,6 +45,30 @@ export function gearEffects(items: (RtGear | undefined | null)[]): string[] {
   return out;
 }
 
+/**
+ * 會出現在裝備上的獨特效果與專屬名稱（P3-a2，D-355）：效果池裡「會改變打法」的 10 條；
+ * 純數值的（疾雷、廣域）與續航的（霜觸、燼心）留給祝福。名字＝「召雷之鐵劍」。
+ */
+export const UNIQUE_TITLES: Record<string, string> = {
+  ember_edge: '餘燼',
+  ember_burst: '燼爆',
+  shadow_step: '影步',
+  heavy_echo: '回響',
+  storm_caller: '召雷',
+  crit_bloom: '綻光',
+  after_image: '殘影',
+  guard_pulse: '震盾',
+  venom_skill: '蝕毒',
+  executioner: '斬首',
+};
+export const UNIQUE_IDS: readonly string[] = Object.keys(UNIQUE_TITLES);
+/** 獨特裝備的代表色（行囊外框、名字；和稀有的金色分得開） */
+export const UNIQUE_COLOR = 0xff6a3c;
+
+/** 顯示用：這件的代表色／階級名（帶獨特效果的蓋過稀有度） */
+export const gearColor = (g: Pick<RtGear, 'rarity' | 'unique'>): number => (g.unique ? UNIQUE_COLOR : RARITY_COLOR[g.rarity]);
+export const gearTierName = (g: Pick<RtGear, 'rarity' | 'unique'>): string => (g.unique ? '獨特' : RARITY_NAME[g.rarity]);
+
 export type SpecialKind = 'cd' | 'dmg' | 'area' | 'block' | 'dist';
 /** 每個技能可以抽到的特效種類（第三種是「參數型」，D-098） */
 export const SPECIAL_KINDS: Record<string, SpecialKind[]> = {
@@ -173,7 +197,7 @@ function affixValue(stat: AffixStat, L: number, t: number): number {
 /** 地區名稱標記（D-114）：荊棘谷掉的精良／稀有名字改成「荊芒／荊冠」，數值與亂數完全一樣 */
 const REGION_TAG: Record<string, [string, string]> = { mistwood: ['薄霧', '霧語'], thornvale: ['荊芒', '荊冠'], emberrift: ['燼紋', '燼心'], starfall: ['星紋', '星骸'] };
 
-export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string; slot?: GearSlot }): RtGear {
+export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { night?: boolean; region?: string; slot?: GearSlot; uniquePct?: number }): RtGear {
   const R = rng(seed);
   for (let i = 0; i < 3; i++) R();
   const L = Math.max(1, Math.min(GEAR_ILVL_MAX, Math.floor(ilvl)));
@@ -212,6 +236,12 @@ export function genGear(seed: number, rarity: Rarity, ilvl: number, opts?: { nig
     g.name = `夜燼・${AFFIX_PREFIX[affixes[0]!.stat]}${baseName}`;
     g.night = true;
   }
+  // 獨特效果（P3-a2，D-355）：只有稀有、而且來源給了機率（uniquePct，由 loot.ts 照來源決定）才抽；亂數接在最後，沒給機率的結果不變
+  if (opts?.uniquePct && rarity === 3 && R() * 100 < opts.uniquePct) {
+    const id = UNIQUE_IDS[Math.floor(R() * UNIQUE_IDS.length)]!;
+    g.unique = id;
+    g.name = `${g.night ? '夜燼・' : ''}${UNIQUE_TITLES[id]}之${baseName}`;
+  }
   return g;
 }
 
@@ -242,7 +272,7 @@ export function gearBonus(items: (RtGear | undefined | null)[], baseHp: number, 
 export function gearScore(g: RtGear | undefined | null, baseHp: number, baseAtk: number): number {
   if (!g) return 0;
   const b = gearBonus([g], baseHp, baseAtk);
-  return b.atk * 4 + b.hp * 0.25 + b.def * 3 + (g.special ? (g.rarity === 3 ? 25 : 12) : 0);
+  return b.atk * 4 + b.hp * 0.25 + b.def * 3 + (g.special ? (g.rarity === 3 ? 25 : 12) : 0) + (g.unique ? 30 : 0);
 }
 
 /** 一行數值說明（「攻擊 +12・HP +80」） */
@@ -255,6 +285,9 @@ export function gearLines(g: RtGear, names: Record<string, string> = SPECIAL_SKI
   if (g.base.def) out.push(`防禦 +${Math.round(g.base.def * m)}`);
   for (const a of g.affixes) out.push(`✦ ${AFFIX_NAME[a.stat]} +${a.value}${a.stat.endsWith('Pct') ? '%' : ''}`);
   if (g.special) out.push(specialText(specialOf(g)!, names) + ((g.enh ?? 0) >= 7 ? '（強化加成）' : ''));
+  // 獨特效果（P3-a2）：兩行——名字一行、說明一行（說明裡的 {技能欄} 換成這把武器的招式名）
+  const fx = g.unique ? EFFECTS[g.unique] : undefined;
+  if (fx) out.push(`★ 獨特效果「${fx.name}」`, fx.desc.replace(/\{(\w+)\}/g, (m0, k: string) => names[k] ?? m0));
   return out;
 }
 

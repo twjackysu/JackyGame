@@ -29,5 +29,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   'bless.listNext': '{n} more kill(s) until the next pick',
   'bless.listFull': 'You are carrying the maximum',
   'bless.listRule': 'Resting at a campfire or falling clears all blessings',
+  'unique.got': 'Unique gear!',
+  'unique.listLine': 'Gear effects: {names} (always on while equipped)',
   'bless.listClose': 'Tap anywhere to close',
 };

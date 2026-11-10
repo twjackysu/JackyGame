@@ -27,6 +27,8 @@ export const zhTW = {
   'bless.listNext': '再打倒 {n} 隻就能再選一個',
   'bless.listFull': '已經帶滿了',
   'bless.listRule': '回營火休息或倒下，祝福會全部消散',
+  'unique.got': '獨特裝備！',
+  'unique.listLine': '裝備效果：{names}（穿著就有，不會消散）',
   'bless.listClose': '點任何地方關閉',
 } as const;
 

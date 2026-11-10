@@ -321,15 +321,16 @@ function rollDrops(s: BattleState, e: Unit): void {
   const ctx: LootContext = { stageId: s.stageId, defId: e.defId, night: !!s.night, fury: !!e.fury, affix: !!e.affix, firstKill: !(s.bossKills ?? []).includes(e.defId) };
   if (e.groupId) ctx.groupId = e.groupId;
   if (e.fixedIdx !== undefined) ctx.fixedIdx = e.fixedIdx;
-  rollEnemyLoot(ctx, () => lootRand(s), (kind, amount, rarity) => {
+  rollEnemyLoot(ctx, () => lootRand(s), (kind, amount, rarity, uq) => {
     const a = randStep(lootRand(s));
     const r = (0.3 + lootRand(s) * 0.5) * UNIT;
     const it: GroundItem = { id: (s.lootSeq = (s.lootSeq ?? 0) + 1), kind, amount, x: e.x + Math.round(cosStep(a) * r), y: e.y + Math.round(sinStep(a) * r), tick: s.tick };
     if (rarity) it.rarity = rarity;
+    if (uq) it.uq = uq;
     it.x = Math.min(s.arena.w - 20, Math.max(20, it.x));
     it.y = Math.min(s.arena.h - 20, Math.max(20, it.y));
     s.ground!.push(it);
-    emit(s, { tick: s.tick, type: 'drop', item: it.id, kind, amount, ...(rarity ? { rarity } : {}) });
+    emit(s, { tick: s.tick, type: 'drop', item: it.id, kind, amount, ...(rarity ? { rarity } : {}), ...(uq ? { uq } : {}) });
   });
 }
 
@@ -349,7 +350,7 @@ function processPickup(s: BattleState): void {
     if (it.kind === 'gear') {
       (s.gearGot ??= []).push({ id: it.id, rarity: it.rarity ?? 1, ilvl: it.amount });
       s.loot!.gear = (s.loot!.gear ?? 0) + 1;
-      emit(s, { tick: s.tick, type: 'pickup', item: it.id, kind: it.kind, amount: it.amount, rarity: it.rarity ?? 1 });
+      emit(s, { tick: s.tick, type: 'pickup', item: it.id, kind: it.kind, amount: it.amount, rarity: it.rarity ?? 1, ...(it.uq ? { uq: it.uq } : {}) });
       return false;
     }
     s.loot![it.kind] = (s.loot![it.kind] ?? 0) + it.amount;

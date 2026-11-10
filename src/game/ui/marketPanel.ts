@@ -3,7 +3,7 @@
 // 所有動作都交給伺服器（marketOps）；畫面只負責顯示，價格規則（上架費、手續費）讀 core/meta/market 只拿來「顯示」。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { GEAR_SLOTS, RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, isGear, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
+import { GEAR_SLOTS, SLOT_NAME, gearLines, isGear, gearColor, gearTierName, type GearSlot, type RtGear } from '../../core/battle/rt/gear';
 import { MARKET_FEE_PCT, MARKET_PAGE, PRICE_MAX, bargainPct, listFee, priceStats, refKey, sellerGets } from '../../core/meta/market';
 import { buyPrice, sellPrice } from '../../core/meta/shop';
 import type { ListingView } from '../../net/views';
@@ -128,7 +128,7 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
   };
   const row = (y: number, g: RtGear, label: string, sub2: string, right: string, rightCol: string, fn: () => void): Phaser.GameObjects.GameObject[] => {
     const h = 62;
-    const col = RARITY_COLOR[g.rarity];
+    const col = gearColor(g);
     const bg = scene.add.rectangle(0, y, 650, h, 0x1a140c, 0.95).setStrokeStyle(g.rarity > 1 ? 3 : 2, col, 0.95).setInteractive({ useHandCursor: true });
     bg.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
@@ -216,7 +216,7 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
     items.push(scene.add.text(0, -390, '選一件背包裡的裝備上架（身上穿的要先脫下）', { fontFamily: UI_FONT, fontSize: '19px', color: '#c8d0f0' }).setOrigin(0.5));
     if (!st.bag.length) items.push(scene.add.text(0, -200, '背包是空的\n打怪撿到的裝備可以拿來這裡賣', { fontFamily: UI_FONT, fontSize: '24px', color: '#8890a8', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
     st.bag.slice(sellPage * ROWS, sellPage * ROWS + ROWS).forEach((g, i) => {
-      items.push(...row(-325 + i * 70, g, `${isUpgrade(st, g) ? '▲ ' : ''}【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `${RARITY_NAME[g.rarity]}・物品等級 ${g.ilvl}・行商收購 ${sellPrice(g)} 金`, '上架 ›', '#9fd8ff', () => {
+      items.push(...row(-325 + i * 70, g, `${isUpgrade(st, g) ? '▲ ' : ''}【${SLOT_NAME[g.slot]}】${gearTitleW(g)}`, `${gearTierName(g)}・物品等級 ${g.ilvl}・行商收購 ${sellPrice(g)} 金`, '上架 ›', '#9fd8ff', () => {
         detail = { kind: 'sell', g, price: Math.round(buyPrice(g) * 0.6) };
         render();
       }));
@@ -243,17 +243,17 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
 
   /** 卡片底：圖示、名字、數值 */
   function gearHead(out: Phaser.GameObjects.GameObject[], g: RtGear): number {
-    const col = RARITY_COLOR[g.rarity];
+    const col = gearColor(g);
     out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -290, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '32px', color: hex(col) }).setOrigin(0.5));
-    out.push(scene.add.text(0, -248, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));
+    out.push(scene.add.text(0, -248, `${gearTierName(g)}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '21px', color: '#c8d0f0' }).setOrigin(0.5));
     const gl = gearLines(g, skillNames());
     const lines = scene.add.text(0, -218, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 8 }).setOrigin(0.5, 0);
     out.push(lines);
     return -218 + lines.height;
   }
   const card = (out: Phaser.GameObjects.GameObject[], g: RtGear, bottom: number): void => {
-    out.splice(1, 0, scene.add.rectangle(0, (-330 + bottom) / 2, 620, bottom + 330, 0x0c1018, 0.97).setStrokeStyle(4, RARITY_COLOR[g.rarity], 1));
+    out.splice(1, 0, scene.add.rectangle(0, (-330 + bottom) / 2, 620, bottom + 330, 0x0c1018, 0.97).setStrokeStyle(4, gearColor(g), 1));
   };
   const back = (): void => {
     detail = null;
@@ -286,7 +286,7 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
           detail = null;
           SFX.itemGet();
           scene.cameras.main.flash(120, 160, 220, 255);
-          toast(`買到 ${gearTitleW(g)}！\n到行囊換上`, hex(RARITY_COLOR[g.rarity]));
+          toast(`買到 ${gearTitleW(g)}！\n到行囊換上`, hex(gearColor(g)));
         }), ok, 24, !ok));
       out.push(btn(150, y, '返回', back));
     }
@@ -318,7 +318,7 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
       });
     }
     const st = Array.isArray(h) ? priceStats(h) : null;
-    const kind = `${RARITY_NAME[g.rarity]}${SLOT_NAME[g.slot]}`;
+    const kind = `${gearTierName(g)}${SLOT_NAME[g.slot]}`;
     if (st) out.push(btn(0, y, `最近成交 ${st.n} 筆・中位 ${st.median} 金（${st.lo}～${st.hi}）→ 用這個價`, () => setPrice(st.median), false, 17));
     else out.push(scene.add.text(0, y, h === 'wait' || h === undefined ? '讀取最近成交…' : h === null ? '最近成交讀不到' : `最近還沒有人賣出${kind}`, { fontFamily: UI_FONT, fontSize: '17px', color: '#7a8aa8' }).setOrigin(0.5));
     y += 48;

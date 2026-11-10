@@ -2,7 +2,7 @@
 // 同一個帳號的角色都拿得到——換個角色就能用另一個角色打到的裝備。所有動作交給伺服器（warehouseOps）。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { RARITY_COLOR, isGear, type RtGear } from '../../core/battle/rt/gear';
+import { isGear, gearColor, type RtGear } from '../../core/battle/rt/gear';
 import { BAG_MAX } from '../../core/meta/bag';
 import type { ItemView } from '../../net/views';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -71,7 +71,7 @@ export function openWarehousePanel(scene: Phaser.Scene, ops: WarehouseOps, onClo
 
   const gearRow = (y: number, it: ItemView, right: string, fn: (() => void) | undefined): Phaser.GameObjects.GameObject[] => {
     const g = isGear(it.gear) ? (it.gear as unknown as RtGear) : null;
-    const col = g ? RARITY_COLOR[g.rarity] : 0x808080;
+    const col = g ? gearColor(g) : 0x808080;
     const bg = scene.add.rectangle(0, y, 640, 50, 0x1a140c, 0.95).setStrokeStyle(2, col, 0.9);
     if (fn)
       bg.setInteractive({ useHandCursor: true }).on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {

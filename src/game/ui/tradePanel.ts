@@ -3,7 +3,7 @@
 // 所有動作交給伺服器（tradeOps）；放上去的東西由伺服器保管，任何一方改內容，雙方都要重新鎖定與確認（防最後一秒偷換）。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { RARITY_COLOR, isGear, type RtGear } from '../../core/battle/rt/gear';
+import { isGear, gearColor, type RtGear } from '../../core/battle/rt/gear';
 import { TRADE_MAX_ITEMS } from '../../core/meta/trade';
 import type { TradeView } from '../../net/views';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
@@ -86,7 +86,7 @@ export function openTradePanel(scene: Phaser.Scene, ops: TradeOps, onClose: () =
   };
   const gearRow = (y: number, gear: Record<string, unknown>, right: string, fn?: () => void): Phaser.GameObjects.GameObject[] => {
     const g = isGear(gear) ? (gear as unknown as RtGear) : null;
-    const col = g ? RARITY_COLOR[g.rarity] : 0x808080;
+    const col = g ? gearColor(g) : 0x808080;
     const bg = scene.add.rectangle(0, y, 640, 50, 0x1a140c, 0.95).setStrokeStyle(2, col, 0.9);
     if (fn)
       bg.setInteractive({ useHandCursor: true }).on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {

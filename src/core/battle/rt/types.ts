@@ -344,8 +344,8 @@ export type BattleEvent =
   | { tick: number; type: 'riot'; count: number; elite: boolean; x: number; y: number }
   | { tick: number; type: 'chest'; chest: string; loot: Partial<Record<LootId, number>> }
   | { tick: number; type: 'rest'; id: number; campfire: string }
-  | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number; rarity?: 1 | 2 | 3 }
-  | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number; rarity?: 1 | 2 | 3 }
+  | { tick: number; type: 'drop'; item: number; kind: LootId; amount: number; rarity?: 1 | 2 | 3; uq?: number }
+  | { tick: number; type: 'pickup'; item: number; kind: LootId; amount: number; rarity?: 1 | 2 | 3; uq?: number }
   | { tick: number; type: 'enhance'; level: number; atk: number }
   | { tick: number; type: 'levelUp'; level: number; maxHp: number; atk: number }
   | { tick: number; type: 'ramp'; minute: number; pct: number }
@@ -463,6 +463,8 @@ export interface GroundItem {
   tick: number;
   /** 裝備（kind 'gear'）：稀有度；amount＝物品等級 */
   rarity?: 1 | 2 | 3;
+  /** 裝備：帶獨特效果的機率 %（P3-a2；來源有開才有，見 loot.ts uniqueDropPct） */
+  uq?: number;
 }
 /** 自動撿取半徑 2.5 單位（design/20 B5）；地上放 120 秒消失 */
 export const LOOT_RULES = { pickupUnits: 2.5, pickupDelayTicks: 9, expireTicks: 120 * 30 } as const;

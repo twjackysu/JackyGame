@@ -26,7 +26,18 @@ export interface LootContext {
   firstKill: boolean;
 }
 
-export type LootPlace = (kind: LootId, amount: number, rarity?: 1 | 2 | 3) => void;
+/** uq＝這件裝備帶獨特效果的機率（%，只有稀有、而且來源有開才給；實際抽在 genGear 的 uniquePct） */
+export type LootPlace = (kind: LootId, amount: number, rarity?: 1 | 2 | 3, uq?: number) => void;
+
+/**
+ * 獨特效果裝備的來源（P3-a2，D-355；%＝這個來源掉的「稀有」裝備帶獨特效果的機率）。
+ * 先只開 Boss（暴怒更高）與隱藏精英，深夜再加；一般精英、小怪不掉。分層細修在 P3-b。
+ */
+export const UNIQUE_DROP = { boss: 15, fury: 35, hidden: 25, nightPlus: 10 } as const;
+export function uniqueDropPct(c: Pick<LootContext, 'stageId' | 'defId' | 'fixedIdx' | 'groupId' | 'night' | 'fury'>): number {
+  const base = c.groupId === HIDDEN_GROUP ? UNIQUE_DROP.hidden : isStageBoss(c) ? (c.fury ? UNIQUE_DROP.fury : UNIQUE_DROP.boss) : 0;
+  return base ? base + (c.night ? UNIQUE_DROP.nightPlus : 0) : 0;
+}
 
 /** 這隻怪會不會掉東西（伺服器拿來擋「這張圖沒有這種怪」之外的空申請） */
 export function hasLoot(defId: string): boolean {
@@ -70,8 +81,8 @@ export function rollEnemyLoot(c: LootContext, rand: () => number, place: LootPla
   const bonus = (g0 ? (nt?.lootPct ?? 0) : 0) + (!g0 ? 0 : g0 === RIOT_GROUP ? (st?.riot?.lootPct ?? 0) : g0 === HIDDEN_GROUP ? (st?.hiddenElite?.lootPct ?? 0) : (st?.spawnGroups?.find((g) => g.id === g0)?.lootPct ?? 0));
   const range = (r: [number, number]) => r[0] + Math.floor(rand() * (r[1] - r[0] + 1));
   const more = (n: number) => (bonus ? Math.round((n * (100 + bonus)) / 100) : n);
-  const put: LootPlace = (kind, amount, rarity) => {
-    if (amount > 0) place(kind, amount, rarity);
+  const put: LootPlace = (kind, amount, rarity, uq) => {
+    if (amount > 0) place(kind, amount, rarity, uq);
   };
   put('gold', more(range(d.gold)));
   for (const i of d.items ?? []) {
@@ -88,12 +99,14 @@ export function rollEnemyLoot(c: LootContext, rand: () => number, place: LootPla
     const hidden = g0 === HIDDEN_GROUP;
     const ilvl = rawDropIlvl(gd.ilvl, hpPct, fury?.ilvlPlus ?? 0, hidden, nt?.ilvlPlus ?? 0, !!c.affix);
     const first = !!gd.firstRare && c.firstKill;
+    const uq = uniqueDropPct(c);
     for (let k = 0; k < (fury?.count ?? gd.count ?? 1); k++) {
       if (rand() * 100 >= (gd.chance * (100 + bonus)) / 100) continue;
       const w0 = fury?.rarity ?? gd.rarity;
       const w: [number, number, number] = hidden ? [w0[0], w0[1], w0[2] * 2] : w0;
       const t = rand() * (w[0] + w[1] + w[2]);
-      put('gear', ilvl, first && k === 0 ? 3 : t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3);
+      const rar = first && k === 0 ? 3 : t < w[0] ? 1 : t < w[0] + w[1] ? 2 : 3;
+      put('gear', ilvl, rar, (rar === 3 && uq) || undefined);
     }
   }
 }

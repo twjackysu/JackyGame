@@ -81,7 +81,7 @@ export function openBlessPanel(scene: Phaser.Scene, offer: readonly EffectDef[],
  * 身上的祝福清單（第 162 輪，P2-c ⑤）：點右上角的火苗／圖示打開——HUD 只有圖示沒有名字，選過幾個之後記不得各是什麼。
  * 每個一列（圖示＋名字＋說明），最下面寫離下一次選擇還差幾隻、怎樣會消散；點任何地方關掉。戰鬥暫停（和其他面板一樣）。
  */
-export function openBlessList(scene: Phaser.Scene, have: readonly EffectDef[], meter: number, need: number, full: boolean, onClose: () => void): Phaser.GameObjects.Container {
+export function openBlessList(scene: Phaser.Scene, have: readonly EffectDef[], meter: number, need: number, full: boolean, onClose: () => void, gearFx: readonly EffectDef[] = []): Phaser.GameObjects.Container {
   const cx = GAME_WIDTH / 2;
   const root = scene.add.container(0, 0).setDepth(1850);
   const shade = scene.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x06040a, 0.78).setInteractive();
@@ -102,7 +102,7 @@ export function openBlessList(scene: Phaser.Scene, have: readonly EffectDef[], m
     root.add(scene.add.text(cx - 206, y - 22, d.name, { fontFamily: TITLE_FONT, fontSize: '30px', color: L.css, stroke: '#140a04', strokeThickness: 4 }).setOrigin(0, 0.5));
     root.add(scene.add.text(cx - 206, y + 20, d.desc, { fontFamily: UI_FONT, fontSize: d.desc.length > 26 ? '18px' : '21px', color: '#f4ecd8', wordWrap: { width: 500, useAdvancedWrap: true } }).setOrigin(0, 0.5));
   });
-  const foot = `${full ? t('bless.listFull') : t('bless.listNext', { n: Math.max(0, need - meter) })}\n${t('bless.listRule')}`;
+  const foot = `${full ? t('bless.listFull') : t('bless.listNext', { n: Math.max(0, need - meter) })}\n${t('bless.listRule')}${gearFx.length ? `\n${t('unique.listLine', { names: gearFx.map((d) => d.name).join('、') })}` : ''}`;
   root.add(scene.add.text(cx, top + total + 26, foot, { fontFamily: UI_FONT, fontSize: '21px', color: '#b8a888', align: 'center', lineSpacing: 8, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5, 0));
   root.add(scene.add.text(cx, GAME_HEIGHT - 120, t('bless.listClose'), { fontFamily: UI_FONT, fontSize: '22px', color: '#8a8270' }).setOrigin(0.5));
   const openedAt = Date.now();

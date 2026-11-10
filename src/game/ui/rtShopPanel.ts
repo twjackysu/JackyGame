@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { gearName, gearTitleW, skillNames } from '../weapon';
 import { SFX } from '../../audio/sfx';
-import { RARITY_COLOR, RARITY_NAME, SLOT_NAME, gearLines, type RtGear } from '../../core/battle/rt/gear';
+import { SLOT_NAME, gearLines, gearColor, gearTierName, type RtGear } from '../../core/battle/rt/gear';
 import { gearIcon } from '../fx/gearIcons';
 import { BAG_MAX, bonusOf, equipWith, isUpgrade, weakestSlot, type BagState } from '../rtBag';
 import { walletOf, type RtRecord } from '../rtRecord';
@@ -87,7 +87,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     return t;
   };
   const row = (y: number, h: number, g: RtGear, label: string, right: string, rightCol: string, fn: () => void, mark = ''): Phaser.GameObjects.GameObject[] => {
-    const col = RARITY_COLOR[g.rarity];
+    const col = gearColor(g);
     const bg = scene.add.rectangle(0, y, 650, h, 0x1a140c, 0.95).setStrokeStyle(g.rarity > 1 ? 3 : 2, col, 0.95).setInteractive({ useHandCursor: true });
     bg.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
@@ -274,11 +274,11 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
 
   function detailCard(g: RtGear, buy: boolean): Phaser.GameObjects.GameObject[] {
     const st = ctx.bag();
-    const col = RARITY_COLOR[g.rarity];
+    const col = gearColor(g);
     const out: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5).setInteractive()];
     out.push(...gearIcon(scene, -240, -290, g.slot, g.rarity, 72));
     out.push(scene.add.text(0, -290, gearTitleW(g), { fontFamily: TITLE_FONT, fontSize: '34px', color: hex(col) }).setOrigin(0.5));
-    out.push(scene.add.text(0, -245, `${RARITY_NAME[g.rarity]}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
+    out.push(scene.add.text(0, -245, `${gearTierName(g)}・${SLOT_NAME[g.slot]}・物品等級 ${g.ilvl}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#c8d0f0' }).setOrigin(0.5));
     // 第 48 輪：從上面往下排，5 行以上的稀有裝不再壓到副標
     const gl = gearLines(g, skillNames());
     const lines = scene.add.text(0, -216, gl.join('\n'), { fontFamily: UI_FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: gl.length > 4 ? 4 : 10 }).setOrigin(0.5, 0);
