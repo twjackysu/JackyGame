@@ -296,6 +296,9 @@ export class RtBattleScene extends Phaser.Scene {
   private lastDeath: { x: number; y: number; tick: number } | null = null;
   /** 血條扣血殘影（Q6，純畫面）：每個單位「畫面上還沒追上的血量比例」 */
   private hpGhost = new Map<number, number>();
+  /** 技能鍵「冷卻剛轉好」的提示（Q5，純畫面）：上一幀剩餘 tick、轉好的時間 */
+  private cdWas: number[] = [];
+  private cdReadyAt: number[] = [];
   /** 命中停頓（hit-stop）剩餘毫秒：期間不推進模擬 */
   private hitStop = 0;
   /** Boss 倒下的慢動作（第 29 輪）：剩餘毫秒，期間戰鬥以 0.3 倍速前進 */
@@ -551,6 +554,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.lastHitDx.clear();
     this.dropPop.clear();
     this.hpGhost.clear();
+    this.cdWas = [];
+    this.cdReadyAt = [];
     this.lastDeath = null;
     this.fxDone.clear();
     this.hitStop = 0;
@@ -4894,6 +4899,15 @@ export class RtBattleScene extends Phaser.Scene {
         g.fillStyle(0x000000, 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / cd), false).fillPath();
       }
+      // 冷卻剛轉好（Q5）：外框往外亮一圈（0.35 秒）＋招式名彈一下，只在轉好的那一刻
+      if (left === 0 && (this.cdWas[i] ?? 0) > 0) {
+        this.cdReadyAt[i] = this.time.now;
+        const rb = this.btnText[i];
+        if (rb && !this.tweens.isTweening(rb)) this.tweens.add({ targets: rb, scale: { from: 1.22, to: 1 }, duration: 260, ease: 'Back.Out' });
+      }
+      this.cdWas[i] = left;
+      const rf = (this.time.now - (this.cdReadyAt[i] ?? -1e9)) / 350;
+      if (rf < 1) g.lineStyle(5 * (1 - rf) + 1, i === 4 ? 0xcfeeff : 0xfff2c0, 1 - rf).strokeCircle(x, y, R + 3 + rf * 16);
       // 冷卻中也留著招式名（第 45 輪：以前冷卻時只剩數字，新手打一陣子五顆鍵全是「4.8」「2.3」，記不住哪顆是哪招）
       const nm = i === 4 ? '閃避' : skillDef(this.s, id)!.name;
       const bt = this.btnText[i]!;
