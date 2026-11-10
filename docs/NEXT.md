@@ -17,8 +17,18 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 165 輪注意（P3-d 收尾、小圖示分色、祝福音效、安全區說明）**：
+- **下一輪**先看 Jacky 的回覆；沒有就挑：①Q 清單第 1 項技能特效逐招檢查 ②Boss 招牌招的預告與演出（RF-07 還沒看；`scripts/shot-boss.py` 這次一進場 Boss 就脫戰——主角被放在巢穴紅圈外或被撞出去，要先把主角釘在紅圈內）③P1-d 剩下的小項（操作設定面板說明字）。P1～P3 的子項表全部 verified 了，剩下的是 Jacky 的實機回饋。
+- **這輪進 git 的腳本**：`scripts/shot-unique.mjs`（塞獨特裝備進行囊、照 STEPS 一步一張；拍賣所會從伺服器重讀行囊，要 `inj()` 再塞一次）、`scripts/probe-clear-speed.test.ts.txt`（清怪效率）、`scripts/probe-sfx.mjs`（音效離線算波形：峰值／長度／RMS）。
+- **快轉截圖裡主角或怪整隻變白不是 bug**：`flashUntil` 用場景時間，`__game.step` 快轉完回到真實 RAF 時間會倒退，白閃一直不結束。要拍立繪就不要快轉，或拍之前 `sc().flashUntil.clear()`。
+- 小圖示的顏色在 `fx/hitTint.ts` 的 `skillBadge(欄位 id, 招式定義)`；加新元素色要過 `tests/skill-badge.test.ts`（兩兩 RGB 距離 > 90）。
+- 祝福音效在 `audio/sfx.ts` 的 `blessOffer`／`blessPick`／`blessProc(種類)`；種類在 `fx/blessFx.ts` 的 `playBlessProc` 開頭照效果的欄位決定（和演出同一套分支）。新增演出分支時記得給一個種類。
+- 星隕高原無裝備 Lv18 的 Bot，帶任何一條獨特效果清怪都沒有變快（瓶頸是生存）；綻光、燼爆略慢，可能是範圍爆炸把旁邊待機的怪拉進來。真人若也覺得「星隕帶爆炸系反而危險」，看 `blessBurst` 要不要不打待機中的怪。
+- 安全區：目前只有提示（D-360）；真正的修法候選寫在 D-360。
+
+
 **第 164 輪注意（P3-a2／b／c 上線）**：
-- **下一輪**先看 Jacky 的回覆（這輪收尾時 CI 18b371e 全綠）；沒有回覆就做 P3-d 剩下的四個小項（下面 P1～P3 表），再回 Q 清單。
+- ~~下一輪：P3-d 剩下的四個小項~~（第 165 輪做完，見上）。
 - 獨特裝備的三個地方：機率與每張圖的池在 `loot.ts`（`UNIQUE_DROP`、`UNIQUE_POOLS`）；哪十條與名字在 `gear.ts`（`UNIQUE_TITLES`）；演出在 `RtBattleScene`（`uniqueOnGround`＝地上哪幾件是獨特、`announceUnique`＝撿到的公告、`gearFor`＝這一趟第 n 件掉落的實際裝備）。
 - 公告的順序：`announceUnique` 等「稀有裝備！」播完（`rareAt + 1700`）與面板關掉；`showChoice`（討伐後的抉擇）等 `uniqueUntil`／`uniqueBanner`（最多 `uniqueCap` 7 秒）。**無頭瀏覽器的補間時鐘比場景時鐘慢很多**（實測大字在排隊區卡幾十秒），用真實時間驗這種先後會誤判；快轉（`__game.step`＋假 `Date.now`）又會和真的 RAF 混成兩個時鐘。要驗只能看程式邏輯＋Jacky 實機。
 - 截圖腳本（沒進 git）：`screenshots/uq.mjs`（塞三件獨特進行囊 → 行囊／詳細／HUD／撿到）、`beam.mjs`（地上四種稀有度並排＋撿起來）、`codex.mjs`、`real.mjs`（把主角攻擊改成 5000 傳到狼王旁邊，真的打倒、撿起來）。
@@ -73,7 +83,7 @@
 | P3-a2 | 獨特裝備真的出現並生效：`genGear` 的 `uniquePct`／`uniquePool`、core `uniqueDropPct`＋掉落事件的 `uq`、伺服器 `loot.claim`、場景 `effects`／`setEffects`、HUD 橘框圖示、行囊等五個面板的顯示 | 行為測試；舊存檔不壞；契約測試；行囊截圖 | **verified**（第 164 輪，D-355；`tests/rt-unique-drop.test.ts`、`docs/screenshots/p3a2-unique-gear.jpg`） |
 | P3-b | 掉落演出（光柱、星、音效、撿到的公告）＋來源分層（每張圖四條、精英 4%／Boss 6%／隱藏精英 15%／暴怒 15%／深夜 +5%、第一次打倒 Boss 保底） | 截圖；一般稀有與獨特一眼分得出來 | **verified**（第 164 輪，D-356；`docs/screenshots/p3b-unique-drop.jpg`）；**動態、音效、公告與抉擇面板的先後 `awaiting_visual`（等 Jacky 實機）** |
 | P3-c | 效果圖鑑（MENU →「效果圖鑑 n/10」：作用、哪張圖掉、手上有沒有、機率）＝ RF-09 | 截圖 | **verified**（第 164 輪，D-357；`docs/screenshots/p3c-codex.jpg`）。沒做：「曾經取得」的紀錄（要放伺服器角色資料）、打贏 Boss 把效果解鎖進祝福池（現在十條本來就都在祝福池裡，先不做） |
-| P3-d | 交易市場顯示與交易獨特裝備；PvP 預設不生效並在介面標明；Bot 比有無效果的討伐時間 | 契約測試、平衡表 | **大部分 verified**（第 164 輪）：競技場大廳有寫、`server-http-flow` 驗拍賣所＋面對面交易後效果還在、王戰時間表在 PROGRESS。**剩下（todo，小）**：①清怪效率的量法（震盾、燼爆是清怪用的，只看王戰量不出來）②分解／賣出獨特裝備要不要二次確認 ③行囊裡獨特裝備的圖示還是金色 ④拍賣所的獨特裝備卡片沒有截圖看過 |
+| P3-d | 交易市場顯示與交易獨特裝備；PvP 預設不生效並在介面標明；Bot 比有無效果的討伐時間 | 契約測試、平衡表 | **verified**（第 164～165 輪，D-358）：競技場大廳有寫、`server-http-flow` 驗拍賣所＋面對面交易後效果還在、王戰時間表（PROGRESS 第 164 輪）、清怪效率表（PROGRESS 第 165 輪，`scripts/probe-clear-speed.test.ts.txt`）、圖示橘色＋分解／賣出要點兩次＋拍賣所卡片截圖（`docs/screenshots/p3d-unique-icon-confirm.jpg`）。沒調數值 |
 
 **第 158 輪注意（P2）**：
 - 加新效果：在 `effects.ts` 的 `EFFECTS` 加一筆資料（說明裡 `{heavy_slash}` 會換成那把武器的招式名、要短），需要新的觸發時機才動 `engine.ts`（`blessEffects(s)` 的呼叫點：普攻命中、`resolveSkillHit`、`blessKill`、`startDodge`、`dealDamage` 的暴擊）；圖示在 `src/game/fx/effectIcon.ts`（元素＋`glyph`），演出在 `RtBattleScene.playBlessEvent`（`blessProc` 事件帶位置）。P3 的裝備要用同一池：把 `blessEffects` 改成「祝福＋裝備上的效果」即可。
@@ -84,7 +94,7 @@
 
 **第 158 輪注意（P1）**：
 - 自動施放的開關：`getSettings().autoSkills`（`jackygame.settings`）；場景在 `createBattle` 帶進去（有 `?bot=` 就不帶）。測試／截圖要關掉：`LS='{"jackygame.settings":{"autoSkills":[]}}'`。
-- **遠程在營火安全區裡打怪，怪會馬上脫戰重置**（`mapAi` 的 `inSafeZone(s, p)`，舊行為）：截圖腳本要先把主角移出安全區（例如 `p.y = 狼.y − 500`）。新玩家拿弓／法杖站在營火旁點狼會看到「脫戰」——可能是個體驗問題，還沒處理（記在這裡，有空看）。
+- **遠程在營火安全區裡打怪，怪會馬上脫戰重置**（`mapAi` 的 `inSafeZone(s, p)`，舊行為）：截圖腳本要先把主角移出安全區（例如 `p.y = 狼.y − 500`）。新玩家拿弓／法杖站在營火旁點狼會看到「脫戰」——第 165 輪加了第一次發生時的說明（D-360，規則沒動）。
 - 截圖腳本（`screenshots/p1.mjs`，沒進 git）：照 `scripts/shot-newsave.mjs` 改的，不裝 Bot，改成每 0.5 秒「沒有交戰中的怪就點最近的一隻」＝只管走位的玩家；`sc().openSkills()` 開技能樹後要再 `ff(1.2, true)`（面板淡入要推幾幀，不然截到全黑）。
 
 ## ★★ 第 156 輪起：Jacky 回報的 bug 與外部審查 RF 項目（排在下面 Q 清單前面）
