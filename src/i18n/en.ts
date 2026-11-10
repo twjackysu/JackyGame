@@ -7,4 +7,12 @@ export const en: Partial<Record<MessageKey, string>> = {
   'title.tapToStart': 'Tap to Start',
   'title.version': 'v{version}',
   'boot.loading': 'Loading…',
+  'auto.on': 'AUTO',
+  'auto.off': 'MANUAL',
+  'auto.locked': 'MANUAL',
+  'auto.badge': 'AUTO',
+  'auto.descOn': 'Auto-cast ON (fires when ready and in reach)',
+  'auto.descOff': 'Auto-cast OFF (press it yourself)',
+  'auto.descLocked': 'Always manual: time it against the red telegraph',
+  'auto.tip': 'Your attack skills now cast by themselves — just move and dodge (MENU → Skills to switch back)',
 };

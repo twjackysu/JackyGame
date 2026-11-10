@@ -1,6 +1,7 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ENEMIES, STAGES, WEAPONS, variantB } from './data';
+import { autoPick, cleanAutoSkills } from './auto';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
 import { HIDDEN_GROUP, killXp, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
@@ -90,6 +91,8 @@ export interface BattleSetup {
   skillVariants?: string[];
   /** 武器（D-147／152）：'bow'＝長弓、'staff'＝法杖；沒有＝劍士 */
   weapon?: 'bow' | 'staff';
+  /** 自動施放的技能欄（P1，D-342）；沒有＝全部手動（測試、Bot、PvP 都不給） */
+  autoSkills?: readonly string[];
   /** 深夜模式（需要 StageDefinition.night，D-103） */
   night?: boolean;
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
@@ -134,6 +137,7 @@ export function createBattle(setup: BattleSetup): BattleState {
   });
   if (setup.skillMods && Object.keys(setup.skillMods).length) s.skillMods = setup.skillMods;
   setSkillVariants(s, setup.skillVariants ?? []);
+  if (setup.autoSkills) setAutoSkills(s, setup.autoSkills);
   if (stage.progression) {
     const p = s.units[0]!;
     const lv = Math.max(1, Math.min(stage.progression.maxLevel, Math.floor(setup.level ?? 1)));
@@ -550,6 +554,13 @@ export function setSkillMods(s: BattleState, mods: Record<string, SkillMod>): vo
   }
   if (Object.keys(mods).length) s.skillMods = mods;
   else delete s.skillMods;
+}
+
+/** 切換自動施放的技能欄（P1，D-342）：馬上生效（只影響「下一招要不要自己放」，不動正在放的招） */
+export function setAutoSkills(s: BattleState, ids: readonly string[]): void {
+  const v = cleanAutoSkills(ids);
+  if (v.length) s.autoSkills = v;
+  else delete s.autoSkills;
 }
 
 /** 玩家現在「選的」打法（含施放中還沒套用的）：面板顯示用 */
@@ -1038,19 +1049,19 @@ function currentTarget(s: BattleState, p: Unit): Unit | undefined {
   return n;
 }
 
-function startSkill(s: BattleState, p: Unit, id: string): boolean {
+function startSkill(s: BattleState, p: Unit, id: string, aim?: Unit): boolean {
   const sk = skillDef(s, id, p);
   if (!sk || p.dead || disabled(p, s.tick)) return false;
   if ((p.ready[id] ?? 0) > s.tick) return false;
   if (sk.mp && p.mp < sk.mp) return false;
   if (p.action && p.action.kind !== 'attack') return false; // 同時只能一個主動技能
-  const t = currentTarget(s, p);
+  const t = aim ?? currentTarget(s, p);
   if (t) face(p, t);
   const cdPct = Math.min(SKILL_MOD_CAPS.cdPct, Math.max(0, modsOf(s, p)?.[id]?.cdPct ?? 0));
   p.ready[id] = s.tick + (cdPct ? Math.round((sk.cooldownTicks * (100 - cdPct)) / 100) : sk.cooldownTicks); // 冷卻從施放開始計
   if (sk.mp) p.mp -= sk.mp;
   p.action = { kind: 'skill', id, start: s.tick, end: s.tick + sk.castTicks, dirX: p.facingX, dirY: p.facingY, ox: p.x, oy: p.y, hitIds: [], targetId: t?.id };
-  emit(s, { tick: s.tick, type: 'cast', id: p.id, skill: id });
+  emit(s, aim ? { tick: s.tick, type: 'cast', id: p.id, skill: id, auto: true } : { tick: s.tick, type: 'cast', id: p.id, skill: id });
   return true;
 }
 
@@ -1600,6 +1611,12 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   s.tick++;
   if (s.pendingSkill) flushPendingSkill(s);
   applyCommands(s, cmds);
+  // 自動施放（P1）：排在玩家指令之後——這個 tick 玩家自己按了技能／閃避，就照玩家的
+  for (const p of playersOf(s)) {
+    if (!ctlOf(s, p).autoSkills) continue;
+    const pick = autoPick(s, p);
+    if (pick) startSkill(s, p, pick.id, pick.aim ?? currentTarget(s, p));
+  }
   for (const p of playersOf(s)) updatePlayer(s, p);
   for (const e of s.units) {
     if (e.side !== 'enemy' || e.dead) continue;

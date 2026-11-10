@@ -7,6 +7,8 @@ import { SFX } from '../../audio/sfx';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { WEAPONS, type WeaponKind } from '../../core/battle/rt/data';
+import { AUTO_SKILL_IDS } from '../../core/battle/rt/auto';
+import { t as tr } from '../../i18n';
 import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, dotOf, rankTotalText, setVariant, skillPoints, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
 
 const COL_X = [-276, -138, 0, 138, 276];
@@ -17,13 +19,15 @@ const BRANCH_Y = [-196, -116, -36];
 export type SkillIntent = { kind: 'add'; skill: string } | { kind: 'variant'; skill: string; idx: 0 | 1 | 2 } | { kind: 'reset' };
 
 /** 開面板；每次改動呼叫 change（呼叫端存檔＋套用；v＝選了變化的技能，D-112），關閉時呼叫 done。回傳的容器由呼叫端銷毀 */
-export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVariants: readonly string[], level: number, change: (r: SkillRanks, v: string[], intent: SkillIntent) => void, done: () => void, weapon: WeaponKind = 'sword'): Phaser.GameObjects.Container {
+export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVariants: readonly string[], level: number, change: (r: SkillRanks, v: string[], intent: SkillIntent) => void, done: () => void, weapon: WeaponKind = 'sword', auto?: { ids: readonly string[]; change: (ids: string[]) => void }): Phaser.GameObjects.Container {
   const W = WEAPONS[weapon];
   let r = start;
   let v = cleanVariants(startVariants, r);
   /** 說明框顯示哪個節點：欄、-1＝技能本身、0/1/2＝分支 */
   let sel: { col: number; node: -1 | 0 | 1 | 2 } = { col: 0, node: -1 };
   let justUnlocked = -1;
+  /** 自動施放的技能欄（P1，D-342）；沒給 auto＝不顯示開關 */
+  let autoIds = [...(auto?.ids ?? [])];
   let pulse: Phaser.Tweens.Tween | null = null;
   const root = scene.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2).setDepth(960);
   const btn = (x: number, y: number, label: string, fn: () => void, hi = false, size = 26, off = false): Phaser.GameObjects.Text => {
@@ -77,6 +81,8 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     const g = scene.add.graphics();
     items.push(g);
     const pulses: Phaser.GameObjects.GameObject[] = [];
+    /** 要畫在樹幹上面的東西（開關藥丸） */
+    const late: Phaser.GameObjects.GameObject[] = [];
     SKILL_TREE.forEach((t, col) => {
       const x = COL_X[col]!;
       const rank = r[t.id] ?? 0;
@@ -103,6 +109,25 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
       items.push(scene.add.text(x, NODE_Y + 22, `${rank}/${SKILL_MAX_RANK}`, { fontFamily: UI_FONT, fontSize: '19px', color: full ? '#ffd27a' : '#c8c0a8' }).setOrigin(0.5));
       // 等級點（節點下方 5 顆）
       for (let k = 0; k < SKILL_MAX_RANK; k++) g.fillStyle(k < rank ? 0xffd27a : 0x3a3020, 1).fillCircle(x - 32 + k * 16, NODE_Y + 70, 5);
+      // 自動／手動開關（P1）：等級點下面一顆小藥丸；格擋反擊永遠手動（鎖住）
+      if (auto) {
+        const can = AUTO_SKILL_IDS.includes(t.id);
+        const on = can && autoIds.includes(t.id);
+        const pill = scene.add.text(x, NODE_Y + 98, `${on ? '⟳ ' : ''}${tr(can ? (on ? 'auto.on' : 'auto.off') : 'auto.locked')}`, { fontFamily: UI_FONT, fontSize: '19px', fontStyle: '700', color: on ? '#0a2a14' : can ? '#e8dcc0' : '#7a705c', backgroundColor: on ? '#7dffb0' : can ? '#3a2a14' : '#1a140c' }).setOrigin(0.5).setPadding(14, 5, 14, 5);
+        if (can) {
+          // 點擊範圍比看到的大一圈（手機上藥丸只有 20px 高）
+          pill.setInteractive({ hitArea: new Phaser.Geom.Rectangle(-22, -9, pill.width + 44, pill.height + 18), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true });
+          pill.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+            ev.stopPropagation();
+            autoIds = on ? autoIds.filter((id) => id !== t.id) : [...autoIds, t.id];
+            SFX.uiTap();
+            auto.change(autoIds);
+            sel = { col, node: -1 };
+            render();
+          });
+        }
+        late.push(pill);
+      }
       // 還能加點：右上角綠色 +
       if (addRank(r, t.id, level)) {
         const plus = scene.add.text(x + 42, NODE_Y - 44, '+', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#0a2a0a', backgroundColor: '#7dffb0' }).setOrigin(0.5).setPadding(7, 0, 7, 0);
@@ -150,9 +175,9 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
       title = `${nm}　Lv ${rank}/${SKILL_MAX_RANK}`;
       desc = W.desc?.[t.id] ?? '';
       // RF-05b：寫出「現在加了多少」（和實際套用的同一份數字），不只寫每級多少
-      sub = `每級 ${t.per}${W.variants[t.id] && !full ? '・5 級開放下面的分支' : ''}${rank > 0 ? `\n現在（Lv ${rank}）：${rankTotalText(t.id, rank)}` : ''}`;
+      sub = `每級 ${t.per}${W.variants[t.id] && !full ? '・5 級開放下面的分支' : ''}${rank > 0 ? `\n現在（Lv ${rank}）：${rankTotalText(t.id, rank)}` : ''}${auto ? `\n${tr(!AUTO_SKILL_IDS.includes(t.id) ? 'auto.descLocked' : autoIds.includes(t.id) ? 'auto.descOn' : 'auto.descOff')}` : ''}`;
       const can = !!addRank(r, t.id, level);
-      action = btn(0, by + 106, full ? '已滿級' : can ? '+1 加點' : '沒有技能點了', () => {
+      action = btn(0, by + 114, full ? '已滿級' : can ? '+1 加點' : '沒有技能點了', () => {
         addPoint(sel.col);
         render();
       }, can, 28, !can);
@@ -167,14 +192,14 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
       const def = k === 0 ? W.skills[t.id] : alt;
       const dot = def ? dotOf(def) : null;
       if (dot && t.mod(1).dmgPct) sub += `\n技能點的傷害加成只算直接命中，${dot === 'burn' ? '灼燒' : '中毒'}的傷害不變`;
-      action = btn(0, by + 106, using ? '使用中' : full ? '改用這招' : '還沒解鎖', () => {
+      action = btn(0, by + 114, using ? '使用中' : full ? '改用這招' : '還沒解鎖', () => {
         pickBranch(sel.col, k);
         render();
       }, full && !using, 28, !full || using);
     }
     items.push(scene.add.text(-300, by - 122, title, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: sel.node > 0 ? '#ffb6f0' : '#ffffff' }).setOrigin(0, 0));
     items.push(scene.add.text(-300, by - 78, desc, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8dcc0', wordWrap: { width: 600, useAdvancedWrap: true }, lineSpacing: 4 }).setOrigin(0, 0));
-    items.push(scene.add.text(-300, by + 50, sub, { fontFamily: UI_FONT, fontSize: '19px', color: '#e0b870', wordWrap: { width: 600, useAdvancedWrap: true }, lineSpacing: 3 }).setOrigin(0, 0.5));
+    items.push(scene.add.text(-300, by + 34, sub, { fontFamily: UI_FONT, fontSize: '19px', color: '#e0b870', wordWrap: { width: 600, useAdvancedWrap: true }, lineSpacing: 3 }).setOrigin(0, 0.5));
     items.push(action);
     if (justUnlocked >= 0) {
       const j = SKILL_TREE[justUnlocked]!;
@@ -192,6 +217,7 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     }, false, 26, usedPoints(r) === 0));
     items.push(btn(150, 400, '關閉', () => done(), true));
     root.add(items);
+    root.add(late);
     if (pulses.length) pulse = scene.tweens.add({ targets: pulses, scale: 1.18, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
   root.once('destroy', () => pulse?.remove());

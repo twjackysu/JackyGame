@@ -347,7 +347,7 @@ export type BattleEvent =
   | { tick: number; type: 'dodge'; id: number }
   | { tick: number; type: 'dodged'; id: number; attack: string }
   | { tick: number; type: 'block'; id: number; attack: string }
-  | { tick: number; type: 'cast'; id: number; skill: string }
+  | { tick: number; type: 'cast'; id: number; skill: string; auto?: boolean }
   | { tick: number; type: 'phase2'; id: number }
   | { tick: number; type: 'summon'; id: number; count: number }
   | { tick: number; type: 'hazard'; id: number }
@@ -563,6 +563,8 @@ export interface PlayerCtl {
   weapon?: 'bow' | 'staff';
   skillVariants?: string[];
   skillMods?: Record<string, SkillMod>;
+  /** 自動施放的技能欄（P1，D-342；規則在 auto.ts）。沒有＝全部手動 */
+  autoSkills?: string[];
 }
 
 export interface BattleState extends PlayerCtl {
@@ -601,6 +603,8 @@ export interface BattleState extends PlayerCtl {
   pendingSkill?: { variants?: string[]; mods?: Record<string, SkillMod> };
   /** 武器（D-147）：沒有＝劍士；'bow'＝長弓（普攻遠距、技能整組換成弓的招式） */
   weapon?: 'bow' | 'staff';
+  /** 自動施放的技能欄（P1，D-342）；沒有＝全部手動 */
+  autoSkills?: string[];
   /** 等級與經驗（progression）；base＝等級與強化加成前的數值 */
   prog?: { level: number; xp: number; baseHp: number; baseAtk: number };
   /** 這場的武器強化等級（lootEnhance）與強化前的攻擊力 */

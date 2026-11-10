@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { cdText, hudLine, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { activeHazards, attacksOf, chosenVariants, createBattle, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
+import { activeHazards, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { bonusOf, isUpgrade, openRtBagPanel, type BagState } from '../ui/rtBagPanel';
 import { openRtShopPanel } from '../ui/rtShopPanel';
@@ -81,6 +81,7 @@ import { cardOps, shopOps } from '../shopOps';
 import { coreBurstCue, queenBloomCue, ventEruptCue } from '../fx/bossCues';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings, updateSettings } from '../settings';
+import { t as tr } from '../../i18n';
 import { RangedFx } from '../fx/rangedFx';
 import { FieldFx } from '../fx/fieldFx';
 import { makeGround } from '../rt/ground';
@@ -261,6 +262,8 @@ export class RtBattleScene extends Phaser.Scene {
   private discs!: DiscLayer;
   /** 桌機（沒有觸控）在按鈕右上角標快捷鍵（D-265） */
   private keyBadges: (Phaser.GameObjects.Text | null)[] = [];
+  /** 技能鍵上的「自動」小標（P1）：索引同 btnText（0～3 技能欄、5 大招） */
+  private autoBadges: (Phaser.GameObjects.Text | null)[] = [];
   private joyBadge: Phaser.GameObjects.Text | null = null;
   private bot: PlayerBot | null = null;
   /** 操作設定（D-088） */
@@ -507,7 +510,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined, autoSkills: this.bot ? undefined : getSettings().autoSkills });
     if (this.tracked && !this.bot) onlineLoot.start(this.stageId, !!this.s.night, loadWeapon(), (done, defId, drops) => this.onlineBounty(done, defId, drops));
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
@@ -804,6 +807,8 @@ export class RtBattleScene extends Phaser.Scene {
       const { x, y } = this.btnPos(i);
       return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((i === 4 ? 22 : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
     });
+    for (const b of this.autoBadges) b?.destroy();
+    this.autoBadges = names.map((_, i) => (i < 4 || i === 5 ? this.add.text(0, 0, tr('auto.badge'), { fontFamily: UI_FONT, fontSize: `${Math.round(14 * sc)}px`, fontStyle: '700', color: '#0a2a14', backgroundColor: '#7dffb0' }).setOrigin(0.5).setPadding(5, 1, 5, 1).setDepth(61).setVisible(false) : null));
     // 桌機快捷鍵小標（D-265）：成果發表多半用電腦開，以前只有進「操作設定」才知道 WASD／1～4／空白
     for (const t of this.keyBadges) t?.destroy();
     this.keyBadges = [];
@@ -1088,6 +1093,8 @@ export class RtBattleScene extends Phaser.Scene {
         this.toggleMenu();
       },
       this.s.weapon ?? 'sword',
+      // 自動施放開關（P1，D-342）：每台裝置一份設定；馬上套用到這一場（Bot 示範不吃）
+      this.bot ? undefined : { ids: getSettings().autoSkills, change: (ids) => setAutoSkills(this.s, updateSettings({ autoSkills: ids }).autoSkills) },
     );
   }
 
@@ -3233,6 +3240,8 @@ export class RtBattleScene extends Phaser.Scene {
         }
       }
       else if (e.type === 'cast') {
+        // 第一次看到技能自己放（P1）：講一次是怎麼回事、去哪裡關
+        if (e.auto) this.tipOnce('jg_tip_auto', tr('auto.tip'), '#7dffb0');
         if (skillDef(this.s, e.skill)?.role === 'ult') {
           // 大招：閃光＋金粉環＋大字（D-071 放上試玩鍵位）
           const p = playerOf(this.s);
@@ -4957,7 +4966,9 @@ export class RtBattleScene extends Phaser.Scene {
       bt.setText(left > 0 ? `${nm}\n${cdText(left)}` : nm);
       const bc = left > 0 ? '#a8a090' : '#ffffff';
       textColor(bt, bc);
+      this.autoBadges[i]?.setPosition(x, y + R - 2).setVisible(i < 4 && !!s.autoSkills?.includes(id));
     });
+    this.autoBadges[5]?.setPosition(this.btnPos(5).x, this.btnPos(5).y + this.btnR(5) - 2).setVisible(!!s.autoSkills?.includes('blade_storm'));
     // 大招：MP 環（滿 40 才亮）＋冷卻
     {
       const ult = skillDef(this.s, 'blade_storm')!;
