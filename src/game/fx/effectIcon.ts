@@ -24,7 +24,27 @@ export function drawEffectIcon(g: Phaser.GameObjects.Graphics, x: number, y: num
   g.fillStyle(L.light, a);
   g.lineStyle(Math.max(2, r * 0.16), L.light, a);
   const k = r * 0.56;
-  if (el === 'fire' && glyph) {
+  if (el === 'light' && glyph === 2) {
+    // 綻光：八道往外的光芒
+    for (let i = 0; i < 8; i++) {
+      const ang = (Math.PI / 4) * i;
+      g.lineBetween(x + Math.cos(ang) * k * 0.4, y + Math.sin(ang) * k * 0.4, x + Math.cos(ang) * k * 1.1, y + Math.sin(ang) * k * 1.1);
+    }
+    g.fillCircle(x, y, k * 0.26);
+  } else if (el === 'dark' && glyph === 2) {
+    // 殘影：前後兩個人影（後面那個是空心的）
+    g.strokeEllipse(x - k * 0.45, y, k * 0.9, k * 1.7);
+    g.fillEllipse(x + k * 0.4, y, k * 0.9, k * 1.7);
+  } else if (el === 'phys' && glyph === 2) {
+    // 斬首：交叉的兩刀
+    g.lineBetween(x - k * 0.9, y - k * 0.9, x + k * 0.9, y + k * 0.9);
+    g.lineBetween(x - k * 0.9, y + k * 0.9, x + k * 0.9, y - k * 0.9);
+  } else if (el === 'phys' && glyph) {
+    // 震盾：盾形＋外面一圈
+    g.fillTriangle(x - k * 0.7, y - k * 0.1, x + k * 0.7, y - k * 0.1, x, y + k * 0.95);
+    g.fillRect(x - k * 0.7, y - k * 0.75, k * 1.4, k * 0.7);
+    g.lineStyle(Math.max(1.5, r * 0.08), L.light, a).strokeCircle(x, y, k * 1.25);
+  } else if (el === 'fire' && glyph) {
     // 爆炸：中心一顆＋六顆火星
     g.fillCircle(x, y, k * 0.45);
     for (let i = 0; i < 6; i++) {

@@ -13,27 +13,42 @@ export interface EffectDef {
   /** 一句話、手機上看得完 */
   desc: string;
   element: EffectElement;
-  /** 同元素的第二種圖示（畫面層用：火＝爆炸、光＝回復） */
-  glyph?: 1;
+  /** 同元素的第二、三種圖示（畫面層用：火＝爆炸、光＝回復…；見 effectIcon.ts） */
+  glyph?: 1 | 2;
   /** 合用的武器（沒有＝三把都合用） */
   weapons?: readonly WeaponKind[];
   /** 技能修正（加在裝備／技能點的修正上；上限照 SKILL_MOD_CAPS） */
   mods?: Record<string, SkillMod>;
   /** 這趟把某一欄換成變化打法（1＝變化、2＝變化二）：還沒練到滿級也能先試 */
   variant?: { skill: string; idx: 1 | 2 };
-  /** 普攻命中：上狀態 */
-  onAttack?: { status: StatusApply };
+  /** 普攻命中：上狀態／每第 n 下在目標處炸開（半徑、倍率 %） */
+  onAttack?: { status?: StatusApply; every?: { n: number; burst: EffectBurst } };
   /** 技能命中（skill 沒寫＝任何一欄）：上狀態／追加一段傷害（原本那一段的 echoPct%） */
   onSkillHit?: { skill?: string; status?: StatusApply; echoPct?: number };
   /** 擊殺：屍體處爆炸（半徑、倍率 %）／回復最大 HP 的 healPct% */
   onKill?: { burst?: { r: number; mult: number }; healPct?: number };
-  /** 閃避後 critTicks 內的下一次直接傷害必定暴擊 */
-  onDodge?: { critTicks: number };
+  /** 閃避：critTicks 內的下一次直接傷害必定暴擊／起點留下的殘影炸開 */
+  onDodge?: { critTicks?: number; burst?: EffectBurst };
+  /** 直接傷害暴擊：在目標處炸開，波及「其他」敵人（炸開的傷害不會再觸發） */
+  onCrit?: { burst: EffectBurst };
+  /** 護盾展開（第 4 欄）：以自己為中心震開 */
+  onGuard?: { burst: EffectBurst };
+  /** 處決：對生命低於 belowPct% 的敵人，直接傷害 +dmgPct% */
+  execute?: { belowPct: number; dmgPct: number };
+}
+/** 範圍追加傷害：半徑、倍率 %（攻擊力）、可帶狀態 */
+export interface EffectBurst {
+  r: number;
+  mult: number;
+  status?: StatusApply;
 }
 
 const ALL_SKILLS = ['heavy_slash', 'whirlwind', 'charge', 'parry', 'blade_storm'] as const;
 
-/** 固定效果（第一批 8 個，三把武器都合用——技能欄 id 三把武器共用） */
+/**
+ * 固定效果（三把武器都合用——技能欄 id 三把武器共用）。
+ * 第一批 8 個（第 158 輪）＋第二批 6 個（第 163 輪，D-352：一趟最多拿 8 個、池子也只有 8 個＝每趟都拿到同一套，選擇沒有取捨）。
+ */
 export const EFFECTS: Record<string, EffectDef> = {
   ember_edge: { id: 'ember_edge', name: '餘燼之刃', desc: '普攻讓敵人灼燒 3 秒（可疊 3 層）', element: 'fire', onAttack: { status: { id: 'burn', ticks: sec(3), powerPct: 15 } } },
   ember_burst: { id: 'ember_burst', name: '燼爆', desc: '打倒的敵人會炸開，波及旁邊的敵人', element: 'fire', glyph: 1, onKill: { burst: { r: u(1.8), mult: 90 } } },
@@ -42,6 +57,12 @@ export const EFFECTS: Record<string, EffectDef> = {
   wide_arc: { id: 'wide_arc', name: '廣域', desc: '「{whirlwind}」範圍 +30%、傷害 +15%', element: 'phys', mods: { whirlwind: { areaPct: 30, dmgPct: 15 } } },
   heavy_echo: { id: 'heavy_echo', name: '回響', desc: '「{heavy_slash}」命中後再補一段 50% 傷害', element: 'light', onSkillHit: { skill: 'heavy_slash', echoPct: 50 } },
   frost_touch: { id: 'frost_touch', name: '霜觸', desc: '技能命中的敵人緩速 2 秒', element: 'ice', onSkillHit: { status: { id: 'slow', ticks: sec(2) } } },
+  storm_caller: { id: 'storm_caller', name: '召雷', desc: '每第 4 下普攻落下一道雷，波及周圍', element: 'thunder', onAttack: { every: { n: 4, burst: { r: u(1.6), mult: 160 } } } },
+  crit_bloom: { id: 'crit_bloom', name: '綻光', desc: '暴擊時炸開一圈光，波及旁邊的敵人', element: 'light', glyph: 2, onCrit: { burst: { r: u(1.8), mult: 70 } } },
+  after_image: { id: 'after_image', name: '殘影', desc: '閃避的起點留下殘影，炸傷追來的敵人', element: 'dark', glyph: 2, onDodge: { burst: { r: u(2), mult: 200 } } },
+  guard_pulse: { id: 'guard_pulse', name: '震盾', desc: '放「{parry}」時震傷並緩速周圍', element: 'phys', glyph: 1, onGuard: { burst: { r: u(2.2), mult: 130, status: { id: 'slow', ticks: sec(2) } } } },
+  venom_skill: { id: 'venom_skill', name: '蝕毒', desc: '技能命中讓敵人中毒 4 秒（可疊 5 層）', element: 'poison', onSkillHit: { status: { id: 'poison', ticks: sec(4), powerPct: 10 } } },
+  executioner: { id: 'executioner', name: '斬首', desc: '對生命低於 30% 的敵人，傷害 +50%', element: 'phys', glyph: 2, execute: { belowPct: 30, dmgPct: 50 } },
   vital_ember: { id: 'vital_ember', name: '燼心', desc: '每打倒一隻敵人，回復 5% 生命', element: 'light', glyph: 1, onKill: { healPct: 5 } },
 };
 export const EFFECT_IDS: readonly string[] = Object.keys(EFFECTS);

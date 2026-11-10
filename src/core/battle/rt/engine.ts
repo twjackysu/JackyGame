@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ARENA_CHARGE, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import { autoPick, cleanAutoSkills } from './auto';
-import { BLESS_RULES, EFFECT_IDS, blessNeed, effectDef, mergeEffectMods, tryVariantId, type EffectDef } from './effects';
+import { BLESS_RULES, EFFECT_IDS, blessNeed, effectDef, mergeEffectMods, tryVariantId, type EffectBurst, type EffectDef } from './effects';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
 import { HIDDEN_GROUP, killXp, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
@@ -702,6 +702,21 @@ function clearBless(s: BattleState, reason: 'rest' | 'down'): void {
 }
 
 let burstDepth = 0;
+/**
+ * 祝福的範圍追加傷害（燼爆、召雷、綻光、殘影、震盾共用）：只波及交戰中的敵人（不會把旁邊睡著的怪炸醒）。
+ * 事件帶實際半徑，畫面照它畫圈。skip＝不打這一隻（綻光只波及「其他」敵人）。
+ */
+function blessBurst(s: BattleState, p: Unit, x: number, y: number, k: EffectBurst, id: string, skip?: Unit): void {
+  emit(s, { tick: s.tick, type: 'blessProc', id, x, y, r: k.r });
+  burstDepth++;
+  for (const o of enemiesOf(s)) {
+    if (o === skip || o.dead || (o.mode && o.mode !== 'combat') || dist(o.x, o.y, x, y) > k.r + o.r) continue;
+    dealDamage(s, p, o, k.mult, 'skill', id);
+    if (k.status && !o.dead) addStatus(s, o, k.status, p);
+  }
+  burstDepth--;
+}
+
 /** 主角打倒敵人：累積計量、觸發擊殺效果（爆炸可以連鎖，最多四層） */
 function blessKill(s: BattleState, p: Unit, dead: Unit): void {
   const b = s.bless!;
@@ -710,13 +725,7 @@ function blessKill(s: BattleState, p: Unit, dead: Unit): void {
     const k = e.onKill;
     if (!k) continue;
     if (k.healPct && !p.dead && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + Math.max(1, Math.round((p.maxHp * k.healPct) / 100)));
-    if (k.burst && burstDepth < 4) {
-      emit(s, { tick: s.tick, type: 'blessProc', id: e.id, x: dead.x, y: dead.y });
-      burstDepth++;
-      // 只波及交戰中的敵人（不會把旁邊睡著的怪炸醒）
-      for (const o of enemiesOf(s)) if ((!o.mode || o.mode === 'combat') && dist(o.x, o.y, dead.x, dead.y) <= k.burst.r + o.r) dealDamage(s, p, o, k.burst.mult, 'skill', e.id);
-      burstDepth--;
-    }
+    if (k.burst && burstDepth < 4) blessBurst(s, p, dead.x, dead.y, k.burst, e.id);
   }
   if (burstDepth === 0) maybeBlessOffer(s);
 }
@@ -995,11 +1004,25 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
       delete b.critUntil;
     }
   }
+  // 祝福「斬首」（P2）：對殘血的敵人直接傷害加成
+  const bfx = s.bless && src.side === 'player' && !src.pid && dst.side === 'enemy' ? blessEffects(s) : NO_EFFECTS;
+  let executed = '';
+  for (const e of bfx) {
+    if (e.execute && dst.hp * 100 < dst.maxHp * e.execute.belowPct) {
+      mult = Math.round((mult * (100 + e.execute.dmgPct)) / 100);
+      executed = e.id;
+    }
+  }
   let amount = computeDamage(atk, mult, pool, dst.def, critMul);
   if (has(src, 'weak', s.tick)) amount = Math.max(1, Math.round(amount * 0.8)); // 虛弱：造成傷害 −20%
   if (reducePct > 0) amount = Math.max(1, Math.round((amount * (100 - reducePct)) / 100));
   if (s.pvp && src.side === 'player' && dst.side === 'player') amount = pvpDamage(amount, ctlOf(s, src).weapon ?? 'sword', ctlOf(s, dst).weapon ?? 'sword');
   applyHp(s, src, dst, amount, crit, origin, skill);
+  if (bfx.length) {
+    // 斬首收掉敵人時給一個記號（畫面演出用）；綻光：暴擊在目標處炸開（炸開、燼爆的傷害不再觸發）
+    if (executed && dst.dead) emit(s, { tick: s.tick, type: 'blessProc', id: executed, x: dst.x, y: dst.y });
+    if (crit && burstDepth === 0) for (const e of bfx) if (e.onCrit) blessBurst(s, src, dst.x, dst.y, e.onCrit.burst, e.id, dst);
+  }
   // 受擊硬直（小怪；Boss 0）＋1 秒硬直免疫
   if (dst.side === 'enemy' && !dst.dead) {
     const def = ENEMIES[dst.defId]!;
@@ -1256,6 +1279,7 @@ function startSkill(s: BattleState, p: Unit, id: string, aim?: Unit): boolean {
       cur.until = Math.max(cur.until, until);
     } else p.statuses.push({ id: 'shield', until, stacks: 1, value: amount, srcId: p.id, next: 0 });
     emit(s, { tick: s.tick, type: 'guard', id: p.id, skill: id, amount, ticks: sk.guard.ticks });
+    if (s.bless && !p.pid) for (const e of blessEffects(s)) if (e.onGuard) blessBurst(s, p, p.x, p.y, e.onGuard.burst, e.id);
   }
   return true;
 }
@@ -1271,7 +1295,12 @@ function startDodge(s: BattleState, p: Unit, dx: number, dy: number): boolean {
   p.action = { kind: 'dodge', id: 'dodge', start: s.tick, end: s.tick + pd.dodge.ticks, dirX: fx, dirY: fy, ox: p.x, oy: p.y };
   p.invulnUntil = s.tick + pd.dodge.invulnTo;
   emit(s, { tick: s.tick, type: 'dodge', id: p.id });
-  if (s.bless && !p.pid) for (const e of blessEffects(s)) if (e.onDodge) s.bless.critUntil = s.tick + e.onDodge.critTicks;
+  if (s.bless && !p.pid) {
+    // 先炸殘影、再給「下一擊必暴」（不然殘影的第一下會把必暴用掉）
+    const fx = blessEffects(s);
+    for (const e of fx) if (e.onDodge?.burst) blessBurst(s, p, p.x, p.y, e.onDodge.burst, e.id);
+    for (const e of fx) if (e.onDodge?.critTicks) s.bless.critUntil = s.tick + e.onDodge.critTicks;
+  }
   return true;
 }
 
@@ -1552,7 +1581,15 @@ function updatePlayer(s: BattleState, p: Unit = playerOf(s)): void {
         if (t && !t.dead && dist(p.x, p.y, t.x, t.y) <= pd.attackRange + p.r + t.r + 30) {
           const dealt = dealDamage(s, p, t, 100, 'normal', 'attack');
           // 祝福：普攻命中的追加效果（P2）
-          if (dealt > 0 && s.bless && !p.pid && !t.dead) for (const fx of blessEffects(s)) if (fx.onAttack) addStatus(s, t, fx.onAttack.status, p);
+          if (dealt > 0 && s.bless && !p.pid) {
+            for (const fx of blessEffects(s)) {
+              const k = fx.onAttack;
+              if (!k) continue;
+              if (k.status && !t.dead) addStatus(s, t, k.status, p);
+              // 每第 n 下（拿到這個祝福之後才開始數；清空祝福時一起歸零）
+              if (k.every && (s.bless.hits = (s.bless.hits ?? 0) + 1) % k.every.n === 0) blessBurst(s, p, t.x, t.y, k.every.burst, fx.id);
+            }
+          }
         }
       }
     }
@@ -2005,6 +2042,7 @@ export function stateHash(s: BattleState): string {
   if (s.bless) {
     // 只有開祝福時才加入
     mix(s.bless.meter);
+    if (s.bless.hits) mix(s.bless.hits);
     for (const id of s.bless.taken) for (let i = 0; i < id.length; i++) mix(id.charCodeAt(i));
   }
   mix(s.events.length);

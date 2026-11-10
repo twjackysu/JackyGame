@@ -1,5 +1,6 @@
 // 即時戰鬥試玩場景（除錯入口：?debug&scene=RtBattle&stage=forest_entry；D-063／D-065，design/20 §B8 P1）。
 // Phaser 只負責畫 BattleState 與收輸入 → BattleCommand；戰鬥結果全部由 src/core/battle/rt 決定（D-062）。
+import { playBlessProc } from '../fx/blessFx';
 import { onlineLoot } from '../onlineLoot';
 import Phaser from 'phaser';
 import { cdText, hudLine, textColor } from '../hudText';
@@ -1255,16 +1256,9 @@ export class RtBattleScene extends Phaser.Scene {
       if (e.count > 0) bigText(this, GAME_WIDTH / 2, 600, tr('bless.gone'), '#b8a888', 30, 1100, true);
     } else if (this.onScreen(e.x, e.y)) {
       const d = effectDef(e.id, this.s.weapon ?? 'sword');
-      const L = ELEMENT_LOOK[d?.element ?? 'fire'];
       const x = this.sx(e.x);
       const y = this.sy(e.y);
-      const burst = d?.onKill?.burst;
-      if (burst) {
-        // 燼爆：橘紅火星爆炸，圈的大小＝實際波及範圍
-        shockRing(this, x, y, L.color, burst.r * this.k, 300, 10);
-        sparks(this, x, y - 16, getSettings().lowFx ? 8 : 18, 'ember', L.light, 560);
-        this.cameras.main.shake(60, 0.0025);
-      } else shockRing(this, x, y - 24, L.light, 64, 220, 5);
+      playBlessProc(this, d, x, y, (e.r ?? 0) * this.k);
     }
   }
 

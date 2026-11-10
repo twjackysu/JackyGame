@@ -376,7 +376,7 @@ export type BattleEvent =
   | { tick: number; type: 'blessOffer'; ids: string[] }
   | { tick: number; type: 'blessPick'; id: string }
   | { tick: number; type: 'blessClear'; reason: 'rest' | 'down'; count: number }
-  | { tick: number; type: 'blessProc'; id: string; x: number; y: number };
+  | { tick: number; type: 'blessProc'; id: string; x: number; y: number; r?: number };
 
 /** 玩家（或 Bot）的輸入：一個 tick 可以送多個 */
 /** 指令（pid＝哪個玩家下的；沒有＝0，單人的舊呼叫不用改） */
@@ -662,7 +662,7 @@ export interface BattleState extends PlayerCtl {
    * fresh＝有剛選的還沒套到技能上（施放中要等這一招打完，同 RF-01）；mods／vars＝套用後的技能修正與變化打法；
    * critUntil＝「下一擊必暴」的期限
    */
-  bless?: { rng: number; meter: number; taken: string[]; offer?: string[]; rerolls: number; fresh?: boolean; mods?: Record<string, SkillMod>; vars?: Record<string, 1 | 2>; critUntil?: number };
+  bless?: { rng: number; meter: number; taken: string[]; offer?: string[]; rerolls: number; fresh?: boolean; mods?: Record<string, SkillMod>; vars?: Record<string, 1 | 2>; critUntil?: number; hits?: number };
   /** pid 1 以後的玩家的控制狀態（Q6；單人沒有） */
   others?: PlayerCtl[];
 }

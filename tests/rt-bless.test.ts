@@ -271,6 +271,167 @@ describe('燼火祝福核心（P2-a）', () => {
     expect(p.hp).toBe(hp0 + Math.round(p.maxHp * 0.05));
   });
 
+  // ---- 第二批（第 163 輪，D-352） ----
+  /** 一隻不會死的目標狼＋旁邊幾隻（dx 相對目標） */
+  const dummy = (s: BattleState, dx: number, dy = 0): Unit => {
+    const e = wolfAt(s, dx, dy, 99999);
+    e.maxHp = 99999;
+    return e;
+  };
+  const tank = (s: BattleState): Unit => {
+    const p = playerOf(s);
+    p.maxHp = p.hp = 1e6;
+    return p;
+  };
+
+  it('召雷：每第 4 下普攻在目標處落雷，波及旁邊交戰中的敵人；事件帶實際半徑', () => {
+    const s = mk();
+    leaveCamp(s);
+    give(s, 'storm_caller');
+    const p = tank(s);
+    const e = dummy(s, 110);
+    const near = dummy(s, 110 + 150);
+    const far = dummy(s, 110 + 600);
+    p.targetId = e.id;
+    let hits = 0;
+    for (let i = 0; i < 600 && hits < 8; i++) {
+      const from = s.events.length;
+      step(s);
+      const now = s.events.slice(from);
+      const hit = now.some((d) => d.type === 'damage' && d.skill === 'attack' && d.src === p.id);
+      if (hit) hits++;
+      const bolt = now.some((d) => d.type === 'blessProc' && d.id === 'storm_caller');
+      expect(bolt, `第 ${hits} 下`).toBe(hit && hits % 4 === 0);
+    }
+    expect(hits).toBe(8);
+    const procs = evs(s, 'blessProc').filter((d) => d.id === 'storm_caller');
+    expect(procs.length).toBe(2);
+    expect(procs[0]!.r).toBe(EFFECTS.storm_caller!.onAttack!.every!.burst.r);
+    expect(evs(s, 'damage').filter((d) => d.skill === 'storm_caller' && d.dst === e.id).length).toBe(2);
+    expect(evs(s, 'damage').filter((d) => d.skill === 'storm_caller' && d.dst === near.id).length).toBe(2);
+    expect(evs(s, 'damage').some((d) => d.skill === 'storm_caller' && d.dst === far.id)).toBe(false);
+  });
+
+  it('綻光：暴擊時在目標處炸開，只波及「其他」敵人；炸開的傷害不會再炸', () => {
+    const s = mk();
+    leaveCamp(s);
+    give(s, 'crit_bloom', 'shadow_step');
+    const p = tank(s);
+    const e = dummy(s, 110);
+    const near = dummy(s, 110 + 140);
+    p.targetId = e.id;
+    step(s, [{ type: 'dodge', dx: 0, dy: 1 }]);
+    for (let i = 0; i < 60 && !evs(s, 'blessProc').some((d) => d.id === 'crit_bloom'); i++) {
+      p.x = e.x - 110;
+      p.y = e.y;
+      step(s);
+    }
+    const procs = evs(s, 'blessProc').filter((d) => d.id === 'crit_bloom');
+    expect(procs.length, '影步的必暴觸發一次綻光').toBe(1);
+    expect(procs[0]).toMatchObject({ x: e.x, y: e.y, r: EFFECTS.crit_bloom!.onCrit!.burst.r });
+    const bloom = evs(s, 'damage').filter((d) => d.skill === 'crit_bloom' && d.tick === procs[0]!.tick);
+    // 附近被吵醒的狼也可能被波及；重點是旁邊那隻有吃到、暴擊的目標自己沒有
+    expect(bloom.map((d) => d.dst)).toContain(near.id);
+    expect(bloom.map((d) => d.dst)).not.toContain(e.id);
+    expect(bloom.every((d) => !evs(s, 'blessProc').some((q) => q.id === 'crit_bloom' && q.tick === d.tick && q.x !== e.x))).toBe(true);
+  });
+
+  it('殘影：閃避的起點炸開（打到留在原地的敵人），而且不會吃掉影步的必暴', () => {
+    const s = mk();
+    leaveCamp(s);
+    give(s, 'after_image', 'shadow_step');
+    const p = tank(s);
+    const e = dummy(s, 110);
+    const ox = p.x;
+    const oy = p.y;
+    step(s, [{ type: 'dodge', dx: -1, dy: 0 }]);
+    const proc = evs(s, 'blessProc').find((d) => d.id === 'after_image')!;
+    expect(proc).toMatchObject({ x: ox, y: oy, r: EFFECTS.after_image!.onDodge!.burst!.r });
+    expect(evs(s, 'damage').filter((d) => d.skill === 'after_image' && d.dst === e.id).length).toBe(1);
+    expect(s.bless!.critUntil, '必暴還在').toBeGreaterThan(s.tick);
+    // 沒有敵人在旁邊：照樣有殘影（事件），沒有傷害
+    const s2 = mk();
+    give(s2, 'after_image');
+    step(s2, [{ type: 'dodge', dx: 1, dy: 0 }]);
+    expect(evs(s2, 'blessProc').length).toBe(1);
+    expect(evs(s2, 'damage').length).toBe(0);
+  });
+
+  it('震盾：三把武器的護盾招展開時，震傷身邊的敵人並緩速；遠的打不到', () => {
+    for (const w of ['sword', 'bow', 'staff'] as W[]) {
+      const s = mk(w);
+      leaveCamp(s);
+      give(s, 'guard_pulse');
+      const p = tank(s);
+      const e = dummy(s, 150);
+      const far = dummy(s, 0, 700);
+      p.targetId = e.id;
+      const at = { x: p.x, y: p.y };
+      step(s, [{ type: 'skill', id: 'parry' }]);
+      expect(evs(s, 'guard').length, `${w} 護盾有展開`).toBe(1);
+      const proc = evs(s, 'blessProc').find((d) => d.id === 'guard_pulse')!;
+      expect(proc).toMatchObject(at);
+      expect(evs(s, 'damage').some((d) => d.skill === 'guard_pulse' && d.dst === e.id), `${w} 震到身邊的`).toBe(true);
+      expect(e.statuses.some((st) => st.id === 'slow')).toBe(true);
+      expect(evs(s, 'damage').some((d) => d.skill === 'guard_pulse' && d.dst === far.id)).toBe(false);
+    }
+  });
+
+  it('蝕毒：技能命中上中毒（多段會疊層）、之後持續掉血；普攻不會上', () => {
+    const s = mk();
+    leaveCamp(s);
+    give(s, 'venom_skill');
+    const p = tank(s);
+    const e = dummy(s, 110);
+    p.targetId = e.id;
+    for (let i = 0; i < 45; i++) step(s);
+    expect(e.statuses.some((st) => st.id === 'poison'), '普攻不會上毒').toBe(false);
+    step(s, [{ type: 'skill', id: 'heavy_slash' }]);
+    for (let i = 0; i < 20; i++) step(s);
+    expect(e.statuses.find((st) => st.id === 'poison')?.stacks).toBe(1);
+    step(s, [{ type: 'skill', id: 'whirlwind' }]);
+    for (let i = 0; i < 50; i++) step(s);
+    expect(e.statuses.find((st) => st.id === 'poison')!.stacks).toBeGreaterThan(1);
+    expect(evs(s, 'damage').some((d) => d.origin === 'dot' && d.dst === e.id)).toBe(true);
+  });
+
+  it('斬首：對生命低於 30% 的敵人傷害 +50%（高於就沒有）；收掉敵人時有記號', () => {
+    const dmg = (hpPct: number, bless: boolean): number => {
+      const s = mk('sword', true, 11);
+      leaveCamp(s);
+      if (bless) give(s, 'executioner');
+      const p = tank(s);
+      const e = dummy(s, 110);
+      e.hp = Math.round((e.maxHp * hpPct) / 100);
+      p.targetId = e.id;
+      for (let i = 0; i < 40; i++) step(s);
+      const d = evs(s, 'damage').find((x) => x.skill === 'attack' && x.dst === e.id)!;
+      return d.crit ? NaN : d.amount;
+    };
+    const base = dmg(20, false);
+    expect(base).toBeGreaterThan(0);
+    expect(dmg(60, true)).toBe(dmg(60, false));
+    const up = dmg(20, true);
+    expect(up / base).toBeGreaterThan(1.4);
+    expect(up / base).toBeLessThan(1.6);
+    const s = mk();
+    leaveCamp(s);
+    give(s, 'executioner');
+    killWolves(s, 1);
+    expect(evs(s, 'blessProc').filter((d) => d.id === 'executioner').length).toBe(1);
+  });
+
+  it('第二批不改沒拿到的場次：開祝福但沒選這些效果時，雜湊和事件數不受影響（普攻計數只在有召雷時才數）', () => {
+    const s = mk();
+    leaveCamp(s);
+    give(s, 'ember_edge');
+    const e = dummy(s, 110);
+    playerOf(s).targetId = e.id;
+    for (let i = 0; i < 120; i++) step(s);
+    expect(s.bless!.hits).toBeUndefined();
+    expect(evs(s, 'blessProc').length).toBe(0);
+  });
+
   it('試招：這趟改用還沒練到的變化打法；施放到一半選的，這一招照原本的打完（RF-01）', () => {
     for (const w of ['sword', 'bow', 'staff'] as W[]) {
       const s = mk(w);
