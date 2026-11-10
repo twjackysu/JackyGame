@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ARENA_CHARGE, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import { autoPick, cleanAutoSkills } from './auto';
-import { BLESS_RULES, EFFECT_IDS, blessNeed, effectDef, mergeEffectMods, tryVariantId, type EffectBurst, type EffectDef } from './effects';
+import { BLESS_RULES, EFFECT_IDS, EFFECTS, blessNeed, effectDef, mergeEffectMods, tryVariantId, type EffectBurst, type EffectDef } from './effects';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
 import { HIDDEN_GROUP, killXp, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
@@ -98,6 +98,11 @@ export interface BattleSetup {
   night?: boolean;
   /** 燼火祝福（P2，D-343；需要 StageDefinition.bless）。沒給＝沒有祝福（測試、Bot、PvP 預設都不給） */
   bless?: boolean;
+  /**
+   * 裝備上的獨特效果 id（P3，D-354；效果池 effects.ts）：這場永久擁有，和祝福用同一套結算。
+   * 不認得的 id 會被丟掉；競技場不給（獨特效果在 PvP 不生效）。
+   */
+  effects?: readonly string[];
   /** 等級與目前經驗（需要 StageDefinition.progression；預設 1／0） */
   level?: number;
   xp?: number;
@@ -152,6 +157,12 @@ export function createBattle(setup: BattleSetup): BattleState {
   if (setup.bless && stage.bless) {
     s.bless = { rng: ((setup.seed ^ 0x2545f491) >>> 0) || 1, meter: 0, taken: [], rerolls: BLESS_RULES.rerolls };
     for (let i = 0; i < 8; i++) blessRand(s); // 打散初始種子（相鄰的種子第一手不會都一樣）
+  }
+  const perm = [...new Set(setup.effects ?? [])].filter((id) => !stage.pvp && Object.prototype.hasOwnProperty.call(EFFECTS, id));
+  if (perm.length) {
+    s.bless ??= { rng: 1, meter: 0, taken: [], rerolls: 0, off: true };
+    s.bless.perm = perm;
+    applyBless(s);
   }
   stage.enemies.forEach((_, i) => s.units.push(makeFixed(s, stage, i)));
   for (const g of stage.spawnGroups ?? []) {
@@ -589,11 +600,15 @@ function blessRand(s: BattleState): number {
 const NO_EFFECTS: readonly EffectDef[] = [];
 function blessEffects(s: BattleState): readonly EffectDef[] {
   const b = s.bless;
-  if (!b || b.taken.length === 0) return NO_EFFECTS;
+  if (!b || (b.taken.length === 0 && !b.perm)) return NO_EFFECTS;
   const out: EffectDef[] = [];
-  for (const id of b.taken) {
+  for (const id of b.perm ?? []) {
     const d = effectDef(id, s.weapon ?? 'sword');
     if (d) out.push(d);
+  }
+  for (const id of b.taken) {
+    const d = effectDef(id, s.weapon ?? 'sword');
+    if (d && !b.perm?.includes(id)) out.push(d);
   }
   return out;
 }
@@ -626,7 +641,7 @@ const chosenIdx = (s: BattleState, id: string): 0 | 1 | 2 => (s.skillVariants?.i
 function rollBlessOffer(s: BattleState, avoid: readonly string[] = []): string[] {
   const b = s.bless!;
   const w = WEAPONS[s.weapon ?? 'sword'];
-  const ok = (id: string): boolean => !b.taken.includes(id);
+  const ok = (id: string): boolean => !b.taken.includes(id) && !b.perm?.includes(id);
   const fixed = EFFECT_IDS.filter((id) => ok(id) && (!effectDef(id)!.weapons || effectDef(id)!.weapons!.includes(w.id)));
   const tries: string[] = [];
   for (const skill of Object.keys(w.skills)) {
@@ -661,7 +676,7 @@ function rollBlessOffer(s: BattleState, avoid: readonly string[] = []): string[]
 /** 計量滿了就出三選一（已經有一手在等、或這趟拿滿了就不出） */
 function maybeBlessOffer(s: BattleState): void {
   const b = s.bless!;
-  if (b.offer || b.taken.length >= BLESS_RULES.max || b.meter < blessNeed(b.taken.length)) return;
+  if (b.off || b.offer || b.taken.length >= BLESS_RULES.max || b.meter < blessNeed(b.taken.length)) return;
   const ids = rollBlessOffer(s);
   if (!ids.length) return;
   b.offer = ids;
@@ -698,6 +713,11 @@ function clearBless(s: BattleState, reason: 'rest' | 'down'): void {
   if (!b || (b.taken.length === 0 && b.meter === 0 && !b.offer)) return;
   const count = b.taken.length;
   s.bless = { rng: b.rng, meter: 0, taken: [], rerolls: BLESS_RULES.rerolls };
+  if (b.perm) {
+    // 裝備的獨特效果留著（技能修正重新套一次）
+    s.bless.perm = b.perm;
+    applyBless(s);
+  }
   emit(s, { tick: s.tick, type: 'blessClear', reason, count });
 }
 
@@ -720,7 +740,7 @@ function blessBurst(s: BattleState, p: Unit, x: number, y: number, k: EffectBurs
 /** 主角打倒敵人：累積計量、觸發擊殺效果（爆炸可以連鎖，最多四層） */
 function blessKill(s: BattleState, p: Unit, dead: Unit): void {
   const b = s.bless!;
-  if (!dead.summonedBy) b.meter += dead.tier === 'boss' ? 5 : dead.tier === 'elite' ? 2 : 1;
+  if (!dead.summonedBy && !b.off) b.meter += dead.tier === 'boss' ? 5 : dead.tier === 'elite' ? 2 : 1;
   for (const e of blessEffects(s)) {
     const k = e.onKill;
     if (!k) continue;
@@ -2043,6 +2063,7 @@ export function stateHash(s: BattleState): string {
     // 只有開祝福時才加入
     mix(s.bless.meter);
     if (s.bless.hits) mix(s.bless.hits);
+    for (const id of s.bless.perm ?? []) for (let i = 0; i < id.length; i++) mix(id.charCodeAt(i) + 7);
     for (const id of s.bless.taken) for (let i = 0; i < id.length; i++) mix(id.charCodeAt(i));
   }
   mix(s.events.length);

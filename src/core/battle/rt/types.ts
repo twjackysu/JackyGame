@@ -660,9 +660,11 @@ export interface BattleState extends PlayerCtl {
    * 燼火祝福（P2，D-343；只有 BattleSetup.bless 且關卡允許才有）：這趟暫時擁有的效果。
    * rng＝獨立亂數（不動戰鬥亂數）；meter＝累積的擊殺點數；taken＝已選的效果 id；offer＝等玩家選的三張；
    * fresh＝有剛選的還沒套到技能上（施放中要等這一招打完，同 RF-01）；mods／vars＝套用後的技能修正與變化打法；
-   * critUntil＝「下一擊必暴」的期限
+   * critUntil＝「下一擊必暴」的期限；hits＝召雷的普攻計數
+   * perm＝裝備上的獨特效果（P3，D-354；永久：休息／倒下不會清掉、不佔一趟 8 個的名額、三選一不會再出現同一個）；
+   * off＝這場沒開祝福（關卡不允許或沒給 BattleSetup.bless），只是為了讓 perm 生效才有這個物件：不累積計量、不出三選一
    */
-  bless?: { rng: number; meter: number; taken: string[]; offer?: string[]; rerolls: number; fresh?: boolean; mods?: Record<string, SkillMod>; vars?: Record<string, 1 | 2>; critUntil?: number; hits?: number };
+  bless?: { rng: number; meter: number; taken: string[]; perm?: string[]; off?: true; offer?: string[]; rerolls: number; fresh?: boolean; mods?: Record<string, SkillMod>; vars?: Record<string, 1 | 2>; critUntil?: number; hits?: number };
   /** pid 1 以後的玩家的控制狀態（Q6；單人沒有） */
   others?: PlayerCtl[];
 }
