@@ -1,0 +1,45 @@
+// 量「清怪效率」：每條獨特效果單獨帶著，普通 Bot（五欄自動、不直衝 Boss）5 模擬分鐘內打倒幾隻。
+// 用法：cp scripts/probe-clear-speed.test.ts.txt tests/tmp/clear.test.ts && SEEDS=6 npx vitest run tests/tmp/clear.test.ts --silent=false
+//（環境變數 STAGES=mistwood,starfall、OFF=種子位移；跑完把 tests/tmp 刪掉。同一格換種子重跑的雜訊約 ±2 隻。）
+import { it } from 'vitest';
+import { AUTO_SKILL_DEFAULT } from '../../src/core/battle/rt/auto';
+import { STAGES } from '../../src/core/battle/rt/data';
+import { createBattle, step } from '../../src/core/battle/rt/engine';
+import { UNIQUE_IDS } from '../../src/core/battle/rt/gear';
+import { stageDef, WORLD_ORDER } from '../../src/core/battle/rt/maps/world';
+import { BOT_PROFILES, PlayerBot } from '../../src/core/battle/rt/sim';
+
+const LV: Record<string, number> = { mistwood: 4, thornvale: 8, emberrift: 13, starfall: 18 };
+const SEEDS = Number(process.env.SEEDS ?? 3);
+const TICKS = 30 * 60 * 5;
+function run(stageId: string, weapon: string, seed: number, effects: string[]): { kills: number; deaths: number } {
+  const s = createBattle({ stageId, seed, level: LV[stageId]!, weapon, autoSkills: [...AUTO_SKILL_DEFAULT], ...(effects.length ? { effects } : {}) } as never);
+  const bot = new PlayerBot({ ...BOT_PROFILES.normal, potionAtPct: 35, campfireBelowPotions: 2 }, 'normal');
+  let kills = 0;
+  let seen = 0;
+  for (let i = 0; i < TICKS && s.outcome === 'running'; i++) {
+    step(s, bot.decide(s).filter((c) => c.type !== 'skill'));
+    for (; seen < s.events.length; seen++) {
+      const e = s.events[seen] as { type: string; id?: number };
+      if (e.type === 'death' && s.units.find((x) => x.id === e.id)?.team !== 0) kills++;
+    }
+  }
+  return { kills, deaths: s.revives ?? 0 };
+}
+it('clear', () => {
+  for (const id of WORLD_ORDER) STAGES[id] = stageDef(id)!;
+  for (const st of (process.env.STAGES ?? WORLD_ORDER.join(',')).split(',')) {
+    const line: string[] = [st];
+    for (const fx of ['', ...UNIQUE_IDS]) {
+      let k = 0;
+      let d = 0;
+      for (const w of ['sword', 'bow', 'staff']) for (let seed = 1; seed <= SEEDS; seed++) {
+        const r = run(st, w, seed * 101 + Number(process.env.OFF ?? 0), fx ? [fx] : []);
+        k += r.kills;
+        d += r.deaths;
+      }
+      line.push(`${fx || 'none'}=${(k / (3 * SEEDS)).toFixed(1)}/${d}`);
+    }
+    console.log(line.join(' '));
+  }
+}, 3_000_000);
