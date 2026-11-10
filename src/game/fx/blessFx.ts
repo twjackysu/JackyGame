@@ -3,6 +3,7 @@
 // 元素視覺語言照工程原則：火＝橘紅火星爆炸、雷＝藍白電弧、光＝金白光環、暗＝深紫暗影、物理＝衝擊波碎片。
 import Phaser from 'phaser';
 import type { EffectDef } from '../../core/battle/rt/effects';
+import { SFX } from '../../audio/sfx';
 import { getSettings } from '../settings';
 import { ELEMENT_LOOK } from './effectIcon';
 import { shockRing, sparks } from './feel';
@@ -16,6 +17,8 @@ export function playBlessProc(sc: Phaser.Scene, d: EffectDef | undefined, x: num
   const lite = getSettings().lowFx;
   const L = ELEMENT_LOOK[d?.element ?? 'fire'];
   const add = (): Phaser.GameObjects.Graphics => sc.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
+  // 音效照演出的種類（第 165 輪；以前觸發只有畫面沒有聲音）
+  SFX.blessProc(d?.onAttack?.every ? 'thunder' : d?.onCrit ? 'bloom' : d?.onDodge?.burst ? 'shadow' : d?.onGuard ? 'pulse' : d?.execute ? 'slash' : R > 0 ? 'burst' : 'tick');
   if (d?.onAttack?.every) {
     // 召雷：天上劈下一道藍白閃電，落點一圈電光（圈＝實際波及範圍）
     const g = add();

@@ -184,6 +184,9 @@ export function playSfx(p: SfxParams = {}): void {
   src.stop(t0 + total + 0.05);
 }
 
+/** blessProc 的節流：每一種上次播放的時間（ms） */
+const procAt: Record<string, number> = {};
+
 /** Ready-made presets. */
 export const SFX = {
   /** 觀眾歡呼：一團低通雜訊（人聲）＋隨機拍手 */
@@ -253,6 +256,48 @@ export const SFX = {
   hitHeavy: (): void => {
     playSfx({ wave: 'noise', freq: 700, freqEnd: 60, sustain: 0.04, release: 0.3, volume: 0.6, lowpass: 1800 });
     playSfx({ wave: 'sine', freq: 120, freqEnd: 35, sustain: 0.05, release: 0.35, volume: 0.6 });
+  },
+  /** 燼火祝福（第 165 輪）：計量滿了、三選一面板打開——火苗「呼」一聲＋往上兩個音 */
+  blessOffer: (): void => {
+    playSfx({ wave: 'noise', freq: 500, freqEnd: 2200, attack: 0.08, sustain: 0.05, release: 0.25, volume: 0.2, lowpass: 3000 });
+    [587.33, 880].forEach((f, i) => playSfx({ wave: 'triangle', freq: f, sustain: 0.05, release: 0.35, volume: 0.22, delay: 0.1 + i * 0.11 }));
+  },
+  /** 選定一個祝福：暖的和弦＋低音一拍（「變強了」） */
+  blessPick: (): void => {
+    [392, 587.33, 783.99].forEach((f) => playSfx({ wave: 'triangle', freq: f, attack: 0.01, sustain: 0.08, release: 0.5, volume: 0.2 }));
+    playSfx({ wave: 'sine', freq: 98, freqEnd: 82, sustain: 0.08, release: 0.5, volume: 0.35 });
+    playSfx({ wave: 'sine', freq: 1568, sustain: 0.03, release: 0.5, volume: 0.14, vibrato: 6, vibratoRate: 8, delay: 0.08 });
+  },
+  /**
+   * 祝福／獨特效果觸發（照演出的種類，不是照 id）：短、小聲，同一種 0.14 秒內不重播（自動施放時一秒可能觸發好幾次）。
+   * thunder＝召雷、bloom＝綻光、shadow＝殘影、pulse＝震盾、slash＝斬首、burst＝燼爆等範圍爆炸、tick＝其他
+   */
+  blessProc: (kind: 'thunder' | 'bloom' | 'shadow' | 'pulse' | 'slash' | 'burst' | 'tick'): void => {
+    const now = Date.now();
+    if (now - (procAt[kind] ?? 0) < 140) return;
+    procAt[kind] = now;
+    if (kind === 'thunder') {
+      playSfx({ wave: 'noise', freq: 5200, freqEnd: 700, sustain: 0.01, release: 0.16, volume: 0.3, lowpass: 8000 });
+      playSfx({ wave: 'sawtooth', freq: 1400, freqEnd: 90, sustain: 0.01, release: 0.12, volume: 0.14, lowpass: 3600 });
+      playSfx({ wave: 'sine', freq: 90, freqEnd: 40, sustain: 0.03, release: 0.3, volume: 0.3, delay: 0.03 });
+    } else if (kind === 'bloom') {
+      playSfx({ wave: 'sine', freq: 1318.5, sustain: 0.02, release: 0.28, volume: 0.16 });
+      playSfx({ wave: 'triangle', freq: 1975.5, sustain: 0.01, release: 0.22, volume: 0.1, delay: 0.03 });
+      playSfx({ wave: 'noise', freq: 3000, freqEnd: 6000, sustain: 0.01, release: 0.1, volume: 0.07, lowpass: 9000 });
+    } else if (kind === 'shadow') {
+      playSfx({ wave: 'noise', freq: 1600, freqEnd: 200, attack: 0.02, sustain: 0.03, release: 0.25, volume: 0.24, lowpass: 1800 });
+      playSfx({ wave: 'sawtooth', freq: 160, freqEnd: 55, sustain: 0.04, release: 0.28, volume: 0.16, lowpass: 700 });
+    } else if (kind === 'pulse') {
+      playSfx({ wave: 'sine', freq: 150, freqEnd: 48, sustain: 0.04, release: 0.3, volume: 0.4 });
+      playSfx({ wave: 'noise', freq: 900, freqEnd: 200, sustain: 0.02, release: 0.2, volume: 0.22, lowpass: 1500 });
+      playSfx({ wave: 'square', freq: 1800, freqEnd: 1200, sustain: 0.005, release: 0.08, volume: 0.07, lowpass: 5000 });
+    } else if (kind === 'slash') {
+      playSfx({ wave: 'noise', freq: 6000, freqEnd: 1500, sustain: 0.005, release: 0.09, volume: 0.22, lowpass: 9000 });
+      playSfx({ wave: 'square', freq: 2600, freqEnd: 1900, sustain: 0.005, release: 0.12, volume: 0.09, lowpass: 6000, delay: 0.02 });
+    } else if (kind === 'burst') {
+      playSfx({ wave: 'noise', freq: 1200, freqEnd: 100, sustain: 0.03, release: 0.3, volume: 0.32, lowpass: 2200 });
+      playSfx({ wave: 'sine', freq: 130, freqEnd: 45, sustain: 0.03, release: 0.28, volume: 0.32 });
+    } else playSfx({ wave: 'triangle', freq: 990, freqEnd: 1320, sustain: 0.01, release: 0.1, volume: 0.1 });
   },
   /** 獨特裝備掉下來（P3-b）：低一聲鐘＋往上三個音，和稀有的單音分得開 */
   uniqueDrop: (): void => {

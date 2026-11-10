@@ -55,7 +55,7 @@ export function openBlessPanel(scene: Phaser.Scene, offer: readonly EffectDef[],
       ev.stopPropagation();
       if (done || !armed()) return;
       done = true;
-      SFX.confirm();
+      SFX.uiTap(); // 選定的音效在場景收到 blessPick 時播（SFX.blessPick）
       scene.tweens.add({ targets: card, scale: 1.06, duration: 140, yoyo: true, onComplete: () => onPick(i) });
     });
   });

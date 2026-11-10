@@ -1173,7 +1173,7 @@ export class RtBattleScene extends Phaser.Scene {
     const b = this.s.bless;
     if (!b || this.menu) return;
     this.cameras.main.resetFX();
-    SFX.perfect();
+    SFX.blessOffer();
     this.blessRoot?.destroy(); // 上一張面板被別的面板蓋掉沒關到（例：討伐後的抉擇剛好跳出來）
     const send = (c: BattleCommand): void => {
       this.blessSent = offer;
@@ -1259,6 +1259,7 @@ export class RtBattleScene extends Phaser.Scene {
       const L = ELEMENT_LOOK[d.element];
       const px = this.sx(p.x);
       const py = this.sy(p.y);
+      SFX.blessPick();
       shockRing(this, px, py, L.color, 190, 520, 9);
       shockRing(this, px, py, L.light, 110, 380, 5);
       sparks(this, px, py - 30, getSettings().lowFx ? 10 : 22, 'ember', L.light, 520);
