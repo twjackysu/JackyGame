@@ -56,6 +56,8 @@ describe('兩個客戶端走完線上的一天（HTTP）', () => {
     const boss = await a.call('loot.claim', { characterId: A.id, battleId: ba.battleId, killSeq: 1, enemyId: 'wolf_king', fixedIdx: 0 });
     const rare = boss.drops.find((d) => d.kind === 'gear' && d.rarity === 3);
     expect(rare?.itemId).toBeTruthy();
+    // 第一次打倒 Boss 保底的那件是獨特效果裝備（P3，D-356）；下面拍賣所、面對面交易一路帶著那條效果
+    expect(rare?.unique).toBeTruthy();
     // 同一隻 Boss 馬上再申請：數量上限擋下
     expect(await code(a.call('loot.claim', { characterId: A.id, battleId: ba.battleId, killSeq: 2, enemyId: 'wolf_king', fixedIdx: 0 }))).toBe('rejected');
     const bb = await b.call('battle.start', { characterId: B.id, stageId: 'mistwood' });
@@ -77,6 +79,8 @@ describe('兩個客戶端走完線上的一天（HTTP）', () => {
     const bought = await b.call('market.buy', { characterId: B.id, listingId: l!.id });
     expect(bought.wallet.coin).toBe(coinB0 - price);
     expect(bought.items.some((i) => i.id === rare!.itemId && i.location === 'bag')).toBe(true);
+    expect((l!.gear as { unique?: string }).unique).toBe(rare!.unique);
+    expect((bought.items.find((i) => i.id === rare!.itemId)!.gear as { unique?: string }).unique).toBe(rare!.unique);
     const meA = await a.call('character.get', { id: A.id });
     expect(meA.wallet.coin).toBe(coinA0 - listFee(price) + sellerGets(price));
     expect(meA.items.some((i) => i.id === rare!.itemId)).toBe(false);
@@ -102,6 +106,7 @@ describe('兩個客戶端走完線上的一天（HTTP）', () => {
     const fa = await a.call('character.get', { id: A.id });
     const fb = await b.call('character.get', { id: B.id });
     expect(fa.items.some((i) => i.id === rare!.itemId && i.location === 'bag')).toBe(true);
+    expect((fa.items.find((i) => i.id === rare!.itemId)!.gear as { unique?: string }).unique).toBe(rare!.unique);
     expect(fb.items.some((i) => i.id === rare!.itemId)).toBe(false);
     // 金幣守恆：兩人總和＝打怪拿到的 − 上架費 − 拍賣所抽成
     expect(fa.wallet.coin + fb.wallet.coin).toBe(coinA0 + coinB0 - listFee(price) - (price - sellerGets(price)));
