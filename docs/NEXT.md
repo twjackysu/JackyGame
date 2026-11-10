@@ -17,8 +17,17 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 163 輪注意（效果池第二批、祝福擴圖、P3-a1）**：
+- **下一輪：P3-a2**（下面 P1～P3 表）。之後 P3-b（掉落演出與來源分層）、P3-c（圖鑑）、P3-d（交易、PvP 標示、平衡）。
+- 加新效果的地方：資料 `effects.ts`；觸發在 `engine.ts`——範圍傷害一律走 `blessBurst(s, p, x, y, burst, id, skip?)`（事件自動帶半徑；`burstDepth > 0` 時暴擊不再觸發綻光）；圖示 `fx/effectIcon.ts`（`glyph` 現在是 1｜2，同元素最多三種）；演出 `fx/blessFx.ts` 的 `playBlessProc`（照效果的欄位分支，不是照 id）。
+- 裝備效果與祝福的差別全在 `s.bless.perm`／`off`（D-354）。`blessEffects(s)` 回「裝備＋祝福」；多人（pid ≥ 1）的隊友沒有任何效果（現有限制，沿用）。
+- 量測腳本沒進 git（`screenshots/probe.test.ts.txt`、這輪的 `probe2`）：搬到 `tests/tmp/*.test.ts` 用 `npx vitest run 檔名 --silent=false` 跑；`probe2` 的寫法＝`createBattle({ bless, level, autoSkills })`＋普通 Bot `advanceTo` Boss、指令濾掉 `skill`，記 `blessOffer` 的秒數與王戰時間。
+- 截演出：`screenshots/bfx.mjs`（沒進 git）——進場後 `loop.sleep()`，直接呼叫 `sc().playBlessEvent({ type: 'blessProc', id, x, y, r })` 再手動推 3／9 幀；`page.screenshot` 要給 `timeout: 90000`（軟體 WebGL 很慢）。
+- 沒做：新效果沒有各自的音效（現在只有畫面）；深夜下的演出沒截圖；祝福清單帶滿 8 個新圖示的版面沒重截（版面程式沒動）。
+- 荊棘谷直衝 Boss 的 Bot 常常一個祝福都沒拿到就開王（路短）；真人實測若也這樣，可以把第一個門檻降到 2 或在入口多放一組怪。
+
 **第 162 輪注意（P1-c2 上線、祝福）**：
-- **下一輪從 P2-c 剩下的開始**（①「刷滿 6～8 個祝福再打狼王」的強度 ②每個效果單獨比，種子 ≥12）；⑤清單、③節奏這輪做了（D-351）。之後 P2-d、P3-a。
+- ~~下一輪從 P2-c 剩下的開始~~（第 163 輪做完，見上）。
 - 冒險地圖的第 3 欄九招可以單獨調，不會動到競技場（競技場用 `data.ts` 的 `ARENA_CHARGE`；`skillDef` 在 `s.pvp` 時回那份）。要測位移招就開 `pvp_arena` 的場次＋`addPlayer(s, { team: 1 })`。
 - **無裝備長弓在燼紅裂谷偏弱**：Lv5 普通 Bot 10 種子只有 4 勝（換招前也是 4；劍 10、杖 9）。campaign 測試因此常多跑一兩趟（每趟超時 +15 分鐘，總時間不能直接比）。想處理的話先看 Bot 是被什麼打死，再決定調縛足箭還是弓的護盾；量法：臨時測試跑 `createBattle({ stageId: 'emberrift', level: 5, weapon })`＋`advanceTo` 的普通 Bot × 10 種子數勝場。
 - 祝福節奏的量法：`createBattle({ bless: true, autoSkills: [...AUTO_SKILL_DEFAULT] })`＋普通 Bot 的指令濾掉 `skill`、有 `s.bless.offer` 就送 `{ type: 'bless', pick: 0 }`，記每個 `blessOffer` 事件的秒數。第二到第三個之間的 130～250 秒是走路（入口 → 下一片怪區），P2-d 擴圖時看要不要在路上多放一組怪。
@@ -49,9 +58,10 @@
 | P1-b | 自動施放收尾 | Jacky 已回饋 → 併入最上面的 P1-c／P1-d | superseded |
 | **P2-a** | 效果池＋祝福核心（`src/core/battle/rt/effects.ts`、`BattleState.bless`） | 每個效果的行為測試、可重播、不開的場次雜湊不變 | **verified**（第 158 輪，D-343；`tests/rt-bless.test.ts` 13 項） |
 | **P2-b** | 祝福畫面：三選一面板、HUD 計量與圖示、選到／觸發／消散的演出；霧語森林開放 | 390／360 寬、深夜＋省電截圖；實際點擊（換一批、選第二張） | **verified**（第 158 輪；`docs/screenshots/p2-bless-sample.jpg`）；**好不好玩 `awaiting_visual`（等 Jacky 實機）** |
-| P2-c | 小樣驗證與調整（**第 162 輪做了 ③ 節奏 3／4／5／5／6／6（D-351）與 ⑤ 點火苗列出祝福**；剩 ①②⑥）：①用「刷滿 6～8 個祝福再打狼王」的 Bot 條件比討伐時間（現在的通關 Bot 直衝，一趟只拿 1～3 個，量不出強度）②每個效果單獨比過一次（第 158 輪，normal Bot 6 級直衝狼王、4 種子、祝福固定在身上；**雜訊很大**，王戰同一組設定種子間就差 ±30 秒）：不帶 長劍／弓／杖王戰 123／141／201 秒；八個全帶 76／113／89 秒（約快四成）；單一效果最突出的是餘燼之刃（已 20% → 15%），其餘分不出高下——要量得準得加種子數（≥12）或改量「清一組 5 隻狼的秒數」；燼爆對直衝的 Bot 幾乎沒用（一次只拉一組），真人拉多隻時才看得出來③實際玩 10 分鐘看節奏（現在 3／5／7／8／9／10 點）④~~手上有祝福時點營火休息先問一句~~（第 158 輪做了：第一下提醒、6 秒內再點才休息；鍵盤／其他休息入口沒有，只有點營火這一條路）⑤HUD 圖示只有圖沒有名字——點一下列出身上的祝福；同元素的圖示再分清楚 ⑥看 Jacky 的回饋 | 數據表；Jacky 的回饋優先 | in_progress |
-| P2-d | 擴到其他三張圖與深夜／暴怒 Boss（小樣好玩才擴） | campaign 全綠 | todo |
-| P3-a | 獨特效果裝備（P2 小樣驗證後）：裝備多一條 `unique`（從效果池取），8～10 條；伺服器端產生與擲骰；存檔版本與遷移；`isGear` 檢查 | 每條行為測試；舊存檔不壞；契約測試 | todo |
+| P2-c | 小樣驗證與調整 | 數據表；Jacky 的回饋優先 | **verified**（第 163 輪，D-352）：①②強度量完（12 種子，數據在 D-352）、③節奏（D-351）、④休息前提醒、⑤清單；效果池 8 → 14（`docs/screenshots/p2c-bless-batch2.jpg`）。**好不好玩仍等 Jacky 實機**，他有回饋就照改 |
+| P2-d | 擴到其他三張圖與深夜／暴怒 Boss | campaign 全綠 | **verified**（第 163 輪，D-353；四張圖白天＋深夜都開，`tests/rt-bless.test.ts`；Bot 帶／不帶比較在 D-353） |
+| P3-a1 | 獨特效果的戰鬥核心＋物品欄位：`BattleSetup.effects`／`setEffects`、`RtGear.unique`、`isGear`、`gearEffects` | 行為測試；不給效果時雜湊不變 | **verified**（第 163 輪，D-354；`tests/rt-unique-effects.test.ts` 7 項）。還沒有任何物品帶效果，玩起來沒差別 |
+| **P3-a2** | **← 下一輪從這裡開始**。讓獨特裝備真的出現並生效：①`genGear` 的 `opts.unique`（亂數接在最後抽，舊種子的結果不變）＋專屬名稱 ②掉落擲骰在 core 的 `rollDrops`／伺服器 `loot.claim`（來源先只開 Boss 與隱藏精英，機率寫成資料表）③場景 `createBattle` 帶 `effects: gearEffects(裝備)`、換裝時 `setEffects`（`RtBattleScene` 裡 5 處 `setSkillMods(this.s, this.allMods(...))` 旁邊）④`s.bless.off` 時 HUD 不畫火苗（現在四張圖都開祝福所以遇不到，但舊關卡會）⑤行囊／裝備說明顯示那條效果（`effectDef(id, 武器).desc`＋`drawEffectIcon`）⑥舊存檔不用遷移（新欄位是選填），補一個「舊存檔讀得進來」的測試；`migrate.*` 照現有信任模型原樣帶 `unique`（和數值一樣信本機存檔）——要不要改成濾掉，P3-d 一起決定 | 每條行為測試；舊存檔不壞；契約測試；行囊截圖 | todo |
 | P3-b | 掉落演出（專屬名稱、光效、音效、取得提示）＋掉落來源分層（精英／隱藏精英／Boss／暴怒／深夜；參考 `docs/wiki/monsters.md` 成品表） | 截圖；一般稀有與獨特一眼分得出來 | todo |
 | P3-c | 效果圖鑑（已取得／未取得／來源）＝ RF-09 的「下一趟去哪」；打贏特定 Boss 把效果解鎖進祝福池 | 截圖 | todo |
 | P3-d | 交易市場顯示與交易獨特裝備；**PvP 預設不生效並在介面標明**（記 DECISIONS、FOR_JACKY 一行）；Bot 比有無效果的討伐時間 | 契約測試、平衡表 | todo |
