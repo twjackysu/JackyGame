@@ -61,7 +61,11 @@ describe('燼火祝福核心（P2-a）', () => {
     for (const id of EFFECT_IDS) {
       const d = EFFECTS[id]!;
       expect(d.name.length).toBeGreaterThan(0);
-      expect(d.desc.length, `${id} 的說明手機上要看得完`).toBeLessThanOrEqual(24);
+      for (const w of ['sword', 'bow', 'staff'] as W[]) {
+        const desc = effectDef(id, w)!.desc;
+        expect(desc.length, `${id} 的說明手機上要看得完`).toBeLessThanOrEqual(26);
+        expect(desc, '招式名換好了').not.toContain('{');
+      }
       expect(['fire', 'ice', 'thunder', 'poison', 'phys', 'light', 'dark']).toContain(d.element);
     }
     for (const w of ['sword', 'bow', 'staff'] as W[])

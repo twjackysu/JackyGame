@@ -19,6 +19,9 @@ import { AFFIX_COLOR, drawMinimap } from '../rt/MinimapSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
 import { cardSummary, grantCard, openEmberCardPanel, syncChestCards } from '../ui/emberCardPanel';
+import { openBlessPanel } from '../ui/blessPanel';
+import { BLESS_RULES, blessNeed, effectDef, type EffectDef } from '../../core/battle/rt/effects';
+import { ELEMENT_LOOK, drawEffectIcon } from '../fx/effectIcon';
 import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
 import { skillModsOf } from '../rtBag';
@@ -367,6 +370,13 @@ export class RtBattleScene extends Phaser.Scene {
   private tipCalmUntil = 0;
   /** 第 78 輪：燼紅裂谷首次討伐後等著播通關演出（星隕高原等「番外　完」卡）——教學小字先不講（以前「大招充滿了！」在結語和演出之間冒出來，馬上被演出蓋掉） */
   private storySoon = false;
+  /** 燼火祝福（P2，D-343）：已經送出選擇的那一手（等 core 處理，不要重開面板）／看到新的一手的時間／HUD 計量字 */
+  private blessSent: string[] | null = null;
+  private blessSeen: string[] | null = null;
+  private blessAt = 0;
+  private blessSentAt = 0;
+  private blessRoot: Phaser.GameObjects.Container | null = null;
+  private blessTxt: Phaser.GameObjects.Text | null = null;
   /** 第幾次開場（場景重啟後舊的開場回呼作廢） */
   private openRun = 0;
   private nightRun = 0;
@@ -510,7 +520,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec0 = this.tracked || big ? loadRecord(this.stageId) : {};
     this.bagSt = this.tracked || big ? cleanBag(rec0) : { bag: [], equip: {} };
     this.runSalt = (((rec0.runs ?? 0) + 1) * 2654435761 + this.seed * 40503) >>> 0;
-    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined, autoSkills: this.bot ? undefined : getSettings().autoSkills });
+    this.s = createBattle({ stageId: this.stageId, seed: this.seed, level: rec0.level, xp: rec0.xp, bonus: this.tracked || big ? bonusOf(this.bagSt) : undefined, skillMods: this.tracked ? mergeMods(skillModsOf(this.bagSt), rankMods(cleanRanks(rec0.skills, rec0.level ?? 1))) : big ? skillModsOf(this.bagSt) : undefined, skillVariants: this.tracked ? cleanVariants(rec0.variants, cleanRanks(rec0.skills, rec0.level ?? 1)) : undefined, night: this.tracked && !!rec0.night && nightUnlocked(rec0), weapon: this.tracked || worldMap(this.stageId) ? weaponSetup(loadWeapon()) : undefined, autoSkills: this.bot ? undefined : getSettings().autoSkills, bless: this.tracked && !this.bot });
     if (this.tracked && !this.bot) onlineLoot.start(this.stageId, !!this.s.night, loadWeapon(), (done, defId, drops) => this.onlineBounty(done, defId, drops));
     this.ctl = loadControls();
     this.saved = EMPTY_SNAP;
@@ -746,6 +756,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.tipBusy = false; // 場景重啟不會重建物件：上一場排的 delayedCall 已被清掉，要手動歸零
     this.tipCalmUntil = 0;
     this.storySoon = false;
+    this.blessSent = null; this.blessSeen = null; this.blessTxt = null; this.blessRoot = null;
     this.paws = [];
     this.pawLast.clear();
     { const en = loadEncounters(); const on = this.tracked && !this.bot; if (on) leftMapsExcept(this.stageId); this.encOpen = on ? openEncounters(en, this.stageId) : []; this.encThanks = on ? pendingThanks(en, this.stageId) : []; this.encDone = []; this.encStay = []; this.encLeave = []; this.escort = null; this.encAt.clear(); }
@@ -943,6 +954,16 @@ export class RtBattleScene extends Phaser.Scene {
       return;
     }
     this.drawnOnce = true;
+    // 燼火祝福：core 出了一手三選一 → 讓擊殺的演出先播 0.4 秒再跳面板（面板開著＝戰鬥暫停）；討伐大字／劇情期間先等
+    const bo = this.s.bless?.offer;
+    // 送出的選擇 1.5 秒後 core 還沒處理（指令被別的流程清掉）→ 當作沒送，重新開面板
+    if (bo && bo === this.blessSent && this.time.now - this.blessSentAt > 1500) this.blessSent = null;
+    if (bo && bo !== this.blessSent && !this.storySoon && this.time.now >= this.slainUntil) {
+      if (this.blessSeen !== bo) {
+        this.blessSeen = bo;
+        this.blessAt = this.time.now + (this.blessSent ? 0 : 400);
+      } else if (this.time.now >= this.blessAt) this.openBless(bo);
+    }
     let dt = Math.min(delta, 250);
     if (this.slowMs > 0) {
       this.slowMs = Math.max(0, this.slowMs - dt);
@@ -1096,6 +1117,90 @@ export class RtBattleScene extends Phaser.Scene {
       // 自動施放開關（P1，D-342）：每台裝置一份設定；馬上套用到這一場（Bot 示範不吃）
       this.bot ? undefined : { ids: getSettings().autoSkills, change: (ids) => setAutoSkills(this.s, updateSettings({ autoSkills: ids }).autoSkills) },
     );
+  }
+
+  // ---------- 燼火祝福（P2，D-343）：規則與結算都在 core，這裡只開面板、送選擇、演出 ----------
+  private blessDefs(ids: readonly string[]): EffectDef[] {
+    const w = this.s.weapon ?? 'sword';
+    return ids.map((id) => effectDef(id, w)).filter((d): d is EffectDef => !!d);
+  }
+
+  private openBless(offer: string[]): void {
+    const b = this.s.bless;
+    if (!b || this.menu) return;
+    this.cameras.main.resetFX();
+    SFX.perfect();
+    this.blessRoot?.destroy(); // 上一張面板被別的面板蓋掉沒關到（例：討伐後的抉擇剛好跳出來）
+    const send = (c: BattleCommand): void => {
+      this.blessSent = offer;
+      this.blessSentAt = this.time.now;
+      this.inp.push(c);
+      // 這張面板可能已經不是 this.menu（被後來的面板換掉）：只關自己的
+      root.destroy();
+      this.blessRoot = null;
+      if (this.menu === root) this.menu = null;
+    };
+    const root = openBlessPanel(this, this.blessDefs(offer), this.blessDefs(b.taken), b.rerolls, (i) => send({ type: 'bless', pick: i }), () => send({ type: 'bless', reroll: true }));
+    this.blessRoot = root;
+    this.menu = root;
+  }
+
+  private drawBlessHud(g: Phaser.GameObjects.Graphics): void {
+    const b = this.s.bless;
+    if (!b) return;
+    const full = b.taken.length >= BLESS_RULES.max;
+    const need = blessNeed(b.taken.length);
+    const x0 = GAME_WIDTH - 46;
+    const y0 = 196;
+    // 計量：火苗＋一圈進度；滿了會跳動
+    const ratio = full ? 0 : Math.min(1, b.meter / need);
+    const pulse = ratio >= 1 ? 1 + 0.08 * Math.sin(this.time.now / 90) : 1;
+    drawEffectIcon(g, x0, y0, 24 * pulse, 'fire', full);
+    if (!full) {
+      g.lineStyle(6, 0x2a1c10, 0.9).strokeCircle(x0, y0, 33);
+      if (ratio > 0) g.lineStyle(6, 0xffb050, 1).beginPath().arc(x0, y0, 33, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio, false).strokePath();
+    }
+    this.blessTxt ??= this.add.text(x0, y0 + 36, '', { fontFamily: UI_FONT, fontSize: '17px', fontStyle: '700', color: '#ffd9a0', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 0).setDepth(60);
+    this.blessTxt.setText(full ? '' : `${Math.min(b.meter, need)}/${need}`);
+    // 身上的祝福：往左排
+    const defs = this.blessDefs(b.taken);
+    defs.forEach((d, i) => drawEffectIcon(g, x0 - 66 - i * 50, y0, 21, d.element, false, d.glyph));
+    // 影步：下一擊必暴準備好了 → 主角腳下一圈紫光
+    if (b.critUntil !== undefined && b.critUntil >= this.s.tick) {
+      const p = playerOf(this.s);
+      g.lineStyle(4, ELEMENT_LOOK.dark.light, 0.55 + 0.35 * Math.sin(this.time.now / 80)).strokeEllipse(this.sx(p.x), this.sy(p.y), 92, 40);
+    }
+  }
+
+  private playBlessEvent(e: Extract<BattleState['events'][number], { type: 'blessPick' | 'blessClear' | 'blessProc' }>): void {
+    const p = playerOf(this.s);
+    if (e.type === 'blessPick') {
+      const d = effectDef(e.id, this.s.weapon ?? 'sword');
+      if (!d) return;
+      const L = ELEMENT_LOOK[d.element];
+      const px = this.sx(p.x);
+      const py = this.sy(p.y);
+      shockRing(this, px, py, L.color, 190, 520, 9);
+      shockRing(this, px, py, L.light, 110, 380, 5);
+      sparks(this, px, py - 30, getSettings().lowFx ? 10 : 22, 'ember', L.light, 520);
+      this.nightLight?.flash(px, py, 700 * this.k * 1.5, 900);
+      bigText(this, px, py - 120, tr('bless.got', { name: d.name }), L.css, 34, 900);
+      this.tipOnce('jg_tip_bless', tr('bless.tip'), '#ffd27a');
+    } else if (e.type === 'blessClear') {
+      if (e.count > 0) bigText(this, GAME_WIDTH / 2, 600, tr('bless.gone'), '#b8a888', 30, 1100, true);
+    } else if (this.onScreen(e.x, e.y)) {
+      const d = effectDef(e.id, this.s.weapon ?? 'sword');
+      const L = ELEMENT_LOOK[d?.element ?? 'fire'];
+      const x = this.sx(e.x);
+      const y = this.sy(e.y);
+      const burst = d?.onKill?.burst;
+      if (burst) {
+        // 燼爆：橘紅火星爆炸，圈的大小＝實際波及範圍
+        shockRing(this, x, y, L.color, burst.r * this.k, 300, 10);
+        sparks(this, x, y - 16, getSettings().lowFx ? 8 : 18, 'ember', L.light, 560);
+        this.cameras.main.shake(60, 0.0025);
+      } else shockRing(this, x, y - 24, L.light, 64, 220, 5);
+    }
   }
 
   // ---------- 營地懸賞（D-109） ----------
@@ -3472,6 +3577,8 @@ export class RtBattleScene extends Phaser.Scene {
         // 寶箱裡的燼牌（D-131）：第一次拿到才出字
         const card = this.tracked ? CHEST_CARDS[e.chest] : undefined;
         if (card && grantCard(card)) this.time.delayedCall(1300, () => bigText(this, GAME_WIDTH / 2, below(110, 500), `＋燼牌「${EMBER_CARDS[card]?.name ?? card}」\n營火行商的「燼牌」可以用`, '#ffb36a', 28, 1800));
+      } else if (e.type === 'blessPick' || e.type === 'blessClear' || e.type === 'blessProc') {
+        this.playBlessEvent(e);
       } else if (e.type === 'rest') {
         const p = playerOf(this.s);
         SFX.itemGet();
@@ -4824,6 +4931,7 @@ export class RtBattleScene extends Phaser.Scene {
       g.fillStyle(0xff4a4a, 1).fillCircle(GAME_WIDTH - 22, 22, 9);
       g.lineStyle(2, 0xffffff, 0.9).strokeCircle(GAME_WIDTH - 22, 22, 9);
     }
+    this.drawBlessHud(g);
     // 地圖怪關卡：附近沒有戰鬥中的怪時提示「點怪物開打」（D-073）
     const es = enemiesOf(s);
     const calm = !this.bot && es.length > 0 && !es.some((e) => e.mode === 'combat') && es.some((e) => e.mode === 'idle' || e.mode === 'dormant');

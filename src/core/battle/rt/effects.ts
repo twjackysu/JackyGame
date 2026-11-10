@@ -13,6 +13,8 @@ export interface EffectDef {
   /** 一句話、手機上看得完 */
   desc: string;
   element: EffectElement;
+  /** 同元素的第二種圖示（畫面層用：火＝爆炸、光＝回復） */
+  glyph?: 1;
   /** 合用的武器（沒有＝三把都合用） */
   weapons?: readonly WeaponKind[];
   /** 技能修正（加在裝備／技能點的修正上；上限照 SKILL_MOD_CAPS） */
@@ -34,22 +36,34 @@ const ALL_SKILLS = ['heavy_slash', 'whirlwind', 'charge', 'parry', 'blade_storm'
 /** 固定效果（第一批 8 個，三把武器都合用——技能欄 id 三把武器共用） */
 export const EFFECTS: Record<string, EffectDef> = {
   ember_edge: { id: 'ember_edge', name: '餘燼之刃', desc: '普攻讓敵人灼燒 3 秒（可疊 3 層）', element: 'fire', onAttack: { status: { id: 'burn', ticks: sec(3), powerPct: 20 } } },
-  ember_burst: { id: 'ember_burst', name: '燼爆', desc: '打倒的敵人會炸開，波及旁邊的敵人', element: 'fire', onKill: { burst: { r: u(1.8), mult: 90 } } },
+  ember_burst: { id: 'ember_burst', name: '燼爆', desc: '打倒的敵人會炸開，波及旁邊的敵人', element: 'fire', glyph: 1, onKill: { burst: { r: u(1.8), mult: 90 } } },
   shadow_step: { id: 'shadow_step', name: '影步', desc: '閃避後 3 秒內，下一擊必定暴擊', element: 'dark', onDodge: { critTicks: sec(3) } },
-  quick_hands: { id: 'quick_hands', name: '疾雷', desc: '所有技能冷卻 −20%', element: 'thunder', mods: Object.fromEntries(ALL_SKILLS.map((id) => [id, { cdPct: 20 }])) },
-  wide_arc: { id: 'wide_arc', name: '廣域', desc: '第二欄的範圍技：範圍 +30%、傷害 +15%', element: 'phys', mods: { whirlwind: { areaPct: 30, dmgPct: 15 } } },
-  heavy_echo: { id: 'heavy_echo', name: '回響', desc: '第一欄的技能命中後，再補一段 50% 的傷害', element: 'light', onSkillHit: { skill: 'heavy_slash', echoPct: 50 } },
+  quick_hands: { id: 'quick_hands', name: '疾雷', desc: '所有技能冷卻 −20%', element: 'thunder', glyph: 1, mods: Object.fromEntries(ALL_SKILLS.map((id) => [id, { cdPct: 20 }])) },
+  wide_arc: { id: 'wide_arc', name: '廣域', desc: '「{whirlwind}」範圍 +30%、傷害 +15%', element: 'phys', mods: { whirlwind: { areaPct: 30, dmgPct: 15 } } },
+  heavy_echo: { id: 'heavy_echo', name: '回響', desc: '「{heavy_slash}」命中後再補一段 50% 傷害', element: 'light', onSkillHit: { skill: 'heavy_slash', echoPct: 50 } },
   frost_touch: { id: 'frost_touch', name: '霜觸', desc: '技能命中的敵人緩速 2 秒', element: 'ice', onSkillHit: { status: { id: 'slow', ticks: sec(2) } } },
-  vital_ember: { id: 'vital_ember', name: '燼心', desc: '每打倒一隻敵人，回復 5% 生命', element: 'light', onKill: { healPct: 5 } },
+  vital_ember: { id: 'vital_ember', name: '燼心', desc: '每打倒一隻敵人，回復 5% 生命', element: 'light', glyph: 1, onKill: { healPct: 5 } },
 };
 export const EFFECT_IDS: readonly string[] = Object.keys(EFFECTS);
 
 /** 「這趟試用變化打法」的效果 id（動態產生：五欄 × 兩種變化） */
 export const tryVariantId = (skill: string, idx: 1 | 2): string => `try:${skill}:${idx}`;
 
-/** 查效果；`try:` 開頭的依武器產生（名稱與說明用那把武器的變化打法） */
+const resolved = new Map<string, EffectDef | undefined>();
+/** 查效果（依武器把說明裡的 {技能欄 id} 換成那把武器的招式名）；結果有快取，不要改回傳的物件 */
 export function effectDef(id: string, weapon: WeaponKind = 'sword'): EffectDef | undefined {
-  if (!id.startsWith('try:')) return EFFECTS[id];
+  const key = `${weapon}:${id}`;
+  if (resolved.has(key)) return resolved.get(key);
+  const d = buildEffect(id, weapon);
+  resolved.set(key, d);
+  return d;
+}
+
+function buildEffect(id: string, weapon: WeaponKind): EffectDef | undefined {
+  if (!id.startsWith('try:')) {
+    const d = EFFECTS[id];
+    return d && { ...d, desc: d.desc.replace(/\{(\w+)\}/g, (m, skill: string) => WEAPONS[weapon].skills[skill]?.name ?? m) };
+  }
   const [, skill, k] = id.split(':');
   const idx = k === '1' ? 1 : k === '2' ? 2 : 0;
   if (!skill || !idx) return undefined;
@@ -57,7 +71,7 @@ export function effectDef(id: string, weapon: WeaponKind = 'sword'): EffectDef |
   const alt = (idx === 1 ? w.variants : w.variantsB)[skill];
   const base = w.skills[skill];
   if (!alt || !base) return undefined;
-  return { id, name: `試招・${alt.variantName}`, desc: `這趟「${base.name}」改用「${alt.variantName}」`, element: 'dark', variant: { skill, idx } };
+  return { id, name: `試招・${alt.variantName}`, desc: `「${base.name}」這趟改用：${alt.desc}`, element: 'dark', glyph: 1, variant: { skill, idx } };
 }
 
 /** 祝福的節奏（P2 小樣；實測後再調）：第 n 個祝福要累積幾點（小怪 1、精英 2、Boss 5）；一趟最多幾個；重抽次數 */

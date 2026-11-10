@@ -13,6 +13,14 @@ export const zhTW = {
   'auto.descOff': '自動施放：關（要自己按）',
   'auto.descLocked': '這一招永遠手動：看準紅圈再按，才擋得到',
   'auto.tip': '攻擊技能會自己放了！你只管走位和閃避（MENU→技能樹可以改回手動）',
+  'bless.title': '燼火祝福',
+  'bless.sub': '選一個——這趟冒險都有效（回營火休息或倒下就消散）',
+  'bless.have': '身上：',
+  'bless.reroll': '換一批（剩 {n} 次）',
+  'bless.noReroll': '這趟不能再換了',
+  'bless.got': '祝福：{name}',
+  'bless.gone': '燼火祝福消散了',
+  'bless.tip': '燼火祝福：打怪累積右上角的火，滿了就能選一個；回營火休息或倒下會消散',
 } as const;
 
 export type MessageKey = keyof typeof zhTW;
