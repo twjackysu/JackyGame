@@ -233,6 +233,22 @@ export function bannerBusy(scene: Phaser.Scene, cy: number, h: number): boolean 
   return (BANNERS.get(scene) ?? []).some((b) => b.t.active && !b.fading && cy - h / 2 < b.t.y + b.h / 2 && cy + h / 2 > b.t.y - b.h / 2);
 }
 
+const softFlashAt = new WeakMap<Phaser.Scene, number>();
+/**
+ * 輕的全畫面染色（第 166 輪）：一般技能（冰系）以前用 camera.flash，那一瞬間整個畫面接近全白。
+ * 技能改成全自動、還會疊放之後，帶兩三招冰系就是每兩三秒白一次，敵人的紅圈預告也跟著被蓋掉。
+ * 這個只疊一層淡淡的顏色（峰值 peak，預設 0.2）再淡出；240ms 內不重複。大招、Boss 演出仍用 camera.flash。
+ */
+export function softFlash(scene: Phaser.Scene, color: number, ms = 160, peak = 0.2): void {
+  const now = scene.time.now;
+  if (now - (softFlashAt.get(scene) ?? -1e9) < 240) return;
+  softFlashAt.set(scene, now);
+  const w = scene.scale.width;
+  const h = scene.scale.height;
+  const r = scene.add.rectangle(w / 2, h / 2, w, h, color, getSettings().lowFx ? peak * 0.6 : peak).setScrollFactor(0).setDepth(850).setBlendMode(Phaser.BlendModes.ADD);
+  scene.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => r.destroy() });
+}
+
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */
 export function bigText(
   scene: Phaser.Scene, x: number, y: number, text: string, color: string, size = 72, hold = 450,

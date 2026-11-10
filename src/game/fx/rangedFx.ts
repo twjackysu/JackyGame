@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { UNIT, type Shape } from '../../core/battle/rt/types';
 import { getSettings } from '../settings';
-import { shockRing, sparks } from './feel';
+import { shockRing, softFlash, sparks } from './feel';
 
 /** 場景提供給遠程特效的東西 */
 export interface RangedFxHost {
@@ -63,7 +63,7 @@ export class RangedFx {
       g.destroy();
       sparks(this.sc, vx, vy, 18, 'spark', col, 420);
     } });
-    this.sc.cameras.main.flash(80, 170, 220, 255);
+    softFlash(this.sc, 0xbfe8ff);
     SFX.timeStop();
   }
 
@@ -361,7 +361,7 @@ export class RangedFx {
     if (st === 'freeze' && blink === 0 && single && R >= 4 * UNIT * this.h.k() - 1) this.timeClock(x, y, hs.r); // 時間凝滯（4 格冰凍反擊）
     if (st === 'freeze') {
       this.h.spawnFrost(x, y, hs.r);
-      this.sc.cameras.main.flash(90, 190, 240, 255);
+      softFlash(this.sc, 0xbfe8ff);
     }
     if (blink !== 0) {
       // 閃現：從起點到落點一道紫色殘光
@@ -505,7 +505,7 @@ export class RangedFx {
       const fy = this.h.sy(y) + Math.sin(ang) * r * 0.6 * this.h.k();
       shockRing(this.sc, fx, fy, 0xbff4ff, r * 0.5 * this.h.k(), 420, 8);
       sparks(this.sc, fx, fy, 18, 'spark', 0xd8fbff, 600);
-      this.sc.cameras.main.flash(80, 190, 240, 255);
+      softFlash(this.sc, 0xbfe8ff);
     }
     if (leap) {
       // 後躍：腳下一圈風壓

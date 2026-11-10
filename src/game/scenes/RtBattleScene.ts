@@ -71,7 +71,7 @@ import { characterCache } from '../../client/characterCache';
 import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard';
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, sparks } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, hitLook, skillBadge } from '../fx/hitTint';
 import { Ambient } from '../fx/ambient';
@@ -3928,7 +3928,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.hz.spawnFrost(p.x, p.y, hs.type === 'circle' ? hs.r : UNIT * 2);
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xbff4ff, (hs.type === 'circle' ? hs.r : UNIT * 2) * this.k * 1.15, 520, 10);
         sparks(this, this.sx(p.x), this.sy(p.y), 26, 'spark', 0xd8fbff, 700);
-        this.cameras.main.flash(90, 190, 240, 255);
+        softFlash(this, 0xbfe8ff);
       } else if (st === 'break' && big) {
         const fx = this.sx(p.x) + Math.cos(ang) * UNIT * 1.4 * this.k;
         const fy = this.sy(p.y) + Math.sin(ang) * UNIT * 1.4 * this.k;
