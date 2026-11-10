@@ -142,7 +142,7 @@ export class RangedFx {
   }
 
   /** 長弓普攻（D-147）：箭從主角飛到目標（約 0.1 秒）＋細尾光 */
-  arrowShot(x0: number, y0: number, x1: number, y1: number, color: number): void {
+  arrowShot(x0: number, y0: number, x1: number, y1: number, color: number, ms = 90): void {
     if (this.sc.time.now - this.lastBowSfx > 60) {
       this.lastBowSfx = this.sc.time.now;
       SFX.bowShot();
@@ -162,14 +162,14 @@ export class RangedFx {
     arrow.lineStyle(4, 0x8a6a40, 1).lineBetween(-34, 0, 8, 0);
     arrow.fillStyle(0xf4f8ff, 1).fillTriangle(16, 0, 4, -7, 4, 7);
     arrow.fillStyle(color, 1).fillTriangle(-34, 0, -44, -8, -30, 0).fillTriangle(-34, 0, -44, 8, -30, 0);
-    this.sc.tweens.add({ targets: arrow, x: bx, y: by, duration: 90, ease: 'Linear', onComplete: () => {
+    this.sc.tweens.add({ targets: arrow, x: bx, y: by, duration: ms, ease: 'Linear', onComplete: () => {
       arrow.destroy();
       sparks(this.sc, bx, by, 5, 'spark', color, 220);
     } });
   }
 
   /** 法杖普攻（D-152）：發光的魔彈飛過去，身後拖一道光，命中時小爆開 */
-  magicBolt(x0: number, y0: number, x1: number, y1: number, color: number): void {
+  magicBolt(x0: number, y0: number, x1: number, y1: number, color: number, ms = 130): void {
     if (this.sc.time.now - this.lastBowSfx > 60) {
       this.lastBowSfx = this.sc.time.now;
       SFX.magicBolt();
@@ -181,7 +181,7 @@ export class RangedFx {
     const tail = this.sc.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
     const orb = this.sc.add.graphics().setDepth(691).setBlendMode(Phaser.BlendModes.ADD).setPosition(ax, ay);
     orb.fillStyle(color, 0.35).fillCircle(0, 0, 18).fillStyle(color, 0.8).fillCircle(0, 0, 10).fillStyle(0xffffff, 1).fillCircle(0, 0, 5);
-    this.sc.tweens.addCounter({ from: 0, to: 1, duration: 130, onUpdate: (tw) => {
+    this.sc.tweens.addCounter({ from: 0, to: 1, duration: ms, onUpdate: (tw) => {
       const t = tw.getValue() ?? 1;
       const x = ax + (bx - ax) * t;
       const y = ay + (by - ay) * t - Math.sin(t * Math.PI) * 18;

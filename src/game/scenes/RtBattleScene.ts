@@ -953,6 +953,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.acc -= STEP_MS;
       n++;
       this.skillFx();
+      this.launchShot();
       // 事件逐 tick 播放，命中停頓才能卡在正確的那一下
       this.playEvents();
       if (this.hitStop > 0) {
@@ -2963,6 +2964,33 @@ export class RtBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: h, alpha: 0, duration: 300, onComplete: () => h.destroy() });
   }
 
+  /** 已經先飛出去的那支箭／魔彈，預定在哪個 tick 命中（那個 tick 的傷害事件就不用再補飛一次） */
+  private shotHit = -1;
+
+  /**
+   * RF-03：長弓／法杖普攻的箭在命中前幾個 tick 就離手，命中那一刻剛好飛到——
+   * 以前是傷害事件出現（怪已經白閃、數字已經跳）之後箭才從主角身上出發，看起來像「怪先痛、箭後到」。
+   * 純畫面：命中的 tick 仍由核心決定（attackWindupTicks），這裡只是讀動作提早把箭畫出來；
+   * 出手後被取消或目標跑出射程＝箭飛過去但沒有傷害（本來就沒打到）。
+   */
+  private launchShot(): void {
+    const w = this.s.weapon;
+    if (w !== 'bow' && w !== 'staff') return;
+    const p = playerOf(this.s);
+    const a = p.action;
+    if (!a || a.kind !== 'attack' || p.dead) return;
+    const hit = a.start + playerDef(this.s).attackWindupTicks;
+    const left = hit - this.s.tick;
+    // left＝還要幾個 tick 才命中（step 一開始就 tick++）；已經命中（≤0）就交給傷害事件補飛
+    if (this.shotHit === hit || left <= 0 || left > (w === 'bow' ? 3 : 4)) return;
+    const t = this.s.units.find((x) => x.id === a.targetId);
+    if (!t || t.dead) return;
+    this.shotHit = hit;
+    const ms = Math.round((left * 1000) / TICKS_PER_SEC);
+    if (w === 'bow') this.rfx.arrowShot(p.x, p.y, t.x, t.y, 0xd8f0ff, ms);
+    else this.rfx.magicBolt(p.x, p.y, t.x, t.y, 0xc89aff, ms);
+  }
+
   private playEvents(): void {
     const ev = this.s.events;
     for (; this.evIdx < ev.length; this.evIdx++) {
@@ -2980,11 +3008,11 @@ export class RtBattleScene extends Phaser.Scene {
         const src = u(e.src);
         if (src && src.side === 'player' && e.origin === 'normal' && this.s.weapon === 'staff') {
           // 法杖普攻（D-152）：一顆紫色魔彈
-          this.rfx.magicBolt(src.x, src.y, d.x, d.y, e.crit ? 0xffd05a : 0xc89aff);
+          if (e.tick !== this.shotHit) this.rfx.magicBolt(src.x, src.y, d.x, d.y, e.crit ? 0xffd05a : 0xc89aff); // 平常已經在 launchShot 先飛了（RF-03）；沒先飛到的才補
           this.knock(d.id, d.x - src.x, d.y - src.y, 7, e.crit);
         } else if (src && src.side === 'player' && e.origin === 'normal' && this.s.weapon === 'bow') {
           // 長弓普攻（D-147）：一支箭飛過去
-          this.rfx.arrowShot(src.x, src.y, d.x, d.y, e.crit ? 0xffd05a : 0xd8f0ff);
+          if (e.tick !== this.shotHit) this.rfx.arrowShot(src.x, src.y, d.x, d.y, e.crit ? 0xffd05a : 0xd8f0ff);
           this.knock(d.id, d.x - src.x, d.y - src.y, 6, e.crit);
         } else if (src && src.side === 'player' && e.origin === 'normal') {
           this.ffx.slash(src.x, src.y, Math.atan2(d.y - src.y, d.x - src.x), 150, 110, e.crit ? 0xffd05a : 0xffffff, 5);
