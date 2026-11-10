@@ -17,8 +17,17 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 164 輪注意（P3-a2／b／c 上線）**：
+- **下一輪**先看 Jacky 的回覆（這輪收尾時 CI 18b371e 全綠）；沒有回覆就做 P3-d 剩下的四個小項（下面 P1～P3 表），再回 Q 清單。
+- 獨特裝備的三個地方：機率與每張圖的池在 `loot.ts`（`UNIQUE_DROP`、`UNIQUE_POOLS`）；哪十條與名字在 `gear.ts`（`UNIQUE_TITLES`）；演出在 `RtBattleScene`（`uniqueOnGround`＝地上哪幾件是獨特、`announceUnique`＝撿到的公告、`gearFor`＝這一趟第 n 件掉落的實際裝備）。
+- 公告的順序：`announceUnique` 等「稀有裝備！」播完（`rareAt + 1700`）與面板關掉；`showChoice`（討伐後的抉擇）等 `uniqueUntil`／`uniqueBanner`（最多 `uniqueCap` 7 秒）。**無頭瀏覽器的補間時鐘比場景時鐘慢很多**（實測大字在排隊區卡幾十秒），用真實時間驗這種先後會誤判；快轉（`__game.step`＋假 `Date.now`）又會和真的 RAF 混成兩個時鐘。要驗只能看程式邏輯＋Jacky 實機。
+- 截圖腳本（沒進 git）：`screenshots/uq.mjs`（塞三件獨特進行囊 → 行囊／詳細／HUD／撿到）、`beam.mjs`（地上四種稀有度並排＋撿起來）、`codex.mjs`、`real.mjs`（把主角攻擊改成 5000 傳到狼王旁邊，真的打倒、撿起來）。
+- 量測腳本（沒進 git）：各來源的期望掉落＝對 `rollEnemyLoot` 擲 20,000 次、把 `uq` 加起來；王戰時間＝`createBattle({ effects, level, autoSkills })`＋普通 Bot 濾掉 `skill`，從 Boss 第一次掉血算到倒下。
+- **跑測試時不要同時跑無頭瀏覽器**：`tests/rt-perf.test.ts` 會因為搶 CPU 失敗（這輪兩次，單獨跑都過）。
+- 畫面層不能新增 localStorage（`tests/game-ratchet.test.ts`）——這輪的圖鑑紀錄因此改成從現有物品算（D-357）。
+
 **第 163 輪注意（效果池第二批、祝福擴圖、P3-a1）**：
-- **下一輪：P3-a2**（下面 P1～P3 表）。之後 P3-b（掉落演出與來源分層）、P3-c（圖鑑）、P3-d（交易、PvP 標示、平衡）。
+- ~~下一輪：P3-a2~~（第 164 輪做完 a2／b／c，見上）。
 - 加新效果的地方：資料 `effects.ts`；觸發在 `engine.ts`——範圍傷害一律走 `blessBurst(s, p, x, y, burst, id, skip?)`（事件自動帶半徑；`burstDepth > 0` 時暴擊不再觸發綻光）；圖示 `fx/effectIcon.ts`（`glyph` 現在是 1｜2，同元素最多三種）；演出 `fx/blessFx.ts` 的 `playBlessProc`（照效果的欄位分支，不是照 id）。
 - 裝備效果與祝福的差別全在 `s.bless.perm`／`off`（D-354）。`blessEffects(s)` 回「裝備＋祝福」；多人（pid ≥ 1）的隊友沒有任何效果（現有限制，沿用）。
 - 量測腳本沒進 git（`screenshots/probe.test.ts.txt`、這輪的 `probe2`）：搬到 `tests/tmp/*.test.ts` 用 `npx vitest run 檔名 --silent=false` 跑；`probe2` 的寫法＝`createBattle({ bless, level, autoSkills })`＋普通 Bot `advanceTo` Boss、指令濾掉 `skill`，記 `blessOffer` 的秒數與王戰時間。
@@ -61,10 +70,10 @@
 | P2-c | 小樣驗證與調整 | 數據表；Jacky 的回饋優先 | **verified**（第 163 輪，D-352）：①②強度量完（12 種子，數據在 D-352）、③節奏（D-351）、④休息前提醒、⑤清單；效果池 8 → 14（`docs/screenshots/p2c-bless-batch2.jpg`）。**好不好玩仍等 Jacky 實機**，他有回饋就照改 |
 | P2-d | 擴到其他三張圖與深夜／暴怒 Boss | campaign 全綠 | **verified**（第 163 輪，D-353；四張圖白天＋深夜都開，`tests/rt-bless.test.ts`；Bot 帶／不帶比較在 D-353） |
 | P3-a1 | 獨特效果的戰鬥核心＋物品欄位：`BattleSetup.effects`／`setEffects`、`RtGear.unique`、`isGear`、`gearEffects` | 行為測試；不給效果時雜湊不變 | **verified**（第 163 輪，D-354；`tests/rt-unique-effects.test.ts` 7 項）。還沒有任何物品帶效果，玩起來沒差別 |
-| **P3-a2** | **← 下一輪從這裡開始**。讓獨特裝備真的出現並生效：①`genGear` 的 `opts.unique`（亂數接在最後抽，舊種子的結果不變）＋專屬名稱 ②掉落擲骰在 core 的 `rollDrops`／伺服器 `loot.claim`（來源先只開 Boss 與隱藏精英，機率寫成資料表）③場景 `createBattle` 帶 `effects: gearEffects(裝備)`、換裝時 `setEffects`（`RtBattleScene` 裡 5 處 `setSkillMods(this.s, this.allMods(...))` 旁邊）④`s.bless.off` 時 HUD 不畫火苗（現在四張圖都開祝福所以遇不到，但舊關卡會）⑤行囊／裝備說明顯示那條效果（`effectDef(id, 武器).desc`＋`drawEffectIcon`）⑥舊存檔不用遷移（新欄位是選填），補一個「舊存檔讀得進來」的測試；`migrate.*` 照現有信任模型原樣帶 `unique`（和數值一樣信本機存檔）——要不要改成濾掉，P3-d 一起決定 | 每條行為測試；舊存檔不壞；契約測試；行囊截圖 | todo |
-| P3-b | 掉落演出（專屬名稱、光效、音效、取得提示）＋掉落來源分層（精英／隱藏精英／Boss／暴怒／深夜；參考 `docs/wiki/monsters.md` 成品表） | 截圖；一般稀有與獨特一眼分得出來 | todo |
-| P3-c | 效果圖鑑（已取得／未取得／來源）＝ RF-09 的「下一趟去哪」；打贏特定 Boss 把效果解鎖進祝福池 | 截圖 | todo |
-| P3-d | 交易市場顯示與交易獨特裝備；**PvP 預設不生效並在介面標明**（記 DECISIONS、FOR_JACKY 一行）；Bot 比有無效果的討伐時間 | 契約測試、平衡表 | todo |
+| P3-a2 | 獨特裝備真的出現並生效：`genGear` 的 `uniquePct`／`uniquePool`、core `uniqueDropPct`＋掉落事件的 `uq`、伺服器 `loot.claim`、場景 `effects`／`setEffects`、HUD 橘框圖示、行囊等五個面板的顯示 | 行為測試；舊存檔不壞；契約測試；行囊截圖 | **verified**（第 164 輪，D-355；`tests/rt-unique-drop.test.ts`、`docs/screenshots/p3a2-unique-gear.jpg`） |
+| P3-b | 掉落演出（光柱、星、音效、撿到的公告）＋來源分層（每張圖四條、精英 4%／Boss 6%／隱藏精英 15%／暴怒 15%／深夜 +5%、第一次打倒 Boss 保底） | 截圖；一般稀有與獨特一眼分得出來 | **verified**（第 164 輪，D-356；`docs/screenshots/p3b-unique-drop.jpg`）；**動態、音效、公告與抉擇面板的先後 `awaiting_visual`（等 Jacky 實機）** |
+| P3-c | 效果圖鑑（MENU →「效果圖鑑 n/10」：作用、哪張圖掉、手上有沒有、機率）＝ RF-09 | 截圖 | **verified**（第 164 輪，D-357；`docs/screenshots/p3c-codex.jpg`）。沒做：「曾經取得」的紀錄（要放伺服器角色資料）、打贏 Boss 把效果解鎖進祝福池（現在十條本來就都在祝福池裡，先不做） |
+| P3-d | 交易市場顯示與交易獨特裝備；PvP 預設不生效並在介面標明；Bot 比有無效果的討伐時間 | 契約測試、平衡表 | **大部分 verified**（第 164 輪）：競技場大廳有寫、`server-http-flow` 驗拍賣所＋面對面交易後效果還在、王戰時間表在 PROGRESS。**剩下（todo，小）**：①清怪效率的量法（震盾、燼爆是清怪用的，只看王戰量不出來）②分解／賣出獨特裝備要不要二次確認 ③行囊裡獨特裝備的圖示還是金色 ④拍賣所的獨特裝備卡片沒有截圖看過 |
 
 **第 158 輪注意（P2）**：
 - 加新效果：在 `effects.ts` 的 `EFFECTS` 加一筆資料（說明裡 `{heavy_slash}` 會換成那把武器的招式名、要短），需要新的觸發時機才動 `engine.ts`（`blessEffects(s)` 的呼叫點：普攻命中、`resolveSkillHit`、`blessKill`、`startDodge`、`dealDamage` 的暴擊）；圖示在 `src/game/fx/effectIcon.ts`（元素＋`glyph`），演出在 `RtBattleScene.playBlessEvent`（`blessProc` 事件帶位置）。P3 的裝備要用同一池：把 `blessEffects` 改成「祝福＋裝備上的效果」即可。
