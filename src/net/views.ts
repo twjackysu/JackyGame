@@ -115,6 +115,11 @@ export interface ListingView {
 export interface PvpSideView {
   weapon: WeaponView;
   bonus: { hp: number; atk: number; def: number };
+  /** 等級（已算進 bonus；畫面顯示用，第 156 輪） */
+  level?: number;
+  /** 選的技能打法、技能點＋裝備特效的技能修正（第 156 輪：以前競技場沒有帶） */
+  skillVariants?: string[];
+  skillMods?: Record<string, { cdPct?: number; dmgPct?: number; areaPct?: number; blockTicks?: number; distPct?: number }>;
 }
 
 /** 非同步 PvP 開局（pvp.start）：種子、雙方配裝、對手名字與段位分 */

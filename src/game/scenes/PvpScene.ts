@@ -7,7 +7,7 @@ import { STAGES, WEAPONS } from '../../core/battle/rt/data';
 import { playerDef, playerOf, skillDef, skillShape, step } from '../../core/battle/rt/engine';
 import { PVP_MAX_CMDS_PER_TICK, PVP_STAGE, startPvp, type PvpInputs } from '../../core/battle/rt/pvpMatch';
 import type { PlayerBot } from '../../core/battle/rt/sim';
-import { TICKS_PER_SEC, UNIT, type BattleCommand, type BattleState, type Shape, type Unit } from '../../core/battle/rt/types';
+import { TICKS_PER_SEC, UNIT, type BattleCommand, type BattleState, type Shape, type SkillMod, type Unit } from '../../core/battle/rt/types';
 import { canChallenge, rankAura, rankName } from '../../core/meta/pvpRank';
 import { auraCss, drawRankAura } from '../fx/rankAura';
 import { ArenaArt } from '../fx/arenaArt';
@@ -16,7 +16,10 @@ import { getSettings } from '../settings';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { UI_FONT, bigText, fadeOutThen, shockRing, sparks } from '../fx/feel';
+import { UI_FONT, bigText, fadeOutThen, floatNumber, hitSparks, shockRing, sparks } from '../fx/feel';
+import { FieldFx } from '../fx/fieldFx';
+import { RangedFx } from '../fx/rangedFx';
+import { hitLook } from '../fx/hitTint';
 import { InputSystem } from '../rt/InputSystem';
 import { buttonPos, loadControls } from '../rtControls';
 import { pvpOps, type PvpOpen, type PvpResult } from '../pvpOps';
@@ -65,6 +68,25 @@ export class PvpScene extends Phaser.Scene {
   private names: Phaser.GameObjects.Text[] = [];
   private buttons: { id: string; x: number; y: number; r: number; label: Phaser.GameObjects.Text; cd: Phaser.GameObjects.Text }[] = [];
   private skills: string[] = [];
+  // ---- 技能特效與命中回饋（第 156 輪，D-338）：共用冒險地圖的純畫面工具（FieldFx／RangedFx／hitSparks／floatNumber）；不搬全域頓幀 ----
+  private readonly ffx = new FieldFx(this, { k: () => K, sx: (x) => this.sx(x), sy: (y) => this.sy(y) });
+  private readonly rfx = new RangedFx(this, {
+    k: () => K,
+    sx: (x) => this.sx(x),
+    sy: (y) => this.sy(y),
+    hitStop: () => undefined, // 競技場不頓幀（頓幀會停住模擬的時鐘，兩邊同時在動不適合）
+    viewTop: 110,
+    slash: (x, y, ang, r, deg, color, width) => this.ffx.slash(x, y, ang, r, deg, color, width),
+    starImpact: (vx, vy, r) => this.ffx.starImpact(vx, vy, r),
+    fallingStar: (g, vx, vy, f) => this.ffx.fallingStar(g, vx, vy, f),
+    spawnFrost: (x, y, r) => this.frost(x, y, r),
+  });
+  /** 已播過特效的技能段（`單位:施放 tick:段`） */
+  private fxDone = new Set<string>();
+  /** 受擊後仰（只在畫面上）：往被打的方向退一下再滑回來 */
+  private knocks = new Map<number, { dx: number; dy: number; at: number; ms: number }>();
+  /** 血條殘影（扣血後白色的那一段慢慢追上） */
+  private hpGhost = new Map<number, number>();
 
   constructor() {
     super('Pvp');
@@ -88,6 +110,10 @@ export class PvpScene extends Phaser.Scene {
     this.sprites.clear();
     this.flashUntil.clear();
     this.fx = [];
+    this.fxDone.clear();
+    this.knocks.clear();
+    this.hpGhost.clear();
+    this.hudText = null;
     this.names = [];
     this.buttons = [];
   }
@@ -100,6 +126,7 @@ export class PvpScene extends Phaser.Scene {
     this.drawArena();
     this.g = this.add.graphics().setDepth(20);
     this.hud = this.add.graphics().setDepth(60);
+    this.hudGhost = this.add.graphics().setDepth(59.42);
     this.discs = new DiscLayer(this, 59.5); // 按鈕底烤成貼圖（第 154 輪，同冒險地圖）
     this.hpBars = [];
     this.timer = this.add.text(W / 2, 58, '', { fontFamily: UI_FONT, fontSize: '34px', color: '#ffe0a0' }).setOrigin(0.5).setDepth(61);
@@ -121,6 +148,8 @@ export class PvpScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.inp.stickMove(p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.inp.stickEnd(p));
     this.inp.bindKeys(this.input.keyboard, loadControls());
+    // 測試用（跟冒險地圖的 __rt 一樣）：讀狀態、送指令
+    (window as unknown as { __pvp?: unknown }).__pvp = { state: () => this.s, phase: () => this.phase, setup: () => this.open?.setup, send: (c: BattleCommand) => this.inp.push(c) };
     this.lobby();
   }
 
@@ -190,7 +219,7 @@ export class PvpScene extends Phaser.Scene {
           this.add.text(W - 76, y, `${rankName(r.rating)} ${r.rating}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.me ? col : auraCss(r.rating) }).setOrigin(1, 0.5),
         ]);
       });
-      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n勝負由伺服器重播判定・荊棘段位起冒險時腳下也有光環', { fontFamily: UI_FONT, fontSize: '20px', color: '#8a92a6', align: 'center', stroke: '#0b0e18', strokeThickness: 6 }).setOrigin(0.5));
+      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n你的等級、裝備、技能點與選的打法都會帶進場\n（HP ×3、傷害減半、裝備等級差距縮小，打得久一點）', { fontFamily: UI_FONT, fontSize: '20px', color: '#8a92a6', align: 'center', stroke: '#0b0e18', strokeThickness: 6 }).setOrigin(0.5));
     });
   }
 
@@ -288,7 +317,7 @@ export class PvpScene extends Phaser.Scene {
     const foeW = WEAPON_NAME[o.setup.foe.weapon];
     // 第 153 輪：VS 橫幅演出（以前是置中三行字）
     this.status.setText('');
-    vsIntro(this, GAME_WIDTH / 2, this.status.y, { name: '你', sub: `${WEAPON_NAME[o.setup.me.weapon]}・${rankName(o.rating)} ${o.rating}`, color: ME }, { name: o.foeName, sub: `${foeW}・${rankName(o.foeRating)} ${o.foeRating}`, color: FOE }, 1450);
+    vsIntro(this, GAME_WIDTH / 2, this.status.y, { name: '你', sub: `Lv ${o.setup.me.level ?? 1} ${WEAPON_NAME[o.setup.me.weapon]}・${rankName(o.rating)} ${o.rating}`, color: ME }, { name: o.foeName, sub: `Lv ${o.setup.foe.level ?? 1} ${foeW}・${rankName(o.foeRating)} ${o.foeRating}`, color: FOE }, 1450);
     SFX.warn(false);
     this.time.delayedCall(1600, () => {
       this.status.setText('開戰！').setFontSize(64).setColor('#ffd27a');
@@ -324,7 +353,7 @@ export class PvpScene extends Phaser.Scene {
     ids.forEach((id, i) => {
       const pos = buttonPos(c, slot[i]!);
       const r = (id === 'dodge' ? 56 : 48) * c.scale;
-      const name = id === 'dodge' ? '閃避' : (WEAPONS[w].skills[id]?.name ?? id);
+      const name = id === 'dodge' ? '閃避' : (skillDef(this.s, id, playerOf(this.s))?.name ?? WEAPONS[w].skills[id]?.name ?? id); // 選了哪種打法就顯示那一招的名字
       const label = this.add.text(pos.x, pos.y, name.length > 2 ? name.slice(0, 2) + '\n' + name.slice(2) : name, { fontFamily: UI_FONT, fontSize: name.length > 2 ? '19px' : '24px', color: '#ffffff', align: 'center', lineSpacing: 0 }).setOrigin(0.5).setDepth(62);
       const cd = this.add.text(pos.x, pos.y + r - 12, '', { fontFamily: UI_FONT, fontSize: '20px', color: '#ffd27a', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5).setDepth(63);
       this.buttons.push({ id, x: pos.x, y: pos.y, r, label, cd });
@@ -351,6 +380,7 @@ export class PvpScene extends Phaser.Scene {
         this.acc -= STEP_MS;
         n++;
         this.playEvents();
+        this.skillFx();
       }
       if (this.acc > STEP_MS * 4) this.acc = 0;
       if (this.s.outcome !== 'running') {
@@ -455,7 +485,21 @@ export class PvpScene extends Phaser.Scene {
       const moving = !!u.action || Math.abs(pos.x - (this.prev.get(u.id)?.x ?? pos.x)) > 0.3;
       const bob = moving ? Math.abs(Math.sin(now / 90 + u.id)) * r * 0.14 : Math.sin(now / 400 + u.id) * r * 0.04;
       const base = sp.getData('base') as number;
-      sp.setPosition(px, py + r * 0.15 - bob).setScale(base).setDepth(30 + pos.y / 100);
+      const kn = this.knocks.get(u.id);
+      let kx = 0;
+      let ky = 0;
+      let lean = 0;
+      if (kn) {
+        const kt = (now - kn.at) / kn.ms;
+        if (kt >= 1) this.knocks.delete(u.id);
+        else {
+          const e = (1 - kt) * (1 - kt);
+          kx = kn.dx * e;
+          ky = kn.dy * e;
+          lean = (kn.dx > 0 ? 1 : -1) * 9 * e;
+        }
+      }
+      sp.setPosition(px + kx, py + r * 0.15 - bob + ky).setScale(base).setAngle(lean).setDepth(30 + pos.y / 100);
       if (u.facingX !== 0) sp.setFlipX(u.facingX < 0);
       sp.setAlpha(u.invulnUntil >= s.tick ? 0.5 : 1);
       if ((this.flashUntil.get(u.id) ?? 0) > now) sp.setTintFill(0xffffff);
@@ -465,6 +509,7 @@ export class PvpScene extends Phaser.Scene {
       // 頭上血條
       const bw = 70;
       g.fillStyle(0x000000, 0.7).fillRect(px - bw / 2 - 2, top - 10, bw + 4, 10);
+      g.fillStyle(0xffffff, 0.9).fillRect(px - bw / 2, top - 8, bw * this.ghostHp(u.id, Math.max(0, u.hp) / u.maxHp), 6);
       g.fillStyle(col, 1).fillRect(px - bw / 2, top - 8, (bw * Math.max(0, u.hp)) / u.maxHp, 6);
       nm.setPosition(px, top - 26);
     });
@@ -488,6 +533,12 @@ export class PvpScene extends Phaser.Scene {
       const fw = Math.max(1, w * Math.max(0, Math.min(1, pct)));
       fill.setVisible(true).setCrop(right ? w - fw : 0, 0, fw, 20);
     };
+    // 扣血殘影（畫在滿格貼圖底下、黑底上面）
+    const gm = this.hpGhost.get(me.id) ?? 0;
+    const gf = this.hpGhost.get(foe.id) ?? 0;
+    this.hudGhost.clear();
+    if (gm > me.hp / me.maxHp) this.hudGhost.fillStyle(0xffffff, 0.85).fillRect(24, 40, 250 * gm, 20);
+    if (gf > foe.hp / foe.maxHp) this.hudGhost.fillStyle(0xffffff, 0.85).fillRect(W - 24 - 250 * gf, 40, 250 * gf, 20);
     bar(0, 24, 40, 250, me.hp / me.maxHp, ME, false);
     bar(1, W - 274, 40, 250, foe.hp / foe.maxHp, FOE, true);
     h.fillStyle(0x9ac0ff, 0.9).fillRect(24, 70, (250 * me.mp) / Math.max(1, playerDef(s, me).mp), 6);
@@ -495,9 +546,14 @@ export class PvpScene extends Phaser.Scene {
     this.timer.setText(this.phase === 'replay' ? `▶×${REPLAY_SPEED}  ${left}` : `${left}`);
     if (!this.names.length) return;
     if (!this.hudText) {
+      // 第 156 輪：兩邊實際生效的等級與數值寫出來（數字直接讀場上的單位，不是另外算的）
+      const o = this.open!.setup;
+      const line = (u: Unit, side: typeof o.me): string => `攻 ${u.atk}・防 ${u.def}・HP ${u.maxHp}${buildNote(side)}`;
       this.hudText = [
-        this.add.text(24, 14, `你 · ${WEAPON_NAME[this.open!.setup.me.weapon]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#bfe0ff' }).setDepth(61),
-        this.add.text(W - 24, 14, `${this.open!.foeName} · ${WEAPON_NAME[this.open!.setup.foe.weapon]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a8' }).setOrigin(1, 0).setDepth(61),
+        this.add.text(24, 14, `你 · Lv ${o.me.level ?? 1} ${WEAPON_NAME[o.me.weapon]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#bfe0ff' }).setDepth(61),
+        this.add.text(W - 24, 14, `${this.open!.foeName} · Lv ${o.foe.level ?? 1} ${WEAPON_NAME[o.foe.weapon]}`, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffb0a8' }).setOrigin(1, 0).setDepth(61),
+        this.add.text(24, 82, line(me, o.me), { fontFamily: UI_FONT, fontSize: '17px', color: '#9fb8d8' }).setDepth(61),
+        this.add.text(W - 24, 82, line(foe, o.foe), { fontFamily: UI_FONT, fontSize: '17px', color: '#d8a8a0' }).setOrigin(1, 0).setDepth(61),
       ];
     }
     // 按鈕：冷卻中變暗＋剩幾秒
@@ -520,6 +576,112 @@ export class PvpScene extends Phaser.Scene {
     }
   }
   private hudText: Phaser.GameObjects.Text[] | null = null;
+  private hudGhost!: Phaser.GameObjects.Graphics;
+
+  /** 血條殘影：回傳白色殘影畫到哪（≥ cur）；扣血後慢慢追上，補血直接跟上 */
+  private ghostHp(id: number, cur: number): number {
+    const g0 = this.hpGhost.get(id);
+    if (g0 === undefined || g0 <= cur) {
+      this.hpGhost.set(id, cur);
+      return cur;
+    }
+    const dt = Math.min(50, this.game.loop.delta);
+    const g1 = Math.max(cur, g0 - Math.max(0.0006 * dt, (g0 - cur) * dt * 0.006));
+    this.hpGhost.set(id, g1);
+    return g1;
+  }
+
+  /** 冰系招式的寒氣（冒險地圖是地上的冰晶層；競技場用一圈往外擴的冰霧代替） */
+  private frost(x: number, y: number, r: number): void {
+    const c = this.add.circle(this.sx(x), this.sy(y), r * K, 0xbff4ff, 0.3).setDepth(25).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: c, alpha: 0, scale: 1.15, duration: 700, ease: 'Cubic.Out', onComplete: () => c.destroy() });
+  }
+
+  /**
+   * 技能特效（第 156 輪，D-338）：照冒險地圖 RtBattleScene.skillFx 的規則，雙方都播——每一段命中（atTick）到了才出特效，接觸時機是核心的 tick。
+   * 以前競技場放招只有腳下一塊淡淡的隊伍色範圍（Jacky 11/10：「放技能也沒有出現」）。純畫面，不影響戰鬥。
+   */
+  private skillFx(): void {
+    for (const u of this.units()) {
+      const a = u.action;
+      if (!a || a.kind !== 'skill' || u.dead) continue;
+      const sk = skillDef(this.s, a.id, u);
+      if (!sk) continue;
+      const k = this.s.tick - a.start;
+      const w = this.weaponOf(u);
+      const foe = !!u.pid;
+      sk.hits.forEach((h, i) => {
+        const key = `${u.id}:${a.start}:${i}`;
+        if (k < h.atTick || this.fxDone.has(key)) return;
+        this.fxDone.add(key);
+        const ang = Math.atan2(a.dirY, a.dirX);
+        const big = h.mult >= 150;
+        const ult = sk.role === 'ult';
+        const hs = skillShape(this.s, a.id, h.shape, u);
+        const st = h.status?.id;
+        if (w === 'bow') {
+          this.rfx.bowFx(u.x, u.y, ang, hs, ult, !!sk.dash, st === 'break', st === 'freeze', st);
+          return;
+        }
+        if (w === 'staff') {
+          this.rfx.staffFx(u.x + ((h.ahead ?? 0) * a.dirX) / 1000, u.y + ((h.ahead ?? 0) * a.dirY) / 1000, ang, hs, ult, sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, st);
+          return;
+        }
+        // 長劍：對手的刀光偏暖色（看得出是誰的招）；大招與重擊金色、帶狀態的照元素色
+        const base = foe ? 0xffa07a : 0x9fd8ff;
+        const px = this.sx(u.x);
+        const py = this.sy(u.y);
+        if (sk.dash) {
+          const g = this.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+          const dc = st === 'weak' ? 0xc0a0ff : base;
+          const L = UNIT * 2.6 * K;
+          g.fillStyle(dc, 0.25).fillTriangle(px - Math.sin(ang) * 18, py + Math.cos(ang) * 18, px + Math.sin(ang) * 18, py - Math.cos(ang) * 18, px - Math.cos(ang) * L, py - Math.sin(ang) * L);
+          g.fillStyle(0xffffff, 0.4).fillTriangle(px - Math.sin(ang) * 6, py + Math.cos(ang) * 6, px + Math.sin(ang) * 6, py - Math.cos(ang) * 6, px - Math.cos(ang) * L * 0.7, py - Math.sin(ang) * L * 0.7);
+          this.tweens.add({ targets: g, alpha: 0, duration: 320, onComplete: () => g.destroy() });
+          if (i === 0) {
+            sparks(this, px, py, 8, 'spark', 0xd8f0ff, 260);
+            shockRing(this, px, py, dc, 46, 220, 5);
+          }
+          if (hs.type === 'circle' && !h.oncePerTarget) {
+            shockRing(this, px, py, dc, hs.r * K * 1.2, 380, 9);
+            sparks(this, px, py, 16, 'spark', 0xd8f0ff, 420);
+            this.cameras.main.shake(120, 0.005);
+          }
+        } else if (hs.type === 'circle') {
+          const col = big ? 0xffd05a : ult ? 0xff7ad0 : base;
+          const start = (this.time.now / 90) % (Math.PI * 2);
+          for (let j = 0; j < 2; j++) this.ffx.slash(u.x, u.y, start + j * Math.PI, hs.r, 160, col, 7);
+          shockRing(this, px, py, col, hs.r * K, 240, 5);
+          if (ult) this.ffx.slash(u.x, u.y, start + Math.PI / 2, hs.r * 0.6, 160, 0xffd0f0, 6);
+          if (ult && big) {
+            this.cameras.main.shake(180, 0.007);
+            shockRing(this, px, py, 0xffd05a, hs.r * K * 1.15, 420, 10);
+          }
+        } else if (hs.type === 'sector') {
+          this.ffx.slash(u.x, u.y, ang, hs.r, hs.deg + 30, big ? 0xffd05a : base, big ? 10 : 7);
+          if (big) sparks(this, px + Math.cos(ang) * hs.r * K * 0.7, py + Math.sin(ang) * hs.r * K * 0.7, 8, 'spark', 0xffe8b0, 260);
+        } else if (hs.type === 'line') {
+          this.ffx.groundSplit(u.x, u.y, ang, hs.len, hs.width);
+        }
+        if (ult && sk.hits.length === 1 && hs.type !== 'line') this.rfx.starfall(u.x, u.y, hs.type === 'circle' ? hs.r : UNIT * 3);
+        if (st === 'freeze') {
+          const fr = hs.type === 'circle' ? hs.r : UNIT * 2;
+          this.frost(u.x, u.y, fr);
+          shockRing(this, px, py, 0xbff4ff, fr * K * 1.15, 520, 8);
+          sparks(this, px, py, 20, 'spark', 0xd8fbff, 420);
+        } else if (st === 'break' && big) {
+          const fx = px + Math.cos(ang) * UNIT * 1.4 * K;
+          const fy = py + Math.sin(ang) * UNIT * 1.4 * K;
+          sparks(this, fx, fy, ult ? 24 : 14, 'ember', 0xff6a4a, 380);
+          if (hs.type === 'sector' && !ult) {
+            this.ffx.slash(u.x, u.y, ang, hs.r * 1.12, hs.deg + 44, 0xff5a3a, 14);
+            shockRing(this, fx, fy, 0xff8a5a, UNIT * 1.6 * K, 300, 6);
+          }
+          if (ult && hs.type === 'line') this.ffx.moonArc(u.x, u.y, ang, hs.len, hs.width);
+        } else if (st === 'weak') sparks(this, px, py, 8, 'ember', 0xb08aff, 300);
+      });
+    }
+  }
 
   private playEvents(): void {
     const ev = this.s.events;
@@ -532,22 +694,47 @@ export class PvpScene extends Phaser.Scene {
         const dst = this.s.units.find((u) => u.id === e.dst);
         if (!dst) continue;
         this.flashUntil.set(dst.id, now + 80);
-        if (src && e.origin === 'normal' && this.weaponOf(src) !== 'sword') {
-          this.fx.push({ kind: 'streak', until: now + 140, dur: 140, col: this.weaponOf(src) === 'staff' ? 0xc89aff : 0xf4f0d0, x0: src.x, y0: src.y, x1: dst.x, y1: dst.y });
-          if (this.weaponOf(src) === 'staff') SFX.magicBolt();
-          else SFX.bowShot();
+        const sw = src ? this.weaponOf(src) : 'sword';
+        if (src && e.origin === 'normal') {
+          // 普攻：弓＝飛箭、杖＝魔彈（冒險地圖同一套）、劍＝一道小刀光
+          if (sw === 'bow') this.rfx.arrowShot(src.x, src.y, dst.x, dst.y, src.pid ? 0xffd8b0 : 0xf4f0d0);
+          else if (sw === 'staff') this.rfx.magicBolt(src.x, src.y, dst.x, dst.y, src.pid ? 0xff9ac8 : 0xc89aff);
+          else this.ffx.slash(src.x, src.y, Math.atan2(dst.y - src.y, dst.x - src.x), UNIT * 1.5, 90, src.pid ? 0xffb89a : 0xcfeaff, 5);
         }
         if (dst.id === me.id) {
           this.cameras.main.shake(e.crit ? 160 : 90, e.crit ? 0.01 : 0.004);
           SFX.hit();
         } else (e.crit ? SFX.hitHeavy : SFX.hitLight)();
-        const t = this.add.text(this.sx(dst.x) + ((this.evIdx * 37) % 30) - 15, this.sy(dst.y) - 70, `${e.amount}`, { fontFamily: UI_FONT, fontSize: e.crit ? '36px' : '26px', color: dst.id === me.id ? '#ff8a7a' : e.crit ? '#ffe04a' : '#ffffff', stroke: '#000000', strokeThickness: 5 }).setOrigin(0.5).setDepth(70);
-        this.tweens.add({ targets: t, y: t.y - 50, alpha: 0, duration: 700, ease: 'Cubic.Out', onComplete: () => t.destroy() });
+        // 命中回饋：火花朝被打飛的方向噴（顏色看元素／武器）、後仰、分級的傷害數字；持續傷害（中毒、灼燒）只跳小數字
+        const dx = src ? dst.x - src.x : 0;
+        const dy = src ? dst.y - src.y : -1;
+        const d = Math.hypot(dx, dy) || 1;
+        const sk = src && e.origin !== 'normal' ? skillDef(this.s, e.skill, src) : undefined;
+        const ult = sk?.role === 'ult';
+        if (e.origin !== 'dot') {
+          const look = hitLook(sw, sk, e.crit);
+          hitSparks(this, this.sx(dst.x), this.sy(dst.y) - 26, Math.atan2(dy, dx), e.crit || ult ? 12 : 7, look.tex, look.color, e.crit ? 300 : 220);
+          const m = e.crit || e.origin === 'counter' ? 15 : 9;
+          this.knocks.set(dst.id, { dx: (dx / d) * m, dy: (dy / d) * m * 0.6, at: now, ms: e.crit ? 170 : 120 });
+        }
+        const mine = dst.id === me.id;
+        const tier = e.origin === 'dot' ? undefined : ult ? 'ult' : e.crit ? 'crit' : undefined;
+        floatNumber(this, this.sx(dst.x), this.sy(dst.y) - 74, `${e.amount}`, { size: e.origin === 'dot' ? 20 : tier ? 38 : 28, color: mine ? '#ff8a7a' : e.origin === 'dot' ? '#d8b0ff' : '#ffffff', ...(tier && !mine ? { tier } : {}), ...(e.crit && e.origin !== 'dot' ? { label: '暴擊' } : e.origin === 'counter' ? { label: '反擊' } : {}) });
       } else if (e.type === 'cast') {
         const u = this.s.units.find((x) => x.id === e.id);
         const sk = u && skillDef(this.s, e.skill, u);
         const h = sk?.hits[0];
+        // 出招預告：這一招會打到哪（隊伍色，施放瞬間閃一下）；真正的特效在每段命中的 tick（skillFx）
         if (u && h) this.fx.push({ kind: 'shape', until: now + 260, dur: 260, col: u.pid ? FOE : ME, x0: u.x, y0: u.y, x1: 0, y1: 0, shape: skillShape(this.s, e.skill, h.shape, u), dx: u.facingX, dy: u.facingY });
+        // 招式名從頭上跳出來（選了哪種打法就是那個名字）
+        if (u && sk) {
+          const sp = this.sprites.get(u.id);
+          const ult = sk.role === 'ult';
+          const t = this.add.text(this.sx(u.x), (sp ? sp.y - sp.displayHeight : this.sy(u.y) - 80) - 44, sk.name, { fontFamily: UI_FONT, fontSize: ult ? '30px' : '22px', fontStyle: '900', color: ult ? '#ffd0f0' : u.pid ? '#ffc8b8' : '#cfeaff', stroke: '#000000', strokeThickness: 5 }).setOrigin(0.5).setDepth(72).setScale(0.6);
+          this.tweens.add({ targets: t, scale: 1, duration: 120, ease: 'Back.Out' });
+          this.tweens.add({ targets: t, y: t.y - 26, alpha: 0, delay: 420, duration: 380, onComplete: () => t.destroy() });
+          if (!u.pid) (ult ? SFX.hitHeavy : SFX.uiTap)();
+        }
         if (sk?.role === 'ult') {
           this.cameras.main.flash(150, 255, 200, 240);
           this.arenaArt?.roar(getSettings().lowFx, now); // 看台小歡呼（第 154 輪）
@@ -666,6 +853,9 @@ export class PvpScene extends Phaser.Scene {
     this.acc = 0;
     this.prev.clear();
     this.fx = [];
+    this.fxDone.clear();
+    this.knocks.clear();
+    this.hpGhost.clear();
     this.flashUntil.clear();
     this.phase = 'replay';
     this.status.setText(`▶ 重播 ×${REPLAY_SPEED}`).setFontSize(40).setColor('#bfe0ff').setScale(1);
@@ -702,4 +892,11 @@ function hpBarImages(scene: Phaser.Scene, x: number, y: number, w: number, col: 
     g.destroy();
   }
   return [scene.add.image(x - 3, y - 3, kb).setOrigin(0).setDepth(59.4), scene.add.image(x, y, kf).setOrigin(0).setDepth(59.45)];
+}
+
+/** 配裝摘要的尾巴：技能點強化了幾招、選了幾種打法（有才寫） */
+function buildNote(side: { skillMods?: Record<string, SkillMod>; skillVariants?: string[] }): string {
+  const n = Object.keys(side.skillMods ?? {}).length;
+  const v = side.skillVariants?.length ?? 0;
+  return `${n ? `・強化 ${n} 招` : ''}${v ? `・打法 ${v}` : ''}`;
 }

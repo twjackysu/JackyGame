@@ -11,8 +11,12 @@ export interface PvpSide {
   weapon: PvpWeapon;
   /** 裝備換算後的平加成（伺服器用 gearBonus＋pvpGear 算好；客戶端不能自己給） */
   bonus: { hp: number; atk: number; def: number };
+  /** 這一方選的技能打法（滿 5 級才有；伺服器照角色的技能點檢查過） */
   skillVariants?: string[];
+  /** 技能點＋裝備特效合計的技能修正 */
   skillMods?: Record<string, SkillMod>;
+  /** 等級（已經算進 bonus 了，這裡只給畫面顯示；第 156 輪） */
+  level?: number;
 }
 export interface PvpMatchSetup {
   seed: number;

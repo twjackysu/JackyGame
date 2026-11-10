@@ -1,6 +1,7 @@
 // PvP 數值正規化（24 §6.1，V3 先行，第 143 輪）：純函式，給之後的隊伍引擎（Q6）、非同步天梯驗證（Q7）、平衡模擬用。
 // 原則：打人要打得久一點（看得到操作與換招）、控制不能一套控到死、裝備差距縮小（刷寶有用，但不是決定一切）。
 // 這裡只放規則；引擎接上去的時候（V3 Q6）才會影響戰鬥，單人 PvE 完全不讀這份。
+import { WEAPONS } from './data';
 import { gearBase, type RtGear } from './gear';
 import { sec } from './types';
 
@@ -31,6 +32,13 @@ export const PVP = {
   ilvlKeep: 0.3,
   /** 強化等級保留多少（+10 只算 +5） */
   enhKeep: 0.5,
+  /**
+   * 等級加成（第 156 輪，D-338）：和四張地圖的 progression 一樣，每級 HP +6%、攻擊 +5%，最多 20 級。
+   * 競技場沒有 s.prog（不升級），所以由伺服器在開局時換算成平加成（pvpLevelBonus）。
+   */
+  levelHpPct: 6,
+  levelAtkPct: 5,
+  maxLevel: 20,
 } as const;
 
 export const pvpMaxHp = (maxHp: number): number => Math.round(maxHp * PVP.hpMult);
@@ -69,4 +77,20 @@ export function pvpGear(g: RtGear, ref: number): RtGear {
   const out: RtGear = { ...g, ilvl: L, base: gearBase(g.slot, L, g.rarity), affixes };
   if (g.enh) out.enh = Math.floor(g.enh * PVP.enhKeep);
   return out;
+}
+
+export const pvpLevel = (level: unknown): number => (typeof level === 'number' && Number.isFinite(level) ? Math.max(1, Math.min(PVP.maxLevel, Math.floor(level))) : 1);
+
+/**
+ * 把等級算進配裝的平加成（第 156 輪，D-338）：算法和冒險地圖一樣——（武器基礎＋裝備）×（100＋每級加成×(等級−1)）%。
+ * 以前競技場完全不看等級（Jacky 11/10：「PVP 好像沒有套用到等級」）。
+ */
+export function pvpLevelBonus(weapon: PvpWeapon, level: unknown, bonus: { hp: number; atk: number; def: number }): { hp: number; atk: number; def: number } {
+  const pd = WEAPONS[weapon].player;
+  const lv = pvpLevel(level) - 1;
+  return {
+    hp: Math.round(((pd.hp + bonus.hp) * (100 + PVP.levelHpPct * lv)) / 100) - pd.hp,
+    atk: Math.round(((pd.atk + bonus.atk) * (100 + PVP.levelAtkPct * lv)) / 100) - pd.atk,
+    def: bonus.def,
+  };
 }

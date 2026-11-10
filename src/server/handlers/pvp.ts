@@ -2,11 +2,12 @@
 // - pvp.start：伺服器挑對手（模擬玩家）、發種子、照雙方「身上的裝備」算配裝（物品等級壓縮 pvpGear）→ 對局存在角色的劇情旗標。
 // - pvp.finish：客戶端只送自己的指令紀錄；伺服器用同一份引擎重跑（對手 Bot 也在伺服器跑）判勝負、改段位分。紀錄不合法整筆拒絕。
 // 對局與段位分存在角色列（pvpMatch／pvpRating，SQL 版在 Character.Data 的 JSON 裡；不放 story——migrate.sync 會用舊 key 蓋掉 story），V6 再搬到 game.PvpMatch 資料表。獎勵只有段位稱號，不給數值。
-import { GEAR_SLOTS, gearBonus, genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
-import { pvpGear } from '../../core/battle/rt/pvp';
+import { GEAR_SLOTS, gearBonus, gearSkillMods, genGear, isGear, type RtGear } from '../../core/battle/rt/gear';
+import { pvpGear, pvpLevel, pvpLevelBonus } from '../../core/battle/rt/pvp';
+import { SKILL_TREE, cleanRanks, cleanVariants, mergeMods, rankMods, type SkillRanks } from '../../core/meta/skills';
 import { replayPvp, type PvpMatchSetup, type PvpSide } from '../../core/battle/rt/pvpMatch';
 import { WEAPONS } from '../../core/battle/rt/data';
-import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, pvpSeasonAfter, pvpSeasonNow, pvpStreakAfter, seasonLeftMs, simGearPlan, simGearRating, simLeague, taipeiDay, taipeiWeek } from '../../core/meta/pvpRank';
+import { DAY_MS, PVP_START_RATING, canChallenge, eloDelta, pvpSeasonAfter, pvpSeasonNow, pvpStreakAfter, seasonLeftMs, simGearPlan, simGearRating, simLeague, simLevel, simSkillRanks, taipeiDay, taipeiWeek } from '../../core/meta/pvpRank';
 import { hashSeed } from '../../core/rng';
 import { ApiError } from '../../net/protocol';
 import type { PvpRecentView, WeaponView } from '../../net/views';
@@ -29,19 +30,30 @@ interface StoredMatch extends PvpMatchSetup {
   at: number;
 }
 
-function sideOf(weapon: WeaponView, gear: RtGear[]): PvpSide {
+/**
+ * 一方的配裝（第 156 輪，D-338）：裝備數值（物品等級壓縮）＋等級加成＋技能點與裝備特效的技能修正＋選的打法。
+ * 以前只有裝備的攻擊／HP／防禦，等級、技能點、技能打法、裝備特效都沒帶進競技場。
+ * 技能修正不壓縮（冷卻／範圍本來就有上限 SKILL_MOD_CAPS）；傷害照 PVP.dmgMult 一起減半。
+ */
+function sideOf(weapon: WeaponView, gear: RtGear[], level: number, ranks: SkillRanks, variants: string[]): PvpSide {
   const pd = WEAPONS[weapon].player;
   const b = gearBonus(gear.map((g) => pvpGear(g, PVP_REF_ILVL)), pd.hp, pd.atk);
-  return { weapon, bonus: { hp: b.hp, atk: b.atk, def: b.def } };
+  const out: PvpSide = { weapon, bonus: pvpLevelBonus(weapon, level, { hp: b.hp, atk: b.atk, def: b.def }), level: pvpLevel(level) };
+  const mods = mergeMods(gearSkillMods(gear), rankMods(ranks));
+  if (Object.keys(mods).length) out.skillMods = mods;
+  if (variants.length) out.skillVariants = variants;
+  return out;
 }
 
-/** 模擬玩家的配裝：照「它和你比較低的那個」段位分（D-325，simGearPlan；模擬冒險者的分數擠在 900～1250，只看它的分數的話，掉到 700 的人遇到的還是全身裝）；同種子同分數同結果 */
+/** 模擬玩家的配裝：照「它和你比較低的那個」段位分（D-325，simGearPlan；模擬冒險者的分數擠在 900～1250，只看它的分數的話，掉到 700 的人遇到的還是全身裝）；同種子同分數同結果。等級與技能點也照同一個分數（D-338）；打法一律原招（Bot 不會挑打法） */
 function simSide(sim: SimPlayer, rating: number): PvpSide {
   const g = simGearPlan(rating);
-  return sideOf(sim.weapon, GEAR_SLOTS.slice(0, g.slots).map((slot) => {
+  const level = simLevel(rating);
+  const gear = GEAR_SLOTS.slice(0, g.slots).map((slot) => {
     const it = genGear(hashSeed(`${sim.seed}:pvp:${slot}`), g.rarity, g.ilvl, { slot });
     return g.enh ? { ...it, enh: g.enh } : it;
-  }));
+  });
+  return sideOf(sim.weapon, gear, level, simSkillRanks(sim.seed, level, SKILL_TREE.map((t) => t.id)), []);
 }
 /** 模擬冒險者今天的段位分（D-303：它們每天彼此打幾場，確定性、同一天同結果） */
 let leagueCache: { day: number; r: Map<string, number> } | null = null;
@@ -49,6 +61,13 @@ function simRatings(now: number): Map<string, number> {
   const day = Math.floor(now / DAY_MS);
   if (leagueCache?.day !== day) leagueCache = { day, r: simLeague(simRoster().map((s) => ({ id: s.accountId, tier: s.tier })), day) };
   return leagueCache.r;
+}
+
+/** 玩家自己的配裝：等級、技能點、打法都讀伺服器存的角色（客戶端不能自己報） */
+function mySide(c: { weapon: WeaponView; level: number; skills?: unknown; variants?: unknown }, gear: RtGear[]): PvpSide {
+  const lv = pvpLevel(c.level);
+  const ranks = cleanRanks(c.skills, lv);
+  return sideOf(c.weapon, gear, lv, ranks, cleanVariants(c.variants, ranks));
 }
 
 const ratingOf = (c: { pvpRating?: number }): number => (Number.isSafeInteger(c.pvpRating) && c.pvpRating! > 0 ? c.pvpRating! : PVP_START_RATING);
@@ -126,7 +145,7 @@ export const pvpHandlers: Pick<HandlerTable, 'pvp.start' | 'pvp.finish' | 'pvp.l
         .slice(0, 5);
       foe = near[Math.floor(ctx.rng() * near.length)]!.s;
     }
-    const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: sideOf(c.weapon, gear), foe: simSide(foe, simGearRating(rating, simRating(foe))), foeId: foe.accountId, foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
+    const m: StoredMatch = { id: ctx.ids.next('pvp'), seed: Math.floor(ctx.rng() * 4294967296) >>> 0, me: mySide(c, gear), foe: simSide(foe, simGearRating(rating, simRating(foe))), foeId: foe.accountId, foeName: foe.name, foeRating: simRating(foe), at: ctx.clock.now() };
     await ctx.r.characters.save({ ...c, pvpMatch: JSON.stringify(m) });
     return { matchId: m.id, seed: m.seed, me: m.me as never, foe: m.foe as never, foeId: foe.accountId, foeName: m.foeName, foeRating: m.foeRating, rating };
   },

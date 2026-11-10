@@ -108,6 +108,28 @@ export function simGearPlan(rating: number): { rarity: 1 | 2 | 3; ilvl: number; 
   return { rarity, ilvl, slots, enh };
 }
 
+/**
+ * 模擬冒險者的等級（第 156 輪，D-338：競技場開始算等級，對手也要有）：850 分 1 級、1000 分 6 級、1250 分 14 級、1420 分以上 20 級。
+ * 分數和配裝用同一個（simGearRating），所以掉分的人遇到的對手等級也會跟著降。
+ */
+export function simLevel(rating: number): number {
+  return Math.max(1, Math.min(20, Math.round(1 + (rating - 850) / 30)));
+}
+
+/** 模擬冒險者的技能點：等級−1 點，照種子決定先點哪幾招，一招點滿 5 級再點下一招（同種子同等級同結果） */
+export function simSkillRanks(seed: number, level: number, skillIds: readonly string[]): Record<string, number> {
+  const order = skillIds.map((id, i) => ({ id, k: hashSeed(`${seed}:rank:${id}`), i })).sort((a, b) => a.k - b.k || a.i - b.i);
+  const out: Record<string, number> = {};
+  let left = Math.max(0, Math.floor(level) - 1);
+  for (const o of order) {
+    if (left <= 0) break;
+    const n = Math.min(5, left);
+    out[o.id] = n;
+    left -= n;
+  }
+  return out;
+}
+
 /** 模擬冒險者段位分的大約上限（它們彼此打，擠在 900～1250） */
 export const SIM_GEAR_TOP = 1250;
 
