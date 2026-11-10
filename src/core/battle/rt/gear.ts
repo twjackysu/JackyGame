@@ -2,6 +2,7 @@
 // 掉落「有沒有、什麼稀有度、物品等級」由核心決定（獨立掉落亂數，不影響戰鬥）；撿到後用 (種子) 產生實際裝備。
 import type { SkillMod } from './types';
 import { GUARD_PCT_PER_POINT, SKILL_MOD_CAPS } from './types';
+import { EFFECTS } from './effects';
 
 export type GearSlot = 'weapon' | 'head' | 'body' | 'hands' | 'ring' | 'amulet';
 export const GEAR_SLOTS: GearSlot[] = ['weapon', 'head', 'body', 'hands', 'ring', 'amulet'];
@@ -30,6 +31,18 @@ export interface RtGear {
   special?: { skill: string; kind: SpecialKind; value: number };
   /** 深夜掉的稀有（D-108）：三條詞綴、名字「夜燼・…」 */
   night?: boolean;
+  /** 獨特效果（P3，D-354）：效果池 effects.ts 的固定效果 id；穿上就有（同一個效果穿兩件不疊加） */
+  unique?: string;
+}
+
+/** 是不是能放在裝備上的獨特效果 id（只收效果池的固定效果；「試招」那種動態 id 不行） */
+export const isUniqueId = (id: unknown): id is string => typeof id === 'string' && Object.prototype.hasOwnProperty.call(EFFECTS, id);
+
+/** 身上裝備帶來的獨特效果（不重複，照部位順序） */
+export function gearEffects(items: (RtGear | undefined | null)[]): string[] {
+  const out: string[] = [];
+  for (const g of items) if (g?.unique && isUniqueId(g.unique) && !out.includes(g.unique)) out.push(g.unique);
+  return out;
 }
 
 export type SpecialKind = 'cd' | 'dmg' | 'area' | 'block' | 'dist';
@@ -334,5 +347,6 @@ export function isGear(x: unknown): x is RtGear {
   if (typeof g.base !== 'object' || !Object.values(g.base).every((v) => v === undefined || fin(v))) return false;
   if (!g.affixes.every((a) => !!a && typeof a === 'object' && typeof a.stat === 'string' && a.stat in AFFIX_NAME && fin(a.value))) return false;
   if (g.special !== undefined && !(g.special && typeof g.special.skill === 'string' && typeof g.special.kind === 'string' && fin(g.special.value))) return false;
+  if (g.unique !== undefined && !isUniqueId(g.unique)) return false;
   return true;
 }

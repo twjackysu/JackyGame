@@ -573,6 +573,26 @@ export function setSkillVariants(s: BattleState, ids: readonly string[]): void {
   else delete s.skillVariants;
 }
 
+/**
+ * 戰鬥中換裝：更新裝備帶來的獨特效果（P3，D-354；同 BattleSetup.effects）。
+ * 技能修正類的效果在施放中一樣等這一招打完才套（applyBless 的規則）；競技場不生效。
+ */
+export function setEffects(s: BattleState, ids: readonly string[]): void {
+  const perm = [...new Set(ids)].filter((id) => !s.pvp && Object.prototype.hasOwnProperty.call(EFFECTS, id));
+  if (!perm.length) {
+    if (!s.bless?.perm) return;
+    if (s.bless.off) {
+      delete s.bless; // 只為了裝備效果才有的：整個拿掉，回到和沒有效果時一樣的狀態
+      return;
+    }
+    delete s.bless.perm;
+  } else {
+    s.bless ??= { rng: 1, meter: 0, taken: [], rerolls: 0, off: true };
+    s.bless.perm = perm;
+  }
+  applyBless(s);
+}
+
 /** 戰鬥中換裝／點技能時更新技能修正（D-094）；施放中一樣等這一招打完（傷害、範圍、冷卻都不會中途變） */
 export function setSkillMods(s: BattleState, mods: Record<string, SkillMod>): void {
   if (castingSkill(s)) {

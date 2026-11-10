@@ -4,7 +4,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { STAGES } from '../src/core/battle/rt/data';
 import { BLESS_RULES } from '../src/core/battle/rt/effects';
-import { createBattle, playerOf, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
+import { createBattle, playerOf, setEffects, skillDef, stateHash, step } from '../src/core/battle/rt/engine';
+import { gearEffects, genGear, isGear, type RtGear } from '../src/core/battle/rt/gear';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
 import type { BattleState, Unit } from '../src/core/battle/rt/types';
 
@@ -117,6 +118,51 @@ describe('裝備的獨特效果（P3-a1）', () => {
       }
       expect(s.bless!.taken.length).toBe(BLESS_RULES.max);
     }
+  });
+
+  it('物品格式：unique 只收效果池的固定效果；舊裝備（沒有 unique）照樣合格；同一個效果穿兩件只算一次', () => {
+    const g = genGear(123, 3, 8);
+    expect(g.unique).toBeUndefined();
+    expect(isGear(g)).toBe(true);
+    expect(isGear({ ...g, unique: 'storm_caller' })).toBe(true);
+    for (const bad of ['nope', 'try:heavy_slash:1', '__proto__', 'constructor', 5, null, {}]) expect(isGear({ ...g, unique: bad }), String(bad)).toBe(false);
+    const a: RtGear = { ...g, unique: 'storm_caller' };
+    const b: RtGear = { ...genGear(456, 3, 8), unique: 'storm_caller' };
+    const c: RtGear = { ...genGear(789, 2, 8), unique: 'venom_skill' };
+    expect(gearEffects([a, undefined, b, g, null, c])).toEqual(['storm_caller', 'venom_skill']);
+    expect(gearEffects([{ ...g, unique: 'nope' }])).toEqual([]);
+  });
+
+  it('戰鬥中換裝（setEffects）：穿上馬上有、脫掉就沒有；脫光後和沒有效果時一樣；不動身上的祝福', () => {
+    const s = mk(undefined);
+    leaveCamp(s);
+    const e = wolfAt(s, 110, 99999);
+    const p = playerOf(s);
+    p.maxHp = p.hp = 1e6;
+    p.targetId = e.id;
+    setEffects(s, ['ember_edge', 'nope']);
+    expect(s.bless).toMatchObject({ off: true, perm: ['ember_edge'] });
+    for (let i = 0; i < 45; i++) step(s);
+    expect(e.statuses.some((q) => q.id === 'burn')).toBe(true);
+    setEffects(s, []);
+    expect(s.bless).toBeUndefined();
+    e.statuses = [];
+    for (let i = 0; i < 60; i++) step(s);
+    expect(e.statuses.some((q) => q.id === 'burn')).toBe(false);
+    // 開著祝福的場次：換裝不動已選的祝福與計量
+    const t = mk(['quick_hands'], true);
+    t.bless!.offer = ['ember_burst'];
+    step(t, [{ type: 'bless', pick: 0 }]);
+    t.bless!.meter = 2;
+    setEffects(t, []);
+    expect(t.bless).toMatchObject({ taken: ['ember_burst'], meter: 2 });
+    expect(t.bless!.perm).toBeUndefined();
+    expect(t.bless!.mods).toBeUndefined();
+    setEffects(t, ['wide_arc']);
+    expect(t.bless!.mods!.whirlwind).toMatchObject({ areaPct: 30 });
+    const pv = createBattle({ stageId: 'pvp_arena', seed: 3 });
+    setEffects(pv, ['ember_edge']);
+    expect(pv.bless).toBeUndefined();
   });
 
   it('競技場不生效（D-354）；同種子＋同效果可重播，和沒有效果的結果不同', () => {
