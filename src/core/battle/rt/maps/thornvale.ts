@@ -113,6 +113,7 @@ export function makeThornvaleStage(): StageDefinition {
       thorn_stalker: { chance: 100, ilvl: 7, rarity: [0, 55, 45] },
       thorn_queen: { chance: 100, ilvl: 7, rarity: [0, 30, 70], count: 2, firstRare: true },
     },
+    bless: true, // 燼火祝福（P2-d，第 163 輪，D-353）：四張圖都開
     progression: { xp: { thorn_wolf: 9, thorn_shooter: 9, alpha_wolf: 35, thorn_mother: 140, night_thorn_alpha: 80, thorn_stalker: 90, thorn_queen: 260 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '沿著山谷往北，打倒棘冠狼后！\n棘背狼的咬傷會中毒・建議 Lv6 以上',

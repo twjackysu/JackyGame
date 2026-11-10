@@ -473,7 +473,7 @@ export const RESPAWN_MIN_PLAYER_UNITS = 9;
 export interface StageDefinition {
   /** PvP 競技場（Q6／24 §6.1）：玩家 HP ×3、玩家互打傷害 ×0.5、控制減半＋遞減；勝負＝最後還站著的隊伍 */
   pvp?: boolean;
-  /** 這張圖可以開燼火祝福（P2 小樣先只開霧語森林；BattleSetup.bless 也要給才會開） */
+  /** 這張圖可以開燼火祝福（第 163 輪起四張大地圖都開；BattleSetup.bless 也要給才會開） */
   bless?: boolean;
   id: string;
   name: string;

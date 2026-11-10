@@ -143,6 +143,7 @@ export function makeStarfallStage(): StageDefinition {
       eclipse_wolf: { chance: 100, ilvl: 13, rarity: [0, 30, 70] },
       star_sentinel: { chance: 100, ilvl: 13, rarity: [0, 20, 80], count: 2, firstRare: true },
     },
+    bless: true, // 燼火祝福（P2-d，第 163 輪，D-353）：四張圖都開
     progression: { xp: { star_wolf: 18, star_shroom: 17, crystal_golem: 22, astral_alpha: 160, comet_stalker: 180, eclipse_wolf: 200, star_sentinel: 480 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '通關後的挑戰：打倒星骸守望者！\n藍圈＝星星要砸下來・建議 Lv14＋裝備',

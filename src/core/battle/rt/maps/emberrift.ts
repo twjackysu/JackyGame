@@ -130,6 +130,7 @@ export function makeEmberriftStage(): StageDefinition {
       magma_stalker: { chance: 100, ilvl: 10, rarity: [0, 40, 60] },
       ember_colossus: { chance: 100, ilvl: 10, rarity: [0, 25, 75], count: 2, firstRare: true },
     },
+    bless: true, // 燼火祝福（P2-d，第 163 輪，D-353）：四張圖都開
     progression: { xp: { slag_slime: 14, ember_wolf: 13, ember_shroom: 13, obsidian_alpha: 120, magma_stalker: 140, ember_colossus: 360 }, maxLevel: 20, hpPctPerLevel: 6, atkPctPerLevel: 5 },
     viewUnits: 1300,
     intro: '穿過裂谷往北，打倒燼心岩王！\n地上發亮的熔岩口會噴發・建議 Lv10 以上',

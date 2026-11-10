@@ -5,6 +5,7 @@ import { STAGES, WEAPONS } from '../src/core/battle/rt/data';
 import { BLESS_RULES, EFFECT_IDS, EFFECTS, blessNeed, effectDef, mergeEffectMods, tryVariantId } from '../src/core/battle/rt/effects';
 import { createBattle, playerOf, setSkillMods, skillDef, skillShape, stateHash, step } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
+import { stageDef, WORLD_ORDER } from '../src/core/battle/rt/maps/world';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
 import type { BattleCommand, BattleState, Unit } from '../src/core/battle/rt/types';
 
@@ -269,6 +270,18 @@ describe('燼火祝福核心（P2-a）', () => {
     const hp0 = p.hp;
     killWolves(s, 1);
     expect(p.hp).toBe(hp0 + Math.round(p.maxHp * 0.05));
+  });
+
+  it('四張大地圖都開（P2-d，D-353）：白天與深夜都有；競技場與其他關卡沒有', () => {
+    for (const id of WORLD_ORDER) {
+      expect(stageDef(id)!.bless, id).toBe(true);
+      for (const night of [false, true]) {
+        const s = createBattle({ stageId: id, seed: 3, bless: true, night, level: 20 });
+        expect(s.bless, `${id}${night ? ' 深夜' : ''}`).toBeTruthy();
+        expect(createBattle({ stageId: id, seed: 3, night, level: 20 }).bless).toBeUndefined();
+      }
+    }
+    expect(createBattle({ stageId: 'pvp_arena', seed: 3, bless: true }).bless).toBeUndefined();
   });
 
   // ---- 第二批（第 163 輪，D-352） ----
