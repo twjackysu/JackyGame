@@ -35,7 +35,7 @@ const ALL_SKILLS = ['heavy_slash', 'whirlwind', 'charge', 'parry', 'blade_storm'
 
 /** 固定效果（第一批 8 個，三把武器都合用——技能欄 id 三把武器共用） */
 export const EFFECTS: Record<string, EffectDef> = {
-  ember_edge: { id: 'ember_edge', name: '餘燼之刃', desc: '普攻讓敵人灼燒 3 秒（可疊 3 層）', element: 'fire', onAttack: { status: { id: 'burn', ticks: sec(3), powerPct: 20 } } },
+  ember_edge: { id: 'ember_edge', name: '餘燼之刃', desc: '普攻讓敵人灼燒 3 秒（可疊 3 層）', element: 'fire', onAttack: { status: { id: 'burn', ticks: sec(3), powerPct: 15 } } },
   ember_burst: { id: 'ember_burst', name: '燼爆', desc: '打倒的敵人會炸開，波及旁邊的敵人', element: 'fire', glyph: 1, onKill: { burst: { r: u(1.8), mult: 90 } } },
   shadow_step: { id: 'shadow_step', name: '影步', desc: '閃避後 3 秒內，下一擊必定暴擊', element: 'dark', onDodge: { critTicks: sec(3) } },
   quick_hands: { id: 'quick_hands', name: '疾雷', desc: '所有技能冷卻 −20%', element: 'thunder', glyph: 1, mods: Object.fromEntries(ALL_SKILLS.map((id) => [id, { cdPct: 20 }])) },
