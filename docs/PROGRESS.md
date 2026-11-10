@@ -28,115 +28,18 @@
 - **評估更正**：第一版 27 寫「沒有稀有光柱」是錯的（光柱在 draw 的掉落段早就有），做 Q4 時讀到，已改正文件——之後寫「沒有」之前要 grep 過。
 - **沒做到的**：競技場（PvpScene）沒套用這些回饋；沒有同一畫面的舊／新並排（舊版是 70ms 的白閃，凍結點對不上）；真機效能沒有數據；常用技能特效還沒逐招看（NEXT 第 5 項）。
 
-## 2026-11-07 20:11–21:00（台北）第 154 輪 — 效能巡檢（冒險地圖／競技場的 Graphics 改貼圖）、拍賣所「▼便宜 N%」、SQL 遷移 0005、帳本對帳、看台小歡呼
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠。
-- **效能（D-332）**（含「還」的小跟班）：量每個 Graphics 每幀的 renderWebGL 時間。發現 Phaser 的 Graphics 每畫一個圓／弧要算 100 個點（`iterStep = 0.01`）、每幀重配置，而且「靜態」的 Graphics 也每幀重拆三角形。改法：①`fx/cachedDraw.ts`（RenderTexture、每秒重畫 24 次、其他幀只移動）：營火旁旅商／燼牌對手、路上的相遇人物、光門；②`rt/uiDisc.ts`（DiscLayer，同色同半徑烤一次）：冒險地圖 7 顆按鈕＋搖桿底、競技場技能鍵；③競技場頂端血條烤成貼圖、每幀只裁切寬度。結果（無頭、霧語森林營火旁）：主畫筆 2.5 → 1.3ms、ui 0.8 → 0.35ms、荊棘谷 ringG 0.32 → <0.05ms、競技場 hud 1.3 → ~0ms。外觀差別只有競技場血條減少端從圓角變直邊。
-- **拍賣所行情（D-333）**：`market.browse { refs: true }` 一起帶回這頁各「部位×稀有度」最近成交中位數（最多 8 組、少於 3 筆不給、模擬冒險者不要）；逛逛列表副標「▼便宜 N%」（≥10%），掛單卡片「最近成交中位數 N 金・這筆便宜 X%／開得比行情高」。SQL 遷移 **0005** 加 `IX_MarketListing_Sold`（Status, Slot, Rarity, ClosedAt desc）。
-- **帳本對帳（D-334，26 §3.3）**：`src/server/ledgerCheck.ts` 的 `reconcileCharacter`；契約測試三種 DB 轉手 6 次＋取消後對得上。順手修 docDb 同一毫秒的帳排序（36 進位序號字串比較，"10" 排在 "z" 前）。
-- **每日對帳接上線上伺服器**：repo `wallets.activeSince`（三種 DB）＋`runLedgerAudit`（不符寫稽核 `ledger.mismatch`），`server/main.ts` 每 24 小時；build:server 後實際啟動過。
-- **競技場看台小歡呼**：有人放大招時灑一小撮彩紙＋看台亮一下（`ArenaArt.roar`，1.2 秒冷卻）。
-- 驗證：每步 typecheck、eslint、build、vitest（最後 125 檔 911 項全過，含通關機器人、契約測試）；Playwright：營火／光門／按鈕舊新並排、冷卻扇形、競技場血條舊新、結果畫面按鈕底藏起、拍賣所假資料列表＋卡片；Kysely mssql 編譯器印 0005 的 DDL 核對（DROP INDEX 名稱不能帶 schema）。
-
-## 2026-11-07 18:11–19:15（台北）第 153 輪 — 競技場每週賽季、拍賣所最近成交、競技場場地美術＋VS 開場＋觀眾彩紙、A4 氛圍補完、Q5 三塊（RtBattleScene 4,985 → 4,880 行）
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（43350b5）。
-- **每週賽季（D-328）**：一季＝台北一週（週一 00:00），伺服器記本季／上季最高分與歷來最好（角色 `pvpSeason`，SQL 版在 Data JSON）；換季不重置分數。天梯左上「本季 剩 N 天／最高／上季」，結果畫面「★ 本季首次到達 X」＋段位色光圈；冒險地圖腳下光環照「現在、本季最高、上季最高」取大。測試：core 單元＋契約四種 DB（換週、migrate.sync 不掉）＋rank-cache。
-- **拍賣所最近成交（D-329）**：`market.history`（只讀，只給 price／ilvl／at）＋repo `listSold`（三種 DB）；上架卡片「最近成交 N 筆・中位 X 金（範圍）→ 用這個價」。原「行情價」快捷鍵改名「中等價」。契約測試四種 DB；CI mssql 綠。
-- **競技場美術（D-331）**：石板地、沙地交叉雙劍紋章、出生區漸層、看台觀眾＋小旗、四個火盆；開場 VS 橫幅演出；贏了看台灑彩紙。**踩到的**：第一版用 Graphics 每幀重跑幾千筆指令，無頭 fps 掉到 3、連開場計時都被拖慢卡住 → 烤成貼圖後 fps 比改之前還高（9.4～10.3 vs 8.4～8.8）。
-- **A4 氛圍補完（D-330）**：霧語森林白天落葉＋低空霧、深夜夜霧；星隕高原流星。
-- **Q5**：`ui/memoryBook.ts`（記憶本，舊／新 build 物件種類座標文字完全相同）、`shopOps.ts`（行商與燼牌下注的伺服器呼叫，Playwright 實打補貨＋買粉塵）、`fx/bossCues.ts`（熔心爆發／荊棘綻放／熔岩口噴發演出）。
-- 驗證：每步 typecheck、eslint、build、vitest（最後 124 檔 901 項全過，含通關機器人、契約測試）、build:online＋bundle 檢查；Playwright 截圖：森林日／夜、流星、天梯三行賽季字、結果畫面、上架卡片、競技場舊／新、VS 開場、彩紙、360×640 天梯；CI 程式 commit 都綠（被後一個 push 取消的除外）。
-
-## 2026-11-07 16:12–16:55（台北）第 152 輪 — 美術 A3 深夜動態光照、A5 傷害數字分級＋按鈕按下回饋、A6 地面去重複感、競技場冠軍區（D-326）
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（d56afb0）。
-- **A3 深夜動態光照**（`fx/nightLight.ts`）：深夜暗角從一張跟著主角的靜態圖改成半解析度黑幕 RenderTexture，每幀用柔邊筆刷擦出光源：主角（明暗曲線與舊圖相同）、營火（閃動）、傳送門（呼吸；Boss 交戰封門時變暗）、怪物／Boss 倒下、大招、一般技能出手、升級、寶箱打開的短暫閃光。省電畫質照舊用靜態圖。暗角圖／營火光暈材質也從場景搬進同一檔（RtBattleScene → 4,985 行）。
-- **A5**：傷害數字分級（暴擊＝金色漸層＋光暈＋大彈跳＋小傾斜；大招＝粉紫漸層＋更大彈跳）；全遊戲文字按鈕按下縮 0.9 彈回＋亮光掃過（`fx/pressFx.ts`，main.ts 掛一次，每個場景 create 時重掛 input 監聽）。
-- **A6 地面**（`rt/ground.ts`）：大片明暗起伏＋每張圖自己的 decal（落葉／石子、乾裂紋、焦黑裂紋與餘燼、碎星晶），格線 alpha 0.55；原本斑點的種子不變，只在進圖時畫一次。
-- **競技場冠軍區（D-326）**：以前最好的裝備爬到約 1400、100% 勝（對手配裝最高只照 1250）。`simGearRating`：你超過 1250 的那段加回對手；`simGearPlan` 1250 以上每 50 分強化 +1（最多 +8）。實測全身稀有 ilvl10 停在約 1318、最後 15 場 80%；1250 以下不變。
-- 驗證：每步 typecheck、eslint、build、vitest（123 檔 883 項全過，含通關機器人、契約測試、ladder 平衡）；Playwright 截圖：四張圖地面舊／新並排、荊棘谷深夜營火／傳送門、四種傷害數字、暫停選單按鈕逐幀 scale 紀錄；CI 前幾個 commit 綠。
-- **踩到的**：無頭 Chromium 截圖有延遲（約 1 秒），短動畫（彈跳數字、按鈕 70ms）拍不到 → 用 `tweens.killTweensOf` 固定在某個狀態再拍，或掛 `postupdate` 逐幀記數值；`game.isBooted` 在 READY 之前就是 true，但場景要到 READY 才加進 SceneManager → 掛全域監聽要看 `game.isRunning`。
-
-## 2026-11-07 14:12–15:00（台北）第 151 輪 — 競技場連勝／今日首勝、天梯平衡點、拍賣所金幣飛入、線上版撿錢飄字跟伺服器、Q5 四塊（RtBattleScene 5,286 → 4,978 行）、Wiki 線上化頁
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（126c0b3）。
-- **連勝與今日首勝（D-324）**：`pvp.finish` 由伺服器算（勝 +1、輸歸零、平手不變；台北日第一次贏），角色多 `pvpStreak`／`pvpWinDay`（SQL 版在 Data JSON）；結果畫面「今日首勝！・N 連勝」大字＋光環火花＋音效，天梯段位列帶「N 連勝」。只給外觀。契約測試四種 DB（含隔天、migrate.sync）。
-- **天梯平衡點（D-325）**：量出來只有一把武器或全身普通的人一場都贏不了（一路掉到 646 分），好裝備 100%。模擬冒險者配裝改照「它和你比較低的段位分」（`simGearPlan`）→ 弱裝掉到 750～900 有輸有贏（最後 15 場 27～60%）、中等裝在 1000 附近五五波。新測試 `tests/pvp-ladder-balance.test.ts`（真伺服器連打 30 場）。
-- **拍賣所**：賣出通知時金幣沿弧線飛進金幣數字＋`SFX.coins`（`fx/coinFly.ts`），面板關掉一起收。
-- **線上版撿錢**：金幣／粉塵／結晶不再飄本機擲的數字，改在 `loot.claim` 回來時飄伺服器給的；Playwright 6 隻怪飄字加總＝伺服器錢包。
-- **Q5 拆場景**：`fx/landmarks.ts`（抉擇痕跡、光門）、`fx/eliteFall.ts`（精英倒下演出資料表）、`rt/offscreenArrows.ts`（畫面外箭頭與距離字）、`fx/dashFx.ts`（殘影、閃現）。驗證方法：舊／新 build 在同一時間點畫出的 Graphics `commandBuffer` 逐項比對（四張圖 × 兩種螢幕完全相同）；eliteFall 用假場景記錄呼叫比對舊數字。
-- **文件**：`docs/wiki/online.md`（交易・競技場・線上化、mermaid 架構圖、防作弊），README 加第二期亮點（V7 底稿），wiki 導覽由 `npm run wiki` 產生。
-- 驗證：每步 typecheck、eslint、build（線上版加 build:online＋bundle 檢查）、vitest（最後 123 檔 880 項全過，含通關機器人、契約測試）；CI 每個程式 commit 都綠（被後一個 push 取消的除外）。
-- **踩到的**：契約測試的 `LEGACY_SAMPLE` 只穿一把劍 → Bot 永遠輸（因此發現 D-325）；Bot 對 Bot 是確定性的，裝備差一點勝率就從 0 跳到 100%，平衡要看「Elo 能不能找到平衡點」而不是單場勝率。
-
-## 2026-11-07 12:13–12:55（台北）第 150 輪 — 競技場復仇（天梯近況＋結果畫面「⚔ 再挑一次」）、Q5 拆場景六塊（RtBattleScene 6,592 → 5,286 行）、修 V7 截圖腳本
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（d81789a 含 mssql）。
-- **競技場復仇（D-323）**：戰績多存對手 id；`pvp.ladder.recent[].revenge` 由伺服器算（輸掉、對手還在、分差在指名範圍內）；`pvp.start` 回 `foeId`。天梯右上「近況」照勝敗上色（勝金敗紅和灰），點了展開最近 5 場（對手、分數變化、多久以前），輸掉的有「⚔ 再挑一次」；**結果畫面**輸了也多一顆「⚔ 再挑一次」（場景 restart 帶 rematch，用完清 `settings.data`——Phaser 的 restart() 沒帶資料會沿用上次的，不清的話「再來一場」也會變成指名）。契約測試四種 DB（站著不動必輸 → 可復仇 → 同一個對手）；Playwright 走完輸 → 再挑一次 → 同一個對手 → 再來一場回大廳。
-- **Q5 拆場景（照搬、行為不變）**：`fx/rangedFx.ts`（長弓／法杖技能特效、時間凝滯、虛空奇點）、`fx/fieldFx.ts`（刀光、墜星、冰碎、弧月、地裂、六角護盾）、`rt/ground.ts`（地面材質）、`fx/groundHazards.ts`（荊棘／熔岩／冰晶＋預告佇列）、`fx/stormFx.ts`（劍刃風暴系列，view 物件每幀重用）、`fx/companion.ts`（「還」的小跟班）。驗證：三把武器五招全放＋風暴兩個變化＋四種地面特效＋四張圖的小跟班 Playwright 截圖、零錯誤；地面四張圖前後逐像素比對相同（差異只有主角待機幀與營火閃爍）。
-- **`scripts/shot-newsave.mjs`**：Bot 掛法改成 `commands = () => bot.decide(s)`，40 秒快轉實測會走、會升級。
-- 驗證：每步 typecheck、eslint、build、vitest（最後 119 檔 864 項全過，含通關機器人、契約測試）；CI 每個程式 commit 都綠（被後一個 push 取消的兩次除外）。
-- **踩到的**：測試座標忘了 UNIT＝100（荊棘長在畫面外，以為壞了）；搬方法時 `floatNumber(this, …)` 這種把場景當參數的呼叫要改成 `this.sc`（typecheck 會抓到）。
-
-## 2026-11-07 10:12–11:10（台北）第 149 輪 — 登入續期＋登出、冒險地圖段位光環、競技場指名挑戰＋戰績、拍賣所賣出通知
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（05967c0）。
-- **登入續期（D-322）**：`oidcLogin` 存 refresh token（`jg_online_refresh`）、`refreshLogin`／`logout`／`tokenDisplayName`；`GameClient.refreshToken`：unauthorized 先續期、同一個 requestId 重送、同時被拒只續期一次。標題「線上帳號：名字〔登出〕」（`src/game/ui/onlineAccount.ts`，只在線上分支動態載入，離線 bundle 不含）。Playwright 對假 IdP＋假閘道（把有效 JWT 換成 dev token 轉給真的 dist-server）：登入、啟動時過期續期、玩到一半過期（並發兩個請求）續期一次後成功、登出 → Entra 登出頁 → 再登入；零錯誤。
-- **段位光環上冒險地圖（D-318）**：荊棘（1100）以上；`rankCache`＋`fx/rankAura`（競技場共用）。截圖：星隕（光圈＋光點）／荊棘（綠圈）／清掉（沒有）。
-- **指名挑戰（D-319）**：`pvp.start foeId`，伺服器用今天的分數檢查分差 ≤ 200；天梯可挑的名字前 ⚔、點整列開局。修：從天梯列開局時「開始對戰／離開」沒收掉（截圖抓到的）。
-- **戰績（D-321）**：`pvpHistory` 最近 5 場、`pvp.ladder.recent`；天梯右上「近況」。
-- **賣出通知（D-320）**：`market.mine.news`（`marketSeenAt`）；「你不在的時候賣出 N 件・+X 金」＋物品名，提示字改自動換行（第一版截圖超出畫面）。
-- **CI**：第一個 commit 的 mssql job 紅：`server.test.ts` 匯出入測試 `timeoutMs: 200 × 13` 不夠 SQL 容器跑 migrate.legacy（跟程式無關）→ 不掉包的測試逾時改 5 秒。之後全綠（cb7ef74 含 mssql）。
-- 驗證：每步 typecheck、eslint、build、build:online＋bundle 檢查、build:server、vitest（最後 119 檔 852 項全過，含通關機器人、契約測試四種 DB）。
-- **踩到的**：這個沙盒的無頭 Chromium IndexedDB 一次寫入約 3 秒（裸 IDB 量過）→ 新存檔開拍賣所逾時，不是遊戲問題；`scripts/shot-newsave.mjs` 的 Bot 掛法過時（`sc().pending`）。
-
-## 2026-11-07 08:11–09:05（台北）第 148 輪 — PvE 防作弊上限、拒絕稽核、修線上 PvP 結算 413、HTTP 兩客戶端整合測試、並發測試、線上登入（PKCE）、Pages /online/、Q5 兩塊
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空、沒有 Jacky 的 commit；上一輪最後 CI 全綠（46927dd）。
-- **PvE 數量上限（D-312）**：`core/battle/rt/loot.ts` `killSource`／`killCap`（重生點、Boss、暴動、隱藏精英各自照地圖重生規則算上限），`loot.claim` 超過回 rejected。`tests/loot-kill-cap.test.ts`：Bot 四張圖白天／深夜各 8 分鐘（刷怪＋打 Boss），一隻都沒超過。
-- **跨場上限（D-313）**：速度權杖桶、Boss 最後討伐時間、夜光寶箱 5 分鐘補滿都跨 `battle.start` 帶著走（以前重開一場全部重置）。
-- **拒絕稽核（D-314）**：敏感方法被拒時交易外另寫 AuditLog；repo 多 `audit.recent`（含 mssql）。
-- **修 bug（D-315）**：寫 V6 整合測試時發現線上 PvP 結算的指令紀錄（弓／法杖約 25 KB）超過 HTTP 16 KB 上限 → 每場 413。改 HTTP 1 MB、其他方法 16 KB 由 GameServer 擋。
-- **V6 驗收** `tests/server-http-flow.test.ts`：真的 HTTP 伺服器、兩個帳號從零打怪（伺服器擲）→ 拍賣所上架／購買 → 面對面交易換回 → 競技場重跑判勝負，金幣守恆。**V4 驗收** `tests/server-contract/concurrency.test.ts`：三人同時買同一筆、同時上架＋賣行商、雙方連點確認（四種 DB，mssql 在 CI）。
-- **線上版畫面**：persist 不再把本機撿的金幣／粉塵／結晶與本機等級寫進舊 key（Playwright：本機 +777 金後舊 key 錢包仍＝伺服器 15 金）；行囊標題 Lv、行商等級讀角色快取。
-- **Pages /online/（D-316）**：repo 變數 `ONLINE_API_URL` 有值才建線上版；離線 SW 排除 /online/（離線版標題冒煙截圖正常）。DEPLOY_AZURE.md 補設定步驟與防作弊說明。
-- **線上登入（D-317）**：`src/client/oidcLogin.ts` 授權碼＋PKCE（RFC 7636 向量、state 防重放測試）；Playwright 對假 IdP（node 小伺服器：authorize 302 帶 code 回來、token 回 id_token）走完轉頁→換 token→存 token→清網址、零錯誤；登入過期（unauthorized）時問一次要不要重新登入。夜光寶箱被拒（refilling）時公告。
-- **Q5**：懸賞板文字 → `src/game/rt/BountyBoard.ts`、頂端 HUD → `hudText.hudLine`（字不變；快照測試＋實機文字比對）。RtBattleScene 6588 → 約 6575 行。
-- 驗證：每步 typecheck、eslint、build、build:online＋bundle 檢查、build:server、vitest（最後 115 檔 827 項全過，含通關機器人、golden hash）。
-- **踩到的**：`dev:` token 只能小寫英數底線（測試用 `flow_alice`）；`market.buy` 回的是 CharacterView 不是 `{character}`。
-
-## 2026-11-07 06:12–07:10（台北）第 147 輪 — 線上版畫面讀伺服器的角色、懸賞／寶箱／相遇改伺服器發、即時 PvP BattleRoom、角色改名、小地圖拆出
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（df73b39）。
-- **角色快取（D-308）**：`src/client/characterCache.ts`；線上版 HUD 等級／金幣／粉塵、暫停選單、懸賞板讀快取；舊 key 在線上版變成伺服器角色的快取（`mirrorOnline`，行囊／錢包／等級／jg_encounters），本機擲的裝備不進行囊、改公告伺服器掉的。Playwright（build:online＋dist-server）：本機假劍進場被蓋掉；打倒狼王 → 行囊兩件跟伺服器一樣 →「全部換成最好的」→ 伺服器裝備欄一致；金幣、粉塵、等級和伺服器一樣、零錯誤。
-- **伺服器發獎勵（D-309）**：懸賞（`core/meta/bounty.ts`，loot.claim 計數＋發獎勵；實測 12 隻狼 → 「懸賞完成！粉塵 +6」跟伺服器）、寶箱 `loot.chest`（實測走到寶箱 → HUD 金 40 粉塵 6＝伺服器）、相遇 `story.meet`／`story.thanks`（`core/meta/encounters.ts` 獎勵表，和畫面資料對照測試）。契約測試三種 DB。
-- **即時 PvP（D-310）**：`net/realtime`＋`server/realtime/BattleRoom`＋`client/RoomClient`；`tests/pvp-realtime.test.ts` 80ms／2% 掉包三場雙方 hash＝伺服器、作弊指令被拒。不部署。
-- **其他**：交易對象列表「賣 X 金起」（trade.partners `cheapest`，契約：剛好放這麼多就賣、少 1 金不賣）；換角色清「剛遇到」（forgetMetThisVisit）；角色改名（D-311，截圖：旅人 → 艾薇）；Q5 小地圖拆到 `src/game/rt/MinimapSystem.ts`（前後截圖只差 4 個閃爍像素）。
-- 驗證：每步 typecheck、lint、build、build:online＋bundle 檢查、vitest（最後 112 檔 800 項全過，含通關機器人、golden hash）。CI 每個程式 commit 都綠（mssql 含 loot.chest／story.meet）。
-- **踩到的**：一次 commit 沒等 vitest 結果就推了（棘輪測試：src/game 不能碰 localStorage）→ 下一個 commit 改走 `client/legacyOps.mirrorOnline` 修好；之後一律先看測試結果再 commit。
-
-## 2026-11-07 04:12–05:05（台北）第 146 輪 — build:online、PvE 掉落改伺服器擲（loot.claim）、競技場重播＋段位光環、跟模擬冒險者買
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空。上一輪最後一次 CI 被取消：冒煙測試的競技場截圖卡到 job 15 分鐘上限（本機重跑 3 次都 11 秒）。
-- **CI 卡住**：`scripts/screenshot.mjs` 加看門狗（waitMs＋150 秒；有頁面錯誤照樣失敗、否則只警告）、`browser.close` 最多等 15 秒。
-- **V6 build:online（D-306）**：`npm run build:online`（`--mode online`，`.env.online` 預設連 `localhost:8080`、dev 登入）→ `dist-online/`。`boot.ts` 依 `VITE_SERVER_URL` 動態載入 `onlineClient.ts`（HttpTransport＋`jg_online_token`）或 `localServer.ts`；**線上 bundle 沒有 src/server**（`scripts/check-online-bundle.mjs` 掃 3 個伺服器字串、對照離線版要有，CI 加這一步）。線上版不遷移／不同步舊存檔：`legacyOp` 改打伺服器的目前角色（沒有就用本機武器建一個）、不寫回舊 key；換角色只換伺服器的目前角色。離線版行為不變（本機伺服器變成一個 47KB 的動態 chunk）。
-- **V5 loot.claim（D-307）**：掉落擲骰抽成 `core/battle/rt/loot.ts`（`rollEnemyLoot`、`validKill`、`isStageBoss`、`killXp`；引擎改呼叫它，**golden hash 不變**）；大地圖關卡定義 `maps/world.ts` `stageDef`（伺服器也能懶產生）。伺服器 `battle.start`／`loot.claim`：killSeq 遞增、每分鐘 40 隻＋開場 10 隻、3 小時過期、這張圖真的有這隻怪在這一群；伺服器亂數擲、直接入錢包／行囊（行囊滿了照 D-100）、經驗與升級、Boss 擊殺記地圖進度（firstRare 保底只有第一次）。線上版畫面 `src/game/onlineLoot.ts`：進場 start、打倒會掉東西的怪就 claim（離線版整段拿掉）。
-- **競技場**：結算「▶ 看重播」（同種子＋指令紀錄＋Bot，兩倍速；實測重播 1265 tick、結果和伺服器一樣）；**段位光環**（`rankAura`：霧語 1 圈→星隕 3 圈＋6 星點），排行榜段位字用光環色。匯出／匯入帶段位分。
-- **交易**：只放金幣＝跟模擬冒險者買：它放上開價（行商買價 ×0.45～0.85，或拍賣所掛單價——行囊沒有就撤下自己的掛單）買得起的最貴一件；錢不夠什麼都不放。多付的會找零（實測付 1000 → 皮甲＋找回 903）。
-- **loot.claim 補強**：`battle.start` 檢查地圖開放與深夜解鎖、暴怒要先解鎖（`maps/world.ts` 的 `WORLD_ORDER`／`worldStageOpen`／`worldNightOpen`／`furyOpenBy`，畫面層 `furyUnlocked` 改用同一份；測試對照 worldMaps 的 next 鏈）；暴怒 Boss 記 `furyKills`。
-- 驗證：每步 typecheck、lint、build、vitest（最後 106 檔 767 項全過，含通關機器人、golden hash、新的 loot 契約測試×3 種 DB、online-client／online-loot 真的起 node:http）。Playwright：離線／線上版競技場大廳一樣、線上版 boot `kind: online`、零錯誤；競技場打完 → 看重播 → 結果相同；光環截圖（改段位分看高段）；交易放 1000 金 → 對方放上「厚實的皮甲・薄霧」。腳本 `screenshots/r146*.mjs`（gitignored）。
-- CI：最後 df73b39 全綠（mssql、新的 Online client build、冒煙測試 1.5 分鐘）。
-- **注意**：offline dist 也有 `loot.claim` 字樣（protocol 的方法表），不是伺服器程式。
-
-## 2026-11-07 02:12–03:10（台北）第 145 輪 — F1 多角色＋共用倉庫、天梯會動、頻率限制、V6 線上 API（HTTP、JWT、打包、Bicep）
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（4839f5b）。
-- **多角色伺服器端（D-302）**：`core/meta/roster.ts`；`character.create/delete/select`、`warehouse.get/put/take`（40 格，`ownerId＝wh:<帳號>`）；帳號 `activeCharacterId`（SQL 遷移 `0004_roster`，820cbd7 的 mssql job 綠）；`migrate.sync` 只寫目前角色；匯出入帶倉庫；建角色可指定欄。契約測試三種 DB：3 欄上限、名字／武器檢查、不能刪目前／最後一個／拍賣中有東西的、別人碰不到、倉庫滿 40 拒絕、倉庫物品不能拿去拍賣、匯出入後倉庫還在。
-- **換角色（過渡期）**：`migrate.pull`＋`toLegacy`（`fromLegacy` 反方向；測試：轉回舊 key 再 sync 角色完全不變）；`src/client/roster.ts`（同步 → 選 → 拉 → 換掉角色的舊 key，裝置 key 留著 `src/net/legacyKeys.ts`）。畫面：標題「角色」鈕＋`rosterPanel.ts`、行商「倉庫」分頁＋`warehousePanel.ts`。
-- **天梯（D-303）**：`simLeague` 模擬冒險者每天彼此打（確定性、14 天、零和），分數 825～1309、每天會變。
-- **頻率限制（D-304）**：`src/server/rateLimit.ts`＋`GameServerOptions.limiter`（線上開、本機不開）。
-- **V6（D-305）**：`server/http.ts`、`server/main.ts`、`server/devAuth.ts`、`server/jwtAuth.ts`、`src/net/HttpTransport.ts`、`server/.env.example`、`npm run build:server`（rolldown 單檔 1.7MB）、`server/Dockerfile`、`infra/main.bicep`、`deploy-server.yml`（手動、無 secret skip）；CI 加打包啟動 /health 冒煙測試＋`az bicep build`。
-- 驗證：每步 typecheck、lint、build、vitest（最後 101 檔 732 項全過，含通關機器人、golden hash）。Playwright 360×640（腳本 `screenshots/r145.mjs`、`r145w.mjs`，gitignored）：Lv12 長弓角色 → 建法杖新角色（Lv1、荊棘谷未開放、教學提示 key 還在）→ 切回 Lv12、999 金、行囊、討伐數都在；刪除角色正常；倉庫放兩件拿回一件，舊 key 行囊正確、零頁面錯誤。`AUTH_MODE=dev npx tsx server/main.ts` 實測 /health、POST /api 建角色。整合測試真的起 node:http。
-- **踩到的**：標題重開用 `cameras.main.fadeOut` 回呼沒觸發 → 改用既有 `go()`；無頭瀏覽器換角色後標題重開要好幾秒（腳本要等「武器」字樣變了再點）。沙盒不能下載 bicep 執行檔 → Bicep 只在 CI 編譯。
-
-## 2026-11-07 00:13–01:10（台北）第 144 輪 — PvP 平衡、競技場畫面＋天梯大廳、託管交易伺服器端
-**背景**：FOR_JACKY「回覆」空、沒有 Issue、art-inbox 空；上一輪 CI 全綠（6a32125）。
-- **PvP 平衡（D-298）**：先量：弓對劍平均距離 110（貼身肉搏）、三組都是 HP 多的贏。`PlayerBot` 加 `kiteDir`（PvP 時遠程在對手進到射程 60% 內、普攻冷卻中就往八方向裡離對手最遠、不撞石頭、不貼牆的方向走；普攻好了站住射）→ 變成「弓 20:0 勝劍、法杖 20:0 勝弓、劍≈法杖」的繞圈相剋。量了三個槓桿的梯度（每 +10%）：劍傷害 bs −9／ss −10、弓 bs +6／bst +7、法杖 ss +6／bst −6——三組加總近乎不變，單一武器倍率調不平；劍 PvP 移速 +8～25% 也幾乎沒用；劍提早衝鋒反而更差（撤掉）。最後用相剋表 `PVP.vsPct`：弓打劍 86%、法杖打弓 95%。平衡測試起始位置隨種子變（左右 ±4 格、前後 ±1 格），加 30～70% 護欄。**報表（各 20 場）：弓對劍 11:9、弓對法杖 10:10、法杖對劍 10:10**；種子 21～40：10:10、9:11、14:6。
-- **競技場畫面（D-299）**：新場景 `PvpScene`（不動 RtBattleScene）＋`src/game/pvpOps.ts`；標題「⚔ 競技場」（選過武器才出現）→ 天梯大廳（`pvp.ladder`：段位、名次、前 10 名）→「開始對戰」→ VS 介紹 → 本機打、記自己的指令 → `pvp.finish` → 勝負與段位分變化。`startPvp` 把雙方藥水設 0（改過的客戶端灌藥水指令伺服器重跑也不會回血）。CI 冒煙測試加 `?scene=Pvp`。
-- **託管交易伺服器端（D-300，F3）**：`core/meta/trade.ts` 狀態機＋`trade.open/offer/lock/confirm/cancel/get`＋`TradeRow`（三種 DB）＋遷移 `0003_trade`（`game.Trade`）。契約測試：物品換主人、金幣到對方、託管中的物品不能拿去拍賣、改內容解除雙方鎖定、舊版本確認被拒、取消／過期全部退回、錢不夠／穿著的／亂填被拒、第三者碰不到。**交易對象＝模擬冒險者**（D-301）：`trade.partners`＋模擬玩家照收購規則回應（出價、跟著鎖、跟著確認），一樣只走公開 handler。**交易畫面**：行商面板「交易」分頁（選冒險者 → 放裝備／加減金幣 → 看出價 → 鎖定 → 確認）；Playwright：放皮甲 → 對方出 165 金 → 完成，舊 key 金幣 +165、行囊少一件、零分歧；關掉面板再打開可以「繼續和 X 的交易」。競技場腳下陣營光圈加底色（對手紅／自己藍）。
-- 驗證：每步 typecheck、lint、build、vitest（最後 95 檔 690 項全過，含通關機器人、golden hash）。Playwright 360×640（腳本在 /tmp，沒進 repo）：標題看得到「⚔ 競技場」；大廳、開戰、結算截圖；三把武器各打一場，劍 115 筆、法杖 111 筆指令被伺服器接受、結果和本機一致、零頁面錯誤。CI：平衡（9978f90）、冒煙測試（77ff4d8）、交易規則（913e005）全綠；交易伺服器端（b830b7b）的 mssql job 綠（遷移 0003 在 SQL Server 上過）；交易畫面之後的幾個 commit 收尾時還在跑（下一輪開頭看）。
-- **踩到的**：無頭瀏覽器 `pvp.start` 第一次要 5 秒以上（模擬玩家建角色）；`__game` 只有 `?debug` 或 dev 才掛。
+## 2026-11-07 00:13–21:00（台北）第 144～154 輪：每日摘要（第 156 輪合併；細節看 git 歷史與 DECISIONS D-297～D-334）
+- **第 154 輪**：效能巡檢（冒險地圖／競技場的 Graphics 改貼圖）、拍賣所「▼便宜 N%」、SQL 遷移 0005、帳本對帳、看台小歡呼
+- **第 153 輪**：競技場每週賽季、拍賣所最近成交、競技場場地美術＋VS 開場＋觀眾彩紙、A4 氛圍補完、Q5 三塊（RtBattleScene 4,985 → 4,880 行）
+- **第 152 輪**：美術 A3 深夜動態光照、A5 傷害數字分級＋按鈕按下回饋、A6 地面去重複感、競技場冠軍區（D-326）
+- **第 151 輪**：競技場連勝／今日首勝、天梯平衡點、拍賣所金幣飛入、線上版撿錢飄字跟伺服器、Q5 四塊（RtBattleScene 5,286 → 4,978 行）、Wiki 線上化頁
+- **第 150 輪**：競技場復仇（天梯近況＋結果畫面「⚔ 再挑一次」）、Q5 拆場景六塊（RtBattleScene 6,592 → 5,286 行）、修 V7 截圖腳本
+- **第 149 輪**：登入續期＋登出、冒險地圖段位光環、競技場指名挑戰＋戰績、拍賣所賣出通知
+- **第 148 輪**：PvE 防作弊上限、拒絕稽核、修線上 PvP 結算 413、HTTP 兩客戶端整合測試、並發測試、線上登入（PKCE）、Pages /online/、Q5 兩塊
+- **第 147 輪**：線上版畫面讀伺服器的角色、懸賞／寶箱／相遇改伺服器發、即時 PvP BattleRoom、角色改名、小地圖拆出
+- **第 146 輪**：build:online、PvE 掉落改伺服器擲（loot.claim）、競技場重播＋段位光環、跟模擬冒險者買
+- **第 145 輪**：F1 多角色＋共用倉庫、天梯會動、頻率限制、V6 線上 API（HTTP、JWT、打包、Bicep）
+- **第 144 輪**：PvP 平衡、競技場畫面＋天梯大廳、託管交易伺服器端
 
 ## 2026-11-06 12:11–23:45（台北）第 139～143 輪：每日摘要（第 151 輪合併）
 - **第 139 輪**：開第二期（D-276）：`23-v2-roadmap.md`；Jacky 追加線上化以交易與 PvP 為主（D-277，`24-online-architecture.md`）、後端 Node.js＋Azure Container Apps＋共用 Azure SQL `game` schema（D-278，`25-azure-backend.md`）、資安（D-279，`26-security.md`）。
