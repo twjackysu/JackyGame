@@ -7,22 +7,21 @@
 > 遊戲現況：單人即時動作戰鬥＋四張大地圖、三把武器、技能點＋變化、行商、強化、燼牌、拍賣所、交易、競技場。**沒有「深淵」模式**（最接近的是深夜／騷動／暴怒 Boss）。
 
 ## ★ 第 156 輪起：品質 Q 清單（階段 A，最上面先做）
-**已完成（第 155 輪，D-335）**：Q1 倒下依種類（`src/game/fx/deathFx.ts`：`deathKind(defId)`＋`playDeath`，新怪要加進 `KIND`／`DEBRIS` 表，沒加就是野獸倒地）、Q2 命中火花（`fx/feel.ts` 的 `hitSparks`＋`fx/hitTint.ts` 的 `hitLook`，新狀態要加進 `ELEMENT`）、Q3 受擊後仰（`RtBattleScene.knock(id, dx, dy, px, strong)`）。
+**已完成（第 155 輪，D-335／D-337）**：Q1 倒下依種類（`src/game/fx/deathFx.ts`：`deathKind(defId)`＋`playDeath`，新怪要加進 `KIND`／`DEBRIS` 表，沒加就是野獸倒地）、Q2 命中火花（`fx/feel.ts` 的 `hitSparks`＋`fx/hitTint.ts` 的 `hitLook`，新狀態要加進 `ELEMENT`）、Q3 受擊後仰（`RtBattleScene.knock(id, dx, dy, px, strong)`）、Q4 掉落彈出（`dropPop`＋`DROP_POP_MS`，在 `draw` 的地面掉落段）、Q5 技能冷卻轉好的提示（`cdWas`／`cdReadyAt`，在 `drawUi` 技能鍵段）、Q6 血條殘影（`ghostHp(id, 比例)`，怪頭上／主角／Boss 大血條）。
 
-0. **每輪開頭**：FOR_JACKY「回覆」、Issue、`art-inbox/`、Jacky 的 commit、CI（第 155 輪最後的程式 commit 是「Q3 受擊反應」）。
-1. **Q4 掉落彈出＋稀有光柱（Level 2）**：現在 `drop` 事件後東西直接出現在地上（`RtBattleScene.draw` 掉落物段，約 3890 行：稀有以上只有光暈 alpha 脈動）。做法：新 `src/game/fx/dropFx.ts`，`playEvents` 收到 `drop` 時記 `{ itemId, fromX, fromY, at }`（from＝剛死那隻怪的位置；同 tick 的 `death` 事件在前面），draw 時前 350ms 用拋物線把圖示從怪的位置彈到落點（落地小彈一下）；rarity ≥ 2 落地後立一道細光柱（稀有藍／傳說金，`RARITY_COLOR`，ADD，寬 10px 高 120px 漸層貼圖烤一次）＋落地瞬間一圈小環。金幣／粉塵只做彈出。**驗收**：Bot 打狼王（保底稀有）截圖看得到光柱；撿取範圍與掉落內容不變（golden hash 測試照過）；省電畫質不立光柱。
-2. **Q5 升級演出＋技能好了的提示（Level 2）**：`levelUp` 事件現在只有大字「等級提升！Lv N」＋數值小字。加：主角腳下金色環往上升的光柱（0.6 秒）、`nightLight.flash`、16 顆金粉往上飄；技能冷卻轉好的那一幀按鈕外框亮一下＋放大 1.08 再回來（`drawUi` 冷卻扇形那段約 4840 行；先確認現況有沒有閃——程式裡有「閃爍外框」的註解，可能已經有）。**驗收**：Lv1→2 凍結截圖；按鈕閃只在「剛好」那一下，不是一直閃。
-3. **Q6 血條扣血殘影（Level 2）**：Boss 血條與怪頭上血條、玩家 HP：扣血時原本長度留一段白色殘影，0.35 秒內追上（`Map<unitId, { shown: number; at: number }>` 在場景裡，draw 時算）。先 grep `drawBossBar`／血條畫法確認在哪支畫筆。**驗收**：對 Boss 放大招凍結截圖看到白色殘影段；競技場血條（貼圖＋setCrop，D-332）另外處理或先不做。
+0. **每輪開頭**：FOR_JACKY「回覆」、Issue、`art-inbox/`、Jacky 的 commit、CI（第 155 輪最後的程式 commit 是「Q5 技能冷卻剛轉好」daba688）。
+1. **常用技能特效逐招檢查（Level 2，階段 A 的主菜）**：第 155 輪沒有逐招看。先用 `window.__rt.send({ type: 'skill', id })`（見下面第 150 輪注意）把三把武器 × 5 招 × 兩種變化各截一張凍結圖，排成對照表存 `docs/screenshots/`，在 27-quality-review 補「哪幾招只有一層特效」，再挑最常用的（劍：普攻、重斬、旋風斬；弓：普攻；杖：星焰彈）補「施法前搖光／拖尾／命中爆點」（`fx/fieldFx.ts` 的 `slash`、`fx/rangedFx.ts`）。**驗收**：每招改動前後並排截圖；特效不改命中形狀（形狀在 core）。
+2. **Q9 精英辨識（Level 2）**：13 種怪是霧狼染色。精英（`x.tier === 'elite'`）：體型 ×1.12（`spriteFor` 的 `hPx`）、腳下詞綴色的環（`AFFIX_COLOR`）、高畫質加 `postFX.addGlow`（只有畫面上的精英、最多 3 隻）。先截圖確認現況精英長什麼樣（可能已經有部分標記）。**驗收**：同畫面普通狼和精英狼一眼分得出來；純畫面。
+3. **UI 回饋剩下的（Level 2）**：①裝備稀有度在行囊／掉落提示的呈現（先截圖行囊面板再決定）②競技場（`PvpScene`）也套用 Q2 火花／Q3 後仰／Q6 殘影——競技場有自己的命中處理，第 155 輪沒動；血條是貼圖＋setCrop（D-332），殘影要另外畫一張白條。③主角被打的回饋（現在是鏡頭震動＋紅數字＋震動；可加畫面邊緣紅暈，血越少越明顯）。
 4. **Q7 效能：傷害數字池＋上限、粒子發射器共用**：①`floatNumber` 每個數字 `new Text`（建 canvas＋上傳貼圖）。先量：60 秒 Bot 戰鬥裡 `floatNumber` 呼叫次數與同時存在數的峰值（hook 計數）。做法候選：純數字（沒有 tier、沒有中文字）改用 `BitmapText`＋BootScene 用 canvas 產一張 `0-9!+` 字型貼圖（`RetroFont`）＋物件池（上限 24，超過時最舊的非暴擊數字直接收掉）；有 tier／中文的維持 Text。②`sparks`／`hitSparks`／`deathFx.puff` 每次 `add.particles` 再 destroy → 每個場景每張貼圖一個常駐 emitter，用 `emitter.setConfig`／`emitParticleAt`（Phaser 3.90 的 API 先查文件確認）。**驗收**：旋風斬掃 8 隻以上時新建的 Text 數 = 0；60 秒戰鬥中 `ParticleEmitter` 物件數峰值 ≤ 6；畫面舊新並排看不出差別。
-5. **常用技能特效逐招檢查（Level 2）**：第 155 輪沒有逐招看。先用 `window.__rt.send({ type: 'skill', id })`（見下面第 150 輪注意）把三把武器 × 5 招 × 兩種變化各截一張凍結圖，排成一張對照表存 `docs/screenshots/`，在 27-quality-review 補「哪幾招只有一層特效」，再挑最常用的（劍：重斬、旋風斬；弓：普攻；杖：星焰彈）補「施法前搖光／拖尾／命中爆點」。
-6. **Q9 精英辨識（Level 2）**：13 種怪是霧狼染色。精英（`x.tier === 'elite'`）：體型 ×1.12（`spriteFor` 的 `hPx`）、腳下詞綴色的環（`AFFIX_COLOR`）、高畫質加 `postFX.addGlow`（只有畫面上的精英、最多 3 隻）。**驗收**：同畫面普通狼和精英狼截圖一眼分得出來；`tests/loot-kill-cap` 等不受影響（純畫面）。
-7. **Q10 三情境效能量測腳本**：`scripts/perf-probe.mjs`（照第 154 輪注意的量法：包每個物件的 `renderWebGL` 計時）跑 ①霧語森林白天 60 秒 ②荊棘谷深夜 60 秒 ③星隕高原深夜＋騷動；輸出每幀 JS 更新毫秒（`scene.update` 包計時）、渲染毫秒、活躍單位／Text／ParticleEmitter／Image 數的平均與峰值，表格寫進 PROGRESS。無頭瀏覽器的 fps 不能當手機數據，只比相對值。
-8. **Q8 技能點里程碑＝行為升級（Level 3，階段 B 11/15 起；要先寫 DECISIONS）**：`core/meta/skills.ts` 的 `SKILL_TREE` 每級只有數值。構想：3 級、5 級各解鎖一個看得到的變化（例：重斬 3 級劍氣多飛 1 格、5 級命中留一道燃燒地面；旋風斬 3 級多轉一圈、5 級收招放一圈衝擊波），用既有 `SkillMod`（`areaPct`、`distPct`…）或加欄位，**結算在 core**；要跑平衡 Bot（`npm run sim:rt`）、golden hash、`npm run wiki`、伺服器 `skills.*` 契約測試。
-9. **線上版遺留（輔，約三成）**：見下面「第二期遺留」第 2、5、6、7 項；阻擋品質工作才提前。
-10. **凍結（11/27 12:00 起）**：原 V7 清單（下面第 8 項）＋品質改善前後對照截圖放 README。
+5. **Q10 三情境效能量測腳本**：`scripts/perf-probe.mjs`（照第 154 輪注意的量法：包每個物件的 `renderWebGL` 計時）跑 ①霧語森林白天 60 秒 ②荊棘谷深夜 60 秒 ③星隕高原深夜＋騷動；輸出每幀 JS 更新毫秒（`scene.update` 包計時）、渲染毫秒、活躍單位／Text／ParticleEmitter／Image 數的平均與峰值，表格寫進 PROGRESS。無頭瀏覽器的 fps 不能當手機數據，只比相對值。
+6. **Q8 技能點里程碑＝行為升級（Level 3，階段 B 11/15 起；要先寫 DECISIONS）**：`core/meta/skills.ts` 的 `SKILL_TREE` 每級只有數值。構想：3 級、5 級各解鎖一個看得到的變化（例：重斬 3 級劍氣多飛 1 格、5 級命中留一道燃燒地面；旋風斬 3 級多轉一圈、5 級收招放一圈衝擊波），用既有 `SkillMod`（`areaPct`、`distPct`…）或加欄位，**結算在 core**；要跑平衡 Bot（`npm run sim:rt`）、golden hash、`npm run wiki`、伺服器 `skills.*` 契約測試。
+7. **線上版遺留（輔，約三成）**：見下面「第二期遺留」第 2、5、6、7 項；阻擋品質工作才提前。
+8. **凍結（11/27 12:00 起）**：原 V7 清單（下面第 8 項）＋品質改善前後對照截圖放 README。
 
 **第 155 輪注意**：
 - 截圖腳本（`screenshots/` 是 gitignore 的，要重寫）：`r155death.mjs`＝dev server 進 RtBattle 後 `__game.loop.sleep()`、假 `Date.now`、`__game.step(T, 16)` 手動推進，場景上直接 `add.image` 四種怪再 `playDeath`，推 130ms 截圖（**遊戲座標是 720 寬**，螢幕 390 寬時要 ×1.85）。受擊後仰：`scripts/shot-newsave.mjs` 的 SHOTS 第二欄塞 JS：`sc().knock(id, 1, 0, 16, true)` → `loop.sleep()` → `step` 一幀（先 `cameras.main.resetFX()`，不然大招的粉紅閃光蓋住整個畫面）。
+- 掉落彈出截圖：SHOTS 的 JS 直接 `s.s.ground.push({...})`＋`s.dropPop.set(id, { fx, fy, at: s.time.now })`，`loop.sleep()` 後推 9 幀（放離主角 4 格以上才不會被撿走）。血條殘影：推一幀 → 把怪的 `hp` 改小 → 再推兩幀。技能鍵：把 `p.ready[*]` 設成 `tick + 2` 再推 10 幀。
 - `playDeath` 之後立繪由它自己 destroy；`killSprite(id)` 不帶 defId＝離場（despawn），照舊白閃淡出。
 - 碎裂倒下會在立繪的貼圖上加 frame（`shard{n}_{i}_{j}`，每張貼圖只加一次）。
 - 這個沙盒的 `uptime`／時鐘看起來正常，但第 154 輪之後有一輪（11/7 22:14 的鎖）沒收尾就斷了，原因不明；鎖過期後這輪正常接手。
