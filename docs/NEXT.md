@@ -13,9 +13,9 @@
 | ID | 內容 | 我的判斷 | 狀態 |
 |---|---|---|---|
 | **PVP-1** | Jacky 11/10：PvP 沒套用等級／技能／裝備效果、放技能沒出現 | 兩件都是真的（D-338） | **verified**（第 156 輪；`tests/server-contract/pvp-build.test.ts`、`docs/screenshots/pvp-fx-before-after.jpg`；等 Jacky 實機再打一場） |
-| RF-01a | 施放中把原招切成變化，這一招沒有傷害 | 同意，是真 bug | todo（**下一個做**；先寫失敗測試。做法傾向「施放開始時把這一招的定義定住」，不擋玩家開面板） |
-| RF-01b | 同上擴及多段、反擊、大招、重置／退點、mods；三武器 | 同意，和 01a 一起修、一起測 | todo |
-| RF-05a | 碎甲斬說明寫「更容易爆擊」，實際是受傷 +30% | 同意，改字就好 | todo |
+| RF-01a | 施放中把原招切成變化，這一招沒有傷害 | 同意，是真 bug（在最新 main 重現） | **verified**（第 156 輪，D-339；`tests/rt-midcast-variant.test.ts`） |
+| RF-01b | 同上擴及多段、反擊、大招、mods；三武器 | 同意，一起修 | **verified**（同上：三武器 × 五招 × 四種切換＋mods；重置／退點走同一個 setSkillVariants／setSkillMods） |
+| RF-05a | 碎甲斬說明寫「更容易爆擊」，實際是受傷 +30% | 同意，改字就好 | todo（**下一個做**，和 RF-05b、RF-02a 同一輪） |
 | RF-02a | 四張圖實際掉落的成品對照表（設定 ilvl 對成品 ilvl） | 同意先查清楚，表放 wiki 或 27 | todo |
 | RF-02b | ilvl 12 上限保留或調整 | 等 02a；預設保留上限、把獎勵說明改成可信的 | todo |
 | RF-05b | 共用 rank 說明套到各武器後有些加成沒作用 | 同意，面板只顯示實際有作用的 | todo |
