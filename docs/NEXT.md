@@ -6,6 +6,29 @@
 > 每一步都跑 `npm run typecheck`、`npm run lint`、`npm run build`、`npx vitest run`；改數值要 `npm run wiki`。
 > 遊戲現況：單人即時動作戰鬥＋四張大地圖、三把武器、技能點＋變化、行商、強化、燼牌、拍賣所、交易、競技場。**沒有「深淵」模式**（最接近的是深夜／騷動／暴怒 Boss）。
 
+## ★★ 第 156 輪起：Jacky 回報的 bug 與外部審查 RF 項目（排在下面 Q 清單前面）
+> 外部審查（另一個 AI，11/10，針對 d0dd144，沒跑過遊戲）只是參考；「我的判斷」欄是我看程式／畫面後的結論。狀態：`todo`／`in_progress`／`verified`／`awaiting_visual`／`blocked`／`superseded`／`rejected`。
+> **精力分配**：Jacky 的 bug → 可信度問題（RF-01、RF-05a、RF-02a，2～4 輪）→ 之後大部分輪次做看得到的東西（下面 Q 清單第 1、2 項與 RF-03／06／07／09）；量測與盤點（RF-04／08／10）有症狀才做。
+
+| ID | 內容 | 我的判斷 | 狀態 |
+|---|---|---|---|
+| **PVP-1** | Jacky 11/10：PvP 沒套用等級／技能／裝備效果、放技能沒出現 | 兩件都是真的（D-338） | **verified**（第 156 輪；`tests/server-contract/pvp-build.test.ts`、`docs/screenshots/pvp-fx-before-after.jpg`；等 Jacky 實機再打一場） |
+| RF-01a | 施放中把原招切成變化，這一招沒有傷害 | 同意，是真 bug | todo（**下一個做**；先寫失敗測試。做法傾向「施放開始時把這一招的定義定住」，不擋玩家開面板） |
+| RF-01b | 同上擴及多段、反擊、大招、重置／退點、mods；三武器 | 同意，和 01a 一起修、一起測 | todo |
+| RF-05a | 碎甲斬說明寫「更容易爆擊」，實際是受傷 +30% | 同意，改字就好 | todo |
+| RF-02a | 四張圖實際掉落的成品對照表（設定 ilvl 對成品 ilvl） | 同意先查清楚，表放 wiki 或 27 | todo |
+| RF-02b | ilvl 12 上限保留或調整 | 等 02a；預設保留上限、把獎勵說明改成可信的 | todo |
+| RF-05b | 共用 rank 說明套到各武器後有些加成沒作用 | 同意，面板只顯示實際有作用的 | todo |
+| RF-03 | 弓箭／魔彈在傷害出現後才飛；普攻停頓太頻繁 | 存疑：飛行只有 0.09～0.13 秒，要先錄連拍看 | todo（先看畫面，不明顯就 rejected） |
+| RF-07 | 狼系比例與畫風、精英辨識 | 同意，＝下面 Q 清單第 2 項（Q9） | todo |
+| RF-06 | 1～4 級只有數值成長；三種打法的用途 | 部分同意，＝ Q 清單第 6 項（Q8），要先寫 DECISIONS | todo |
+| RF-09 | 通關後「下一趟去哪、換什麼」的提示 | 同意，小 UI，不動掉落亂數 | todo |
+| RF-04 | 戰鬥數字／粒子沒有重用 | 有症狀才做（＝ Q7，降到量測類） | todo（低） |
+| RF-08 | 長場次 events／units 成長 | 有症狀才做；不直接清 events | todo（低） |
+| RF-10 | hash 不完整；PvP 回饋比 PvE 少 | PvP 回饋已併入 PVP-1 做完；hash 需要時再補 | PvP 部分 verified／hash todo（低） |
+
+**競技場還可以再看的（小）**：兩個人疊在一起時名字、招式名、傷害數字會擠成一團；場地縮放 0.44，角色只有約 60px 高，特效是照冒險地圖尺寸縮的；模擬冒險者一律原招。測試用 `window.__pvp`（`state()`／`phase()`／`setup()`／`send(cmd)`）。
+
 ## ★ 第 156 輪起：品質 Q 清單（階段 A，最上面先做）
 **已完成（第 155 輪，D-335／D-337）**：Q1 倒下依種類（`src/game/fx/deathFx.ts`：`deathKind(defId)`＋`playDeath`，新怪要加進 `KIND`／`DEBRIS` 表，沒加就是野獸倒地）、Q2 命中火花（`fx/feel.ts` 的 `hitSparks`＋`fx/hitTint.ts` 的 `hitLook`，新狀態要加進 `ELEMENT`）、Q3 受擊後仰（`RtBattleScene.knock(id, dx, dy, px, strong)`）、Q4 掉落彈出（`dropPop`＋`DROP_POP_MS`，在 `draw` 的地面掉落段）、Q5 技能冷卻轉好的提示（`cdWas`／`cdReadyAt`，在 `drawUi` 技能鍵段）、Q6 血條殘影（`ghostHp(id, 比例)`，怪頭上／主角／Boss 大血條）。
 
