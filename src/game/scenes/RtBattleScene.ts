@@ -3896,6 +3896,12 @@ export class RtBattleScene extends Phaser.Scene {
         const ult = sk.role === 'ult';
         this.spin(p.x, p.y, hs.r, big ? 0xffd05a : ult ? 0xff7ad0 : 0x9fd8ff, (this.time.now / 90) % (Math.PI * 2));
         if (ult) this.spin(p.x, p.y, hs.r * 0.6, 0xffd0f0, (this.time.now / 70 + Math.PI) % (Math.PI * 2));
+        if (sk.role === 'guard') {
+          // 不動架勢：震開四面——金色衝擊環＋碎光（以前只有一圈藍色轉弧，和旋風斬分不出來）
+          shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, hs.r * this.k * 1.05, 460, 14);
+          sparks(this, this.sx(p.x), this.sy(p.y), getSettings().lowFx ? 8 : 16, 'spark', 0xffe8b0, 460);
+          this.cameras.main.shake(90, 0.004);
+        }
         if (ult && big) {
           this.cameras.main.shake(200, 0.009);
           shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd05a, hs.r * this.k * 1.1, 420, 12);
@@ -3906,6 +3912,7 @@ export class RtBattleScene extends Phaser.Scene {
         // 第 166 輪：沒帶狀態的重擊扇形（重斬）＝一片厚月牙掃過去；護盾招的那一刀（鐵壁斬）＝銀白，和護盾欄的圖示同色。以前兩招都是和普攻一樣的細金弧
         if (sk.role === 'guard') this.ffx.slash(p.x, p.y, ang, hs.r, hs.deg + 30, 0xe4ecff, 12);
         else if (big && !h.status) this.ffx.cleave(p.x, p.y, ang, hs.r, hs.deg + 20, 0xffc84a, getSettings().lowFx);
+        else if (h.status?.id === 'weak') this.ffx.cleave(p.x, p.y, ang, hs.r, hs.deg + 20, 0x9a6aff, getSettings().lowFx); // 影襲：紫色的影刃（以前是一道細白弧＋幾點紫火星）
         else this.ffx.slash(p.x, p.y, ang, hs.r, hs.deg + 30, big ? 0xffd05a : 0x9fd8ff, big ? 10 : 7);
         if (big) this.cameras.main.shake(80, 0.004);
       } else if (hs.type === 'line') {
@@ -4826,10 +4833,16 @@ export class RtBattleScene extends Phaser.Scene {
               top.fillStyle(0xc8ff9a, 0.8).fillCircle(px + dx * L * f - dy * Math.sin(q * 2.1) * 8, py + dy * L * f + dx * Math.sin(q * 2.1) * 8, 2.5);
             }
           }
-          g.fillStyle(venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.2);
+// 第 166 輪：一般技能的範圍以前是一塊 0.2 的平藍（長方形／扇形像除錯框）→ 填色淡一半、加一圈亮邊，看得出範圍但不搶特效
+          const soft = !(elem || bowRing || frostCharge || venom) && !(s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1);
+          g.fillStyle(venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.1);
           // 第 162 輪：落在前方的圓（落雷，`ahead`）預告畫在落點，不是畫在主角腳下
           const ah = h.ahead ?? 0;
           this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x + (ah * x.action.dirX) / 1000, pos.y + (ah * x.action.dirY) / 1000, x.action.dirX, x.action.dirY, g, true);
+          if (soft) {
+            g.lineStyle(2, 0xbfe8ff, 0.5);
+            this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x + (ah * x.action.dirX) / 1000, pos.y + (ah * x.action.dirY) / 1000, x.action.dirX, x.action.dirY, g, false);
+          }
         }
       }
     }
