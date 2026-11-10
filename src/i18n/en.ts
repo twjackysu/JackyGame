@@ -34,6 +34,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   'unique.tip': 'Unique gear carries one effect that changes how you fight\nActive while equipped (orange-ringed icon, top right)',
   'bag.uniqueConfirm': 'Salvage this ★ unique?',
   'shop.uniqueConfirm': 'Sell this ★ unique?',
+  'tip.safezone': 'The campfire circle is safe: monsters won\'t follow,\nbut you can\'t hit them from inside. Step out to fight.',
   'codex.title': 'Unique Effects  {n}/{max}',
   'codex.sub': 'A few rare items carry one; active while equipped',
   'codex.item': 'Item name "{title}…"',

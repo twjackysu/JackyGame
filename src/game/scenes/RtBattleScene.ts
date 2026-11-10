@@ -3365,6 +3365,11 @@ export class RtBattleScene extends Phaser.Scene {
       } else if (e.type === 'leash') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 60, '脫戰', { color: '#c8d0f0', size: 22 });
+        // 第 165 輪：站在營火光圈裡打怪（弓／法杖最常見）→ 怪一被打就脫戰、打不到，看起來像壞掉 → 第一次發生時講清楚規則
+        if (d && !ENEMIES[d.defId]?.boss && !this.bot) {
+          const pl = playerOf(this.s);
+          if (!pl.dead && (STAGES[this.stageId]?.campfires ?? []).some((c) => Math.hypot(pl.x - c.x, pl.y - c.y) <= CAMPFIRE_RULES.safeUnits * UNIT)) this.tipSoon('jg_tip_safezone', tr('tip.safezone'), '#ffd27a');
+        }
         // 第 54 輪（D-185）：Boss 因為玩家跑出巢穴而回家 → 講清楚為什麼（8 秒內只講一次）
         if (d && ENEMIES[d.defId]?.boss && !this.bot && this.time.now > this.leashToldAt + 8000) {
           const bz = STAGES[this.stageId]?.bossZone;
