@@ -16,11 +16,11 @@
 | RF-01a | 施放中把原招切成變化，這一招沒有傷害 | 同意，是真 bug（在最新 main 重現） | **verified**（第 156 輪，D-339；`tests/rt-midcast-variant.test.ts`） |
 | RF-01b | 同上擴及多段、反擊、大招、mods；三武器 | 同意，一起修 | **verified**（同上：三武器 × 五招 × 四種切換＋mods；重置／退點走同一個 setSkillVariants／setSkillMods） |
 | RF-05a | 碎甲斬說明寫「更容易爆擊」，實際是受傷 +30% | 同意，改字就好 | **verified**（第 156 輪 fa3137e；全 repo 只有這一處寫錯，Wiki 重產） |
-| RF-02a | 四張圖實際掉落的成品對照表（設定 ilvl 對成品 ilvl） | 同意先查清楚，表放 wiki 或 27 | todo（**下一個做**，和 RF-05b 同一輪） |
-| RF-02b | ilvl 12 上限保留或調整 | 等 02a；預設保留上限、把獎勵說明改成可信的 | todo |
-| RF-05b | 共用 rank 說明套到各武器後有些加成沒作用 | 同意，面板只顯示實際有作用的 | todo |
-| RF-03 | 弓箭／魔彈在傷害出現後才飛；普攻停頓太頻繁 | 存疑：飛行只有 0.09～0.13 秒，要先錄連拍看 | todo（先看畫面，不明顯就 rejected） |
-| RF-07 | 狼系比例與畫風、精英辨識 | 同意，＝下面 Q 清單第 2 項（Q9） | todo |
+| RF-02a | 四張圖實際掉落的成品對照表（設定 ilvl 對成品 ilvl） | 同意 | **verified**（第 157 輪，D-340；`dropIlvlRange`＋`docs/wiki/monsters.md` 每張圖的成品等級表；`tests/drop-ilvl-and-skill-text.test.ts`） |
+| RF-02b | ilvl 12 上限保留或調整 | **暫定保留 12**（D-340），說明已改可信。查到：燼紅裂谷 Boss 白天就掉 12、星隕全圖幾乎都是 12、霧語森林暴怒＋深夜狼王也掉 12 | todo（低～中）：先量「20 級刷哪張圖的暴怒深夜 Boss 最划算」（擊殺秒數 × 件數 × 稀有率），再決定要不要壓低前兩張圖或讓星隕獨有 13～14 |
+| RF-05b | 共用 rank 說明套到各武器後有些加成沒作用 | **大部分不成立**：45 種打法全部吃得到（測試鎖住）；只有「傷害 +% 不含灼燒／中毒」會誤會 | **verified**（第 157 輪，D-340；面板多「現在（Lv n）：…」與持續傷害說明，`docs/screenshots/skill-panel-rank-total.jpg`） |
+| RF-03 | 弓箭／魔彈在傷害出現後才飛；普攻停頓太頻繁 | 前半成立（逐幀看得出來）；停頓截圖判斷不了 | 箭的時序 **verified**（第 157 輪，D-341；`docs/screenshots/rf03-shot-timing-before-after.jpg`）／普攻停頓 `awaiting_visual`（等 Jacky 實機） |
+| RF-07 | 狼系比例與畫風、精英辨識 | 精英辨識現況其實不差（1.4 倍大＋各自標記＋詞綴環）；補了不靠顏色的血條記號 | 精英辨識 **verified**（第 157 輪；`docs/screenshots/elite-hpbar-before-after.jpg`）／狼系畫風不一致 blocked（等 R-021 的圖）；Boss 演出還沒看 |
 | RF-06 | 1～4 級只有數值成長；三種打法的用途 | 部分同意，＝ Q 清單第 6 項（Q8），要先寫 DECISIONS | todo |
 | RF-09 | 通關後「下一趟去哪、換什麼」的提示 | 同意，小 UI，不動掉落亂數 | todo |
 | RF-04 | 戰鬥數字／粒子沒有重用 | 有症狀才做（＝ Q7，降到量測類） | todo（低） |
@@ -34,13 +34,20 @@
 
 0. **每輪開頭**：FOR_JACKY「回覆」、Issue、`art-inbox/`、Jacky 的 commit、CI（第 155 輪最後的程式 commit 是「Q5 技能冷卻剛轉好」daba688）。
 1. **常用技能特效逐招檢查（Level 2，階段 A 的主菜）**：第 155 輪沒有逐招看。先用 `window.__rt.send({ type: 'skill', id })`（見下面第 150 輪注意）把三把武器 × 5 招 × 兩種變化各截一張凍結圖，排成對照表存 `docs/screenshots/`，在 27-quality-review 補「哪幾招只有一層特效」，再挑最常用的（劍：普攻、重斬、旋風斬；弓：普攻；杖：星焰彈）補「施法前搖光／拖尾／命中爆點」（`fx/fieldFx.ts` 的 `slash`、`fx/rangedFx.ts`）。**驗收**：每招改動前後並排截圖；特效不改命中形狀（形狀在 core）。
-2. **Q9 精英辨識（Level 2）**：13 種怪是霧狼染色。精英（`x.tier === 'elite'`）：體型 ×1.12（`spriteFor` 的 `hPx`）、腳下詞綴色的環（`AFFIX_COLOR`）、高畫質加 `postFX.addGlow`（只有畫面上的精英、最多 3 隻）。先截圖確認現況精英長什麼樣（可能已經有部分標記）。**驗收**：同畫面普通狼和精英狼一眼分得出來；純畫面。
+2. ~~Q9 精英辨識~~：第 157 輪做完（血條金框＋金菱形；體型與詞綴環原本就有，沒加 postFX 光暈——截圖看已經夠分得出來）。原構想留著備查：**Q9 精英辨識（Level 2）**：13 種怪是霧狼染色。精英（`x.tier === 'elite'`）：體型 ×1.12（`spriteFor` 的 `hPx`）、腳下詞綴色的環（`AFFIX_COLOR`）、高畫質加 `postFX.addGlow`（只有畫面上的精英、最多 3 隻）。先截圖確認現況精英長什麼樣（可能已經有部分標記）。**驗收**：同畫面普通狼和精英狼一眼分得出來；純畫面。
 3. **UI 回饋剩下的（Level 2）**：①裝備稀有度在行囊／掉落提示的呈現（先截圖行囊面板再決定）②競技場（`PvpScene`）也套用 Q2 火花／Q3 後仰／Q6 殘影——競技場有自己的命中處理，第 155 輪沒動；血條是貼圖＋setCrop（D-332），殘影要另外畫一張白條。③主角被打的回饋（現在是鏡頭震動＋紅數字＋震動；可加畫面邊緣紅暈，血越少越明顯）。
 4. **Q7 效能：傷害數字池＋上限、粒子發射器共用**：①`floatNumber` 每個數字 `new Text`（建 canvas＋上傳貼圖）。先量：60 秒 Bot 戰鬥裡 `floatNumber` 呼叫次數與同時存在數的峰值（hook 計數）。做法候選：純數字（沒有 tier、沒有中文字）改用 `BitmapText`＋BootScene 用 canvas 產一張 `0-9!+` 字型貼圖（`RetroFont`）＋物件池（上限 24，超過時最舊的非暴擊數字直接收掉）；有 tier／中文的維持 Text。②`sparks`／`hitSparks`／`deathFx.puff` 每次 `add.particles` 再 destroy → 每個場景每張貼圖一個常駐 emitter，用 `emitter.setConfig`／`emitParticleAt`（Phaser 3.90 的 API 先查文件確認）。**驗收**：旋風斬掃 8 隻以上時新建的 Text 數 = 0；60 秒戰鬥中 `ParticleEmitter` 物件數峰值 ≤ 6；畫面舊新並排看不出差別。
 5. **Q10 三情境效能量測腳本**：`scripts/perf-probe.mjs`（照第 154 輪注意的量法：包每個物件的 `renderWebGL` 計時）跑 ①霧語森林白天 60 秒 ②荊棘谷深夜 60 秒 ③星隕高原深夜＋騷動；輸出每幀 JS 更新毫秒（`scene.update` 包計時）、渲染毫秒、活躍單位／Text／ParticleEmitter／Image 數的平均與峰值，表格寫進 PROGRESS。無頭瀏覽器的 fps 不能當手機數據，只比相對值。
 6. **Q8 技能點里程碑＝行為升級（Level 3，階段 B 11/15 起；要先寫 DECISIONS）**：`core/meta/skills.ts` 的 `SKILL_TREE` 每級只有數值。構想：3 級、5 級各解鎖一個看得到的變化（例：重斬 3 級劍氣多飛 1 格、5 級命中留一道燃燒地面；旋風斬 3 級多轉一圈、5 級收招放一圈衝擊波），用既有 `SkillMod`（`areaPct`、`distPct`…）或加欄位，**結算在 core**；要跑平衡 Bot（`npm run sim:rt`）、golden hash、`npm run wiki`、伺服器 `skills.*` 契約測試。
 7. **線上版遺留（輔，約三成）**：見下面「第二期遺留」第 2、5、6、7 項；阻擋品質工作才提前。
 8. **凍結（11/27 12:00 起）**：原 V7 清單（下面第 8 項）＋品質改善前後對照截圖放 README。
+
+**第 157 輪注意**：
+- 逐幀看時序的截圖法（`screenshots/` 與根目錄的臨時腳本都沒進 git，要重寫）：dev server 進場 → `scene.events.on('postupdate')` 等條件成立（例：`p.action?.kind === 'attack'`）就 `__game.loop.sleep()` → 假 `Date.now`（加 offset）＋`__game.step(T, 16.667)` 一幀一幀推、每推 2 幀截一張。**不要在 evaluate 裡一次推幾百幀**（無頭瀏覽器每幀都真的畫，會逾時）。
+- 把怪釘在主角旁邊拍：改 `u.x／u.y` 後在 `postupdate` 每幀擺回去並清 `u.action`；怪離重生點太遠會「脫戰」變半透明（拍特效沒差，拍立繪要放近一點）。
+- `window.__rt.send` 沒有「普攻」指令：把 `p.targetId` 設成目標、站在射程內就會自動打（脫戰的怪只會被打一下）。
+- 省電畫質的 localStorage key 這輪沒查到（我試的 `jg_lowfx` 沒作用）；要拍省電畫質先看 `getSettings()`。
+- 物品等級的事實看 `docs/wiki/monsters.md` 的成品表，不要看 `gearDrops.ilvl`（那是加成前、截斷前的設定值）。
 
 **第 155 輪注意**：
 - 截圖腳本（`screenshots/` 是 gitignore 的，要重寫）：`r155death.mjs`＝dev server 進 RtBattle 後 `__game.loop.sleep()`、假 `Date.now`、`__game.step(T, 16)` 手動推進，場景上直接 `add.image` 四種怪再 `playDeath`，推 130ms 截圖（**遊戲座標是 720 寬**，螢幕 390 寬時要 ×1.85）。受擊後仰：`scripts/shot-newsave.mjs` 的 SHOTS 第二欄塞 JS：`sc().knock(id, 1, 0, 16, true)` → `loop.sleep()` → `step` 一幀（先 `cameras.main.resetFX()`，不然大招的粉紅閃光蓋住整個畫面）。
