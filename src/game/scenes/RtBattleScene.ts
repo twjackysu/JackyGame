@@ -164,21 +164,21 @@ const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: num
   night_thorn_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xc890ff },
   thorn_stalker: { key: 'enemy_thorn_stalker', h: 3.1, flip: true },
   mist_warden: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x7ae8d8 },
-  // 燼紅裂谷（D-125）：史萊姆與岩王用 AI 圖（R-016、R-017；沒有圖時退回 fx/emberArt.ts 的程式美術），其他先用現有立繪染色
+  // 燼紅裂谷（D-125）：史萊姆與岩王用 AI 圖（R-016、R-017；沒有圖時退回 fx/emberArt.ts 的程式美術）；三種狼 11/11 換成 AI 圖（R-021）
   slag_slime: { key: 'enemy_slag_slime', h: 2.2, flip: false },
-  ember_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0xffa070 },
+  ember_wolf: { key: 'enemy_ember_wolf', h: 3.2, flip: true },
   ember_shroom: { key: 'enemy_thorn_shroom', h: 2.9, flip: false, tint: 0xffb080 },
-  obsidian_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x9a8aa8 },
+  obsidian_alpha: { key: 'enemy_obsidian_alpha', h: 3.7, flip: true },
   ember_colossus: { key: 'enemy_ember_colossus', h: 3.0, flip: true },
-  magma_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xff6a3a },
-  // 星隕高原（D-138）：守望者與魔像是程式美術（fx/starArt.ts），其他先用現有立繪染色
-  star_wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0x9ab8ff },
+  magma_stalker: { key: 'enemy_magma_stalker', h: 3.6, flip: true },
+  // 星隕高原（D-138）：守望者、魔像、星痕狼、星蝕狼 11/11 換成 AI 圖（R-020、R-021；沒有圖時守望者與魔像退回 fx/starArt.ts）；彗星巡者仍是霧狼染色
+  star_wolf: { key: 'enemy_star_wolf', h: 3.2, flip: true },
   star_shroom: { key: 'enemy_thorn_shroom', h: 2.9, flip: false, tint: 0x90a0ff },
-  crystal_golem: { key: 'enemy_crystal_golem', h: 2.4, flip: false },
-  astral_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xe0d0ff },
-  star_sentinel: { key: 'enemy_star_sentinel', h: 3.1, flip: true },
+  crystal_golem: { key: 'enemy_crystal_golem', h: 3.0, flip: true },
+  astral_alpha: { key: 'enemy_star_wolf', h: 3.8, flip: true },
+  star_sentinel: { key: 'enemy_star_sentinel', h: 4.4, flip: true },
   comet_stalker: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0xc8e0ff },
-  eclipse_wolf: { key: 'enemy_mist_wolf', h: 3.1, flip: true, tint: 0x7a5aff },
+  eclipse_wolf: { key: 'enemy_eclipse_wolf', h: 3.7, flip: true },
 };
 /** 掉落物從怪身上拋到落點的時間（毫秒，要比撿取延遲 0.3 秒短）與拋物線高度（px） */
 const DROP_POP_MS = 280;
@@ -4663,7 +4663,7 @@ export class RtBattleScene extends Phaser.Scene {
         else if (cfg.tint) sp.setTint(cfg.tint);
         else sp.clearTint();
         headY = sp.y - sp.displayHeight * 0.92;
-        if (FLAME_MANE.has(x.defId) && !x.dead) {
+        if (FLAME_MANE.has(x.defId) && cfg.key === 'enemy_mist_wolf' && !x.dead) {
           // 燼紅裂谷的狼（D-125）：背上搖曳的火焰鬃毛（染色立繪的程式加料，純畫面）
           const big = x.defId !== 'ember_wolf';
           for (let q = 0; q < (big ? 4 : 3); q++) {
@@ -4675,7 +4675,7 @@ export class RtBattleScene extends Phaser.Scene {
             top.fillStyle(0xffc04a, 0.95).fillTriangle(fxp - r * 0.11, fyp, fxp + r * 0.11, fyp, fxp + sway * 0.6, fyp - hgt * 0.6);
           }
         }
-        if (STAR_MARKS.has(x.defId) && !x.dead) this.drawStarMarks(top, x, sp, r, now);
+        if (STAR_MARKS.has(x.defId) && cfg.key === 'enemy_mist_wolf' && !x.dead) this.drawStarMarks(top, x, sp, r, now);
         if ((x.defId === 'ember_shroom' || x.defId === 'star_shroom') && !x.dead) this.drawShroomMarks(top, x, sp, r, now);
         if ((x.defId === 'alpha_wolf' || x.defId === 'shade_wolf') && !x.dead) this.drawWolfMarks(top, x, sp, r, now);
         const thorn = THORN_BACK[x.defId];
