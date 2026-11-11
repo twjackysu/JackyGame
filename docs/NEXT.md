@@ -17,6 +17,13 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 167 輪注意（打斷、敵人招式落下的演出，D-363／364）**：
+- **下一輪**先看 Jacky 的回覆；沒有就挑：①補拍沒拍到的 Boss 招（狼后伏擊 `queen_ambush`、守望者二階段的環、暴怒狼王的霧中瞬移撕咬）與法杖 A 的雷暴、四把大招 ②P1-d 剩下的操作設定面板說明字 ③咬空／震地沒有聲音（要加的話照 `audio` 裡祝福音效的做法，並用 `scripts/probe-sfx.mjs` 看波形）。
+- Boss 逐招截圖：`npx vite --port 5173` → `ONLY=king_bite,king_claw node scripts/shot-boss-attacks.mjs mistwood 標籤 [W H]`（`PHASE2=1`、`FURY=1`、`NIGHT=1`、`LOWFX=1`、`DIST=格數`）；招式 id 在 `data.ts`。一招約一兩分鐘，一次最多同時跑三個。輸出若是 `no telegraph`，看 `got`（牠實際出了哪幾招）調 `DIST`。
+- 敵人招式落下的演出：分類在 `fx/hitTint.ts` 的 `enemyImpact(形狀, 已有自己演出, 是不是野獸)`；畫在 `fx/fieldFx.ts`（`clawMarks`／`fangBite`／`quakeBurst`／`slamBurst`，月牙用現成的 `cleave`）；場景在 `telegraph` 事件把它排進 `impacts`，畫預告的那一段後面在命中 tick 觸發（`o.action?.id` 還是那一招才畫＝沒被打斷）。新怪只要形狀對就自動有。
+- `interrupt` 事件只在怪被 `stun`／`freeze` 時發；玩家目前沒有暈眩技、Boss 免疫冰凍。之後若加「暈 Boss」的效果（祝福／獨特），Boss 的大招就會被打斷——加之前要先想清楚要不要給 Boss 霸體。
+- 這輪發現但沒做：`shot-boss-attacks.mjs` 進場的大字（第一幕／歡迎回來）會蓋到前幾張截圖；要乾淨的圖就把 `ff(30)` 加大。
+
 **第 166 輪注意（技能特效逐招檢查，D-361／362）**：
 - **下一輪**先看 Jacky 的回覆；沒有就接著逐招（Q 清單第 1 項，**in_progress**：45 招裡 40 招看過；**還沒看**＝法杖 A 的雷暴（怪要擺近：`DIST=2`）、四把大招截圖逾時）；或 Boss 招牌招的預告。
 - 逐招截圖：`npx vite --port 5173` → `node scripts/shot-skills.mjs sword|bow|staff ''|a|b 標籤 [W H]`（`ONLY=`、`DIST=`、`NIGHT=1`、`LOWFX=1`）；一次最多同時跑三個。圓形招半徑小於 3.5 格的要 `DIST=2`，不然拍到的是普攻（看輸出的 `hitAt` 是不是等於那招的 atTick）。命中停頓會讓「命中後第 n 幀」前後差一兩個 tick。
@@ -118,7 +125,7 @@
 | RF-02b | ilvl 12 上限保留或調整 | **保留 12**（D-340；後期獎勵改由 P3 的獨特效果提供），說明已改可信。查到：燼紅裂谷 Boss 白天就掉 12、星隕全圖幾乎都是 12、霧語森林暴怒＋深夜狼王也掉 12 | todo（低～中）：先量「20 級刷哪張圖的暴怒深夜 Boss 最划算」（擊殺秒數 × 件數 × 稀有率），再決定要不要壓低前兩張圖或讓星隕獨有 13～14 |
 | RF-05b | 共用 rank 說明套到各武器後有些加成沒作用 | **大部分不成立**：45 種打法全部吃得到（測試鎖住）；只有「傷害 +% 不含灼燒／中毒」會誤會 | **verified**（第 157 輪，D-340；面板多「現在（Lv n）：…」與持續傷害說明，`docs/screenshots/skill-panel-rank-total.jpg`） |
 | RF-03 | 弓箭／魔彈在傷害出現後才飛；普攻停頓太頻繁 | 前半成立（逐幀看得出來）；停頓截圖判斷不了 | 箭的時序 **verified**（第 157 輪，D-341；`docs/screenshots/rf03-shot-timing-before-after.jpg`）／普攻停頓 `awaiting_visual`（等 Jacky 實機） |
-| RF-07 | 狼系比例與畫風、精英辨識 | 精英辨識現況其實不差（1.4 倍大＋各自標記＋詞綴環）；補了不靠顏色的血條記號 | 精英辨識 **verified**（第 157 輪；`docs/screenshots/elite-hpbar-before-after.jpg`）／狼系畫風不一致 blocked（等 R-021 的圖）；Boss 演出還沒看 |
+| RF-07 | 狼系比例與畫風、精英辨識 | 精英辨識現況其實不差（1.4 倍大＋各自標記＋詞綴環）；補了不靠顏色的血條記號 | 精英辨識 **verified**（第 157 輪；`docs/screenshots/elite-hpbar-before-after.jpg`）／狼系畫風不一致 blocked（等 R-021 的圖）／Boss 招式落下的演出 **verified**（第 167 輪，D-364；`docs/screenshots/boss-impact-before-after.jpg`；節奏等 Jacky 實機） |
 | RF-06 | 1～4 級只有數值成長；三種打法的用途 | 部分同意；改由 P2 的「這趟暫時用變化打法」祝福處理（原 Q8 技能點里程碑暫緩） | superseded（→ P2-a） |
 | RF-09 | 通關後「下一趟去哪、換什麼」的提示 | 同意；由 P3 的效果圖鑑與掉落來源處理 | superseded（→ P3-c） |
 | RF-04 | 戰鬥數字／粒子沒有重用 | 有症狀才做（＝ Q7，降到量測類） | todo（低） |
