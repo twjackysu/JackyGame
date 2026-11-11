@@ -86,13 +86,14 @@ export function bowLineLook(def: SkillDefinition, hit: Pick<SkillHit, 'mult' | '
 /**
  * 敵人招式「落下去那一刻」的長相（第 167 輪）。以前預告填滿之後紅色範圍直接消失——沒打中就什麼都沒有，打中也只有主角閃白和數字，
  * 看不出狼王是咬了一口、抓了一下還是震了地。照形狀分（不寫招式 id）：
- * 窄扇形＝爪痕（三道）、寬扇形＝咬合（上下兩排牙合起來）、環形＝震波（由內往外＋碎石）、圓形＝砸地。
+ * 狼系的窄扇形＝爪痕（三道）、寬扇形＝咬合（上下兩排牙合起來）、其他怪的扇形＝一片月牙掃過去、環形＝震波（由內往外＋碎石）、圓形＝砸地。
  * 直線（衝鋒／射擊）與地面荊棘、熔岩、墜星那些有自己演出的招回 undefined。純畫面。
  */
-export type EnemyImpact = 'claw' | 'bite' | 'quake' | 'slam';
-export function enemyImpact(shape: Shape, hasOwnFx: boolean): EnemyImpact | undefined {
+export type EnemyImpact = 'claw' | 'bite' | 'sweep' | 'quake' | 'slam';
+export function enemyImpact(shape: Shape, hasOwnFx: boolean, beast = true): EnemyImpact | undefined {
   if (hasOwnFx) return undefined;
-  if (shape.type === 'sector') return shape.deg >= 90 ? 'bite' : 'claw';
+  // 爪和牙只給野獸（狼系）；岩王的拳、守望者的斬、母樹的掃是一片厚月牙掃過去
+  if (shape.type === 'sector') return !beast ? 'sweep' : shape.deg >= 90 ? 'bite' : 'claw';
   if (shape.type === 'ring') return 'quake';
   if (shape.type === 'circle') return 'slam';
   return undefined;

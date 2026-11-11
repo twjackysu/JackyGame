@@ -3572,7 +3572,7 @@ export class RtBattleScene extends Phaser.Scene {
           const o = u(e.owner);
           const tg1 = o ? [...this.s.telegraphs].reverse().find((t) => t.ownerId === e.owner && t.attackId === e.attack) : undefined;
           const atk1 = o ? attacksOf(o).find((q) => q.id === e.attack) : undefined;
-          const kind = tg1 && atk1 ? enemyImpact(tg1.shape, !!atk1.charge || METEOR_ATTACKS.has(e.attack) || THORN_ATTACKS.has(e.attack) || LAVA_ATTACKS.has(e.attack)) : undefined;
+          const kind = tg1 && atk1 ? enemyImpact(tg1.shape, !!atk1.charge || METEOR_ATTACKS.has(e.attack) || THORN_ATTACKS.has(e.attack) || LAVA_ATTACKS.has(e.attack), !!o && (/wolf/.test(SPRITE[o.defId]?.key ?? '') || /狼/.test(ENEMIES[o.defId]?.name ?? ''))) : undefined;
           const size = o?.tier === 'boss' ? 1 : o?.tier === 'elite' ? 0.75 : 0.5;
           if (tg1 && kind && (size > 0.5 || !getSettings().lowFx)) this.impacts.push({ ...tg1, kind, size, color: atk1?.status ? 0xb060ff : 0xff5a4a });
         }
@@ -4471,6 +4471,7 @@ export class RtBattleScene extends Phaser.Scene {
         const ang = Math.atan2(t.dirY, t.dirX);
         if (t.kind === 'claw' && t.shape.type === 'sector') this.ffx.clawMarks(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size);
         else if (t.kind === 'bite' && t.shape.type === 'sector') this.ffx.fangBite(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size);
+        else if (t.kind === 'sweep' && t.shape.type === 'sector') this.ffx.cleave(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size < 1);
         else if (t.kind === 'quake' && t.shape.type === 'ring') this.ffx.quakeBurst(t.ox, t.oy, t.shape.rIn, t.shape.rOut, t.color === 0xff5a4a ? 0xffb070 : t.color, t.size);
         else if (t.kind === 'slam' && t.shape.type === 'circle') this.ffx.slamBurst(t.ox, t.oy, t.shape.r, t.color, t.size);
         if (t.size >= 1) {

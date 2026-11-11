@@ -17,6 +17,13 @@ describe('敵人招式落下的演出', () => {
     expect(kindOf('wolf_king', 'king_charge')).toBeUndefined();
   });
 
+  it('爪和牙只給狼系；其他怪的扇形是月牙橫掃', () => {
+    const fist = ENEMIES['ember_colossus']!.attacks.find((q) => q.id === 'colossus_fist')!;
+    expect(enemyImpact(fist.shape, false, false)).toBe('sweep');
+    expect(enemyImpact({ type: 'sector', r: 200, deg: 60 }, false, false)).toBe('sweep');
+    expect(enemyImpact({ type: 'ring', rIn: 100, rOut: 300 }, false, false)).toBe('quake');
+  });
+
   it('有自己演出的招（地面荊棘、熔岩、墜星）不重複畫', () => {
     expect(enemyImpact({ type: 'circle', r: 200 }, true)).toBeUndefined();
   });
