@@ -8,7 +8,7 @@ import { ENEMIES } from '../../core/battle/rt/data';
 import { enemiesOf, playerOf } from '../../core/battle/rt/engine';
 import { RARITY_COLOR } from '../../core/battle/rt/gear';
 import { UNIT, type BattleState } from '../../core/battle/rt/types';
-import { showOffscreenArrow } from '../arrowRules';
+import { belowBlessHud, showOffscreenArrow } from '../arrowRules';
 import { GAME_WIDTH, TALL } from '../config';
 import { UI_FONT } from '../fx/feel';
 
@@ -35,6 +35,8 @@ export interface OffscreenHost {
   clearOfHudPanels(x: number, y: number, ax: number, w?: number): number;
   gates(): readonly { x: number; y: number; back: boolean; revealAt?: number }[];
   menuOpen(): boolean;
+  /** 右上角祝福火苗＋圖示那一組的範圍（沒有就 null） */
+  blessHud(): { left: number; top: number; right: number; bottom: number } | null;
 }
 
 export class OffscreenArrows {
@@ -104,6 +106,10 @@ export class OffscreenArrows {
           }
         }
       }
+      // 右上角的祝福火苗與圖示（第 171 輪）：箭頭挪到那一組下面
+      const bh = this.h.blessHud();
+      const cyB = Math.min(yMax, belowBlessHud(cx, cy, bh, elite ? 34 : 22));
+      if (cyB !== cy) { cy = cyB; top = Math.max(top, cy); }
       // 同方向好幾隻精英／Boss：大箭頭沿著邊緣錯開，不疊成一團
       if (elite) {
         const onTop = cy <= top + 1;
@@ -163,6 +169,7 @@ export class OffscreenArrows {
       if (mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M) cx = mm.x + mm.w + M;
       const gy = gb ? gb.bottom + 36 : 0;
       if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = gy;
+      cy = belowBlessHud(cx, cy, this.h.blessHud(), 34);
       for (let k = 0; k < 3 && placed.some((q) => Math.abs(q.ax - cx) < 56 && Math.abs(q.ay - cy) < 56); k++) cx = cx > GAME_WIDTH / 2 ? cx - 60 : cx + 60;
       const an = Math.atan2(py - cy || 0.001, px - cx || 0.001);
       const c = Math.cos(an);
@@ -188,7 +195,7 @@ export class OffscreenArrows {
       const py = this.h.sy(it.y);
       if (px >= 0 && px <= GAME_WIDTH && py >= this.h.viewTop + 40 && py <= 960 + TALL) continue;
       const cx = Math.max(24, Math.min(GAME_WIDTH - 24, px));
-      const cy = Math.max(this.h.viewTop + 24, Math.min(950 + TALL, py));
+      const cy = belowBlessHud(cx, Math.max(this.h.viewTop + 24, Math.min(950 + TALL, py)), this.h.blessHud(), 22);
       const r = 11 + 2 * Math.sin(now / 140);
       g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 0.3).fillCircle(cx, cy, r + 8);
       g.fillStyle(RARITY_COLOR[it.rarity ?? 2], 1).fillPoints([{ x: cx, y: cy - r }, { x: cx + r * 0.7, y: cy }, { x: cx, y: cy + r }, { x: cx - r * 0.7, y: cy }], true);

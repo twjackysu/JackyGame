@@ -83,6 +83,7 @@ import { openChoice } from '../ui/choicePanel';
 import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, encountersOf, leftMapsExcept, loadEncounters, markMetThisVisit, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { OffscreenArrows } from '../rt/offscreenArrows';
+import { blessHudRect } from '../arrowRules';
 import { buildMemoryBook } from '../ui/memoryBook';
 import { cardOps, shopOps } from '../shopOps';
 import { coreBurstCue, queenBloomCue, ventEruptCue } from '../fx/bossCues';
@@ -259,6 +260,10 @@ export class RtBattleScene extends Phaser.Scene {
     clearOfHudPanels: (x, y, ax, w) => this.clearOfHudPanels(x, y, ax, w),
     gates: () => this.gates,
     menuOpen: () => !!this.menu,
+    blessHud: () => {
+      const b = this.s.bless;
+      return b ? blessHudRect(GAME_WIDTH, { taken: b.taken.length, perm: (b.perm ?? []).length, off: !!b.off }) : null;
+    },
   });
   private gates: { x: number; y: number; to: string; label: Phaser.GameObjects.Text; armed: boolean; back: boolean; revealAt?: number; art: CachedDraw }[] = [];
   private ox = 0;
