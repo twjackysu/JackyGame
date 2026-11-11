@@ -286,8 +286,10 @@ export class RangedFx {
       for (let j = 0; j < nm; j++) {
         const a = Math.random() * Math.PI * 2;
         const d = Math.sqrt(Math.random()) * R * 0.85;
-        const px = vx + Math.cos(a) * d;
-        const py = vy + Math.sin(a) * d * 0.6;
+        // 第 178 輪：每一波最大的那顆砸在圈裡的怪身上（以前三顆都隨機，常砸在空地或主角頭上），其餘照舊隨機散落
+        const on = j === 0 ? stormStrikes(x, y, hs.r, foes, 1, Math.random)[0] : undefined;
+        const px = on?.on ? this.h.sx(on.x) : vx + Math.cos(a) * d;
+        const py = on?.on ? this.h.sy(on.y) - 10 : vy + Math.sin(a) * d * 0.6;
         const fire = (): void => {
           const g = this.sc.add.graphics().setDepth(692).setBlendMode(Phaser.BlendModes.ADD);
           this.sc.tweens.addCounter({ from: 0, to: 1, duration: 160, onUpdate: (tw) => {
