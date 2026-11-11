@@ -17,6 +17,13 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 171 輪注意（魔像碎塊 frame 的 bug、箭頭躲祝福圖示、競技場紅暈）**：
+- **下一輪**先看 Jacky 的回覆、確認 4648d6d 的 CI；沒有就挑：①找「打過一次之後才壞」的東西——同一次開遊戲換圖、倒下重來、回營火之後再看一輪（這輪的魔像 bug 就是這一類，只看每招第一次的截圖抓不到）②補拍狼后伏擊、守望者二階段的環 ③打倒精英時大字和金幣數字擠在一起。
+- **Phaser 的坑**：`texture.add(frame)` 會改掉那張貼圖的預設 frame。之後要在既有貼圖上切 frame 一律走 `fx/deathFx.ts` 的 `addShardFrame`（或加完自己把 `firstFrame` 設回去）。
+- 箭頭躲右上角：`arrowRules.ts` 的 `blessHudRect`（要和 `RtBattleScene.drawBlessHud` 的排法一致——改那邊的位置或大小時這裡要跟著改）。
+- `scripts/play.mjs`：`EVAL='(()=>…)()'` 每張截圖前在頁面裡跑並印結果（查 sprite 狀態很好用）；相遇抉擇面板會自動選，要拍面板本身在 EVAL 裡設 `window.KEEP_MENU=1`。跑幾次的戰況不會完全一樣（不是固定種子），前後對照要用 `EVAL` 擺場面。`NIGHT=1` 只對霧語森林有效。
+- `scripts/shot-pvp.mjs [tag] [W H]`（`HP=0.3`、`LOWFX=1`、`SECS=n`）：競技場裡不按鍵的主角只會站著挨打，血壓太低幾秒就輸了（`SECS=3`）。
+
 **第 170 輪注意（流星箭雨、瞬移大字、危險紅暈 D-367）**：
 - **下一輪**先看 Jacky 的回覆；沒有就挑：①`node scripts/play.mjs bow|staff 地圖 標籤 張數 間隔秒`（這輪進 git 了；`LEVEL=`、`NIGHT=1`、`HP=0.3`）跑弓／杖與後三張圖，找礙眼的地方 ②競技場（PvpScene）也加危險紅暈與敵人招式音效 ③補拍：狼后伏擊（`queen_ambush`，`DIST=3～5`，荊棘谷很慢）、守望者二階段的環。
 - 上一輪候選 ①（暴怒狼王瞬移的大字蓋住預告）是真的，修了：`RtBattleScene.refreshBannerAvoid()`，在 `blink` 事件排大字前呼叫。之後任何「Boss 瞬間換位置後馬上排大字」的地方都要先呼叫它。
