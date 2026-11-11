@@ -3385,6 +3385,15 @@ export class RtBattleScene extends Phaser.Scene {
             bigText(this, GAME_WIDTH / 2, TIP_Y, `跑出巢穴的紅圈了——\n${ENEMIES[d.defId]?.name ?? 'Boss'}回巢穴回滿！`, '#ff9a7a', 30, 2200);
           }
         }
+      } else if (e.type === 'interrupt') {
+        // 第 167 輪：蓄力中的怪被暈／凍住 → 招式作廢。講出來，玩家才知道紅圈為什麼不見（也知道控場有用）
+        const d = u(e.id);
+        if (d) {
+          const big = d.tier === 'boss' || d.tier === 'elite';
+          floatNumber(this, this.sx(d.x), this.sy(d.y) - (big ? 120 : 80), tr('fx.interrupt'), { color: '#ffe9a0', size: big ? 30 : 24 });
+          shockRing(this, this.sx(d.x), this.sy(d.y), 0xffe9a0, d.r * this.k * 2.2, 260, 4);
+        }
+        this.hz.cancel(e.id);
       } else if (e.type === 'reset') {
         const d = u(e.id);
         if (d) floatNumber(this, this.sx(d.x), this.sy(d.y) - 50, '回滿', { color: '#7dffb0', size: 22 });

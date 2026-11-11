@@ -33,6 +33,7 @@ export const zhTW = {
   'bag.uniqueConfirm': '確定分解★獨特？',
   'shop.uniqueConfirm': '確定賣掉★獨特？',
   'tip.safezone': '營火的光圈裡很安全：怪不會追進來，\n但站在裡面也打不到牠——走出光圈再打',
+  'fx.interrupt': '打斷！',
   'codex.title': '獨特效果圖鑑　{n}/{max}',
   'codex.sub': '少數稀有裝備會帶一條；穿上就有，休息也不會消失',
   'codex.item': '裝備名「{title}之…」',

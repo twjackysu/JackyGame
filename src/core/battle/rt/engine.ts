@@ -1910,7 +1910,17 @@ function updateEnemy(s: BattleState, e: Unit): void {
     }
   }
   if (e.mode && mapAi(s, e, p)) return;
-  if (disabled(e, s.tick)) return;
+  if (disabled(e, s.tick)) {
+    // 蓄力中被暈／凍住＝這一招被打斷（第 167 輪）。以前直接 return：命中的那個 tick 被跳過，
+    // 招式不會命中，但預告永遠留在場上（地上一塊填滿的紅色範圍、怪一直是蓄力中的樣子），直到牠死掉或脫戰。
+    const w = e.action;
+    if (w?.kind === 'enemyAttack' && s.telegraphs.some((t) => t.ownerId === e.id)) {
+      s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== e.id);
+      e.action = null;
+      emit(s, { tick: s.tick, type: 'interrupt', id: e.id, attack: w.id });
+    }
+    return;
+  }
   const a = e.action;
   if (a) {
     const atk = attacksOf(e).find((x) => x.id === a.id)!;

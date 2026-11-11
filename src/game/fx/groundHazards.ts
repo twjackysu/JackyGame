@@ -53,6 +53,11 @@ export class GroundHazards {
     this.pending.push({ ...t });
   }
 
+  /** 這隻怪的招被打斷了（暈／凍）：還沒落地的不要長出來 */
+  cancel(ownerId: number): void {
+    this.pending = this.pending.filter((t) => t.ownerId !== ownerId);
+  }
+
   /** 熔岩裂地（D-125）：命中範圍裡裂出發光的熔岩紋＋火星，1.4 秒冷卻變暗（純畫面） */
   private spawnLava(t: Telegraph): void {
     const sh = t.shape;

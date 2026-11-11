@@ -35,6 +35,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   'bag.uniqueConfirm': 'Salvage this ★ unique?',
   'shop.uniqueConfirm': 'Sell this ★ unique?',
   'tip.safezone': 'The campfire circle is safe: monsters won\'t follow,\nbut you can\'t hit them from inside. Step out to fight.',
+  'fx.interrupt': 'Interrupted!',
   'codex.title': 'Unique Effects  {n}/{max}',
   'codex.sub': 'A few rare items carry one; active while equipped',
   'codex.item': 'Item name "{title}…"',

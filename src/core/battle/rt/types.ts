@@ -370,6 +370,8 @@ export type BattleEvent =
   | { tick: number; type: 'aggro'; id: number }
   | { tick: number; type: 'leash'; id: number }
   | { tick: number; type: 'reset'; id: number }
+  /** 蓄力中的怪被暈／凍住，這一招作廢（第 167 輪）；畫面演出用 */
+  | { tick: number; type: 'interrupt'; id: number; attack: string }
   /** 自然恢復（D-073）：脫戰 5 秒後每秒回 2% */
   | { tick: number; type: 'regen'; id: number; heal: number }
   // 燼火祝福（P2，D-343）：出現三選一／選了／清空（rest＝回營火休息、down＝倒下）／效果觸發（畫面演出用）
