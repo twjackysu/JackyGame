@@ -53,6 +53,14 @@ await pg.evaluate(([weapon]) => {
   __game.loop.sleep();
 }, [weapon]);
 const hpCap = +(process.env.HP || 0);
+// THEN=thornvale,starfall：拍完之後在同一次開遊戲裡換到下一張圖再拍一輪（找「打過一次／換過圖之後才壞」的東西）
+const stages = [stage, ...(process.env.THEN ? process.env.THEN.split(',') : [])];
+for (let si = 0; si < stages.length; si++) {
+if (si > 0) {
+  await pg.evaluate((st) => { localStorage.setItem('jg_rt_' + st, JSON.stringify({ bossKills: 1 })); __game.loop.wake(); sc().scene.start('RtBattle', { stage: st, bot: '' }); }, stages[si]);
+  await pg.waitForTimeout(3500);
+  await pg.evaluate(() => __game.loop.sleep());
+}
 for (let k = 0; k < +N; k++) {
   const st = await pg.evaluate(([gap, hpCap]) => {
     const s = sc().s; const p = s.units[0];
@@ -62,6 +70,7 @@ for (let k = 0; k < +N; k++) {
   }, [+GAP, hpCap]);
   console.log(k, JSON.stringify(st));
   if (process.env.EVAL) console.log('  eval', JSON.stringify(await pg.evaluate(process.env.EVAL)));
-  await pg.screenshot({ path: `screenshots/play-${tag}-${k}.png`, timeout: 90000 });
+  await pg.screenshot({ path: `screenshots/play-${tag}-${si ? stages[si] + '-' : ''}${k}.png`, timeout: 90000 });
+}
 }
 await b.close();

@@ -84,6 +84,7 @@ import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, enco
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { OffscreenArrows } from '../rt/offscreenArrows';
 import { blessHudRect } from '../arrowRules';
+import { mergePickup, pickupRow, pickupSize } from '../pickupMerge';
 import { buildMemoryBook } from '../ui/memoryBook';
 import { cardOps, shopOps } from '../shopOps';
 import { coreBurstCue, queenBloomCue, ventEruptCue } from '../fx/bossCues';
@@ -451,6 +452,7 @@ export class RtBattleScene extends Phaser.Scene {
   private breakSeen = new Map<number, number>();
   /** 影步殘影（第 26 輪）：上一次留下分身的時間 */
   private bountyTxt: Phaser.GameObjects.Text | null = null;
+  private pickupTxt = new Map<string, { t: Phaser.GameObjects.Text; total: number; at: number; first: number }>();
   /** 還沒點的技能點（☰ 紅點用；升級與改動時更新） */
   private ptsLeft = 0;
   /** 目前所在地區（StageDefinition.zones）；換區時顯示名稱 */
@@ -1363,9 +1365,31 @@ export class RtBattleScene extends Phaser.Scene {
   /** 撿到金幣／粉塵／結晶／藥水的小字（離線：本機撿到時；線上：伺服器 loot.claim 回來時） */
   private pickupFloat(kind: string, amount: number): void {
     const p = playerOf(this.s);
+    // 第 172 輪：連撿幾份以前是幾個字疊成一團（「+10 金」「+11 金」「粉塵 +1」互相蓋住）→ 同一種併成一個累加的數字、不同種各佔一列
+    const now = this.time.now;
+    const old = this.pickupTxt.get(kind);
+    const prev = old && old.t.active ? old : undefined;
+    const m = mergePickup(prev, amount, now);
+    const first = m.merged && prev ? prev.first : amount;
     const L: [string, string] =
-      kind === 'gold' ? [`+${amount} 金`, '#ffd27a'] : kind === 'dust' ? [`粉塵 +${amount}`, '#9fd8ff'] : kind === 'crystal' ? [`結晶 +${amount}`, '#d0a0ff'] : [`藥水 +${amount}`, '#7dffb0'];
-    floatNumber(this, this.sx(p.x) + 40, this.sy(p.y) - 70, L[0], { color: L[1], size: kind === 'gold' ? 22 : 24 });
+      kind === 'gold' ? [`+${m.total} 金`, '#ffd27a'] : kind === 'dust' ? [`粉塵 +${m.total}`, '#9fd8ff'] : kind === 'crystal' ? [`結晶 +${m.total}`, '#d0a0ff'] : [`藥水 +${m.total}`, '#7dffb0'];
+    const size = pickupSize(kind === 'gold' ? 22 : 24, m.total, first);
+    const x = Math.max(70, Math.min(GAME_WIDTH - 70, this.sx(p.x) + 44));
+    const y = this.sy(p.y) - 74 - pickupRow(kind) * 30;
+    let t: Phaser.GameObjects.Text;
+    if (m.merged && prev) {
+      t = prev.t;
+      this.tweens.killTweensOf(t);
+      t.setText(L[0]).setFontSize(size).setAlpha(1).setPosition(x, y).setScale(1.22);
+    } else {
+      t = this.add
+        .text(x, y, L[0], { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color: L[1], stroke: '#1a0f08', strokeThickness: 4 })
+        .setOrigin(0.5).setDepth(900).setScale(0.3);
+    }
+    this.pickupTxt.set(kind, { t, total: m.total, at: now, first });
+    this.tweens.add({ targets: t, scale: 1, duration: 140, ease: 'Back.Out' });
+    this.tweens.add({ targets: t, y: y - 26, duration: 1100, ease: 'Cubic.Out' });
+    this.tweens.add({ targets: t, alpha: 0, delay: 900, duration: 350, onComplete: () => t.destroy() });
     if (kind !== 'gold') SFX.itemGet();
   }
 
