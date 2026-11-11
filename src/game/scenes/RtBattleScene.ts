@@ -73,7 +73,7 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
-import { bowLineLook, enemyImpact, hitLook, skillBadge } from '../fx/hitTint';
+import { bowLineLook, dodgeFeedback, enemyImpact, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
@@ -847,6 +847,8 @@ export class RtBattleScene extends Phaser.Scene {
     return this.autoSlots().length;
   }
   private compactSig = '';
+  /** 上一次「閃開！」大字的場景時間（同一次翻滾連閃幾下只演一次） */
+  private dodgedAt = -1e9;
   private slotSkill(i: number): string {
     return this.ctl.order[i]!;
   }
@@ -3466,8 +3468,21 @@ export class RtBattleScene extends Phaser.Scene {
         }
         bigText(this, this.sx(p.x), this.sy(p.y) - 80, cs?.type === 'line' ? `${pd!.name}！` : '格擋！', cs?.type === 'line' ? '#fff2c0' : '#7dffb0', 40, 300);
       } else if (e.type === 'dodged') {
-        const p = playerOf(this.s);
-        floatNumber(this, this.sx(p.x), this.sy(p.y) - 40, 'MISS', { color: '#9fd8ff', size: 26 });
+        // 第 168 輪：閃避是唯一要自己按的招——閃過去要有回報（以前只有一個小小的英文 MISS）
+        const p = u(e.id) ?? playerOf(this.s);
+        const boss = this.s.units.some((x) => x.side === 'enemy' && !x.dead && x.action?.id === e.attack && !!ENEMIES[x.defId]?.boss);
+        const fb = dodgeFeedback(this.time.now - this.dodgedAt, boss, getSettings().lowFx);
+        const px = this.sx(p.x);
+        const py = this.sy(p.y);
+        if (fb.big) {
+          this.dodgedAt = this.time.now;
+          SFX.dodged();
+          bigText(this, px, py - 96, tr(boss ? 'dodge.okBoss' : 'dodge.ok'), '#9fe8ff', boss ? 48 : 40, 300);
+          shockRing(this, px, py - 30, 0x9fe8ff, fb.ring, 320, 6);
+          if (!getSettings().lowFx) sparks(this, px, py - 30, boss ? 16 : 10, 'spark', 0xbff0ff, 420);
+          if (fb.flash) softFlash(this, 0x9fe8ff, 160, 0.14);
+          this.hitStop = Math.max(this.hitStop, fb.stopMs);
+        } else floatNumber(this, px, py - 40, tr('dodge.again'), { color: '#9fd8ff', size: 24 });
       } else if (e.type === 'death') {
         const d = u(e.id);
         if (d && d.side === 'enemy') {

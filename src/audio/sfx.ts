@@ -318,6 +318,11 @@ export const SFX = {
     playSfx({ wave: 'square', freq: 2400, freqEnd: 1800, sustain: 0.01, release: 0.18, volume: 0.22, lowpass: 6000 });
     playSfx({ wave: 'noise', freq: 3000, freqEnd: 1500, sustain: 0.01, release: 0.08, volume: 0.25 });
   },
+  /** 閃過敵人的攻擊（第 168 輪）：一聲往上的亮音＋很短的風聲，和翻滾本身的風聲、護盾的金屬聲分得開 */
+  dodged: (): void => {
+    playSfx({ wave: 'sine', freq: 1175, freqEnd: 1760, sustain: 0.02, release: 0.16, volume: 0.22 });
+    playSfx({ wave: 'noise', freq: 2400, freqEnd: 5000, attack: 0.005, sustain: 0.01, release: 0.07, volume: 0.12 });
+  },
   dodge: (): void => playSfx({ wave: 'noise', freq: 300, freqEnd: 1800, attack: 0.03, sustain: 0.02, release: 0.12, volume: 0.25, lowpass: 2500 }),
   break: (): void => {
     for (let i = 0; i < 4; i++) {

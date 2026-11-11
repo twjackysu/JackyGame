@@ -98,3 +98,14 @@ export function enemyImpact(shape: Shape, hasOwnFx: boolean, beast = true): Enem
   if (shape.type === 'circle') return 'slam';
   return undefined;
 }
+
+/**
+ * 閃過敵人攻擊那一刻的回饋分級（第 168 輪）。五欄全自動之後閃避是玩家唯一要自己按的招，但閃過去以前只冒一個小小的藍色「MISS」。
+ * 同一次翻滾可能連續閃過好幾下（兩隻狼同時咬）：第一下給大的（大字＋環＋短停頓），0.5 秒內後面幾下只冒小字，不重複停頓。
+ * Boss 的招更大。純畫面：停頓多久、閃不閃都不影響戰鬥結果（有沒有閃過是 core 的 `dodged` 事件決定的）。
+ */
+export interface DodgeFeedback { big: boolean; stopMs: number; ring: number; flash: boolean }
+export function dodgeFeedback(sinceLastMs: number, boss: boolean, lowFx = false): DodgeFeedback {
+  if (sinceLastMs < 500) return { big: false, stopMs: 0, ring: 0, flash: false };
+  return boss ? { big: true, stopMs: 110, ring: 170, flash: !lowFx } : { big: true, stopMs: 60, ring: 120, flash: false };
+}
