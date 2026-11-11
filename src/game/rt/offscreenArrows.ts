@@ -109,10 +109,12 @@ export class OffscreenArrows {
       // 右上角的祝福火苗與圖示（第 171 輪）：箭頭挪到那一組下面
       const bh = this.h.blessHud();
       const cyB = Math.min(yMax, belowBlessHud(cx, cy, bh, elite ? 34 : 22));
-      if (cyB !== cy) { cy = cyB; top = Math.max(top, cy); }
+      const underBless = cyB !== cy;
+      cy = cyB;
       // 同方向好幾隻精英／Boss：大箭頭沿著邊緣錯開，不疊成一團
       if (elite) {
-        const onTop = cy <= top + 1;
+        // 被挪到祝福圖示下面的箭頭貼著右緣，往右錯不開 → 往下錯開
+        const onTop = cy <= top + 1 && !underBless;
         // 第 49 輪：40／44 → 56／60（大箭頭含光圈直徑約 52，被小地圖推過來的兩個箭頭以前幾乎貼在一起）
         for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.ax - cx) < 56 && Math.abs(q.ay - cy) < 56); k++) {
           if (onTop) {
