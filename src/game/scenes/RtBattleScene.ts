@@ -4949,12 +4949,14 @@ export class RtBattleScene extends Phaser.Scene {
           }
 // 第 166 輪：一般技能的範圍以前是一塊 0.2 的平藍（長方形／扇形像除錯框）→ 填色淡一半、加一圈亮邊，看得出範圍但不搶特效
           const soft = !(elem || bowRing || frostCharge || venom) && !(s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1);
-          g.fillStyle(venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.1);
+          // 第 169 輪：長弓大招（星河貫射）連射時底下那塊範圍以前是灰藍色的框，比箭還搶眼 → 淡粉色、像星河的河岸
+          const starRiver = s.weapon === 'bow' && sk?.role === 'ult' && h.shape.type === 'line';
+          g.fillStyle(starRiver ? 0xff9ae0 : venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, starRiver ? 0.06 : elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.1);
           // 第 162 輪：落在前方的圓（落雷，`ahead`）預告畫在落點，不是畫在主角腳下
           const ah = h.ahead ?? 0;
           this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x + (ah * x.action.dirX) / 1000, pos.y + (ah * x.action.dirY) / 1000, x.action.dirX, x.action.dirY, g, true);
           if (soft) {
-            g.lineStyle(2, 0xbfe8ff, 0.5);
+            g.lineStyle(2, starRiver ? 0xffb0e8 : 0xbfe8ff, starRiver ? 0.4 : 0.5);
             this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x + (ah * x.action.dirX) / 1000, pos.y + (ah * x.action.dirY) / 1000, x.action.dirX, x.action.dirY, g, false);
           }
         }

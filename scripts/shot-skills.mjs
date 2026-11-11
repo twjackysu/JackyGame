@@ -1,7 +1,7 @@
 // 技能特效對照表（第 166 輪）。先 `npx vite --port 5173`。
 // 用法：node scripts/shot-skills.mjs sword|bow|staff [變化：''｜a｜b] [tag] [W H]
 // 每招：三隻狼釘在主角右邊 → 送出技能 → 在第一段命中的 tick 凍結 → 命中後第 2／6／12 幀各截一張（主角周圍 390×330）。
-// 輸出 screenshots/sk-<tag>-<weapon><變化>-<欄位>-<n>.png；用 PIL 拼成對照表。環境變數 ONLY=heavy_slash,charge 只拍某幾招；NIGHT=1 深夜；LOWFX=1 省電畫質；DIST=怪離主角幾格（預設劍 1.6、其他 3.5）。
+// 輸出 screenshots/sk-<tag>-<weapon><變化>-<欄位>-<n>.png；用 PIL 拼成對照表。環境變數 ONLY=heavy_slash,charge 只拍某幾招；NIGHT=1 深夜；LOWFX=1 省電畫質；FRAMES=2,6,12（命中後第幾幀，多段招要看後面幾段時用）；DIST=怪離主角幾格（預設劍 1.6、其他 3.5）。
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots', { recursive: true });
@@ -50,7 +50,7 @@ for (const id of IDS) {
   }, [id, variant, DIST]);
   console.log(weapon + variant, id, JSON.stringify(info));
   let k = 0; let at = 0;
-  for (const f of [2, 6, 12]) {
+  for (const f of (process.env.FRAMES || '2,6,12').split(',').map(Number)) {
     await pg.evaluate((d) => ff(d), f - at); at = f;
     await pg.screenshot({ path: `screenshots/sk-${tag}-${weapon}${variant}-${id}-${k++}.png`, timeout: 90000, clip: { x: 0, y: Math.round(+H * 0.5 - 190), width: +W, height: 330 } });
   }

@@ -400,6 +400,58 @@ export class RangedFx {
     if (heavy) this.sc.cameras.main.shake(110, 0.005);
   }
 
+  private ultShot = 0;
+
+  /**
+   * 星河貫射的連射（第 169 輪）：一道比判定窄的星光帶（外粉內白）＋白色箭頭飛到底＋沿著箭道往前飄的四角星屑；
+   * 連射的每一箭輪流走上、中、下三條箭道，六箭看起來是一條「河」而不是同一條線閃六次。最後一箭（破甲）仍是 skyLance。純畫面。
+   */
+  private starStream(x: number, y: number, ang: number, len: number, width: number): void {
+    SFX.bowShot();
+    const k = this.h.k();
+    const c = Math.cos(ang);
+    const sn = Math.sin(ang);
+    const W = (width * k) / 2;
+    const off = ((this.ultShot++ % 3) - 1) * W * 0.4;
+    const px = this.h.sx(x) - sn * off;
+    const py = this.h.sy(y) - 20 + c * off;
+    const L = len * k;
+    const g = this.sc.add.graphics().setDepth(689).setBlendMode(Phaser.BlendModes.ADD);
+    const band = (w: number, col: number, a: number): void => {
+      g.fillStyle(col, a).fillPoints([
+        new Phaser.Math.Vector2(px - sn * w, py + c * w),
+        new Phaser.Math.Vector2(px + c * L - sn * w * 0.5, py + sn * L + c * w * 0.5),
+        new Phaser.Math.Vector2(px + c * L + sn * w * 0.5, py + sn * L - c * w * 0.5),
+        new Phaser.Math.Vector2(px + sn * w, py - c * w),
+      ], true);
+    };
+    band(W * 0.62, 0xff7ad0, 0.22);
+    band(W * 0.32, 0xffb0e8, 0.36);
+    band(W * 0.1, 0xffffff, 0.95);
+    this.sc.tweens.add({ targets: g, alpha: 0, duration: 380, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
+    const head = this.sc.add.graphics().setDepth(692).setPosition(px, py).setRotation(ang).setBlendMode(Phaser.BlendModes.ADD);
+    head.fillStyle(0xff9ae0, 0.6).fillCircle(0, 0, 26);
+    head.fillStyle(0xffffff, 1).fillTriangle(34, 0, -12, -13, -12, 13);
+    this.sc.tweens.add({ targets: head, x: px + c * L, y: py + sn * L, duration: 150, ease: 'Cubic.easeOut', onComplete: () => {
+      head.destroy();
+      sparks(this.sc, px + c * L, py + sn * L, 10, 'spark', 0xff9ae0, 360);
+    } });
+    const n = getSettings().lowFx ? 5 : 12;
+    for (let i = 0; i < n; i++) {
+      const d = ((i + Math.random()) / n) * L;
+      const lat = (Math.random() - 0.5) * W * 1.1;
+      const r = 6 + Math.random() * 9;
+      const st = this.sc.add.graphics().setDepth(691).setBlendMode(Phaser.BlendModes.ADD).setPosition(px + c * d - sn * lat, py + sn * d + c * lat);
+      st.fillStyle(i % 3 ? 0xffd0f2 : 0xffffff, 1);
+      st.fillPoints([new Phaser.Math.Vector2(0, -r * 1.7), new Phaser.Math.Vector2(r * 0.34, 0), new Phaser.Math.Vector2(0, r * 1.7), new Phaser.Math.Vector2(-r * 0.34, 0)], true);
+      st.fillPoints([new Phaser.Math.Vector2(-r * 1.7, 0), new Phaser.Math.Vector2(0, -r * 0.34), new Phaser.Math.Vector2(r * 1.7, 0), new Phaser.Math.Vector2(0, r * 0.34)], true);
+      st.setAlpha(0).setScale(0.4);
+      const fly = 50 + Math.random() * 70;
+      this.sc.tweens.add({ targets: st, alpha: { from: 1, to: 0 }, scale: { from: 1.15, to: 0.3 }, x: st.x + c * fly, y: st.y + sn * fly, delay: (d / L) * 130, duration: 380 + Math.random() * 220, ease: 'Quad.easeOut', onComplete: () => st.destroy() });
+    }
+    this.sc.cameras.main.shake(80, 0.003);
+  }
+
   /** 穿雲箭的音爆環（第 166 輪）：箭道上三圈垂直於箭的扁環，一圈比一圈大、依序炸開。純畫面 */
   private sonicRings(x: number, y: number, ang: number, len: number, color: number): void {
     const px = this.h.sx(x);
@@ -462,7 +514,9 @@ export class RangedFx {
     if (hs.type === 'line') {
       // 第 166 輪：三支原招的直線箭各有長相——穿雲箭＝白金重箭＋沿途音爆環、縛足箭＝翠綠細箭（命中的怪腳下收緊繩環，場景畫）、風障射擊＝和風障同色的薄荷綠
       const lc = look === 'pierce' ? 0xffe6a0 : look === 'snare' ? 0x8affc0 : look === 'guard' ? 0x9dffc8 : 0x9fe0ff;
-      this.arrowBeam(x, y, ang, hs.len, hs.width, ult ? 0xff9ae0 : brk ? 0xff8a6a : elem || lc, ult || look === 'pierce');
+      // 第 169 輪：星河貫射的前五箭以前是「一片淡三角形＋一條白線」重複五次，不像大招 → 每一箭是一道星光帶＋沿途的星屑，三條箭道輪流射
+      if (ult && !brk) this.starStream(x, y, ang, hs.len, hs.width);
+      else this.arrowBeam(x, y, ang, hs.len, hs.width, ult ? 0xff9ae0 : brk ? 0xff8a6a : elem || lc, ult || look === 'pierce');
       if (look === 'pierce' && !ult) this.sonicRings(x, y, ang, hs.len, lc);
       if (st === 'burn') {
         // 燼火箭：沿著箭道留下一串火星
