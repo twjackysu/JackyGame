@@ -249,6 +249,27 @@ export function softFlash(scene: Phaser.Scene, color: number, ms = 160, peak = 0
   scene.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => r.destroy() });
 }
 
+/** 大招閃光的峰值不透明度（第 177 輪，D-372）：省電模式再淡一些。上限刻意壓在五成以下——再亮就看不到敵人的紅圈 */
+export function ultFlashPeak(lowFx: boolean): number {
+  return lowFx ? 0.24 : 0.4;
+}
+
+const ultFlashRect = new WeakMap<Phaser.Scene, Phaser.GameObjects.Rectangle>();
+/**
+ * 大招出手／落地的全畫面閃光（第 177 輪，D-372）。以前用 camera.flash：第一幀整個畫面（連 HUD、Boss 的紅圈預告）幾乎全白，
+ * 要七八幀才退完，出手一次、落地再一次。大招改成自動之後，這是玩家沒按任何鍵、每四十幾秒自己來兩次的全白。
+ * 改成疊一層加亮的顏色（峰值四成），深度 47＝壓在 HUD 與按鍵下面：畫面照樣「亮一下」，但紅圈、血條、按鍵一直看得到。
+ * 上一道還沒退完就接著來（出手後很快落地）時換掉舊的，不會疊成全白。
+ */
+export function ultFlash(scene: Phaser.Scene, color: number, ms = 220): void {
+  ultFlashRect.get(scene)?.destroy();
+  const w = scene.scale.width;
+  const h = scene.scale.height;
+  const r = scene.add.rectangle(w / 2, h / 2, w, h, color, ultFlashPeak(getSettings().lowFx)).setScrollFactor(0).setDepth(47).setBlendMode(Phaser.BlendModes.ADD);
+  ultFlashRect.set(scene, r);
+  scene.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => r.destroy() });
+}
+
 /**
  * 危險紅暈的圖（第 170 輪）：中間透明、越靠邊越紅的一張貼圖，拉成整個畫面；不透明度由場景每幀照 `dangerAlpha` 設。
  * 深度 46＝蓋在場地與特效上、壓在 HUD 與按鍵（50 以上）下面，不會把血條、按鍵、大字染紅。

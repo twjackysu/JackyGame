@@ -62,6 +62,13 @@ if (si > 0) {
   await pg.evaluate(() => __game.loop.sleep());
 }
 for (let k = 0; k < +N; k++) {
+  // UNTIL='js 條件'：一幀一幀走到條件成立（最多 GAP 秒）才拍，之後每張只隔一幀——拍「某件事發生後的連續幾幀」（第 177 輪：大招的全畫面閃光）
+  if (process.env.UNTIL) {
+    const hit = await pg.evaluate(([cond, gap, first]) => { if (!first) { ff(1 / 60); return true; } for (let i = 0; i < gap * 60; i++) { draw = false; T += 16.667; off += 16.667; __game.step(T, 16.667); if (i % 20 === 19 && sc().menu) autopick(); if ((0, eval)(cond)) { ff(1 / 60); return true; } } draw = true; return false; }, [process.env.UNTIL, +GAP, k === 0]);
+    if (!hit) { console.log('UNTIL 沒等到'); break; }
+    await pg.screenshot({ path: `screenshots/play-${tag}-${k}.png`, timeout: 90000 });
+    continue;
+  }
   const st = await pg.evaluate(([gap, hpCap]) => {
     const s = sc().s; const p = s.units[0];
     if (hpCap) { const n = Math.round(gap * 4); for (let i = 0; i < n; i++) { p.hp = Math.min(p.hp, Math.round(p.maxHp * hpCap)); ff(0.25); } } else ff(gap);

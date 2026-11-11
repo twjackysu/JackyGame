@@ -71,7 +71,7 @@ import { characterCache } from '../../client/characterCache';
 import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard';
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
@@ -3657,7 +3657,7 @@ export class RtBattleScene extends Phaser.Scene {
           const p = playerOf(this.s);
           SFX.perfect();
           SFX.hitHeavy();
-          this.cameras.main.flash(140, 255, 140, 220);
+          ultFlash(this, 0xff8cdc); // 第 177 輪：以前是 camera.flash（整個畫面連 HUD 全白）
           this.cameras.main.shake(160, 0.006);
           shockRing(this, this.sx(p.x), this.sy(p.y), 0xff7ad0, 260, 520, 10);
           this.nightLight?.flash(this.sx(p.x), this.sy(p.y), 900 * this.k * 1.5, 700);

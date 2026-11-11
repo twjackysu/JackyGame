@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
 import { UNIT, type Shape } from '../../core/battle/rt/types';
 import { getSettings } from '../settings';
-import { shockRing, softFlash, sparks } from './feel';
+import { shockRing, softFlash, sparks, ultFlash } from './feel';
 
 /** 場景提供給遠程特效的東西 */
 export interface RangedFxHost {
@@ -269,7 +269,7 @@ export class RangedFx {
       for (let i = 0; i < 4; i++) this.sc.time.delayedCall(300 + i * 450, () => sparks(this.sc, vx + (Math.random() - 0.5) * R, vy + (Math.random() - 0.5) * R * 0.5, 4, 'ember', 0xff8a3a, 600));
       sparks(this.sc, vx, vy, 26, 'ember', 0xff8a3a, 820);
       this.sc.cameras.main.shake(260, 0.012);
-      this.sc.cameras.main.flash(140, 255, 230, 200);
+      ultFlash(this.sc, 0xffe6c8);
       this.h.hitStop(150);
       return;
     }
@@ -529,7 +529,7 @@ export class RangedFx {
       }
       if (ult && brk) {
         this.skyLance(x, y, ang, hs.len, hs.width);
-        this.sc.cameras.main.flash(120, 255, 180, 240);
+        ultFlash(this.sc, 0xffb4f0);
         this.h.hitStop(120);
       }
       return;
@@ -674,6 +674,6 @@ export class RangedFx {
     this.sc.tweens.add({ targets: g, alpha: 0, duration: 420, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
     shockRing(this.sc, px, py, 0xff7ad0, r * this.h.k() * 1.3, 520, 14);
     sparks(this.sc, px, py, 28, 'spark', 0xffd0f0, 620);
-    this.sc.cameras.main.flash(120, 255, 200, 240);
+    ultFlash(this.sc, 0xffc8f0);
   }
 }
