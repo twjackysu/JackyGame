@@ -75,6 +75,7 @@ import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, 
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
+import { coversHero, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -4587,6 +4588,9 @@ export class RtBattleScene extends Phaser.Scene {
     this.drawPaws(g, now);
     // 單位
     const playerU = playerOf(s);
+    const heroSp = playerU.dead ? undefined : this.spriteFor(playerU);
+    const heroAt = this.lerpPos(playerU);
+    const heroBox = heroSp ? { x: this.sx(heroAt.x), y: this.sy(heroAt.y) + playerU.r * this.k * 0.15, w: heroSp.displayWidth, h: heroSp.displayHeight } : null;
     for (const x of s.units) {
       if (x.dead) continue;
       const pos = this.lerpPos(x);
@@ -4656,7 +4660,10 @@ export class RtBattleScene extends Phaser.Scene {
         if (sp.scaleY !== 0 && !this.tweens.isTweening(sp)) sp.setScale(base * squash, base / squash);
         if (cfg.flip && x.facingX !== 0) sp.setFlipX(x.facingX < 0);
         // 脫戰返回中半透明（打不到）；待機的怪稍暗
-        sp.setAlpha(inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' || x.mode === 'dormant' ? 0.85 : 1);
+        // 大隻的怪擋住主角 → 牠變半透明（第 174 輪；規則在 fx/occlude.ts）。主角倒下、怪還沒醒就不用
+        const occ = isP ? 1 : occludeStep((sp.getData('occ') as number | undefined) ?? 1, !!heroBox && x.mode !== 'idle' && x.mode !== 'dormant' && coversHero({ x: sp.x, y: sp.y, w: sp.displayWidth, h: sp.displayHeight }, heroBox), this.game.loop.delta);
+        if (!isP) sp.setData('occ', occ);
+        sp.setAlpha((inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' || x.mode === 'dormant' ? 0.85 : 1) * occ);
         if ((this.flashUntil.get(x.id) ?? 0) > now) sp.setTintFill(0xffffff);
         else if (winding) sp.setTint(Math.floor(now / 90) % 2 ? 0xff9a9a : (cfg.tint ?? 0xffffff));
         else if (x.fury) sp.setTint(Math.floor(now / 500) % 2 ? 0xff6050 : 0xff8a70); // 暴怒版：紅色脈動
