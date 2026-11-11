@@ -16,7 +16,7 @@ await pg.evaluate(([w, stage, night, low, level]) => {
   localStorage.setItem('jg_rt_hint_seen', '1'); localStorage.setItem('jg_tip_seen', '1');
   const base = { level: level || 1, ...(level > 1 ? { bossKills: 3, furyKills: 1 } : {}) };
   localStorage.setItem('jg_rt_mistwood', JSON.stringify({ ...base, ...(night && stage === 'mistwood' ? { night: true } : {}) }));
-  if (stage !== 'mistwood') localStorage.setItem('jg_rt_' + stage, JSON.stringify({ bossKills: 1, ...(night ? { night: true } : {}) }));
+  if (stage !== 'mistwood') localStorage.setItem('jg_rt_' + stage, JSON.stringify({ bossKills: 1, ...(night ? { night: true, bossKills: 3, furyKills: 1 } : {}) })); // 深夜要先打倒過暴怒 Boss 才開（第 173 輪：以前少了 furyKills，NIGHT=1 對霧語以外的圖沒作用）
   if (low) localStorage.setItem('jackygame.settings', JSON.stringify({ lowFx: true }));
 }, [weapon, stage, !!process.env.NIGHT, !!process.env.LOWFX, +(process.env.LEVEL || 1)]);
 await pg.reload();
