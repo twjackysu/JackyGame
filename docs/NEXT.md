@@ -17,6 +17,14 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 170 輪注意（流星箭雨、瞬移大字、危險紅暈 D-367）**：
+- **下一輪**先看 Jacky 的回覆；沒有就挑：①`node scripts/play.mjs bow|staff 地圖 標籤 張數 間隔秒`（這輪進 git 了；`LEVEL=`、`NIGHT=1`、`HP=0.3`）跑弓／杖與後三張圖，找礙眼的地方 ②競技場（PvpScene）也加危險紅暈與敵人招式音效 ③補拍：狼后伏擊（`queen_ambush`，`DIST=3～5`，荊棘谷很慢）、守望者二階段的環。
+- 上一輪候選 ①（暴怒狼王瞬移的大字蓋住預告）是真的，修了：`RtBattleScene.refreshBannerAvoid()`，在 `blink` 事件排大字前呼叫。之後任何「Boss 瞬間換位置後馬上排大字」的地方都要先呼叫它。
+- 流星箭雨：`fx/rangedFx.ts` 的 `meteorRain`（長弓＋大招＋圓）；底下範圍的顏色和星河貫射同一條分支（`starRiver`）。
+- 危險紅暈：規則 `fx/hitTint.ts` 的 `dangerAlpha`（門檻 40%／20%、被打 0.38 秒），貼圖 `fx/feel.ts` 的 `dangerVignette`（深度 46），場景在 `draw()` 最後設不透明度、`damage` 事件記 `heroHitAt`。截圖 `node scripts/shot-danger.mjs 標籤 [W H]`。Jacky 嫌煩就把被打那一下（0.26／0.5）調小，低血的部分留著。
+- Q 清單第 1 項（技能特效逐招檢查）**verified**：45 招都看過（雷暴沒動）。
+- `shot-boss-attacks.mjs` 多了 `FACE=down|up`，但主角每個 tick 會自動面向 Boss，實際沒作用（瞬移招永遠落在主角離 Boss 較遠的那一邊）；要拍落在北邊得把 Boss 的家搬到主角南邊。
+
 **第 169 輪注意（開場 D-366、敵人招式音效、星河貫射）**：
 - **下一輪**先看 Jacky 的回覆；沒有就挑：①暴怒狼王霧中瞬移時，大字「狼王遁入霧中——小心背後！」是不是蓋在主角和預告上（`FURY=1 ONLY=king_mist_rend node scripts/shot-boss-attacks.mjs mistwood 標籤` 拍到的是蓋住，但腳本把狼王和主角釘在一起，要用真實對戰確認）②長弓變化二「流星箭雨」偏稀疏（一大塊灰色圓＋幾支細箭；`fx/rangedFx.ts` 的 `arrowRain`）③補拍：狼后伏擊（`queen_ambush` 這次 `got: queen_claw`，試 `DIST=3～5`；荊棘谷一招要四五分鐘，`timeout` 給 400 秒、不要和別的截圖同時跑）、守望者二階段的環、法杖 A 雷暴（`DIST=2`）。
 - **技能特效逐招檢查（Q 清單第 1 項）**：九個大招這輪都看過了；45 招只剩法杖 A 的雷暴沒看。多段招看後面幾段：`FRAMES=3,14,26,50 ONLY=blade_storm node scripts/shot-skills.mjs bow '' 標籤`（命中後第幾幀）。
@@ -154,9 +162,9 @@
 **已完成（第 155 輪，D-335／D-337）**：Q1 倒下依種類（`src/game/fx/deathFx.ts`：`deathKind(defId)`＋`playDeath`，新怪要加進 `KIND`／`DEBRIS` 表，沒加就是野獸倒地）、Q2 命中火花（`fx/feel.ts` 的 `hitSparks`＋`fx/hitTint.ts` 的 `hitLook`，新狀態要加進 `ELEMENT`）、Q3 受擊後仰（`RtBattleScene.knock(id, dx, dy, px, strong)`）、Q4 掉落彈出（`dropPop`＋`DROP_POP_MS`，在 `draw` 的地面掉落段）、Q5 技能冷卻轉好的提示（`cdWas`／`cdReadyAt`，在 `drawUi` 技能鍵段）、Q6 血條殘影（`ghostHp(id, 比例)`，怪頭上／主角／Boss 大血條）。
 
 0. **每輪開頭**：FOR_JACKY「回覆」、Issue、`art-inbox/`、Jacky 的 commit、CI（第 155 輪最後的程式 commit 是「Q5 技能冷卻剛轉好」daba688）。
-1. **常用技能特效逐招檢查（Level 2，階段 A 的主菜）**｜**in_progress**（第 166 輪：`scripts/shot-skills.mjs`；重斬／鐵壁斬／弓三支箭／影襲／不動架勢／範圍色塊／冰系閃白已修，見上面第 166 輪注意）：第 155 輪沒有逐招看。先用 `window.__rt.send({ type: 'skill', id })`（見下面第 150 輪注意）把三把武器 × 5 招 × 兩種變化各截一張凍結圖，排成對照表存 `docs/screenshots/`，在 27-quality-review 補「哪幾招只有一層特效」，再挑最常用的（劍：普攻、重斬、旋風斬；弓：普攻；杖：星焰彈）補「施法前搖光／拖尾／命中爆點」（`fx/fieldFx.ts` 的 `slash`、`fx/rangedFx.ts`）。**驗收**：每招改動前後並排截圖；特效不改命中形狀（形狀在 core）。
+1. **常用技能特效逐招檢查（Level 2，階段 A 的主菜）**｜**verified**（第 170 輪：45 招全部看過）｜以下是當時的做法紀錄：（第 166 輪：`scripts/shot-skills.mjs`；重斬／鐵壁斬／弓三支箭／影襲／不動架勢／範圍色塊／冰系閃白已修，見上面第 166 輪注意）：第 155 輪沒有逐招看。先用 `window.__rt.send({ type: 'skill', id })`（見下面第 150 輪注意）把三把武器 × 5 招 × 兩種變化各截一張凍結圖，排成對照表存 `docs/screenshots/`，在 27-quality-review 補「哪幾招只有一層特效」，再挑最常用的（劍：普攻、重斬、旋風斬；弓：普攻；杖：星焰彈）補「施法前搖光／拖尾／命中爆點」（`fx/fieldFx.ts` 的 `slash`、`fx/rangedFx.ts`）。**驗收**：每招改動前後並排截圖；特效不改命中形狀（形狀在 core）。
 2. ~~Q9 精英辨識~~：第 157 輪做完（血條金框＋金菱形；體型與詞綴環原本就有，沒加 postFX 光暈——截圖看已經夠分得出來）。原構想留著備查：**Q9 精英辨識（Level 2）**：13 種怪是霧狼染色。精英（`x.tier === 'elite'`）：體型 ×1.12（`spriteFor` 的 `hPx`）、腳下詞綴色的環（`AFFIX_COLOR`）、高畫質加 `postFX.addGlow`（只有畫面上的精英、最多 3 隻）。先截圖確認現況精英長什麼樣（可能已經有部分標記）。**驗收**：同畫面普通狼和精英狼一眼分得出來；純畫面。
-3. **UI 回饋剩下的（Level 2）**：①裝備稀有度在行囊／掉落提示的呈現（先截圖行囊面板再決定）②競技場（`PvpScene`）也套用 Q2 火花／Q3 後仰／Q6 殘影——競技場有自己的命中處理，第 155 輪沒動；血條是貼圖＋setCrop（D-332），殘影要另外畫一張白條。③主角被打的回饋（現在是鏡頭震動＋紅數字＋震動；可加畫面邊緣紅暈，血越少越明顯）。
+3. **UI 回饋剩下的（Level 2）**：①裝備稀有度在行囊／掉落提示的呈現（先截圖行囊面板再決定）②競技場（`PvpScene`）也套用 Q2 火花／Q3 後仰／Q6 殘影——競技場有自己的命中處理，第 155 輪沒動；血條是貼圖＋setCrop（D-332），殘影要另外畫一張白條。③~~主角被打的回饋~~（第 170 輪做完：危險紅暈，D-367，`docs/screenshots/danger-vignette.jpg`；競技場還沒有）。
 4. **Q7 效能：傷害數字池＋上限、粒子發射器共用**：①`floatNumber` 每個數字 `new Text`（建 canvas＋上傳貼圖）。先量：60 秒 Bot 戰鬥裡 `floatNumber` 呼叫次數與同時存在數的峰值（hook 計數）。做法候選：純數字（沒有 tier、沒有中文字）改用 `BitmapText`＋BootScene 用 canvas 產一張 `0-9!+` 字型貼圖（`RetroFont`）＋物件池（上限 24，超過時最舊的非暴擊數字直接收掉）；有 tier／中文的維持 Text。②`sparks`／`hitSparks`／`deathFx.puff` 每次 `add.particles` 再 destroy → 每個場景每張貼圖一個常駐 emitter，用 `emitter.setConfig`／`emitParticleAt`（Phaser 3.90 的 API 先查文件確認）。**驗收**：旋風斬掃 8 隻以上時新建的 Text 數 = 0；60 秒戰鬥中 `ParticleEmitter` 物件數峰值 ≤ 6；畫面舊新並排看不出差別。
 5. **Q10 三情境效能量測腳本**：`scripts/perf-probe.mjs`（照第 154 輪注意的量法：包每個物件的 `renderWebGL` 計時）跑 ①霧語森林白天 60 秒 ②荊棘谷深夜 60 秒 ③星隕高原深夜＋騷動；輸出每幀 JS 更新毫秒（`scene.update` 包計時）、渲染毫秒、活躍單位／Text／ParticleEmitter／Image 數的平均與峰值，表格寫進 PROGRESS。無頭瀏覽器的 fps 不能當手機數據，只比相對值。
 6. **Q8 技能點里程碑＝行為升級（Level 3，階段 B 11/15 起；要先寫 DECISIONS）**：`core/meta/skills.ts` 的 `SKILL_TREE` 每級只有數值。構想：3 級、5 級各解鎖一個看得到的變化（例：重斬 3 級劍氣多飛 1 格、5 級命中留一道燃燒地面；旋風斬 3 級多轉一圈、5 級收招放一圈衝擊波），用既有 `SkillMod`（`areaPct`、`distPct`…）或加欄位，**結算在 core**；要跑平衡 Bot（`npm run sim:rt`）、golden hash、`npm run wiki`、伺服器 `skills.*` 契約測試。
