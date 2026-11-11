@@ -142,3 +142,24 @@ const EARTH: GroundPalette = { wave: 0xffb070, rockA: 0x6a5a4a, rockB: 0x8a7a66,
 export function groundPalette(stageId: string): GroundPalette {
   return GROUND[stageId] ?? EARTH;
 }
+
+/**
+ * 雷暴的落點（第 178 輪）：以前每一波的兩道閃電都隨機落在圈裡，常常劈在空地上，被打到的怪身上只有數字。
+ * 現在先劈圈裡的怪（從隨機一隻開始輪，怪多時每一波換人），不夠 n 隻才用隨機空地補滿。
+ * 純畫面：誰受傷仍由核心的圓形判定決定；這裡只決定閃電畫在哪。座標是世界座標。
+ */
+export function stormStrikes(cx: number, cy: number, r: number, foes: readonly { x: number; y: number; r?: number }[], n: number, rnd: () => number): { x: number; y: number; on: boolean }[] {
+  const inside = foes.filter((f) => (f.x - cx) ** 2 + (f.y - cy) ** 2 <= (r + (f.r ?? 0)) ** 2);
+  const out: { x: number; y: number; on: boolean }[] = [];
+  const start = inside.length ? Math.min(inside.length - 1, Math.floor(rnd() * inside.length)) : 0;
+  for (let i = 0; i < Math.min(n, inside.length); i++) {
+    const f = inside[(start + i) % inside.length]!;
+    out.push({ x: f.x, y: f.y, on: true });
+  }
+  while (out.length < n) {
+    const a = rnd() * Math.PI * 2;
+    const d = rnd() * r * 0.85;
+    out.push({ x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, on: false });
+  }
+  return out;
+}

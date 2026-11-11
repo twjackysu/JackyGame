@@ -50,7 +50,7 @@ for (const id of IDS) {
     for (const u of s.units) if (u.side === 'enemy' && u !== B) { u.dead = true; }
     window.pin = () => { if (face) { p.facingX = 0; p.facingY = face === 'down' ? 1000 : -1000; } p.x = hx; p.y = hy + dist * 100; p.hp = p.maxHp; p.nextAttackTick = s.tick + 999; p.targetId = null; B.hp = Math.max(B.hp, phase2 ? 1 : B.maxHp * 0.9); if (phase2 && B.hp > B.maxHp * 0.45) B.hp = Math.floor(B.maxHp * 0.45); if (!B.action) { B.x = hx; B.y = hy; } B.engagedTick = s.tick; if (B.mode !== 'combat') B.mode = 'combat'; };
     pin(); sn.events.on('postupdate', pin);
-    window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; Date.now = () => rn() + off;
+    window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; const t0real = rn(); Date.now = () => t0real + off; /* 只走遊戲時間：Phaser 的 tween 用 Date.now（第 178 輪） */
     window.ff = (n) => { for (let i = 0; i < n; i++) { T += 16.667; off += 16.667; __game.step(T, 16.667); } };
     __game.loop.sleep();
     ff(phase2 ? 150 : 30); sn.flashUntil?.clear?.();

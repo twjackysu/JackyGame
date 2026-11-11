@@ -44,7 +44,7 @@ await pg.evaluate(([weapon]) => {
   window.clk = (pre) => { const s = sc(); const all = []; const walk = (l) => { for (const o of l) { if (o.list) walk(o.list); if (o.type === 'Text' && o.visible && o.text.startsWith(pre)) all.push(o); } }; walk(s.children.list); const t = all[0]; if (!t) return null; for (let o = t; o; o = o.parentContainer) if (o.listenerCount && o.listenerCount('pointerdown')) { o.emit('pointerdown', { x: 0, y: 0 }, 0, 0, { stopPropagation() {} }); return pre; } const near = []; const walk2 = (l) => { for (const o of l) { if (o.list) walk2(o.list); else if (o.listenerCount && o.listenerCount('pointerdown') && o.parentContainer === t.parentContainer && Math.abs(o.y - t.y) < 60) near.push(o); } }; walk2(s.children.list); if (near[0]) { near[0].emit('pointerdown', { x: 0, y: 0 }, 0, 0, { stopPropagation() {} }); return pre + '*'; } return 'nolistener ' + pre; };
   // 相遇抉擇／劇情面板會把戰鬥停住：自動選（KEEP_MENU=1 時不選，拿來拍面板本身）
   window.autopick = () => (clk('還') || clk('助') || clk('取')) && clk('就這麼做') || clk('略過') || clk('繼續');
-  window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; Date.now = () => rn() + off;
+  window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; const t0real = rn(); Date.now = () => t0real + off; // 第 178 輪：只走遊戲時間（Phaser 的 tween 用 Date.now；以前加了真實時間，UNTIL／PAIR 連拍時 tween 特效會淡得比實機快）
   const render = __game.scene.render ? null : null; void render;
   const R = __game.renderer; const pre = R.preRender.bind(R); const rr = R.render.bind(R); const post = R.postRender.bind(R);
   window.draw = true;

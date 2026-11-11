@@ -33,7 +33,7 @@ for (const id of ids.split(',').filter(Boolean)) {
     // 主角搬到怪的家旁邊（怪不動，才不會被拉回家）
     const hx = U.homeX ?? U.x; const hy = U.homeY ?? U.y;
     window.pin = () => { U.x = hx; U.y = hy; p.x = hx + (left ? 1 : -1) * (U.r + p.r + 40); p.y = hy; p.hp = p.maxHp; p.nextAttackTick = s.tick + 9999; U.nextAttackTick = s.tick + 9999; for (const k in U.ready) U.ready[k] = s.tick + 9999; };
-    window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; Date.now = () => rn() + off;
+    window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; const t0real = rn(); Date.now = () => t0real + off; /* 只走遊戲時間：Phaser 的 tween 用 Date.now（第 178 輪） */
     window.ff = (frames) => { for (let i = 0; i < frames; i++) { if (!U.dead) pin(); T += 16.667; off += 16.667; __game.step(T, 16.667); if (sc().menu) { /* 抉擇面板 */ } } };
     window.U = U;
     __game.loop.sleep(); pin(); ff(50);

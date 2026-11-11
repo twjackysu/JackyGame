@@ -36,7 +36,9 @@ for (const id of IDS) {
     window.pin = () => { p.x = home.x; p.y = home.y; foes.forEach((u, i) => { u.x = home.x + spots[i][0] * 100; u.y = home.y + spots[i][1] * 100; u.action = null; u.mode = 'combat'; u.engagedTick = s.tick; u.nextAttackTick = s.tick + 999; u.hp = Math.max(u.hp, 99999); u.maxHp = Math.max(u.maxHp, 99999); if ('homeX' in u) { u.homeX = u.x; u.homeY = u.y; } }); p.targetId = foes[0]?.id; p.facingX = 1; p.facingY = 0; };
     for (const u of s.units) if (u.side === 'enemy' && !foes.includes(u)) { u.x = home.x - 6000; u.y = home.y - 6000; u.homeX = u.x; u.homeY = u.y; }
     pin(); sn.events.on('postupdate', pin);
-    window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; Date.now = () => rn() + off;
+    window.T = 100000; const rn = Date.now.bind(Date); window.off = 0;
+    // 第 178 輪：Phaser 的 tween 用 Date.now 算自己的時間；以前這裡是「真實時間＋位移」，截圖花的真實時間會讓 tween 特效（閃電、光環）一兩幀就淡光 → 改成只走遊戲時間
+    const t0real = rn(); Date.now = () => t0real + off;
     window.ff = (n) => { for (let i = 0; i < n; i++) { T += 16.667; off += 16.667; __game.step(T, 16.667); } };
     __game.loop.sleep();
     ff(20); sn.flashUntil?.clear?.();

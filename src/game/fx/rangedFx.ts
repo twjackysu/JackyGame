@@ -5,6 +5,7 @@ import { SFX } from '../../audio/sfx';
 import { UNIT, type Shape } from '../../core/battle/rt/types';
 import { getSettings } from '../settings';
 import { shockRing, softFlash, sparks, ultFlash } from './feel';
+import { stormStrikes } from './hitTint';
 
 /** 場景提供給遠程特效的東西 */
 export interface RangedFxHost {
@@ -200,7 +201,7 @@ export class RangedFx {
    * 直線＝飛出去的魔彈（灼燒＝火球、冰凍＝冰槍、中毒＝魂彈）、圓＝符文魔法陣爆開（大招單發＝隕星、多段＝流星）、
    * 環＝火環、扇形（不會出現在法杖，保底）＝刀光。blink：1＝瞬移落地（往前）、−1＝往後瞬移。
    */
-  staffFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, single: boolean, blink: number, st?: string, strike = false): void {
+  staffFx(x: number, y: number, ang: number, hs: Shape, ult: boolean, single: boolean, blink: number, st?: string, strike = false, foes: readonly { x: number; y: number; r?: number }[] = []): void {
     const col = st === 'burn' ? 0xff8a3a : st === 'freeze' ? 0xa8ecff : st === 'poison' ? 0x9aff6a : st === 'weak' ? 0xb08aff : st === 'break' ? 0xffd05a : 0xc89aff;
     const vx = this.h.sx(x);
     const vy = this.h.sy(y);
@@ -329,20 +330,19 @@ export class RangedFx {
       return;
     }
     if (!single && st === 'slow') {
-      // 雷暴：每段從天上劈下 2 道閃電（鋸齒線）落在範圍裡
-      for (let j = 0; j < 2; j++) {
-        const a0 = Math.random() * Math.PI * 2;
-        const d0 = Math.random() * R * 0.85;
-        const tx = vx + Math.cos(a0) * d0;
-        const ty = vy + Math.sin(a0) * d0 * 0.6;
+      // 雷暴：每段從天上劈下 2 道閃電（鋸齒線）。第 178 輪：先劈圈裡的怪（劈中的比較粗、怪身上炸一圈電光），沒有怪才落在空地
+      for (const m of stormStrikes(x, y, hs.r, foes, 2, Math.random)) {
+        const tx = this.h.sx(m.x);
+        const ty = this.h.sy(m.y) - (m.on ? 14 : 0);
         const bolt = this.sc.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
         const pts: { x: number; y: number }[] = [];
         for (let q = 0; q <= 6; q++) pts.push({ x: tx + (q === 6 ? 0 : (Math.random() - 0.5) * 34), y: ty - 320 + (320 * q) / 6 });
-        bolt.lineStyle(16, 0x8a7aff, 0.2).strokePoints(pts, false).lineStyle(9, 0x8ab0ff, 0.4).strokePoints(pts, false).lineStyle(3, 0xffffff, 1).strokePoints(pts, false);
-        bolt.fillStyle(0xe8f0ff, 0.5).fillEllipse(tx, ty, 70, 30);
+        const w = m.on ? 1.35 : 0.8;
+        bolt.lineStyle(16 * w, 0x8a7aff, 0.2).strokePoints(pts, false).lineStyle(9 * w, 0x8ab0ff, 0.4).strokePoints(pts, false).lineStyle(3 * w, 0xffffff, m.on ? 1 : 0.8).strokePoints(pts, false);
+        bolt.fillStyle(0xe8f0ff, m.on ? 0.6 : 0.4).fillEllipse(tx, ty, m.on ? 84 : 60, m.on ? 40 : 26);
         this.sc.tweens.add({ targets: bolt, alpha: 0, duration: 260, onComplete: () => bolt.destroy() });
-        sparks(this.sc, tx, ty, 6, 'spark', 0xc8d8ff, 300);
-        shockRing(this.sc, tx, ty, 0x9fc0ff, 34, 200, 3);
+        sparks(this.sc, tx, ty, m.on ? 9 : 4, 'spark', 0xc8d8ff, 300);
+        shockRing(this.sc, tx, ty, 0x9fc0ff, m.on ? 44 : 30, 200, 3);
       }
       this.sc.cameras.main.shake(60, 0.003);
       return;

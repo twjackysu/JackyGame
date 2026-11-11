@@ -3999,6 +3999,19 @@ export class RtBattleScene extends Phaser.Scene {
     for (const a of [p.action, ...(p.casts ?? [])]) if (a?.kind === 'skill') this.skillFxOf(p, a);
   }
 
+  /** 雷暴的閃電要劈在誰身上：活著的怪＋這一兩個 tick 剛被打倒的（最後一擊也要劈在牠身上）。純畫面。 */
+  private stormFoes(): Unit[] {
+    const out = enemiesOf(this.s);
+    const ev = this.s.events;
+    for (let i = ev.length - 1; i >= 0 && ev[i]!.tick >= this.s.tick - 2; i--) {
+      const e = ev[i]!;
+      if (e.type !== 'death') continue;
+      const u = this.s.units.find((x) => x.id === e.id);
+      if (u && u.side === 'enemy') out.push(u);
+    }
+    return out;
+  }
+
   private skillFxOf(p: Unit, a: NonNullable<Unit['action']>): void {
     const sk = skillDef(this.s, a.id);
     if (!sk) return;
@@ -4015,7 +4028,7 @@ export class RtBattleScene extends Phaser.Scene {
         return;
       }
       if (this.s.weapon === 'staff') {
-        this.rfx.staffFx(p.x + ((h.ahead ?? 0) * a.dirX) / 1000, p.y + ((h.ahead ?? 0) * a.dirY) / 1000, ang, hs, sk.role === 'ult', sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, h.status?.id, !!h.ahead && sk.role !== 'ult');
+        this.rfx.staffFx(p.x + ((h.ahead ?? 0) * a.dirX) / 1000, p.y + ((h.ahead ?? 0) * a.dirY) / 1000, ang, hs, sk.role === 'ult', sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, h.status?.id, !!h.ahead && sk.role !== 'ult', hs.type === 'circle' && sk.hits.length > 1 ? this.stormFoes() : undefined);
         return;
       }
       if (sk.dash) {

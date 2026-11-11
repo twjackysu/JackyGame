@@ -30,7 +30,7 @@ await pg.evaluate(() => {
   window.hpPct = 1;
   window.pin = () => { p.x = home.x; p.y = home.y; p.hp = Math.max(1, Math.round(p.maxHp * hpPct)); p.nextAttackTick = s.tick + 999; p.targetId = null; foes.forEach((u, i) => { u.x = home.x + 160 + (i ? 80 : 0); u.y = home.y + (i - 1) * 90 * (i ? 1 : 0); u.action = null; u.mode = 'combat'; u.engagedTick = s.tick; u.nextAttackTick = s.tick + 999; }); };
   pin(); sn.events.on('postupdate', pin);
-  window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; Date.now = () => rn() + off;
+  window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; const t0real = rn(); Date.now = () => t0real + off; /* 只走遊戲時間：Phaser 的 tween 用 Date.now（第 178 輪） */
   window.ff = (n) => { for (let i = 0; i < n; i++) { T += 16.667; off += 16.667; __game.step(T, 16.667); } };
   __game.loop.sleep();
   ff(40); sn.flashUntil?.clear?.();

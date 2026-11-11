@@ -24,7 +24,7 @@ await pg.evaluate(async () => {
   bag.forEach((g, i) => (g.uid = 'u' + i));
   window.inj = () => (sc().bagSt = { bag, equip: {} }); inj();
   window.clk = (pre) => { const all = []; const walk = (l) => { for (const o of l) { if (o.list) walk(o.list); if (o.type === 'Text' && o.visible && (pre[0] === "=" ? o.text === pre.slice(1) : o.text.includes(pre))) all.push(o); } }; walk(sc().children.list); const t = all[all.length-1]; if (!t) return null; if (t.listenerCount('pointerdown')) { t.emit('pointerdown', {}, 0, 0, { stopPropagation() {} }); return t.text; } const near=[]; const w2=(l)=>{for(const o of l){ if(o.list) w2(o.list); else if (o.listenerCount && o.listenerCount('pointerdown') && o.parentContainer===t.parentContainer && Math.abs(o.y-t.y)<20 && o.width<700) near.push(o);} }; w2(sc().children.list); if(near[0]){near[0].emit('pointerdown', {}, 0, 0, { stopPropagation() {} }); return t.text+'*';} return 'nolistener'; };
-  window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; Date.now = () => rn() + off;
+  window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; const t0real = rn(); Date.now = () => t0real + off; /* 只走遊戲時間：Phaser 的 tween 用 Date.now（第 178 輪） */
   window.ff = (n) => { for (let i = 0; i < n; i++) { T += 16; off += 16; __game.step(T, 16); } };
   __game.loop.sleep();
 });

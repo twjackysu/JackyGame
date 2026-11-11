@@ -642,7 +642,7 @@ export class PvpScene extends Phaser.Scene {
           return;
         }
         if (w === 'staff') {
-          this.rfx.staffFx(u.x + ((h.ahead ?? 0) * a.dirX) / 1000, u.y + ((h.ahead ?? 0) * a.dirY) / 1000, ang, hs, ult, sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, st);
+          this.rfx.staffFx(u.x + ((h.ahead ?? 0) * a.dirX) / 1000, u.y + ((h.ahead ?? 0) * a.dirY) / 1000, ang, hs, ult, sk.hits.length === 1, sk.dash ? Math.sign(sk.dash.distance) * (k >= sk.dash.fromTick + sk.dash.ticks ? 1 : 0) : 0, st, false, this.units().filter((o) => o.id !== u.id)); // 最後一個參數：雷暴的閃電劈在對手身上（第 178 輪）
           return;
         }
         // 長劍：對手的刀光偏暖色（看得出是誰的招）；大招與重擊金色、帶狀態的照元素色
