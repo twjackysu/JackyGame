@@ -17,6 +17,11 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 172 輪追加注意（R-020／R-021 匯入）**：
+- **下一輪先補看**：守望者與晶殼魔像的死亡碎裂（新圖比舊的程式圖大很多，`addShardFrame` 切塊的比例要確認）、深夜的星蝕狼、熔岩巡獵者、星輝狼首、360 寬＋省電、守望者頭上血條與招式名的位置。`FURY=1`／`NIGHT=1` 配 `scripts/play.mjs`、`shot-boss-attacks.mjs`。
+- 新圖的顯示大小在 `RtBattleScene.ts` 的 `SPRITE`（`h`）；Jacky 嫌大嫌小改這裡。要退回舊圖：把那一行的 `key` 改回 `enemy_mist_wolf` 加 `tint`（火焰鬃毛／星痕會自動回來，條件是 `cfg.key === 'enemy_mist_wolf'`）。
+- 之後再有洋紅底的 sheet：`python3 scripts/cut-sheet.py art-inbox/x.png 名字,名字` → 看圖 → 深色的再 `python3 scripts/rim-art.py public/art/名字.webp 顏色 gamma`（只能對剛切好的圖跑一次）→ 把名字加進 `src/data/handArt.ts` → `git rm` 原圖。dev server 在對話回合之間會被停掉，截圖前先確認 `npx vite --port 5173` 還活著。
+
 **第 172 輪注意（撿取小字合併、震波色盤、換圖／倒下檢查）**：
 - **下一輪**先看 Jacky 的回覆、確認 077a1c4 的 CI；沒有就挑：①Boss 瞬移招在真實對戰裡落點和主角的距離（`shot-boss-attacks.mjs` 會把主角釘在 Boss 旁邊，看不出來）②360 寬新存檔前十幾秒字太多（地名＋提示＋祝福＋武器提示）③光門「▼ 回某地」在畫面最下面時被搖桿蓋住。
 - 「打過一次／換圖之後才壞」這一類這輪看過：換圖四次、倒下重來、營火醒來，都正常。`THEN=starfall,emberrift node scripts/play.mjs sword starfall 標籤 4 12`。
