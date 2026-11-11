@@ -61,6 +61,12 @@
 - 模擬真人遊玩的截圖：`npx vite --port 5173` → `node screenshots/play.mjs sword|bow|staff 地圖 標籤 張數 每張間隔秒 [W H]`（沒進 git；快轉時把 `__game.scene.render` 換成空函式，最後三幀才畫，不然每幀都畫會慢到逾時）。這個腳本的主角會卡在樹牆後面（直線走向最近的怪），拍前一分鐘夠用。
 - Bash 工具回報「逾時 6 分 40 秒」時實際只過了兩分鐘左右（預設逾時是 2 分鐘）；長的截圖指令丟背景、把輸出寫到檔案再看。
 
+**第 173 輪注意（新圖補看、箭頭）**：
+- 逐隻拍怪：`npx vite --port 5173` → `node scripts/shot-foe.mjs 地圖 怪id,怪id 標籤 [W H]`（`NIGHT=1`、`LOWFX=1`、`SIDE=left`、`DSF=2`）。Boss 一倒會跳結算面板（其他怪被清掉的關係），看不到 Boss 的碎裂。
+- 箭頭「算不算看得到」在 `arrowRules.inViewForArrow`；排位置（讓小地圖／懸賞板／地區名／祝福圖示）還在 `rt/offscreenArrows.ts` 裡一條一條接，再加規則前先想能不能抽成純函式。
+- 立繪的發光紋路在遊戲大小下糊掉：`python3 scripts/glow-art.py 圖 顏色 半徑 強度 gamma`（要從原圖做）。燼狼用 `ff7a20 5 0.8 0.8`。
+- `play.mjs` 同樣參數跑兩次結果一樣（可以拿來做前後對照）；但 `LOWFX`／視窗大小不同路線就不同。
+
 **第 167 輪注意（打斷、敵人招式落下的演出，D-363／364）**：
 - **下一輪**先看 Jacky 的回覆；沒有就挑：①補拍沒拍到的 Boss 招（狼后伏擊 `queen_ambush`、守望者二階段的環、暴怒狼王的霧中瞬移撕咬）與法杖 A 的雷暴、四把大招 ②P1-d 剩下的操作設定面板說明字 ③咬空／震地沒有聲音（要加的話照 `audio` 裡祝福音效的做法，並用 `scripts/probe-sfx.mjs` 看波形）。
 - Boss 逐招截圖：`npx vite --port 5173` → `ONLY=king_bite,king_claw node scripts/shot-boss-attacks.mjs mistwood 標籤 [W H]`（`PHASE2=1`、`FURY=1`、`NIGHT=1`、`LOWFX=1`、`DIST=格數`）；招式 id 在 `data.ts`。一招約一兩分鐘，一次最多同時跑三個。輸出若是 `no telegraph`，看 `got`（牠實際出了哪幾招）調 `DIST`。
