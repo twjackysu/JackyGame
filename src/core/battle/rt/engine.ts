@@ -1246,6 +1246,14 @@ function face(x: Unit, t: Unit): void {
 }
 
 /** 簡單分離（依 id 順序，確定性）：Boss 不被推；閃避中的玩家可以穿過敵人 */
+/** 這隻怪正在衝鋒的位移段（不含衝完的收招）；這段期間不和玩家互相推擠 */
+function chargingThrough(s: BattleState, e: Unit): boolean {
+  const a = e.action;
+  if (a?.kind !== 'charge') return false;
+  const atk = attacksOf(e).find((x) => x.id === a.id);
+  return !!atk?.charge && s.tick - (a.start + atk.warningTicks) < atk.charge.ticks;
+}
+
 function separate(s: BattleState): void {
   const alive = s.units.filter((x) => !x.dead && x.mode !== 'dormant');
   for (let i = 0; i < alive.length; i++) {
@@ -1253,6 +1261,9 @@ function separate(s: BattleState): void {
       const a = alive[i]!;
       const b = alive[j]!;
       if ((a.action?.kind === 'dodge') || (b.action?.kind === 'dodge')) continue;
+      // 第 174 輪：敵人的衝鋒穿過玩家（命中判定照舊），不把人頂著走整段。以前 Boss 推不動、衝鋒 7 格就把站在路上的主角
+      // 一路頂 7 格，而且主角還在牠前面 → 下一次同方向再頂 → 兩次就被推出巢穴、Boss 回家回滿（tests/rt-charge-through.test.ts）
+      if (a.side !== b.side && (chargingThrough(s, a) || chargingThrough(s, b))) continue;
       const d = dist(a.x, a.y, b.x, b.y);
       const overlap = a.r + b.r - d;
       if (overlap <= 0) continue;

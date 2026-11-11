@@ -63,7 +63,8 @@ describe('多玩家控制狀態（Q6 第一步）', () => {
     p1.y = e.y;
     p1.hp = p1.maxHp = 100000;
     const hp0 = p0.hp;
-    for (let t = 0; t < 30 * 8; t++) step(s, [{ pid: 0, type: 'move', dx: 0, dy: 0 }]);
+    // 只看前 3 秒（第 174 輪）：主角其實會自己從角落追過來，之後也會被掃到——以前 8 秒沒事只是狼王衝鋒把第二個玩家頂著走的巧合
+    for (let t = 0; t < 30 * 3; t++) step(s, [{ pid: 0, type: 'move', dx: 0, dy: 0 }]);
     expect(p1.hp).toBeLessThan(p1.maxHp);
     expect(p0.hp).toBe(hp0);
     // 第二個玩家也會自己追擊出手（updatePlayer 每個 pid 都跑）
