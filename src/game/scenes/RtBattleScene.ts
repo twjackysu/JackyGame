@@ -824,7 +824,7 @@ export class RtBattleScene extends Phaser.Scene {
     const cl = this.compactList();
     if (cl.includes(i)) return Math.round(25 * this.ctl.scale);
     // 技能都自己放了：閃避是唯一要按的鍵，放大一號（玩家自己拖過位置的不動）
-    if (i === 4 && cl.length >= 4 && !this.ctl.pos[4]) return Math.round(62 * this.ctl.scale);
+    if (i === 4 && this.autoCount() >= 4 && !this.ctl.pos[4]) return Math.round(62 * this.ctl.scale);
     return buttonR(this.ctl, i);
   }
   /**
@@ -832,12 +832,19 @@ export class RtBattleScene extends Phaser.Scene {
    * 切回手動的那一招才是大鍵（小圖示點了也照樣會放）。調整按鈕位置時一律顯示大鍵。Bot 示範沒有自動設定＝照舊。
    */
   private compactList(): number[] {
+    return this.editing ? [] : this.autoSlots();
+  }
+  /** 哪幾格是自動的（不管是不是正在調位置）。第 168 輪：調位置時閃避鍵以前會縮回小顆，和實際玩的時候不一樣大 */
+  private autoSlots(): number[] {
     const on = this.s?.autoSkills;
-    if (!on?.length || this.editing) return [];
+    if (!on?.length) return [];
     const out: number[] = [];
     for (let i = 0; i < 4; i++) if (on.includes(this.ctl.order[i]!)) out.push(i);
     if (on.includes('blade_storm')) out.push(5);
     return out;
+  }
+  private autoCount(): number {
+    return this.autoSlots().length;
   }
   private compactSig = '';
   private slotSkill(i: number): string {
@@ -857,7 +864,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.compactSig = cl.join(',');
     this.btnText = names.map((n, i) => {
       const { x, y } = this.btnPos(i);
-      return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((cl.includes(i) ? 14 : i === 4 ? (cl.length >= 4 ? 26 : 22) : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
+      return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((cl.includes(i) ? 14 : i === 4 ? (this.autoCount() >= 4 ? 26 : 22) : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
     });
     for (const b of this.autoBadges) b?.destroy();
     this.autoBadges = names.map((_, i) => (i < 4 || i === 5 ? this.add.text(0, 0, tr('auto.badge'), { fontFamily: UI_FONT, fontSize: `${Math.round(14 * sc)}px`, fontStyle: '700', color: '#0a2a14', backgroundColor: '#7dffb0' }).setOrigin(0.5).setPadding(5, 1, 5, 1).setDepth(61).setVisible(false) : null));
@@ -1846,7 +1853,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.inp.stick = null;
     const bg = this.add.rectangle(0, 0, GAME_WIDTH, 250, 0x000000, 0.8);
     const t = this.add.text(0, -70, '調整按鈕位置', { fontFamily: TITLE_FONT, fontSize: '36px', color: '#ffd27a' }).setOrigin(0.5);
-    const h = this.add.text(0, -18, '拖曳按鈕或搖桿＝移動位置\n點一個技能鍵、再點另一個＝交換技能', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', align: 'center', lineSpacing: 6 }).setOrigin(0.5);
+    const h = this.add.text(0, -18, tr('edit.drag') + '\n' + tr(this.s?.autoSkills?.length ? 'edit.autoNote' : 'edit.swap'), { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', align: 'center', lineSpacing: 6 }).setOrigin(0.5);
     const mk = (x: number, label: string, fn: () => void, hi = false): Phaser.GameObjects.Text => {
       const b = this.add.text(x, 70, label, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(22, 10, 22, 10).setInteractive({ useHandCursor: true });
       b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
@@ -3039,7 +3046,8 @@ export class RtBattleScene extends Phaser.Scene {
       return;
     }
     // 第 23 輪縮成兩行：紅框、黃框、大招、裝備改成第一次遇到時才提示（tipOnce）
-    const lines = ['左下拖曳走路・放開＝自動追擊＋普攻', '點怪物開打・右下：技能與閃避'];
+    // 第 168 輪：五欄全自動之後右下只剩閃避和藥水，舊的「右下：技能與閃避」是在教玩家找不存在的鍵 → 照現在實際的按鍵寫
+    const lines = [tr(this.autoCount() >= 4 ? 'hint.moveAuto' : 'hint.move'), tr(this.autoCount() >= 4 ? 'hint.tapAuto' : 'hint.tap')];
     // 第 46 輪：以前 600 寬、置中在 y 300，蓋到左上小地圖右半與懸賞板第一行 → 窄一點、往右挪、往上挪（小地圖右緣約 120、懸賞板從 VIEW_TOP＋212 開始）
     const bg = this.add.rectangle(0, 0, 500, 104, 0x000000, 0.72).setStrokeStyle(2, 0xffd27a, 0.8);
     const t = this.add.text(0, 0, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
@@ -5386,8 +5394,8 @@ export class RtBattleScene extends Phaser.Scene {
       const left = Math.max(0, (p.ready['blade_storm'] ?? 0) - s.tick);
       const ok = left === 0 && p.mp >= need;
       // 長弓第一次（D-147）：教「保持距離」
-      if (this.s.weapon === 'bow' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_bow', '長弓：站遠一點射！狼貼過來就走開，拉開距離再射', '#c8f0a0');
-      if (this.s.weapon === 'staff' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_staff', '法杖：狼貼過來先按「冰霜新星」凍住，再拉開距離放星焰彈', '#dcc0ff');
+      if (this.s.weapon === 'bow' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_bow', tr('tip.bow'), '#c8f0a0');
+      if (this.s.weapon === 'staff' && !this.bot && !this.menu && enemiesOf(s).some((e) => e.mode === 'combat')) this.tipOnce('jg_tip_staff', s.autoSkills?.includes('whirlwind') ? tr('tip.staffAuto') : tr('tip.staff', { nova: skillDef(this.s, 'whirlwind')?.name ?? '', bolt: skillDef(this.s, 'heavy_slash')?.name ?? '' }), '#dcc0ff');
       if (ok && !this.bot && !this.menu && !s.autoSkills?.includes('blade_storm')) this.tipOnce('jg_tip_ult', `大招充滿了！按右下粉紅色「${ult.name}」`, '#ff9ae0');
       const now = this.time.now;
       this.discs.show(5, x, y, { r: R, fill: ok ? 0x5a1a3a : 0x2a1420, fillA: 0.95, lw: 5, stroke: 0x333344, strokeA: 1 });
