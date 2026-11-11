@@ -251,4 +251,148 @@ export class FieldFx {
     }
     this.sc.cameras.main.shake(120, 0.006);
   }
+  /**
+   * 爪痕（第 167 輪）：敵人的窄扇形招落下的那一刻，三道由細到粗再收尖的弧痕掃過整個扇形。
+   * size：1＝Boss、0.75＝精英、0.5＝一般怪（一般怪只畫兩層、不噴碎光）。純畫面。
+   */
+  clawMarks(wx: number, wy: number, ang: number, wr: number, deg: number, color: number, size = 1): void {
+    const g = this.sc.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
+    const cx = this.h.sx(wx);
+    const cy = this.h.sy(wy);
+    const r = wr * this.h.k();
+    const h = (deg / 2) * (Math.PI / 180);
+    const N = 10;
+    const streak = (a0: number, a1: number, rr: number, thick: number): { x: number; y: number }[] => {
+      const out: { x: number; y: number }[] = [];
+      for (let i = 0; i <= N; i++) { const a = a0 + ((a1 - a0) * i) / N; const w = thick * Math.sin((Math.PI * i) / N); out.push({ x: cx + Math.cos(a) * (rr + w), y: cy + Math.sin(a) * (rr + w) }); }
+      for (let i = N; i >= 0; i--) { const a = a0 + ((a1 - a0) * i) / N; const w = thick * Math.sin((Math.PI * i) / N); out.push({ x: cx + Math.cos(a) * (rr - w), y: cy + Math.sin(a) * (rr - w) }); }
+      return out;
+    };
+    const draw = (t: number) => {
+      g.clear();
+      const sweep = Math.min(1, t * 3);
+      const fade = 1 - t * t;
+      const a0 = ang + h;
+      const a1 = a0 - 2 * h * sweep;
+      for (let i = 0; i < 3; i++) {
+        const rr = r * (0.5 + i * 0.2);
+        const th = r * (0.045 + i * 0.012) * (0.6 + size * 0.5);
+        g.fillStyle(color, 0.6 * fade).fillPoints(streak(a0, a1, rr, th * 1.9), true);
+        g.fillStyle(0xffffff, 0.95 * fade).fillPoints(streak(a0, a1, rr, th * 0.8), true);
+      }
+    };
+    draw(0);
+    this.sc.tweens.addCounter({ from: 0, to: 1, duration: 200 + size * 120, onUpdate: (tw) => draw(tw.getValue() ?? 1), onComplete: () => g.destroy() });
+    if (size >= 0.75) sparks(this.sc, cx + Math.cos(ang) * r * 0.7, cy + Math.sin(ang) * r * 0.7, Math.round(8 * size), 'spark', color, 360);
+  }
+
+  /**
+   * 咬合（第 167 輪）：敵人的寬扇形招落下的那一刻，上下兩排牙從扇形兩側往中線合起來，咬合瞬間中線一道白光＋衝擊環。
+   * size 同 clawMarks。純畫面。
+   */
+  fangBite(wx: number, wy: number, ang: number, wr: number, deg: number, color: number, size = 1): void {
+    const g = this.sc.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD);
+    const cx = this.h.sx(wx);
+    const cy = this.h.sy(wy);
+    const r = wr * this.h.k();
+    const h = (deg / 2) * (Math.PI / 180);
+    const FANGS = size >= 0.75 ? 4 : 3;
+    const SNAP = 0.38; // 合起來的時間點（0～1）
+    const draw = (t: number) => {
+      g.clear();
+      const close = Math.min(1, t / SNAP);
+      const e = close * close; // 越合越快
+      const fade = t < SNAP ? 1 : 1 - ((t - SNAP) / (1 - SNAP)) ** 2;
+      for (const j of [-1, 1]) {
+        const a = ang + j * h * (1 - e * 0.94);
+        const ux = Math.cos(a);
+        const uy = Math.sin(a);
+        // 往中線的方向（垂直於這一排牙）
+        const nx = -uy * -j;
+        const ny = ux * -j;
+        g.lineStyle(4 + size * 3, color, 0.75 * fade).lineBetween(cx + ux * r * 0.22, cy + uy * r * 0.22, cx + ux * r * 1.02, cy + uy * r * 1.02);
+        for (let i = 0; i < FANGS; i++) {
+          const d0 = r * (0.26 + (0.74 * i) / FANGS);
+          const d1 = r * (0.26 + (0.74 * (i + 1)) / FANGS);
+          const mid = (d0 + d1) / 2;
+          const len = r * (0.2 + 0.1 * Math.sin((Math.PI * (i + 0.5)) / FANGS)) * (0.7 + size * 0.3);
+          const tip = { x: cx + ux * mid + nx * len, y: cy + uy * mid + ny * len };
+          g.fillStyle(color, 0.55 * fade).fillTriangle(cx + ux * d0, cy + uy * d0, cx + ux * d1, cy + uy * d1, tip.x, tip.y);
+          const q0 = mid - (d1 - d0) * 0.26;
+          const q1 = mid + (d1 - d0) * 0.26;
+          g.fillStyle(0xffffff, 0.95 * fade).fillTriangle(cx + ux * q0, cy + uy * q0, cx + ux * q1, cy + uy * q1, cx + ux * mid + nx * len * 0.9, cy + uy * mid + ny * len * 0.9);
+        }
+      }
+      if (t >= SNAP) {
+        const f = (t - SNAP) / (1 - SNAP);
+        g.lineStyle((10 + size * 8) * (1 - f), 0xffffff, 0.9 * (1 - f)).lineBetween(cx + Math.cos(ang) * r * 0.15, cy + Math.sin(ang) * r * 0.15, cx + Math.cos(ang) * r * 1.08, cy + Math.sin(ang) * r * 1.08);
+      }
+    };
+    draw(0);
+    this.sc.tweens.addCounter({ from: 0, to: 1, duration: 260 + size * 160, onUpdate: (tw) => draw(tw.getValue() ?? 1), onComplete: () => g.destroy() });
+    if (size >= 0.75) {
+      const fx = cx + Math.cos(ang) * r * 0.62;
+      const fy = cy + Math.sin(ang) * r * 0.62;
+      this.sc.time.delayedCall((260 + size * 160) * SNAP, () => {
+        shockRing(this.sc, fx, fy, color, r * 0.5, 260, 6);
+        sparks(this.sc, fx, fy, Math.round(12 * size), 'spark', 0xffffff, 380);
+      });
+    }
+  }
+
+  /**
+   * 震波（第 167 輪）：敵人的環形招落下的那一刻，一圈波從內緣推到外緣，沿途翹起一圈碎石、揚塵。
+   * 內圈（安全區）什麼都不畫——看得出「貼著牠才沒事」。純畫面。
+   */
+  quakeBurst(wx: number, wy: number, wrIn: number, wrOut: number, color: number, size = 1): void {
+    const cx = this.h.sx(wx);
+    const cy = this.h.sy(wy);
+    const rIn = wrIn * this.h.k();
+    const rOut = wrOut * this.h.k();
+    const g = this.sc.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+    const rocks = this.sc.add.graphics().setDepth(691);
+    const N = Math.round(10 + size * 8);
+    const draw = (t: number) => {
+      g.clear();
+      rocks.clear();
+      const e = 1 - (1 - t) ** 3;
+      const rr = rIn + (rOut - rIn) * e;
+      const fade = 1 - t * t;
+      g.lineStyle(14 * fade + 4, color, 0.75 * fade).strokeCircle(cx, cy, rr);
+      g.lineStyle(4, 0xffffff, 0.9 * fade).strokeCircle(cx, cy, rr + 4);
+      g.lineStyle(6, color, 0.35 * fade).strokeCircle(cx, cy, rIn + (rr - rIn) * 0.55);
+      // 碎石：波經過的地方翹起來、再落回去
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2 + (i % 3) * 0.21;
+        const d = rIn + (rOut - rIn) * (0.18 + 0.74 * (((i * 7) % 10) / 10));
+        const local = Math.max(0, Math.min(1, (rr - d) / ((rOut - rIn) * 0.5) + 0.15));
+        if (local <= 0) continue;
+        const up = Math.sin(Math.PI * Math.min(1, local)) * (14 + size * 12);
+        const w = 7 + ((i * 5) % 4) * 2 + size * 3;
+        const bx = cx + Math.cos(a) * d;
+        const by = cy + Math.sin(a) * d;
+        rocks.fillStyle(i % 2 ? 0x6a5a4a : 0x8a7a66, 0.95 * fade).fillTriangle(bx - w, by, bx + w, by, bx + (i % 2 ? 3 : -3), by - up - w);
+        rocks.fillStyle(0x3a3028, 0.5 * fade).fillEllipse(bx, by + 2, w * 2.2, w * 0.7);
+      }
+    };
+    draw(0);
+    this.sc.tweens.addCounter({ from: 0, to: 1, duration: 420 + size * 120, onUpdate: (tw) => draw(tw.getValue() ?? 1), onComplete: () => { g.destroy(); rocks.destroy(); } });
+    if (size >= 0.75) for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.4; sparks(this.sc, cx + Math.cos(a) * (rIn + rOut) * 0.5, cy + Math.sin(a) * (rIn + rOut) * 0.5, 4, 'spark', 0xb8a488, 360); }
+  }
+
+  /** 砸地（第 167 輪）：敵人的圓形招落下的那一刻，一圈衝擊＋放射狀裂痕。純畫面。 */
+  slamBurst(wx: number, wy: number, wr: number, color: number, size = 1): void {
+    const cx = this.h.sx(wx);
+    const cy = this.h.sy(wy);
+    const r = wr * this.h.k();
+    shockRing(this.sc, cx, cy, color, r * 1.05, 300, 5 + size * 3);
+    const g = this.sc.add.graphics().setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+    const N = 7;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2 + 0.3;
+      const m = a + (i % 2 ? 0.16 : -0.16);
+      g.lineStyle(2 + size * 2, i % 2 ? 0xffffff : color, 0.85).beginPath().moveTo(cx + Math.cos(a) * r * 0.12, cy + Math.sin(a) * r * 0.12).lineTo(cx + Math.cos(m) * r * 0.5, cy + Math.sin(m) * r * 0.5).lineTo(cx + Math.cos(a) * r * 0.92, cy + Math.sin(a) * r * 0.92).strokePath();
+    }
+    this.sc.tweens.add({ targets: g, alpha: 0, duration: 340, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
+  }
 }

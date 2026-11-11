@@ -1,7 +1,7 @@
 // 命中火花的顏色（第三期 Q2，D-335）：照「元素視覺語言」一眼分得出來——
 // 火＝橘紅、冰＝淺藍、毒＝紫綠、減速＝灰藍、破甲／虛弱＝淡紫；沒有元素就看武器（劍＝白金、弓＝青白、杖＝紫）。
 // 純畫面資料：不影響傷害。
-import type { SkillDefinition, SkillHit } from '../../core/battle/rt/types';
+import type { Shape, SkillDefinition, SkillHit } from '../../core/battle/rt/types';
 
 export interface HitLook {
   color: number;
@@ -80,5 +80,20 @@ export function bowLineLook(def: SkillDefinition, hit: Pick<SkillHit, 'mult' | '
   if (def.guard) return hit.status ? undefined : 'guard';
   if (hit.status?.id === 'slow') return 'snare';
   if (!hit.status && hit.mult >= 150) return 'pierce';
+  return undefined;
+}
+
+/**
+ * 敵人招式「落下去那一刻」的長相（第 167 輪）。以前預告填滿之後紅色範圍直接消失——沒打中就什麼都沒有，打中也只有主角閃白和數字，
+ * 看不出狼王是咬了一口、抓了一下還是震了地。照形狀分（不寫招式 id）：
+ * 窄扇形＝爪痕（三道）、寬扇形＝咬合（上下兩排牙合起來）、環形＝震波（由內往外＋碎石）、圓形＝砸地。
+ * 直線（衝鋒／射擊）與地面荊棘、熔岩、墜星那些有自己演出的招回 undefined。純畫面。
+ */
+export type EnemyImpact = 'claw' | 'bite' | 'quake' | 'slam';
+export function enemyImpact(shape: Shape, hasOwnFx: boolean): EnemyImpact | undefined {
+  if (hasOwnFx) return undefined;
+  if (shape.type === 'sector') return shape.deg >= 90 ? 'bite' : 'claw';
+  if (shape.type === 'ring') return 'quake';
+  if (shape.type === 'circle') return 'slam';
   return undefined;
 }

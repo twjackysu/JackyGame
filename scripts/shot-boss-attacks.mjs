@@ -1,6 +1,6 @@
 // Boss 招式預告與命中的逐招截圖（第 167 輪）。先 `npx vite --port 5173`。
 // 用法：node scripts/shot-boss-attacks.mjs 地圖 [tag] [W H]
-// 每招：主角釘在 Boss 下方（DIST 格，預設照那招的 triggerRange）、只留那一招可用 → 預告出現後進度 35%／90%、命中後第 2／8 幀各截一張。
+// 每招：主角釘在 Boss 下方（DIST 格，預設照那招的 triggerRange）、只留那一招可用 → 預告出現後進度 35%／90%、命中後第 3／11 幀各截一張。
 // 環境變數 ONLY=king_bite,king_quake 只拍某幾招；PHASE2=1 先把 Boss 打到二階段；FURY=1 暴怒；NIGHT=1 深夜；LOWFX=1 省電畫質；DIST=格數。
 // 輸出 screenshots/boss-<tag>-<地圖>-<招>-<n>.png
 import { chromium } from 'playwright';
@@ -47,7 +47,7 @@ for (const id of IDS) {
     const hx = B.homeX ?? B.x; const hy = B.homeY ?? B.y;
     window.dist = distEnv || 2;
     // 主角釘在 Boss 家的正下方、不出手不掉血；其他怪搬走
-    for (const u of s.units) if (u.side === 'enemy' && u !== B) { u.x = hx - 9000; u.y = hy - 9000; u.homeX = u.x; u.homeY = u.y; }
+    for (const u of s.units) if (u.side === 'enemy' && u !== B) { u.dead = true; }
     window.pin = () => { p.x = hx; p.y = hy + dist * 100; p.hp = p.maxHp; p.nextAttackTick = s.tick + 999; p.targetId = null; B.hp = Math.max(B.hp, phase2 ? 1 : B.maxHp * 0.9); if (phase2 && B.hp > B.maxHp * 0.45) B.hp = Math.floor(B.maxHp * 0.45); if (!B.action) { B.x = hx; B.y = hy; } B.engagedTick = s.tick; if (B.mode !== 'combat') B.mode = 'combat'; };
     pin(); sn.events.on('postupdate', pin);
     window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; Date.now = () => rn() + off;
@@ -55,7 +55,9 @@ for (const id of IDS) {
     __game.loop.sleep();
     ff(phase2 ? 150 : 30); sn.flashUntil?.clear?.();
     // 只留這一招
-    const only = () => { for (const k of ['ready']) for (const a of Object.keys(B[k] || {})) B[k][a] = s.tick + 9999; B.ready ||= {}; B.ready[id] = 0; B.nextAttackTick = Math.min(B.nextAttackTick, s.tick); };
+    // 只留這一招：其他招的冷卻永遠沒好
+    B.ready = new Proxy({}, { get: (_t, k) => (k === id ? 0 : 1e9), set: () => true });
+    const only = () => { B.nextAttackTick = Math.min(B.nextAttackTick, s.tick); };
     window.only = only;
     let n = 0; let tg = null; const seen = s.events.length; const got = [];
     while (n < 900) {
@@ -77,7 +79,7 @@ for (const id of IDS) {
   const { start, hit } = await pg.evaluate(() => window.tg);
   await toTick(Math.round(start + (hit - start) * 0.35)); await shot(0);
   await toTick(Math.round(start + (hit - start) * 0.9)); await shot(1);
-  await toTick(hit); await pg.evaluate(() => ff(2)); await shot(2);
+  await toTick(hit); await pg.evaluate(() => ff(3)); await shot(2);
   await pg.evaluate(() => ff(8)); await shot(3);
   await pg.close();
 }

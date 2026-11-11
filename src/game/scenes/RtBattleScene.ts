@@ -29,7 +29,7 @@ import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
 import { effectsOf, skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
-import type { BattleCommand, BattleState, Shape, Unit } from '../../core/battle/rt/types';
+import type { BattleCommand, BattleState, Shape, Telegraph, Unit } from '../../core/battle/rt/types';
 import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, aggroUnitsOf } from '../../core/battle/rt/types';
 
 /** 精英詞綴顏色（D-113）：迅捷青、堅韌綠、狂暴紅 */
@@ -73,7 +73,8 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
-import { bowLineLook, hitLook, skillBadge } from '../fx/hitTint';
+import { bowLineLook, enemyImpact, hitLook, skillBadge } from '../fx/hitTint';
+import type { EnemyImpact } from '../fx/hitTint';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -346,6 +347,10 @@ export class RtBattleScene extends Phaser.Scene {
   private readonly banners = new BannerSystem();
   private botName: string | null = null;
   private lastWarnTick = -1;
+  /** Boss 出招落下的時間（畫面時間）：立繪往前撲一下再收回 */
+  private lungeAt = new Map<number, number>();
+  /** 敵人招式落下那一刻的演出（第 167 輪）：預告出現時記下來，到命中的 tick 才畫 */
+  private impacts: (Telegraph & { kind: EnemyImpact; size: number; color: number })[] = [];
   private blinkHinted = new Set<string>();
   /** 精英撞牆暈眩的置中大字這次進圖已經講過幾次（D-238） */
   private stunBig = 0;
@@ -724,6 +729,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.veteran = this.tracked && bossKillsOf(WORLD_MAPS[0]!.id) > 0;
     this.dustBase = this.tracked ? walletOf(loadRecord(this.stageId)).dust : 0;
     this.hz.reset();
+    this.impacts = [];
+    this.lungeAt.clear();
     this.breakSeen.clear(); this.dash.reset();
     // 第 46 輪：95 會壓在 MP 條（96～104）與經驗條（104～110）上，往下挪到 Boss 血條的位置（打 Boss 時目標字條本來就藏起來）
     this.goal = stG?.bossZone && stG.spawnGroups?.length ? this.add.text(GAME_WIDTH / 2, 114, '', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: '700', color: '#ffd27a', backgroundColor: 'rgba(0,0,0,0.55)', align: 'center', lineSpacing: 4 }).setPadding(12, 3, 12, 3).setOrigin(0.5, 0).setDepth(49) : null;
@@ -3560,6 +3567,15 @@ export class RtBattleScene extends Phaser.Scene {
           // 墜星類畫成藍白色（D-177）：不要拿它講「紅色範圍」，等第一次真的紅圈再說
           if (tg0 && !METEOR_ATTACKS.has(e.attack)) this.tipOnce('jg_tip_tele', '紅色範圍填滿就命中——走出去！', '#ff9a8a');
         }
+        // 第 167 輪：記下這一招，命中的那一刻畫爪痕／咬合／震波（一般怪在省電畫質下不畫）
+        {
+          const o = u(e.owner);
+          const tg1 = o ? [...this.s.telegraphs].reverse().find((t) => t.ownerId === e.owner && t.attackId === e.attack) : undefined;
+          const atk1 = o ? attacksOf(o).find((q) => q.id === e.attack) : undefined;
+          const kind = tg1 && atk1 ? enemyImpact(tg1.shape, !!atk1.charge || METEOR_ATTACKS.has(e.attack) || THORN_ATTACKS.has(e.attack) || LAVA_ATTACKS.has(e.attack)) : undefined;
+          const size = o?.tier === 'boss' ? 1 : o?.tier === 'elite' ? 0.75 : 0.5;
+          if (tg1 && kind && (size > 0.5 || !getSettings().lowFx)) this.impacts.push({ ...tg1, kind, size, color: atk1?.status ? 0xb060ff : 0xff5a4a });
+        }
         // 精英詞綴招式（D-118）：怪頭上飄招式名（詞綴顏色），一看就知道要閃還是格擋
         if (e.attack.startsWith('affix_')) {
           const o = u(e.owner);
@@ -3790,6 +3806,12 @@ export class RtBattleScene extends Phaser.Scene {
     g.beginPath();
     if (sh.type === 'circle') g.arc(cx, cy, sh.r * k, 0, Math.PI * 2);
     else if (sh.type === 'ring') {
+      // 外框分兩圈畫（第 167 輪）：一條路徑連著畫的話，內外圈之間會多一條橫線
+      if (!fill) {
+        g.strokeCircle(cx, cy, sh.rOut * k);
+        g.strokeCircle(cx, cy, sh.rIn * k);
+        return;
+      }
       g.arc(cx, cy, sh.rOut * k, 0, Math.PI * 2);
       g.arc(cx, cy, sh.rIn * k, Math.PI * 2, 0, true);
     } else if (sh.type === 'sector') {
@@ -4440,6 +4462,24 @@ export class RtBattleScene extends Phaser.Scene {
         this.ffx.fallingStar(top, vx, vy, Math.max(0, (prog - 0.55) / 0.45));
       }
     }
+    if (this.impacts.length) {
+      this.impacts = this.impacts.filter((t) => {
+        if (s.tick < t.hitTick) return true;
+        // 被打斷、脫戰、死掉的不畫（招還在收招中＝真的落下去了）
+        const o = s.units.find((x) => x.id === t.ownerId);
+        if (!o || o.dead || o.action?.id !== t.attackId || s.tick > t.hitTick + 6) return false;
+        const ang = Math.atan2(t.dirY, t.dirX);
+        if (t.kind === 'claw' && t.shape.type === 'sector') this.ffx.clawMarks(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size);
+        else if (t.kind === 'bite' && t.shape.type === 'sector') this.ffx.fangBite(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size);
+        else if (t.kind === 'quake' && t.shape.type === 'ring') this.ffx.quakeBurst(t.ox, t.oy, t.shape.rIn, t.shape.rOut, t.color === 0xff5a4a ? 0xffb070 : t.color, t.size);
+        else if (t.kind === 'slam' && t.shape.type === 'circle') this.ffx.slamBurst(t.ox, t.oy, t.shape.r, t.color, t.size);
+        if (t.size >= 1) {
+          this.cameras.main.shake(t.kind === 'quake' ? 200 : 110, t.kind === 'quake' ? 0.007 : 0.004);
+          this.lungeAt.set(o.id, now);
+        }
+        return false;
+      });
+    }
     this.drawPaws(g, now);
     // 單位
     const playerU = playerOf(s);
@@ -4498,7 +4538,16 @@ export class RtBattleScene extends Phaser.Scene {
         const ky = kOn ? ((sp.getData('ky') as number) ?? 0) * kf : 0;
         if (!isP) sp.setAngle(kOn ? ((sp.getData('kTilt') as number | undefined) ?? 0) * kf : 0);
         // 玩家普攻／施放時往前踏一點
-        const lunge = isP && x.action && (x.action.kind === 'attack' || x.action.kind === 'skill') ? Math.min(1, (s.tick - x.action.start) / 6) * r * 0.25 : 0;
+        // Boss 的招落下去：立繪往出招方向撲一下、0.22 秒收回（第 167 輪；純畫面，判定位置不動）
+        const lAge = isP ? -1 : now - (this.lungeAt.get(x.id) ?? -1e9);
+        const eLunge = lAge >= 0 && lAge < 220 ? Math.sin((Math.PI * lAge) / 220) * r * 0.45 : 0;
+        const lunge = isP && x.action && (x.action.kind === 'attack' || x.action.kind === 'skill') ? Math.min(1, (s.tick - x.action.start) / 6) * r * 0.25 : eLunge;
+        // 敵人衝鋒：沿路留紅色殘影（以前凍結看只是立繪換了位置）
+        if (!isP && x.action?.kind === 'charge' && now - ((sp.getData('ghAt') as number | undefined) ?? 0) > (boss ? 40 : 70)) {
+          sp.setData('ghAt', now);
+          const gh = this.add.image(sp.x, sp.y, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setDepth(sp.depth - 1).setTint(0xff6a5a).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD);
+          this.tweens.add({ targets: gh, alpha: 0, duration: 320, onComplete: () => gh.destroy() });
+        }
         sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - bob + ky + (fy0(x) * lunge)).setDepth(10 + Math.min(30, (pos.y / Math.max(1, s.arena.h)) * 30)); // 大地圖也不會蓋過 HUD／選單（深度 45 以上）
         if (sp.scaleY !== 0 && !this.tweens.isTweening(sp)) sp.setScale(base * squash, base / squash);
         if (cfg.flip && x.facingX !== 0) sp.setFlipX(x.facingX < 0);
