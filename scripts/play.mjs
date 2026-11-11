@@ -2,7 +2,7 @@
 // 用法：node scripts/play.mjs sword|bow|staff [地圖] [tag] [張數] [每張間隔秒] [W H]
 // 主角：走向最近的活怪、進射程就停（技能五欄自動）、血量 35% 以下喝水、祝福一律選第一張；不閃避。
 // 快轉時不畫圖（只有截圖前三幀才畫），所以很快；主角直線走向怪，會卡在樹牆後面，拍前幾分鐘夠用。
-// 環境變數 NIGHT=1、LOWFX=1、EVAL='js'（每張截圖前在頁面裡跑、印出結果）、LEVEL=n（存檔等級）、HP=0.3（把血量上限壓成幾成，看低血畫面）、DSF=2（兩倍解析度，看小東西的細節）、PAIR='js'（每張拍完跑這段再拍一張 -x：同一瞬間的對照圖，例如把某個東西藏起來）。輸出 screenshots/play-<tag>-<n>.png
+// 環境變數 NIGHT=1、FURY=1（暴怒 Boss，第 178 輪）、LOWFX=1、EVAL='js'（每張截圖前在頁面裡跑、印出結果）、LEVEL=n（存檔等級）、HP=0.3（把血量上限壓成幾成，看低血畫面）、DSF=2（兩倍解析度，看小東西的細節）、PAIR='js'（每張拍完跑這段再拍一張 -x：同一瞬間的對照圖，例如把某個東西藏起來）。輸出 screenshots/play-<tag>-<n>.png
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots', { recursive: true });
@@ -11,14 +11,14 @@ const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 const pg = await b.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: +(process.env.DSF || 1) });
 pg.on('pageerror', (e) => console.log('PAGEERR', e.message));
 await pg.goto('http://localhost:5173/?debug');
-await pg.evaluate(([w, stage, night, low, level]) => {
+await pg.evaluate(([w, stage, night, low, level, fury]) => {
   localStorage.clear(); localStorage.setItem('jg_prologue_seen', '1'); localStorage.setItem('jg_weapon', w);
   localStorage.setItem('jg_rt_hint_seen', '1'); localStorage.setItem('jg_tip_seen', '1');
   const base = { level: level || 1, ...(level > 1 ? { bossKills: 3, furyKills: 1 } : {}) };
-  localStorage.setItem('jg_rt_mistwood', JSON.stringify({ ...base, ...(night && stage === 'mistwood' ? { night: true } : {}) }));
-  if (stage !== 'mistwood') localStorage.setItem('jg_rt_' + stage, JSON.stringify({ bossKills: 1, ...(night ? { night: true, bossKills: 3, furyKills: 1 } : {}) })); // 深夜要先打倒過暴怒 Boss 才開（第 173 輪：以前少了 furyKills，NIGHT=1 對霧語以外的圖沒作用）
+  localStorage.setItem('jg_rt_mistwood', JSON.stringify({ ...base, ...(night && stage === 'mistwood' ? { night: true } : {}), ...(fury && stage === 'mistwood' ? { fury: true } : {}) }));
+  if (stage !== 'mistwood') localStorage.setItem('jg_rt_' + stage, JSON.stringify({ bossKills: fury ? 3 : 1, ...(fury ? { furyKills: 1, fury: true } : {}), ...(night ? { night: true, bossKills: 3, furyKills: 1 } : {}) })); // 深夜要先打倒過暴怒 Boss 才開（第 173 輪：以前少了 furyKills，NIGHT=1 對霧語以外的圖沒作用）
   if (low) localStorage.setItem('jackygame.settings', JSON.stringify({ lowFx: true }));
-}, [weapon, stage, !!process.env.NIGHT, !!process.env.LOWFX, +(process.env.LEVEL || 1)]);
+}, [weapon, stage, !!process.env.NIGHT, !!process.env.LOWFX, +(process.env.LEVEL || 1), !!process.env.FURY]);
 await pg.reload();
 await pg.waitForFunction(() => window.__game?.scene?.getScene('Title')?.sys?.isActive(), null, { timeout: 60000 });
 await pg.evaluate((stage) => __game.scene.getScene('Title').scene.start('RtBattle', { stage, bot: '' }), stage);

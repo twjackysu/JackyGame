@@ -17,6 +17,14 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 178 輪注意（雷暴／流星雨的落點 D-374、截圖腳本時間）**：
+- CI：1192178、4787431 都 success。87e6d88、24c9d2e 的舊 run 一直 `queued`，不用管。
+- 位置：`fx/hitTint.ts` 的 `stormStrikes`；`rangedFx.staffFx(..., foes)`（雷暴、流星雨兩段）；`RtBattleScene.stormFoes()`（活著的怪＋剛倒下的）。別的「圈裡隨機落點」的招要對準怪，照這個接。
+- **截圖腳本現在只走遊戲時間**（`Date.now = t0real + off`）：tween 特效的淡出和實機一樣長了。第 166／170／177 輪的逐幀圖是舊時間拍的（偏淡）；要判斷「留多久、會不會蓋住東西」請重拍。
+- **截圖腳本一次最多同時跑兩個**（三個以上瀏覽器會當：`Target crashed`）。
+- `play.mjs` 多了 `FURY=1`（暴怒 Boss）。暴怒守望者：`FURY=1 LEVEL=20 EVAL='…p.hp=Math.max(p.hp,Math.round(p.maxHp*0.6))…' node scripts/play.mjs sword starfall fs 24 5`（看到 59%，沒問題）。
+- 再來看 Jacky 的回覆；沒有就挑：①暴怒岩王、守望者 20% 以下的真實對戰 ②流星雨／隕石「落地比傷害數字晚 0.16 秒」的時序（要讓特效早幾個 tick 出發，傷害時機不能動）③一般小怪風箏脫戰的預告（先量頻率）。
+
 **第 177 輪注意（大招閃光 D-372、精英脫戰預告 D-373）**：
 - **CI 未確認**：87e6d88、24c9d2e 兩次 run 這輪結束時都還在 `queued`（runner 沒開始跑）。下一輪開頭先看，紅了先修。本機 typecheck／lint／build／build:online／vitest 都過。
 - 位置：`fx/feel.ts` 的 `ultFlash`／`ultFlashPeak`；`RtBattleScene.drawLeashWarn`（畫在 `ringG`，和巢穴紅圈同一層）、`leash` 事件裡的 `jg_tip_leash`、`ui/tipText.ts` 的 `leashNear`、文字 `leash.near`／`tip.leash`。
