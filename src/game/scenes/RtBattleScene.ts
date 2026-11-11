@@ -4528,6 +4528,7 @@ export class RtBattleScene extends Phaser.Scene {
         else if (t.kind === 'sweep' && t.shape.type === 'sector') this.ffx.cleave(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size < 1);
         else if (t.kind === 'quake' && t.shape.type === 'ring') this.ffx.quakeBurst(t.ox, t.oy, t.shape.rIn, t.shape.rOut, t.color === 0xff5a4a ? 0xffb070 : t.color, t.size);
         else if (t.kind === 'slam' && t.shape.type === 'circle') this.ffx.slamBurst(t.ox, t.oy, t.shape.r, t.color, t.size);
+        if (this.onScreen(t.ox, t.oy)) SFX.enemyImpact(t.kind, t.size);
         if (t.size >= 1) {
           this.cameras.main.shake(t.kind === 'quake' ? 200 : 110, t.kind === 'quake' ? 0.007 : 0.004);
           this.lungeAt.set(o.id, now);

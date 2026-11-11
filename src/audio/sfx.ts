@@ -299,6 +299,36 @@ export const SFX = {
       playSfx({ wave: 'sine', freq: 130, freqEnd: 45, sustain: 0.03, release: 0.28, volume: 0.32 });
     } else playSfx({ wave: 'triangle', freq: 990, freqEnd: 1320, sustain: 0.01, release: 0.1, volume: 0.1 });
   },
+  /**
+   * 敵人的招落下去那一刻（第 169 輪）：以前咬、抓、震地都沒有聲音（只有預告開始的一聲和主角被打中的聲音），咬空更是完全無聲。
+   * 照 fx/hitTint 的 enemyImpact 分類：爪＝三下很短的撕裂、咬＝「喀」一聲合上＋低音、掃＝一道風聲、震波＝長的低鳴＋碎石、砸地＝悶的一聲。
+   * size：Boss 1、精英 0.75、一般怪 0.5——一般怪很小聲（一群狼輪流咬不能變成噪音），而且 0.16 秒內只響一次。
+   */
+  enemyImpact: (kind: 'claw' | 'bite' | 'sweep' | 'quake' | 'slam', size: number): void => {
+    const now = Date.now();
+    const key = size > 0.5 ? `e_${kind}` : 'e_small';
+    if (now - (procAt[key] ?? 0) < (size > 0.5 ? 90 : 160)) return;
+    procAt[key] = now;
+    const v = size >= 1 ? 1 : size > 0.5 ? 0.7 : 0.38;
+    if (kind === 'claw') {
+      for (let i = 0; i < 3; i++) playSfx({ wave: 'noise', freq: 5200 - i * 600, freqEnd: 1400, sustain: 0.004, release: 0.07, volume: 0.24 * v, lowpass: 8000, delay: i * 0.035 });
+      if (size >= 1) playSfx({ wave: 'sine', freq: 140, freqEnd: 60, sustain: 0.02, release: 0.16, volume: 0.22 });
+    } else if (kind === 'bite') {
+      playSfx({ wave: 'square', freq: 1500, freqEnd: 500, sustain: 0.004, release: 0.035, volume: 0.2 * v, lowpass: 5200 });
+      playSfx({ wave: 'noise', freq: 2600, freqEnd: 500, sustain: 0.008, release: 0.09, volume: 0.3 * v, lowpass: 3600 });
+      playSfx({ wave: 'sine', freq: 170, freqEnd: 55, sustain: 0.02, release: 0.2, volume: 0.36 * v, delay: 0.01 });
+    } else if (kind === 'sweep') {
+      playSfx({ wave: 'noise', freq: 700, freqEnd: 2600, attack: 0.03, sustain: 0.03, release: 0.16, volume: 0.28 * v, lowpass: 3200 });
+      playSfx({ wave: 'sine', freq: 120, freqEnd: 50, sustain: 0.02, release: 0.2, volume: 0.26 * v, delay: 0.05 });
+    } else if (kind === 'quake') {
+      playSfx({ wave: 'sine', freq: 85, freqEnd: 30, attack: 0.01, sustain: 0.12, release: 0.5, volume: 0.55 * v });
+      playSfx({ wave: 'noise', freq: 500, freqEnd: 90, sustain: 0.08, release: 0.45, volume: 0.36 * v, lowpass: 900 });
+      for (let i = 0; i < 3; i++) playSfx({ wave: 'noise', freq: 2200, freqEnd: 800, sustain: 0.004, release: 0.05, volume: 0.1 * v, lowpass: 4200, delay: 0.12 + i * 0.07 });
+    } else {
+      playSfx({ wave: 'sine', freq: 130, freqEnd: 38, sustain: 0.04, release: 0.3, volume: 0.5 * v });
+      playSfx({ wave: 'noise', freq: 900, freqEnd: 120, sustain: 0.02, release: 0.2, volume: 0.34 * v, lowpass: 1600 });
+    }
+  },
   /** 獨特裝備掉下來（P3-b）：低一聲鐘＋往上三個音，和稀有的單音分得開 */
   uniqueDrop: (): void => {
     playSfx({ wave: 'sine', freq: 196, freqEnd: 190, sustain: 0.08, release: 0.9, volume: 0.35 });
