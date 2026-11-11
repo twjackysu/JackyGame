@@ -2,6 +2,8 @@
 // 從 RtBattleScene 原封不動搬出來（純畫面）；長劍技能、Boss 招式與遠程特效（rangedFx.ts）都會用到。
 import Phaser from 'phaser';
 import { floatNumber, shockRing, sparks } from './feel';
+import { groundPalette } from './hitTint';
+import type { GroundPalette } from './hitTint';
 
 /** 場景提供的座標換算與縮放 */
 export interface FieldFxHost {
@@ -344,7 +346,7 @@ export class FieldFx {
    * 震波（第 167 輪）：敵人的環形招落下的那一刻，一圈波從內緣推到外緣，沿途翹起一圈碎石、揚塵。
    * 內圈（安全區）什麼都不畫——看得出「貼著牠才沒事」。純畫面。
    */
-  quakeBurst(wx: number, wy: number, wrIn: number, wrOut: number, color: number, size = 1): void {
+  quakeBurst(wx: number, wy: number, wrIn: number, wrOut: number, color: number, size = 1, pal: GroundPalette = groundPalette('')): void {
     const cx = this.h.sx(wx);
     const cy = this.h.sy(wy);
     const rIn = wrIn * this.h.k();
@@ -371,13 +373,17 @@ export class FieldFx {
         const w = 7 + ((i * 5) % 4) * 2 + size * 3;
         const bx = cx + Math.cos(a) * d;
         const by = cy + Math.sin(a) * d;
-        rocks.fillStyle(i % 2 ? 0x6a5a4a : 0x8a7a66, 0.95 * fade).fillTriangle(bx - w, by, bx + w, by, bx + (i % 2 ? 3 : -3), by - up - w);
-        rocks.fillStyle(0x3a3028, 0.5 * fade).fillEllipse(bx, by + 2, w * 2.2, w * 0.7);
+        // 晶片（星隕）瘦高一點、頂端一點亮光；其他地圖是矮胖的碎石
+        const hw = pal.glow ? w * 0.62 : w;
+        const hh = pal.glow ? (up + w) * 1.35 : up + w;
+        rocks.fillStyle(i % 2 ? pal.rockA : pal.rockB, 0.95 * fade).fillTriangle(bx - hw, by, bx + hw, by, bx + (i % 2 ? 3 : -3), by - hh);
+        rocks.fillStyle(pal.shadow, 0.5 * fade).fillEllipse(bx, by + 2, w * 2.2, w * 0.7);
+        if (pal.glow && up > 4) g.fillStyle(0xffffff, 0.8 * fade).fillCircle(bx + (i % 2 ? 3 : -3), by - hh, 3 + size * 2);
       }
     };
     draw(0);
     this.sc.tweens.addCounter({ from: 0, to: 1, duration: 420 + size * 120, onUpdate: (tw) => draw(tw.getValue() ?? 1), onComplete: () => { g.destroy(); rocks.destroy(); } });
-    if (size >= 0.75) for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.4; sparks(this.sc, cx + Math.cos(a) * (rIn + rOut) * 0.5, cy + Math.sin(a) * (rIn + rOut) * 0.5, 4, 'spark', 0xb8a488, 360); }
+    if (size >= 0.75) for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.4; sparks(this.sc, cx + Math.cos(a) * (rIn + rOut) * 0.5, cy + Math.sin(a) * (rIn + rOut) * 0.5, 4, 'spark', pal.spark, 360); }
   }
 
   /** 砸地（第 167 輪）：敵人的圓形招落下的那一刻，一圈衝擊＋放射狀裂痕。純畫面。 */

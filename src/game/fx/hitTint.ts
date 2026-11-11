@@ -124,3 +124,21 @@ export function dangerAlpha(hpPct: number, sinceHitMs: number, hitBig: boolean, 
   const hit = sinceHitMs >= 0 && sinceHitMs < 380 ? (hitBig ? 0.5 : 0.26) * (1 - sinceHitMs / 380) : 0;
   return Math.min(0.85, low * 0.6 * pulse + hit);
 }
+
+/**
+ * 震波翹起來的地面碎塊照地圖換顏色（第 172 輪）：以前四張圖都是土色碎石＋橘色波，
+ * 星骸守望者在藍色的星隕高原震出一圈土黃色、岩王在熔岩地上也是。純畫面。
+ */
+export interface GroundPalette { wave: number; rockA: number; rockB: number; shadow: number; spark: number; glow: boolean }
+const GROUND: Record<string, GroundPalette> = {
+  // 星隕：藍白晶片、會發光
+  starfall: { wave: 0xa8c8ff, rockA: 0x8fb0ff, rockB: 0xe4eeff, shadow: 0x101838, spark: 0xcfe0ff, glow: true },
+  // 燼紅：黑曜碎塊、邊緣燒紅
+  emberrift: { wave: 0xff9a50, rockA: 0x3a2a28, rockB: 0x5c3a30, shadow: 0x1a0c08, spark: 0xff8a3a, glow: false },
+  // 荊棘谷：暗紅的土
+  thornvale: { wave: 0xffb070, rockA: 0x5a3a40, rockB: 0x7a5258, shadow: 0x2a1820, spark: 0xc89a9a, glow: false },
+};
+const EARTH: GroundPalette = { wave: 0xffb070, rockA: 0x6a5a4a, rockB: 0x8a7a66, shadow: 0x3a3028, spark: 0xb8a488, glow: false };
+export function groundPalette(stageId: string): GroundPalette {
+  return GROUND[stageId] ?? EARTH;
+}

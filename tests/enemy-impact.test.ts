@@ -36,3 +36,20 @@ describe('敵人招式落下的演出', () => {
     }
   });
 });
+
+describe('震波的地面碎塊照地圖換顏色（第 172 輪）', () => {
+  it('星隕是會發光的藍白晶片，其他地圖不發光', async () => {
+    const { groundPalette } = await import('../src/game/fx/hitTint');
+    const star = groundPalette('starfall');
+    expect(star.glow).toBe(true);
+    // 藍色分量最大
+    expect(star.wave & 0xff).toBeGreaterThan((star.wave >> 16) & 0xff);
+    for (const id of ['mistwood', 'thornvale', 'emberrift', '沒有這張圖']) expect(groundPalette(id).glow).toBe(false);
+  });
+  it('四張圖各不相同；不認得的地圖用土色', async () => {
+    const { groundPalette } = await import('../src/game/fx/hitTint');
+    const rocks = ['mistwood', 'thornvale', 'emberrift', 'starfall'].map((id) => groundPalette(id).rockA);
+    expect(new Set(rocks).size).toBe(4);
+    expect(groundPalette('x')).toEqual(groundPalette('mistwood'));
+  });
+});

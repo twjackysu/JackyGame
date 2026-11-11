@@ -73,7 +73,7 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
-import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, hitLook, skillBadge } from '../fx/hitTint';
+import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
@@ -4574,7 +4574,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (t.kind === 'claw' && t.shape.type === 'sector') this.ffx.clawMarks(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size);
         else if (t.kind === 'bite' && t.shape.type === 'sector') this.ffx.fangBite(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size);
         else if (t.kind === 'sweep' && t.shape.type === 'sector') this.ffx.cleave(t.ox, t.oy, ang, t.shape.r, t.shape.deg, t.color, t.size < 1);
-        else if (t.kind === 'quake' && t.shape.type === 'ring') this.ffx.quakeBurst(t.ox, t.oy, t.shape.rIn, t.shape.rOut, t.color === 0xff5a4a ? 0xffb070 : t.color, t.size);
+        else if (t.kind === 'quake' && t.shape.type === 'ring') { const pal = groundPalette(this.stageId); this.ffx.quakeBurst(t.ox, t.oy, t.shape.rIn, t.shape.rOut, t.color === 0xff5a4a ? pal.wave : t.color, t.size, pal); }
         else if (t.kind === 'slam' && t.shape.type === 'circle') this.ffx.slamBurst(t.ox, t.oy, t.shape.r, t.color, t.size);
         if (this.onScreen(t.ox, t.oy)) SFX.enemyImpact(t.kind, t.size);
         if (t.size >= 1) {
