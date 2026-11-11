@@ -19,7 +19,8 @@ import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { UI_FONT, bigText, fadeOutThen, floatNumber, hitSparks, shockRing, sparks } from '../fx/feel';
 import { FieldFx } from '../fx/fieldFx';
 import { RangedFx } from '../fx/rangedFx';
-import { hitLook } from '../fx/hitTint';
+import { dodgeFeedback, hitLook } from '../fx/hitTint';
+import { t as tr } from '../../i18n';
 import { InputSystem } from '../rt/InputSystem';
 import { buttonPos, loadControls } from '../rtControls';
 import { pvpOps, type PvpOpen, type PvpResult } from '../pvpOps';
@@ -683,6 +684,7 @@ export class PvpScene extends Phaser.Scene {
     }
   }
 
+  private dodgedAt = -1e9;
   private playEvents(): void {
     const ev = this.s.events;
     const now = this.time.now;
@@ -740,7 +742,21 @@ export class PvpScene extends Phaser.Scene {
           this.arenaArt?.roar(getSettings().lowFx, now); // 看台小歡呼（第 154 輪）
         }
       } else if (e.type === 'dodge') SFX.dodge();
-      else if (e.type === 'block') SFX.parry();
+      else if (e.type === 'dodged') {
+        // 第 168 輪：競技場以前閃過對手的招什麼都沒有。自己閃過＝大字＋環＋亮音；對手閃過＝頭上小字（讓你知道這招被躲掉了）。
+        // 沒有停頓（競技場不搬 Hit Stop）、沒有回報（D-365 競技場不給）
+        const du = this.s.units.find((q) => q.id === e.id);
+        if (du) {
+          const mine = du.id === me.id;
+          const fb = dodgeFeedback(mine ? now - this.dodgedAt : 0, false, getSettings().lowFx);
+          if (fb.big) {
+            this.dodgedAt = now;
+            SFX.dodged();
+            bigText(this, this.sx(du.x), this.sy(du.y) - 84, tr('dodge.ok'), '#9fe8ff', 34, 300);
+            shockRing(this, this.sx(du.x), this.sy(du.y) - 20, 0x9fe8ff, 80, 320, 5);
+          } else floatNumber(this, this.sx(du.x), this.sy(du.y) - 50, tr('dodge.again'), { color: '#9fd8ff', size: 20 });
+        }
+      } else if (e.type === 'block') SFX.parry();
       else if (e.type === 'guard') {
         // 攻守一體（D-345）：護盾架起來——一圈光環＋「護盾 +N」
         const gu = this.s.units.find((q) => q.id === e.id);
