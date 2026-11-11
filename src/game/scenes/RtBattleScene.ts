@@ -2805,6 +2805,12 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.ox = -left * this.k;
     this.oy = VIEW_TOP - topY * this.k;
+    this.refreshBannerAvoid();
+  }
+
+  /** 大字要避開的兩帶：主角身上、交戰中的 Boss／精英（每幀鏡頭更新後算；Boss 瞬移的那一刻也要重算，見 blink 事件） */
+  private refreshBannerAvoid(): void {
+    const p0 = this.lerpPos(playerOf(this.s));
     const hy = this.sy(p0.y);
     // 第 90 輪：交戰中的 Boss 在主角上方 → 那一帶（Boss 本身＋腳下的紅圈預告）也不排大字（D-231）
     const boss = this.s.units.find((u) => u.tier === 'boss' && !u.dead && u.mode === 'combat');
@@ -3582,6 +3588,9 @@ export class RtBattleScene extends Phaser.Scene {
           // D-241：攻略提示正在講瞬移就不另跳大字
           if (this.time.now < this.tipBlinkFrom || this.time.now >= this.tipBlinkUntil) {
             this.blinkSaidAt = this.time.now;
+            // 第 170 輪：大字避開 Boss 的那一帶是鏡頭更新時算的——瞬移的這一刻還是牠「瞬移前」的位置，
+            // 大字會為了避開舊位置而挪到主角另一邊，正好蓋在牠的落點和 0.9 秒的紅色預告上 → 先用落點重算一次再排
+            this.refreshBannerAvoid();
             bigText(this, GAME_WIDTH / 2, 520, wd ? '巡守隱入霧中——小心背後！' : wmb.blink[0], wd ? '#9af0e0' : wmb.blink[1], 38, 900);
           }
         }
