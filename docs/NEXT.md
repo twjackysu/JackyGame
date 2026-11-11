@@ -17,6 +17,14 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 169 輪注意（開場 D-366、敵人招式音效、星河貫射）**：
+- **下一輪**先看 Jacky 的回覆；沒有就挑：①暴怒狼王霧中瞬移時，大字「狼王遁入霧中——小心背後！」是不是蓋在主角和預告上（`FURY=1 ONLY=king_mist_rend node scripts/shot-boss-attacks.mjs mistwood 標籤` 拍到的是蓋住，但腳本把狼王和主角釘在一起，要用真實對戰確認）②長弓變化二「流星箭雨」偏稀疏（一大塊灰色圓＋幾支細箭；`fx/rangedFx.ts` 的 `arrowRain`）③補拍：狼后伏擊（`queen_ambush` 這次 `got: queen_claw`，試 `DIST=3～5`；荊棘谷一招要四五分鐘，`timeout` 給 400 秒、不要和別的截圖同時跑）、守望者二階段的環、法杖 A 雷暴（`DIST=2`）。
+- **技能特效逐招檢查（Q 清單第 1 項）**：九個大招這輪都看過了；45 招只剩法杖 A 的雷暴沒看。多段招看後面幾段：`FRAMES=3,14,26,50 ONLY=blade_storm node scripts/shot-skills.mjs bow '' 標籤`（命中後第幾幀）。
+- 開場：`RtBattleScene.opening()` 的 `skipFirstIntro`（條件在 `ui/tipText.ts`）；目標字條亮一下是 `pulseGoal()`；開場那一區的地名在 `zoneBanner()` 等 `this.hint` 收掉。要看真的新存檔流程：把 `scripts/shot-newsave.mjs` 裡 `localStorage.setItem('jg_prologue_seen','1')` 拿掉（序章會被 AUTOPICK 的「略過」跳掉）、不裝 Bot 就是站著不動的玩家（這輪的 `screenshots/open.mjs`，沒進 git）。
+- 敵人招式音效：`audio/sfx.ts` 的 `SFX.enemyImpact(種類, 大小)`，在 `RtBattleScene` 畫落下演出的同一處呼叫；波形檢查 `NAMES=impact:bite:1,impact:claw:0.5 node scripts/probe-sfx.mjs`。**改了 `sfx.ts` 之後要重開 vite**，不然頁面用的是 HMR 的另一份模組、從外面 `import('/src/audio/sfx.ts')` 攔不到呼叫。競技場（PvpScene）沒有加。
+- 星河貫射：`fx/rangedFx.ts` 的 `starStream`（大招＋直線＋不是破甲那一箭）；底下範圍的顏色在 `RtBattleScene` 畫技能範圍那段的 `starRiver`。
+- 這個環境的時鐘是準的、截圖比上一輪筆記寫的快（新存檔八張約一分鐘）；荊棘谷例外，很慢。
+
 **第 168 輪注意（閃避的回饋與回報 D-365、說明文字對齊全自動）**：
 - **下一輪**先看 Jacky 的回覆；沒有就挑：①補拍沒拍到的 Boss 招（狼后伏擊 `queen_ambush`、守望者二階段的環、暴怒狼王的霧中瞬移撕咬）與法杖 A 的雷暴、四把大招 ②開場前十秒太擠（第一幕大字、目標、說明框、金色劇情字、區域名同時出現，第一場戰鬥就在字底下打）③敵人的招落下沒有聲音。
 - P1-d 剩下的「操作設定面板說明字」這輪做完了（**verified**，`docs/screenshots/auto-hint-text.jpg`）。
