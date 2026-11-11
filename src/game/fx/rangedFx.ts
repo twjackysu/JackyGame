@@ -508,7 +508,9 @@ export class RangedFx {
     const elem = st === 'burn' ? 0xff8a3a : st === 'poison' ? 0xa8ff6a : st === 'weak' ? 0xc8a0ff : 0;
     if (hs.type === 'ring' || (ult && hs.type === 'circle')) {
       // 環形箭雨／流星箭雨（D-149）：箭從天上落進範圍
-      this.arrowRain(x, y, hs.type === 'ring' ? hs.rIn : 0, hs.type === 'ring' ? hs.rOut : hs.r, ult ? 0xff9ae0 : 0x9fe0ff, ult ? 8 : getSettings().lowFx ? 12 : 16, ult);
+      // 第 170 輪：流星箭雨（大招）以前一波只有 8 支灰白細箭，是九個大招裡最稀疏的 → 自己的畫法（粉白星箭＋落地星芒）
+      if (ult && hs.type === 'circle') this.meteorRain(x, y, hs.r);
+      else this.arrowRain(x, y, hs.type === 'ring' ? hs.rIn : 0, hs.type === 'ring' ? hs.rOut : hs.r, ult ? 0xff9ae0 : 0x9fe0ff, ult ? 8 : getSettings().lowFx ? 12 : 16, ult);
       return;
     }
     if (hs.type === 'line') {
@@ -566,6 +568,62 @@ export class RangedFx {
       shockRing(this.sc, this.h.sx(x), this.h.sy(y), 0xc8f0a0, 70, 260, 5);
       sparks(this.sc, this.h.sx(x), this.h.sy(y), 8, 'spark', 0xe0ffd0, 300);
     }
+  }
+
+  /**
+   * 流星箭雨的一波（第 170 輪）：比一般箭雨粗的粉白星箭（外粉、中淡粉、白芯＋四角星箭頭）從右上斜斜落進範圍，
+   * 落地一顆四角星芒＋地上一小片粉光；每三支多一圈光與火花。每波的落點用「分格＋抖動」鋪開，不會幾支擠在一起、另一邊空著。純畫面。
+   */
+  private meteorRain(x: number, y: number, r: number): void {
+    if (this.sc.time.now - this.lastBowSfx > 60) {
+      this.lastBowSfx = this.sc.time.now;
+      SFX.bowShot();
+    }
+    const lite = getSettings().lowFx;
+    const n = lite ? 7 : 14;
+    const k = this.h.k();
+    const cx = this.h.sx(x);
+    const cy = this.h.sy(y);
+    const R = r * k;
+    const rot = Math.random() * Math.PI * 2;
+    const star = (g: Phaser.GameObjects.Graphics, q: number): void => {
+      g.fillPoints([new Phaser.Math.Vector2(0, -q * 1.7), new Phaser.Math.Vector2(q * 0.34, 0), new Phaser.Math.Vector2(0, q * 1.7), new Phaser.Math.Vector2(-q * 0.34, 0)], true);
+      g.fillPoints([new Phaser.Math.Vector2(-q * 1.7, 0), new Phaser.Math.Vector2(0, -q * 0.34), new Phaser.Math.Vector2(q * 1.7, 0), new Phaser.Math.Vector2(0, q * 0.34)], true);
+    };
+    for (let i = 0; i < n; i++) {
+      // 黃金角螺旋：n 個落點平均鋪滿整個圓，每波轉一個隨機角度
+      const a = rot + i * 2.39996;
+      const d = Math.sqrt((i + 0.35 + Math.random() * 0.5) / n) * R * 0.94;
+      const tx = cx + Math.cos(a) * d;
+      const ty = cy + Math.sin(a) * d;
+      const H = 300 + Math.random() * 90;
+      const g = this.sc.add.graphics().setDepth(692).setBlendMode(Phaser.BlendModes.ADD);
+      g.lineStyle(13, 0xff7ad0, 0.3).lineBetween(0, 0, 92, -H * 0.62);
+      g.lineStyle(6, 0xffb0e8, 0.7).lineBetween(0, 0, 66, -H * 0.44);
+      g.lineStyle(2.5, 0xffffff, 1).lineBetween(0, 0, 44, -H * 0.3);
+      g.fillStyle(0xff9ae0, 0.55).fillCircle(0, 0, 11);
+      g.fillStyle(0xffffff, 1);
+      star(g, 7);
+      g.setPosition(tx + H * 0.3, ty - H).setAlpha(0.25);
+      const big = i % 3 === 0;
+      this.sc.tweens.add({ targets: g, x: tx, y: ty, alpha: 1, duration: 185 + (i % 4) * 18, delay: i * 13, ease: 'Quad.easeIn', onComplete: () => {
+        g.destroy();
+        const f = this.sc.add.graphics().setDepth(691).setBlendMode(Phaser.BlendModes.ADD).setPosition(tx, ty);
+        f.fillStyle(0xff7ad0, 0.3).fillEllipse(0, 4, big ? 64 : 44, big ? 28 : 20);
+        f.fillStyle(big ? 0xffffff : 0xffd0f2, 1);
+        star(f, big ? 13 : 9);
+        this.sc.tweens.add({ targets: f, alpha: 0, scale: { from: 0.7, to: 1.5 }, duration: big ? 300 : 230, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
+        if (big) {
+          shockRing(this.sc, tx, ty, 0xff9ae0, 50, 260, 4);
+          if (!lite) sparks(this.sc, tx, ty, 6, 'spark', 0xffb0e8, 320);
+        }
+      } });
+    }
+    // 每一波地上亮一下：淡粉的底＋一圈往外擴的細邊（範圍看得出來，但不是一塊平平的色塊）
+    const gl = this.sc.add.graphics().setDepth(4).setBlendMode(Phaser.BlendModes.ADD).setPosition(cx, cy);
+    gl.fillStyle(0xff3aa8, 0.1).fillCircle(0, 0, R);
+    gl.lineStyle(3, 0xff8ad8, 0.7).strokeCircle(0, 0, R);
+    this.sc.tweens.add({ targets: gl, alpha: 0, duration: 340, ease: 'Quad.easeOut', onComplete: () => gl.destroy() });
   }
 
   /** 箭雨（D-149）：n 支箭從右上的天空斜斜落進 rIn～rOut 的範圍，落地迸出小火花；大招版是粉紅的星箭、落地多一圈光 */
