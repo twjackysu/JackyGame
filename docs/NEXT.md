@@ -17,6 +17,15 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 174 輪注意（衝鋒穿過玩家 D-368、大怪半透明 D-369）**：
+- **下一輪先做**：a625f4f 的 CI 是紅的——check job 最後一步冒煙測試在 `npx playwright install --with-deps chromium` 時 `apt` 解析不到 security.ubuntu.com（重跑一次一樣），前面的測試與 build 都過、本機冒煙測試過。用 GitHub MCP 的 `actions_run_trigger`（`rerun_failed_jobs`，run 43040869718）再重跑；還是不行就讓那一步重試幾次。
+- 再來看 Jacky 的回覆；沒有就挑：①用「不釘住主角」的真實對戰看荊棘狼后、岩王、守望者和幾隻精英（下面的 `EVAL`）②燼紅裂谷拿弓、完全不動兩分多鐘會被慢慢擠到巢穴外、Boss 回滿（1／48，todo 低；先查是誰在擠）③主角被大怪擋住時只是「看得到」，要不要加輪廓。
+- 真實對戰的拍法：`LEVEL=14 EVAL='(()=>{const s=sc().s,p=s.units[0],B=s.units.find(u=>u.tier==="boss"&&!u.dead);if(!window.tp){window.tp=1;p.x=B.x;p.y=B.y+260}return [p.x,p.y,B.x,B.y,B.action?.id,B.mode,B.hp].join(" ")})()' node scripts/play.mjs sword mistwood 標籤 24 1`——每秒印雙方位置與 Boss 血量；**Boss 血量突然回滿＝脫戰重置**。`play.mjs` 沒有 `FURY=1`（只有 `shot-boss-attacks.mjs` 有）。
+- 衝鋒：`engine.ts` 的 `chargingThrough`（位移段不和玩家推擠）。之後新增會位移的敵人招式（撲、甩尾）都要想一下會不會把玩家帶出巢穴；「站著不動打 10 分鐘」的探針寫法在 `tests/rt-charge-through.test.ts` 第二項。
+- 半透明：`fx/occlude.ts`（`OCCLUDE_ALPHA`、`OCCLUDE_MIN_RATIO`），場景裡每隻怪的目前值存在 sprite 的 `occ`。拍對照：EVAL 裡 `sc().spriteFor(B).setAlpha(1)` 後 `R.preRender(); __game.scene.render(R); R.postRender()` 重畫一次。
+- 快轉截圖裡常看到整隻白色剪影（主角或怪）：是受擊白閃在快轉下沒收掉，不是遊戲裡的樣子（`play.mjs` 有清，`shot-newsave.mjs` 沒有）。
+- 這個環境 `date` 是準的；`xxd` 沒裝（產生 run_id 用 `od`）。
+
 **第 172 輪追加注意（R-020／R-021 匯入）**：
 - **下一輪先補看**：守望者與晶殼魔像的死亡碎裂（新圖比舊的程式圖大很多，`addShardFrame` 切塊的比例要確認）、深夜的星蝕狼、熔岩巡獵者、星輝狼首、360 寬＋省電、守望者頭上血條與招式名的位置。`FURY=1`／`NIGHT=1` 配 `scripts/play.mjs`、`shot-boss-attacks.mjs`。
 - 新圖的顯示大小在 `RtBattleScene.ts` 的 `SPRITE`（`h`）；Jacky 嫌大嫌小改這裡。要退回舊圖：把那一行的 `key` 改回 `enemy_mist_wolf` 加 `tint`（火焰鬃毛／星痕會自動回來，條件是 `cfg.key === 'enemy_mist_wolf'`）。
