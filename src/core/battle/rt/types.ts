@@ -178,7 +178,7 @@ export interface PlayerDefinition {
   /** 開場 MP（之後接地圖時改成延續上一場） */
   mpStart: number;
   /** MP 回復（D-065 ②）：每次造成直接傷害／受到傷害／格擋成功 */
-  mpGain: { deal: number; hurt: number; block: number };
+  mpGain: { deal: number; hurt: number; block: number; /** 閃過敵人的攻擊（D-365；每次翻滾一次、競技場不給） */ dodge: number };
   /** HP 藥水（design/20 B：30% 最大 HP、冷卻 15 秒、攜帶 20、獨立按鍵；瞬間生效、不打斷動作） */
   potion: { healPct: number; cooldownTicks: number; carry: number };
   skills: string[];
@@ -211,6 +211,8 @@ export interface Action {
   oy: number;
   /** 衝鋒／技能內已命中過的對象 */
   hitIds?: number[];
+  /** 這次翻滾已經給過「閃過攻擊」的回報（D-365） */
+  paid?: boolean;
   /** 格擋已觸發 */
   blocked?: boolean;
   targetId?: number;
@@ -354,7 +356,7 @@ export type BattleEvent =
   | { tick: number; type: 'revive'; id: number; campfire: string }
   | { tick: number; type: 'telegraph'; owner: number; attack: string }
   | { tick: number; type: 'dodge'; id: number }
-  | { tick: number; type: 'dodged'; id: number; attack: string }
+  | { tick: number; type: 'dodged'; id: number; attack: string; /** 這一下有給「閃過攻擊」的回報（D-365）：回了多少 MP */ mp?: number }
   | { tick: number; type: 'block'; id: number; attack: string }
   | { tick: number; type: 'guard'; id: number; skill: string; amount: number; ticks: number }
   | { tick: number; type: 'cast'; id: number; skill: string; auto?: boolean }

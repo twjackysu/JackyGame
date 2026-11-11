@@ -26,6 +26,7 @@ export const zhTW = {
   'dodge.ok': '閃開！',
   'dodge.okBoss': '漂亮閃開！',
   'dodge.again': '閃過',
+  'dodge.reward': 'MP +{n}・冷卻減半',
   'bless.title': '燼火祝福',
   'bless.sub': '選一個——這趟冒險都有效（回營火休息或倒下就消散）',
   'bless.have': '身上：',

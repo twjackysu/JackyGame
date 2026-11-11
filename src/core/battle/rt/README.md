@@ -15,7 +15,7 @@
 - 技能是資料（`hits[]`、`dash`、`block`），引擎不寫 `switch(skillId)`。冷卻從施放開始計。
 - 指標報表：`npm run sim:rt`（`RUNS=1000 npm run sim:rt` 可調次數）。
 - 驗收測試：`tests/rt-battle.test.ts`（同一場 1,000 次 `stateHash` 一致、輸入重播一致等）。
-- **MP 與大招**（D-068）：上限 100、開場 0；造成直接傷害 +1、受傷 +2、格擋成功 +5（`SWORDSMAN.mpGain`）。只有大招 `blade_storm`（劍刃風暴）耗 MP；試玩鍵位已放（右下粉紅 MP 環）；Bot 用 `{ ...BOT_PROFILES.expert, ult: true }` 開啟。
+- **MP 與大招**（D-068）：上限 100、開場 0；造成直接傷害 +1、受傷 +2、格擋成功 +5、翻滾閃過敵人的攻擊 +6 並把閃避剩下的冷卻砍半（D-365；每次翻滾一次、競技場不給）（`SWORDSMAN.mpGain`、`DODGE_REFUND_PCT`）。只有大招 `blade_storm`（劍刃風暴）耗 MP；試玩鍵位已放（右下粉紅 MP 環）；Bot 用 `{ ...BOT_PROFILES.expert, ult: true }` 開啟。
 - **HP 藥水**（D-069）：`{ type: "potion" }`，30% 最大 HP、冷卻 15 秒、攜帶 20、瞬間不打斷動作；Bot 用 `potionAtPct` 開啟。
 - 報表另有「普攻／技能／反擊」傷害占比（design/20 C3 目標：普攻 35～45%、技能 45～55%）。
 - 畫面層：`src/game/scenes/RtBattleScene.ts`（鏡頭、立繪、刀光、命中停頓都只在畫面層，不影響模擬結果；D-067）。

@@ -28,6 +28,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   'dodge.ok': 'Dodged!',
   'dodge.okBoss': 'Clean dodge!',
   'dodge.again': 'Miss',
+  'dodge.reward': 'MP +{n} · CD halved',
   'bless.title': 'Ember Blessing',
   'bless.sub': 'Pick one — lasts this run (lost when you rest at a campfire or fall)',
   'bless.have': 'Active: ',

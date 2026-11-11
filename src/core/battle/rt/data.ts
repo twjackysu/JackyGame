@@ -254,7 +254,8 @@ export const SWORDSMAN: PlayerDefinition = {
   mp: 100,
   mpStart: 0,
   // 造成直接傷害 +1（持續傷害不算）、受到傷害 +2、格擋成功 +5（D-065 ②；第 13 輪初值，見 D-068）
-  mpGain: { deal: 1, hurt: 2, block: 5 },
+  // 第 168 輪（D-365）：閃過敵人的攻擊 +6（以前 0——挨打回 2、閃過去反而沒有），並把閃避剩下的冷卻砍半（DODGE_REFUND_PCT）
+  mpGain: { deal: 1, hurt: 2, block: 5, dodge: 6 },
   potion: { healPct: 30, cooldownTicks: sec(15), carry: 20 },
   skills: ['heavy_slash', 'whirlwind', 'charge', 'parry', 'blade_storm'],
   // 閃避：位移 2.5、動作 9 ticks、無敵 1～6、冷卻 5s
@@ -906,3 +907,6 @@ export const STAGES: Record<string, StageDefinition> = {
     ],
   },
 };
+
+/** 閃過敵人的攻擊：閃避剩下的冷卻退回這個百分比（D-365）。每次翻滾只算一次；競技場不給 */
+export const DODGE_REFUND_PCT = 50;

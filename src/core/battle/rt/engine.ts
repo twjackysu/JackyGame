@@ -1,6 +1,6 @@
 // 即時戰鬥引擎（design/19 §2、D-063 P1）：固定 30 ticks/秒、整數座標、種子亂數、事件依 (tick, 處理順序, id) 固定排序。
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
-import { AFFIX_ATTACKS, ARENA_CHARGE, ENEMIES, STAGES, WEAPONS, variantB } from './data';
+import { AFFIX_ATTACKS, ARENA_CHARGE, DODGE_REFUND_PCT, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import { autoPick, cleanAutoSkills } from './auto';
 import { BLESS_RULES, EFFECT_IDS, EFFECTS, blessNeed, effectDef, mergeEffectMods, tryVariantId, type EffectBurst, type EffectDef } from './effects';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
@@ -1021,7 +1021,16 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   if (src.side === 'player') ctlOf(s, src).lastCombatTick = s.tick;
   if (dst.side === 'player') ctlOf(s, dst).lastCombatTick = s.tick;
   if (dst.invulnUntil >= s.tick) {
-    emit(s, { tick: s.tick, type: 'dodged', id: dst.id, attack: skill });
+    // D-365：自己翻滾閃過敵人的攻擊 → 回 MP、閃避冷卻退一半（每次翻滾一次；復活的無敵不算；競技場不給）
+    const act = dst.action;
+    if (dst.side === 'player' && src.side === 'enemy' && !s.pvp && act?.kind === 'dodge' && !act.paid) {
+      act.paid = true;
+      const mp = playerDef(s, dst).mpGain.dodge;
+      gainMp(s, dst, mp);
+      const left = (dst.ready['dodge'] ?? 0) - s.tick;
+      if (left > 0) dst.ready['dodge'] = s.tick + Math.floor((left * (100 - DODGE_REFUND_PCT)) / 100);
+      emit(s, { tick: s.tick, type: 'dodged', id: dst.id, attack: skill, mp });
+    } else emit(s, { tick: s.tick, type: 'dodged', id: dst.id, attack: skill });
     return 0;
   }
   let pool = 0;

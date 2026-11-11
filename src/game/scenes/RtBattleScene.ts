@@ -3477,12 +3477,14 @@ export class RtBattleScene extends Phaser.Scene {
         if (fb.big) {
           this.dodgedAt = this.time.now;
           SFX.dodged();
-          bigText(this, px, py - 96, tr(boss ? 'dodge.okBoss' : 'dodge.ok'), '#9fe8ff', boss ? 48 : 40, 300);
+          bigText(this, px, py - 118, tr(boss ? 'dodge.okBoss' : 'dodge.ok'), '#9fe8ff', boss ? 48 : 40, 300);
           shockRing(this, px, py - 30, 0x9fe8ff, fb.ring, 320, 6);
           if (!getSettings().lowFx) sparks(this, px, py - 30, boss ? 16 : 10, 'spark', 0xbff0ff, 420);
           if (fb.flash) softFlash(this, 0x9fe8ff, 160, 0.14);
           this.hitStop = Math.max(this.hitStop, fb.stopMs);
         } else floatNumber(this, px, py - 40, tr('dodge.again'), { color: '#9fd8ff', size: 24 });
+        // D-365：這一下有回報（回 MP、閃避冷卻退一半）→ 冒出來讓玩家知道閃得好有賺
+        if (e.mp) floatNumber(this, px, py - 58, tr('dodge.reward', { n: e.mp }), { color: '#ff9ae0', size: 22 });
       } else if (e.type === 'death') {
         const d = u(e.id);
         if (d && d.side === 'enemy') {
