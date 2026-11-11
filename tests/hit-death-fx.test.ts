@@ -1,7 +1,7 @@
 // 第三期 Q1／Q2（D-335）：命中火花顏色與倒下種類是純資料，這裡確認每一招、每隻怪都對得到。
 import { describe, expect, it } from 'vitest';
 import { ENEMIES, WEAPONS } from '../src/core/battle/rt/data';
-import { deathKind } from '../src/game/fx/deathFx';
+import { addShardFrame, deathKind } from '../src/game/fx/deathFx';
 import { CRIT_LOOK, hitLook, skillElement } from '../src/game/fx/hitTint';
 
 describe('命中火花顏色（hitTint）', () => {
@@ -43,5 +43,34 @@ describe('倒下種類（deathFx）', () => {
   });
   it('表裡列的怪都真的存在（改名時會抓到）', () => {
     for (const id of ['thorn_shooter', 'thorn_mother', 'ember_shroom', 'star_shroom', 'slag_slime', 'crystal_golem', 'ember_colossus', 'star_sentinel']) expect(ENEMIES[id]).toBeTruthy();
+  });
+});
+
+describe('碎裂演出的貼圖 frame（第 171 輪）', () => {
+  // 照 Phaser 3 Texture.add 的行為：第一個加進去的 frame 會變成預設 frame
+  const fakeTexture = () => {
+    const frames = new Set<string>(['__BASE']);
+    const t = {
+      firstFrame: '__BASE',
+      has: (n: string) => frames.has(n),
+      add: (n: string) => { frames.add(n); if (t.firstFrame === '__BASE') t.firstFrame = n; },
+      frames,
+    };
+    return t;
+  };
+  it('第一隻魔像碎掉之後，貼圖的預設 frame 仍是整張圖（之後生出來的魔像不會變成一小塊碎片）', () => {
+    const t = fakeTexture();
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) addShardFrame(t, `shard3_${i}_${j}`, 0, i * 10, j * 10, 10, 10);
+    expect(t.frames.size).toBe(10);
+    expect(t.firstFrame).toBe('__BASE');
+  });
+  it('同一格只加一次', () => {
+    const t = fakeTexture();
+    let n = 0;
+    const add = t.add;
+    t.add = (name: string) => { n++; add(name); };
+    addShardFrame(t, 'shard2_0_0', 0, 0, 0, 5, 5);
+    addShardFrame(t, 'shard2_0_0', 0, 0, 0, 5, 5);
+    expect(n).toBe(1);
   });
 });

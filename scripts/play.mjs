@@ -2,7 +2,7 @@
 // 用法：node scripts/play.mjs sword|bow|staff [地圖] [tag] [張數] [每張間隔秒] [W H]
 // 主角：走向最近的活怪、進射程就停（技能五欄自動）、血量 35% 以下喝水、祝福一律選第一張；不閃避。
 // 快轉時不畫圖（只有截圖前三幀才畫），所以很快；主角直線走向怪，會卡在樹牆後面，拍前幾分鐘夠用。
-// 環境變數 NIGHT=1、LOWFX=1、LEVEL=n（存檔等級）、HP=0.3（把血量上限壓成幾成，看低血畫面）。輸出 screenshots/play-<tag>-<n>.png
+// 環境變數 NIGHT=1、LOWFX=1、EVAL='js'（每張截圖前在頁面裡跑、印出結果）、LEVEL=n（存檔等級）、HP=0.3（把血量上限壓成幾成，看低血畫面）。輸出 screenshots/play-<tag>-<n>.png
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots', { recursive: true });
@@ -41,12 +41,15 @@ await pg.evaluate(([weapon]) => {
     if (p.hp < p.maxHp * 0.35 && s.potions > 0 && (p.ready.potion ?? 0) <= s.tick) out.push({ type: 'potion' });
     return out;
   };
+  window.clk = (pre) => { const s = sc(); const all = []; const walk = (l) => { for (const o of l) { if (o.list) walk(o.list); if (o.type === 'Text' && o.visible && o.text.startsWith(pre)) all.push(o); } }; walk(s.children.list); const t = all[0]; if (!t) return null; for (let o = t; o; o = o.parentContainer) if (o.listenerCount && o.listenerCount('pointerdown')) { o.emit('pointerdown', { x: 0, y: 0 }, 0, 0, { stopPropagation() {} }); return pre; } const near = []; const walk2 = (l) => { for (const o of l) { if (o.list) walk2(o.list); else if (o.listenerCount && o.listenerCount('pointerdown') && o.parentContainer === t.parentContainer && Math.abs(o.y - t.y) < 60) near.push(o); } }; walk2(s.children.list); if (near[0]) { near[0].emit('pointerdown', { x: 0, y: 0 }, 0, 0, { stopPropagation() {} }); return pre + '*'; } return 'nolistener ' + pre; };
+  // 相遇抉擇／劇情面板會把戰鬥停住：自動選（KEEP_MENU=1 時不選，拿來拍面板本身）
+  window.autopick = () => (clk('還') || clk('助') || clk('取')) && clk('就這麼做') || clk('略過') || clk('繼續');
   window.T = 100000; const rn = Date.now.bind(Date); window.off = 0; Date.now = () => rn() + off;
   const render = __game.scene.render ? null : null; void render;
   const R = __game.renderer; const pre = R.preRender.bind(R); const rr = R.render.bind(R); const post = R.postRender.bind(R);
   window.draw = true;
   R.preRender = () => { if (draw) pre(); }; R.render = (...a) => { if (draw) rr(...a); }; R.postRender = () => { if (draw) post(); };
-  window.ff = (sec) => { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { draw = i >= n - 3; T += 16.667; off += 16.667; __game.step(T, 16.667); } draw = true; };
+  window.ff = (sec) => { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { draw = i >= n - 3; T += 16.667; off += 16.667; __game.step(T, 16.667); if (i % 20 === 19 && sc().menu && !window.KEEP_MENU) autopick(); } draw = true; };
   __game.loop.sleep();
 }, [weapon]);
 const hpCap = +(process.env.HP || 0);
@@ -58,6 +61,7 @@ for (let k = 0; k < +N; k++) {
     return { t: Math.round(s.tick / 30), hp: Math.round((p.hp / p.maxHp) * 100), kills: s.units.filter((u) => u.side === 'enemy' && u.dead).length, lv: p.level ?? s.level, bless: s.bless?.taken?.length ?? 0, revives: s.revives ?? 0 };
   }, [+GAP, hpCap]);
   console.log(k, JSON.stringify(st));
+  if (process.env.EVAL) console.log('  eval', JSON.stringify(await pg.evaluate(process.env.EVAL)));
   await pg.screenshot({ path: `screenshots/play-${tag}-${k}.png`, timeout: 90000 });
 }
 await b.close();

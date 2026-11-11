@@ -55,6 +55,20 @@ function puff(
   scene.time.delayedCall(cfg.life[1] + 100, () => p.destroy());
 }
 
+/** 貼圖上加一格碎塊用的 frame（每格只加一次）。
+ *  第 171 輪修：Phaser 的 `Texture.add` 會把「第一個加進去的 frame」當成這張貼圖的預設 frame——
+ *  第一隻晶殼魔像／燼心岩王／星骸守望者碎掉之後，之後生出來的同一種怪（`add.image(x, y, key)` 沒指定 frame）
+ *  整隻變成左上角那一小塊碎片（只剩一根晶刺）。加完把預設 frame 設回整張圖。 */
+export function addShardFrame(
+  tex: { has(name: string): boolean; add(name: string, sourceIndex: number, x: number, y: number, w: number, h: number): unknown; firstFrame: string },
+  name: string, sourceIndex: number, x: number, y: number, w: number, h: number,
+): void {
+  if (tex.has(name)) return;
+  const first = tex.firstFrame;
+  tex.add(name, sourceIndex, x, y, w, h);
+  tex.firstFrame = first;
+}
+
 /** 播倒下演出；sp 交給這裡管，播完自己 destroy */
 export function playDeath(scene: Phaser.Scene, sp: Phaser.GameObjects.Image, defId: string, o: DeathOpts): void {
   const kind = deathKind(defId);
@@ -82,7 +96,7 @@ export function playDeath(scene: Phaser.Scene, sp: Phaser.GameObjects.Image, def
       if (!sp.scene) return;
       for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
         const name = `shard${n}_${i}_${j}`;
-        if (!sp.texture.has(name)) sp.texture.add(name, f.sourceIndex, f.cutX + i * cw, f.cutY + j * ch, cw, ch);
+        addShardFrame(sp.texture, name, f.sourceIndex, f.cutX + i * cw, f.cutY + j * ch, cw, ch);
         const col0 = sp.flipX ? n - 1 - i : i;
         const x0 = left + (col0 + 0.5) * cw * sx;
         const y0 = top + (j + 0.5) * ch * sy;
