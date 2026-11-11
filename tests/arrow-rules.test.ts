@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ELITE_ARROW_M, belowBlessHud, blessHudRect, showOffscreenArrow } from '../src/game/arrowRules';
+import { ELITE_ARROW_M, belowBlessHud, blessHudRect, inViewForArrow, showOffscreenArrow } from '../src/game/arrowRules';
 
 describe('畫面外箭頭（D-176）', () => {
   const base = { mini: true, elite: true, boss: false, combat: false, distM: 10 };
@@ -36,5 +36,25 @@ describe('箭頭不壓右上角的祝福火苗與圖示（第 171 輪）', () =>
     expect(belowBlessHud(300, 130, r, 34)).toBe(130); // 畫面中間上緣
     expect(belowBlessHud(W - 30, 400, r, 34)).toBe(400); // 右緣下面
     expect(belowBlessHud(W - 30, 130, null, 34)).toBe(130);
+  });
+});
+
+describe('看得到的怪不畫箭頭：下緣照按鈕實際位置算（第 173 輪）', () => {
+  // 360×640：畫面高 1280；技能全自動＝底部一排小圓圈（y 1236）＋右下閃避鍵
+  const o = { W: 720, top: 150, legacyBottom: 960, rowTop: 1170, buttons: [{ x: 610, y: 1150, r: 62 }, { x: 440, y: 1236, r: 25 }, { x: 640, y: 930, r: 40 }] };
+  it('以前的下緣以上照舊算看得到；畫面外照舊不算', () => {
+    expect(inViewForArrow(300, 600, o)).toBe(true);
+    expect(inViewForArrow(-5, 600, o)).toBe(false);
+    expect(inViewForArrow(300, 140, o)).toBe(false);
+    expect(inViewForArrow(300, 1300, o)).toBe(false);
+  });
+  it('以前下緣到底部那一排之間：空的地方算看得到（不再把箭頭蓋在怪身上）', () => {
+    expect(inViewForArrow(290, 965, o)).toBe(true);
+    expect(inViewForArrow(300, 1100, o)).toBe(true);
+  });
+  it('被閃避鍵蓋住、或低到底部那一排：還是要箭頭', () => {
+    expect(inViewForArrow(600, 1140, o)).toBe(false);
+    expect(inViewForArrow(540, 1150, o)).toBe(false); // 貼著鍵的邊緣（pad 內）
+    expect(inViewForArrow(300, 1200, o)).toBe(false);
   });
 });

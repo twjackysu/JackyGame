@@ -8,8 +8,8 @@ import { ENEMIES } from '../../core/battle/rt/data';
 import { enemiesOf, playerOf } from '../../core/battle/rt/engine';
 import { RARITY_COLOR } from '../../core/battle/rt/gear';
 import { UNIT, type BattleState } from '../../core/battle/rt/types';
-import { belowBlessHud, showOffscreenArrow } from '../arrowRules';
-import { GAME_WIDTH, TALL } from '../config';
+import { belowBlessHud, inViewForArrow, showOffscreenArrow } from '../arrowRules';
+import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { UI_FONT } from '../fx/feel';
 
 type Bounds = Phaser.Geom.Rectangle;
@@ -61,11 +61,14 @@ export class OffscreenArrows {
     let li = 0;
     const placed: { x: number; y: number; ax: number; ay: number }[] = [];
     const gb = this.h.goalBounds();
+    // 第 173 輪：下緣不再一律切在以前技能鍵區塊的上緣——沒被按鈕蓋住就算看得到（inViewForArrow）
+    const buttons = [0, 1, 2, 3, 4, 5, 6].map((i) => ({ ...this.h.btnPos(i), r: this.h.btnR(i) }));
+    const seen = (x: number, y: number): boolean => inViewForArrow(x, y, { W: GAME_WIDTH, top: this.h.viewTop + 40, legacyBottom: 960 + TALL, rowTop: GAME_HEIGHT - 110, buttons });
     for (const e of enemiesOf(s)) {
       const px = this.h.sx(e.x);
       const py = this.h.sy(e.y);
       const M = 30;
-      if (px >= 0 && px <= GAME_WIDTH && py >= this.h.viewTop + 40 && py <= 960 + TALL) continue;
+      if (seen(px, py)) continue;
       const boss = !!ENEMIES[e.defId]?.boss;
       const elite = e.tier === 'elite' || boss;
       // 有小地圖的大地圖：待機的一般怪只在小地圖上，箭頭只留給追過來的怪、附近的精英與 Boss（design/20 B6、D-176）
@@ -161,7 +164,7 @@ export class OffscreenArrows {
       if (gt.back || this.h.menuOpen()) continue;
       const px = this.h.sx(gt.x);
       const py = this.h.sy(gt.y) - 60 * this.h.k();
-      if (px >= 0 && px <= GAME_WIDTH && py >= this.h.viewTop + 40 && py <= 960 + TALL) continue;
+      if (seen(px, py)) continue;
       const dm = Math.hypot(gt.x - p.x, gt.y - p.y) / UNIT;
       if (dm > 40 && !(gt.revealAt !== undefined && now - gt.revealAt < 25000)) continue;
       const M = 34;
@@ -195,7 +198,7 @@ export class OffscreenArrows {
       if (it.kind !== 'gear' || (it.rarity ?? 1) < 2) continue;
       const px = this.h.sx(it.x);
       const py = this.h.sy(it.y);
-      if (px >= 0 && px <= GAME_WIDTH && py >= this.h.viewTop + 40 && py <= 960 + TALL) continue;
+      if (seen(px, py)) continue;
       const cx = Math.max(24, Math.min(GAME_WIDTH - 24, px));
       const cy = belowBlessHud(cx, Math.max(this.h.viewTop + 24, Math.min(950 + TALL, py)), this.h.blessHud(), 22);
       const r = 11 + 2 * Math.sin(now / 140);

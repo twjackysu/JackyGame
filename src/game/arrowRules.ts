@@ -27,3 +27,15 @@ export function belowBlessHud(cx: number, cy: number, r: { left: number; top: nu
   if (!r) return cy;
   return cx > r.left - m && cx < r.right + m && cy > r.top - m && cy < r.bottom + m ? r.bottom + m : cy;
 }
+
+/** 算不算「在畫面上看得到」（看得到就不畫箭頭）。px、py＝單位腳底的畫面座標。
+ *  第 173 輪：以前下緣一律切在 legacyBottom（＝以前右下那一大塊技能鍵的上緣）；技能改成自動、縮成底部一排小圓圈之後（P1-d），
+ *  那一帶大半是空的地圖——站在那裡、看得一清二楚的精英身上會被蓋一個大箭頭和「7m」。
+ *  現在：legacyBottom 以下只要沒被按鈕（半徑外加 pad）蓋住、也還沒低到底部那一排（rowTop），就算看得到。 */
+export function inViewForArrow(px: number, py: number, o: { W: number; top: number; legacyBottom: number; rowTop: number; buttons: readonly { x: number; y: number; r: number }[]; pad?: number }): boolean {
+  if (px < 0 || px > o.W || py < o.top) return false;
+  if (py <= o.legacyBottom) return true;
+  if (py > o.rowTop) return false;
+  const pad = o.pad ?? 24;
+  return !o.buttons.some((b) => (px - b.x) ** 2 + (py - b.y) ** 2 < (b.r + pad) ** 2);
+}
