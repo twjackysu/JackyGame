@@ -54,4 +54,23 @@ describe('敵人的衝鋒會穿過玩家', () => {
     }
     expect(s.events.some((x) => x.type === 'leash' && x.id === e.id)).toBe(false);
   });
+
+  it('暴怒狼王「衝完回頭再衝一次」：第二下真的是往回衝（以前主角被頂在前面，第二下是同方向再頂 7 格）', () => {
+    const s = createBattle({ stageId: 'mistwood', seed: 11 });
+    const p = playerOf(s);
+    const e = s.units.find((u) => u.defId === 'wolf_king')!;
+    s.units = [p, e];
+    e.fury = true;
+    p.hp = p.maxHp = 1_000_000; e.hp = e.maxHp = 100_000_000;
+    p.x = e.x; p.y = e.y + 130;
+    let n = 0;
+    while (e.action?.id !== 'king_charge' && n++ < 3000) step(s, [{ type: 'stop' }]);
+    const dir1 = e.action!.dirY;
+    const y0 = p.y;
+    while (e.action?.id !== 'king_charge2' && n++ < 6000) step(s, [{ type: 'stop' }]);
+    expect(e.action?.id).toBe('king_charge2');
+    expect(Math.sign(e.action!.dirY)).toBe(-Math.sign(dir1)); // 回頭
+    while (e.action?.id === 'king_charge2') step(s, [{ type: 'stop' }]);
+    expect(Math.abs(p.y - y0)).toBeLessThan(3 * UNIT); // 兩下衝完主角還在原地附近（自己追了幾步），不是被頂出 14 格
+  });
 });
