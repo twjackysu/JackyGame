@@ -17,6 +17,14 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 172 輪注意（撿取小字合併、震波色盤、換圖／倒下檢查）**：
+- **下一輪**先看 Jacky 的回覆、確認 077a1c4 的 CI；沒有就挑：①Boss 瞬移招在真實對戰裡落點和主角的距離（`shot-boss-attacks.mjs` 會把主角釘在 Boss 旁邊，看不出來）②360 寬新存檔前十幾秒字太多（地名＋提示＋祝福＋武器提示）③光門「▼ 回某地」在畫面最下面時被搖桿蓋住。
+- 「打過一次／換圖之後才壞」這一類這輪看過：換圖四次、倒下重來、營火醒來，都正常。`THEN=starfall,emberrift node scripts/play.mjs sword starfall 標籤 4 12`。
+- 撿取小字：`RtBattleScene.pickupFloat`（不走 `floatNumber` 了，自己一個 Text、同種重用），規則 `src/game/pickupMerge.ts`。要擺場面：`sc().pickupFloat('gold',10)`。
+- 震波色盤：`fx/hitTint.ts` 的 `groundPalette(stageId)`；新地圖沒設就是土色。只有「環形＋沒有自己演出」的招會用到（`enemyImpact` 回 `quake`）。
+- **狼后伏擊 `queen_ambush` 是暴怒限定**（`furyOnly`），拍它要 `FURY=1`；之前四輪調 `DIST` 都白調。拍 Boss 招前先看 `data.ts` 那一招有沒有 `furyOnly`／`phase2Only`。
+- Boss 逐招截圖一次只跑一個（三個一起跑會慢到逾時、一張都不存）；一招約兩三分鐘。
+
 **第 171 輪注意（魔像碎塊 frame 的 bug、箭頭躲祝福圖示、競技場紅暈）**：
 - **下一輪**先看 Jacky 的回覆、確認 4648d6d 的 CI；沒有就挑：①找「打過一次之後才壞」的東西——同一次開遊戲換圖、倒下重來、回營火之後再看一輪（這輪的魔像 bug 就是這一類，只看每招第一次的截圖抓不到）②補拍狼后伏擊、守望者二階段的環 ③打倒精英時大字和金幣數字擠在一起。
 - **Phaser 的坑**：`texture.add(frame)` 會改掉那張貼圖的預設 frame。之後要在既有貼圖上切 frame 一律走 `fx/deathFx.ts` 的 `addShardFrame`（或加完自己把 `firstFrame` 設回去）。
