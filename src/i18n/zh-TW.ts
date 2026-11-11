@@ -50,6 +50,8 @@ export const zhTW = {
   'fx.interrupt': '打斷！',
   'lair.warn': '踏出紅圈了！{s} 秒內走回去\n不然{name}會回巢穴回滿血',
   'lair.count': '回紅圈 {s}',
+  'leash.near': '再拉遠就脫戰回滿',
+  'tip.leash': '精英被拉離地盤太遠會脫戰、回滿血\n頭上出現「再拉遠就脫戰」就別再退',
   'codex.title': '獨特效果圖鑑　{n}/{max}',
   'codex.sub': '少數稀有裝備會帶一條；穿上就有，休息也不會消失',
   'codex.item': '裝備名「{title}之…」',

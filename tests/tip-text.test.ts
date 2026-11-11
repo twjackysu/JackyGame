@@ -75,3 +75,18 @@ describe('巢穴倒數字（第 175 輪）', () => {
     expect(lairCountText(100, 400, 90, 30)).toBe('0.0'); // Boss 正在出招、還沒回家的那幾幀不顯示負數
   });
 });
+
+describe('精英快脫戰的預告（第 177 輪）', () => {
+  it('離家七成以內不提醒；之後越遠越強，到脫戰距離是 1', async () => {
+    const { leashNear } = await import('../src/game/ui/tipText');
+    expect(leashNear(0, 1600)).toBe(0);
+    expect(leashNear(1100, 1600)).toBe(0);
+    const a = leashNear(1300, 1600);
+    const b = leashNear(1500, 1600);
+    expect(a).toBeGreaterThan(0);
+    expect(b).toBeGreaterThan(a);
+    expect(leashNear(1600, 1600)).toBe(1);
+    expect(leashNear(2400, 1600)).toBe(1); // 正在出招、還沒回家的那幾幀不超過 1
+    expect(leashNear(100, 0)).toBe(0);
+  });
+});

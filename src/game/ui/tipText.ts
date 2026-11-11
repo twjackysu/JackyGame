@@ -75,3 +75,13 @@ export function skipFirstIntro(o: { firstMap: boolean; returning: boolean; hintS
 export function lairCountText(outTick: number, nowTick: number, graceTicks: number, ticksPerSec: number): string {
   return (Math.max(0, outTick + graceTicks - nowTick) / ticksPerSec).toFixed(1);
 }
+
+/**
+ * 第 177 輪（D-373）：精英被拉離家多遠了——0＝還早、不用提醒；0～1＝快到脫戰距離（從 start 成起算，到脫戰距離是 1）。
+ * 以前把精英風箏到離家太遠，牠頭上只冒「脫戰」兩個小字就走回去回滿血，打掉的血全部白費，事前沒有任何預告。
+ */
+export function leashNear(distHome: number, chaseDist: number, start = 0.72): number {
+  if (chaseDist <= 0) return 0;
+  const r = distHome / chaseDist;
+  return r <= start ? 0 : Math.min(1, (r - start) / (1 - start));
+}

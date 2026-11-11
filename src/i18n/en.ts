@@ -52,6 +52,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   'fx.interrupt': 'Interrupted!',
   'lair.warn': 'You left the red ring! Get back within {s}s\nor {name} resets to full health',
   'lair.count': 'Back in the ring {s}',
+  'leash.near': 'Any farther and it resets',
+  'tip.leash': 'Elites dragged too far from home\ndisengage and heal to full',
   'codex.title': 'Unique Effects  {n}/{max}',
   'codex.sub': 'A few rare items carry one; active while equipped',
   'codex.item': 'Item name "{title}…"',

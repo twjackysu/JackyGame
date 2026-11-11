@@ -30,7 +30,7 @@ import { gearIcon } from '../fx/gearIcons';
 import { effectsOf, skillModsOf } from '../rtBag';
 import { BOT_PROFILES, PlayerBot, summarize } from '../../core/battle/rt/sim';
 import type { BattleCommand, BattleState, Shape, Telegraph, Unit } from '../../core/battle/rt/types';
-import { CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, aggroUnitsOf } from '../../core/battle/rt/types';
+import { AGGRO_RULES, CAMPFIRE_RULES, CHEST_RULES, ELITE_AFFIXES, TICKS_PER_SEC, UNIT, aggroUnitsOf } from '../../core/battle/rt/types';
 
 /** 精英詞綴顏色（D-113）：迅捷青、堅韌綠、狂暴紅 */
 /** 命中時會在地上長出荊棘的招式（第 23 輪） */
@@ -113,7 +113,7 @@ const RIVAL_BOX: DrawBox = { l: -64, t: -124, r: 46, b: 14 };
 const NPC_BOX: DrawBox = { l: -95, t: -106, r: 70, b: 24 };
 const NPC_CACHE_MAX = 4;
 const GATE_BOX: DrawBox = { l: -108, t: -196, r: 108, b: 40 };
-import { tipMs, wrapTip, zoneHintBreak, hintRepeats, skipFirstIntro, lairCountText } from '../ui/tipText';
+import { tipMs, wrapTip, zoneHintBreak, hintRepeats, skipFirstIntro, lairCountText, leashNear } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, pressBack, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
 import { fightKeep, hiddenEliteBannerY } from '../fx/bannerStack';
@@ -227,6 +227,7 @@ export class RtBattleScene extends Phaser.Scene {
   private leashToldAt = -1e9;
   private lairWarnAt = -1e9;
   private lairText: Phaser.GameObjects.Text | null = null;
+  private leashText: Phaser.GameObjects.Text | null = null;
   private gateShutToldAt = -1e9;
   /** 每個地區上次報名稱的時間（D-185：60 秒內不重報） */
   private zoneSeenAt = new Map<string, number>();
@@ -3473,6 +3474,8 @@ export class RtBattleScene extends Phaser.Scene {
         if (d && !ENEMIES[d.defId]?.boss && !this.bot) {
           const pl = playerOf(this.s);
           if (!pl.dead && (STAGES[this.stageId]?.campfires ?? []).some((c) => Math.hypot(pl.x - c.x, pl.y - c.y) <= CAMPFIRE_RULES.safeUnits * UNIT)) this.tipSoon('jg_tip_safezone', tr('tip.safezone'), '#ffd27a');
+          // 第 177 輪（D-373）：精英被拉離家太遠而脫戰 → 第一次發生時講清楚（之後靠頭上的預告字）
+          else if (!pl.dead && d.tier === 'elite' && d.homeX !== undefined && d.homeY !== undefined && leashNear(Math.hypot(d.x - d.homeX, d.y - d.homeY), AGGRO_RULES.elite.chase * UNIT) >= 0.8) this.tipSoon('jg_tip_leash', tr('tip.leash'), '#ffd0a8');
         }
         // 第 54 輪（D-185）：Boss 因為玩家跑出巢穴而回家 → 講清楚為什麼（8 秒內只講一次）
         if (d && ENEMIES[d.defId]?.boss && !this.bot && this.time.now > this.leashToldAt + 8000) {
@@ -4166,6 +4169,38 @@ export class RtBattleScene extends Phaser.Scene {
     if (!this.tracked || this.bot) return false;
     return this.cub.spawn(this.stageId, x, y, this.time.now);
   }
+  /**
+   * 第 177 輪（D-373）：精英快被拉到脫戰距離時的預告——牠頭上一行「再拉遠就脫戰回滿」，腳下一條通往牠家的虛線，越接近越亮。
+   * 以前風箏精英拉太遠，牠只冒「脫戰」兩個小字就回去回滿。只讀核心的位置與 AGGRO_RULES，不改任何規則；Boss 有自己的紅圈與倒數。
+   */
+  private drawLeashWarn(g: Phaser.GameObjects.Graphics, now: number): void {
+    let best: Unit | undefined;
+    let bv = 0;
+    if (!this.bot && !playerOf(this.s).dead) {
+      for (const e of enemiesOf(this.s)) {
+        if (e.tier !== 'elite' || e.mode !== 'combat' || e.homeX === undefined || e.homeY === undefined) continue;
+        const v = leashNear(Math.hypot(e.x - e.homeX, e.y - e.homeY), AGGRO_RULES.elite.chase * UNIT);
+        if (v > bv) { bv = v; best = e; }
+      }
+    }
+    if (!best) { this.leashText?.setVisible(false); return; }
+    const ex = this.sx(best.x);
+    const ey = this.sy(best.y);
+    const hx = this.sx(best.homeX!);
+    const hy = this.sy(best.homeY!);
+    const len = Math.hypot(hx - ex, hy - ey);
+    const pulse = 0.65 + 0.35 * Math.sin(now / 140);
+    // 通往家的虛線：只畫靠近精英的前 260px（家通常在畫面外），越遠越淡
+    const seg = 14;
+    const n = Math.min(Math.floor(len / seg), 18);
+    for (let i = 1; i < n; i += 2) {
+      const a = (0.6 + 0.4 * bv) * pulse * (1 - i / 30);
+      g.lineStyle(5, 0xffc890, a).lineBetween(ex + ((hx - ex) * i * seg) / len, ey + ((hy - ey) * i * seg) / len, ex + ((hx - ex) * (i + 1) * seg) / len, ey + ((hy - ey) * (i + 1) * seg) / len);
+    }
+    const t = (this.leashText ??= this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '900', color: '#ffd0a8', stroke: '#3a1a08', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(48));
+    t.setText(tr('leash.near')).setPosition(ex, ey - (best.r + 172) * this.k).setAlpha(0.75 + 0.25 * bv * pulse).setVisible(true);
+  }
+
   /** 第 175 輪：踏出巢穴紅圈後的倒數（主角頭上「回紅圈 2.4」）；回到圈內或 Boss 脫戰就收掉。數字讀核心的 lairOutTick，畫面不自己計時 */
   private drawLairCount(): void {
     const b = this.bot ? undefined : enemiesOf(this.s).find((e) => e.lairOutTick !== undefined && e.mode === 'combat' && ENEMIES[e.defId]?.boss);
@@ -4506,6 +4541,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.drawChoiceMark(g, now);
     this.drawBossRing(this.ringG.clear(), now);
+    this.drawLeashWarn(this.ringG, now);
     this.drawLairCount();
     this.drawGate(now);
     // 每幀共用同一個 view（不配置），只更新會變的縮放
