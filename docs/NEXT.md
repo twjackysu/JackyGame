@@ -17,6 +17,14 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 177 輪注意（大招閃光 D-372、精英脫戰預告 D-373）**：
+- **CI 未確認**：87e6d88、24c9d2e 兩次 run 這輪結束時都還在 `queued`（runner 沒開始跑）。下一輪開頭先看，紅了先修。本機 typecheck／lint／build／build:online／vitest 都過。
+- 位置：`fx/feel.ts` 的 `ultFlash`／`ultFlashPeak`；`RtBattleScene.drawLeashWarn`（畫在 `ringG`，和巢穴紅圈同一層）、`leash` 事件裡的 `jg_tip_leash`、`ui/tipText.ts` 的 `leashNear`、文字 `leash.near`／`tip.leash`。
+- **拍「某件事發生後的連續幾幀」**：`UNTIL='<js 條件>' node scripts/play.mjs staff emberrift tag 8 90`——不畫圖地走到條件成立（最多 90 秒），之後每張隔一幀。大招閃光的條件：`sc().children.list.some(o=>o.depth===47&&o.type==='Rectangle')`。
+- **把主角擺到 Boss 旁邊再讓他自己打**：`EVAL='(()=>{const s=sc().s;const p=s.units[0];const b=s.units.find(u=>u.tier==="boss"&&!u.dead);if(!window.tp&&b){p.x=b.x;p.y=b.y+130;window.tp=1}return b&&{hp:Math.round(b.hp/b.maxHp*100),atk:b.action&&b.action.id}})()' LEVEL=13 node scripts/play.mjs sword emberrift em 32 6`。這輪用它看了岩王（打到倒下）和守望者（到 20%），沒看到壞的。
+- 拍精英脫戰預告：同樣用 `EVAL` 把某隻精英的 `homeX／homeY` 改到 1300～1500 外（只是為了拍圖）。
+- 再來看 Jacky 的回覆；沒有就挑：①守望者最後 20%、暴怒版岩王／守望者的真實對戰 ②一般小怪風箏脫戰的預告（先量頻率）③法杖 A 雷暴的逐招截圖。
+
 **第 176 輪注意（主角／棘背狼／競技場的亮邊 D-371）**：
 - 位置：`src/game/fx/heroRim.ts`（`ensureRim` 做材質、`RIM_*`／`FOE_RIM_*` 常數）；`RtBattleScene.spriteFor` 建立、`draw` 裡每幀跟著立繪（存在 sprite 的 `rim`）、`killSprite` 先拿掉；`PvpScene` 同樣寫法。要讓別的怪也有：`SPRITE` 表加 `rim: 0x顏色`。
 - 同一瞬間的對照圖：`PAIR='<js>' node scripts/play.mjs …`——每張拍完跑那段 js 再拍一張 `-x`（這輪用它把 `rim` 藏起來重畫一次）；`DSF=2` 是兩倍解析度。**兩次分開跑的畫面不會一樣**（不是確定性的），不能拿來當前後對照。
