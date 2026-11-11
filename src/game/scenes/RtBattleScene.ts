@@ -109,7 +109,7 @@ const RIVAL_BOX: DrawBox = { l: -64, t: -124, r: 46, b: 14 };
 const NPC_BOX: DrawBox = { l: -95, t: -106, r: 70, b: 24 };
 const NPC_CACHE_MAX = 4;
 const GATE_BOX: DrawBox = { l: -108, t: -196, r: 108, b: 40 };
-import { tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../ui/tipText';
+import { tipMs, wrapTip, zoneHintBreak, hintRepeats, skipFirstIntro } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, pressBack, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
 import { fightKeep, hiddenEliteBannerY } from '../fx/bannerStack';
@@ -2145,6 +2145,14 @@ export class RtBattleScene extends Phaser.Scene {
       // D-230：從上次休息的營火出發時說一聲（不然以為存檔跑掉了）；已經三行以上就不加
       const intro = this.resumed && intro0.split('\n').length < 3 ? `${intro0}\n（從上次休息的營火出發）` : intro0;
       const nl = intro.split('\n').length; // 三行以上往上挪、四行字小一號（不壓到下方 MP 鍵）
+      // 第 169 輪（D-366）：全新玩家的第一張圖不出金色大字——目標字條亮一下代替，操作說明馬上出（以前要等 7.5 秒）
+      if (!this.bot && skipFirstIntro({ firstMap: this.stageId === WORLD_MAPS[0]!.id, returning: !!back, hintSeen: this.hintSeen(), extra: !!wait || this.resumed })) {
+        this.introStr = '';
+        this.tipBusy = false;
+        this.pulseGoal();
+        this.showHint();
+        return;
+      }
       this.introStr = intro;
       this.time.delayedCall(400, () => (this.introText = bigText(this, GAME_WIDTH / 2, 760 - Math.max(0, nl - 2) * 14, intro, '#ffd27a', nl >= 4 ? 28 : 30, tipMs(intro, 2600))).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
       this.time.delayedCall(6000, after);
@@ -2650,6 +2658,8 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 102 輪（D-250）：新存檔序章後的選武器面板開著時，地區名稱「— 南營地 —」已經跳出來（面板只是把它藏起來），
     // 選完武器幕名卡「第一幕　霧語森林」一出，兩組字疊在同一塊 → 面板開著時先不報，等幕名卡播完才報
     if (this.topCard?.active || this.menu?.active || this.time.now < this.chapterUntil) return;
+    // 第 169 輪（D-366）：新存檔開場改成操作說明先出 → 開場那一區的地名等說明框收掉再報（一次只讀一組字）
+    if (this.zoneName === null && this.hint?.active) return;
     // 第 92 輪（D-233）：打 Boss 時在巢穴邊跨區（霧語森林狼王巢穴就在兩區交界）→ 60 秒後又報一次「危險：狼群首領出沒…」，
     // 兩行紅字蓋在打鬥中間。Boss 已被打掉血＝正在打，玩家知道自己在哪，只記下這區、不報。
     if (this.bossEngaged() || this.eliteEngaged()) {
@@ -3035,12 +3045,31 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, items).setDepth(960);
   }
 
-  private showHint(): void {
+  private hintSeen(): boolean {
     try {
-      if (localStorage.getItem(HINT_KEY)) return;
+      return !!localStorage.getItem(HINT_KEY);
     } catch {
-      /* 無痕模式 */
+      return false; /* 無痕模式 */
     }
+  }
+
+  /** 目標字條亮一下（放大再縮回＋金色外框擴散兩次）：代替新存檔開場那兩行金色大字，把視線帶到頂端的目標 */
+  private pulseGoal(): void {
+    const g = this.goal;
+    if (!g) return;
+    this.time.delayedCall(350, () => {
+      if (!g.active || !g.visible || !g.text) return;
+      const b = g.getBounds();
+      this.tweens.add({ targets: g, scale: 1.28, duration: 260, ease: 'Back.Out', yoyo: true, hold: 900 });
+      for (let i = 0; i < 2; i++) {
+        const r = this.add.rectangle(b.centerX, b.centerY, b.width, b.height).setStrokeStyle(3, 0xffd27a, 0.95).setDepth(49).setAlpha(0);
+        this.tweens.add({ targets: r, alpha: { from: 0.95, to: 0 }, scaleX: 1.35, scaleY: 2.4, delay: 200 + i * 520, duration: 620, ease: 'Cubic.Out', onComplete: () => r.destroy() });
+      }
+    });
+  }
+
+  private showHint(): void {
+    if (this.hintSeen()) return;
     if (this.hint?.active) return;
     // 第 57 輪：星隕高原出生點就有記憶光點，記憶卡和說明框同時出現、說明框從卡片底下露出來 → 卡片收起再出
     if (this.topCard?.active) {
@@ -3051,9 +3080,9 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 168 輪：五欄全自動之後右下只剩閃避和藥水，舊的「右下：技能與閃避」是在教玩家找不存在的鍵 → 照現在實際的按鍵寫
     const lines = [tr(this.autoCount() >= 4 ? 'hint.moveAuto' : 'hint.move'), tr(this.autoCount() >= 4 ? 'hint.tapAuto' : 'hint.tap')];
     // 第 46 輪：以前 600 寬、置中在 y 300，蓋到左上小地圖右半與懸賞板第一行 → 窄一點、往右挪、往上挪（小地圖右緣約 120、懸賞板從 VIEW_TOP＋212 開始）
-    const bg = this.add.rectangle(0, 0, 500, 104, 0x000000, 0.72).setStrokeStyle(2, 0xffd27a, 0.8);
+    const bg = this.add.rectangle(0, 0, 476, 104, 0x000000, 0.72).setStrokeStyle(2, 0xffd27a, 0.8);
     const t = this.add.text(0, 0, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
-    this.hint = this.add.container(GAME_WIDTH / 2 + 50, 250, [bg, t]).setDepth(70);
+    this.hint = this.add.container(GAME_WIDTH / 2 + 38, 250, [bg, t]).setDepth(70);
     this.hintAt = this.time.now;
     this.time.delayedCall(6000, () => this.dismissHint());
   }

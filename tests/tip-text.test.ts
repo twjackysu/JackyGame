@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TIP_LINE_MAX, tipMs, wrapTip, zoneHintBreak, hintRepeats } from '../src/game/ui/tipText';
+import { TIP_LINE_MAX, tipMs, wrapTip, zoneHintBreak, hintRepeats, skipFirstIntro } from '../src/game/ui/tipText';
 import { makeEmberriftStage } from '../src/core/battle/rt/maps/emberrift';
 import { makeStarfallStage } from '../src/core/battle/rt/maps/starfall';
 import { makeThornvaleStage } from '../src/core/battle/rt/maps/thornvale';
@@ -50,5 +50,18 @@ describe('地區說明和開場大字重複（D-221）', () => {
   it('短於 5 字的巧合不算', () => {
     expect(hintRepeats('會噴發', '熔岩口會噴發')).toBe(false);
     expect(hintRepeats('', 'abc')).toBe(false);
+  });
+});
+
+describe('新存檔開場省掉金色大字（第 169 輪，D-366）', () => {
+  const base = { firstMap: true, returning: false, hintSeen: false, extra: false };
+  it('全新玩家第一次進第一張圖：省掉，操作說明先出', () => {
+    expect(skipFirstIntro(base)).toBe(true);
+  });
+  it('看過操作說明的人、老玩家的「歡迎回到」、其他地圖的危險說明、有附加訊息時照舊', () => {
+    expect(skipFirstIntro({ ...base, hintSeen: true })).toBe(false);
+    expect(skipFirstIntro({ ...base, returning: true })).toBe(false);
+    expect(skipFirstIntro({ ...base, firstMap: false })).toBe(false);
+    expect(skipFirstIntro({ ...base, extra: true })).toBe(false);
   });
 });

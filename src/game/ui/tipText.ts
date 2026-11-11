@@ -60,3 +60,13 @@ export function hintRepeats(hint: string, live: string, min = 5): boolean {
   for (let i = 0; i + min <= a.length; i++) if (b.includes(a.slice(i, i + min))) return true;
   return false;
 }
+
+/**
+ * 新存檔第一次進第一張圖，開場的金色大字可以省掉（第 169 輪，D-366）：
+ * 它的第一行和頂端的目標字條講同一件事、第二行（撿到裝備去換）第一次撿到裝備時會再教一次，
+ * 卻讓操作說明晚 4.5 秒才出，而且蓋在主角頭上（往北走遇到第一組狼時正好壓在打鬥上）。
+ * 只有「操作說明還沒看過」的全新玩家省：老玩家的「歡迎回到…」、其他地圖的危險說明（熔岩口、中毒、墜星）照舊。
+ */
+export function skipFirstIntro(o: { firstMap: boolean; returning: boolean; hintSeen: boolean; extra: boolean }): boolean {
+  return o.firstMap && !o.returning && !o.hintSeen && !o.extra;
+}
