@@ -17,9 +17,20 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 175 輪注意（巢穴脫戰規則 D-370、CI 冒煙測試重試）**：
+- CI：1a9b74a（含 6df00a2、633a30f）的 check／mssql 都 success（這輪結束前確認過）。6df00a2 那一次是紅的——我推之前沒把整套測試的結尾看完，`rt-bless` 有一項壞了，五分鐘後用 1a9b74a 修掉。**教訓：`npx vitest run 2>&1 | grep -E "Test Files|Tests "` 一定要看到「passed」那兩行才推**，不要只看前幾行的 ×。
+- CI 冒煙測試那一步（`ci.yml`）：`playwright install --with-deps` 失敗會重試三次，再不行只裝 chromium。上一輪 a625f4f 的紅燈就是 apt 解析不到 security.ubuntu.com。
+- 再來看 Jacky 的回覆；沒有就挑：①主角被大怪擋住時要不要加輪廓 ②精英（不是 Boss）的脫戰：`tooFar`／`bored` 兩條沒有預警，玩家看到的只有「脫戰」兩個字 ③繼續用真實對戰看岩王、守望者的招（這輪只跑了核心探針，沒有逐招看畫面）。
+- **Bot 的 Boss 脫戰次數不能當成玩家體驗**：Bot 216 場裡 Boss 脫戰 114 次（改前 127）。追了一場（燼紅、法杖、novice）：Bot 交戰中不會回營火，脫戰都是「Boss 走過來 → 風箏型 Bot 直線往後退 → 退出圈外 3 格以上待超過 3 秒」。Bot 不認得紅圈；真人看得到圈和倒數。想讓 campaign 的討伐時間更準，可以教 Bot 在圈邊改成繞圈（`sim.ts`，純 Bot 行為，不影響玩家），低優先。
+- **站著打的探針**（這輪的主要工具，沒進 git，寫法就是 `tests/rt-lair-shove.test.ts` 的 `standAndFight`）：`createBattle({ stageId, seed, level, weapon })` → 主角 `hp = maxHp = 1e8`、擺到 Boss 正下方 130 → `step(s, [])` 到 Boss 倒下或 10 分鐘，數 `leash` 事件。四張圖 × 三武器 × 30 種子 × 一般／暴怒（`setBossFury`）跑一次約 2.5 分鐘。等級用 8／14／20／26。**長劍的 `weapon` 要傳 `undefined`**（傳 `'sword'` 型別不過，行為也可能不同）。
+- 巢穴規則的位置：`engine.ts` 的 `LAIR_GRACE_TICKS`、`heldLair`（Boss 交戰中才回傳巢穴圈）、`shovedOut`、`separate` 裡的推擠、`step` 裡包住 `updatePlayer` 的那一段、`mapAi` 的 `lairOutTick`、衝鋒位移的 `lz`、`startEnemyAttack` 的瞬移落點。畫面：`RtBattleScene.drawLairCount`、`lairWarn` 事件、`ui/tipText.ts` 的 `lairCountText`、文字 `lair.warn`／`lair.count`。
+- 拍巢穴警告：`LEVEL=14 EVAL='(()=>{const s=sc().s,p=s.units[0],B=s.units.find(u=>u.tier==="boss"&&!u.dead);window.tp=(window.tp||0)+1;p.hp=p.maxHp=99999;if(window.tp===1){p.x=B.x;p.y=B.y+200}if(window.tp===12){sc().commands=()=>[{type:"move",dx:0,dy:1000}];p.x=B.homeX;p.y=B.homeY+1060}return B.lairOutTick})()' node scripts/play.mjs sword thornvale lair 15 0.7`，看第 13 張。
+- 之後新增 Boss 的位移招（撲、甩尾、瞬移）：位移後要留在 `bossZone` 圈內；落點要檢查障礙物（大隻的 Boss 被 `pushOutSolid` 推出去時可能推到牆的另一邊）。
+- 測試裡要一隻「睡著的怪」：不要拿 Boss（搬到巢穴外的 Boss 現在會留下來打 3 秒），挑小怪並設 `aggroUnits = 0.1`。
+
 **第 174 輪注意（衝鋒穿過玩家 D-368、大怪半透明 D-369）**：
-- **下一輪先做**：a625f4f 的 CI 是紅的——check job 最後一步冒煙測試在 `npx playwright install --with-deps chromium` 時 `apt` 解析不到 security.ubuntu.com（重跑一次一樣），前面的測試與 build 都過、本機冒煙測試過。用 GitHub MCP 的 `actions_run_trigger`（`rerun_failed_jobs`，run 43040869718）再重跑；還是不行就讓那一步重試幾次。
-- 再來看 Jacky 的回覆；沒有就挑：①用「不釘住主角」的真實對戰看荊棘狼后、岩王、守望者和幾隻精英（下面的 `EVAL`）②燼紅裂谷拿弓、完全不動兩分多鐘會被慢慢擠到巢穴外、Boss 回滿（1／48，todo 低；先查是誰在擠）③主角被大怪擋住時只是「看得到」，要不要加輪廓。
+- （第 175 輪已處理：`ci.yml` 加了重試）a625f4f 的 CI 是紅的——check job 最後一步冒煙測試在 `npx playwright install --with-deps chromium` 時 `apt` 解析不到 security.ubuntu.com（重跑一次一樣），前面的測試與 build 都過、本機冒煙測試過。用 GitHub MCP 的 `actions_run_trigger`（`rerun_failed_jobs`，run 43040869718）再重跑；還是不行就讓那一步重試幾次。
+- 再來看 Jacky 的回覆；沒有就挑：①用「不釘住主角」的真實對戰看荊棘狼后、岩王、守望者和幾隻精英（下面的 `EVAL`）②~~燼紅裂谷拿弓不動會被擠到巢穴外~~（第 175 輪 **verified**，D-370：是小怪的推擠＋Boss 自己衝出圈，`tests/rt-lair-shove.test.ts`）③主角被大怪擋住時只是「看得到」，要不要加輪廓。
 - 真實對戰的拍法：`LEVEL=14 EVAL='(()=>{const s=sc().s,p=s.units[0],B=s.units.find(u=>u.tier==="boss"&&!u.dead);if(!window.tp){window.tp=1;p.x=B.x;p.y=B.y+260}return [p.x,p.y,B.x,B.y,B.action?.id,B.mode,B.hp].join(" ")})()' node scripts/play.mjs sword mistwood 標籤 24 1`——每秒印雙方位置與 Boss 血量；**Boss 血量突然回滿＝脫戰重置**。`play.mjs` 沒有 `FURY=1`（只有 `shot-boss-attacks.mjs` 有）。
 - 衝鋒：`engine.ts` 的 `chargingThrough`（位移段不和玩家推擠）。之後新增會位移的敵人招式（撲、甩尾）都要想一下會不會把玩家帶出巢穴；「站著不動打 10 分鐘」的探針寫法在 `tests/rt-charge-through.test.ts` 第二項。
 - 半透明：`fx/occlude.ts`（`OCCLUDE_ALPHA`、`OCCLUDE_MIN_RATIO`），場景裡每隻怪的目前值存在 sprite 的 `occ`。拍對照：EVAL 裡 `sc().spriteFor(B).setAlpha(1)` 後 `R.preRender(); __game.scene.render(R); R.postRender()` 重畫一次。
