@@ -16,10 +16,10 @@ import { getSettings } from '../settings';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { UI_FONT, bigText, fadeOutThen, floatNumber, hitSparks, shockRing, sparks } from '../fx/feel';
+import { UI_FONT, bigText, dangerVignette, fadeOutThen, floatNumber, hitSparks, shockRing, sparks } from '../fx/feel';
 import { FieldFx } from '../fx/fieldFx';
 import { RangedFx } from '../fx/rangedFx';
-import { dodgeFeedback, hitLook } from '../fx/hitTint';
+import { dangerAlpha, dodgeFeedback, hitLook } from '../fx/hitTint';
 import { t as tr } from '../../i18n';
 import { InputSystem } from '../rt/InputSystem';
 import { buttonPos, loadControls } from '../rtControls';
@@ -126,6 +126,8 @@ export class PvpScene extends Phaser.Scene {
     this.oy = 150 + Math.round(TALL / 2);
     this.drawArena();
     this.g = this.add.graphics().setDepth(20);
+    this.danger = dangerVignette(this);
+    this.heroHitAt = -1e9;
     this.hud = this.add.graphics().setDepth(60);
     this.hudGhost = this.add.graphics().setDepth(59.42);
     this.discs = new DiscLayer(this, 59.5); // 按鈕底烤成貼圖（第 154 輪，同冒險地圖）
@@ -451,6 +453,11 @@ export class PvpScene extends Phaser.Scene {
     const g = this.g.clear();
     const now = this.time.now;
     const s = this.s;
+    if (this.danger) {
+      const me = s ? playerOf(s) : null;
+      const da = !s || !me || me.dead || s.outcome !== 'running' ? 0 : dangerAlpha(me.hp / Math.max(1, me.maxHp), now - this.heroHitAt, this.heroHitBig, now, getSettings().lowFx);
+      this.danger.setVisible(da > 0.01).setAlpha(da);
+    }
     // 招式的範圍閃一下（施放瞬間）、遠程普攻的彈道
     this.fx = this.fx.filter((f) => f.until > now);
     for (const f of this.fx) {
@@ -685,6 +692,10 @@ export class PvpScene extends Phaser.Scene {
   }
 
   private dodgedAt = -1e9;
+  /** 危險紅暈（第 171 輪，和冒險地圖同一套 dangerAlpha）：自己血量低／剛被打時畫面邊緣變紅 */
+  private danger: Phaser.GameObjects.Image | null = null;
+  private heroHitAt = -1e9;
+  private heroHitBig = false;
   private playEvents(): void {
     const ev = this.s.events;
     const now = this.time.now;
@@ -706,6 +717,12 @@ export class PvpScene extends Phaser.Scene {
         if (dst.id === me.id) {
           this.cameras.main.shake(e.crit ? 160 : 90, e.crit ? 0.01 : 0.004);
           SFX.hit();
+          // 競技場 HP 是三倍、傷害減半，一下很少超過 12%：暴擊或一次掉 8% 以上算重擊
+          const lost = e.amount - (e.absorbed ?? 0);
+          if (lost > 0 && e.origin !== 'dot') {
+            this.heroHitAt = now;
+            this.heroHitBig = !!e.crit || lost >= dst.maxHp * 0.08;
+          }
         } else (e.crit ? SFX.hitHeavy : SFX.hitLight)();
         // 命中回饋：火花朝被打飛的方向噴（顏色看元素／武器）、後仰、分級的傷害數字；持續傷害（中毒、灼燒）只跳小數字
         const dx = src ? dst.x - src.x : 0;
