@@ -70,3 +70,8 @@ export function hintRepeats(hint: string, live: string, min = 5): boolean {
 export function skipFirstIntro(o: { firstMap: boolean; returning: boolean; hintSeen: boolean; extra: boolean }): boolean {
   return o.firstMap && !o.returning && !o.hintSeen && !o.extra;
 }
+
+/** 第 175 輪：踏出巢穴紅圈後還剩幾秒（一位小數，不會是負的）。outTick＝核心記的踏出去那個 tick */
+export function lairCountText(outTick: number, nowTick: number, graceTicks: number, ticksPerSec: number): string {
+  return (Math.max(0, outTick + graceTicks - nowTick) / ticksPerSec).toFixed(1);
+}

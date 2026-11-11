@@ -278,6 +278,8 @@ export interface Unit {
   homeY?: number;
   /** 最後一次「在仇恨範圍內或有交手」的 tick */
   engagedTick?: number;
+  /** Boss：玩家踏出巢穴圈的那個 tick（回到圈內就清掉）；超過 LAIR_GRACE_TICKS 才脫戰 */
+  lairOutTick?: number;
 }
 
 export type AggroTier = 'normal' | 'elite' | 'boss';
@@ -371,6 +373,8 @@ export type BattleEvent =
   /** 地圖怪（D-072）：發現玩家進入戰鬥／脫戰返回／回到原位回滿 */
   | { tick: number; type: 'aggro'; id: number }
   | { tick: number; type: 'leash'; id: number }
+  /** Boss 交戰中玩家踏出巢穴圈：開始倒數（until 之前回到圈內就沒事，否則 Boss 回家回滿） */
+  | { tick: number; type: 'lairWarn'; id: number; until: number }
   | { tick: number; type: 'reset'; id: number }
   /** 蓄力中的怪被暈／凍住，這一招作廢（第 167 輪）；畫面演出用 */
   | { tick: number; type: 'interrupt'; id: number; attack: string }

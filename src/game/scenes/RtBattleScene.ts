@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 import { cdText, hudLine, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { activeHazards, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setEffects, setGearBonus, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
+import { activeHazards, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setEffects, setGearBonus, LAIR_GRACE_TICKS, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, UNIQUE_COLOR, UNIQUE_IDS, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { uniquePoolOf } from '../../core/battle/rt/loot';
 import { openCodexPanel } from '../ui/codexPanel';
@@ -112,7 +112,7 @@ const RIVAL_BOX: DrawBox = { l: -64, t: -124, r: 46, b: 14 };
 const NPC_BOX: DrawBox = { l: -95, t: -106, r: 70, b: 24 };
 const NPC_CACHE_MAX = 4;
 const GATE_BOX: DrawBox = { l: -108, t: -196, r: 108, b: 40 };
-import { tipMs, wrapTip, zoneHintBreak, hintRepeats, skipFirstIntro } from '../ui/tipText';
+import { tipMs, wrapTip, zoneHintBreak, hintRepeats, skipFirstIntro, lairCountText } from '../ui/tipText';
 import { APP_HIDDEN, clickBackButton, pressBack, setBackHandler } from '../backButton';
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
 import { fightKeep, hiddenEliteBannerY } from '../fx/bannerStack';
@@ -223,6 +223,8 @@ export class RtBattleScene extends Phaser.Scene {
   private k = 0.4;
   /** 上次說明「跑出巢穴 Boss 回滿」的時間（D-185） */
   private leashToldAt = -1e9;
+  private lairWarnAt = -1e9;
+  private lairText: Phaser.GameObjects.Text | null = null;
   private gateShutToldAt = -1e9;
   /** 每個地區上次報名稱的時間（D-185：60 秒內不重報） */
   private zoneSeenAt = new Map<string, number>();
@@ -607,6 +609,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.zoneSeenAt.clear();
     this.zoneHinted.clear();
     this.leashToldAt = -1e9;
+    this.lairWarnAt = -1e9;
+    this.lairText = null;
     this.gateShutToldAt = -1e9;
     this.gates = [];
     this.gateWaits = '';
@@ -3477,6 +3481,14 @@ export class RtBattleScene extends Phaser.Scene {
             bigText(this, GAME_WIDTH / 2, TIP_Y, `跑出巢穴的紅圈了——\n${ENEMIES[d.defId]?.name ?? 'Boss'}回巢穴回滿！`, '#ff9a7a', 30, 2200);
           }
         }
+      } else if (e.type === 'lairWarn') {
+        // 第 175 輪：踏出巢穴紅圈不再立刻脫戰，有幾秒可以走回來 → 當下講清楚（6 秒內只講一次；倒數字在 drawLairCount）
+        const d = u(e.id);
+        if (d && !this.bot && this.time.now > this.lairWarnAt + 6000) {
+          this.lairWarnAt = this.time.now;
+          bigText(this, GAME_WIDTH / 2, TIP_Y, tr('lair.warn', { s: Math.round(LAIR_GRACE_TICKS / TICKS_PER_SEC), name: ENEMIES[d.defId]?.name ?? 'Boss' }), '#ff9a7a', 28, 1800);
+          SFX.warn(true);
+        }
       } else if (e.type === 'interrupt') {
         // 第 167 輪：蓄力中的怪被暈／凍住 → 招式作廢。講出來，玩家才知道紅圈為什麼不見（也知道控場有用）
         const d = u(e.id);
@@ -4152,6 +4164,16 @@ export class RtBattleScene extends Phaser.Scene {
     if (!this.tracked || this.bot) return false;
     return this.cub.spawn(this.stageId, x, y, this.time.now);
   }
+  /** 第 175 輪：踏出巢穴紅圈後的倒數（主角頭上「回紅圈 2.4」）；回到圈內或 Boss 脫戰就收掉。數字讀核心的 lairOutTick，畫面不自己計時 */
+  private drawLairCount(): void {
+    const b = this.bot ? undefined : enemiesOf(this.s).find((e) => e.lairOutTick !== undefined && e.mode === 'combat' && ENEMIES[e.defId]?.boss);
+    const p = playerOf(this.s);
+    if (!b || p.dead) { this.lairText?.setVisible(false); return; }
+    const left = lairCountText(b.lairOutTick!, this.s.tick, LAIR_GRACE_TICKS, TICKS_PER_SEC);
+    const t = (this.lairText ??= this.add.text(0, 0, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffe0d0', stroke: '#7a1408', strokeThickness: 6 }).setOrigin(0.5, 1).setDepth(48));
+    t.setText(tr('lair.count', { s: left })).setPosition(this.sx(p.x), this.sy(p.y) - 205 * this.k).setVisible(true);
+  }
+
   /**
    * 巢穴邊界（第 54 輪，D-185）：Boss 交戰中、玩家走到巢穴外圈（> 55% 半徑）時，地上浮出紅色虛線圈，越靠近邊越亮。
    * 以前只有進巢穴那一刻的地區說明，打到一半被擊退或追小狼跑出去，Boss 就默默回家回滿，新玩家看不出為什麼。
@@ -4471,6 +4493,7 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.drawChoiceMark(g, now);
     this.drawBossRing(this.ringG.clear(), now);
+    this.drawLairCount();
     this.drawGate(now);
     // 每幀共用同一個 view（不配置），只更新會變的縮放
     const sv = (this.stormView ??= { lo: this.stormLo, hi: this.stormHi, k: this.k, viewTop: VIEW_TOP, sx: (x) => this.sx(x), sy: (y) => this.sy(y) });

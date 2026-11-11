@@ -65,3 +65,13 @@ describe('新存檔開場省掉金色大字（第 169 輪，D-366）', () => {
     expect(skipFirstIntro({ ...base, extra: true })).toBe(false);
   });
 });
+
+describe('巢穴倒數字（第 175 輪）', () => {
+  it('剩幾秒：一位小數、過了就停在 0.0', async () => {
+    const { lairCountText } = await import('../src/game/ui/tipText');
+    expect(lairCountText(100, 100, 90, 30)).toBe('3.0');
+    expect(lairCountText(100, 136, 90, 30)).toBe('1.8');
+    expect(lairCountText(100, 190, 90, 30)).toBe('0.0');
+    expect(lairCountText(100, 400, 90, 30)).toBe('0.0'); // Boss 正在出招、還沒回家的那幾幀不顯示負數
+  });
+});

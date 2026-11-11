@@ -1254,8 +1254,26 @@ function chargingThrough(s: BattleState, e: Unit): boolean {
   return !!atk?.charge && s.tick - (a.start + atk.warningTicks) < atk.charge.ticks;
 }
 
+/** 玩家踏出 Boss 巢穴圈後，多久沒回來才算脫戰（Boss 回家回滿血） */
+export const LAIR_GRACE_TICKS = 3 * TICKS_PER_SEC;
+
+/** 推擠前在巢穴圈內、推擠後到了圈外（用平方比，不開根號） */
+function shovedOut(z: { x: number; y: number; r: number }, x0: number, y0: number, u: Unit): boolean {
+  const r2 = z.r * z.r;
+  return (x0 - z.x) * (x0 - z.x) + (y0 - z.y) * (y0 - z.y) <= r2 && (u.x - z.x) * (u.x - z.x) + (u.y - z.y) * (u.y - z.y) > r2;
+}
+
+/** Boss 正在交戰中的巢穴圈（沒有 Boss、Boss 待機／回家中 → undefined）。這段期間「不是玩家自己走的位移」不會把人帶出圈外 */
+function heldLair(s: BattleState): { x: number; y: number; r: number } | undefined {
+  const z = STAGES[s.stageId]?.bossZone;
+  if (!z) return undefined;
+  for (const e of s.units) if (e.side === 'enemy' && !e.dead && e.mode === 'combat' && ENEMIES[e.defId]?.boss) return z;
+  return undefined;
+}
+
 function separate(s: BattleState): void {
   const alive = s.units.filter((x) => !x.dead && x.mode !== 'dormant');
+  const zone = heldLair(s);
   for (let i = 0; i < alive.length; i++) {
     for (let j = i + 1; j < alive.length; j++) {
       const a = alive[i]!;
@@ -1273,12 +1291,19 @@ function separate(s: BattleState): void {
       const heavyB = !!ENEMIES[b.defId]?.boss || ENEMIES[b.defId]?.speed === 0;
       const pa = heavyA ? 0 : heavyB ? 1 : 0.5;
       const pb = heavyB ? 0 : heavyA ? 1 : 0.5;
+      const ax = a.x; const ay = a.y; const bx = b.x; const by = b.y;
       a.x -= Math.round((nx / DIR) * overlap * pa);
       a.y -= Math.round((ny / DIR) * overlap * pa);
       b.x += Math.round((nx / DIR) * overlap * pb);
       b.y += Math.round((ny / DIR) * overlap * pb);
       clampArena(s, a);
       clampArena(s, b);
+      // 第 175 輪：怪不能把玩家「擠」出 Boss 巢穴。狼后叫出來的六七隻荊棘狼從同一邊圍上來，站著打的主角每秒被擠半格，
+      // 十幾秒就出了紅圈 → Boss 回家回滿血（tests/rt-lair-shove.test.ts）。只擋這一下推擠；玩家自己走、閃避出去照舊算脫戰。
+      if (zone && a.side !== b.side) {
+        if (a.side === 'player' && shovedOut(zone, ax, ay, a)) { a.x = ax; a.y = ay; }
+        if (b.side === 'player' && shovedOut(zone, bx, by, b)) { b.x = bx; b.y = by; }
+      }
     }
   }
 }
@@ -1697,6 +1722,7 @@ function aggro(s: BattleState, e: Unit): void {
   e.mode = 'combat';
   e.engagedTick = s.tick;
   e.aggroTick = s.tick;
+  delete e.lairOutTick;
   e.nextAttackTick = Math.max(e.nextAttackTick, s.tick + 15); // 發現後 0.5 秒才出手
   emit(s, { tick: s.tick, type: 'aggro', id: e.id });
   // 同伴連鎖：附近 3 單位內待機的一起醒（狼群）
@@ -1726,7 +1752,17 @@ function mapAi(s: BattleState, e: Unit, p: Unit): boolean {
   }
   // Boss 區域：玩家跑出去 → Boss 回家（回到原位時整場重置）
   const zone = STAGES[s.stageId]?.bossZone;
-  if (zone && ENEMIES[e.defId]?.boss && !e.action && dist(p.x, p.y, zone.x, zone.y) > zone.r) {
+  // 第 175 輪：踏出去不是立刻脫戰，有 LAIR_GRACE_TICKS 的時間走回來（閃招、風箏時很容易踩出去一兩步；以前踩出去那一刻
+  // Boss 剛好沒在出招就整場重來）。回到圈內就清掉倒數。
+  if (zone && ENEMIES[e.defId]?.boss) {
+    if (dist(p.x, p.y, zone.x, zone.y) <= zone.r) delete e.lairOutTick;
+    else if (e.lairOutTick === undefined) {
+      e.lairOutTick = s.tick;
+      emit(s, { tick: s.tick, type: 'lairWarn', id: e.id, until: s.tick + LAIR_GRACE_TICKS });
+    }
+  }
+  if (zone && ENEMIES[e.defId]?.boss && !e.action && e.lairOutTick !== undefined && s.tick - e.lairOutTick >= LAIR_GRACE_TICKS) {
+    delete e.lairOutTick;
     e.mode = 'returning';
     e.statuses = [];
     s.telegraphs = s.telegraphs.filter((t) => t.ownerId !== e.id);
@@ -1863,14 +1899,27 @@ function startEnemyAttack(s: BattleState, e: Unit, def: EnemyDefinition, atk: Ar
     // 霧中瞬移（D-105）：閃到玩家背後（玩家面向的反方向）；落點是樹就留在原地
     const fromX = e.x;
     const fromY = e.y;
-    const nx = p.x - Math.round((p.facingX / DIR) * atk.blink.behind);
-    const ny = p.y - Math.round((p.facingY / DIR) * atk.blink.behind);
+    let nx = p.x - Math.round((p.facingX / DIR) * atk.blink.behind);
+    let ny = p.y - Math.round((p.facingY / DIR) * atk.blink.behind);
+    // 第 175 輪：Boss 的落點不超出自己的巢穴圈（玩家貼著圈邊時，背後 2 格就在圈外）→ 沿半徑拉回圈上
+    const bz = def.boss ? STAGES[s.stageId]?.bossZone : undefined;
+    const bd = bz ? dist(nx, ny, bz.x, bz.y) : 0;
+    if (bz && bd > bz.r) {
+      nx = bz.x + Math.round(((nx - bz.x) * bz.r) / bd);
+      ny = bz.y + Math.round(((ny - bz.y) * bz.r) / bd);
+    }
     const solid = s.arena.solid;
     if (!solid || !isSolidAt(solid, nx, ny)) {
       e.x = nx;
       e.y = ny;
       clampArena(s, e);
-      emit(s, { tick: s.tick, type: 'blink', id: e.id, fromX, fromY });
+      // 第 175 輪：落點貼著樹／岩壁時，大隻的 Boss 會被「推出障礙物」推到牆的另一邊（暴怒狼王曾被推到 8 格外的樹牆後面，
+      // 走不回來、主角也過不去，站到脫戰回滿血）。落點被推走超過 1 格、或和玩家之間隔著障礙物 → 這次不瞬移，原地出招。
+      const g = gridOf(s.arena);
+      if (dist(e.x, e.y, nx, ny) > UNIT || (g && !clearLine(g, p.x, p.y, e.x, e.y, 0))) {
+        e.x = fromX;
+        e.y = fromY;
+      } else emit(s, { tick: s.tick, type: 'blink', id: e.id, fromX, fromY });
     }
   }
   face(e, p);
@@ -1959,9 +2008,17 @@ function updateEnemy(s: BattleState, e: Unit): void {
       const k = s.tick - hitTick;
       if (k < atk.charge.ticks) {
         const step = Math.round(atk.shape.len / atk.charge.ticks);
+        const cx0 = e.x; const cy0 = e.y;
         e.x += Math.round((a.dirX / DIR) * step);
         e.y += Math.round((a.dirY / DIR) * step);
         const wall = clampArena(s, e);
+        // 第 175 輪：Boss 的衝鋒不衝出自己的巢穴圈——以前狼后會衝到圈外 3 格，近戰玩家要打牠就得踏出紅圈（＝脫戰回滿血）。
+        // 衝到圈邊就停在那裡把招收完（不算撞牆、不暈）；已經在圈外時只准往裡面衝。
+        const lz = def.boss ? STAGES[s.stageId]?.bossZone : undefined;
+        if (lz) {
+          const d1 = dist(e.x, e.y, lz.x, lz.y);
+          if (d1 > lz.r && d1 > dist(cx0, cy0, lz.x, lz.y)) { e.x = cx0; e.y = cy0; }
+        }
         // 只打預告範圍內的人（預告出現時位置固定，不偷偷追蹤）
         if (!a.hitIds?.includes(p.id) && !p.dead && dist(e.x, e.y, p.x, p.y) <= e.r + p.r + 20 && inShape(atk.shape, a.ox, a.oy, a.dirX, a.dirY, p.x, p.y, p.r)) {
           a.hitIds = [...(a.hitIds ?? []), p.id];
@@ -2012,7 +2069,16 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
     const pick = autoPick(s, p);
     if (pick) startSkill(s, p, pick.id, pick.aim ?? currentTarget(s, p));
   }
-  for (const p of playersOf(s)) updatePlayer(s, p);
+  // 第 175 輪：Boss 戰中，自動追擊（沒推搖桿、沒點地、不是閃避）不會把主角帶出巢穴圈——Boss 衝鋒衝到圈外時，
+  // 近戰主角以前會自己追出去，Boss 就回家回滿血。玩家自己走出去照舊算脫戰。
+  const lair = heldLair(s);
+  for (const p of playersOf(s)) {
+    const x0 = p.x; const y0 = p.y;
+    updatePlayer(s, p);
+    if (!lair || (p.x === x0 && p.y === y0)) continue;
+    const ctl = ctlOf(s, p);
+    if (!ctl.manualMove && !ctl.moveGoal && p.action?.kind !== 'dodge' && shovedOut(lair, x0, y0, p)) { p.x = x0; p.y = y0; }
+  }
   for (const e of s.units) {
     if (e.side !== 'enemy' || e.dead) continue;
     if (e.mode === 'idle' || e.mode === 'dormant') updateDormancy(s, e, enemyTargetOf(s, e));
