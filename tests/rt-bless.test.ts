@@ -176,7 +176,9 @@ describe('燼火祝福核心（P2-a）', () => {
     const b = wolfAt(s, 230, 0, 1, 0);
     const c = wolfAt(s, 350, 0, 9999, 0);
     const p = playerOf(s);
-    const sleeper = s.units.find((u) => u.side === 'enemy' && !u.dead && u.mode !== 'combat')!;
+    // 第 175 輪：挑一隻不是 Boss 的（以前挑到狼王——被搬到巢穴外的 Boss 一醒就立刻脫戰所以沒事；現在踏出巢穴有 3 秒寬限，牠會留下來打）
+    const sleeper = s.units.find((u) => u.side === 'enemy' && !u.dead && u.mode !== 'combat' && u.tier !== 'boss')!;
+    sleeper.aggroUnits = 0.1; // 不會自己醒（這裡只看爆炸會不會炸醒牠）
     sleeper.x = p.x + 110;
     sleeper.y = p.y + 130;
     sleeper.homeX = sleeper.x;
