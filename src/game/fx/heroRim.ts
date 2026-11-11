@@ -6,12 +6,15 @@
  */
 import type Phaser from 'phaser';
 
-/** 亮邊的顏色：偏冷的白。暖色在燼紅裂谷會混進地面的熔岩紋，冷白在四張圖都跳得出來 */
-export const RIM_COLOR = '#e6f4ff';
+/** 主角亮邊的顏色：偏冷的白。暖色在燼紅裂谷會混進地面的熔岩紋，冷白在四張圖都跳得出來（材質本身是白的，顯示時染色） */
+export const RIM_COLOR = 0xe6f4ff;
 /** 亮邊在畫面上的寬度（遊戲座標 px；畫面 720 寬） */
 export const RIM_SCREEN_PX = 3;
 /** 亮邊的不透明度 */
 export const RIM_ALPHA = 0.75;
+/** 深色的怪也可以墊（棘背狼：橄欖綠站在深棕色地上）。比主角窄、比主角淡——畫面上最亮的那一圈永遠是主角 */
+export const FOE_RIM_SCREEN_PX = 2.5;
+export const FOE_RIM_ALPHA = 0.8;
 
 export interface RimLayout {
   /** 原圖四周各墊多少（原圖 px） */
@@ -42,9 +45,9 @@ export function rimKey(key: string): string {
 }
 
 /** 沒有就做一張亮邊材質（每個立繪只做一次）；做不出來（沒有 canvas）回傳 null，場景就不墊 */
-export function ensureRim(scene: Phaser.Scene, key: string, scale: number, originX: number, originY: number): RimLayout | null {
+export function ensureRim(scene: Phaser.Scene, key: string, scale: number, originX: number, originY: number, screenPx = RIM_SCREEN_PX): RimLayout | null {
   const src = scene.textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
-  const L = rimLayout(src.width, src.height, scale, originX, originY);
+  const L = rimLayout(src.width, src.height, scale, originX, originY, screenPx);
   const rk = rimKey(key);
   if (scene.textures.exists(rk)) return L;
   const tex = scene.textures.createCanvas(rk, L.w, L.h);
@@ -58,7 +61,7 @@ export function ensureRim(scene: Phaser.Scene, key: string, scale: number, origi
     }
   }
   ctx.globalCompositeOperation = 'source-in';
-  ctx.fillStyle = RIM_COLOR;
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, L.w, L.h);
   ctx.globalCompositeOperation = 'source-over';
   // 邊緣柔化：把自己模糊後再畫回去（不支援 ctx.filter 的瀏覽器就是硬邊，一樣看得到）
