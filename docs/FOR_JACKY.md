@@ -40,6 +40,10 @@
 - **踏出紅圈不再立刻重來**：現在有 **3 秒**可以走回去，頭上會倒數「回紅圈 2.4」並跳一行說明——圖 `docs/screenshots/lair-grace.jpg`。**請你實機打一場狼后**：3 秒夠不夠、倒數會不會煩；想改秒數跟我說（一個數字）。
 - 順帶：衝鋒現在會從你身上穿過去（174），Boss 衝到紅圈邊會停下來不衝出去（175）；站到大 Boss 北邊牠會變半透明（`docs/screenshots/boss-occlude-before-after.jpg`）。
 
+## 🟡 11/12 第 176 輪（想聽你的意見，不回就照這樣）
+- **主角多了一圈冷白的亮邊**：深藍大衣在深色地面上以前只看得到紅圍巾，現在一眼找得到——圖 `docs/screenshots/hero-rim-before-after.jpg`。荊棘谷的棘背狼也有一圈黃綠淡邊（`thorn-wolf-rim-before-after.jpg`）；競技場你是白邊、對手是紅邊（`pvp-rim-before-after.jpg`）。
+- **請你實機看**：會不會太像貼紙、太粗或太亮。沒有動你產的圖檔，是遊戲裡另外墊的，想調細／調淡／拿掉都是改一個數字。
+
 ## 🟡 11/11 第 173 輪（不用決定，順手看）
 - **燼狼變亮了**：你產的燼狼縮到遊戲裡的大小後，橘色裂紋糊掉、在深色地面上不太顯眼，我把裂紋加粗、加一圈暖光——圖 `docs/screenshots/ember-wolf-glow-before-after.jpg`。放大看比你的原圖「曝」一點，不喜歡跟我說，退回很快。
 - **站在你下方的精英／Boss 身上不再蓋一個橘色大箭頭**（技能鍵縮小後留下的舊規則）——圖 `docs/screenshots/arrow-visible-elite-before-after.jpg`。

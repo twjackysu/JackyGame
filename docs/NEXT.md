@@ -17,6 +17,12 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 176 輪注意（主角／棘背狼／競技場的亮邊 D-371）**：
+- 位置：`src/game/fx/heroRim.ts`（`ensureRim` 做材質、`RIM_*`／`FOE_RIM_*` 常數）；`RtBattleScene.spriteFor` 建立、`draw` 裡每幀跟著立繪（存在 sprite 的 `rim`）、`killSprite` 先拿掉；`PvpScene` 同樣寫法。要讓別的怪也有：`SPRITE` 表加 `rim: 0x顏色`。
+- 同一瞬間的對照圖：`PAIR='<js>' node scripts/play.mjs …`——每張拍完跑那段 js 再拍一張 `-x`（這輪用它把 `rim` 藏起來重畫一次）；`DSF=2` 是兩倍解析度。**兩次分開跑的畫面不會一樣**（不是確定性的），不能拿來當前後對照。
+- 截圖的同時不要跑整套 vitest：`rt-perf` 會因為搶 CPU 超時。
+- 再來看 Jacky 的回覆；沒有就挑：①劇情／提示的綠字壓在戰鬥上（`TIP_Y` 那一類以外、直接出現在主角上方的那種；荊棘谷「騾子甩了甩腿…」、燼紅「燼晶劃出一道光…」）②上一輪留下的：精英脫戰（`tooFar`／`bored`）沒有預警 ③用真實對戰逐招看岩王、守望者。
+
 **第 175 輪注意（巢穴脫戰規則 D-370、CI 冒煙測試重試）**：
 - CI：1a9b74a（含 6df00a2、633a30f）的 check／mssql 都 success（這輪結束前確認過）。6df00a2 那一次是紅的——我推之前沒把整套測試的結尾看完，`rt-bless` 有一項壞了，五分鐘後用 1a9b74a 修掉。**教訓：`npx vitest run 2>&1 | grep -E "Test Files|Tests "` 一定要看到「passed」那兩行才推**，不要只看前幾行的 ×。
 - CI 冒煙測試那一步（`ci.yml`）：`playwright install --with-deps` 失敗會重試三次，再不行只裝 chromium。上一輪 a625f4f 的紅燈就是 apt 解析不到 security.ubuntu.com。
