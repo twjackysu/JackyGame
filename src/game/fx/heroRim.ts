@@ -2,7 +2,7 @@
  * 主角的亮邊（第 176 輪，D-371）。
  * 主角立繪是全遊戲最暗的一張（深藍大衣、深棕頭髮，平均亮度約 65；霧狼 140、狼王 120），縮到 50px 高、站在燼紅裂谷／星隕高原的
  * 深色地面上，只剩一條紅圍巾看得到——玩家整場都在找自己。做法：開場用立繪的輪廓做一張「往外長一圈、邊緣柔化」的淡色剪影，
- * 墊在立繪後面跟著走。不改圖檔（大圖用在標題、角色面板時不該有邊），只在戰鬥場景用。純畫面，不影響任何判定。
+ * 墊在立繪後面跟著走。不改圖檔（大圖用在標題、角色面板時不該有邊），只在戰鬥場景（冒險地圖、競技場）用。純畫面，不影響任何判定。
  */
 import type Phaser from 'phaser';
 
@@ -40,16 +40,17 @@ export function rimLayout(w: number, h: number, scale: number, originX: number, 
   return { pad, grow, w: W, h: H, originX: (pad + w * originX) / W, originY: (pad + h * originY) / H };
 }
 
-export function rimKey(key: string): string {
-  return key + '__rim';
+/** 材質名帶著長出去的寬度：同一張立繪在不同場景縮放不同（冒險地圖、競技場），各做各的，墊邊與 origin 才對得上 */
+export function rimKey(key: string, grow: number): string {
+  return `${key}__rim${grow}`;
 }
 
 /** 沒有就做一張亮邊材質（每個立繪只做一次）；做不出來（沒有 canvas）回傳 null，場景就不墊 */
-export function ensureRim(scene: Phaser.Scene, key: string, scale: number, originX: number, originY: number, screenPx = RIM_SCREEN_PX): RimLayout | null {
+export function ensureRim(scene: Phaser.Scene, key: string, scale: number, originX: number, originY: number, screenPx = RIM_SCREEN_PX): (RimLayout & { key: string }) | null {
   const src = scene.textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
   const L = rimLayout(src.width, src.height, scale, originX, originY, screenPx);
-  const rk = rimKey(key);
-  if (scene.textures.exists(rk)) return L;
+  const rk = rimKey(key, L.grow);
+  if (scene.textures.exists(rk)) return { ...L, key: rk };
   const tex = scene.textures.createCanvas(rk, L.w, L.h);
   if (!tex) return null;
   const ctx = tex.getContext();
@@ -81,5 +82,5 @@ export function ensureRim(scene: Phaser.Scene, key: string, scale: number, origi
     }
   }
   tex.refresh();
-  return L;
+  return { ...L, key: rk };
 }

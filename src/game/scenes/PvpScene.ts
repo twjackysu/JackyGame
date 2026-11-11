@@ -24,6 +24,7 @@ import { t as tr } from '../../i18n';
 import { InputSystem } from '../rt/InputSystem';
 import { buttonPos, loadControls } from '../rtControls';
 import { pvpOps, type PvpOpen, type PvpResult } from '../pvpOps';
+import { ensureRim, RIM_ALPHA, RIM_COLOR } from '../fx/heroRim';
 import { heroKey, WEAPON_NAME } from '../weapon';
 import { agoText, recentLook, seasonLines, streakLine } from '../pvpRecent';
 import type { PvpRecentView } from '../../net/views';
@@ -312,6 +313,13 @@ export class PvpScene extends Phaser.Scene {
       sp.setData('base', sp.scaleX);
       if (u.pid) sp.setTint(0xffa8a0);
       this.sprites.set(u.id, sp);
+      // 立繪後面墊一圈亮邊（fx/heroRim，D-371）：深色大衣在深色石板上找得到；自己冷白、對手紅
+      const L = ensureRim(this, sp.texture.key, sp.scaleX, 0.5, 0.92);
+      if (L) {
+        const rim = this.add.image(0, 0, L.key).setOrigin(L.originX, L.originY).setAlpha(0).setTint(u.pid ? 0xff8a80 : RIM_COLOR);
+        sp.setData('rim', rim);
+        sp.once('destroy', () => rim.destroy());
+      }
       this.names.push(this.add.text(0, 0, u.pid ? o.foeName : '你', { fontFamily: UI_FONT, fontSize: '22px', color: u.pid ? '#ffb0a8' : '#bfe0ff', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5).setDepth(40));
     }
     this.makeButtons();
@@ -482,6 +490,7 @@ export class PvpScene extends Phaser.Scene {
       const nm = this.names[i]!;
       if (u.dead) {
         sp.setAlpha(Math.max(0, sp.alpha - 0.03)).setAngle(u.pid ? -80 : 80);
+        (sp.getData('rim') as Phaser.GameObjects.Image | undefined)?.setVisible(false);
         nm.setVisible(false);
         return;
       }
@@ -513,6 +522,7 @@ export class PvpScene extends Phaser.Scene {
       if ((this.flashUntil.get(u.id) ?? 0) > now) sp.setTintFill(0xffffff);
       else if (u.pid) sp.setTint(0xffa8a0);
       else sp.clearTint();
+      (sp.getData('rim') as Phaser.GameObjects.Image | undefined)?.setPosition(sp.x, sp.y).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setAngle(sp.angle).setDepth(sp.depth - 0.01).setAlpha(sp.alpha * RIM_ALPHA).setVisible(true);
       const top = sp.y - sp.displayHeight * 0.95;
       // 頭上血條
       const bw = 70;

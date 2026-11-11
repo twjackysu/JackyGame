@@ -75,7 +75,7 @@ import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, 
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
-import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, rimKey, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
+import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
 import { coversHero, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
@@ -4379,7 +4379,7 @@ export class RtBattleScene extends Phaser.Scene {
         const foe = x.side !== 'player';
         const L = ensureRim(this, key, sp.scaleX, 0.5, 0.92, foe ? FOE_RIM_SCREEN_PX : RIM_SCREEN_PX);
         if (L) {
-          const rim = this.add.image(0, 0, rimKey(key)).setOrigin(L.originX, L.originY).setAlpha(0).setTint(foe ? cfg.rim! : RIM_COLOR);
+          const rim = this.add.image(0, 0, L.key).setOrigin(L.originX, L.originY).setAlpha(0).setTint(foe ? cfg.rim! : RIM_COLOR);
           sp.setData('rim', rim);
           sp.once('destroy', () => rim.destroy());
         }
