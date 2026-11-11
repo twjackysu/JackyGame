@@ -49,7 +49,14 @@ jobs:
         run: az bicep build --file infra/main.bicep --stdout > /dev/null
       - name: Smoke test (headless Chromium, fail on runtime errors)
         run: |
-          npx playwright install --with-deps chromium
+          # 第 175 輪：apt 偶爾解析不到 security.ubuntu.com（基礎設施），重試三次；
+          # 還是不行就只裝瀏覽器本體（runner 映像通常已有相依套件），真的起不來下面的截圖會失敗。
+          ok=0
+          for i in 1 2 3; do
+            if npx playwright install --with-deps chromium; then ok=1; break; fi
+            echo "playwright install --with-deps 失敗（第 $i 次），20 秒後重試"; sleep 20
+          done
+          if [ "$ok" != 1 ]; then echo "::warning::apt 裝相依套件失敗，改成只裝 chromium"; npx playwright install chromium; fi
           npx vite preview --port 4173 --strictPort &
           for i in $(seq 1 30); do curl -sf http://localhost:4173/ >/dev/null && break; sleep 1; done
           SMOKE_STRICT=1 node scripts/screenshot.mjs 'http://localhost:4173/?skipIntro' screenshots/title.png 4000
