@@ -2,13 +2,13 @@
 // 用法：node scripts/play.mjs sword|bow|staff [地圖] [tag] [張數] [每張間隔秒] [W H]
 // 主角：走向最近的活怪、進射程就停（技能五欄自動）、血量 35% 以下喝水、祝福一律選第一張；不閃避。
 // 快轉時不畫圖（只有截圖前三幀才畫），所以很快；主角直線走向怪，會卡在樹牆後面，拍前幾分鐘夠用。
-// 環境變數 NIGHT=1、LOWFX=1、EVAL='js'（每張截圖前在頁面裡跑、印出結果）、LEVEL=n（存檔等級）、HP=0.3（把血量上限壓成幾成，看低血畫面）。輸出 screenshots/play-<tag>-<n>.png
+// 環境變數 NIGHT=1、LOWFX=1、EVAL='js'（每張截圖前在頁面裡跑、印出結果）、LEVEL=n（存檔等級）、HP=0.3（把血量上限壓成幾成，看低血畫面）、DSF=2（兩倍解析度，看小東西的細節）、PAIR='js'（每張拍完跑這段再拍一張 -x：同一瞬間的對照圖，例如把某個東西藏起來）。輸出 screenshots/play-<tag>-<n>.png
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots', { recursive: true });
 const [weapon = 'sword', stage = 'mistwood', tag = 'new', N = '8', GAP = '8', W = '390', H = '844'] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const pg = await b.newPage({ viewport: { width: +W, height: +H } });
+const pg = await b.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: +(process.env.DSF || 1) });
 pg.on('pageerror', (e) => console.log('PAGEERR', e.message));
 await pg.goto('http://localhost:5173/?debug');
 await pg.evaluate(([w, stage, night, low, level]) => {
@@ -71,6 +71,7 @@ for (let k = 0; k < +N; k++) {
   console.log(k, JSON.stringify(st));
   if (process.env.EVAL) console.log('  eval', JSON.stringify(await pg.evaluate(process.env.EVAL)));
   await pg.screenshot({ path: `screenshots/play-${tag}-${si ? stages[si] + '-' : ''}${k}.png`, timeout: 90000 });
+  if (process.env.PAIR) { await pg.evaluate(process.env.PAIR); await pg.screenshot({ path: `screenshots/play-${tag}-${si ? stages[si] + '-' : ''}${k}-x.png`, timeout: 90000 }); }
 }
 }
 await b.close();

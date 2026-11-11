@@ -75,6 +75,7 @@ import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, 
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
+import { ensureRim, rimKey, RIM_ALPHA } from '../fx/heroRim';
 import { coversHero, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
@@ -4371,6 +4372,15 @@ export class RtBattleScene extends Phaser.Scene {
       sp.setData('base', sp.scaleX);
       if (cfg.tint) sp.setTint(cfg.tint);
       this.sprites.set(x.id, sp);
+      if (x.side === 'player') {
+        // 主角墊一圈冷白亮邊（fx/heroRim，D-371）：深色大衣在深色地面上找得到人
+        const L = ensureRim(this, key, sp.scaleX, 0.5, 0.92);
+        if (L) {
+          const rim = this.add.image(0, 0, rimKey(key)).setOrigin(L.originX, L.originY).setAlpha(0);
+          sp.setData('rim', rim);
+          sp.once('destroy', () => rim.destroy());
+        }
+      }
       // 出場：從地面長出來
       const base = sp.scaleX;
       sp.setScale(base * 0.2);
@@ -4692,6 +4702,10 @@ export class RtBattleScene extends Phaser.Scene {
         else if (x.fury) sp.setTint(Math.floor(now / 500) % 2 ? 0xff6050 : 0xff8a70); // 暴怒版：紅色脈動
         else if (cfg.tint) sp.setTint(cfg.tint);
         else sp.clearTint();
+        if (isP) {
+          const rim = sp.getData('rim') as Phaser.GameObjects.Image | undefined;
+          rim?.setPosition(sp.x, sp.y).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setAngle(sp.angle).setDepth(sp.depth - 0.01).setAlpha(x.dead ? 0 : sp.alpha * RIM_ALPHA).setVisible(sp.visible);
+        }
         headY = sp.y - sp.displayHeight * 0.92;
         if (FLAME_MANE.has(x.defId) && cfg.key === 'enemy_mist_wolf' && !x.dead) {
           // 燼紅裂谷的狼（D-125）：背上搖曳的火焰鬃毛（染色立繪的程式加料，純畫面）
