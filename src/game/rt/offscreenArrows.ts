@@ -109,6 +109,8 @@ export class OffscreenArrows {
           }
         }
       }
+      // 第 173 輪：被地區名往下讓之後又落在懸賞板上（燼紅裂谷「— 黑曜長廊 —」兩行字＋小地圖右邊的 Boss 箭頭：箭頭被板子蓋掉一半）→ 再挪到板子右邊
+      if (bb && cx < bb.right + M && cy > bb.top - M && cy < bb.bottom + M) cx = bb.right + M;
       // 右上角的祝福火苗與圖示（第 171 輪）：箭頭挪到那一組下面
       const bh = this.h.blessHud();
       const cyB = Math.min(yMax, belowBlessHud(cx, cy, bh, elite ? 34 : 22));
