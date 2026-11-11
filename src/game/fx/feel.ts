@@ -249,6 +249,32 @@ export function softFlash(scene: Phaser.Scene, color: number, ms = 160, peak = 0
   scene.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => r.destroy() });
 }
 
+/**
+ * 危險紅暈的圖（第 170 輪）：中間透明、越靠邊越紅的一張貼圖，拉成整個畫面；不透明度由場景每幀照 `dangerAlpha` 設。
+ * 深度 46＝蓋在場地與特效上、壓在 HUD 與按鍵（50 以上）下面，不會把血條、按鍵、大字染紅。
+ */
+export function dangerVignette(scene: Phaser.Scene): Phaser.GameObjects.Image {
+  const key = 'fx_danger_vignette';
+  if (!scene.textures.exists(key)) {
+    const S = 256;
+    const tex = scene.textures.createCanvas(key, S, S);
+    if (tex) {
+      const ctx = tex.getContext();
+      const gr = ctx.createRadialGradient(S / 2, S / 2, S * 0.3, S / 2, S / 2, S * 0.72);
+      gr.addColorStop(0, 'rgba(220,20,36,0)');
+      gr.addColorStop(0.45, 'rgba(220,20,36,0.22)');
+      gr.addColorStop(0.8, 'rgba(200,12,30,0.75)');
+      gr.addColorStop(1, 'rgba(170,6,24,1)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(0, 0, S, S);
+      tex.refresh();
+    }
+  }
+  const w = scene.scale.width;
+  const h = scene.scale.height;
+  return scene.add.image(w / 2, h / 2, key).setDisplaySize(w, h).setScrollFactor(0).setDepth(46).setAlpha(0).setVisible(false);
+}
+
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */
 export function bigText(
   scene: Phaser.Scene, x: number, y: number, text: string, color: string, size = 72, hold = 450,

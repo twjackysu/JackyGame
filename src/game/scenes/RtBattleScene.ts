@@ -71,9 +71,9 @@ import { characterCache } from '../../client/characterCache';
 import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard';
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { TITLE_FONT, UI_FONT, bannerBusy, bigText, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
-import { bowLineLook, dodgeFeedback, enemyImpact, hitLook, skillBadge } from '../fx/hitTint';
+import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
@@ -425,6 +425,10 @@ export class RtBattleScene extends Phaser.Scene {
   private veteran = false;
   /** 第 97 輪（D-242）：這次「血不到一半、不在營火」從什麼時候開始（老玩家「打不過就退回營火」只講 8 秒） */
   private lowHpAt = 0;
+  /** 危險紅暈（第 170 輪）：血量低／剛被打時畫面邊緣變紅；規則在 fx/hitTint.ts 的 dangerAlpha */
+  private danger!: Phaser.GameObjects.Image;
+  private heroHitAt = -1e9;
+  private heroHitBig = false;
   private lowTipAt = -Infinity;
   private dustBase = 0;
   private goalAt = 0;
@@ -673,6 +677,8 @@ export class RtBattleScene extends Phaser.Scene {
     this.g = this.add.graphics();
     this.frostG = this.add.graphics().setDepth(9); // 霜旋的冰晶（在單位底下、地面之上）
     this.top = this.add.graphics().setDepth(45);
+    this.danger = dangerVignette(this);
+    this.heroHitAt = -1e9;
     // 劍刃風暴持續的旋風（第 70 輪，D-202）：地上光圈在單位底下、刀刃與氣流在單位之上（ADD）
     this.stormLo = this.add.graphics().setDepth(9.6).setBlendMode(Phaser.BlendModes.ADD);
     this.stormHi = this.add.graphics().setDepth(41).setBlendMode(Phaser.BlendModes.ADD);
@@ -3367,6 +3373,10 @@ export class RtBattleScene extends Phaser.Scene {
           this.cameras.main.shake(90, 0.004);
           // Android／部分瀏覽器支援震動；iOS Safari 不支援就略過
           if (e.amount > (e.absorbed ?? 0)) this.buzz(e.amount >= d.maxHp * 0.12 ? 60 : 25);
+          if (e.amount > (e.absorbed ?? 0) && e.origin !== 'dot' && d.id === playerOf(this.s).id) {
+            this.heroHitAt = this.time.now;
+            this.heroHitBig = e.amount - (e.absorbed ?? 0) >= d.maxHp * 0.12;
+          }
         }
       } else if (e.type === 'potion') {
         const p = playerOf(this.s);
@@ -4970,6 +4980,11 @@ export class RtBattleScene extends Phaser.Scene {
           }
         }
       }
+    }
+    {
+      const me = playerOf(s);
+      const da = me.dead ? 0 : dangerAlpha(me.hp / Math.max(1, me.maxHp), this.time.now - this.heroHitAt, this.heroHitBig, this.time.now, getSettings().lowFx);
+      this.danger.setVisible(da > 0.01).setAlpha(da);
     }
     this.offArrows.draw(top);
     this.drawUi();

@@ -109,3 +109,18 @@ export function dodgeFeedback(sinceLastMs: number, boss: boolean, lowFx = false)
   if (sinceLastMs < 500) return { big: false, stopMs: 0, ring: 0, flash: false };
   return boss ? { big: true, stopMs: 110, ring: 170, flash: !lowFx } : { big: true, stopMs: 60, ring: 120, flash: false };
 }
+
+/**
+ * 主角有危險時畫面邊緣的紅暈（第 170 輪）。技能全自動之後玩家只管走位、閃避、喝水，眼睛在畫面中間的主角身上、不在頂端的血條——
+ * 「我快死了」和「我剛剛被打了」要在不看血條的情況下也感覺得到。回傳紅暈的不透明度（0＝不畫）：
+ * - 血量低於 40% 就出現（一出現就看得到，不是從 0 慢慢淡入——截圖試過，淡入的前半段根本看不出來），越低越濃（12% 以下最濃）；低於 20% 會慢慢一明一暗（省電畫質不閃，但照樣畫——這是玩法資訊）。
+ * - 剛被打（真的掉血）的 0.38 秒內多一下，一次掉超過 12% 血的重擊更濃。
+ * 純畫面：只讀血量與事件，不影響戰鬥。
+ */
+export function dangerAlpha(hpPct: number, sinceHitMs: number, hitBig: boolean, nowMs: number, lowFx = false): number {
+  if (hpPct <= 0) return 0;
+  const low = hpPct >= 0.4 ? 0 : 0.28 + 0.72 * Math.min(1, (0.4 - hpPct) / 0.28);
+  const pulse = hpPct < 0.2 && !lowFx ? 0.82 + 0.18 * Math.sin(nowMs / 160) : 1;
+  const hit = sinceHitMs >= 0 && sinceHitMs < 380 ? (hitBig ? 0.5 : 0.26) * (1 - sinceHitMs / 380) : 0;
+  return Math.min(0.85, low * 0.6 * pulse + hit);
+}
