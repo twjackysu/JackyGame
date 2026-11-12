@@ -928,6 +928,12 @@ export function activeHazards(s: Pick<BattleState, 'stageId' | 'night'>): StageH
   return hz.filter((h) => !h.nightOnly || s.night).map((h) => (s.night && h.nightR ? { ...h, r: h.nightR } : h));
 }
 
+/** 這個單位現在是不是站在生效中的地形危害裡（畫面的字條也用這個） */
+export function inHazard(s: BattleState, p: Pick<Unit, 'x' | 'y'>): boolean {
+  if (!STAGES[s.stageId]?.hazards?.length) return false;
+  return activeHazards(s).some((z) => dist(p.x, p.y, z.x, z.y) <= z.r);
+}
+
 function processHazards(s: BattleState): void {
   if (!STAGES[s.stageId]?.hazards?.length || s.tick % TICKS_PER_SEC !== 0) return;
   const hz = activeHazards(s);
@@ -2116,7 +2122,7 @@ export function step(s: BattleState, cmds: readonly BattleCommand[] = []): void 
   else if (s.tick >= s.timeLimitTicks) s.outcome = 'timeout';
 }
 
-/** 自然恢復（D-073）：只在開 regen（預設＝mapAi）的關卡；沒有戰鬥中的怪、且 5 秒沒受傷也沒出手 → 每秒回 2% */
+/** 自然恢復（D-073）：只在開 regen（預設＝mapAi）的關卡；沒有戰鬥中的怪、且 5 秒沒受傷也沒出手 → 每秒回 2%；站在地形危害（毒沼）裡不回 */
 const REGEN = { afterTicks: 5 * TICKS_PER_SEC, everyTicks: TICKS_PER_SEC, pct: 2 };
 function naturalRegen(s: BattleState, p: Unit): void {
   const st = STAGES[s.stageId];
@@ -2124,6 +2130,7 @@ function naturalRegen(s: BattleState, p: Unit): void {
   const last = ctlOf(s, p).lastCombatTick ?? 0;
   if (s.tick - last < REGEN.afterTicks) return;
   if (s.units.some((e) => e.side === 'enemy' && !e.dead && e.mode === 'combat')) return;
+  if (inHazard(s, p)) return; // 第 183 輪：站在毒沼裡不算「休息」（以前中毒扣血和 +2% 同時跳）
   if ((s.tick - last) % REGEN.everyTicks !== 0) return;
   const heal = Math.min(p.maxHp - p.hp, Math.max(1, Math.round((p.maxHp * REGEN.pct) / 100)));
   p.hp += heal;

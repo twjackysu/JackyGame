@@ -79,7 +79,7 @@ export class PvpScene extends Phaser.Scene {
     hitStop: () => undefined, // 競技場不頓幀（頓幀會停住模擬的時鐘，兩邊同時在動不適合）
     viewTop: 110,
     slash: (x, y, ang, r, deg, color, width) => this.ffx.slash(x, y, ang, r, deg, color, width),
-    starImpact: (vx, vy, r) => this.ffx.starImpact(vx, vy, r),
+    starImpact: (vx, vy, r, tone) => this.ffx.starImpact(vx, vy, r, tone),
     fallingStar: (g, vx, vy, f) => this.ffx.fallingStar(g, vx, vy, f),
     spawnFrost: (x, y, r) => this.frost(x, y, r),
   });

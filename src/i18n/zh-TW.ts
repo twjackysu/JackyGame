@@ -48,6 +48,7 @@ export const zhTW = {
   'shop.uniqueConfirm': '確定賣掉★獨特？',
   'tip.safezone': '營火的光圈裡很安全：怪不會追進來，\n但站在裡面也打不到牠——走出光圈再打',
   'fx.interrupt': '打斷！',
+  'calm.swamp': '站在毒沼裡會一直中毒・快走出去',
   'lair.warn': '踏出紅圈了！{s} 秒內走回去\n不然{name}會回巢穴回滿血',
   'lair.count': '回紅圈 {s}',
   'leash.near': '再拉遠就脫戰回滿',

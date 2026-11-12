@@ -18,7 +18,7 @@ export interface RangedFxHost {
   /** 可視範圍的上緣（HUD 底下） */
   viewTop: number;
   slash(x: number, y: number, ang: number, r: number, deg: number, color: number, width: number): void;
-  starImpact(vx: number, vy: number, r: number): void;
+  starImpact(vx: number, vy: number, r: number, tone?: 'star' | 'fire'): void;
   fallingStar(g: Phaser.GameObjects.Graphics, vx: number, vy: number, f: number): void;
   spawnFrost(x: number, y: number, r: number): void;
 }
@@ -255,8 +255,8 @@ export class RangedFx {
     const R = hs.r * this.h.k();
     if (ult && single) {
       // 隕星術：夜空砸下一顆大隕星（星落的光柱＋墜星落地）
-      this.starfall(x, y, hs.r);
-      this.h.starImpact(vx, vy, R);
+      this.starfall(x, y, hs.r, true);
+      this.h.starImpact(vx, vy, R, 'fire');
       // 落點留下燃燒的隕石坑 2.5 秒（純畫面）
       const cr = this.sc.add.graphics().setDepth(5).setPosition(vx, vy);
       cr.fillStyle(0x1a0c06, 0.55).fillEllipse(0, 0, R * 1.5, R * 0.9);
@@ -670,18 +670,20 @@ export class RangedFx {
   }
 
   /** 星落一閃（D-112）：天上落下的光柱＋落地衝擊環 */
-  starfall(x: number, y: number, r: number): void {
+  starfall(x: number, y: number, r: number, fire = false): void {
+    // 第 183 輪：隕星術的光柱跟著火的橘紅（以前和其他大招一樣是粉紅色，落地卻是橘色的火）
+    const c = fire ? { wide: 0xff7a2a, core: 0xffe6c0, spark: 0xffd0a0 } : { wide: 0xff7ad0, core: 0xffe0f6, spark: 0xffd0f0 };
     const px = this.h.sx(x);
     const py = this.h.sy(y);
     const g = this.sc.add.graphics().setDepth(695).setBlendMode(Phaser.BlendModes.ADD);
     // 第 53 輪（D-184）：光柱從畫面上緣的 HUD 底下開始（以前一路畫到頂，把地圖名稱和 HP／MP 那行洗成一片白）
     const top = Math.max(this.h.viewTop, py - 900);
     const H = Math.max(0, py - top);
-    g.fillStyle(0xff7ad0, 0.35).fillRect(px - 46, top, 92, H);
-    g.fillStyle(0xffe0f6, 0.8).fillRect(px - 14, top, 28, H);
+    g.fillStyle(c.wide, 0.35).fillRect(px - 46, top, 92, H);
+    g.fillStyle(c.core, 0.8).fillRect(px - 14, top, 28, H);
     this.sc.tweens.add({ targets: g, alpha: 0, duration: 420, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
-    shockRing(this.sc, px, py, 0xff7ad0, r * this.h.k() * 1.3, 520, 14);
-    sparks(this.sc, px, py, 28, 'spark', 0xffd0f0, 620);
-    ultFlash(this.sc, 0xffc8f0);
+    shockRing(this.sc, px, py, c.wide, r * this.h.k() * 1.3, 520, 14);
+    sparks(this.sc, px, py, 28, 'spark', c.spark, 620);
+    ultFlash(this.sc, fire ? 0xffe6c8 : 0xffc8f0);
   }
 }

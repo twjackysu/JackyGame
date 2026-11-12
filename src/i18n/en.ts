@@ -50,6 +50,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   'shop.uniqueConfirm': 'Sell this ★ unique?',
   'tip.safezone': 'The campfire circle is safe: monsters won\'t follow,\nbut you can\'t hit them from inside. Step out to fight.',
   'fx.interrupt': 'Interrupted!',
+  'calm.swamp': 'Standing in the mire keeps poisoning you — step out',
   'lair.warn': 'You left the red ring! Get back within {s}s\nor {name} resets to full health',
   'lair.count': 'Back in the ring {s}',
   'leash.near': 'Any farther and it resets',

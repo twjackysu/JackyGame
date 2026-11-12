@@ -4,6 +4,26 @@ import Phaser from 'phaser';
 import { floatNumber, shockRing, sparks } from './feel';
 import { groundPalette } from './hitTint';
 import type { GroundPalette } from './hitTint';
+import { impactFlash, impactTint, softFlashStops } from './impactLook';
+import type { ImpactTone } from './impactLook';
+
+/** 柔光貼圖（白色、中心亮往邊緣淡到 0）；上色與大小由用的人決定 */
+function softFlashKey(scene: Phaser.Scene): string {
+  const key = 'fx_soft_flash';
+  if (!scene.textures.exists(key)) {
+    const S = 128;
+    const tex = scene.textures.createCanvas(key, S, S);
+    if (tex) {
+      const ctx = tex.getContext();
+      const gr = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+      for (const [o, a] of softFlashStops()) gr.addColorStop(o, `rgba(255,255,255,${a})`);
+      ctx.fillStyle = gr;
+      ctx.fillRect(0, 0, S, S);
+      tex.refresh();
+    }
+  }
+  return key;
+}
 
 /** 場景提供的座標換算與縮放 */
 export interface FieldFxHost {
@@ -119,13 +139,16 @@ export class FieldFx {
     g.fillStyle(0xffffff, f).fillCircle(hx, hy, 9 + 6 * f);
   }
 
-  /** 墜星落地的爆開（白色閃光＋藍色衝擊環＋碎星） */
-  starImpact(vx: number, vy: number, r: number): void {
-    sparks(this.sc, vx, vy, 22, 'spark', 0xc8d8ff, 640);
-    sparks(this.sc, vx, vy - 16, 10, 'ember', 0x8aa8ff, 820);
-    shockRing(this.sc, vx, vy, 0x8aa8ff, r * 1.3, 380, 8);
+  /** 墜星落地的爆開（閃光＋衝擊環＋碎星）。tone：star＝藍白（敵人的墜星）、fire＝橘紅（玩家的隕星術）。
+   *  第 183 輪：閃光從「一整塊淡藍圓」改成中心亮、外圈薄的幾層（`impactLook.ts`）——以前在不暗的地面上是一顆純白大圓盤，蓋住怪和數字。 */
+  starImpact(vx: number, vy: number, r: number, tone: ImpactTone = 'star'): void {
+    const c = impactTint(tone);
+    sparks(this.sc, vx, vy, 22, 'spark', c.spark, 640);
+    sparks(this.sc, vx, vy - 16, 10, 'ember', c.ember, 820);
+    shockRing(this.sc, vx, vy, c.ring, r * 1.3, 380, 8);
     shockRing(this.sc, vx, vy, 0xffffff, r * 0.8, 240, 4);
-    const fl = this.sc.add.circle(vx, vy, r * 1.1, 0xe0e8ff, 0.7).setDepth(690).setBlendMode(Phaser.BlendModes.ADD);
+    const fl = this.sc.add.container(vx, vy).setDepth(690);
+    for (const l of impactFlash(r, tone)) fl.add(this.sc.add.image(0, 0, softFlashKey(this.sc)).setDisplaySize(l.r * 2, l.r * 2).setTint(l.color).setAlpha(l.alpha).setBlendMode(Phaser.BlendModes.ADD));
     this.sc.tweens.add({ targets: fl, scale: 1.5, alpha: 0, duration: 300, ease: 'Cubic.easeOut', onComplete: () => fl.destroy() });
   }
 

@@ -1,7 +1,7 @@
 // 荊棘谷（D-114）：資料檢查＋Bot（帶著霧語森林刷出來的等級）從谷口出發打倒棘冠狼后。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { STAGES } from '../src/core/battle/rt/data';
-import { createBattle, isSolidAt, setBossFury, step } from '../src/core/battle/rt/engine';
+import { createBattle, inHazard, isSolidAt, setBossFury, step } from '../src/core/battle/rt/engine';
 import { makeThornvaleStage, THORNVALE_QUEEN } from '../src/core/battle/rt/maps/thornvale';
 import { validateStage } from '../src/core/battle/rt/maps/validate';
 import { BOT_PROFILES, PlayerBot } from '../src/core/battle/rt/sim';
@@ -90,6 +90,23 @@ describe('毒沼 hazards（D-114）', () => {
   });
   afterAll(() => {
     delete STAGES.thornvale;
+  });
+  it('第 183 輪：站在毒沼裡不會自然恢復（以前一邊中毒一邊跳 +2%，畫面還寫「休息中・自動回血」）；走出去之後照舊恢復', () => {
+    const s = createBattle({ stageId: 'thornvale', seed: 1, level: 6 });
+    const h = STAGES.thornvale!.hazards![0]!;
+    const p = s.units[0]!;
+    expect(inHazard(s, p)).toBe(false);
+    for (let i = 0; i < sec(12); i++) {
+      p.x = h.x;
+      p.y = h.y;
+      step(s, []);
+    }
+    expect(inHazard(s, p)).toBe(true);
+    expect(s.events.filter((e) => e.type === 'regen').length).toBe(0);
+    p.x = STAGES.thornvale!.player.x;
+    p.y = STAGES.thornvale!.player.y;
+    for (let i = 0; i < sec(12); i++) step(s, []);
+    expect(s.events.filter((e) => e.type === 'regen').length).toBeGreaterThan(0);
   });
   it('站在毒沼裡每秒疊一層中毒（最多 5 層）並扣血；離開就不再疊；怪物不受影響', () => {
     const s = createBattle({ stageId: 'thornvale', seed: 1, level: 6 });

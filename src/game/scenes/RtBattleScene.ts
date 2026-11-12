@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 import { cdText, hudLine, textColor } from '../hudText';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
-import { activeHazards, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setEffects, setGearBonus, LAIR_GRACE_TICKS, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
+import { activeHazards, inHazard, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setEffects, setGearBonus, LAIR_GRACE_TICKS, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
 import { RARITY_COLOR, UNIQUE_COLOR, UNIQUE_IDS, genGear, type RtGear } from '../../core/battle/rt/gear';
 import { uniquePoolOf } from '../../core/battle/rt/loot';
 import { openCodexPanel } from '../ui/codexPanel';
@@ -346,7 +346,7 @@ export class RtBattleScene extends Phaser.Scene {
     },
     viewTop: VIEW_TOP,
     slash: (x, y, ang, r, deg, color, width) => this.ffx.slash(x, y, ang, r, deg, color, width),
-    starImpact: (vx, vy, r) => this.ffx.starImpact(vx, vy, r),
+    starImpact: (vx, vy, r, tone) => this.ffx.starImpact(vx, vy, r, tone),
     fallingStar: (g, vx, vy, f) => this.ffx.fallingStar(g, vx, vy, f),
     spawnFrost: (x, y, r) => this.hz.spawnFrost(x, y, r),
   });
@@ -4316,6 +4316,8 @@ export class RtBattleScene extends Phaser.Scene {
     if (k > h.atTick) return;
     const hs = skillShape(this.s, a.id, h.shape);
     if (hs.type === 'circle' && h.ahead) {
+      // 第 183 輪：落地的那個 tick 就不畫了——落地有 0.15 秒停頓，tick 停在 atTick，以前這個「蓄滿的落點圈」（整塊橘色＋硬邊）會跟落地的爆炸疊在一起九幀
+      if (k >= h.atTick) return;
       // 隕星術（D-155）：前方的落點圈，蓄力時跟著目標轉、鎖定後閃爍，內圈隨蓄力長大
       const cx = this.sx(p.x + (h.ahead * a.dirX) / 1000);
       const cy = this.sy(p.y + (h.ahead * a.dirY) / 1000);
@@ -5523,7 +5525,10 @@ export class RtBattleScene extends Phaser.Scene {
     if (calm) this.calmText.y = Phaser.Math.Clamp(this.sy(p.y) + 95, 850, VIEW_BOTTOM - 60);
     // 第 97 輪（D-244）：新玩家升到 Lv2（打倒幾隻狼）就學會點怪物開打了，不再一直閃「準備好就點怪物開打」
     const taught = this.veteran || (s.prog?.level ?? 1) >= CALM_TAUGHT_LV;
-    const calmMsg = calm ? restTip || (taught ? (p.hp < p.maxHp ? '休息中・自動回血' : '') : p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '';
+    // 第 183 輪：站在毒沼裡（沒有怪在打）以前寫「休息中・自動回血」，血卻一直掉 → 直接講原因；核心也不再讓毒沼裡自然恢復
+    const swamp = calm && inHazard(s, p);
+    textColor(this.calmText, swamp ? '#b8f08a' : '#ffd27a');
+    const calmMsg = swamp ? tr('calm.swamp') : calm ? restTip || (taught ? (p.hp < p.maxHp ? '休息中・自動回血' : '') : p.hp < p.maxHp ? '休息中・自動回血　準備好就點怪物開打' : '點怪物開打（一次拉一組）') : '';
     // 第 63 輪：討伐大字期間不寫「打不過就退回營火」；第 67 輪：沒字就整條藏起（字條有底色）
     this.calmText.setVisible(!!calmMsg && !this.tipBusy && !this.hint && !this.menu?.active && this.time.now >= this.slainUntil).setText(calmMsg).setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 300));
     // 第 71 輪：窄螢幕（360×640）字條右端「開打」壓到大招鍵 → 碰到任何按鈕就在全形空白處換成兩行
