@@ -17,6 +17,12 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 182 輪注意（玩家技能範圍的長相 D-378）**：
+- CI：257acdd 的 CI、Pages、APK 都 success。
+- 位置：`fx/areaLook.ts`（顏色、淡出、分層都在這裡）；`RtBattleScene.softLane`／`softSector`。新增屬性色在 `STATUS` 加一條；不要用敵人預告的紅／亮紫／藍（測試會擋）。
+- **調範圍／特效的顏色要在深色地圖看**：`STAGE=emberrift FRAMES=1 node scripts/shot-skills.mjs staff a tag`（霧語的綠地會讓淡色塊看起來沒問題）。
+- 再來看 Jacky 的回覆；沒有就挑：①隕星術（杖大招原招）落地那一幀是一顆純白大圓盤，用 `FRAMES=1,2,3,5` 連拍看要不要柔一點 ②弓變化 A 第 3 欄的霜系扇形仍是灰藍（不是走 `soft` 那條路，先找是誰畫的）③一般小怪風箏脫戰的預告（先量頻率）④結局／序章字卡的光暈 ⑤競技場的技能範圍要不要也換（`PvpScene.shapePath` 附近）。
+
 **第 181 輪注意（敵人預告的長相 D-377）**：
 - CI：d8db69e 的 check、mssql、Pages、APK 都 success。
 - 位置：`fx/telegraphLook.ts`（顏色、粗細、閃白、箭頭間距與速度都在這裡）；`RtBattleScene` 的 `teleFront`／`teleChevrons`。新增預告種類（例如冰＝淺藍）就在 `TeleKind`／`PAL` 加一條。
