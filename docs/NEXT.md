@@ -22,6 +22,13 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 186 輪注意（升級／打倒 Boss／倒下醒來 D-386）**：
+- 位置：`fx/levelUp.ts`（`levelUpFlash(scene, color, ms, peak)`、`levelUpPillar`、`pillarLayers`、兩個峰值）；`feel.ts` 的 `popScale`（大字彈出的起始倍率）、`clearBattleTexts`／`staleTexts`（`floatNumber` 與 hold ≥ 0 的 `bigText` 會登記）。
+- **逐幀拍「某個時刻」很容易找到東西**（這輪三個都是這樣找到的）。升級：`UNTIL='(()=>{let f=false;const w=(l)=>{for(const o of l){if(o.list)w(o.list);else if(o.type==="Text"&&o.text.startsWith("等級提升"))f=true}};w(sc().children.list);return f})()' node scripts/play.mjs sword mistwood lv 22 120`。打倒 Boss：`UNTIL` 裡把主角搬到 Boss 旁、`b.mode==="combat"` 後把 `b.hp` 壓到 5、回傳 `b.dead`（會順帶造成「暴怒！」大字，那是拍法的副作用）。主角倒下：`UNTIL='(()=>{const s=sc().s;const p=s.units[0];if(s.tick>240)p.hp=Math.min(p.hp,3);return p.dead||p.hp<=0||(s.revives??0)>0})()'`（HUD 的 HP 會一直顯示 3，也是副作用）。拼圖：自己寫幾行 PIL 橫向拼。
+- `play.mjs` 的 `NIGHT=1` 對 Lv1 新存檔沒作用（深夜要先打倒暴怒 Boss）；要深夜請加 `LEVEL=`。
+- 還沒逐幀看過的時刻（下一輪的候選）：①撿到獨特裝備（橘色光柱＋大字）②祝福選定後回到戰鬥的第一秒 ③走進光門換圖 ④競技場分出勝負（`PvpScene` 763／823 行還是 `camera.flash`）⑤精英倒下。舊候選：一般小怪風箏脫戰的預告（先量頻率）、結局／序章字卡的光暈、主角只被大怪蓋住半邊。
+- 再來：先看 Jacky 對蓋著的牌的回饋。
+
 **第 185 輪注意（競技場的範圍與名字 D-384）**：
 - CI：3bad523、7fd31f4 的 CI、Pages、APK 都 success。
 - 位置：`fx/areaDraw.ts`（`drawSoftLane`／`drawSoftSector`／`drawSoftRound`／`drawSoftArea`，兩個場景共用；`RtBattleScene.softLane` 等只剩換算座標）；`fx/areaLook.ts` 的 `teamAreaLook`、`NAME_FADE_NEAR`／`NAME_FADE_FAR`；`PvpScene` 的 `castNames`、`unitGapPx`。

@@ -47,6 +47,10 @@
 - 順帶：衝鋒現在會從你身上穿過去（174），Boss 衝到紅圈邊會停下來不衝出去（175）；站到大 Boss 北邊牠會變半透明（`docs/screenshots/boss-occlude-before-after.jpg`）。
 - **11/12 第 185 輪改了上面最後一點**：大隻的怪擋住你時，牠不再淡成快看不見的鬼影（深色地圖上很嚴重），改成牠只淡一點、把你疊畫在牠身上——圖 `docs/screenshots/hero-through-foe-before-after.jpg`。實機看會不會像「浮在怪身上」，不喜歡說一聲，改兩個數字就退回。
 
+## 🟡 11/13 第 186 輪（不用決定，實機順手看）
+- **升級不再整個畫面一片黃**：以前升級那一下連血條、敵人都看不見約十幀；現在只亮一下，主角腳下竄起一道金色柔光光柱——圖 `docs/screenshots/levelup-before-after.jpg`。**打倒 Boss** 也一樣不再刷白（`boss-slain-flash-before-after.jpg`），看得到牠倒下。會不會變得不夠盛大？想亮一點各是改一個數字。
+- **倒下後在營火旁醒來**：畫面上不再留著倒下前的招式名和傷害數字（`revive-clean-before-after.jpg`）。
+
 ## 🟡 11/12 第 178～183 輪（都不用決定，實機順手看；圖都在 `docs/screenshots/`）
 - **技能範圍不再是灰色的框／圓盤**：直線、扇形、圓形都跟武器／屬性上色（劍金、弓青綠、杖藍紫、火橘、冰淺藍）——`skill-area-look-before-after.jpg`、`round-area-look-before-after.jpg`。全自動連放時會不會太花？
 - **敵人的預告**：黃框拿掉，直線招是亮紫色＋往前流動的箭頭，最後會閃——`telegraph-look-before-after.jpg`。會不會太吵？
