@@ -23,7 +23,7 @@
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
 **第 185 輪注意（競技場的範圍與名字 D-384）**：
-- CI：3bad523 全 success；7fd31f4 見 PROGRESS 第 185 輪最後一行。
+- CI：3bad523、7fd31f4 的 CI、Pages、APK 都 success。
 - 位置：`fx/areaDraw.ts`（`drawSoftLane`／`drawSoftSector`／`drawSoftRound`／`drawSoftArea`，兩個場景共用；`RtBattleScene.softLane` 等只剩換算座標）；`fx/areaLook.ts` 的 `teamAreaLook`、`NAME_FADE_NEAR`／`NAME_FADE_FAR`；`PvpScene` 的 `castNames`、`unitGapPx`。
 - 拍競技場的範圍：`DSF=2 WEAPON=bow AREA=6 node scripts/shot-pvp.mjs tag`（輸出 `screenshots/pvp-<tag>-<n>-<形狀>.png`；同一種「形狀＋隊伍」只拍一次；對手是隨機配的，前後兩次不會是同一招）。腳本裡的玩家不出招，拍到的都是對手的招。
 - **跑 `npm test` 的同時不要跑 Chromium 連拍**：`rt-perf`（不比基準慢 2 倍）會被拖紅；單獨重跑就過。
