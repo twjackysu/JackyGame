@@ -60,6 +60,8 @@ export interface NumberStyle {
   label?: string;
   /** 數字分級（A5，第 152 輪）：crit＝金色漸層＋光暈＋大彈跳；ult＝粉紫漸層＋光暈＋更大彈跳 */
   tier?: 'crit' | 'ult';
+  /** 連擊合併（第 189 輪）：照給的位置出（不抖動、不往上疊），而且從接近原大小彈起（不是從 0.3 倍長出來） */
+  fixed?: boolean;
 }
 
 const TIER: Record<'crit' | 'ult', { top: string; bottom: string; glow: string; pop: number; tilt: number }> = {
@@ -102,11 +104,14 @@ export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: st
   // 第 64 輪：畫面內的怪貼著左右邊時，長字（「被發現了！」）被切掉一半 → 夾回畫面內（畫面外的不動）
   const sw = scene.scale.width;
   const half = (text.length * st.size * 0.62) / 2 + 6;
-  let nx = x + Phaser.Math.Between(-18, 18);
+  let nx = st.fixed ? x : x + Phaser.Math.Between(-18, 18);
   if (x >= 0 && x <= sw && half * 2 < sw) nx = Math.max(half, Math.min(sw - half, nx));
   let list = recentNums.get(scene);
   if (!list) { list = []; recentNums.set(scene, list); }
-  const y = numberSlot(list, nx, y0, text.length * st.size * 0.62 + 8, st.size * 0.95, scene.time.now);
+  const nw = text.length * st.size * 0.62 + 8;
+  const nh = st.size * 0.95;
+  if (st.fixed) for (let i = list.length - 1; i >= 0; i--) if (list[i]!.x === nx && list[i]!.y === y0) list.splice(i, 1); // 自己上一次佔的位置不算（不然每併一次就往上跳一層）；變寬後碰到旁邊的數字才往上讓
+  const y = numberSlot(list, nx, y0, nw, nh, scene.time.now);
   const t = scene.add
     .text(nx, y, text, {
       fontFamily: UI_FONT,
@@ -118,7 +123,7 @@ export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: st
     })
     .setOrigin(0.5)
     .setDepth(900)
-    .setScale(0.3);
+    .setScale(st.fixed ? 0.85 : 0.3);
   const tier = st.tier ? TIER[st.tier] : null;
   if (tier) {
     // 漸層字＋光暈只算一次（文字貼圖產生時），之後每幀成本跟普通數字一樣
@@ -133,7 +138,7 @@ export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: st
     if (tier.tilt) t.setAngle(Phaser.Math.Between(-tier.tilt, tier.tilt));
   }
   trackText(scene, t);
-  scene.tweens.add({ targets: t, scale: tier?.pop ?? 1.25, duration: tier ? 130 : 110, ease: 'Back.Out' });
+  scene.tweens.add({ targets: t, scale: st.fixed ? Math.min(tier?.pop ?? 1.25, 1.3) : tier?.pop ?? 1.25, duration: tier ? 130 : 110, ease: 'Back.Out' }); // 併進來的再彈一次就好，不用每一下都脹到 1.7 倍蓋住旁邊
   scene.tweens.add({ targets: t, scale: 1, delay: tier ? 130 : 110, duration: tier ? 160 : 120 });
   scene.tweens.add({ targets: t, y: y - 70, duration: 900, ease: 'Cubic.Out' });
   scene.tweens.add({ targets: t, alpha: 0, delay: 650, duration: 350, onComplete: () => t.destroy() });

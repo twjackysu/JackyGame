@@ -72,6 +72,7 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { bossSlainFlashPeak, levelUpFlash, levelUpPillar } from '../fx/levelUp';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, clearBattleTexts, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
+import { comboAdd, comboContinues, comboSize, comboText, type Combo } from '../fx/comboNumber';
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
@@ -332,6 +333,8 @@ export class RtBattleScene extends Phaser.Scene {
   private drawnOnce = false;
   private camY = 0;
   private dotNum = new Map<number, { t: Phaser.GameObjects.Text; at: number; sum: number; skill: string }>();
+  /** 每隻怪頭上正在累計的傷害數字（第 189 輪，`fx/comboNumber.ts`） */
+  private hitNum = new Map<number, { t: Phaser.GameObjects.Text; c: Combo; x: number; y: number; counter: boolean }>();
   /** 霧中小狼等小跟班（第 150 輪拆出去） */
   private readonly cub = new Companion({ k: () => this.k, sx: (x) => this.sx(x), sy: (y) => this.sy(y), viewTop: VIEW_TOP, viewBottom: VIEW_BOTTOM });
   /** 共用小特效（第 150 輪拆出去） */
@@ -3373,8 +3376,21 @@ export class RtBattleScene extends Phaser.Scene {
           if (e.skill === 'burn' && this.onScreen(d.x, d.y)) this.emberPuff(this.sx(d.x), this.sy(d.y) - 20);
           const t = floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}`, { color: e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: 22 });
           this.dotNum.set(d.id, { t, at: this.time.now, sum: e.amount, skill: e.skill });
+        } else if (!toPlayer && e.origin !== 'dot') {
+          // 第 189 輪：同一隻怪連續被打（多段招、幾招疊在一起）→ 加在同一個數字上、原地再彈一次，不再一段跳一個互相蓋住
+          const ult = e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult';
+          const size = e.crit || e.origin === 'counter' ? 34 : ult ? 30 : 26;
+          const prev = this.hitNum.get(d.id);
+          const now = this.time.now;
+          const live = prev && prev.t.active && comboContinues(prev.c, now) && prev.counter === (e.origin === 'counter') ? prev : undefined;
+          const c = comboAdd(live?.c, now, { amount: e.amount, crit: e.crit, ult, size });
+          if (live) { this.tweens.killTweensOf(live.t); live.t.destroy(); }
+          const counter = e.origin === 'counter';
+          const t = floatNumber(this, live ? live.x : this.sx(d.x), live ? live.y : this.sy(d.y) - 30, comboText(c), { color: c.crit ? '#ffd05a' : counter ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: comboSize(c), tier: c.ult ? 'ult' : c.crit ? 'crit' : undefined, fixed: !!live });
+          this.hitNum.set(d.id, { t, c, x: t.x, y: t.y, counter });
+          if (this.hitNum.size > 64) for (const [id, h] of this.hitNum) if (!h.t.active) this.hitNum.delete(id);
         } else
-        floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.crit ? '#ffd05a' : e.origin === 'counter' ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit || e.origin === 'counter' ? 34 : e.origin === 'dot' ? 22 : !toPlayer && e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult' ? 30 : 26, tier: toPlayer || e.origin === 'dot' ? undefined : e.origin === 'skill' && skillDef(this.s, e.skill)?.role === 'ult' ? 'ult' : e.crit ? 'crit' : undefined });
+        floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit ? 34 : e.origin === 'dot' ? 22 : 26 });
         // 縛足箭射中（第 166 輪）：怪腳下一圈收緊的繩環，看得出「這隻被綁住了」
         if (!toPlayer && e.origin === 'skill' && this.s.weapon === 'bow' && src?.side === 'player' && this.onScreen(d.x, d.y)) {
           const sd = skillDef(this.s, e.skill);
