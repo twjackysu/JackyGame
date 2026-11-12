@@ -6,7 +6,7 @@ import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots', { recursive: true });
 const [tag = 'x', W = '390', H = '844'] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const pg = await b.newPage({ viewport: { width: +W, height: +H } });
+const pg = await b.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: +(process.env.DSF || 1) });
 pg.on('pageerror', (e) => console.log('PAGEERR', e.message));
 await pg.goto('http://localhost:5173/?debug');
 await pg.evaluate(([low, w]) => {
@@ -32,6 +32,20 @@ const clicked = await pg.evaluate(() => {
 });
 console.log('start:', clicked);
 await pg.waitForFunction(() => sc().phase === 'fight', null, { timeout: 30000 }).catch(() => console.log('not fighting; phase =', 'unknown'));
+// 第 185 輪：連拍「範圍閃一下」的那一刻（AREA=n 張）。偵測到 fx 裡有 shape 就把迴圈停住再拍。
+const nArea = +(process.env.AREA || 0);
+if (nArea) {
+  await pg.evaluate(() => { window.seen = new Set(); window.frozen = false; sc().events.on('postupdate', () => { if (window.frozen) return; const now = sc().time.now; const f = sc().fx.find((f) => f.shape && !seen.has(f.shape.type + (f.col)) && (f.until - now) / f.dur < 0.8); if (f) { seen.add(f.shape.type + f.col); window.frozen = f.shape.type; __game.loop.sleep(); } }); });
+  for (let i = 0; i < nArea; i++) {
+    const got = await pg.waitForFunction(() => window.frozen, null, { timeout: 40000 }).then((h) => h.jsonValue()).catch(() => null);
+    if (!got) { console.log('no more shapes'); break; }
+    await pg.evaluate(() => { const g = __game; g.renderer.preRender(); g.scene.render(g.renderer); g.renderer.postRender(); });
+    await pg.screenshot({ path: `screenshots/pvp-${tag}-${i}-${got}.png`, timeout: 90000 });
+    console.log('shot', i, got);
+    await pg.evaluate(() => { window.frozen = false; __game.loop.wake(); });
+  }
+  await b.close(); process.exit(0);
+}
 const hp = +(process.env.HP || 0);
 const secs = +(process.env.SECS || 6);
 for (let t = 0; t < secs * 4; t++) {

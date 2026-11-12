@@ -85,3 +85,21 @@ export function ringBands(rIn: number, rOut: number): { r0: number; r1: number; 
 }
 /** 環的內圈邊線相對外圈的亮度（內圈只是「這裡面打不到」的提示，不搶外圈） */
 export const RING_INNER_EDGE = 0.5;
+
+/** 競技場的隊伍色（自己藍、對手紅橘）。那裡「誰放的」比「什麼武器」重要，所以不跟武器走 */
+export const TEAM_AREA = { me: { fill: 0x6ab8ff, edge: 0xd8eeff }, foe: { fill: 0xff6a5a, edge: 0xffd8c8 } } as const;
+/** 競技場出招時閃一下的範圍：fade 1 → 0（剛放出來 → 消失）。只閃四分之一秒，所以比冒險地圖的常駐範圍實一點 */
+export function teamAreaLook(mine: boolean, fade: number, lane = false): AreaLook {
+  const c = mine ? TEAM_AREA.me : TEAM_AREA.foe;
+  const f = Math.min(1, Math.max(0, fade));
+  // 直線是三層疊起來、每層只有四到七成，同樣的基準會比扇形／圓淡很多：直線另外加亮
+  return { fill: c.fill, edge: c.edge, fillA: (lane ? 0.55 : 0.36) * f, edgeA: 0.9 * f };
+}
+
+/** 競技場頭上的名字：兩個人在畫面上靠多近開始淡、多近完全不見（像素） */
+export const NAME_FADE_FAR = 150;
+export const NAME_FADE_NEAR = 90;
+/** 名字的透明度：遠＝1，貼在一起＝0，中間線性 */
+export function nameAlphaNear(gapPx: number): number {
+  return Math.min(1, Math.max(0, (gapPx - NAME_FADE_NEAR) / (NAME_FADE_FAR - NAME_FADE_NEAR)));
+}

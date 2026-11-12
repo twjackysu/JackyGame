@@ -72,3 +72,35 @@ describe('玩家技能範圍的長相（第 182 輪，D-378）', () => {
     expect(src).not.toContain(': 0x7dc8ff,'); // 以前的預設平藍
   });
 });
+
+describe('競技場的技能範圍與名字（第 185 輪）', () => {
+  it('隊伍色：自己和對手不同色；隨時間淡到 0；直線比扇形／圓實', async () => {
+    const { teamAreaLook, TEAM_AREA } = await import('../src/game/fx/areaLook');
+    expect(teamAreaLook(true, 1).fill).toBe(TEAM_AREA.me.fill);
+    expect(teamAreaLook(false, 1).fill).toBe(TEAM_AREA.foe.fill);
+    expect(TEAM_AREA.me.fill).not.toBe(TEAM_AREA.foe.fill);
+    expect(teamAreaLook(true, 0).fillA).toBe(0);
+    expect(teamAreaLook(true, 0).edgeA).toBe(0);
+    expect(teamAreaLook(true, 0.5).fillA).toBeLessThan(teamAreaLook(true, 1).fillA);
+    expect(teamAreaLook(true, 1, true).fillA).toBeGreaterThan(teamAreaLook(true, 1).fillA);
+    expect(teamAreaLook(true, 2).edgeA).toBeLessThanOrEqual(1);
+  });
+
+  it('兩個人貼在一起時名字淡掉、拉開就回來', async () => {
+    const { nameAlphaNear, NAME_FADE_FAR, NAME_FADE_NEAR } = await import('../src/game/fx/areaLook');
+    expect(nameAlphaNear(0)).toBe(0);
+    expect(nameAlphaNear(NAME_FADE_NEAR)).toBe(0);
+    expect(nameAlphaNear(NAME_FADE_FAR)).toBe(1);
+    expect(nameAlphaNear(9999)).toBe(1);
+    const mid = nameAlphaNear((NAME_FADE_NEAR + NAME_FADE_FAR) / 2);
+    expect(mid).toBeGreaterThan(0.4);
+    expect(mid).toBeLessThan(0.6);
+  });
+
+  it('競技場和冒險地圖用同一套畫法（areaDraw），競技場不再自己畫平的色塊', () => {
+    const pvp = readFileSync('src/game/scenes/PvpScene.ts', 'utf8');
+    expect(pvp).toContain('drawSoftArea(');
+    expect(pvp).not.toContain('private shapePath(');
+    expect(readFileSync('src/game/scenes/RtBattleScene.ts', 'utf8')).toContain('drawSoftLane(');
+  });
+});

@@ -5,6 +5,8 @@
 import Phaser from 'phaser';
 import { STAGES, WEAPONS } from '../../core/battle/rt/data';
 import { playerDef, playerOf, skillDef, skillShape, step } from '../../core/battle/rt/engine';
+import { drawSoftArea } from '../fx/areaDraw';
+import { nameAlphaNear, teamAreaLook } from '../fx/areaLook';
 import { PVP_MAX_CMDS_PER_TICK, PVP_STAGE, startPvp, type PvpInputs } from '../../core/battle/rt/pvpMatch';
 import type { PlayerBot } from '../../core/battle/rt/sim';
 import { TICKS_PER_SEC, UNIT, type BattleCommand, type BattleState, type Shape, type SkillMod, type Unit } from '../../core/battle/rt/types';
@@ -117,6 +119,7 @@ export class PvpScene extends Phaser.Scene {
     this.hpGhost.clear();
     this.hudText = null;
     this.names = [];
+    this.castNames.clear();
     this.buttons = [];
   }
 
@@ -418,6 +421,9 @@ export class PvpScene extends Phaser.Scene {
     this.arenaArt = new ArenaArt(this, { ox: this.ox, oy: this.oy, cell: UNIT * K, cols: 14, rows: 16, solid: STAGES[PVP_STAGE]?.arena.solid?.rows ?? [], me: ME, foe: FOE, lowFx: getSettings().lowFx });
   }
 
+  /** 每個人頭上正在飄的招式名（第 185 輪：新的出來時收掉舊的） */
+  private castNames = new Map<number, Phaser.GameObjects.Text>();
+
   private lerp(u: Unit): { x: number; y: number } {
     const p = this.prev.get(u.id);
     if (!p || (this.phase !== 'fight' && this.phase !== 'replay')) return { x: u.x, y: u.y };
@@ -431,30 +437,14 @@ export class PvpScene extends Phaser.Scene {
     if (a) drawRankAura(g, a, x, y, r, now);
   }
 
-  private shapePath(g: Phaser.GameObjects.Graphics, sh: Shape, ox: number, oy: number, dx: number, dy: number, fill: boolean): void {
-    const x = this.sx(ox);
-    const y = this.sy(oy);
-    const a = Math.atan2(dy, dx);
-    if (sh.type === 'circle') {
-      if (fill) g.fillCircle(x, y, sh.r * K);
-      else g.strokeCircle(x, y, sh.r * K);
-    } else if (sh.type === 'ring') {
-      g.strokeCircle(x, y, sh.rOut * K);
-      if (sh.rIn > 0) g.strokeCircle(x, y, sh.rIn * K);
-    } else if (sh.type === 'sector') {
-      const half = (sh.deg / 2) * (Math.PI / 180);
-      g.beginPath().moveTo(x, y).arc(x, y, sh.r * K, a - half, a + half, false).closePath();
-      if (fill) g.fillPath();
-      else g.strokePath();
-    } else {
-      const len = sh.len * K;
-      const hw = (sh.width * K) / 2;
-      const ux = Math.cos(a);
-      const uy = Math.sin(a);
-      const pts = [new Phaser.Math.Vector2(x - uy * hw, y + ux * hw), new Phaser.Math.Vector2(x + ux * len - uy * hw, y + uy * len + ux * hw), new Phaser.Math.Vector2(x + ux * len + uy * hw, y + uy * len - ux * hw), new Phaser.Math.Vector2(x + uy * hw, y - ux * hw)];
-      if (fill) g.fillPoints(pts, true);
-      else g.strokePoints(pts, true);
-    }
+  /** 場上兩個人在畫面上的距離（像素）；有人倒下就當作很遠 */
+  private unitGapPx(): number {
+    const us = this.units();
+    const [a, b] = [us[0], us[1]];
+    if (!a || !b || a.dead || b.dead) return 9999;
+    const pa = this.lerp(a);
+    const pb = this.lerp(b);
+    return Math.hypot(this.sx(pa.x) - this.sx(pb.x), this.sy(pa.y) - this.sy(pb.y));
   }
 
   private draw(): void {
@@ -474,12 +464,12 @@ export class PvpScene extends Phaser.Scene {
         g.lineStyle(6 * k + 2, f.col, 0.9 * k).lineBetween(this.sx(f.x0), this.sy(f.y0) - 20, this.sx(f.x1), this.sy(f.y1) - 20);
         g.fillStyle(0xffffff, k).fillCircle(this.sx(f.x1), this.sy(f.y1) - 20, 6 * k + 2);
       } else if (f.shape) {
-        g.fillStyle(f.col, 0.28 * k);
-        this.shapePath(g, f.shape, f.x0, f.y0, f.dx!, f.dy!, true);
-        g.lineStyle(3, f.col, 0.8 * k);
-        this.shapePath(g, f.shape, f.x0, f.y0, f.dx!, f.dy!, false);
+        // 第 185 輪：和冒險地圖同一套畫法（光路／由內往外變實＋外緣亮弧），顏色仍是隊伍色；以前是一塊平的色塊＋粗框
+        drawSoftArea(g, f.shape, this.sx(f.x0), this.sy(f.y0), K, f.dx!, f.dy!, teamAreaLook(f.col === ME, k, f.shape.type === 'line'));
       }
     }
+    // 第 185 輪：兩個人貼在一起時，名字會壓在對方的立繪和傷害數字上（一團字）——靠近就把名字淡掉；誰是誰還有腳下的隊伍色光圈、亮邊和頂端的血條
+    const nameA = nameAlphaNear(this.unitGapPx());
     this.units().forEach((u, i) => {
       const pos = this.lerp(u);
       const px = this.sx(pos.x);
@@ -529,7 +519,7 @@ export class PvpScene extends Phaser.Scene {
       g.fillStyle(0x000000, 0.7).fillRect(px - bw / 2 - 2, top - 10, bw + 4, 10);
       g.fillStyle(0xffffff, 0.9).fillRect(px - bw / 2, top - 8, bw * this.ghostHp(u.id, Math.max(0, u.hp) / u.maxHp), 6);
       g.fillStyle(col, 1).fillRect(px - bw / 2, top - 8, (bw * Math.max(0, u.hp)) / u.maxHp, 6);
-      nm.setPosition(px, top - 26);
+      nm.setPosition(px, top - 26).setAlpha(nameA);
     });
     this.drawHud();
     const bg = this.statusBg.clear();
@@ -761,6 +751,10 @@ export class PvpScene extends Phaser.Scene {
           const sp = this.sprites.get(u.id);
           const ult = sk.role === 'ult';
           const t = this.add.text(this.sx(u.x), (sp ? sp.y - sp.displayHeight : this.sy(u.y) - 80) - 44, sk.name, { fontFamily: UI_FONT, fontSize: ult ? '30px' : '22px', fontStyle: '900', color: ult ? '#ffd0f0' : u.pid ? '#ffc8b8' : '#cfeaff', stroke: '#000000', strokeThickness: 5 }).setOrigin(0.5).setDepth(72).setScale(0.6);
+          // 第 185 輪：同一個人連放兩招時，上一招的名字還沒消失就疊在一起變成一團字——新的出來時舊的直接收掉
+          const prevName = this.castNames.get(u.id);
+          if (prevName?.active) { this.tweens.killTweensOf(prevName); prevName.destroy(); }
+          this.castNames.set(u.id, t);
           this.tweens.add({ targets: t, scale: 1, duration: 120, ease: 'Back.Out' });
           this.tweens.add({ targets: t, y: t.y - 26, alpha: 0, delay: 420, duration: 380, onComplete: () => t.destroy() });
           if (!u.pid) (ult ? SFX.hitHeavy : SFX.uiTap)();

@@ -75,7 +75,8 @@ import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
-import { LANE_LAYERS, LANE_SEGS, LANE_TICK, RING_INNER_EDGE, SECTOR_BANDS, SECTOR_SIDE, areaLook, laneBand, ringBands, type AreaLook } from '../fx/areaLook';
+import { areaLook, type AreaLook } from '../fx/areaLook';
+import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
 import { coversHero, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
@@ -3899,72 +3900,17 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
-  /** 玩家直線技能的範圍＝光路（第 182 輪，D-378）：沒有封閉外框，近亮遠淡、中間一條芯、兩側淡出的邊線、末端兩個小角 */
+  /** 玩家技能範圍的畫法搬到 `fx/areaDraw.ts`（第 185 輪：競技場共用同一套）；這裡只換算座標 */
   private softLane(g: Phaser.GameObjects.Graphics, sh: Extract<Shape, { type: 'line' }>, ox: number, oy: number, dx: number, dy: number, al: AreaLook): void {
-    const cx = this.sx(ox);
-    const cy = this.sy(oy);
-    const ang = Math.atan2(dy, dx);
-    const c = Math.cos(ang);
-    const sn = Math.sin(ang);
-    const w = (sh.width / 2) * this.k;
-    const L = sh.len * this.k;
-    const at = (a: number, b: number) => ({ x: cx + a * c - b * sn, y: cy + a * sn + b * c });
-    for (let i = 0; i < LANE_SEGS; i++) {
-      const a0 = (L * i) / LANE_SEGS;
-      const a1 = (L * (i + 1)) / LANE_SEGS;
-      const m = laneBand(i);
-      for (const ly of LANE_LAYERS) g.fillStyle(al.fill, al.fillA * ly.a * m).fillPoints([at(a0, -w * ly.w), at(a1, -w * ly.w), at(a1, w * ly.w), at(a0, w * ly.w)], true);
-      g.lineStyle(1.5, al.edge, al.edgeA * 0.75 * m);
-      for (const side of [-1, 1]) {
-        const p0 = at(a0, side * w);
-        const p1 = at(a1, side * w);
-        g.lineBetween(p0.x, p0.y, p1.x, p1.y);
-      }
-    }
-    // 末端：兩個小角（射程到這裡），不封口
-    const tk = Math.min(L * 0.2, w * 2 * LANE_TICK);
-    g.lineStyle(2, al.edge, al.edgeA * 0.9);
-    for (const side of [-1, 1]) {
-      const e = at(L, side * w);
-      const e1 = at(L, side * w * 0.45);
-      const e2 = at(L - tk, side * w);
-      g.lineBetween(e.x, e.y, e1.x, e1.y).lineBetween(e.x, e.y, e2.x, e2.y);
-    }
+    drawSoftLane(g, sh, this.sx(ox), this.sy(oy), this.k, dx, dy, al);
   }
 
-  /** 玩家扇形技能的範圍＝斬擊掃過的範圍（第 182 輪，D-378）：外緣一圈亮弧，裡面由內往外變實，兩條半徑邊幾乎不畫 */
   private softSector(g: Phaser.GameObjects.Graphics, sh: Extract<Shape, { type: 'sector' }>, ox: number, oy: number, dx: number, dy: number, al: AreaLook): void {
-    const cx = this.sx(ox);
-    const cy = this.sy(oy);
-    const ang = Math.atan2(dy, dx);
-    const half = ((sh.deg / 2) * Math.PI) / 180;
-    const R = sh.r * this.k;
-    for (const b of SECTOR_BANDS) {
-      g.fillStyle(al.fill, al.fillA * b.a).beginPath();
-      g.arc(cx, cy, R * b.r1, ang - half, ang + half);
-      if (b.r0 > 0) g.arc(cx, cy, R * b.r0, ang + half, ang - half, true);
-      else g.lineTo(cx, cy);
-      g.closePath().fillPath();
-    }
-    g.lineStyle(2.5, al.edge, al.edgeA).beginPath().arc(cx, cy, R, ang - half, ang + half).strokePath();
-    g.lineStyle(1, al.edge, al.edgeA * SECTOR_SIDE);
-    for (const sd of [-1, 1]) g.lineBetween(cx + Math.cos(ang + sd * half) * R * 0.3, cy + Math.sin(ang + sd * half) * R * 0.3, cx + Math.cos(ang + sd * half) * R, cy + Math.sin(ang + sd * half) * R);
+    drawSoftSector(g, sh, this.sx(ox), this.sy(oy), this.k, dx, dy, al);
   }
 
-  /** 圓／環的技能範圍（第 183 輪）：跟扇形同一套——由內往外變實、外緣一圈亮弧，顏色跟著武器／屬性（以前是一塊灰藍色的平圓盤） */
   private softRound(g: Phaser.GameObjects.Graphics, sh: Extract<Shape, { type: 'circle' | 'ring' }>, ox: number, oy: number, al: AreaLook): void {
-    const cx = this.sx(ox);
-    const cy = this.sy(oy);
-    const k = this.k;
-    const bands = sh.type === 'circle' ? SECTOR_BANDS.map((b) => ({ r0: b.r0 * sh.r, r1: b.r1 * sh.r, a: b.a })) : ringBands(sh.rIn, sh.rOut);
-    for (const b of bands) {
-      g.fillStyle(al.fill, al.fillA * b.a).beginPath();
-      g.arc(cx, cy, b.r1 * k, 0, Math.PI * 2);
-      if (b.r0 > 0) g.arc(cx, cy, b.r0 * k, Math.PI * 2, 0, true);
-      g.closePath().fillPath();
-    }
-    g.lineStyle(2, al.edge, al.edgeA).strokeCircle(cx, cy, (sh.type === 'circle' ? sh.r : sh.rOut) * k);
-    if (sh.type === 'ring') g.lineStyle(1.5, al.edge, al.edgeA * RING_INNER_EDGE).strokeCircle(cx, cy, sh.rIn * k);
+    drawSoftRound(g, sh, this.sx(ox), this.sy(oy), this.k, al);
   }
 
   private shapePath(sh: Shape, ox: number, oy: number, dx: number, dy: number, g: Phaser.GameObjects.Graphics, fill: boolean): void {
