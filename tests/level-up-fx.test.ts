@@ -5,7 +5,7 @@ vi.mock('../src/game/settings', () => ({ getSettings: () => ({ lowFx: false }), 
 
 import { bossSlainFlashPeak, levelUpFlashPeak, pillarAcross, pillarAlong, pillarLayers } from '../src/game/fx/levelUp';
 import { ultFlashPeak } from '../src/game/fx/feel';
-import { popScale } from '../src/game/fx/feel';
+import { popScale, staleTexts } from '../src/game/fx/feel';
 
 describe('升級演出（第 186 輪）', () => {
   it('全畫面只亮一下：比大招的閃光淡，省電畫質更淡', () => {
@@ -42,5 +42,13 @@ describe('大字彈出的起始倍率（第 186 輪）', () => {
     const w = 620;
     expect(w * popScale(w, 720)).toBeLessThanOrEqual(720);
     expect(popScale(900, 720)).toBe(1.12);
+  });
+});
+
+describe('倒下醒來時收掉舊的戰場文字（第 186 輪）', () => {
+  it('只收這一幀之前跳出來的；同一幀的（祝福消散的通知）留著', () => {
+    const born: Array<[string, number]> = [['傷害 28', 900], ['劍刃風暴！', 400], ['燼火祝福消散了', 1000]];
+    expect(staleTexts(born, 1000)).toEqual(['傷害 28', '劍刃風暴！']);
+    expect(staleTexts([], 1000)).toEqual([]);
   });
 });

@@ -71,7 +71,7 @@ import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard'
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { bossSlainFlashPeak, levelUpFlash, levelUpPillar } from '../fx/levelUp';
-import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bannerBusy, bigText, clearBattleTexts, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
@@ -3894,6 +3894,7 @@ export class RtBattleScene extends Phaser.Scene {
         const p = playerOf(this.s);
         // 倒下→黑幕 1 秒淡入（像真的昏過去再醒來），再出字
         this.cameras.main.fadeIn(1000, 0, 0, 0);
+        clearBattleTexts(this); // 第 186 輪：倒下前的傷害數字／招式名／說明大字不再掛在營火上面
         this.reviveUntil = this.time.now + 3500;
         this.time.delayedCall(450, () => bigText(this, GAME_WIDTH / 2, 520, '在營火旁醒來', '#ffd27a', 40, 1100));
         shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 160, 600, 6);

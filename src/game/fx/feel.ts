@@ -70,6 +70,33 @@ const TIER: Record<'crit' | 'ult', { top: string; bottom: string; glow: string; 
 /** 最近跳出的數字（第 51 輪）：同一刻打中並排的兩隻怪，兩個「105」會黏成「105105」→ 新數字碰到還很新的就往上疊一層 */
 const recentNums = new WeakMap<Phaser.Scene, NumRect[]>();
 
+/** 會自己消失的戰場文字（傷害數字、大字）：場景→還活著的那些＋出生時間。主角倒下換到營火旁時要一次收掉（第 186 輪） */
+const LIVE_TEXTS = new WeakMap<Phaser.Scene, Map<Phaser.GameObjects.Text, number>>();
+function trackText(scene: Phaser.Scene, t: Phaser.GameObjects.Text): void {
+  let m = LIVE_TEXTS.get(scene);
+  if (!m) { m = new Map(); LIVE_TEXTS.set(scene, m); }
+  const mm = m;
+  mm.set(t, scene.time.now);
+  t.once(Phaser.GameObjects.Events.DESTROY, () => mm.delete(t));
+}
+/** 哪些要收：出生時間早於 now 的（同一幀才跳出來的——例如「燼火祝福消散了」——留著）。純函式方便測試 */
+export function staleTexts<T>(born: Iterable<[T, number]>, now: number): T[] {
+  const out: T[] = [];
+  for (const [t, at] of born) if (at < now) out.push(t);
+  return out;
+}
+/**
+ * 主角倒下、在營火旁醒來的那一刻：倒下前的傷害數字、招式名、說明大字都還掛在螢幕上的舊位置（螢幕座標），
+ * 黑幕淡入時疊在營火和「在營火旁醒來」上面（第 186 輪逐幀拍到的）。把這一幀之前的全部收掉。回傳收掉幾個。
+ */
+export function clearBattleTexts(scene: Phaser.Scene): number {
+  const m = LIVE_TEXTS.get(scene);
+  if (!m) return 0;
+  const old = staleTexts(m, scene.time.now);
+  for (const t of old) { scene.tweens.killTweensOf(t); t.destroy(); }
+  return old.length;
+}
+
 /** 彈跳傷害數字 */
 export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: string, st: NumberStyle): Phaser.GameObjects.Text {
   // 第 64 輪：畫面內的怪貼著左右邊時，長字（「被發現了！」）被切掉一半 → 夾回畫面內（畫面外的不動）
@@ -105,6 +132,7 @@ export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: st
     if (glow) t.setShadow(0, 0, tier.glow, 10, true, true);
     if (tier.tilt) t.setAngle(Phaser.Math.Between(-tier.tilt, tier.tilt));
   }
+  trackText(scene, t);
   scene.tweens.add({ targets: t, scale: tier?.pop ?? 1.25, duration: tier ? 130 : 110, ease: 'Back.Out' });
   scene.tweens.add({ targets: t, scale: 1, delay: tier ? 130 : 110, duration: tier ? 160 : 120 });
   scene.tweens.add({ targets: t, y: y - 70, duration: 900, ease: 'Cubic.Out' });
@@ -116,6 +144,7 @@ export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: st
       })
       .setOrigin(0.5)
       .setDepth(900);
+    trackText(scene, l);
     scene.tweens.add({ targets: l, y: l.y - 70, alpha: { from: 1, to: 0 }, duration: 1000, ease: 'Cubic.Out', onComplete: () => l.destroy() });
   }
   return t;
@@ -333,6 +362,7 @@ export function bigText(
     .setAlpha(0);
   // 第 186 輪：長句子從 2.2 倍縮回來的那幾幀會比畫面還寬（兩頭被切掉、整行蓋在戰場上）→ 起跳的倍率壓到不超出畫面
   t.setScale(popScale(t.width, scene.scale.width));
+  if (hold >= 0) trackText(scene, t); // 常駐的（hold < 0，呼叫端自己管）不收
   if (glow) {
     // 光暈跟著本體（位置、縮放、透明度、深度、文字都由呼叫端改本體；這裡每幀照抄），本體消失就一起消失
     const follow = (): void => {
