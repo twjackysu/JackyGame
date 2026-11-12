@@ -1,5 +1,5 @@
 /**
- * 大隻的怪擋住主角時變半透明（第 174 輪）。
+ * 大隻的怪擋住主角時變半透明（第 174 輪），主角再畫一份疊在牠身上（第 185 輪）。
  * 立繪照 y 排前後：怪在主角南邊（畫面上比較下面）就畫在主角前面。星骸守望者、岩王這種比主角高兩三倍的，
  * 主角一站到牠北邊就整個人不見——看不到自己在哪、朝哪、有沒有站在紅圈裡。純函式，畫面層只照著設不透明度。
  */
@@ -12,8 +12,20 @@ export interface Box {
   h: number;
 }
 
-/** 擋住時怪的不透明度 */
-export const OCCLUDE_ALPHA = 0.34;
+/**
+ * 擋住時怪的不透明度。第 174 輪是 0.34：在星隕／裂谷的深色地面上，正在打的精英整隻變成幾乎看不見的鬼影。
+ * 第 185 輪改成「怪只淡一點＋把主角再畫一份疊在怪身上」（heroGhostAlpha）：主角看得到，怪也還是一隻實在的怪；
+ * 留三成透明是為了還看得到牠身體底下的地面預告。
+ */
+export const OCCLUDE_ALPHA = 0.7;
+/** 被擋住時疊在怪身上的那一份主角的不透明度（完全擋住時） */
+export const HERO_GHOST_ALPHA = 0.72;
+
+/** 疊在怪身上的主角要多實：跟著擋住牠的怪淡出的進度走（minOcc＝擋住主角的怪裡最淡的不透明度；沒被擋＝1） */
+export function heroGhostAlpha(minOcc: number): number {
+  const t = (1 - minOcc) / (1 - OCCLUDE_ALPHA);
+  return HERO_GHOST_ALPHA * Math.min(1, Math.max(0, t));
+}
 /** 比主角高這麼多倍才算「大隻」；小怪蓋住半個身體不處理（不然一群狼圍上來整群忽明忽暗） */
 export const OCCLUDE_MIN_RATIO = 1.5;
 

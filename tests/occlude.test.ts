@@ -1,6 +1,6 @@
 // 第 174 輪：大隻的怪擋住主角時變半透明（規則是純函式，畫面層只照著設不透明度）
 import { describe, expect, it } from 'vitest';
-import { OCCLUDE_ALPHA, coversHero, occludeStep } from '../src/game/fx/occlude';
+import { HERO_GHOST_ALPHA, OCCLUDE_ALPHA, coversHero, heroGhostAlpha, occludeStep } from '../src/game/fx/occlude';
 
 const hero = { x: 360, y: 700, w: 60, h: 100 };
 const boss = (x: number, y: number, h = 300) => ({ x, y, w: h * 0.8, h });
@@ -32,5 +32,16 @@ describe('大隻的怪擋住主角', () => {
     for (let i = 0; i < 20; i++) a = occludeStep(a, false, 16);
     expect(a).toBe(1);
     expect(occludeStep(1, true, 100000)).toBe(OCCLUDE_ALPHA);
+  });
+  it('第 185 輪：怪不再淡成鬼影（至少六成實），主角另外疊一份在牠身上、跟著淡入淡出', () => {
+    expect(OCCLUDE_ALPHA).toBeGreaterThanOrEqual(0.6);
+    expect(OCCLUDE_ALPHA).toBeLessThan(0.8); // 還要看得到牠身體底下的地面預告
+    expect(heroGhostAlpha(1)).toBe(0);
+    expect(heroGhostAlpha(OCCLUDE_ALPHA)).toBe(HERO_GHOST_ALPHA);
+    expect(heroGhostAlpha(0)).toBe(HERO_GHOST_ALPHA);
+    const mid = heroGhostAlpha((1 + OCCLUDE_ALPHA) / 2);
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(HERO_GHOST_ALPHA);
+    expect(HERO_GHOST_ALPHA).toBeGreaterThan(0.5);
   });
 });

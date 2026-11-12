@@ -78,7 +78,7 @@ import { chevronAlpha, lineChevrons, teleKind, telegraphLook } from '../fx/teleg
 import { areaLook, type AreaLook } from '../fx/areaLook';
 import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
-import { coversHero, occludeStep } from '../fx/occlude';
+import { coversHero, heroGhostAlpha, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -3900,6 +3900,36 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
+  /** 這一幀擋住主角的怪：最淡的不透明度、最前面的深度（畫單位時累計，下一幀 syncHeroGhost 用掉後歸零） */
+  private occMin = 1;
+  private occDepth = 0;
+
+  /**
+   * 主角被大隻的怪擋住時，把主角再畫一份疊在那隻怪身上（第 185 輪；多實由 fx/occlude 的 heroGhostAlpha 決定）。
+   * 以前只靠把怪變成三成透明：深色地圖上正在打的精英變成鬼影。用的是上一幀的遮擋結果（差一幀，看不出來）。純畫面。
+   */
+  private syncHeroGhost(heroSp: Phaser.GameObjects.Image | undefined): void {
+    const a = heroSp ? heroGhostAlpha(this.occMin) : 0;
+    const depth = this.occDepth;
+    this.occMin = 1;
+    this.occDepth = 0;
+    let gh = heroSp?.getData('ghost') as Phaser.GameObjects.Image | undefined;
+    if (!heroSp || a <= 0.01) {
+      gh?.setVisible(false);
+      return;
+    }
+    if (!gh) {
+      gh = this.add.image(0, 0, heroSp.texture.key).setOrigin(heroSp.originX, heroSp.originY);
+      heroSp.setData('ghost', gh);
+      const made = gh;
+      heroSp.once('destroy', () => made.destroy());
+    }
+    if (gh.texture.key !== heroSp.texture.key || gh.frame.name !== heroSp.frame.name) gh.setTexture(heroSp.texture.key, heroSp.frame.name);
+    gh.setPosition(heroSp.x, heroSp.y).setScale(heroSp.scaleX, heroSp.scaleY).setFlipX(heroSp.flipX).setAngle(heroSp.angle).setDepth(depth + 0.02).setAlpha(a * heroSp.alpha).setVisible(heroSp.visible);
+    if (heroSp.tintFill) gh.setTintFill(heroSp.tintTopLeft);
+    else gh.setTint(heroSp.tintTopLeft);
+  }
+
   /** 玩家技能範圍的畫法搬到 `fx/areaDraw.ts`（第 185 輪：競技場共用同一套）；這裡只換算座標 */
   private softLane(g: Phaser.GameObjects.Graphics, sh: Extract<Shape, { type: 'line' }>, ox: number, oy: number, dx: number, dy: number, al: AreaLook): void {
     drawSoftLane(g, sh, this.sx(ox), this.sy(oy), this.k, dx, dy, al);
@@ -4731,6 +4761,7 @@ export class RtBattleScene extends Phaser.Scene {
     const heroSp = playerU.dead ? undefined : this.spriteFor(playerU);
     const heroAt = this.lerpPos(playerU);
     const heroBox = heroSp ? { x: this.sx(heroAt.x), y: this.sy(heroAt.y) + playerU.r * this.k * 0.15, w: heroSp.displayWidth, h: heroSp.displayHeight } : null;
+    this.syncHeroGhost(heroSp ?? undefined);
     for (const x of s.units) {
       if (x.dead) continue;
       const pos = this.lerpPos(x);
@@ -4803,6 +4834,10 @@ export class RtBattleScene extends Phaser.Scene {
         // 大隻的怪擋住主角 → 牠變半透明（第 174 輪；規則在 fx/occlude.ts）。主角倒下、怪還沒醒就不用
         const occ = isP ? 1 : occludeStep((sp.getData('occ') as number | undefined) ?? 1, !!heroBox && x.mode !== 'idle' && x.mode !== 'dormant' && coversHero({ x: sp.x, y: sp.y, w: sp.displayWidth, h: sp.displayHeight }, heroBox), this.game.loop.delta);
         if (!isP) sp.setData('occ', occ);
+        if (!isP && occ < 1) {
+          this.occMin = Math.min(this.occMin, occ);
+          this.occDepth = Math.max(this.occDepth, sp.depth);
+        }
         sp.setAlpha((inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' || x.mode === 'dormant' ? 0.85 : 1) * occ);
         if ((this.flashUntil.get(x.id) ?? 0) > now) sp.setTintFill(0xffffff);
         else if (winding) sp.setTint(Math.floor(now / 90) % 2 ? 0xff9a9a : (cfg.tint ?? 0xffffff));

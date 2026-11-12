@@ -10,6 +10,7 @@ const [weapon = 'sword', stage = 'mistwood', tag = 'new', N = '8', GAP = '8', W 
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const pg = await b.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: +(process.env.DSF || 1) });
 pg.on('pageerror', (e) => console.log('PAGEERR', e.message));
+pg.on("console", (m) => { if (m.text().startsWith("[[")) console.log("PAGE", m.text()); });
 await pg.goto('http://localhost:5173/?debug');
 await pg.evaluate(([w, stage, night, low, level, fury]) => {
   localStorage.clear(); localStorage.setItem('jg_prologue_seen', '1'); localStorage.setItem('jg_weapon', w);
@@ -67,6 +68,7 @@ for (let k = 0; k < +N; k++) {
     const hit = await pg.evaluate(([cond, gap, first]) => { if (!first) { ff(1 / 60); return true; } for (let i = 0; i < gap * 60; i++) { draw = false; T += 16.667; off += 16.667; __game.step(T, 16.667); if (i % 20 === 19 && sc().menu) autopick(); if ((0, eval)(cond)) { ff(1 / 60); return true; } } draw = true; return false; }, [process.env.UNTIL, +GAP, k === 0]);
     if (!hit) { console.log('UNTIL 沒等到'); break; }
     await pg.screenshot({ path: `screenshots/play-${tag}-${k}.png`, timeout: 90000 });
+    if (process.env.PAIR) { await pg.evaluate(process.env.PAIR); await pg.screenshot({ path: `screenshots/play-${tag}-${k}-x.png`, timeout: 90000 }); } // 第 185 輪：UNTIL 也能配 PAIR
     continue;
   }
   const st = await pg.evaluate(([gap, hpCap]) => {
