@@ -18,6 +18,7 @@ import { getSettings } from '../settings';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
+import { comboAdd, comboContinues, comboSize, type Combo } from '../fx/comboNumber';
 import { UI_FONT, bigText, dangerVignette, fadeOutThen, floatNumber, hitSparks, shockRing, sparks, ultFlash } from '../fx/feel';
 import { bossSlainFlashPeak, levelUpFlash } from '../fx/levelUp';
 import { FieldFx } from '../fx/fieldFx';
@@ -57,6 +58,7 @@ export class PvpScene extends Phaser.Scene {
   private acc = 0;
   private evIdx = 0;
   private prev = new Map<number, { x: number; y: number }>();
+  private hitNum = new Map<number, { t: Phaser.GameObjects.Text; c: Combo; x: number; y: number; counter: boolean }>();
   private ox = 0;
   private oy = 0;
   private g!: Phaser.GameObjects.Graphics;
@@ -740,7 +742,19 @@ export class PvpScene extends Phaser.Scene {
         }
         const mine = dst.id === me.id;
         const tier = e.origin === 'dot' ? undefined : ult ? 'ult' : e.crit ? 'crit' : undefined;
-        floatNumber(this, this.sx(dst.x), this.sy(dst.y) - 74, `${e.amount}`, { size: e.origin === 'dot' ? 20 : tier ? 38 : 28, color: mine ? '#ff8a7a' : e.origin === 'dot' ? '#d8b0ff' : '#ffffff', ...(tier && !mine ? { tier } : {}), ...(e.crit && e.origin !== 'dot' ? { label: '暴擊' } : e.origin === 'counter' ? { label: '反擊' } : {}) });
+        if (e.origin === 'dot') floatNumber(this, this.sx(dst.x), this.sy(dst.y) - 74, `${e.amount}`, { size: 20, color: mine ? '#ff8a7a' : '#d8b0ff' });
+        else {
+          // 第 189 輪：和冒險地圖一樣，連續被打的數字加在同一個上面（`fx/comboNumber.ts`）；「暴擊／反擊」小字一串只標一次
+          const tnow = this.time.now;
+          const prev = this.hitNum.get(dst.id);
+          const live = prev && prev.t.active && comboContinues(prev.c, tnow) ? prev : undefined;
+          const c = comboAdd(live?.c, tnow, { amount: e.amount, crit: e.crit, ult: !!ult, size: tier ? 38 : 28 });
+          if (live) { this.tweens.killTweensOf(live.t); live.t.destroy(); }
+          const label = e.crit && !live?.c.crit ? '暴擊' : e.origin === 'counter' && !live?.counter ? '反擊' : undefined;
+          const ct = c.ult ? 'ult' : c.crit ? 'crit' : undefined;
+          const t = floatNumber(this, live ? live.x : this.sx(dst.x), live ? live.y : this.sy(dst.y) - 74, `${c.sum}`, { size: comboSize(c), color: mine ? '#ff8a7a' : '#ffffff', ...(ct && !mine ? { tier: ct } : {}), ...(label ? { label } : {}), fixed: !!live });
+          this.hitNum.set(dst.id, { t, c, x: t.x, y: t.y, counter: !!live?.counter || e.origin === 'counter' });
+        }
       } else if (e.type === 'cast') {
         const u = this.s.units.find((x) => x.id === e.id);
         const sk = u && skillDef(this.s, e.skill, u);
