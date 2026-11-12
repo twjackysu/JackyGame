@@ -18,7 +18,8 @@ import { getSettings } from '../settings';
 import { SFX } from '../../audio/sfx';
 import { setBackHandler } from '../backButton';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { UI_FONT, bigText, dangerVignette, fadeOutThen, floatNumber, hitSparks, shockRing, sparks } from '../fx/feel';
+import { UI_FONT, bigText, dangerVignette, fadeOutThen, floatNumber, hitSparks, shockRing, sparks, ultFlash } from '../fx/feel';
+import { bossSlainFlashPeak, levelUpFlash } from '../fx/levelUp';
 import { FieldFx } from '../fx/fieldFx';
 import { RangedFx } from '../fx/rangedFx';
 import { dangerAlpha, dodgeFeedback, fxLead, hitLook } from '../fx/hitTint';
@@ -760,7 +761,7 @@ export class PvpScene extends Phaser.Scene {
           if (!u.pid) (ult ? SFX.hitHeavy : SFX.uiTap)();
         }
         if (sk?.role === 'ult') {
-          this.cameras.main.flash(150, 255, 200, 240);
+          ultFlash(this, 0xff8cdc); // 第 187 輪：以前是 camera.flash——第一幀整個畫面（連雙方血條、倒數、技能鍵）一片粉白，要五六幀才看得到東西；改成和冒險地圖同一種「亮一下」（壓在 HUD 下面）
           this.arenaArt?.roar(getSettings().lowFx, now); // 看台小歡呼（第 154 輪）
         }
       } else if (e.type === 'dodge') SFX.dodge();
@@ -820,7 +821,7 @@ export class PvpScene extends Phaser.Scene {
     this.status.setText(`${title}\n段位分 ${r.rating}（${r.delta >= 0 ? '+' : ''}${r.delta}）${up}`).setFontSize(40).setColor(r.outcome === 'victory' ? '#ffd27a' : '#ffffff');
     this.tweens.add({ targets: this.status, scale: { from: 1.25, to: 1 }, duration: 300, ease: 'Back.Out' });
     if (r.outcome === 'victory') {
-      this.cameras.main.flash(250, 255, 220, 150);
+      levelUpFlash(this, 0xffdc96, 420, bossSlainFlashPeak(getSettings().lowFx)); // 第 187 輪：勝利那一下也不再整片刷白（結果字、段位分一出來就看得到）
       this.arenaArt?.cheer(getSettings().lowFx); // 觀眾灑彩紙（第 153 輪）
     }
     // 本季第一次到達這個段位（D-328）：段位色的光圈從結果字往外擴

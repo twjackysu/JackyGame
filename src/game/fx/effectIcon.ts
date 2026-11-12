@@ -13,6 +13,9 @@ export const ELEMENT_LOOK: Record<EffectElement, { color: number; light: number;
   dark: { color: 0x5a2a9a, light: 0xd0a8ff, css: '#c8a0ff', name: '暗' },
 };
 
+/** 斬首的斧刃：半圓，直邊貼著柄（柄從左下往右上約 −51°），刃朝左上。角度是弧度。 */
+export const EXEC_AXE = { from: (-231 * Math.PI) / 180, to: (-51 * Math.PI) / 180 } as const;
+
 /** 在 g 上畫一顆圖示（中心 x,y、半徑 r）；dim＝還沒拿到／不能選 */
 export function drawEffectIcon(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, el: EffectElement, dim = false, glyph = 0): void {
   const L = ELEMENT_LOOK[el];
@@ -36,9 +39,13 @@ export function drawEffectIcon(g: Phaser.GameObjects.Graphics, x: number, y: num
     g.strokeEllipse(x - k * 0.45, y, k * 0.9, k * 1.7);
     g.fillEllipse(x + k * 0.4, y, k * 0.9, k * 1.7);
   } else if (el === 'phys' && glyph === 2) {
-    // 斬首：交叉的兩刀
-    g.lineBetween(x - k * 0.9, y - k * 0.9, x + k * 0.9, y + k * 0.9);
-    g.lineBetween(x - k * 0.9, y + k * 0.9, x + k * 0.9, y - k * 0.9);
+    // 斬首：一把斧（第 187 輪：以前是交叉的兩刀＝灰底白色 ✕，在 HUD 上就在可以點的火苗旁邊，看起來像「關閉」鈕）
+    const hx = x + k * 0.12; const hy = y - k * 0.19; // 斧頭裝在柄的上段
+    g.lineBetween(x - k * 0.8, y + k * 0.95, x + k * 0.82, y - k * 1.05);
+    g.beginPath();
+    g.slice(hx, hy, k * 0.7, EXEC_AXE.from, EXEC_AXE.to, false);
+    g.closePath();
+    g.fillPath();
   } else if (el === 'phys' && glyph) {
     // 震盾：盾形＋外面一圈
     g.fillTriangle(x - k * 0.7, y - k * 0.1, x + k * 0.7, y - k * 0.1, x, y + k * 0.95);

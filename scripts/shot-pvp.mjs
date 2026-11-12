@@ -46,6 +46,19 @@ if (nArea) {
   }
   await b.close(); process.exit(0);
 }
+// 第 187 輪：連拍「全畫面閃光」的頭幾幀（FLASH=n 張）。偵測到 camera.flash 或深度 47 的加亮矩形就停住，之後一幀一幀走。
+const nFlash = +(process.env.FLASH || 0);
+if (nFlash) {
+  await pg.evaluate((ULT) => { window.frozen = false; sc().events.on('preupdate', () => { if (!window.frozen && ULT) sc().inp.push({ type: 'skill', id: ULT }); }); const on = () => sc().cameras.main.flashEffect.isRunning || sc().children.list.some((o) => o.type === 'Rectangle' && o.depth === 47 && o.alpha > 0.01); sc().events.on('postupdate', () => { if (!window.frozen && on()) { window.frozen = true; __game.loop.sleep(); } }); }, process.env.ULT === '0' ? '' : 'blade_storm'); // 自己一直按大招（ULT=0 不按，等對手的）
+  const got = await pg.waitForFunction(() => window.frozen, null, { timeout: 90000 }).then(() => true).catch(() => false);
+  if (!got) { console.log('no flash'); await b.close(); process.exit(0); }
+  for (let i = 0; i < nFlash; i++) {
+    await pg.evaluate((i) => { const g = __game; if (i) { window.T = (window.T ?? g.loop.now) + 16.667; g.step(window.T, 16.667); } else { g.renderer.preRender(); g.scene.render(g.renderer); g.renderer.postRender(); } }, i);
+    await pg.screenshot({ path: `screenshots/pvp-${tag}-f${i}.png`, timeout: 90000 });
+  }
+  console.log('flash frames', nFlash);
+  await b.close(); process.exit(0);
+}
 const hp = +(process.env.HP || 0);
 const secs = +(process.env.SECS || 6);
 for (let t = 0; t < secs * 4; t++) {
