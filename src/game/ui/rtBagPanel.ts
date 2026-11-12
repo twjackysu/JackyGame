@@ -98,6 +98,33 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     SFX.confirm();
   }
 
+  /**
+   * 換上／卸下那一下的回饋（第 188 輪）：以前按「換上」卡片直接消失，只有上面那行小字的數字默默換掉。
+   * 現在那一行上蓋一塊寫著「▲ 攻擊 +11　HP +73」的字牌（變強綠、變弱紅）約一秒，換到的那一格外框脹開一圈光。
+   */
+  function equipFx(before: { atk: number; hp: number; def: number }, slots: readonly GearSlot[]): void {
+    const after = bonusOf(st);
+    const parts = ([['atk', '攻擊'], ['hp', 'HP'], ['def', '防禦']] as const)
+      .map(([k, n]) => [n, after[k] - before[k]] as const)
+      .filter(([, v]) => v !== 0)
+      .map(([n, v]) => `${n} ${v > 0 ? '+' : ''}${v}`);
+    const up = after.atk * 4 + after.hp * 0.25 + after.def * 3 >= before.atk * 4 + before.hp * 0.25 + before.def * 3;
+    const col = up ? 0x7dffb0 : 0xff9a8a;
+    if (parts.length) {
+      const y = GAME_HEIGHT / 2 - 528;
+      const tx = keepFx(scene.add.text(GAME_WIDTH / 2, y, `${up ? '▲' : '▼'} ${parts.join('　')}`, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: 'bold', color: hex(col), stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(990).setScale(0.6));
+      const bg = keepFx(scene.add.rectangle(GAME_WIDTH / 2, y, Math.max(360, tx.width + 48), 40, 0x0c0906, 0.96).setStrokeStyle(2, col, 0.6).setDepth(989));
+      scene.tweens.add({ targets: tx, scale: 1, duration: 160, ease: 'Back.Out' });
+      scene.tweens.add({ targets: [tx, bg], alpha: 0, delay: 1000, duration: 350, onComplete: () => { tx.destroy(); bg.destroy(); } });
+    }
+    for (const slot of slots) {
+      const i = GEAR_SLOTS.indexOf(slot);
+      if (i < 0) continue;
+      const halo = keepFx(scene.add.rectangle(GAME_WIDTH / 2 - 230 + (i % 3) * 230, GAME_HEIGHT / 2 - 466 + Math.floor(i / 3) * 72, 220, 64, col, 0.35).setStrokeStyle(6, col, 1).setDepth(988).setBlendMode(Phaser.BlendModes.ADD));
+      scene.tweens.add({ targets: halo, scaleX: 1.12, scaleY: 1.3, alpha: 0, duration: 480, ease: 'Cubic.easeOut', onComplete: () => halo.destroy() });
+    }
+  }
+
   function render(): void {
     root.removeAll(true);
     const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.93).setInteractive()];
@@ -154,8 +181,11 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
           uids.push(best.uid);
         }
       }
+      const before = bonusOf(st);
+      const slots = GEAR_SLOTS.filter((sl) => next.equip[sl]?.uid !== st.equip[sl]?.uid);
       if (next !== st) shadow({ kind: 'equip', uids }, () => change(next));
       render();
+      if (slots.length) equipFx(before, slots);
     }));
     items.push(btn(150, 360 + dy, '完成', () => onClose(), true, 28));
     if (detail) items.push(...detailCard(detail));
@@ -297,15 +327,19 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
     if (worn) {
       out.push(btn(-120, btnY, '卸下', () => {
         if (st.bag.length >= BAG_MAX) return;
+        const before = bonusOf(st);
         shadow({ kind: 'unequip', slot: g.slot }, () => change(unequip(st, g.slot)));
         detail = null;
         render();
+        equipFx(before, [g.slot]);
       }));
     } else {
       out.push(btn(-190, btnY, '換上', () => {
+        const before = bonusOf(st);
         shadow({ kind: 'equip', uids: [g.uid] }, () => change(equipWith(st, g)));
         detail = null;
         render();
+        equipFx(before, [g.slot]);
       }, true, 28));
       const armed = confirmDrop === g.uid;
       const drop = btn(0, btnY, armed ? t('bag.uniqueConfirm') : ctx ? `分解 +${salvageDust(g)} 粉塵` : '丟掉', () => {
