@@ -18,7 +18,7 @@
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
 **第 180 輪注意（大字／標題的光暈 D-376）**：
-- CI：d024e1d、dbf43d0 見 PROGRESS 第 180 輪收尾那一行。
+- CI：d024e1d、dbf43d0 都 success。
 - **不要對會留在畫面上的東西加 postFX**（Glow、Bloom、Blur…）：Phaser 的 postFX 是整個畫面跑一次著色器、每幀都跑。要發光用墊一層貼圖／文字陰影／ADD 混色。`ui/finale.ts` 的 `glow()` 還在用（靜止字卡，低優先）。
 - 位置：`fx/feel.ts` 的 `bannerGlowStyle`、`BANNER_GLOW_PAD`、`BANNER_GLOW_ALPHA`；`bigText` 裡的 `follow`（每幀把本體的位置／縮放／透明度／深度／文字抄給光暈）。標題在 `TitleScene` 的 `halo`、`TITLE_HALO_MIN`。
 - **截圖腳本卡死先懷疑「某一幀很貴」**：一幀一幀 `ff(1)` 量時間；找兇手的方法是把 `scene.children.list` 逐一 `visible = false` 再量一次畫圖時間（`gl.finish()`＋`readPixels` 才量得到）。`page.screenshot` 逾時時可改用 `__game.canvas.toDataURL()`（要在同一段 JS 裡先手動畫一幀）。
