@@ -25,4 +25,10 @@ describe('大字公告的光暈', () => {
     expect(glowStroke).toBeGreaterThan(mainStroke);
     expect(pad).toBeGreaterThanOrEqual(blur + glowStroke / 2);
   });
+  it('標題畫面的標題／副標也不用 postFX 的 Glow（改成墊一層同字＋透明度呼吸），離開場景時拿掉每幀的跟隨', () => {
+    const title = readFileSync('src/game/scenes/TitleScene.ts', 'utf8');
+    expect(title).not.toMatch(/addGlow\(/);
+    expect(title).toMatch(/children\.moveBelow\(halo, title\)/);
+    expect(title).toMatch(/SHUTDOWN, \(\) => this\.events\.off\(Phaser\.Scenes\.Events\.POST_UPDATE, follow\)/);
+  });
 });

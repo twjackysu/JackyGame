@@ -2,6 +2,7 @@
 // 用法：node scripts/shot-boss-attacks.mjs 地圖 [tag] [W H]
 // 每招：主角釘在 Boss 下方（DIST 格，預設照那招的 triggerRange）、只留那一招可用 → 預告出現後進度 35%／90%、命中後第 3／11 幀各截一張。
 // 環境變數 ONLY=king_bite,king_quake 只拍某幾招；PHASE2=1 先把 Boss 打到二階段；FURY=1 暴怒；NIGHT=1 深夜；LOWFX=1 省電畫質；DIST=格數；FACE=down|up 主角面向（瞬移招落在主角背後：面向下＝牠落在北邊）。
+// OFFS=-6,-2,1,3,6 改拍命中前後第幾幀。
 // 輸出 screenshots/boss-<tag>-<地圖>-<招>-<n>.png
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -77,6 +78,11 @@ for (const id of IDS) {
   // 推到某個 tick（tick 是 30/s，畫面是 60/s）
   const toTick = (t) => pg.evaluate((t) => { const s = sc().s; let n = 0; while (s.tick < t && n++ < 600) ff(1); return s.tick; }, t);
   const { start, hit } = await pg.evaluate(() => window.tg);
+  if (process.env.OFFS) {
+    // OFFS=-6,-2,1,3,6：改成拍「命中前後第幾幀」（畫面幀，60/s；負的是命中前）——看落下的東西和扣血對不對得上（第 180 輪）
+    for (const o of process.env.OFFS.split(',').map(Number)) { await toTick(hit + Math.floor(o / 2)); if (o % 2) await pg.evaluate(() => ff(1)); await shot(o < 0 ? `m${-o}` : `p${o}`); }
+    await pg.close(); continue;
+  }
   await toTick(Math.round(start + (hit - start) * 0.35)); await shot(0);
   await toTick(Math.round(start + (hit - start) * 0.9)); await shot(1);
   await toTick(hit); await pg.evaluate(() => ff(3)); await shot(2);

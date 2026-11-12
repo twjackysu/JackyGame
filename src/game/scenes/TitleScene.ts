@@ -23,6 +23,9 @@ const TITLE_FONT =
 const UI_FONT =
   '"Noto Sans TC", "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif';
 
+/** 標題光暈呼吸的最低透明度（最高是 1） */
+const TITLE_HALO_MIN = 0.55;
+
 /**
  * Title screen built entirely from procedural textures:
  * gradient sky, twinkling stars, rotating star-shard sigil, rising embers,
@@ -151,17 +154,24 @@ export class TitleScene extends Phaser.Scene {
       true,
     );
 
-    if (isWebGL && title.postFX) {
-      const glow = title.postFX.addGlow(0xffa54a, 3, 0, false, 0.1, 12);
-      this.tweens.add({
-        targets: glow,
-        outerStrength: 9,
-        duration: 1800,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-      subtitle.postFX?.addGlow(0xff7a2a, 2, 0, false, 0.1, 10);
+    // 標題的光暈（第 180 輪，D-376）：以前用 postFX 的 Glow（整個畫面每個像素取樣約 96 次、每一幀都跑，標題畫面大半的繪圖時間花在這）。
+    // 改成墊在標題下面的一層同字（橘色亮邊＋陰影模糊，只畫一次），呼吸感用透明度做；副標的光暈改成文字自己的陰影。
+    {
+      const halo = this.add
+        .text(cx, ty, t('game.title'), {
+          fontFamily: TITLE_FONT, fontSize: '120px', fontStyle: 'bold', color: '#ffa54a', stroke: '#ffa54a', strokeThickness: 26,
+          padding: { x: 56, y: 56 },
+        })
+        .setOrigin(0.5)
+        .setShadow(0, 0, '#ffa54a', 26, true, true)
+        .setAlpha(0);
+      this.children.moveBelow(halo, title);
+      const pulse = { v: TITLE_HALO_MIN };
+      this.tweens.add({ targets: pulse, v: 1, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      const follow = (): void => { halo.setY(title.y).setAlpha(title.alpha * pulse.v).setVisible(title.visible); };
+      this.events.on(Phaser.Scenes.Events.POST_UPDATE, follow);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.POST_UPDATE, follow));
+      subtitle.setShadow(0, 0, '#ff7a2a', 12, false, true);
     }
 
     // Intro animation.
