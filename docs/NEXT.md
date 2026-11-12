@@ -22,6 +22,13 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 188 輪注意（行囊：強化成功、換上裝備的回饋）**：
+- 位置：`fx/feel.ts` 的 `panelFlash`／`panelFlashPeak`（面板上面的淡閃光，depth 986；行囊、行商、拍賣所共用）；`ui/rtBagPanel.ts` 的 `finish`（強化結果：`gained` 綠字＋深色底＋卡片金框 halo）、`equipFx(before, slots)`（字牌蓋在數值那一行、格子 halo）。面板上要加會飄的字都用 `keepFx`（面板關掉一起收）。
+- 拍面板的「按下去頭幾幀」：`FRAMES=2 STEPS='[...]' node scripts/shot-unique.mjs 390 844 tag`（每步之後只推 n 幀就拍）。給材料：STEPS 第一步 `(async()=>{const r=await import("/src/game/rtRecord.ts");r.saveRecord("mistwood",{...r.loadRecord("mistwood"),dust:9999,crystal:99});sc().openBag();ff(30)})()`；要 +7：`sc().bagSt.bag[3].enh=6`。**強化走本機伺服器擲骰，是非同步的**：點「確定強化」後那一張還是確認框，結果在下一步才出現。`clk("字")` 是「包含」、會點到第一個符合的（兩把劍都叫「王牙大劍」要寫全名）。行商：`sc().openShop()` → `clk("=賣")`。
+- 還沒逐幀看過的：行商「買」、拍賣所「買到」、強化失敗；①走進光門換圖 ②競技場分出勝負 ③標題／結局（`ui/finale.ts` 還有一個 `camera.flash`＋`glow()` 的 postFX）。舊候選：一般小怪風箏脫戰的預告（先量頻率）、主角只被大怪蓋住半邊。
+- 這輪玩的兩段裡看到但沒動的：燼紅裂谷的岩壁（深色圓石＋橘色裂紋）鋪滿畫面時很花，主角在護盾六角形裡不太好找；穿透招一次打一排時傷害數字會疊（`numberSlot` 已經有錯開，還是擠）。都先記著，要動先拍多一點再決定。
+- 再來：先看 Jacky 對蓋著的牌的回饋。
+
 **第 187 輪注意（斬首圖示、競技場閃光、獨特裝備說明）**：
 - CI：6f5f4c1、b026937 的 CI 都 success（b026937 的 Pages、APK 也是）。
 - 位置：`fx/effectIcon.ts`（`EXEC_AXE`；每個效果的記號＝元素＋`glyph`）；`PvpScene` 的大招改用 `ultFlash`、勝利用 `levelUpFlash`；`RtBattleScene.announceUnique`（大字最後一行空白＝替說明小字佔位置，說明畫在那一行裡——**之後要在大字下面掛小字都照這樣，不要掛在大字的範圍外**）。
