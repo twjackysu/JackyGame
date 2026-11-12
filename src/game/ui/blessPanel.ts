@@ -115,6 +115,54 @@ export function openBlessPanel(scene: Phaser.Scene, offer: readonly EffectDef[],
 }
 
 /**
+ * 翻開蓋著的牌（D-383）：結果已經由 core 決定（blessGamble 事件），這裡只是把牌面翻過來給玩家看一秒——
+ * 標題（雙重祝福！／翻開了／帶著一道燼痕）＋拿到的祝福（圖示、名字、說明）＋燼痕那一行。點一下可以提早關；關掉後 onDone。
+ */
+export function openGambleReveal(scene: Phaser.Scene, result: 'double' | 'single' | 'cursed', got: readonly EffectDef[], cursePct: number, onDone: () => void): Phaser.GameObjects.Container {
+  const cx = GAME_WIDTH / 2;
+  const root = scene.add.container(0, 0).setDepth(1850);
+  const shade = scene.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x06040a, 0.6).setInteractive();
+  root.add(shade);
+  const bad = result === 'cursed';
+  const edge = bad ? 0xff5a4a : result === 'double' ? 0xffd27a : DARK_COLOR;
+  const ROW = 112;
+  const H = 104 + got.length * ROW + (bad ? 64 : 0) + 20;
+  const card = scene.add.container(cx, Math.round(GAME_HEIGHT * 0.44));
+  const g = scene.add.graphics();
+  g.fillStyle(0x150c22, 0.98).fillRoundedRect(-CARD_W / 2, -H / 2, CARD_W, H, 16);
+  g.lineStyle(5, edge, 1).strokeRoundedRect(-CARD_W / 2, -H / 2, CARD_W, H, 16);
+  g.lineStyle(2, edge, 0.45).strokeRoundedRect(-CARD_W / 2 + 10, -H / 2 + 10, CARD_W - 20, H - 20, 10);
+  card.add(g);
+  card.add(scene.add.text(0, -H / 2 + 56, t(`bless.dark.${result}`), { fontFamily: TITLE_FONT, fontSize: result === 'double' ? '52px' : '40px', color: bad ? '#ff9a8a' : result === 'double' ? '#ffe08a' : '#d8b8ff', stroke: '#140a04', strokeThickness: 7 }).setOrigin(0.5));
+  got.forEach((d, i) => {
+    const y = -H / 2 + 104 + i * ROW + ROW / 2;
+    const L = ELEMENT_LOOK[d.element];
+    drawEffectIcon(g, -CARD_W / 2 + 84, y, 40, d.element, false, d.glyph);
+    card.add(scene.add.text(-CARD_W / 2 + 150, y - 24, d.name, { fontFamily: TITLE_FONT, fontSize: '36px', color: L.css, stroke: '#140a04', strokeThickness: 5 }).setOrigin(0, 0.5));
+    card.add(scene.add.text(-CARD_W / 2 + 150, y + 24, d.desc, { fontFamily: UI_FONT, fontSize: d.desc.length > 26 ? '18px' : '22px', color: '#f4ecd8', wordWrap: { width: CARD_W - 180, useAdvancedWrap: true } }).setOrigin(0, 0.5));
+  });
+  if (bad) card.add(scene.add.text(0, H / 2 - 52, t('bless.curse', { pct: cursePct }), { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ff8a8a', stroke: '#1a0404', strokeThickness: 4 }).setOrigin(0.5));
+  root.add(card);
+  // 牌翻過來：橫向從一條線展開
+  card.setScale(0.04, 1);
+  scene.tweens.add({ targets: card, scaleX: 1, duration: 180, ease: 'Back.Out' });
+  if (result === 'double') scene.tweens.add({ targets: card, scaleY: 1.05, duration: 160, delay: 180, yoyo: true });
+  let done = false;
+  const finish = (): void => {
+    if (done) return;
+    done = true;
+    scene.tweens.add({ targets: root, alpha: 0, duration: 140, onComplete: () => onDone() });
+  };
+  const openedAt = Date.now();
+  shade.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+    ev.stopPropagation();
+    if (Date.now() - openedAt >= 350) finish();
+  });
+  scene.time.delayedCall(result === 'single' ? 1300 : 1700, finish);
+  return root;
+}
+
+/**
  * 身上的祝福清單（第 162 輪，P2-c ⑤）：點右上角的火苗／圖示打開——HUD 只有圖示沒有名字，選過幾個之後記不得各是什麼。
  * 每個一列（圖示＋名字＋說明），最下面寫離下一次選擇還差幾隻、怎樣會消散；點任何地方關掉。戰鬥暫停（和其他面板一樣）。
  */

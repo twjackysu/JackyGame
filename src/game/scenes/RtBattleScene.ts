@@ -21,7 +21,7 @@ import { BannerSystem } from '../rt/BannerSystem';
 import { AFFIX_COLOR, drawMinimap } from '../rt/MinimapSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
-import { openBlessList, openBlessPanel } from '../ui/blessPanel';
+import { openBlessList, openBlessPanel, openGambleReveal } from '../ui/blessPanel';
 import { BLESS_GAMBLE, BLESS_RULES, blessNeed, effectDef, gambleCursePct, type EffectDef } from '../../core/battle/rt/effects';
 import { ELEMENT_LOOK, drawEffectIcon } from '../fx/effectIcon';
 import { addWithAutoSalvage } from '../rtBag';
@@ -1308,16 +1308,31 @@ export class RtBattleScene extends Phaser.Scene {
       this.gamblePicks = 0;
       const px = this.sx(p.x);
       const py = this.sy(p.y);
-      const names = this.blessDefs(e.ids).map((d) => d.name).join('＋');
       const bad = e.result === 'cursed';
-      bigText(this, px, py - 176, tr(`bless.dark.${e.result}`), bad ? '#ff8a8a' : e.result === 'double' ? '#ffe08a' : '#d8b8ff', e.result === 'double' ? 46 : 34, 1200);
-      bigText(this, px, py - 120, names, '#ffd27a', 34, 1200);
-      if (bad) {
-        bigText(this, px, py + 96, tr('bless.curse', { pct: BLESS_GAMBLE.cursePct }), '#ff8a8a', 26, 1700);
-        shockRing(this, px, py, 0xff4a3a, 150, 620, 7);
-        SFX.blessProc('shadow');
-        this.cameras.main.shake(180, 0.004);
-      } else if (e.result === 'double') sparks(this, px, py - 30, getSettings().lowFx ? 12 : 30, 'ember', 0xffe08a, 700);
+      // 回到戰場後的餘韻：燼痕＝紅圈＋小震＋一行提醒；雙重＝多一把火星（祝福自己的光圈由 blessPick 放）
+      const after = (): void => {
+        const ax = this.sx(p.x);
+        const ay = this.sy(p.y);
+        if (bad) {
+          bigText(this, ax, ay + 96, tr('bless.curse', { pct: BLESS_GAMBLE.cursePct }), '#ff8a8a', 26, 1500);
+          shockRing(this, ax, ay, 0xff4a3a, 150, 620, 7);
+          this.cameras.main.shake(180, 0.004);
+        } else if (e.result === 'double') sparks(this, ax, ay - 30, getSettings().lowFx ? 12 : 30, 'ember', 0xffe08a, 700);
+      };
+      if (bad) SFX.blessProc('shadow');
+      if (this.menu || this.bot) {
+        // 別的面板正開著（或機器人在玩）：不疊面板，直接用大字講
+        bigText(this, px, py - 120, `${tr(`bless.dark.${e.result}`)} ${this.blessDefs(e.ids).map((d) => d.name).join('＋')}`, bad ? '#ff8a8a' : '#ffe08a', 32, 1200);
+        after();
+        return;
+      }
+      // 把牌面翻過來給玩家看（戰鬥暫停，和其他面板一樣）
+      const root = openGambleReveal(this, e.result, this.blessDefs(e.ids), BLESS_GAMBLE.cursePct, () => {
+        root.destroy();
+        if (this.menu === root) this.menu = null;
+        after();
+      });
+      this.menu = root;
       return;
     }
     if (e.type === 'blessPick') {

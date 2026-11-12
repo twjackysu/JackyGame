@@ -1,6 +1,6 @@
 // 拍「蓋著的牌」（D-383）：三選一面板（含蓋著的牌）＋翻開的三種結果。先 `npx vite --port 5173`。
 // 用法：node scripts/shot-gamble.mjs [sword|bow|staff] [地圖] [tag] [W H]；環境變數 NIGHT=1、LOWFX=1。
-// 輸出 screenshots/gamble-<tag>-panel.png、-double.png、-single.png、-cursed.png、-hud.png、-list.png
+// 輸出 screenshots/gamble-<tag>-panel.png、-double.png、-single.png、-cursed.png（翻開的牌面）、各自的 -after.png（關掉後的戰場）、-hud.png、-list.png
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 mkdirSync('screenshots', { recursive: true });
@@ -68,6 +68,8 @@ for (let k = 0; k < results.length; k++) {
   }, results[k]);
   console.log(results[k], JSON.stringify(r));
   await shot(results[k]);
+  await pg.evaluate(() => ff(1.75)); // 牌面自己關掉後的戰場餘韻
+  await shot(results[k] + '-after');
   await pg.evaluate(() => ff(2.5));
 }
 await shot('hud');
