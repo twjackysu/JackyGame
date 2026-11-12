@@ -6,10 +6,10 @@
 > 每一步都跑 `npm run typecheck`、`npm run lint`、`npm run build`、`npx vitest run`；改數值要 `npm run wiki`。
 > 遊戲現況：單人即時動作戰鬥＋四張大地圖、三把武器、技能點＋變化、行商、強化、拍賣所、交易、競技場。**沒有「深淵」模式**（最接近的是深夜／騷動／暴怒 Boss）。
 
-## 🔴 Jacky 11/12 的指示：燼牌拿掉（**verified**，D-379，3181853）；「賭博的形式可以用在其他方式」＝**等他選方向**
+## 🔴 Jacky 11/12 的指示：燼牌拿掉（**verified**，D-379，3181853）；「賭博的形式可以用在其他方式」＝**① 的最小樣本上線（verified，D-383，11f7f31），等他試玩回饋**
 - 燼牌相關程式、伺服器方法、測試、截圖都刪了；下面舊筆記裡提到燼牌面板／`openCards`／`jg_cards` 的段落都已過時，不用理。營火旁的薇菈／葛倫／索爾留著（`CAMP_FOLK`）。
-- **預設（D-382，第 183 輪定）：下一輪開頭 FOR_JACKY「回覆」還是空的話，就先做 ① 的最小樣本**（接在祝福三選一上、core 用種子決定、不進競技場、可用開關關掉）；他回了別的就照他的。
-- 「賭一把」的候選（一次做一個最小樣本）：①祝福三選一多一張**蓋著的牌**（可能是更強的祝福，也可能附帶代價）②行商／營火旅人賣**未鑑定的裝備**（花金幣開，稀有度與獨特效果用伺服器擲骰）③強化失敗後的**「再賭一次」**（加碼材料換較高成功率，輸了多扣）④Boss 前向旅人**下注**（賭自己幾秒內打倒／不喝水，贏了提高獨特掉率）。結算都要在 core／server。
+- **① 蓋著的牌（第 184 輪）**：祝福三選一第二手起多一張；35% 兩個祝福／35% 一個／30% 一個＋燼痕（被敵人打到 +20%，最多 3 層）。`tests/rt-bless-gamble.test.ts`、`docs/screenshots/bless-gamble.jpg`。開關 `BLESS_GAMBLE.on`。**好不好玩、機率與代價順不順——等 Jacky 實機**；他回了就照他的調。
+- 其他候選（Jacky 點名才做，一次一個最小樣本）：②行商／營火旅人賣**未鑑定的裝備** ③強化失敗後的**「再賭一次」** ④Boss 前向旅人**下注**。結算都要在 core／server。
 
 ## 🔴 Jacky 11/10 19:30 的指示（對話裡直接說的；排在所有東西前面，照順序做）
 > 原話：①「我覺得全部都不用自己點比較好」→ 問他要到哪一層，他選**「技能全自動，閃避和藥水手動」** ②「格擋反擊感覺確實不太適合自動，**整組技能換掉吧**」③「衝鋒和弓和杖的那個看要不要也換掉，確實不太適合自動」④「由於是自動施放，**畫面好像也不用留那個區塊給人按了**」。決策與設計方向 D-344。
@@ -21,6 +21,14 @@
 | P1-c2 | 第 3 欄（`charge`）9 招換成不位移的遠距／控場招 | 同上 | **verified**（第 162 輪，D-350；`tests/rt-slot3.test.ts`、`docs/screenshots/p1c2-slot3-skills.jpg`；**競技場沿用原本的位移招** `ARENA_CHARGE`；手感等 Jacky 實機） |
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
+
+**第 184 輪注意（蓋著的牌 D-383）**：
+- CI：見 PROGRESS 第 184 輪最後一行。
+- 位置：`effects.ts` 的 `BLESS_GAMBLE`、`gambleCursePct`；`engine.ts` 的 `gamblePool`／`blessGamble`、`dealDamage` 裡的燼痕、`stateHash` 多混一個 curse；`blessPanel.ts` 的 `onGamble`（第四張牌）、`openBlessList` 的 `curse`；`RtBattleScene.playBlessEvent` 的 `blessGamble`（同一個 tick 的 `blessPick` 不再各跳一行字）、`drawBlessHud` 的燼痕記號。
+- 拍照：`node scripts/shot-gamble.mjs sword mistwood tag`（面板＋三種結果＋HUD＋清單；`NIGHT=1 LOWFX=1 … bow emberrift tag 360 640`）。腳本用 `seedFor` 找翻出指定結果的祝福種子——**小的種子第一個亂數都很小**（一律「兩個」），所以用乘法打散。別的圖會被相遇事件的面板蓋到（霧語最乾淨）。
+- 截圖腳本裡**換掉 `sc().commands` 之後，面板送的指令（`inp.push`）進不了 core**：要 `const orig = sn.commands.bind(sn)` 再把 `orig()` 裡的 bless 指令帶進去。
+- 守望者的墜星（上一輪沒拍到）這輪用 `play.mjs` 的 `UNTIL` 拍到了：落地是一小團柔光、數字看得到，沒問題，不改。
+- 再來：看 Jacky 對蓋著的牌的回饋。沒有的話候選：①翻牌的演出再加強（現在是牌壓扁→大字；可以做「牌翻過來露出內容」半秒再關面板）②一般小怪風箏脫戰的預告（先量頻率）③結局／序章字卡的光暈 ④競技場的技能範圍（`PvpScene.shapePath` 附近）。
 
 **第 183 輪注意（落地閃光 D-380、毒沼 D-381、圓／環範圍）**：
 - CI：019885f、da5130b 的 CI、Pages、APK 都 success。
