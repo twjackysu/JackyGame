@@ -76,6 +76,7 @@ import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
+import { LANE_LAYERS, LANE_SEGS, LANE_TICK, SECTOR_BANDS, SECTOR_SIDE, areaLook, laneBand, type AreaLook } from '../fx/areaLook';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
 import { coversHero, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
@@ -3919,6 +3920,58 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
+  /** 玩家直線技能的範圍＝光路（第 182 輪，D-378）：沒有封閉外框，近亮遠淡、中間一條芯、兩側淡出的邊線、末端兩個小角 */
+  private softLane(g: Phaser.GameObjects.Graphics, sh: Extract<Shape, { type: 'line' }>, ox: number, oy: number, dx: number, dy: number, al: AreaLook): void {
+    const cx = this.sx(ox);
+    const cy = this.sy(oy);
+    const ang = Math.atan2(dy, dx);
+    const c = Math.cos(ang);
+    const sn = Math.sin(ang);
+    const w = (sh.width / 2) * this.k;
+    const L = sh.len * this.k;
+    const at = (a: number, b: number) => ({ x: cx + a * c - b * sn, y: cy + a * sn + b * c });
+    for (let i = 0; i < LANE_SEGS; i++) {
+      const a0 = (L * i) / LANE_SEGS;
+      const a1 = (L * (i + 1)) / LANE_SEGS;
+      const m = laneBand(i);
+      for (const ly of LANE_LAYERS) g.fillStyle(al.fill, al.fillA * ly.a * m).fillPoints([at(a0, -w * ly.w), at(a1, -w * ly.w), at(a1, w * ly.w), at(a0, w * ly.w)], true);
+      g.lineStyle(1.5, al.edge, al.edgeA * 0.75 * m);
+      for (const side of [-1, 1]) {
+        const p0 = at(a0, side * w);
+        const p1 = at(a1, side * w);
+        g.lineBetween(p0.x, p0.y, p1.x, p1.y);
+      }
+    }
+    // 末端：兩個小角（射程到這裡），不封口
+    const tk = Math.min(L * 0.2, w * 2 * LANE_TICK);
+    g.lineStyle(2, al.edge, al.edgeA * 0.9);
+    for (const side of [-1, 1]) {
+      const e = at(L, side * w);
+      const e1 = at(L, side * w * 0.45);
+      const e2 = at(L - tk, side * w);
+      g.lineBetween(e.x, e.y, e1.x, e1.y).lineBetween(e.x, e.y, e2.x, e2.y);
+    }
+  }
+
+  /** 玩家扇形技能的範圍＝斬擊掃過的範圍（第 182 輪，D-378）：外緣一圈亮弧，裡面由內往外變實，兩條半徑邊幾乎不畫 */
+  private softSector(g: Phaser.GameObjects.Graphics, sh: Extract<Shape, { type: 'sector' }>, ox: number, oy: number, dx: number, dy: number, al: AreaLook): void {
+    const cx = this.sx(ox);
+    const cy = this.sy(oy);
+    const ang = Math.atan2(dy, dx);
+    const half = ((sh.deg / 2) * Math.PI) / 180;
+    const R = sh.r * this.k;
+    for (const b of SECTOR_BANDS) {
+      g.fillStyle(al.fill, al.fillA * b.a).beginPath();
+      g.arc(cx, cy, R * b.r1, ang - half, ang + half);
+      if (b.r0 > 0) g.arc(cx, cy, R * b.r0, ang + half, ang - half, true);
+      else g.lineTo(cx, cy);
+      g.closePath().fillPath();
+    }
+    g.lineStyle(2.5, al.edge, al.edgeA).beginPath().arc(cx, cy, R, ang - half, ang + half).strokePath();
+    g.lineStyle(1, al.edge, al.edgeA * SECTOR_SIDE);
+    for (const sd of [-1, 1]) g.lineBetween(cx + Math.cos(ang + sd * half) * R * 0.3, cy + Math.sin(ang + sd * half) * R * 0.3, cx + Math.cos(ang + sd * half) * R, cy + Math.sin(ang + sd * half) * R);
+  }
+
   private shapePath(sh: Shape, ox: number, oy: number, dx: number, dy: number, g: Phaser.GameObjects.Graphics, fill: boolean): void {
     const cx = this.sx(ox);
     const cy = this.sy(oy);
@@ -4356,11 +4409,15 @@ export class RtBattleScene extends Phaser.Scene {
     const sn = Math.sin(ang);
     const locked = k >= sk.aimTicks;
     const prog = Math.min(1, k / h.atTick);
-    const corner = (f: number, side: number) => ({ x: this.sx(p.x + c * hs.len * f - sn * side * hs.width / 2), y: this.sy(p.y + sn * hs.len * f + c * side * hs.width / 2) });
-    const col = locked ? 0xffffff : 0xffe7a0;
-    g.fillStyle(col, locked ? 0.1 + 0.12 * (Math.floor(now / 70) % 2) : 0.08).fillPoints([corner(0, -1), corner(1, -1), corner(1, 1), corner(0, 1)], true);
-    g.fillStyle(col, locked ? 0.3 : 0.18).fillPoints([corner(0, -1), corner(prog, -1), corner(prog, 1), corner(0, 1)], true);
-    g.lineStyle(2, col, locked ? 0.9 : 0.55).strokePoints([corner(0, -1), corner(1, -1), corner(1, 1), corner(0, 1)], true);
+    // 第 182 輪（D-378）：瞄準中的直線也是光路（以前是一塊白色長方形＋封閉外框，深色地面上像一片玻璃）；鎖定後變亮、閃爍，蓄力進度是一條往前推的橫線
+    const base = areaLook(this.s.weapon ?? 'sword', h.status?.id);
+    const al: AreaLook = locked ? { ...base, edge: 0xffffff, fillA: base.fillA * (1.2 + 0.7 * (Math.floor(now / 70) % 2)), edgeA: 0.9 } : base;
+    this.softLane(g, hs, p.x, p.y, a.dirX, a.dirY, al);
+    if (!locked) {
+      const fx = p.x + c * hs.len * prog;
+      const fy = p.y + sn * hs.len * prog;
+      g.lineStyle(2, base.edge, 0.8).lineBetween(this.sx(fx - (sn * hs.width) / 2), this.sy(fy + (c * hs.width) / 2), this.sx(fx + (sn * hs.width) / 2), this.sy(fy - (c * hs.width) / 2));
+    }
   }
 
   /** Boss 登場（第 23 輪）：上下黑邊＋世界壓暗＋名牌從左滑入，每場第一次交戰演一次 */
@@ -5148,13 +5205,23 @@ export class RtBattleScene extends Phaser.Scene {
           const soft = !(elem || bowRing || frostCharge || venom) && !(s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1);
           // 第 169 輪：長弓大招（星河貫射）連射時底下那塊範圍以前是灰藍色的框，比箭還搶眼 → 淡粉色、像星河的河岸
           const starRiver = s.weapon === 'bow' && sk?.role === 'ult' && (h.shape.type === 'line' || h.shape.type === 'circle'); // 第 170 輪：流星箭雨的圓也一樣（以前是一大塊灰白圓盤）
-          g.fillStyle(starRiver ? 0xff9ae0 : venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, starRiver ? 0.06 : elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.1);
           // 第 162 輪：落在前方的圓（落雷，`ahead`）預告畫在落點，不是畫在主角腳下
           const ah = h.ahead ?? 0;
-          this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x + (ah * x.action.dirX) / 1000, pos.y + (ah * x.action.dirY) / 1000, x.action.dirX, x.action.dirY, g, true);
-          if (soft) {
-            g.lineStyle(2, starRiver ? 0xffb0e8 : 0xbfe8ff, starRiver ? 0.4 : 0.5);
-            this.shapePath(skillShape(this.s, x.action.id, h.shape), pos.x + (ah * x.action.dirX) / 1000, pos.y + (ah * x.action.dirY) / 1000, x.action.dirX, x.action.dirY, g, false);
+          const shp = skillShape(this.s, x.action.id, h.shape);
+          const aox = pos.x + (ah * x.action.dirX) / 1000;
+          const aoy = pos.y + (ah * x.action.dirY) / 1000;
+          // 第 182 輪（D-378）：直線與扇形不再是「一塊平藍＋封閉外框」（深色地面上像灰色的玻璃片／除錯框）→ 光路／掃過範圍，顏色跟著武器與屬性
+          if (soft && !starRiver && (shp.type === 'line' || shp.type === 'sector')) {
+            const al = areaLook(s.weapon ?? 'sword', h.status?.id);
+            if (shp.type === 'line') this.softLane(g, shp, aox, aoy, x.action.dirX, x.action.dirY, al);
+            else this.softSector(g, shp, aox, aoy, x.action.dirX, x.action.dirY, al);
+          } else {
+            g.fillStyle(starRiver ? 0xff9ae0 : venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, starRiver ? 0.06 : elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.1);
+            this.shapePath(shp, aox, aoy, x.action.dirX, x.action.dirY, g, true);
+            if (soft) {
+              g.lineStyle(2, starRiver ? 0xffb0e8 : 0xbfe8ff, starRiver ? 0.4 : 0.5);
+              this.shapePath(shp, aox, aoy, x.action.dirX, x.action.dirY, g, false);
+            }
           }
         }
       }
