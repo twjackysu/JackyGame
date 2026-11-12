@@ -17,6 +17,12 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 179 輪注意（落下型特效提早出發 D-375）**：
+- CI：ea8d626、e523d3a 都 success。
+- 位置：`fx/hitTint.ts` 的 `fxLead(weapon, ult, hits, shape, status)`；`RtBattleScene.skillFxOf` 與 `PvpScene.skillFx` 用 `k < h.atTick - fxLead(...)` 判斷。新增「會飛一段才落地」的招時：在 `fxLead` 加一條、把那招「落地才該出現」的東西（地上的圈、震動）用 `delayedCall` 延到落地；`tests/fx-lead.test.ts` 會檢查提前量不超過 atTick。
+- 拍「扣血後第 N 幀」：`ONLY=blade_storm FRAMES=1,3,5,7,9,12 node scripts/shot-skills.mjs staff a tag`（FRAMES 不能是負數）。`shot-pvp.mjs` 多了 `WEAPON=bow|staff`。
+- 再來看 Jacky 的回覆；沒有就挑：①守望者 20% 以下到倒下 ②一般小怪風箏脫戰的預告（先量頻率）③敵人的落下型招式（守望者星落、岩王落石）預告圈與落地有沒有時差。
+
 **第 178 輪注意（雷暴／流星雨的落點 D-374、截圖腳本時間）**：
 - CI：1192178、4787431 都 success。87e6d88、24c9d2e 的舊 run 一直 `queued`，不用管。
 - 位置：`fx/hitTint.ts` 的 `stormStrikes`；`rangedFx.staffFx(..., foes)`（雷暴、流星雨兩段）；`RtBattleScene.stormFoes()`（活著的怪＋剛倒下的）。別的「圈裡隨機落點」的招要對準怪，照這個接。
