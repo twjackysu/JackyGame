@@ -19,7 +19,7 @@ import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { UI_FONT, bigText, dangerVignette, fadeOutThen, floatNumber, hitSparks, shockRing, sparks } from '../fx/feel';
 import { FieldFx } from '../fx/fieldFx';
 import { RangedFx } from '../fx/rangedFx';
-import { dangerAlpha, dodgeFeedback, hitLook } from '../fx/hitTint';
+import { dangerAlpha, dodgeFeedback, fxLead, hitLook } from '../fx/hitTint';
 import { t as tr } from '../../i18n';
 import { InputSystem } from '../rt/InputSystem';
 import { buttonPos, loadControls } from '../rtControls';
@@ -630,12 +630,13 @@ export class PvpScene extends Phaser.Scene {
       const foe = !!u.pid;
       sk.hits.forEach((h, i) => {
         const key = `${u.id}:${a.start}:${i}`;
-        if (k < h.atTick || this.fxDone.has(key)) return;
+        if (this.fxDone.has(key)) return;
+        const ult = sk.role === 'ult';
+        const hs = skillShape(this.s, a.id, h.shape, u);
+        if (k < h.atTick - fxLead(w, ult, sk.hits.length, hs.type, h.status?.id)) return; // 第 179 輪：落下型的招提早出發，落地才是扣血那一刻（和冒險地圖一樣）
         this.fxDone.add(key);
         const ang = Math.atan2(a.dirY, a.dirX);
         const big = h.mult >= 150;
-        const ult = sk.role === 'ult';
-        const hs = skillShape(this.s, a.id, h.shape, u);
         const st = h.status?.id;
         if (w === 'bow') {
           this.rfx.bowFx(u.x, u.y, ang, hs, ult, !!sk.dash, st === 'break', st === 'freeze', st);

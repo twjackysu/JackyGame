@@ -1,5 +1,5 @@
 // 競技場對戰截圖（第 171 輪）。先 `npx vite --port 5173`。
-// 用法：node scripts/shot-pvp.mjs [tag] [W H]　環境變數 HP=0.3（把自己的血壓成幾成，看危險紅暈）、LOWFX=1、SECS=6（開打後幾秒截）
+// 用法：node scripts/shot-pvp.mjs [tag] [W H]　環境變數 HP=0.3（把自己的血壓成幾成，看危險紅暈）、LOWFX=1、WEAPON=bow|staff（第 179 輪）、SECS=6（開打後幾秒截）
 // 輸出 screenshots/pvp-<tag>.png
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -9,11 +9,11 @@ const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 const pg = await b.newPage({ viewport: { width: +W, height: +H } });
 pg.on('pageerror', (e) => console.log('PAGEERR', e.message));
 await pg.goto('http://localhost:5173/?debug');
-await pg.evaluate((low) => {
-  localStorage.clear(); localStorage.setItem('jg_prologue_seen', '1'); localStorage.setItem('jg_weapon', 'sword');
+await pg.evaluate(([low, w]) => {
+  localStorage.clear(); localStorage.setItem('jg_prologue_seen', '1'); localStorage.setItem('jg_weapon', w);
   localStorage.setItem('jg_rt_mistwood', JSON.stringify({ level: 10, bossKills: 2 }));
   if (low) localStorage.setItem('jackygame.settings', JSON.stringify({ lowFx: true }));
-}, !!process.env.LOWFX);
+}, [!!process.env.LOWFX, process.env.WEAPON || 'sword']);
 await pg.reload();
 await pg.waitForFunction(() => window.__game?.scene?.getScene('Title')?.sys?.isActive(), null, { timeout: 60000 });
 await pg.evaluate(() => __game.scene.getScene('Title').scene.start('Pvp'));
