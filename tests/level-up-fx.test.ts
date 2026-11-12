@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: {} }));
 vi.mock('../src/game/settings', () => ({ getSettings: () => ({ lowFx: false }), highFx: () => true }));
 
-import { levelUpFlashPeak, pillarAcross, pillarAlong, pillarLayers } from '../src/game/fx/levelUp';
+import { bossSlainFlashPeak, levelUpFlashPeak, pillarAcross, pillarAlong, pillarLayers } from '../src/game/fx/levelUp';
 import { ultFlashPeak } from '../src/game/fx/feel';
 import { popScale } from '../src/game/fx/feel';
 
@@ -11,6 +11,10 @@ describe('升級演出（第 186 輪）', () => {
   it('全畫面只亮一下：比大招的閃光淡，省電畫質更淡', () => {
     expect(levelUpFlashPeak(false)).toBeLessThanOrEqual(ultFlashPeak(false) / 2);
     expect(levelUpFlashPeak(true)).toBeLessThan(levelUpFlashPeak(false));
+    // 打倒 Boss 比升級亮、仍比大招淡
+    expect(bossSlainFlashPeak(false)).toBeGreaterThan(levelUpFlashPeak(false));
+    expect(bossSlainFlashPeak(false)).toBeLessThan(ultFlashPeak(false));
+    expect(bossSlainFlashPeak(true)).toBeLessThan(bossSlainFlashPeak(false));
   });
   it('光柱沒有硬邊：中線最亮、邊緣是 0、腳下最亮、柱頂是 0', () => {
     expect(pillarAcross(0)).toBe(1);

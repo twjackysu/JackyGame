@@ -70,7 +70,7 @@ import { characterCache } from '../../client/characterCache';
 import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard';
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
-import { levelUpFlash, levelUpPillar } from '../fx/levelUp';
+import { bossSlainFlashPeak, levelUpFlash, levelUpPillar } from '../fx/levelUp';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
@@ -1995,7 +1995,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 地圖上的 Boss 倒下（刷怪地圖不會因此結束）：金色閃光＋討伐大字＋首殺紀錄（獨立 localStorage，不碰主線存檔） */
   private bossSlain(name: string, fury = false): void {
     SFX.perfect();
-    this.cameras.main.flash(260, 255, 220, 140);
+    levelUpFlash(this, 0xffdc8c, 420, bossSlainFlashPeak(getSettings().lowFx)); // 第 186 輪：以前 camera.flash 整個畫面連 HUD 淡黃十幾幀，Boss 倒下那一刻反而看不到
     this.cameras.main.shake(320, 0.01);
     const p = playerOf(this.s);
     for (let i = 0; i < 3; i++) this.time.delayedCall(i * 180, () => shockRing(this, this.sx(p.x), this.sy(p.y), 0xffd27a, 220 + i * 90, 600, 8));
@@ -2396,7 +2396,7 @@ export class RtBattleScene extends Phaser.Scene {
     const y = this.sy(mem.ty * UNIT + UNIT / 2);
     sparks(this, x, y, 30, 'spark', 0xd8b0ff, 420);
     shockRing(this, x, y, 0xc89aff, 200, 700, 6);
-    this.cameras.main.flash(220, 190, 150, 255);
+    levelUpFlash(this, 0xbe96ff, 300); // 第 186 輪：想起記憶也不再把整個畫面刷成淡紫
     // 上方的回憶卡：標題、內容、獎勵；6 秒後淡出
     // 第 49 輪：640 寬會蓋住左上的小地圖與懸賞板 → 544 寬、往右挪、字小 2px（左緣 ≈ 160，一行 21 字不斷行，小地圖／懸賞板右緣約 120～130；回禮卡同）
     const CW = 544;

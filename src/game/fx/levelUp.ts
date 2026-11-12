@@ -77,10 +77,15 @@ function glowKey(scene: Phaser.Scene): string {
 }
 
 /** 全畫面亮一下（壓在 HUD 與按鍵下面，深度 47；和大招的閃光同一層） */
-export function levelUpFlash(scene: Phaser.Scene, color = 0xffe08a, ms = 260): void {
+/** 打倒 Boss 那一下的峰值：全場最大的一刻，比升級亮，但仍低於大招（Boss 倒下的演出、掉落的光柱要看得到） */
+export function bossSlainFlashPeak(lowFx: boolean): number {
+  return lowFx ? 0.18 : 0.32;
+}
+
+export function levelUpFlash(scene: Phaser.Scene, color = 0xffe08a, ms = 260, peak = levelUpFlashPeak(getSettings().lowFx)): void {
   const w = scene.scale.width;
   const h = scene.scale.height;
-  const r = scene.add.rectangle(w / 2, h / 2, w, h, color, levelUpFlashPeak(getSettings().lowFx)).setScrollFactor(0).setDepth(47).setBlendMode(Phaser.BlendModes.ADD);
+  const r = scene.add.rectangle(w / 2, h / 2, w, h, color, peak).setScrollFactor(0).setDepth(47).setBlendMode(Phaser.BlendModes.ADD);
   scene.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => r.destroy() });
 }
 
