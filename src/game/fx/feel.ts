@@ -278,6 +278,22 @@ export function softFlash(scene: Phaser.Scene, color: number, ms = 160, peak = 0
   scene.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => r.destroy() });
 }
 
+/** 面板裡「成功了」那一下（強化成功、買到東西）的全畫面加亮峰值（第 188 輪）：省電畫質更淡 */
+export function panelFlashPeak(lowFx: boolean): number {
+  return lowFx ? 0.1 : 0.18;
+}
+/**
+ * 面板上的成功閃光（第 188 輪）。以前用 camera.flash：第一幀整個畫面變成一片淡黃／淡藍，卡片上的字、剛跳出來的「強化成功！」
+ * 都被洗掉好幾幀——最想看清楚數字的那一刻反而看不到。改成在面板上面疊一層很淡的加亮（峰值不到兩成）再淡出，字一直看得到。
+ */
+export function panelFlash(scene: Phaser.Scene, color: number, ms = 240): Phaser.GameObjects.Rectangle {
+  const w = scene.scale.width;
+  const h = scene.scale.height;
+  const r = scene.add.rectangle(w / 2, h / 2, w, h, color, panelFlashPeak(getSettings().lowFx)).setScrollFactor(0).setDepth(986).setBlendMode(Phaser.BlendModes.ADD);
+  scene.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => r.destroy() });
+  return r;
+}
+
 /** 大招閃光的峰值不透明度（第 177 輪，D-372）：省電模式再淡一些。上限刻意壓在五成以下——再亮就看不到敵人的紅圈 */
 export function ultFlashPeak(lowFx: boolean): number {
   return lowFx ? 0.24 : 0.4;

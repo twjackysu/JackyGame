@@ -8,7 +8,7 @@ import { MARKET_FEE_PCT, MARKET_PAGE, PRICE_MAX, bargainPct, listFee, priceStats
 import { buyPrice, sellPrice } from '../../core/meta/shop';
 import type { ListingView } from '../../net/views';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { TITLE_FONT, UI_FONT } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, panelFlash } from '../fx/feel';
 import { coinFly } from '../fx/coinFly';
 import { gearIcon } from '../fx/gearIcons';
 import type { MarketOps, MarketPage } from '../marketOps';
@@ -285,7 +285,7 @@ export function openMarketPanel(scene: Phaser.Scene, ctx: MarketCtx, onClose: ()
         run(() => ctx.ops.buy(l.id, slot, page), () => {
           detail = null;
           SFX.itemGet();
-          scene.cameras.main.flash(120, 160, 220, 255);
+          panelFlash(scene, 0xa0dcff); // 第 188 輪：以前 camera.flash 把整個面板洗成淡藍
           toast(`買到 ${gearTitleW(g)}！\n到行囊換上`, hex(gearColor(g)));
         }), ok, 24, !ok));
       out.push(btn(150, y, '返回', back));

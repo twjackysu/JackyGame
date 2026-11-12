@@ -10,7 +10,7 @@ import { walletOf, type RtRecord } from '../rtRecord';
 import { loadChoices, shopDiscountPct } from '../choices';
 import { SHOP_GOODS, SHOP_REROLL, buyGear, buyPrice, cleanShop, coinOf, isDeal, isPicked, stockPrice, rerollShop, sellPrice, shopIlvl, shopStock, spendCoin, withPick } from '../rtShop';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { TITLE_FONT, UI_FONT } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, panelFlash } from '../fx/feel';
 import { drawMerchant } from '../fx/merchant';
 
 const PER_PAGE = 7;
@@ -110,7 +110,7 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
   };
   const coinFx = (): void => {
     SFX.itemGet();
-    scene.cameras.main.flash(120, 255, 220, 120);
+    panelFlash(scene, 0xffdc78); // 第 188 輪：以前 camera.flash 把整個面板洗成淡黃
   };
 
   // 標題左邊的旅商（程式美術，每幀重畫：燈火、眨眼）；render() 會 removeAll，所以每次重新放回去

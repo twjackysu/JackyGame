@@ -11,7 +11,7 @@ import { BAG_MAX, bonusOf, equipWith, isUpgrade, unequip, type BagState } from '
 export { BAG_MAX, bonusOf, isUpgrade, type BagState } from '../rtBag';
 
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
-import { TITLE_FONT, UI_FONT } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, panelFlash } from '../fx/feel';
 
 const PER_PAGE = 8;
 /** 身上格子比較窄：名字太長就截掉 */
@@ -230,6 +230,7 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
             finish(Math.random() * 100 < c.rate);
         }
         function finish(success: boolean): void {
+            const gained = success ? enhanceGain(g, skillNames()) : [];
             if (success) {
               const up: RtGear = { ...g, enh: enh + 1 };
               const swap = (x: RtGear) => (x.uid === g.uid ? up : x);
@@ -237,7 +238,8 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
               if (eq[g.slot]?.uid === g.uid) eq[g.slot] = up;
               change({ bag: st.bag.map(swap), equip: eq });
               detail = up;
-              scene.cameras.main.flash(160, 255, 220, 140);
+              // 第 188 輪：以前 camera.flash 把整個畫面洗成淡黃約十幀，卡片上的數字和「強化成功！」都看不到 → 只淡淡亮一下＋卡片外框脹開一圈金光
+              keepFx(panelFlash(scene, 0xffdc8c));
               SFX.perfect();
             } else {
               SFX.uiTap();
@@ -249,7 +251,19 @@ export function openRtBagPanel(scene: Phaser.Scene, start: BagState, stats: () =
             // 第 62 輪：結果字放在卡片正下方（以前固定 +360，落在「全部換成最好的／完成」上面、透出底下按鈕）
             const msgY = GAME_HEIGHT / 2 + cardBottom + 56;
             const msg = keepFx(scene.add.text(GAME_WIDTH / 2, msgY, success ? `強化成功！+${enh + 1}` : '強化失敗……材料沒了', { fontFamily: TITLE_FONT, fontSize: '40px', color: success ? '#ffd27a' : '#c0c0d0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(990));
-            scene.tweens.add({ targets: msg, y: msgY - 30, alpha: 0, delay: 700, duration: 700, onComplete: () => msg.destroy() });
+            scene.tweens.add({ targets: msg, y: msgY - 30, alpha: 0, delay: success ? 1100 : 700, duration: 700, onComplete: () => msg.destroy() });
+            if (success) {
+              // 第 188 輪：這一下到底多了什麼（「HP 180→198（+18）」），綠字寫在「強化成功！」下面；卡片外框脹開一圈金光
+              if (gained.length) {
+                const gt = keepFx(scene.add.text(GAME_WIDTH / 2, msgY + 46, gained.join('・'), { fontFamily: UI_FONT, fontSize: '24px', fontStyle: 'bold', color: '#7dffb0', stroke: '#000', strokeThickness: 5, wordWrap: { width: 640 }, align: 'center' }).setOrigin(0.5, 0).setDepth(990));
+                // 矮螢幕（360×640）這一行會落在「全部換成最好的／完成」上面 → 墊一塊深色底，字不會和按鈕混在一起（底不收點擊）
+                const bg = keepFx(scene.add.rectangle(GAME_WIDTH / 2, msgY + 46 + gt.height / 2, Math.min(GAME_WIDTH, gt.width + 36), gt.height + 16, 0x0c0906, 0.94).setStrokeStyle(2, 0x7dffb0, 0.5).setDepth(989));
+                scene.tweens.add({ targets: [gt, bg], y: '-=30', alpha: 0, delay: 1100, duration: 700, onComplete: () => { gt.destroy(); bg.destroy(); } });
+              }
+              const cy = GAME_HEIGHT / 2 + (-340 + cardBottom) / 2;
+              const halo = keepFx(scene.add.rectangle(GAME_WIDTH / 2, cy, 600, cardBottom + 340, 0xffd27a, 0).setStrokeStyle(10, 0xffe9a8, 1).setDepth(988).setBlendMode(Phaser.BlendModes.ADD));
+              scene.tweens.add({ targets: halo, scaleX: 1.07, scaleY: 1.05, alpha: 0, duration: 520, ease: 'Cubic.easeOut', onComplete: () => halo.destroy() });
+            }
             // 第 62 輪：成功時金色火花從裝備圖示迸出（+6 以上要賭成功率的，火花更多更遠）
             if (success) {
               const ix = GAME_WIDTH / 2 - 240;

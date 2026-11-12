@@ -1,5 +1,5 @@
 // 獨特裝備的面板截圖（第 165 輪）。先 `npx vite --port 5173`；塞三件獨特＋四件一般裝備進行囊，照 STEPS（JSON 陣列，每步一段 JS）一步截一張到 screenshots/uq-<tag>-<n>.png。
-// 用法：STEPS='["sc().openBag()","clk(\"之王\")","clk(\"分解\")"]' node scripts/shot-unique.mjs 390 844 a　　clk("=賣")＝文字完全相同、clk("之王")＝包含；inj() 重新塞行囊（拍賣所會從伺服器重讀）。
+// 環境變數 FRAMES=n：每步之後只推 n 幀就拍（預設 30；拍「按下去的頭幾幀」用 1～3）。用法：STEPS='["sc().openBag()","clk(\"之王\")","clk(\"分解\")"]' node scripts/shot-unique.mjs 390 844 a　　clk("=賣")＝文字完全相同、clk("之王")＝包含；inj() 重新塞行囊（拍賣所會從伺服器重讀）。
 import { chromium } from 'playwright';
 const [W='390', H='844', tag='a'] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -28,7 +28,7 @@ await pg.evaluate(async () => {
   window.ff = (n) => { for (let i = 0; i < n; i++) { T += 16; off += 16; __game.step(T, 16); } };
   __game.loop.sleep();
 });
-const shot = async (n) => { await pg.evaluate(() => ff(30)); await pg.screenshot({ path: `screenshots/uq-${tag}-${n}.png`, timeout: 90000 }); };
+const shot = async (n) => { await pg.evaluate((f) => ff(f), +(process.env.FRAMES || 30)); await pg.screenshot({ path: `screenshots/uq-${tag}-${n}.png`, timeout: 90000 }); };
 const steps = JSON.parse(process.env.STEPS);
 let i = 0;
 for (const js of steps) { console.log(i, JSON.stringify(await pg.evaluate(async (js) => await eval(js), js))); await shot(i++); }
