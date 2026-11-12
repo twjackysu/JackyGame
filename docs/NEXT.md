@@ -22,6 +22,14 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 189 輪注意（傷害數字合併 D-387）**：
+- 位置：`fx/comboNumber.ts`（`COMBO_GAP_MS`／`COMBO_MAX_MS`／`COMBO_GROW_*`，純函式）；`RtBattleScene` 的 `hitNum`（damage 事件裡「玩家打怪、不是持續傷害」那一支）；`PvpScene` 的 `hitNum`；`feel.floatNumber` 的 `fixed`（照給的位置、先把自己上一次佔的格子拿掉再排位置）。
+- 拍多段招的數字：`STAGE=emberrift ONLY=blade_storm FRAMES=4,14,24,36 node scripts/shot-skills.mjs bow '' tag`（三隻怪釘在一起＝最擠的情況）。
+- **這個環境開工時 `npm ci` 只跑一次、跑完再做別的**：這輪背景跑一次、前景又跑一次，兩個互撞把 `node_modules` 弄壞（`vite: not found`），`rm -rf node_modules && npm ci` 才好。
+- 還沒做、看過覺得還礙眼的（依序）：①相遇事件的結語綠字（「騾子甩了甩腿…（下次回到這裡…）」，`bigText(…, 560, …)` 兩處）出現在主角正上方，剛好是下一群怪走過來的位置，帶光暈的兩行字蓋住怪和「!」——可以考慮改成畫面下方的字幕條樣式 ②區域名稱下面那行小字（「岔路：西邊近但會噴發…」）是細白字、疊在怪身上看不清 ③怪打主角的數字要不要也合併 ④停止被打的數字往上飄時穿過旁邊還在累計的數字（`NUM_FRESH_MS` 350ms 之後就不避了）。
+- 上一輪留下的仍在：行商「買」、拍賣所「買到」、強化失敗沒逐幀看；光門換圖、競技場勝負、結局的 `camera.flash`。
+- 再來：先看 Jacky 對蓋著的牌、數字合併的回饋。
+
 **第 188 輪注意（行囊：強化成功、換上裝備的回饋）**：
 - 位置：`fx/feel.ts` 的 `panelFlash`／`panelFlashPeak`（面板上面的淡閃光，depth 986；行囊、行商、拍賣所共用）；`ui/rtBagPanel.ts` 的 `finish`（強化結果：`gained` 綠字＋深色底＋卡片金框 halo）、`equipFx(before, slots)`（字牌蓋在數值那一行、格子 halo）。面板上要加會飄的字都用 `keepFx`（面板關掉一起收）。
 - 拍面板的「按下去頭幾幀」：`FRAMES=2 STEPS='[...]' node scripts/shot-unique.mjs 390 844 tag`（每步之後只推 n 幀就拍）。給材料：STEPS 第一步 `(async()=>{const r=await import("/src/game/rtRecord.ts");r.saveRecord("mistwood",{...r.loadRecord("mistwood"),dust:9999,crystal:99});sc().openBag();ff(30)})()`；要 +7：`sc().bagSt.bag[3].enh=6`。**強化走本機伺服器擲骰，是非同步的**：點「確定強化」後那一張還是確認框，結果在下一步才出現。`clk("字")` 是「包含」、會點到第一個符合的（兩把劍都叫「王牙大劍」要寫全名）。行商：`sc().openShop()` → `clk("=賣")`。
