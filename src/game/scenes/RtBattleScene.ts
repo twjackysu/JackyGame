@@ -1512,10 +1512,12 @@ export class RtBattleScene extends Phaser.Scene {
       // 大字＝「獨特裝備！＋名字」；效果說明是跟在大字正下方的小字（另開一則大字的話，矮螢幕上會排隊、等第一則消失才出來）
       const name = gearName(g);
       const line = `「${d.name}」${d.desc}`;
-      const t = (this.uniqueBanner = bigText(this, GAME_WIDTH / 2, 550, `${tr('unique.got')}\n${name}`, css, Math.min(44, Math.floor(660 / Math.max(8, name.length))), 2200));
+      const t = (this.uniqueBanner = bigText(this, GAME_WIDTH / 2, 550, `${tr('unique.got')}\n${name}\n `, css, Math.min(44, Math.floor(660 / Math.max(8, name.length))), 2200));
+      // ↑ 第 187 輪：最後多一行空白＝替下面那行效果說明佔位置。以前大字只算兩行高，說明小字掛在它外面——新角色第一次打倒 Boss（保底掉獨特）時，
+      //   說明正好和下面常駐的「首次討伐！…」疊在一起，最該看清楚的那一行看不清楚。現在大字互相避開時會把說明算進去。
       // ↑ 不用「排隊等位置」的模式：討伐後的「首次討伐！…」會一直留到抉擇面板打開，而抉擇面板在等這一則——排隊會互相等
       const sub = this.add.text(t.x, t.y, line, { fontFamily: UI_FONT, fontSize: `${Math.min(27, Math.floor(690 / line.length))}px`, fontStyle: '700', color: '#ffe6c8', stroke: '#140a04', strokeThickness: 6 }).setOrigin(0.5, 0).setDepth(t.depth).setAlpha(0);
-      this.tweens.addCounter({ from: 0, to: 1, duration: 9000, onUpdate: (tw) => { if (!t.active) { sub.destroy(); tw.stop(); return; } sub.setPosition(t.x, t.y + t.height / 2 + 6).setAlpha(t.alpha); }, onComplete: () => sub.destroy() });
+      this.tweens.addCounter({ from: 0, to: 1, duration: 9000, onUpdate: (tw) => { if (!t.active) { sub.destroy(); tw.stop(); return; } sub.setPosition(t.x, t.y + t.height / 2 - t.height / 3 + 4).setAlpha(t.alpha); }, onComplete: () => sub.destroy() });
     };
     this.uniqueUntil = this.time.now + 2800;
     this.time.delayedCall(250, show);
