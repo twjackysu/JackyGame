@@ -9,7 +9,9 @@
  * - 直線＝「光路」：沒有封閉的外框；靠近主角亮、越遠越淡（但末端仍看得到），中間有一條較亮的芯，兩側是淡出的邊線，
  *   末端只有兩個小角標示射程。
  * - 扇形＝「斬擊的掃過範圍」：外緣一圈亮弧、兩條半徑邊幾乎不畫，裡面由內往外變實。
- * 圓與環沒有動（它們各自有專屬特效，不像框）。敵人的預告是另一套（`telegraphLook.ts`：紅／亮紫／藍，有外框與箭頭）。
+ * - 圓與環（第 183 輪）：以前一樣是 0.1 的平藍＋淡藍外框，深色地面上是一塊灰色的圓盤，不分武器。
+ *   現在跟扇形同一套：顏色跟著武器／屬性，裡面由內往外變實（中間幾乎透明，不蓋住主角和專屬特效），外緣一圈亮弧。
+ *敵人的預告是另一套（`telegraphLook.ts`：紅／亮紫／藍，有外框與箭頭）。
  */
 export type AreaWeapon = 'sword' | 'bow' | 'staff';
 
@@ -72,3 +74,14 @@ export const SECTOR_BANDS: readonly { r0: number; r1: number; a: number }[] = [
 ];
 /** 扇形兩條半徑邊的透明度相對外弧的比例（幾乎不畫，才不像一片切好的框） */
 export const SECTOR_SIDE = 0.22;
+
+/** 環（內外半徑之間）由內往外分幾圈畫：內半淡、外半實；回傳每一圈的內外半徑與亮度倍率 */
+export function ringBands(rIn: number, rOut: number): { r0: number; r1: number; a: number }[] {
+  const mid = rIn + (rOut - rIn) * 0.55;
+  return [
+    { r0: rIn, r1: mid, a: 0.45 },
+    { r0: mid, r1: rOut, a: 1 },
+  ];
+}
+/** 環的內圈邊線相對外圈的亮度（內圈只是「這裡面打不到」的提示，不搶外圈） */
+export const RING_INNER_EDGE = 0.5;

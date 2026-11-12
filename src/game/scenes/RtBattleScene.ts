@@ -75,7 +75,7 @@ import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
-import { LANE_LAYERS, LANE_SEGS, LANE_TICK, SECTOR_BANDS, SECTOR_SIDE, areaLook, laneBand, type AreaLook } from '../fx/areaLook';
+import { LANE_LAYERS, LANE_SEGS, LANE_TICK, RING_INNER_EDGE, SECTOR_BANDS, SECTOR_SIDE, areaLook, laneBand, ringBands, type AreaLook } from '../fx/areaLook';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
 import { coversHero, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
@@ -3898,6 +3898,22 @@ export class RtBattleScene extends Phaser.Scene {
     for (const sd of [-1, 1]) g.lineBetween(cx + Math.cos(ang + sd * half) * R * 0.3, cy + Math.sin(ang + sd * half) * R * 0.3, cx + Math.cos(ang + sd * half) * R, cy + Math.sin(ang + sd * half) * R);
   }
 
+  /** 圓／環的技能範圍（第 183 輪）：跟扇形同一套——由內往外變實、外緣一圈亮弧，顏色跟著武器／屬性（以前是一塊灰藍色的平圓盤） */
+  private softRound(g: Phaser.GameObjects.Graphics, sh: Extract<Shape, { type: 'circle' | 'ring' }>, ox: number, oy: number, al: AreaLook): void {
+    const cx = this.sx(ox);
+    const cy = this.sy(oy);
+    const k = this.k;
+    const bands = sh.type === 'circle' ? SECTOR_BANDS.map((b) => ({ r0: b.r0 * sh.r, r1: b.r1 * sh.r, a: b.a })) : ringBands(sh.rIn, sh.rOut);
+    for (const b of bands) {
+      g.fillStyle(al.fill, al.fillA * b.a).beginPath();
+      g.arc(cx, cy, b.r1 * k, 0, Math.PI * 2);
+      if (b.r0 > 0) g.arc(cx, cy, b.r0 * k, Math.PI * 2, 0, true);
+      g.closePath().fillPath();
+    }
+    g.lineStyle(2, al.edge, al.edgeA).strokeCircle(cx, cy, (sh.type === 'circle' ? sh.r : sh.rOut) * k);
+    if (sh.type === 'ring') g.lineStyle(1.5, al.edge, al.edgeA * RING_INNER_EDGE).strokeCircle(cx, cy, sh.rIn * k);
+  }
+
   private shapePath(sh: Shape, ox: number, oy: number, dx: number, dy: number, g: Phaser.GameObjects.Graphics, fill: boolean): void {
     const cx = this.sx(ox);
     const cy = this.sy(oy);
@@ -5143,8 +5159,11 @@ export class RtBattleScene extends Phaser.Scene {
             const al = areaLook(s.weapon ?? 'sword', h.status?.id);
             if (shp.type === 'line') this.softLane(g, shp, aox, aoy, x.action.dirX, x.action.dirY, al);
             else this.softSector(g, shp, aox, aoy, x.action.dirX, x.action.dirY, al);
+          } else if (soft && !starRiver && (shp.type === 'circle' || shp.type === 'ring')) {
+            // 第 183 輪：圓與環也跟著武器／屬性上色、由內往外變實（以前不分武器都是一塊灰藍色的平圓盤，深色地面上像一片玻璃）
+            this.softRound(g, shp, aox, aoy, areaLook(s.weapon ?? 'sword', h.status?.id));
           } else {
-            g.fillStyle(starRiver ? 0xff9ae0 : venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : 0x7dc8ff, starRiver ? 0.06 : elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.1);
+            g.fillStyle(starRiver ? 0xff9ae0 : venom ? 0x6ad04a : elem === 'burn' ? 0xff8a3a : elem === 'slow' ? 0x9a8aff : frostCharge ? 0xbff4ff : areaLook(s.weapon ?? 'sword').fill, starRiver ? 0.06 : elem || bowRing || frostCharge || venom ? 0.1 : s.weapon === 'bow' && sk?.role === 'aoe' && sk.moveFactor >= 1 ? 0.07 : 0.1);
             this.shapePath(shp, aox, aoy, x.action.dirX, x.action.dirY, g, true);
             if (soft) {
               g.lineStyle(2, starRiver ? 0xffb0e8 : 0xbfe8ff, starRiver ? 0.4 : 0.5);
