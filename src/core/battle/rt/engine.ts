@@ -2,7 +2,7 @@
 // 不依賴 Phaser；畫面層只能送 BattleCommand、讀 BattleState。
 import { AFFIX_ATTACKS, ARENA_CHARGE, DODGE_REFUND_PCT, ENEMIES, STAGES, WEAPONS, variantB } from './data';
 import { autoPick, cleanAutoSkills } from './auto';
-import { BLESS_RULES, EFFECT_IDS, EFFECTS, blessNeed, effectDef, mergeEffectMods, tryVariantId, type EffectBurst, type EffectDef } from './effects';
+import { BLESS_GAMBLE, BLESS_RULES, EFFECT_IDS, EFFECTS, blessNeed, effectDef, gambleCursePct, mergeEffectMods, tryVariantId, type EffectBurst, type EffectDef } from './effects';
 import { pvpCc, pvpDamage, pvpMaxHp } from './pvp';
 import { HIDDEN_GROUP, killXp, RIOT_GROUP, rollEnemyLoot, type LootContext } from './loot';
 import type { Action, AreaAttack, EliteAffix, BattleCommand, BattleEvent, BattleState, EnemyDefinition, GroundItem, LootId, PlayerCtl, PlayerDefinition, Shape, SkillDefinition, SkillHit, SkillMod, SpawnGroup, StageDefinition, StageHazard, StageVent, StatusApply, StatusId, Unit } from './types';
@@ -701,20 +701,56 @@ function maybeBlessOffer(s: BattleState): void {
   const ids = rollBlessOffer(s);
   if (!ids.length) return;
   b.offer = ids;
-  emit(s, { tick: s.tick, type: 'blessOffer', ids });
+  if (gamblePool(s).length >= 2) b.dark = true;
+  emit(s, b.dark ? { tick: s.tick, type: 'blessOffer', ids, dark: true } : { tick: s.tick, type: 'blessOffer', ids });
+}
+
+/**
+ * 蓋著的牌會翻出什麼（D-383）：合用的固定效果裡，扣掉已經有的和檯面上那三張。
+ * 這一手不該有蓋著的牌（關掉了、身上還不夠多、只剩一格放不下「一次兩個」）＝空的。
+ */
+function gamblePool(s: BattleState): string[] {
+  const b = s.bless!;
+  if (!BLESS_GAMBLE.on || !b.offer || b.taken.length < BLESS_GAMBLE.from || b.taken.length > BLESS_RULES.max - 2) return [];
+  const w = s.weapon ?? 'sword';
+  return EFFECT_IDS.filter((id) => !b.taken.includes(id) && !b.perm?.includes(id) && !b.offer!.includes(id) && (!effectDef(id)!.weapons || effectDef(id)!.weapons!.includes(w)));
+}
+
+/** 翻開蓋著的牌：結果用祝福自己的亂數決定（不動戰鬥亂數） */
+function blessGamble(s: BattleState): void {
+  const b = s.bless!;
+  const pool = gamblePool(s);
+  if (!b.dark || pool.length < 2) return;
+  const roll = blessRand(s) * 100;
+  let result: 'double' | 'single' | 'cursed' = roll < BLESS_GAMBLE.doublePct ? 'double' : roll < BLESS_GAMBLE.doublePct + BLESS_GAMBLE.cursedPct ? 'cursed' : 'single';
+  if (result === 'cursed' && (b.curse ?? 0) >= BLESS_GAMBLE.curseMax) result = 'single';
+  const ids: string[] = [];
+  for (let n = result === 'double' ? 2 : 1; n > 0; n--) ids.push(pool.splice(Math.floor(blessRand(s) * pool.length), 1)[0]!);
+  b.meter = Math.max(0, b.meter - blessNeed(b.taken.length));
+  b.taken.push(...ids);
+  if (result === 'cursed') b.curse = (b.curse ?? 0) + 1;
+  delete b.offer;
+  delete b.dark;
+  emit(s, { tick: s.tick, type: 'blessGamble', result, ids, curse: b.curse ?? 0 });
+  for (const id of ids) emit(s, { tick: s.tick, type: 'blessPick', id });
+  applyBless(s);
+  maybeBlessOffer(s);
 }
 
 /** 玩家的選擇（只有在等選的時候有效） */
-function blessCommand(s: BattleState, c: { pick?: number; reroll?: boolean }): void {
+function blessCommand(s: BattleState, c: { pick?: number; reroll?: boolean; gamble?: boolean }): void {
   const b = s.bless;
   if (!b?.offer) return;
+  if (c.gamble) return blessGamble(s);
   if (c.reroll) {
     if (b.rerolls <= 0) return;
     b.rerolls--;
     const ids = rollBlessOffer(s, b.offer);
     if (ids.length) {
       b.offer = ids;
-      emit(s, { tick: s.tick, type: 'blessOffer', ids });
+      // 蓋著的牌留著（換一批只換檯面上的三張）；換完剛好沒東西可翻就收掉
+      if (b.dark && gamblePool(s).length < 2) delete b.dark;
+      emit(s, b.dark ? { tick: s.tick, type: 'blessOffer', ids, dark: true } : { tick: s.tick, type: 'blessOffer', ids });
     }
     return;
   }
@@ -723,6 +759,7 @@ function blessCommand(s: BattleState, c: { pick?: number; reroll?: boolean }): v
   b.meter = Math.max(0, b.meter - blessNeed(b.taken.length));
   b.taken.push(id);
   delete b.offer;
+  delete b.dark;
   emit(s, { tick: s.tick, type: 'blessPick', id });
   applyBless(s);
   maybeBlessOffer(s);
@@ -1072,6 +1109,8 @@ function dealDamage(s: BattleState, src: Unit, dst: Unit, mult: number, origin: 
   let amount = computeDamage(atk, mult, pool, dst.def, critMul);
   if (has(src, 'weak', s.tick)) amount = Math.max(1, Math.round(amount * 0.8)); // 虛弱：造成傷害 −20%
   if (reducePct > 0) amount = Math.max(1, Math.round((amount * (100 - reducePct)) / 100));
+  // 燼痕（D-383，翻牌的代價）：主角被敵人打到的傷害變高
+  if (s.bless?.curse && dst.side === 'player' && !dst.pid && src.side === 'enemy') amount = Math.round((amount * (100 + gambleCursePct(s.bless.curse))) / 100);
   if (s.pvp && src.side === 'player' && dst.side === 'player') amount = pvpDamage(amount, ctlOf(s, src).weapon ?? 'sword', ctlOf(s, dst).weapon ?? 'sword');
   applyHp(s, src, dst, amount, crit, origin, skill);
   if (bfx.length) {
@@ -2187,6 +2226,7 @@ export function stateHash(s: BattleState): string {
     // 只有開祝福時才加入
     mix(s.bless.meter);
     if (s.bless.hits) mix(s.bless.hits);
+    if (s.bless.curse) mix(s.bless.curse + 0x51);
     for (const id of s.bless.perm ?? []) for (let i = 0; i < id.length; i++) mix(id.charCodeAt(i) + 7);
     for (const id of s.bless.taken) for (let i = 0; i < id.length; i++) mix(id.charCodeAt(i));
   }

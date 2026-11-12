@@ -381,7 +381,9 @@ export type BattleEvent =
   /** 自然恢復（D-073）：脫戰 5 秒後每秒回 2% */
   | { tick: number; type: 'regen'; id: number; heal: number }
   // 燼火祝福（P2，D-343）：出現三選一／選了／清空（rest＝回營火休息、down＝倒下）／效果觸發（畫面演出用）
-  | { tick: number; type: 'blessOffer'; ids: string[] }
+  | { tick: number; type: 'blessOffer'; ids: string[]; dark?: true }
+  /** 翻開蓋著的牌（D-383）：結果、拿到的祝福（各自另有一個 blessPick）、翻完後身上的燼痕層數 */
+  | { tick: number; type: 'blessGamble'; result: 'double' | 'single' | 'cursed'; ids: string[]; curse: number }
   | { tick: number; type: 'blessPick'; id: string }
   | { tick: number; type: 'blessClear'; reason: 'rest' | 'down'; count: number }
   | { tick: number; type: 'blessProc'; id: string; x: number; y: number; r?: number };
@@ -400,8 +402,8 @@ export type BattleCommandBody =
   | { type: 'moveTo'; x: number; y: number }
   /** 在營火旁休息（design/20 B4）：HP 全滿、補藥水、設復活點；附近有戰鬥中的怪時無效 */
   | { type: 'rest' }
-  /** 燼火祝福（P2）：選第 pick 個；reroll＝重抽（有次數） */
-  | { type: 'bless'; pick?: number; reroll?: boolean };
+  /** 燼火祝福（P2）：選第 pick 個；reroll＝重抽（有次數）；gamble＝翻蓋著的牌（D-383，這一手有才有效） */
+  | { type: 'bless'; pick?: number; reroll?: boolean; gamble?: boolean };
 
 export interface Arena {
   /** 可走範圍（整數座標，0..w、0..h），邊界即牆 */
@@ -672,9 +674,10 @@ export interface BattleState extends PlayerCtl {
    * fresh＝有剛選的還沒套到技能上（施放中要等這一招打完，同 RF-01）；mods／vars＝套用後的技能修正與變化打法；
    * critUntil＝「下一擊必暴」的期限；hits＝召雷的普攻計數
    * perm＝裝備上的獨特效果（P3，D-354；永久：休息／倒下不會清掉、不佔一趟 8 個的名額、三選一不會再出現同一個）；
+   * dark＝這一手多一張蓋著的牌（D-383）；curse＝燼痕層數（翻牌的代價：被敵人打到的傷害變高；和祝福一起消散）
    * off＝這場沒開祝福（關卡不允許或沒給 BattleSetup.bless），只是為了讓 perm 生效才有這個物件：不累積計量、不出三選一
    */
-  bless?: { rng: number; meter: number; taken: string[]; perm?: string[]; off?: true; offer?: string[]; rerolls: number; fresh?: boolean; mods?: Record<string, SkillMod>; vars?: Record<string, 1 | 2>; critUntil?: number; hits?: number };
+  bless?: { rng: number; meter: number; taken: string[]; perm?: string[]; off?: true; offer?: string[]; dark?: true; curse?: number; rerolls: number; fresh?: boolean; mods?: Record<string, SkillMod>; vars?: Record<string, 1 | 2>; critUntil?: number; hits?: number };
   /** pid 1 以後的玩家的控制狀態（Q6；單人沒有） */
   others?: PlayerCtl[];
 }

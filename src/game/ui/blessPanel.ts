@@ -12,12 +12,16 @@ const CARD_W = 640;
 const CARD_H = 168;
 const GAP = 22;
 
-export function openBlessPanel(scene: Phaser.Scene, offer: readonly EffectDef[], have: readonly EffectDef[], rerolls: number, onPick: (i: number) => void, onReroll: () => void): Phaser.GameObjects.Container {
+/** 蓋著的牌（D-383）：比三張祝福矮一點、暗紫色、一個問號——一眼看得出「這張不一樣」 */
+const DARK_H = 124;
+const DARK_COLOR = 0x9a5ae0;
+
+export function openBlessPanel(scene: Phaser.Scene, offer: readonly EffectDef[], have: readonly EffectDef[], rerolls: number, onPick: (i: number) => void, onReroll: () => void, onGamble?: () => void): Phaser.GameObjects.Container {
   const cx = GAME_WIDTH / 2;
   const root = scene.add.container(0, 0).setDepth(1850);
   // 遮罩不全黑：看得到後面停住的戰場（知道自己在哪、在打誰）
   root.add(scene.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x06040a, 0.78).setInteractive());
-  const total = offer.length * CARD_H + (offer.length - 1) * GAP;
+  const total = offer.length * CARD_H + (offer.length - 1) * GAP + (onGamble ? GAP + DARK_H : 0);
   const bottom = GAME_HEIGHT - 190; // 最下面留給「重抽」
   const top = bottom - total;
   const headY = top - 150;
@@ -59,6 +63,39 @@ export function openBlessPanel(scene: Phaser.Scene, offer: readonly EffectDef[],
       scene.tweens.add({ targets: card, scale: 1.06, duration: 140, yoyo: true, onComplete: () => onPick(i) });
     });
   });
+  if (onGamble) {
+    const y = top + offer.length * (CARD_H + GAP) + DARK_H / 2;
+    const card = scene.add.container(cx, y);
+    const bg = scene.add.rectangle(0, 0, CARD_W, DARK_H, 0x150c22, 0.98).setStrokeStyle(4, DARK_COLOR, 1).setInteractive({ useHandCursor: true });
+    // 牌背：斜格紋＋中間一個問號
+    const pg = scene.add.graphics();
+    pg.lineStyle(2, DARK_COLOR, 0.16);
+    for (let x = -CARD_W / 2 - DARK_H; x < CARD_W / 2; x += 26) {
+      const x0 = Math.max(-CARD_W / 2 + 4, x);
+      const x1 = Math.min(CARD_W / 2 - 4, x + DARK_H);
+      pg.lineBetween(x0, DARK_H / 2 - 4 - (x0 - x), x1, DARK_H / 2 - 4 - (x1 - x));
+    }
+    const ix = -CARD_W / 2 + 92;
+    pg.fillStyle(0x0c0614, 1).fillCircle(ix, 0, 46);
+    pg.lineStyle(4, DARK_COLOR, 1).strokeCircle(ix, 0, 46);
+    pg.lineStyle(2, 0xffd27a, 0.7).strokeCircle(ix, 0, 38);
+    const q = scene.add.text(ix, 0, '？', { fontFamily: TITLE_FONT, fontSize: '54px', color: '#ffd27a', stroke: '#1a0a2a', strokeThickness: 6 }).setOrigin(0.5);
+    const name = scene.add.text(-CARD_W / 2 + 176, -30, t('bless.dark.name'), { fontFamily: TITLE_FONT, fontSize: '36px', color: '#d8b8ff', stroke: '#140a04', strokeThickness: 5 }).setOrigin(0, 0.5);
+    const desc = scene.add.text(-CARD_W / 2 + 176, 22, t('bless.dark.desc'), { fontFamily: UI_FONT, fontSize: '22px', color: '#e8dcf4', wordWrap: { width: CARD_W - 200, useAdvancedWrap: true }, lineSpacing: 4 }).setOrigin(0, 0.5);
+    card.add([bg, pg, q, name, desc]);
+    root.add(card);
+    card.setAlpha(0).setScale(0.92);
+    scene.tweens.add({ targets: card, alpha: 1, scale: 1, duration: 220, delay: 80 + offer.length * 70, ease: 'Back.Out' });
+    scene.tweens.add({ targets: q, scale: 1.14, duration: 620, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    bg.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation();
+      if (done || !armed()) return;
+      done = true;
+      SFX.uiTap();
+      // 翻牌：橫向壓扁再送出（結果由 core 決定，場景收到 blessGamble 才演）
+      scene.tweens.add({ targets: card, scaleX: 0.04, duration: 160, ease: 'Quad.In', onComplete: () => onGamble() });
+    });
+  }
   const canReroll = rerolls > 0;
   const rr = scene.add.text(cx, GAME_HEIGHT - 110, canReroll ? t('bless.reroll', { n: rerolls }) : t('bless.noReroll'), { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: canReroll ? '#ffffff' : '#7a705c', backgroundColor: canReroll ? '#3a2a14' : '#1a140c' }).setOrigin(0.5).setPadding(26, 12, 26, 12);
   if (canReroll) {
@@ -81,7 +118,7 @@ export function openBlessPanel(scene: Phaser.Scene, offer: readonly EffectDef[],
  * 身上的祝福清單（第 162 輪，P2-c ⑤）：點右上角的火苗／圖示打開——HUD 只有圖示沒有名字，選過幾個之後記不得各是什麼。
  * 每個一列（圖示＋名字＋說明），最下面寫離下一次選擇還差幾隻、怎樣會消散；點任何地方關掉。戰鬥暫停（和其他面板一樣）。
  */
-export function openBlessList(scene: Phaser.Scene, have: readonly EffectDef[], meter: number, need: number, full: boolean, onClose: () => void, gearFx: readonly EffectDef[] = []): Phaser.GameObjects.Container {
+export function openBlessList(scene: Phaser.Scene, have: readonly EffectDef[], meter: number, need: number, full: boolean, onClose: () => void, gearFx: readonly EffectDef[] = [], curse?: { n: number; pct: number }): Phaser.GameObjects.Container {
   const cx = GAME_WIDTH / 2;
   const root = scene.add.container(0, 0).setDepth(1850);
   const shade = scene.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x06040a, 0.78).setInteractive();
@@ -103,6 +140,7 @@ export function openBlessList(scene: Phaser.Scene, have: readonly EffectDef[], m
     root.add(scene.add.text(cx - 206, y + 20, d.desc, { fontFamily: UI_FONT, fontSize: d.desc.length > 26 ? '18px' : '21px', color: '#f4ecd8', wordWrap: { width: 500, useAdvancedWrap: true } }).setOrigin(0, 0.5));
   });
   const foot = `${full ? t('bless.listFull') : t('bless.listNext', { n: Math.max(0, need - meter) })}\n${t('bless.listRule')}${gearFx.length ? `\n${t('unique.listLine', { names: gearFx.map((d) => d.name).join('、') })}` : ''}`;
+  if (curse?.n) root.add(scene.add.text(cx, top - 44, t('bless.curseLine', curse), { fontFamily: UI_FONT, fontSize: '21px', fontStyle: '700', color: '#ff8a8a', stroke: '#1a0404', strokeThickness: 4 }).setOrigin(0.5));
   root.add(scene.add.text(cx, top + total + 26, foot, { fontFamily: UI_FONT, fontSize: '21px', color: '#b8a888', align: 'center', lineSpacing: 8, wordWrap: { width: 640, useAdvancedWrap: true } }).setOrigin(0.5, 0));
   root.add(scene.add.text(cx, GAME_HEIGHT - 120, t('bless.listClose'), { fontFamily: UI_FONT, fontSize: '22px', color: '#8a8270' }).setOrigin(0.5));
   const openedAt = Date.now();

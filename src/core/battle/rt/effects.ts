@@ -103,6 +103,17 @@ function buildEffect(id: string, weapon: WeaponKind): EffectDef | undefined {
 export const BLESS_RULES = { need: [3, 4, 5, 5, 6, 6], max: 8, rerolls: 1, choices: 3 } as const;
 export const blessNeed = (taken: number): number => BLESS_RULES.need[Math.min(taken, BLESS_RULES.need.length - 1)]!;
 
+/**
+ * 蓋著的牌（D-383；Jacky 11/12「賭博的形式用在其他方式」）：三選一下面多一張翻開才知道的牌。
+ * from＝身上已經有幾個祝福才開始出現（第一手不出：新玩家先看懂三選一）；
+ * doublePct＝一次兩個祝福、cursedPct＝一個祝福＋一道燼痕、其餘＝一個祝福；翻出來的都不是檯面上那三張。
+ * 燼痕：這趟被敵人打到的傷害 +cursePct%（可疊，最多 curseMax 層；和祝福一起消散）。
+ * on＝false 就整個關掉（不出牌、gamble 指令無效）。
+ */
+export const BLESS_GAMBLE = { on: true, from: 1, doublePct: 35, cursedPct: 30, cursePct: 20, curseMax: 3 } as const;
+/** 燼痕讓主角多吃幾 % 傷害 */
+export const gambleCursePct = (stacks: number): number => Math.max(0, Math.min(BLESS_GAMBLE.curseMax, stacks)) * BLESS_GAMBLE.cursePct;
+
 /** 把效果的技能修正疊到基礎修正上（不改原物件；上限由使用的地方照 SKILL_MOD_CAPS 夾） */
 export function mergeEffectMods(base: Record<string, SkillMod> | undefined, effects: readonly EffectDef[]): Record<string, SkillMod> | undefined {
   let out: Record<string, SkillMod> | undefined;

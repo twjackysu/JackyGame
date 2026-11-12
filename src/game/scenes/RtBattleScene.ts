@@ -22,7 +22,7 @@ import { AFFIX_COLOR, drawMinimap } from '../rt/MinimapSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
 import { openBlessList, openBlessPanel } from '../ui/blessPanel';
-import { BLESS_RULES, blessNeed, effectDef, type EffectDef } from '../../core/battle/rt/effects';
+import { BLESS_GAMBLE, BLESS_RULES, blessNeed, effectDef, gambleCursePct, type EffectDef } from '../../core/battle/rt/effects';
 import { ELEMENT_LOOK, drawEffectIcon } from '../fx/effectIcon';
 import { addWithAutoSalvage } from '../rtBag';
 import { gearIcon } from '../fx/gearIcons';
@@ -394,6 +394,8 @@ export class RtBattleScene extends Phaser.Scene {
   private blessSent: string[] | null = null;
   private blessSeen: string[] | null = null;
   private blessAt = 0;
+  private gambleTick = -1;
+  private gamblePicks = 0;
   private blessSentAt = 0;
   private restAskUntil = 0;
   private blessRoot: Phaser.GameObjects.Container | null = null;
@@ -1220,7 +1222,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.blessRoot = null;
       if (this.menu === root) this.menu = null;
     };
-    const root = openBlessPanel(this, this.blessDefs(offer), this.blessDefs(b.taken), b.rerolls, (i) => send({ type: 'bless', pick: i }), () => send({ type: 'bless', reroll: true }));
+    const root = openBlessPanel(this, this.blessDefs(offer), this.blessDefs(b.taken), b.rerolls, (i) => send({ type: 'bless', pick: i }), () => send({ type: 'bless', reroll: true }), b.dark ? () => send({ type: 'bless', gamble: true }) : undefined);
     this.blessRoot = root;
     this.menu = root;
   }
@@ -1233,7 +1235,7 @@ export class RtBattleScene extends Phaser.Scene {
     const root = openBlessList(this, this.blessDefs(b.taken), Math.min(b.meter, blessNeed(b.taken.length)), blessNeed(b.taken.length), b.taken.length >= BLESS_RULES.max, () => {
       root.destroy();
       if (this.menu === root) this.menu = null;
-    }, this.blessDefs(b.perm ?? []));
+    }, this.blessDefs(b.perm ?? []), b.curse ? { n: b.curse, pct: gambleCursePct(b.curse) } : undefined);
     this.menu = root;
   }
 
@@ -1277,6 +1279,17 @@ export class RtBattleScene extends Phaser.Scene {
     }
     this.blessTxt ??= this.add.text(x0, y0 + 36, '', { fontFamily: UI_FONT, fontSize: '17px', fontStyle: '700', color: '#ffd9a0', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 0).setDepth(60);
     this.blessTxt.setText(full ? '' : `${Math.min(b.meter, need)}/${need}`);
+    // 燼痕（D-383，翻牌的代價）：火苗下面一顆暗紅的記號，幾層就幾道裂痕
+    if (b.curse) {
+      const cy = y0 + 84;
+      g.fillStyle(0x1a0606, 0.95).fillCircle(x0, cy, 21);
+      g.lineStyle(4, 0xff5a4a, 0.75 + 0.2 * Math.sin(this.time.now / 260)).strokeCircle(x0, cy, 21);
+      g.lineStyle(3, 0xff8a6a, 1);
+      for (let i = 0; i < b.curse; i++) {
+        const cx = x0 + (i - (b.curse - 1) / 2) * 10;
+        g.beginPath().moveTo(cx - 3, cy - 12).lineTo(cx + 3, cy - 3).lineTo(cx - 3, cy + 4).lineTo(cx + 2, cy + 12).strokePath();
+      }
+    }
     // 身上的祝福：往左排
     const defs = this.blessDefs(b.taken);
     defs.forEach((d, i) => drawEffectIcon(g, x0 - 66 - i * 50, y0, 21, d.element, false, d.glyph));
@@ -1287,11 +1300,36 @@ export class RtBattleScene extends Phaser.Scene {
     }
   }
 
-  private playBlessEvent(e: Extract<BattleState['events'][number], { type: 'blessPick' | 'blessClear' | 'blessProc' }>): void {
+  private playBlessEvent(e: Extract<BattleState['events'][number], { type: 'blessPick' | 'blessClear' | 'blessProc' | 'blessGamble' }>): void {
     const p = playerOf(this.s);
+    if (e.type === 'blessGamble') {
+      // 翻開蓋著的牌（D-383）：結果一行大字＋拿到的名字；同一個 tick 的 blessPick 只放光圈、不再各跳一行字
+      this.gambleTick = e.tick;
+      this.gamblePicks = 0;
+      const px = this.sx(p.x);
+      const py = this.sy(p.y);
+      const names = this.blessDefs(e.ids).map((d) => d.name).join('＋');
+      const bad = e.result === 'cursed';
+      bigText(this, px, py - 176, tr(`bless.dark.${e.result}`), bad ? '#ff8a8a' : e.result === 'double' ? '#ffe08a' : '#d8b8ff', e.result === 'double' ? 46 : 34, 1200);
+      bigText(this, px, py - 120, names, '#ffd27a', 34, 1200);
+      if (bad) {
+        bigText(this, px, py + 96, tr('bless.curse', { pct: BLESS_GAMBLE.cursePct }), '#ff8a8a', 26, 1700);
+        shockRing(this, px, py, 0xff4a3a, 150, 620, 7);
+        SFX.blessProc('shadow');
+        this.cameras.main.shake(180, 0.004);
+      } else if (e.result === 'double') sparks(this, px, py - 30, getSettings().lowFx ? 12 : 30, 'ember', 0xffe08a, 700);
+      return;
+    }
     if (e.type === 'blessPick') {
       const d = effectDef(e.id, this.s.weapon ?? 'sword');
       if (!d) return;
+      const flipped = e.tick === this.gambleTick;
+      if (flipped && this.gamblePicks++ > 0) {
+        // 雙重祝福的第二個：晚一點再一圈自己顏色的光（不重播音效）
+        const L2 = ELEMENT_LOOK[d.element];
+        this.time.delayedCall(220, () => shockRing(this, this.sx(p.x), this.sy(p.y), L2.color, 210, 520, 9));
+        return;
+      }
       const L = ELEMENT_LOOK[d.element];
       const px = this.sx(p.x);
       const py = this.sy(p.y);
@@ -1300,7 +1338,7 @@ export class RtBattleScene extends Phaser.Scene {
       shockRing(this, px, py, L.light, 110, 380, 5);
       sparks(this, px, py - 30, getSettings().lowFx ? 10 : 22, 'ember', L.light, 520);
       this.nightLight?.flash(px, py, 700 * this.k * 1.5, 900);
-      bigText(this, px, py - 120, tr('bless.got', { name: d.name }), L.css, 34, 900);
+      if (!flipped) bigText(this, px, py - 120, tr('bless.got', { name: d.name }), L.css, 34, 900);
       this.tipOnce('jg_tip_bless', tr('bless.tip'), '#ffd27a');
     } else if (e.type === 'blessClear') {
       if (e.count > 0) bigText(this, GAME_WIDTH / 2, 600, tr('bless.gone'), '#b8a888', 30, 1100, true);
@@ -3827,7 +3865,7 @@ export class RtBattleScene extends Phaser.Scene {
         // 第 88 輪（D-227）：標題被別的東西（記憶卡、大字）推到主角下方時，內容以前還是排在原位 446 → 「結晶 ×3…」跑到「夜光寶箱！」上面，順序顛倒 → 內容跟著標題排
         const below = (dy: number, y0: number): number => (head.active && Math.abs(head.y - 390) > 1 ? head.y + dy : y0);
         this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, below(56, 446), got, '#f4e6c0', 30, 1400));
-      } else if (e.type === 'blessPick' || e.type === 'blessClear' || e.type === 'blessProc') {
+      } else if (e.type === 'blessPick' || e.type === 'blessClear' || e.type === 'blessProc' || e.type === 'blessGamble') {
         this.playBlessEvent(e);
       } else if (e.type === 'rest') {
         const p = playerOf(this.s);
