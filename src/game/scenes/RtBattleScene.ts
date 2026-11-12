@@ -70,6 +70,7 @@ import { characterCache } from '../../client/characterCache';
 import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard';
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
+import { levelUpFlash, levelUpPillar } from '../fx/levelUp';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
@@ -3800,9 +3801,9 @@ export class RtBattleScene extends Phaser.Scene {
         this.nightLight?.flash(this.sx(p.x), this.sy(p.y), 700 * this.k * 1.5, 1200); // 深夜：升級光柱照亮四周
         if (this.tracked && e.level === FURY_UNLOCK.level && STAGES[this.stageId]?.bossZone?.fury && (loadRecord(this.stageId).bossKills ?? 0) >= 1 && (loadRecord(this.stageId).bossKills ?? 0) < FURY_UNLOCK.kills) this.furyUnlockedToast(); // D-247：還沒打倒過這張圖的 Boss 不算解鎖
         SFX.perfect();
-        this.cameras.main.flash(180, 255, 230, 160);
-        const col = this.add.rectangle(this.sx(p.x), this.sy(p.y) - 200, 90, 420, 0xffe08a, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(44);
-        this.tweens.add({ targets: col, scaleX: 0.1, alpha: 0, duration: 900, ease: 'Cubic.In', onComplete: () => col.destroy() });
+        // 第 186 輪（D-386）：以前 camera.flash 把整個畫面連 HUD 刷成淡黃約十幀、光柱是一塊平色長方形 → 只在 HUD 底下亮一下＋柔光光柱
+        levelUpFlash(this);
+        levelUpPillar(this, this.sx(p.x), this.sy(p.y), this.k, () => { const q = playerOf(this.s); return q ? { x: this.sx(q.x), y: this.sy(q.y) } : null; });
         // 第 50 輪：以前「技能點 +1」和標題同一個 54px 大字（兩行很擠），主角頭上的「HP・攻擊」飄字剛好被第二行蓋住 → 標題一行大字＋數值／技能點一則小字（置中大字會自動錯開，D-162）
         bigText(this, GAME_WIDTH / 2, 430, `等級提升！Lv ${e.level}`, '#ffe08a', 54, 1000);
         // 第 51 輪：數值小字改排在主角腳下（360×640 時主角在畫面 y≈580，以前小字剛好蓋住主角頭上的傷害數字 1.3 秒）；x 偏 1px＝固定位置、不排隊
@@ -3873,7 +3874,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.nightLight?.flash(x, y, 420 * this.k * 1.5, 1600); // 深夜：寶箱打開的光
         SFX.perfect();
         SFX.itemGet();
-        this.cameras.main.flash(120, 255, 230, 160);
+        levelUpFlash(this, 0xffe08a, 200); // 第 186 輪：開寶箱也不再把整個畫面連 HUD 刷白
         shockRing(this, x, y, 0xffd27a, 160, 520, 7);
         sparks(this, x, y - 20, 30, 'ember', 0xffe08a, 620);
         const got = Object.entries(e.loot).map(([k, n]) => `${LOOT_NAMES[k] ?? k} ×${n}`).join('　');

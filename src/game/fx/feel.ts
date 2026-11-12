@@ -310,6 +310,11 @@ export function bannerGlowStyle(color: string, size: number): Phaser.Types.GameO
   };
 }
 
+/** 大字彈出時的起始倍率：短字照舊 2.2 倍，長句子壓到不超出畫面寬（最少 1.12，仍看得出是彈出來的） */
+export function popScale(textW: number, screenW: number): number {
+  return Math.max(1.12, Math.min(2.2, (screenW - 24) / Math.max(1, textW)));
+}
+
 export function bigText(
   scene: Phaser.Scene, x: number, y: number, text: string, color: string, size = 72, hold = 450,
   /** 不急的說明：原位壓主角、主角下方又暫時被佔住時排隊等（不照原位蓋主角，第 76 輪） */
@@ -326,6 +331,8 @@ export function bigText(
     .setDepth(BANNER_DEPTH)
     .setScale(2.2)
     .setAlpha(0);
+  // 第 186 輪：長句子從 2.2 倍縮回來的那幾幀會比畫面還寬（兩頭被切掉、整行蓋在戰場上）→ 起跳的倍率壓到不超出畫面
+  t.setScale(popScale(t.width, scene.scale.width));
   if (glow) {
     // 光暈跟著本體（位置、縮放、透明度、深度、文字都由呼叫端改本體；這裡每幀照抄），本體消失就一起消失
     const follow = (): void => {
