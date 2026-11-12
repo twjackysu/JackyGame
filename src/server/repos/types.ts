@@ -29,8 +29,6 @@ export interface CharacterRow {
   maps: Record<string, MapProgressView>;
   /** 劇情與教學旗標（舊存檔原樣保留；V2 決定哪些屬於角色、哪些是裝置偏好） */
   story: Record<string, string>;
-  /** 進行中的燼牌下注局（D-289）：伺服器的種子與牌組；打完或重開一局就換掉 */
-  cardMatch?: CardMatchRow;
   /** 進行中的 PvP 對局（pvp.start 存、pvp.finish 清；JSON 字串＝core 的 PvpMatchSetup＋對手資訊）。不放 story：migrate.sync 會用舊 key 蓋掉 story */
   pvpMatch?: string;
   /** PvP 段位分（沒有＝起始分） */
@@ -48,17 +46,6 @@ export interface CharacterRow {
   pveBattle?: string;
   createdAt: number;
   version: number;
-}
-
-export interface CardMatchRow {
-  id: string;
-  opponentId: string;
-  seed: number;
-  deck: string[];
-  stake: number;
-  /** 下注贏了拿到哪張牌（開局時照當時的收藏決定） */
-  prize?: string;
-  at: number;
 }
 
 export interface ItemRow {

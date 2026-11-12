@@ -73,21 +73,6 @@ describe('討伐後的抉擇（D-157）', () => {
   });
 });
 
-describe('燼牌對手的回聲（D-157）', () => {
-  it('看對手所在地圖的抉擇；沒選過或不認識的對手回 null', async () => {
-    const { rivalEcho } = await import('../src/game/choices');
-    expect(rivalEcho('vela', {})).toBeNull();
-    expect(rivalEcho('ida', { mistwood: 'take' })).toBeNull();
-    const a = rivalEcho('vela', { thornvale: 'spare' });
-    const b = rivalEcho('vela', { thornvale: 'take' });
-    expect(a).toBeTruthy();
-    expect(b).toBeTruthy();
-    expect(a).not.toBe(b);
-    expect(rivalEcho('goran', { thornvale: 'spare' })).toBeNull();
-    expect(rivalEcho('sol', { starfall: 'spare' })).toBeTruthy();
-  });
-});
-
 describe('結語跟著武器換字（第 57 輪）', () => {
   it('長劍不變、長弓／法杖不寫「劍下」', async () => {
     const { finaleLinesFor } = await import('../src/game/finaleStats');

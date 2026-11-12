@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rivalEncounterEcho, claimThanks, cleanEncounters, ENCOUNTERS, encountersOf, meet, openEncounters, pendingThanks, worth } from '../src/game/encounters';
+import { claimThanks, cleanEncounters, ENCOUNTERS, encountersOf, meet, openEncounters, pendingThanks, worth } from '../src/game/encounters';
 import { isSolidAt } from '../src/core/battle/rt/engine';
 import { makeMistwoodStage } from '../src/core/battle/rt/maps/mistwood';
 import { makeThornvaleStage } from '../src/core/battle/rt/maps/thornvale';
@@ -49,19 +49,6 @@ describe('路上的相遇（D-159）', () => {
     expect(pendingThanks(t, 'thornvale')).toEqual([]);
     expect(claimThanks(t, 'tv_mule')).toBeNull();
     expect(openEncounters({}, 'mistwood').map((e) => e.id)).toEqual(['mw_hunter', 'mw_herbs']);
-  });
-
-  it('燼牌對手會提起同一張地圖的相遇', () => {
-    expect(rivalEncounterEcho('vela', {})).toBeNull();
-    expect(rivalEncounterEcho('sol', { mw_hunter: 'take' })).toBeNull();
-    expect(rivalEncounterEcho('merchant', { mw_hunter: 'take' })).not.toBe(rivalEncounterEcho('merchant', { mw_hunter: 'spare' }));
-    expect(rivalEncounterEcho('goran', { er_miner: 'thanked' })).toBe(rivalEncounterEcho('goran', { er_miner: 'spare' }));
-    // 兩個都選過：依亂數挑其中一句；別張圖的相遇不會被提起
-    const both = { tv_mule: 'take', tv_thief: 'spare', mw_hunter: 'take' } as const;
-    const a = rivalEncounterEcho('vela', both, () => 0), b = rivalEncounterEcho('vela', both, () => 0.99);
-    expect(a).not.toBe(b);
-    expect([a, b]).toContain(rivalEncounterEcho('vela', { tv_mule: 'take' }));
-    expect(rivalEncounterEcho('sol', { sf_courier: 'spare' })).not.toBeNull();
   });
 });
 

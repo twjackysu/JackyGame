@@ -190,30 +190,3 @@ export function openEncounters(cur: Record<string, EncounterState>, map: string)
 
 /** 回禮的總價值（金幣＋結晶×40）要比「取」高：做好事要有回報（測試用） */
 export const worth = (r: { coin?: number; crystal?: number }): number => (r.coin ?? 0) + (r.crystal ?? 0) * 40;
-
-/** 燼牌對手對相遇的開場白（D-159；第 37 輪起每位對手可能提起兩個相遇）：對手 id → 他所在地圖的相遇 */
-const RIVAL_ENC: Record<string, { id: string; take: string; spare: string }[]> = {
-  merchant: [
-    { id: 'mw_hunter', take: '「那個獵人小鬼一拐一拐地回來了……錢袋是空的。」', spare: '「獵人小鬼的狗找到了，天天在營火邊轉。」' },
-    { id: 'mw_herbs', take: '「採藥的婆婆說她的銀霧蘭不見了，找了一整天。」', spare: '「婆婆的藥膏？我這裡也有賣——她說要送你的那罐不算。」' },
-  ],
-  vela: [
-    { id: 'tv_mule', take: '「有頭騾子拖著荊棘回到村裡，貨袋破了……」', spare: '「商隊的老灰平安回來了，大家都在說你。」' },
-    { id: 'tv_thief', take: '「村裡的錢袋找不回來了。聽說最後在一個旅人手上。」', spare: '「那個賊把東西還回來了……他說是你替他包的傷。」' },
-  ],
-  goran: [
-    { id: 'er_miner', take: '「有個礦工在對岸困了兩天，才被同伴救出來……哼。」', spare: '「那個礦工是我徒弟。替我謝謝你，年輕人。」' },
-    { id: 'er_pilgrim', take: '「朝聖的人說，他用燼石換了一口水。這裂谷真是越來越貴了。」', spare: '「朝聖者替你祈了福？那今晚手氣可別太好。」' },
-  ],
-  sol: [{ id: 'sf_courier', take: '「信差說他的郵資被人拿了……信倒是還在。坐吧。」', spare: '「那封信……是我女兒寫的。謝謝你搬開了那塊石頭。」' }],
-};
-
-/** 從對手所在地圖「已經選過」的相遇裡挑一句（rnd 預設 Math.random）；都沒選過回 null */
-export function rivalEncounterEcho(rival: string, cur: Record<string, EncounterState>, rnd: () => number = Math.random): string | null {
-  const lines = (RIVAL_ENC[rival] ?? []).flatMap((r) => {
-    const v = cur[r.id];
-    return v ? [v === 'take' ? r.take : r.spare] : [];
-  });
-  if (!lines.length) return null;
-  return lines[Math.min(lines.length - 1, Math.floor(rnd() * lines.length))]!;
-}

@@ -50,7 +50,6 @@ export interface FinaleStats {
   playSec: number;
   kills: number;
   chests: number;
-  cardsWon: number;
   /** 前世的記憶（D-137）想起幾個 */
   memories: number;
   /** 路上的相遇（D-159）選了「助」幾次（沒給＝不顯示） */
@@ -58,7 +57,7 @@ export interface FinaleStats {
 }
 
 /** 從各地圖紀錄算出這趟旅程（純函式，有測試） */
-export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0, memories = 0, helped?: number): FinaleStats {
+export function finaleStats(recs: Record<string, RtRecord>, memories = 0, helped?: number): FinaleStats {
   const home = recs[WORLD_MAPS[0]!.id] ?? {};
   return {
     // 通關後的挑戰地圖（D-138）：打倒過才列進旅程
@@ -70,7 +69,6 @@ export function finaleStats(recs: Record<string, RtRecord>, cardsWon = 0, memori
     playSec: home.playSec ?? 0,
     kills: home.kills ?? 0,
     chests: WORLD_MAPS.reduce((n, m) => n + (recs[m.id]?.chests?.length ?? 0), 0),
-    cardsWon,
     memories,
     ...(helped !== undefined ? { helped } : {}),
   };
@@ -86,15 +84,8 @@ export function fmtPlay(sec: number): string {
 export function loadFinaleStats(): FinaleStats {
   const recs: Record<string, RtRecord> = {};
   for (const m of WORLD_MAPS) recs[m.id] = loadRecord(m.id);
-  let won = 0;
-  try {
-    const c = JSON.parse(localStorage.getItem('jg_cards') ?? '{}') as { won?: unknown };
-    won = typeof c.won === 'number' ? c.won : 0;
-  } catch {
-    /* 無痕模式 */
-  }
   const en = loadEncounters();
-  return finaleStats(recs, won, loadMemories().length, STORY_ENCOUNTERS.filter((e) => en[e.id] === 'spare' || en[e.id] === 'thanked').length);
+  return finaleStats(recs, loadMemories().length, STORY_ENCOUNTERS.filter((e) => en[e.id] === 'spare' || en[e.id] === 'thanked').length);
 }
 
 export function finaleSeen(): boolean {

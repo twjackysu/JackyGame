@@ -63,8 +63,11 @@ export function drawMerchant(g: Phaser.GameObjects.Graphics, x: number, y: numbe
   return { lx, ly };
 }
 
+/** 各地圖營火旁坐著的旅人（原本是燼牌對手；燼牌在 D-379 拿掉，人留著） */
+export const CAMP_FOLK: Readonly<Record<string, string>> = { thornvale: 'vela', emberrift: 'goran', starfall: 'sol' };
+
 /**
- * 燼牌的另外兩位對手（D-129，程式美術，和莫托同一套畫法：腳底在 (x, y)、高 h）。
+ * 營火旁的旅人（D-129 原本是燼牌的對手；程式美術，和莫托同一套畫法：腳底在 (x, y)、高 h）。
  * - 薇菈（荊棘谷）：綠色短披肩、紅褐長髮、背著藥草籃，身邊一隻趴著的棘背獵犬。
  * - 葛倫（燼紅裂谷）：光頭大鬍子、皮圍裙、肩上扛鍛造錘，圍裙上的燼紋會發亮。
  * - 伊妲（隱藏對手）：深紫長袍、銀白長髮、發光的書、繞著星燼。

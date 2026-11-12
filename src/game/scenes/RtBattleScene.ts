@@ -21,7 +21,6 @@ import { BannerSystem } from '../rt/BannerSystem';
 import { AFFIX_COLOR, drawMinimap } from '../rt/MinimapSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
-import { cardSummary, grantCard, openEmberCardPanel, syncChestCards } from '../ui/emberCardPanel';
 import { openBlessList, openBlessPanel } from '../ui/blessPanel';
 import { BLESS_RULES, blessNeed, effectDef, type EffectDef } from '../../core/battle/rt/effects';
 import { ELEMENT_LOOK, drawEffectIcon } from '../fx/effectIcon';
@@ -90,7 +89,7 @@ import { OffscreenArrows } from '../rt/offscreenArrows';
 import { blessHudRect } from '../arrowRules';
 import { mergePickup, pickupRow, pickupSize } from '../pickupMerge';
 import { buildMemoryBook } from '../ui/memoryBook';
-import { cardOps, shopOps } from '../shopOps';
+import { shopOps } from '../shopOps';
 import { coreBurstCue, queenBloomCue, ventEruptCue } from '../fx/bossCues';
 import { loadMemories, MEMORIES, MEMORY_RADIUS, memoriesOf, recall, saveMemories, type Memory } from '../memories';
 import { getSettings, updateSettings } from '../settings';
@@ -104,7 +103,7 @@ import { eliteFall } from '../fx/eliteFall';
 import { DashFx } from '../fx/dashFx';
 import { drawStorm, type StormView } from '../fx/stormFx';
 import { GroundHazards, LAVA_ATTACKS, METEOR_ATTACKS } from '../fx/groundHazards';
-import { drawCardRival, drawMerchant } from '../fx/merchant';
+import { CAMP_FOLK, drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { CachedDraw, type DrawBox } from '../fx/cachedDraw';
 import { DiscLayer } from '../rt/uiDisc';
@@ -120,7 +119,6 @@ import { APP_HIDDEN, clickBackButton, pressBack, setBackHandler } from '../backB
 import { PEEK_IN, PEEK_TOTAL, peekBlocked, peekFocus, peekWeight } from '../cameraPeek';
 import { fightKeep, hiddenEliteBannerY } from '../fx/bannerStack';
 import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEndLabel } from '../ui/chapterCard';
-import { CARDS as EMBER_CARDS, CHEST_CARDS, opponentsAt } from '../../core/cards/emberCards';
 import { drawRankAura } from '../fx/rankAura';
 import { pveRankAura, refreshRank } from '../rankCache';
 import { pvpOps } from '../pvpOps';
@@ -375,7 +373,7 @@ export class RtBattleScene extends Phaser.Scene {
   /** 精英／Boss 邊緣箭頭的距離字（物件池） */
   /** 營火光暈（預先烘好的放射漸層，ADD 混色；每幀只改位置與縮放） */
   private glows: Phaser.GameObjects.Image[] = [];
-  /** 營火旁的旅商／燼牌對手、路上的相遇人物畫成小貼圖（D-332，每秒重畫 24 次；以前每幀上千筆 Graphics 指令） */
+  /** 營火旁的旅商／旅人、路上的相遇人物畫成小貼圖（D-332，每秒重畫 24 次；以前每幀上千筆 Graphics 指令） */
   private fireCache: { mer: CachedDraw; rival: CachedDraw }[] = [];
   private npcCache: CachedDraw[] = [];
   /** 大地圖目標列（沒有就 null） */
@@ -767,7 +765,7 @@ export class RtBattleScene extends Phaser.Scene {
       if (this.editing) this.endEdit();
       else if (this.warpAt >= 0) { /* 光門過場中 */ }
       else if (this.menu) {
-        // 面板自己處理返回（燼牌對局中要按兩次，D-229）；沒處理才點它的返回類按鈕
+        // 面板自己處理返回；沒處理才點它的返回類按鈕
         const own = this.menu.getData?.('back') as (() => boolean) | undefined;
         if (!own?.()) clickBackButton([this.menu]);
       }
@@ -923,7 +921,6 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.ended || this.menu) return;
     if (p.y < VIEW_TOP && p.x > GAME_WIDTH - 100) return; // 選單鍵
     if (this.fireBtn?.visible && this.fireBtn.getBounds().contains(p.x, p.y)) return; // 營火捷徑
-    if (this.cardBtn?.visible && this.cardBtn.getBounds().contains(p.x, p.y)) return;
     if (this.hint) this.dismissHint();
     for (let i = 0; i < BTN_COUNT; i++) {
       const b = this.btnPos(i);
@@ -1139,7 +1136,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec = mergeRun(base, this.saved, now);
     if (import.meta.env.VITE_SERVER_URL) {
       // 線上版（第 148 輪，NEXT #2）：錢包、等級是伺服器的（舊 key 只是快取，loot.claim 回來時寫回）；
-      // 本機撿的金幣／粉塵／結晶、本機算的經驗不算進去——以前會暫時多算到下一次寫回，燼牌、行商面板看到的錢比伺服器多
+      // 本機撿的金幣／粉塵／結晶、本機算的經驗不算進去——以前會暫時多算到下一次寫回，行商面板看到的錢比伺服器多
       rec.coin = base.coin;
       rec.dust = base.dust;
       rec.crystal = base.crystal;
@@ -1547,7 +1544,6 @@ export class RtBattleScene extends Phaser.Scene {
   private makeFireBtn(): void {
     this.fireBtn = null;
     this.shopBtn = null;
-    this.cardBtn = null;
     if (!this.tracked) return;
     const b = this.add.text(GAME_WIDTH / 2 - 95, 960 + TALL, '行囊・強化', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
     b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
@@ -1568,29 +1564,18 @@ export class RtBattleScene extends Phaser.Scene {
       this.openShop();
     });
     this.shopBtn = sb;
-    // 燼牌捷徑（D-129）：營火旁直接找人打牌（在地對手坐在營火另一邊）
-    const cb = this.add.text(88, 960 + TALL, '燼牌', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffb36a' }).setOrigin(0.5).setPadding(16, 10, 16, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
-    cb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
-      ev.stopPropagation();
-      if (this.menu || this.editing || this.ended) return;
-      SFX.uiTap();
-      this.inp.stick = null;
-      this.persist();
-      this.openCards(true);
-    });
-    this.cardBtn = cb;
     this.placeFireBtns();
   }
-  private cardBtn: Phaser.GameObjects.Text | null = null;
 
   /** 營火捷徑避開技能鍵／搖桿（第 43 輪：左手模式、按鈕放大時以前會蓋在技能鍵上） */
   private placeFireBtns(): void {
-    const row = [this.cardBtn, this.fireBtn, this.shopBtn];
+    const row = [this.fireBtn, this.shopBtn];
     if (row.some((t) => !t || !t.active)) return;
     const ts = row as Phaser.GameObjects.Text[];
-    const PREF = [88, GAME_WIDTH / 2 - 95, GAME_WIDTH / 2 + 125];
+    // 燼牌拿掉後（D-379）只剩兩顆，位置照舊（不往左補）
+    const PREF = [GAME_WIDTH / 2 - 95, GAME_WIDTH / 2 + 125];
     // 「行囊・強化 ▲」比較寬：用加了 ▲ 的寬度排，免得之後變寬又撞到
-    const wide = [ts[0]!.width, ts[1]!.width + 30, ts[2]!.width];
+    const wide = [ts[0]!.width + 30, ts[1]!.width];
     const lay = fireRowLayout(this.ctl, ts.map((_, i) => ({ w: wide[i]!, x: PREF[i]! })), 960 + TALL, Math.max(...ts.map((t) => t.height)));
     ts.forEach((t, i) => t.setPosition(Math.round(lay.xs[i]!), lay.y));
   }
@@ -1600,7 +1585,6 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu?.destroy();
     this.fireBtn?.setVisible(false);
     this.shopBtn?.setVisible(false);
-    this.cardBtn?.setVisible(false);
     this.menu = openRtShopPanel(
       this,
       {
@@ -1620,7 +1604,6 @@ export class RtBattleScene extends Phaser.Scene {
         },
         level: (import.meta.env.VITE_SERVER_URL ? characterCache.get()?.level : undefined) ?? this.s.prog?.level ?? 1,
         region: this.stageId,
-        onCards: () => this.openCards(),
         onMarket: this.tracked ? () => this.openMarket() : undefined,
         onTrade: this.tracked ? () => this.openTrade() : undefined,
         onWarehouse: this.tracked ? () => this.openWarehouse() : undefined,
@@ -1705,54 +1688,6 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu = openWarehousePanel(this, ops, () => this.openShop());
   }
 
-  /** 營火燼牌（D-127）：從行商面板進來，離開回到行商；從營火「燼牌」捷徑進來就直接關掉 */
-  private openCards(fromFire = false): void {
-    this.menu?.destroy();
-    this.fireBtn?.setVisible(false);
-    this.shopBtn?.setVisible(false);
-    this.cardBtn?.setVisible(false);
-    // 以前就開過的寶箱補發燼牌（D-131）
-    syncChestCards(WORLD_MAPS.flatMap((m) => loadRecord(m.id).chests ?? []));
-    this.menu = openEmberCardPanel(
-      this,
-      {
-        map: this.stageId,
-        closeLabel: fromFire ? '回營火' : undefined,
-        coin: () => coinOf(loadRecord(this.stageId)),
-        pay: (n) => {
-          const r = spendCoin(loadRecord(this.stageId), n);
-          if (!r) return;
-          saveRecord(this.stageId, r);
-          this.coinBase = coinOf(r);
-        },
-        // 第 107 輪：面板已關（回行商／回營火）→ 等面板都關掉再講，最多等 2 分鐘
-        announce: (text, color) => this.announce(text, color, 0, 120000),
-        // V2（D-289）：下注局的賭注、種子、勝負、獎金都由伺服器決定；結果寫回舊 key 後場景重讀金幣
-        server: !this.tracked
-          ? undefined
-          : {
-              start: async (opponentId) => {
-                this.persist();
-                const r = await cardOps.start(opponentId);
-                if (this.scene.isActive()) this.coinBase = coinOf(loadRecord(this.stageId));
-                return r;
-              },
-              finish: async (matchId, moves) => {
-                const r = await cardOps.finish(matchId, moves);
-                if (this.scene.isActive()) this.coinBase = coinOf(loadRecord(this.stageId));
-                return r;
-              },
-            },
-      },
-      () => {
-        if (!fromFire) return this.openShop();
-        this.menu?.destroy();
-        this.menu = null;
-        this.acc = 0;
-      },
-    );
-  }
-
   private updateFireBtn(): void {
     const b = this.fireBtn;
     if (!b) return;
@@ -1761,7 +1696,6 @@ export class RtBattleScene extends Phaser.Scene {
     const up = near && this.bagSt.bag.some((g) => isUpgrade(this.bagSt, g));
     b.setVisible(near && !this.menu).setText(up ? '行囊・強化 ▲' : '行囊・強化');
     this.shopBtn?.setVisible(near && !this.menu);
-    this.cardBtn?.setVisible(near && !this.menu);
     // 新手引導（第 23 輪）：前幾次進地圖、第一次離開營火又回來時說明營火能做什麼（開場就在營火旁，所以等「回來」才提示）
     if (!near) this.leftFire = true;
     else if (this.leftFire && !this.fireHinted && !this.menu && this.newbie && !this.tipBusy && this.time.now >= this.chapterUntil && this.time.now >= this.reviveUntil) {
@@ -1785,7 +1719,6 @@ export class RtBattleScene extends Phaser.Scene {
     this.menu?.destroy();
     this.fireBtn?.setVisible(false);
     this.shopBtn?.setVisible(false);
-    this.cardBtn?.setVisible(false);
     this.menu = openRtBagPanel(
       this,
       this.bagSt,
@@ -2234,7 +2167,6 @@ export class RtBattleScene extends Phaser.Scene {
     this.storySoon = false;
     this.fireBtn?.setVisible(false);
     this.shopBtn?.setVisible(false);
-    this.cardBtn?.setVisible(false);
     this.menu = playFinale(this, loadFinaleStats(), () => {
       this.menu = null;
       this.acc = 0;
@@ -2913,8 +2845,6 @@ export class RtBattleScene extends Phaser.Scene {
     { const chs = choiceOf(this.stageId); const cp = loadChoices()[this.stageId]; if (chs && cp) lines.push(`你的抉擇：${chs.short[cp]}${cp === 'take' ? '' : `（行商 −${shopDiscountPct(loadChoices())}%）`}`); }
     { const en = loadEncounters(); for (const e of encountersOf(this.stageId)) { const v = en[e.id]; if (v) lines.push(`路上的相遇：${e.short[v === 'thanked' ? 'spare' : v]}${v === 'spare' ? '（對方會來道謝）' : v === 'thanked' ? '（收到回禮了）' : ''}`); } }
     if (memoriesOf(this.stageId).length) { const mh = loadMemories(); lines.push(`前世的記憶：這裡 ${memoriesOf(this.stageId).filter((m) => mh.includes(m.id)).length}/${memoriesOf(this.stageId).length}・全部 ${mh.length}/${MEMORIES.length}`); }
-    const cs = cardSummary();
-    if (cs.played || cs.have) lines.push(`營火燼牌 ${cs.won} 勝 / ${cs.played} 場・收集 ${cs.have}/${cs.total} 張`);
     const tip = worldMap(this.stageId) ? levelTip(this.stageId, rec, this.s.prog?.level ?? 1) : null;
     if (tip) lines.unshift(tip);
     if (worldMap(this.stageId)) lines.unshift(`▶ 下一個目標：${nextGoal(this.stageId, rec, this.s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''), frontierAfter(this.stageId))}`);
@@ -2975,7 +2905,6 @@ export class RtBattleScene extends Phaser.Scene {
     if (this.hint) this.dismissHint(); // 說明框不要壓在暫停選單上
     this.fireBtn?.setVisible(false); // 營火按鈕不要從選單底下透出來（關掉後下一幀會再顯示）
     this.shopBtn?.setVisible(false);
-    this.cardBtn?.setVisible(false);
     for (const gt of this.gates) gt.label.setVisible(false); // 第 60 輪：門上的「▼ 回荊棘谷」從選單遮罩底下透出來（暫停時不會重畫）
     if (this.menu) {
       this.menu.destroy();
@@ -3898,9 +3827,6 @@ export class RtBattleScene extends Phaser.Scene {
         // 第 88 輪（D-227）：標題被別的東西（記憶卡、大字）推到主角下方時，內容以前還是排在原位 446 → 「結晶 ×3…」跑到「夜光寶箱！」上面，順序顛倒 → 內容跟著標題排
         const below = (dy: number, y0: number): number => (head.active && Math.abs(head.y - 390) > 1 ? head.y + dy : y0);
         this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, below(56, 446), got, '#f4e6c0', 30, 1400));
-        // 寶箱裡的燼牌（D-131）：第一次拿到才出字
-        const card = this.tracked ? CHEST_CARDS[e.chest] : undefined;
-        if (card && grantCard(card)) this.time.delayedCall(1300, () => bigText(this, GAME_WIDTH / 2, below(110, 500), `＋燼牌「${EMBER_CARDS[card]?.name ?? card}」\n營火行商的「燼牌」可以用`, '#ffb36a', 28, 1800));
       } else if (e.type === 'blessPick' || e.type === 'blessClear' || e.type === 'blessProc') {
         this.playBlessEvent(e);
       } else if (e.type === 'rest') {
@@ -4722,10 +4648,10 @@ export class RtBattleScene extends Phaser.Scene {
       if (this.tracked && fc) {
         const off = fi * 1300;
         fc.mer.show(cx + 95 * k, cy + 10 * k, now, 'm', (cg, fx, fy, t) => drawMerchant(cg, fx, fy, 120 * k, t + off));
-        // 這張地圖的燼牌對手坐在營火另一邊（D-129）
-        const rival = opponentsAt(this.stageId).find((o) => o.map);
+        // 這張地圖的旅人坐在營火另一邊（D-129 原本是燼牌對手；燼牌拿掉後留著當營火旁的人，D-379）
+        const rival = CAMP_FOLK[this.stageId];
         const offR = fi * 900;
-        if (rival) fc.rival.show(cx - 95 * k, cy + 10 * k, now, rival.id, (cg, fx, fy, t) => drawCardRival(cg, rival.id, fx, fy, 110 * k, t + offR));
+        if (rival) fc.rival.show(cx - 95 * k, cy + 10 * k, now, rival, (cg, fx, fy, t) => drawCardRival(cg, rival, fx, fy, 110 * k, t + offR));
         else fc.rival.hide();
       }
     }

@@ -38,8 +38,8 @@ export type AnyHandler = (ctx: Ctx, p: unknown) => Promise<unknown>;
 export const SMALL_BODY = 16 * 1024;
 const LARGE_BODY_METHODS: ReadonlySet<string> = new Set(['pvp.finish']);
 
-/** 被規則拒絕時要留稽核的方法（作弊會先撞到這些：偽造擊殺、寶箱、PvP／燼牌結算、相遇獎勵） */
-const AUDIT_REJECTED: ReadonlySet<string> = new Set(['loot.claim', 'loot.chest', 'battle.start', 'pvp.finish', 'cards.finish', 'story.meet', 'story.thanks', 'story.choose']);
+/** 被規則拒絕時要留稽核的方法（作弊會先撞到這些：偽造擊殺、寶箱、PvP 結算、相遇獎勵） */
+const AUDIT_REJECTED: ReadonlySet<string> = new Set(['loot.claim', 'loot.chest', 'battle.start', 'pvp.finish', 'story.meet', 'story.thanks', 'story.choose']);
 
 export class GameServer {
   private readonly clock: Clock;

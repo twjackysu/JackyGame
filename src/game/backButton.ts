@@ -26,7 +26,7 @@ export function pressBack(): BackResult {
 }
 
 /** 面板上可以當「上一步」按的字（依序找；「認輸離開」這種會有後果的不算） */
-// 第 81 輪：燼牌大廳／結算的出口是「回行商」「回營火」，以前不在清單裡，返回鍵在燼牌裡完全沒反應
+// 「回行商」「回營火」原本是燼牌面板的出口（第 81 輪；燼牌在 D-379 拿掉，字留著無害）
 export const BACK_LABELS = ['返回', '關閉', '離開', '完成', '繼續', '回行商', '回營火'] as const;
 
 function shown(o: Phaser.GameObjects.GameObject): boolean {

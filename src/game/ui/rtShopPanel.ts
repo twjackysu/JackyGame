@@ -28,8 +28,6 @@ export interface ShopCtx {
   setBag: (st: BagState) => void;
   level: number;
   region: string;
-  /** 營火燼牌（D-127）：有給才出現「燼牌」分頁按鈕 */
-  onCards?: () => void;
   /** 拍賣所（V4）：有給才出現「拍賣所」分頁按鈕（要有伺服器） */
   onMarket?: () => void;
   /** 面對面交易（F3）：有給才出現「交易」分頁按鈕（要有伺服器） */
@@ -139,15 +137,14 @@ export function openRtShopPanel(scene: Phaser.Scene, ctx: ShopCtx, onClose: () =
     const items: Phaser.GameObjects.GameObject[] = [scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x080604, 0.95).setInteractive()];
     items.push(scene.add.text(0, -585, '營火行商', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     items.push(portrait);
-    // 第 38 輪：往右挪、限寬自動換行，長的台詞（燼牌回聲、相遇）不再蓋到左邊的旅商
+    // 第 38 輪：往右挪、限寬自動換行，長的台詞（相遇）不再蓋到左邊的旅商
     items.push(scene.add.text(50, -538, `旅商莫托：${line}`, { fontFamily: UI_FONT, fontSize: '19px', color: '#e8c8a0', wordWrap: { width: 520, useAdvancedWrap: true }, align: 'center', lineSpacing: -2 }).setOrigin(0.5));
     items.push(scene.add.text(0, -500, `金幣 ${coinOf(rec)}　粉塵 ${w.dust}　結晶 ${w.crystal}　背包 ${st.bag.length}/${BAG_MAX}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '700', color: '#ffe08a' }).setOrigin(0.5));
-    // 分頁鈕：買、賣，再加上有給的燼牌（D-127）、拍賣所（V4）；照數量平均排開
+    // 分頁鈕：買、賣，再加上有給的拍賣所（V4）；照數量平均排開
     const tabs: [string, () => void, boolean][] = [
       ['買', () => ((tab = 'buy'), render()), tab === 'buy'],
       ['賣', () => ((tab = 'sell'), (page = 0), render()), tab === 'sell'],
     ];
-    if (ctx.onCards) tabs.push(['燼牌', () => ctx.onCards?.(), false]);
     if (ctx.onMarket) tabs.push(['拍賣所', () => ctx.onMarket?.(), false]);
     if (ctx.onTrade) tabs.push(['交易', () => ctx.onTrade?.(), false]);
     if (ctx.onWarehouse) tabs.push(['倉庫', () => ctx.onWarehouse?.(), false]);

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { BTN_COUNT, JOY_INDEX, SCALES, buttonPos, buttonR, defaultControls, fireRowLayout, setLeftHand } from '../src/game/rtControls';
 import { TALL } from '../src/game/screen';
 
-// 第 43 輪：營火捷徑（燼牌／行囊・強化／行商）不能蓋在技能鍵或搖桿上（左手模式、大按鈕都一樣）
-const ITEMS = [{ w: 90, x: 88 }, { w: 190, x: 265 }, { w: 100, x: 485 }];
+// 第 43 輪：營火捷徑（行囊・強化／行商）不能蓋在技能鍵或搖桿上（左手模式、大按鈕都一樣）
+const ITEMS = [{ w: 190, x: 265 }, { w: 100, x: 485 }];
 const H = 56;
 
 function overlaps(c: ReturnType<typeof defaultControls>, xs: number[], y: number): string[] {

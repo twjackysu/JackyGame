@@ -170,7 +170,6 @@ function runStory(scene: Phaser.Scene, stats: FinaleStats | null, onDone: () => 
       ['遊玩時間', fmtPlay(stats.playSec)],
       ['擊殺', `${stats.kills}`],
       ['寶箱', `${stats.chests}`],
-      ['燼牌勝場', `${stats.cardsWon}`],
       ['前世的記憶', `${stats.memories}/${MEMORY_TOTAL}`],
       ...(stats.helped !== undefined ? ([['幫助過的人', `${stats.helped}/${STORY_ENCOUNTERS.length}`]] as [string, string][]) : []),
     ];

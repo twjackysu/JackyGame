@@ -9,11 +9,10 @@ describe('通關演出', () => {
       mistwood: { level: 12, playSec: 4000, kills: 900, chests: ['a', 'b'], bossKills: 5, firstAt: 1, bestBossSec: 200 },
       thornvale: { bossKills: 2, chests: ['c'] },
       emberrift: { bossKills: 1, bestBossSec: 300 },
-    }, 7);
+    });
     expect(st.level).toBe(12);
     expect(st.kills).toBe(900);
     expect(st.chests).toBe(3);
-    expect(st.cardsWon).toBe(7);
     expect(st.bosses.map((b) => b.kills)).toEqual([5, 2, 1]);
     expect(st.bosses.map((b) => b.name)).toEqual(WORLD_MAPS.filter((m) => !m.postGame).map((m) => m.boss));
     expect(st.bosses[2]!.best).toBe(300);
@@ -23,7 +22,7 @@ describe('通關演出', () => {
     expect(st.level).toBe(1);
     expect(st.chests).toBe(0);
     expect(st.helped).toBeUndefined();
-    expect(finaleStats({}, 0, 0, 2).helped).toBe(2);
+    expect(finaleStats({}, 0, 2).helped).toBe(2);
   });
   it('遊玩時間格式', () => {
     expect(fmtPlay(42 * 60 + 5)).toBe('42 分');

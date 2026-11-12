@@ -37,12 +37,10 @@
 | ![迷霧巡守](../screenshots/41-mist-warden.jpg) | ![為你挑選](../screenshots/42-shop-pick.jpg) | ![變化二](../screenshots/44-skill-variants-b.jpg) |
 | **燼心岩王的熔岩裂地** | **噴口燒死了！** | **新地圖開放（標題 NEW）** |
 | ![熔岩裂地](../screenshots/46-lava-cracks.jpg) | ![燒死了](../screenshots/48-vent-kill.jpg) | ![新地圖](../screenshots/49-map-new.jpg) |
-| **營火另一邊的燼牌對手（荊棘谷的薇菈）** | **贏到新牌（傳奇卡翻牌）** | **自己組牌** |
-| ![燼牌對手](../screenshots/50-card-rivals.jpg) | ![新牌](../screenshots/51-card-reveal.jpg) | ![組牌](../screenshots/52-card-deck.jpg) |
 | **序章：前世是冷門手遊的全成就玩家** | **前世的記憶（紫色光點）** | **通關：這趟旅程** |
 | ![序章](../screenshots/53-prologue.jpg) | ![前世的記憶](../screenshots/54-memory.jpg) | ![這趟旅程](../screenshots/55-finale-journey.jpg) |
-| **觀星者索爾（第五位燼牌對手）：落後太多就先放棄這局、留牌下一局** | **長螢幕手機：畫面填滿、按鈕貼齊下緣** | **深夜限定：星蝕狼** |
-| ![觀星者索爾](../screenshots/58-card-sol.jpg) | ![長螢幕](../screenshots/59-tall-screen.jpg) | ![星蝕狼](../screenshots/60-eclipse-wolf.jpg) |
+| **技能範圍跟著武器與屬性上色（左以前／右現在）** | **長螢幕手機：畫面填滿、按鈕貼齊下緣** | **深夜限定：星蝕狼** |
+| ![技能範圍](../screenshots/skill-area-look-before-after.jpg) | ![長螢幕](../screenshots/59-tall-screen.jpg) | ![星蝕狼](../screenshots/60-eclipse-wolf.jpg) |
 | **守望者召喚墜星（藍圈在你腳下）** | **第二種武器：長弓（大招星河貫射）** | **長弓的技能點** |
 | ![召喚墜星](../screenshots/61-sentinel-meteor.jpg) | ![長弓](../screenshots/62-bow-ult.jpg) | ![長弓技能](../screenshots/63-bow-skills.jpg) |
 | **標題切換武器** | **長弓的變化二：環形箭雨、燼火箭、蝕毒後躍、殘月見切** | **技能點：每招三種打法** |

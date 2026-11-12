@@ -20,7 +20,6 @@ const count = (f: string, re: RegExp) => (code(f).match(re) ?? []).length;
 const STORAGE: Record<string, number> = {
   'src/game/settings.ts': 2,
   'src/game/choices.ts': 2,
-  'src/game/ui/emberCardPanel.ts': 2,
   'src/game/ui/weaponPick.ts': 1,
   'src/game/rtControls.ts': 2,
   'src/game/scenes/RtBattleScene.ts': 9,
@@ -28,7 +27,7 @@ const STORAGE: Record<string, number> = {
   'src/game/chapters.ts': 2,
   'src/game/encounters.ts': 2,
   'src/game/rtRecord.ts': 2,
-  'src/game/finaleStats.ts': 5,
+  'src/game/finaleStats.ts': 4,
   'src/game/weapon.ts': 2,
   'src/game/memories.ts': 2,
 };
@@ -36,7 +35,7 @@ const STORAGE: Record<string, number> = {
 const WRITES: Record<string, number> = {
   'src/game/ui/rtBagPanel.ts': 2,
   'src/game/ui/rtShopPanel.ts': 3,
-  'src/game/scenes/RtBattleScene.ts': 26,
+  'src/game/scenes/RtBattleScene.ts': 24,
   'src/game/rtRecord.ts': 2,
 };
 
