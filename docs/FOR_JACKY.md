@@ -47,6 +47,11 @@
 - 順帶：衝鋒現在會從你身上穿過去（174），Boss 衝到紅圈邊會停下來不衝出去（175）；站到大 Boss 北邊牠會變半透明（`docs/screenshots/boss-occlude-before-after.jpg`）。
 - **11/12 第 185 輪改了上面最後一點**：大隻的怪擋住你時，牠不再淡成快看不見的鬼影（深色地圖上很嚴重），改成牠只淡一點、把你疊畫在牠身上——圖 `docs/screenshots/hero-through-foe-before-after.jpg`。實機看會不會像「浮在怪身上」，不喜歡說一聲，改兩個數字就退回。
 
+## 🟡 11/13 第 187 輪（不用決定，實機順手看）
+- **祝福「斬首」的圖示**以前是灰底白色 ✕，排在火苗旁邊像關閉鈕 → 改成一把斧（`docs/screenshots/execute-icon-before-after.jpg`，右邊是全部圖示）。哪個圖示你看不懂跟我說。
+- **競技場放大招不再整個畫面粉白**（`pvp-ult-flash-before-after.jpg`），和冒險地圖一樣只亮一下；勝利那一下也一樣（這個我拍不到，請你贏一場時順便看）。
+- **撿到獨特裝備**：效果說明那一行不再被「首次討伐！」壓住（`unique-desc-before-after.jpg`）。
+
 ## 🟡 11/13 第 186 輪（不用決定，實機順手看）
 - **升級不再整個畫面一片黃**：以前升級那一下連血條、敵人都看不見約十幀；現在只亮一下，主角腳下竄起一道金色柔光光柱——圖 `docs/screenshots/levelup-before-after.jpg`。**打倒 Boss** 也一樣不再刷白（`boss-slain-flash-before-after.jpg`），看得到牠倒下。會不會變得不夠盛大？想亮一點各是改一個數字。
 - **倒下後在營火旁醒來**：畫面上不再留著倒下前的招式名和傷害數字（`revive-clean-before-after.jpg`）。
