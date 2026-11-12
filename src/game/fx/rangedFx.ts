@@ -303,8 +303,11 @@ export class RangedFx {
         if (j === 0) fire();
         else this.sc.time.delayedCall(j * 70, fire);
       }
-      shockRing(this.sc, vx, vy, st === 'slow' ? 0x8a6aff : 0xc89aff, R, 260, 4);
-      this.sc.cameras.main.shake(70, 0.004);
+      // 第 179 輪：地上的圈和震動等第一顆落地（160ms）才出現——場景會提早 FX_LEAD 幾個 tick 叫這裡，落地正好是扣血那一刻
+      this.sc.time.delayedCall(160, () => {
+        shockRing(this.sc, vx, vy, st === 'slow' ? 0x8a6aff : 0xc89aff, R, 260, 4);
+        this.sc.cameras.main.shake(70, 0.004);
+      });
       return;
     }
     if (strike && !ult && hs.type === 'circle') {
@@ -622,10 +625,13 @@ export class RangedFx {
       } });
     }
     // 每一波地上亮一下：淡粉的底＋一圈往外擴的細邊（範圍看得出來，但不是一塊平平的色塊）
-    const gl = this.sc.add.graphics().setDepth(4).setBlendMode(Phaser.BlendModes.ADD).setPosition(cx, cy);
-    gl.fillStyle(0xff3aa8, 0.1).fillCircle(0, 0, R);
-    gl.lineStyle(3, 0xff8ad8, 0.7).strokeCircle(0, 0, R);
-    this.sc.tweens.add({ targets: gl, alpha: 0, duration: 340, ease: 'Quad.easeOut', onComplete: () => gl.destroy() });
+    // 第 179 輪：等第一批箭落地（約 0.2 秒）才亮，和扣血同一刻
+    this.sc.time.delayedCall(190, () => {
+      const gl = this.sc.add.graphics().setDepth(4).setBlendMode(Phaser.BlendModes.ADD).setPosition(cx, cy);
+      gl.fillStyle(0xff3aa8, 0.1).fillCircle(0, 0, R);
+      gl.lineStyle(3, 0xff8ad8, 0.7).strokeCircle(0, 0, R);
+      this.sc.tweens.add({ targets: gl, alpha: 0, duration: 340, ease: 'Quad.easeOut', onComplete: () => gl.destroy() });
+    });
   }
 
   /** 箭雨（D-149）：n 支箭從右上的天空斜斜落進 rIn～rOut 的範圍，落地迸出小火花；大招版是粉紅的星箭、落地多一圈光 */
@@ -651,7 +657,7 @@ export class RangedFx {
         if (star) shockRing(this.sc, tx, ty, color, 46, 260, 4);
       } });
     }
-    if (rIn > 0) shockRing(this.sc, this.h.sx(x), this.h.sy(y), color, rOut * this.h.k(), 360, 3);
+    if (rIn > 0) this.sc.time.delayedCall(140, () => shockRing(this.sc, this.h.sx(x), this.h.sy(y), color, rOut * this.h.k(), 360, 3)); // 第 179 輪：等第一支箭落地
     else if (star) {
       // 第 69 輪：流星箭雨每一波地上亮一圈粉光（以前一波只有 5 支細箭，整招看起來稀稀落落）
       const R = rOut * this.h.k();

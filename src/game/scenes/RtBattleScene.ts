@@ -73,7 +73,7 @@ import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
 import { playDeath } from '../fx/deathFx';
-import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
+import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
 import { coversHero, occludeStep } from '../fx/occlude';
@@ -4018,11 +4018,13 @@ export class RtBattleScene extends Phaser.Scene {
     const k = this.s.tick - a.start;
     sk.hits.forEach((h, i) => {
       const key = `${a.id}:${a.start}:${i}`;
-      if (k < h.atTick || this.fxDone.has(key)) return;
+      if (this.fxDone.has(key)) return;
+      const hs = skillShape(this.s, a.id, h.shape); // 裝備的範圍特效（D-098）
+      // 第 179 輪：從天上落下來的招提早出發，落地才會正好是扣血那一刻（以前怪先跳數字、隕石才砸到）
+      if (k < h.atTick - fxLead(this.s.weapon, sk.role === 'ult', sk.hits.length, hs.type, h.status?.id)) return;
       this.fxDone.add(key);
       const ang = Math.atan2(a.dirY, a.dirX);
       const big = h.mult >= 150;
-      const hs = skillShape(this.s, a.id, h.shape); // 裝備的範圍特效（D-098）
       if (this.s.weapon === 'bow') {
         this.rfx.bowFx(p.x, p.y, ang, hs, sk.role === 'ult', !!sk.dash, h.status?.id === 'break', h.status?.id === 'freeze', h.status?.id, bowLineLook(sk, h));
         return;

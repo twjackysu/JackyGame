@@ -163,3 +163,16 @@ export function stormStrikes(cx: number, cy: number, r: number, foes: readonly {
   }
   return out;
 }
+
+/**
+ * 「從天上落下來」的招，特效要比扣血提早幾個 tick 出發（第 179 輪）：
+ * 以前特效在扣血那個 tick 才開始，流星／箭要再飛 0.16～0.2 秒才落地——怪先閃白、跳數字，隕石才砸下來。
+ * 回傳要提早的 tick 數（30 tick＝1 秒），要和 rangedFx 裡各自的落下時間對得上：
+ * 法杖流星雨（大招、多段、圓）落 160ms → 5；長弓流星箭雨（大招、圓）最快 185ms、第一段在第 5 tick → 5；長弓環形箭雨最快 150ms → 4。
+ * 其他招（閃電、光束、隕星術…）一出現就是命中的樣子，不提早。純畫面：扣血的 tick 由核心決定，這裡不碰。
+ */
+export function fxLead(weapon: string | undefined, ult: boolean, hits: number, shape: Shape['type'], status?: string): number {
+  if (weapon === 'staff') return ult && hits > 1 && shape === 'circle' && status !== 'slow' ? 5 : 0;
+  if (weapon === 'bow') return ult && shape === 'circle' ? 5 : shape === 'ring' ? 4 : 0;
+  return 0;
+}
