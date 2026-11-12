@@ -23,6 +23,7 @@
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
 **第 187 輪注意（斬首圖示、競技場閃光、獨特裝備說明）**：
+- CI：6f5f4c1、b026937 的 CI 都 success（b026937 的 Pages、APK 也是）。
 - 位置：`fx/effectIcon.ts`（`EXEC_AXE`；每個效果的記號＝元素＋`glyph`）；`PvpScene` 的大招改用 `ultFlash`、勝利用 `levelUpFlash`；`RtBattleScene.announceUnique`（大字最後一行空白＝替說明小字佔位置，說明畫在那一行裡——**之後要在大字下面掛小字都照這樣，不要掛在大字的範圍外**）。
 - 新工具：`node scripts/shot-icons.mjs tag`（全部效果圖示，HUD 大小＋卡片大小）；`FLASH=5 node scripts/shot-pvp.mjs tag`（競技場自己按大招、連拍閃光頭幾幀；`ULT=0` 等對手的）。競技場腳本是真實時間，看不出淡出曲線。
 - 拍「撿起獨特裝備」：新存檔（`LEVEL` 不給）第一次打倒 Boss 保底掉一件。`UNTIL` 裡：tick>120 把主角搬到 Boss 南邊 400、`b.mode==="combat"` 後 `b.hp=5`、Boss 死後 75 tick 把主角搬到 `s.ground` 裡 `sc().uniqueOnGround` 那件的位置（機器人不會自己去撿），之後連拍 150 張挑幾張。
