@@ -75,6 +75,7 @@ import { TITLE_FONT, UI_FONT, bannerBusy, bigText, dangerVignette, floatNumber, 
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
+import { chevronAlpha, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
 import { coversHero, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
@@ -3125,7 +3126,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.time.delayedCall(700, () => this.showHint());
       return;
     }
-    // 第 23 輪縮成兩行：紅框、黃框、大招、裝備改成第一次遇到時才提示（tipOnce）
+    // 第 23 輪縮成兩行：紅框、黃框（第 181 輪起沒有黃框了）、大招、裝備改成第一次遇到時才提示（tipOnce）
     // 第 168 輪：五欄全自動之後右下只剩閃避和藥水，舊的「右下：技能與閃避」是在教玩家找不存在的鍵 → 照現在實際的按鍵寫
     const lines = [tr(this.autoCount() >= 4 ? 'hint.moveAuto' : 'hint.move'), tr(this.autoCount() >= 4 ? 'hint.tapAuto' : 'hint.tap')];
     // 第 46 輪：以前 600 寬、置中在 y 300，蓋到左上小地圖右半與懸賞板第一行 → 窄一點、往右挪、往上挪（小地圖右緣約 120、懸賞板從 VIEW_TOP＋212 開始）
@@ -3953,6 +3954,54 @@ export class RtBattleScene extends Phaser.Scene {
     else g.strokePath();
   }
 
+  /** 預告「填滿前緣」：一條亮線標出現在填到哪裡（圓／扇形＝弧、環＝圓、直線＝橫線） */
+  private teleFront(g: Phaser.GameObjects.Graphics, sh: Shape, ox: number, oy: number, dx: number, dy: number, color: number): void {
+    const cx = this.sx(ox);
+    const cy = this.sy(oy);
+    const k = this.k;
+    const ang = Math.atan2(dy, dx);
+    g.lineStyle(2, color, 0.75);
+    if (sh.type === 'circle') g.strokeCircle(cx, cy, sh.r * k);
+    else if (sh.type === 'ring') g.strokeCircle(cx, cy, sh.rOut * k);
+    else if (sh.type === 'sector') {
+      const h = ((sh.deg / 2) * Math.PI) / 180;
+      g.beginPath();
+      g.arc(cx, cy, sh.r * k, ang - h, ang + h);
+      g.strokePath();
+    } else {
+      const w = (sh.width / 2) * k;
+      const L = sh.len * k;
+      const c = Math.cos(ang);
+      const sn = Math.sin(ang);
+      g.lineBetween(cx + L * c + w * sn, cy + L * sn - w * c, cx + L * c - w * sn, cy + L * sn + w * c);
+    }
+  }
+
+  /** 直線預告上往前流動的箭頭：看得出「往哪邊打」，也不會被當成介面橫條 */
+  private teleChevrons(g: Phaser.GameObjects.Graphics, sh: Shape, ox: number, oy: number, dx: number, dy: number, prog: number, now: number, color: number): void {
+    if (sh.type !== 'line') return;
+    const cx = this.sx(ox);
+    const cy = this.sy(oy);
+    const ang = Math.atan2(dy, dx);
+    const c = Math.cos(ang);
+    const sn = Math.sin(ang);
+    const L = sh.len * this.k;
+    const hw = Math.max(5, (sh.width / 2) * this.k * 0.55);
+    const back = Math.min(12, hw);
+    for (const d of lineChevrons(L, now)) {
+      const tx = cx + d * c;
+      const ty = cy + d * sn;
+      const bx = tx - back * c;
+      const by = ty - back * sn;
+      g.lineStyle(4, color, chevronAlpha(d, L, prog));
+      g.beginPath();
+      g.moveTo(bx + hw * sn, by - hw * c);
+      g.lineTo(tx, ty);
+      g.lineTo(bx - hw * sn, by + hw * c);
+      g.strokePath();
+    }
+  }
+
   /** 依進度縮放的形狀（預告「由內往外填滿」，填滿＝命中；不只靠顏色辨識） */
   private scaled(sh: Shape, f: number): Shape {
     if (sh.type === 'circle') return { ...sh, r: sh.r * f };
@@ -4623,23 +4672,27 @@ export class RtBattleScene extends Phaser.Scene {
         else fc.rival.hide();
       }
     }
-    // 預告：淡底＋由內往外填滿的進度＋外框（紫＝附狀態、黃框＝可格擋、粗紅＝不可格擋）
+    // 預告（第 181 輪，D-377）：淡底＋由內往外填滿＋亮色外框（紅＝一般、紫＝附狀態、藍＝墜星；重招框粗；最後兩成閃白）。
+    // 黃框（可格擋）拿掉了：格擋換成護盾後它沒有意義，暗紫＋黃框的直線招像一條介面橫條。
     for (const t of s.telegraphs) {
       const prog = Math.min(1, (s.tick - t.startTick) / Math.max(1, t.hitTick - t.startTick));
       const owner = s.units.find((x) => x.id === t.ownerId);
       const atk = owner ? attacksOf(owner).find((q) => q.id === t.attackId) : undefined;
       const meteor = METEOR_ATTACKS.has(t.attackId);
-      const col = meteor ? 0x8aa8ff : atk?.status ? 0xb060ff : 0xff3a3a;
-      g.fillStyle(col, 0.14);
+      const look = telegraphLook(teleKind(meteor, !!atk?.status), !t.blockable, prog, now);
+      g.fillStyle(look.fill, look.baseA);
       this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, g, true);
-      g.fillStyle(col, 0.22 + prog * 0.25);
-      this.shapePath(this.scaled(t.shape, Math.max(0.05, prog)), t.ox, t.oy, t.dirX, t.dirY, g, true);
-      const blink = prog > 0.8 && Math.floor(now / 70) % 2 === 0;
-      g.lineStyle(t.blockable ? 4 : 6, t.blockable ? 0xffd27a : blink ? 0xffffff : col, 0.95);
+      const grown = this.scaled(t.shape, Math.max(0.05, prog));
+      g.fillStyle(look.fill, look.growA);
+      this.shapePath(grown, t.ox, t.oy, t.dirX, t.dirY, g, true);
+      const edgeCol = look.blink ? 0xffffff : look.edge;
+      this.teleFront(g, grown, t.ox, t.oy, t.dirX, t.dirY, look.edge);
+      if (t.shape.type === 'line') this.teleChevrons(s.night ? top : g, t.shape, t.ox, t.oy, t.dirX, t.dirY, prog, now, look.edge);
+      g.lineStyle(look.edgeW, edgeCol, 0.95);
       this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, g, false);
       // 深夜：外框再畫一次在暈影上面（depth 45），遠處的預告也看得清楚（D-103）
       if (s.night) {
-        top.lineStyle(3, t.blockable ? 0xffd27a : blink ? 0xffffff : col, 0.9);
+        top.lineStyle(3, edgeCol, 0.9);
         this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, top, false);
       }
       if (meteor) {
