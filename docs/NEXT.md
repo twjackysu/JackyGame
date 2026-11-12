@@ -17,6 +17,13 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 181 輪注意（敵人預告的長相 D-377）**：
+- CI：d8db69e 的 check、mssql、Pages、APK 都 success。
+- 位置：`fx/telegraphLook.ts`（顏色、粗細、閃白、箭頭間距與速度都在這裡）；`RtBattleScene` 的 `teleFront`／`teleChevrons`。新增預告種類（例如冰＝淺藍）就在 `TeleKind`／`PAL` 加一條。
+- 拍某一招的預告：`UNTIL='sc().s.telegraphs.some(t=>t.attackId==="thorn_shot"&&sc().s.tick-t.startTick>8)' LEVEL=8 node scripts/play.mjs sword thornvale tag 2 60`（同樣的參數跑兩次，畫面幾乎一樣，可以當前後對照）。
+- `shot-boss-attacks.mjs`：`ONLY=` 給了不存在的 id 會卡到逾時——先 `grep -o "id: '<boss>_[a-z_0-9]*'" src/core/battle/rt/data.ts`；二階段的招要 `PHASE2=1`；外面包 `timeout 200`。
+- 再來看 Jacky 的回覆；沒有就挑：①一般小怪風箏脫戰的預告（先量頻率）②結局／序章字卡的光暈 ③升級＋選祝福同一秒時主角四周四行大字（等級提升／祝福名／數值／技能點）要不要錯開。
+
 **第 180 輪注意（大字／標題的光暈 D-376）**：
 - CI：d024e1d、dbf43d0 都 success。
 - **不要對會留在畫面上的東西加 postFX**（Glow、Bloom、Blur…）：Phaser 的 postFX 是整個畫面跑一次著色器、每幀都跑。要發光用墊一層貼圖／文字陰影／ADD 混色。`ui/finale.ts` 的 `glow()` 還在用（靜止字卡，低優先）。
