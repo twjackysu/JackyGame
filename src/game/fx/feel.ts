@@ -297,11 +297,27 @@ export function dangerVignette(scene: Phaser.Scene): Phaser.GameObjects.Image {
 }
 
 /** 畫面中央大字（PERFECT / BREAK / VICTORY） */
+/** 大字光暈的留白（每邊；陰影模糊不要被文字的畫布切掉） */
+export const BANNER_GLOW_PAD = 20;
+/** 光暈那一層的透明度（相對本體） */
+export const BANNER_GLOW_ALPHA = 0.9;
+/** 大字光暈那一層的文字樣式：比本體的描邊寬一點的亮邊＋同色的陰影模糊（只在建立文字時畫一次） */
+export function bannerGlowStyle(color: string, size: number): Phaser.Types.GameObjects.Text.TextStyle {
+  return {
+    fontFamily: TITLE_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: color, strokeThickness: 15, align: 'center',
+    padding: { x: BANNER_GLOW_PAD, y: BANNER_GLOW_PAD },
+    shadow: { offsetX: 0, offsetY: 0, color, blur: 12, stroke: true, fill: true },
+  };
+}
+
 export function bigText(
   scene: Phaser.Scene, x: number, y: number, text: string, color: string, size = 72, hold = 450,
   /** 不急的說明：原位壓主角、主角下方又暫時被佔住時排隊等（不照原位蓋主角，第 76 輪） */
   patient = false,
 ): Phaser.GameObjects.Text {
+  // 光暈（第 180 輪，D-376）：以前用 postFX 的 Glow——那個著色器是「整個畫面每個像素取樣 96 次」，大字在畫面上的每一幀都要付；
+  // 改成墊在下面的一層同字：亮邊＋陰影模糊只在建立時畫一次，之後每幀只是多一張貼圖。省電畫質照舊沒有光暈。
+  const glow = highFx() ? scene.add.text(x, y, text, bannerGlowStyle(color, size)).setOrigin(0.5).setDepth(BANNER_DEPTH).setAlpha(0) : null;
   const t = scene.add
     .text(x, y, text, {
       fontFamily: TITLE_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: '#140a04', strokeThickness: 10, align: 'center', // 第 43 輪：多行大字以前靠左（第二行短的時候歪一邊）
@@ -310,10 +326,18 @@ export function bigText(
     .setDepth(BANNER_DEPTH)
     .setScale(2.2)
     .setAlpha(0);
+  if (glow) {
+    // 光暈跟著本體（位置、縮放、透明度、深度、文字都由呼叫端改本體；這裡每幀照抄），本體消失就一起消失
+    const follow = (): void => {
+      if (glow.text !== t.text) glow.setText(t.text);
+      glow.setPosition(t.x, t.y).setScale(t.scaleX, t.scaleY).setAlpha(t.alpha * BANNER_GLOW_ALPHA).setDepth(t.depth).setVisible(t.visible).setScrollFactor(t.scrollFactorX, t.scrollFactorY);
+    };
+    scene.events.on(Phaser.Scenes.Events.POST_UPDATE, follow);
+    t.once(Phaser.GameObjects.Events.DESTROY, () => { scene.events.off(Phaser.Scenes.Events.POST_UPDATE, follow); glow.destroy(); });
+  }
   let entry: { fading: boolean } | null = null;
   const show = (): void => {
     if (!t.active) return;
-    if (scene.renderer.type === Phaser.WEBGL && highFx()) t.postFX?.addGlow(Phaser.Display.Color.HexStringToColor(color).color, 3, 0, false, 0.1, 12);
     scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 180, ease: 'Back.Out' });
     if (hold >= 0) {
       // 開始淡出就讓出位置（用補間自己的時鐘：掉幀時補間會比 scene.time 慢）
