@@ -8,7 +8,8 @@
 
 ## 🔴 Jacky 11/12 的指示：燼牌拿掉（**verified**，D-379，3181853）；「賭博的形式可以用在其他方式」＝**等他選方向**
 - 燼牌相關程式、伺服器方法、測試、截圖都刪了；下面舊筆記裡提到燼牌面板／`openCards`／`jg_cards` 的段落都已過時，不用理。營火旁的薇菈／葛倫／索爾留著（`CAMP_FOLK`）。
-- 「賭一把」的候選（**新玩法，Jacky 點頭才做；一次做一個最小樣本**）：①祝福三選一多一張**蓋著的牌**（可能是更強的祝福，也可能附帶代價）②行商／營火旅人賣**未鑑定的裝備**（花金幣開，稀有度與獨特效果用伺服器擲骰）③強化失敗後的**「再賭一次」**（加碼材料換較高成功率，輸了多扣）④Boss 前向旅人**下注**（賭自己幾秒內打倒／不喝水，贏了提高獨特掉率）。結算都要在 core／server。
+- **預設（D-382，第 183 輪定）：下一輪開頭 FOR_JACKY「回覆」還是空的話，就先做 ① 的最小樣本**（接在祝福三選一上、core 用種子決定、不進競技場、可用開關關掉）；他回了別的就照他的。
+- 「賭一把」的候選（一次做一個最小樣本）：①祝福三選一多一張**蓋著的牌**（可能是更強的祝福，也可能附帶代價）②行商／營火旅人賣**未鑑定的裝備**（花金幣開，稀有度與獨特效果用伺服器擲骰）③強化失敗後的**「再賭一次」**（加碼材料換較高成功率，輸了多扣）④Boss 前向旅人**下注**（賭自己幾秒內打倒／不喝水，贏了提高獨特掉率）。結算都要在 core／server。
 
 ## 🔴 Jacky 11/10 19:30 的指示（對話裡直接說的；排在所有東西前面，照順序做）
 > 原話：①「我覺得全部都不用自己點比較好」→ 問他要到哪一層，他選**「技能全自動，閃避和藥水手動」** ②「格擋反擊感覺確實不太適合自動，**整組技能換掉吧**」③「衝鋒和弓和杖的那個看要不要也換掉，確實不太適合自動」④「由於是自動施放，**畫面好像也不用留那個區塊給人按了**」。決策與設計方向 D-344。
@@ -20,6 +21,15 @@
 | P1-c2 | 第 3 欄（`charge`）9 招換成不位移的遠距／控場招 | 同上 | **verified**（第 162 輪，D-350；`tests/rt-slot3.test.ts`、`docs/screenshots/p1c2-slot3-skills.jpg`；**競技場沿用原本的位移招** `ARENA_CHARGE`；手感等 Jacky 實機） |
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
+
+**第 183 輪注意（落地閃光 D-380、毒沼 D-381、圓／環範圍）**：
+- CI：019885f、da5130b 的 CI、Pages、APK 都 success。
+- 位置：`fx/impactLook.ts`（`impactFlash` 的層數／大小／亮度、`TONE` 的顏色）；`fieldFx.starImpact(vx, vy, r, tone)`；`rangedFx.starfall(x, y, r, fire)`；`RtBattleScene.drawUltAim` 開頭的 `k >= h.atTick`；`softRound`（圓／環）；`engine.ts` 的 `inHazard`、`naturalRegen`；字條 `calm.swamp`。
+- **要發光的大東西不要用「一整塊 ADD 的實心圓」**：地面不夠暗就飽和成白。用 `fieldFx.ts` 的 `softFlashKey`（中心亮、邊緣淡到 0 的貼圖）上色疊幾層。
+- **命中時有停頓（hitStop）的招，tick 會停在 atTick 好幾幀**：只在「k > atTick 才不畫」的蓄力／瞄準圖形會跟命中特效疊在一起。直線大招的瞄準光路（`drawUltAim` 後半）也有同樣情況，但它是淡的光路、沒那麼礙眼，沒動。
+- 拍照小工具（沒進 git，重寫很快）：`STAGE=emberrift ONLY=blade_storm FRAMES=1,2,3,5 node scripts/shot-skills.mjs staff '' tag` 後用 PIL 把 `screenshots/sk-tag-*.png` 橫向拼起來看。把主角釘在毒沼：`EVAL` 裡第一次把 4150,5150 周圍 2500 內的怪設成 `dead`、`sc().events.on("postupdate",()=>{p.x=4150;p.y=5150})`、`sc().commands=()=>[]`。
+- `shot-boss-attacks.mjs starfall` 的 `ONLY=sentinel_meteor`（一階段）與 `PHASE2=1 ONLY=sentinel_meteor2` 這輪都回「no telegraph」——守望者的墜星沒拍到，下一輪用 `play.mjs` 的真實對戰補看（落地閃光現在是柔光版）。
+- 再來：**先看 Jacky 對「賭一把」的回覆，空的就照 D-382 做 ①**。其他候選：①守望者墜星補看 ②一般小怪風箏脫戰的預告（先量頻率）③結局／序章字卡的光暈 ④競技場的技能範圍（`PvpScene.shapePath` 附近）。
 
 **第 182 輪注意（玩家技能範圍的長相 D-378）**：
 - CI：257acdd 的 CI、Pages、APK 都 success。
