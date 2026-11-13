@@ -24,12 +24,13 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
-**第 195 輪注意（自動技能小圖示的記號 D-392）**：
-- 位置：`fx/skillGlyph.ts`（`skillGlyph` 照資料分類、`drawSkillGlyph` 畫法、`COMPACT_ICON` 透明度與「幾 tick 以上才寫秒數」、`compactLabel`）；`RtBattleScene` 的 `showGlyph`／`glyphImgs`（depth 49.7：按鈕底 49.5 上面、`ui` 畫筆 50 下面，所以冷卻扇形會蓋在記號上）；技能樹在 `rtSkillPanel.ts` 的 `gi`。
-- 拍那一排：`LEVEL=8 DSF=3 node scripts/play.mjs bow thornvale tag 3 6`，裁 `(390,2340,1170,2532)`。拍技能樹：`LEVEL=14 EVAL='(()=>{window.KEEP_MENU=1;if(!sc().menu)sc().openSkills();return !!sc().menu})()' node scripts/play.mjs staff mistwood tag 2 1`（第二張才有）。
-- **這個環境的 `date` 走得比實際慢**，不要拿它估 85 分鐘；用做了幾件事來估。
-- 沒看：左手模式、調位置模式、選了變化打法後的畫面。Jacky 說看不懂哪個記號就改 `drawSkillGlyph` 那一支；想要秒數回來把 `COMPACT_ICON.longTicks` 改成 0。
-- 第 192 輪候選還剩：③右上方向箭頭擠在祝福圖示下面 ④地區名稱細字疊在怪身上 ⑤飄走的數字穿過還在累計的。
+**第 195 輪注意（小圖示記號 D-392、荊棘叢 D-393、熔岩口火柱）**：
+- 小圖示：`fx/skillGlyph.ts`（`skillGlyph` 照資料分類、`drawSkillGlyph` 畫法、`COMPACT_ICON` 透明度與「幾 tick 以上才寫秒數」、`compactLabel`）；`RtBattleScene` 的 `showGlyph`／`glyphImgs`（depth 49.7：按鈕底 49.5 上面、`ui` 畫筆 50 下面，所以冷卻扇形蓋在記號上）；技能樹在 `rtSkillPanel.ts` 的 `gi`。想要秒數回來把 `COMPACT_ICON.longTicks` 改成 0。
+- 荊棘叢：`rt/thornBush.ts`（葉簇位置、刺、漿果）＋`worldMaps.ts` 荊棘谷的 `crownA／B／Hi`；`ground.ts` 的 `if (tv)` 那一支。**不要在葉簇上畫弧線或成對的暗點——會變成臉。** 退回：把 `if (tv)` 那支改回和 `else` 一樣、色票改回 `0x3a1828／0x45202f／0x6a2c3e`。
+- 火柱：`fx/ventColumn.ts`＋`bossCues.ventEruptCue`；柔光貼圖是 `levelUp.ts` 的 `softPillarKey`／`softGlowKey`（要做別的光柱可以直接用）。
+- 拍法：那一排＝`LEVEL=8 DSF=3 node scripts/play.mjs bow thornvale tag 3 6`，裁 `(390,2340,1170,2532)`；技能樹＝`LEVEL=14 EVAL='(()=>{window.KEEP_MENU=1;if(!sc().menu)sc().openSkills();return !!sc().menu})()' node scripts/play.mjs staff mistwood tag 2 1`（第二張才有）；選了打法／左手＝`REC='{"skills":{"whirlwind":5},"variants":["whirlwind:b"]}' CTL='{"leftHand":true}'`（這輪加的，只對霧語森林那筆存檔）；直接叫出某個演出＝EVAL 裡第一張先 `import('/src/game/fx/bossCues.ts').then(m=>window.__m=m)`，之後每張呼叫再 `ff(0.1)`。
+- `play.mjs` 的主角拿弓／杖會停在射程邊緣對著還沒發現他的怪發呆（腳本每 tick 送 stop），不是遊戲的問題。
+- 看過覺得還礙眼、沒做的（依序）：①**戰鬥粒子／衝擊環的 depth（790～800）比 HUD（48～50）高**，貼近上緣或小地圖底下的特效會蓋在標題列和小地圖上——要嘛把 HUD 整組搬到 800 以上（牽涉很多物件，要逐一看選單 960、大字 900 的前後），要嘛粒子在來源擋 ②右上方向箭頭擠在祝福圖示下面 ③飄走的數字穿過還在累計的 ④新手教學那句「攻擊技能和大招會自己放了！」可以指一下底部那排圖示。
 
 **第 194 輪注意（目標字條收起來、主角分件補看）**：
 - 位置：`rt/goalFade.ts`（`GOAL_FADE.vetMs` 8 秒、`firstKillMs` 25 秒）；`RtBattleScene` 的 `goalVet`（進圖時是不是老玩家，第一次算 `goalBefore` 時定下來）、`goalShown`／`goalShownAt`（字換了重算）、`goalFire`（走回營火再亮）；`setVisible(!boss && alpha > 0)`——收起來時 `goalBounds()` 回 null，箭頭會用那一塊。
