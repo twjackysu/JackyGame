@@ -46,3 +46,28 @@ describe('敵人預告的長相（第 181 輪，D-377）', () => {
     expect(src).not.toMatch(/t\.blockable \? 0xffd27a/);
   });
 });
+
+// 第 196 輪：一群怪同時出手時底色不疊成實心
+import { TELE_CROWD_DIST, crowdCounts, crowdFill } from '../src/game/fx/telegraphLook';
+
+describe('一群怪同時出手：預告的底色不疊成實心', () => {
+  it('單獨一個預告不變；越多個每塊越淡，但重疊處仍然比單獨一塊深、而且不超過兩倍半', () => {
+    expect(crowdFill(1)).toBe(1);
+    expect(crowdFill(0)).toBe(1);
+    let prev = 1;
+    for (let n = 2; n <= 8; n++) {
+      const f = crowdFill(n);
+      expect(f).toBeLessThanOrEqual(prev);
+      expect(f * n).toBeGreaterThan(1); // n 塊全疊在一起還是比一塊深
+      expect(f * Math.min(n, 6)).toBeLessThanOrEqual(2.5);
+      expect(f).toBeGreaterThanOrEqual(0.4); // 沒疊到的地方不能淡到看不見
+      prev = f;
+    }
+  });
+
+  it('只算起點靠在一起的：遠處另一隻怪的預告不受影響', () => {
+    const d = TELE_CROWD_DIST;
+    expect(crowdCounts([{ x: 0, y: 0 }, { x: d * 0.9, y: 0 }, { x: -d * 0.9, y: 0 }, { x: d * 5, y: 0 }])).toEqual([3, 2, 2, 1]);
+    expect(crowdCounts([])).toEqual([]);
+  });
+});

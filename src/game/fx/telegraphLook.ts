@@ -52,6 +52,21 @@ export function telegraphLook(kind: TeleKind, heavy: boolean, prog: number, nowM
   };
 }
 
+/** 幾個預告的起點在這個距離（世界單位）內就算「同一群怪一起出手」 */
+export const TELE_CROWD_DIST = 360;
+/**
+ * 一群怪同時瞄準主角時，預告的底色會一塊疊一塊（三塊疊起來接近實心紅，把地面和主角腳下整片蓋掉）。
+ * 同一群裡有 n 個預告時，每一塊的「填色」乘這個係數（1/√n）：重疊處仍然比單獨一塊深（√n 倍），但不會變成實心。
+ * 只淡填色；外框、前緣、箭頭、最後的閃白都不動（那些才是「打到哪裡、什麼時候」的資訊）。
+ */
+export function crowdFill(n: number): number {
+  return n <= 1 ? 1 : 1 / Math.sqrt(Math.min(n, 6));
+}
+/** 每個預告所在的那一群有幾個（含自己）。pts＝各預告的起點（世界座標） */
+export function crowdCounts(pts: ReadonlyArray<{ x: number; y: number }>, dist = TELE_CROWD_DIST): number[] {
+  return pts.map((a) => pts.reduce((n, b) => n + ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= dist * dist ? 1 : 0), 0));
+}
+
 /** 箭頭間距（px） */
 export const CHEVRON_GAP = 44;
 /** 箭頭往前流動的速度（px／秒） */

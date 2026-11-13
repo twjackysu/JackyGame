@@ -77,7 +77,7 @@ import { comboAdd, comboContinues, comboSize, comboText, type Combo } from '../f
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
-import { chevronAlpha, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
+import { chevronAlpha, crowdCounts, crowdFill, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
 import { areaLook, type AreaLook } from '../fx/areaLook';
 import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
 import { HERO_PARTS } from '../fx/heroParts.gen';
@@ -2818,6 +2818,8 @@ export class RtBattleScene extends Phaser.Scene {
     return pts;
   }
 
+  /** 截圖對照用：設成 false 就回到「底色照疊」的舊樣子（第 196 輪） */
+  teleCrowd = true;
   private sx(x: number): number {
     return this.ox + x * this.k;
   }
@@ -4779,16 +4781,20 @@ export class RtBattleScene extends Phaser.Scene {
     }
     // 預告（第 181 輪，D-377）：淡底＋由內往外填滿＋亮色外框（紅＝一般、紫＝附狀態、藍＝墜星；重招框粗；最後兩成閃白）。
     // 黃框（可格擋）拿掉了：格擋換成護盾後它沒有意義，暗紫＋黃框的直線招像一條介面橫條。
-    for (const t of s.telegraphs) {
+    // 第 196 輪：一群怪同時出手時，底色不再一塊疊一塊疊成實心紅（只淡填色，外框／箭頭／前緣照舊）
+    const teleN = this.teleCrowd ? crowdCounts(s.telegraphs.map((t) => ({ x: t.ox, y: t.oy }))) : [];
+    for (let ti = 0; ti < s.telegraphs.length; ti++) {
+      const t = s.telegraphs[ti]!;
+      const cf = crowdFill(teleN[ti] ?? 1);
       const prog = Math.min(1, (s.tick - t.startTick) / Math.max(1, t.hitTick - t.startTick));
       const owner = s.units.find((x) => x.id === t.ownerId);
       const atk = owner ? attacksOf(owner).find((q) => q.id === t.attackId) : undefined;
       const meteor = METEOR_ATTACKS.has(t.attackId);
       const look = telegraphLook(teleKind(meteor, !!atk?.status), !t.blockable, prog, now);
-      g.fillStyle(look.fill, look.baseA);
+      g.fillStyle(look.fill, look.baseA * cf);
       this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, g, true);
       const grown = this.scaled(t.shape, Math.max(0.05, prog));
-      g.fillStyle(look.fill, look.growA);
+      g.fillStyle(look.fill, look.growA * cf);
       this.shapePath(grown, t.ox, t.oy, t.dirX, t.dirY, g, true);
       const edgeCol = look.blink ? 0xffffff : look.edge;
       this.teleFront(g, grown, t.ox, t.oy, t.dirX, t.dirY, look.edge);
