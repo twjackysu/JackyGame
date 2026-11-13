@@ -2,6 +2,7 @@
 // 從 RtBattleScene 原封不動搬出來（純畫面、固定種子，不碰戰鬥 PRNG）。
 import { THORN_BUSH, thornLobes } from './thornBush';
 import { EMBER_CRACK_HALF, emberCrack } from './emberCrack';
+import { EMBER_ROCK, emberRock } from './emberRock';
 import Phaser from 'phaser';
 import { STAGES } from '../../core/battle/rt/data';
 import { activeHazards } from '../../core/battle/rt/engine';
@@ -298,8 +299,23 @@ export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string,
           const oy = (hr(cx, cy, 2) - 0.5) * c * 0.3;
           const r = c * (0.62 + hr(cx, cy, 3) * 0.18);
           g.fillStyle(0x050a06, 0.5).fillEllipse(x + c / 2 + ox + c * 0.12, y + c * 0.75 + oy, r * 2.1, r * 1.1);
-          g.fillStyle(hr(cx, cy, 4) < 0.5 ? P.crownA : P.crownB, 1).fillCircle(x + c / 2 + ox, y + c / 2 + oy, r);
-          if (tv) {
+          if (!ember) g.fillStyle(hr(cx, cy, 4) < 0.5 ? P.crownA : P.crownB, 1).fillCircle(x + c / 2 + ox, y + c / 2 + oy, r);
+          if (ember) {
+            // 燼岩（第 196 輪改）：以前是灰色大圓＋亮面＋高光點，鋪滿畫面像一池鐵球。現在是有稜角的岩塊：側面照受光方向分明暗、頂面一階亮、沒有圓形高光
+            const mx = x + c / 2 + ox;
+            const my = y + c / 2 + oy;
+            const rk = emberRock((i) => hr(cx, cy, 50 + i));
+            const base = hr(cx, cy, 4) < 0.5 ? P.crownA : P.crownB;
+            const poly = (pts: number[]): Phaser.Math.Vector2[] => {
+              const out: Phaser.Math.Vector2[] = [];
+              for (let t = 0; t < pts.length; t += 2) out.push(new Phaser.Math.Vector2(mx + pts[t]! * r, my + pts[t + 1]! * r));
+              return out;
+            };
+            for (const f of rk.sides) g.fillStyle(tone(base, f.tone), 1).fillPoints(poly(f.pts), true);
+            g.fillStyle(tone(P.crownHi, rk.top.tone), 1).fillPoints(poly(rk.top.pts), true);
+            g.lineStyle(EMBER_ROCK.rimW, P.crownTop, EMBER_ROCK.rimA);
+            for (const e of rk.rims) g.lineBetween(mx + e[0]! * r, my + e[1]! * r, mx + e[2]! * r, my + e[3]! * r);
+          } else if (tv) {
             // 荊棘叢（第 195 輪改）：以前和樹冠同一招（大圓＋亮面＋高光）配上紫紅色，看起來是一顆顆發亮的氣球，鋪滿畫面時比主角和怪還搶眼。
             // 現在是幾團深色的葉簇＋短刺，沒有高光；漿果變小變暗、變少（以前的亮紅點像掉落物）
             const mx = x + c / 2 + ox;
