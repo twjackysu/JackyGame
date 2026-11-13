@@ -72,5 +72,6 @@ export const en: Partial<Record<MessageKey, string>> = {
   'codex.rates': 'Chance per rare item: elite {elite}% · boss {boss}%\nhidden elite {hidden}% · enraged boss {fury}% (+{night}% at deep night)',
   'codex.rule': 'First boss kill on each map guarantees one\n▶ = drops on this map · inactive in the arena',
   'codex.menu': 'Effects {n}/{max}',
+  'finale.unique': 'Orange unique-effect gear (MENU → Effects shows where it drops)',
   'bless.listClose': 'Tap anywhere to close',
 };

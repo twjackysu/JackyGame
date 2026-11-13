@@ -70,6 +70,7 @@ export const zhTW = {
   'codex.rates': '稀有裝備帶獨特效果的機率：精英 {elite}%・Boss {boss}%\n隱藏精英 {hidden}%・暴怒 Boss {fury}%（深夜各 +{night}%）',
   'codex.rule': '每張圖第一次打倒 Boss 必得一件\n▶＝現在這張圖會掉・競技場不生效',
   'codex.menu': '效果圖鑑 {n}/{max}',
+  'finale.unique': '橘色的獨特效果裝備（MENU →「效果圖鑑」看哪裡掉）',
   'bless.listClose': '點任何地方關閉',
 } as const;
 
