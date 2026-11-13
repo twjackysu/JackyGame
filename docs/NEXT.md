@@ -22,6 +22,13 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 191 輪注意（燼紅裂谷岩壁 D-389、結局最後一頁）**：
+- 位置：`rt/emberCrack.ts`（比例、長度；`ground.ts` 照著畫，地面是分塊材質、只畫一次）；`ui/finale.ts` 第 5 段（字條 `finale.unique`；檔案裡 `t` 常被拿來當 Text 變數名，i18n 用 `tr`）。
+- 拍通關演出：`LEVEL=14 EVAL='(()=>{if(!window.__f){window.__f=1;window.KEEP_MENU=1;sc().showFinale();}return 1})()' node scripts/play.mjs sword emberrift fin 30 2`（每 2 秒一張）；直接跳到最後一頁：EVAL 裡 `ff(1.6)` 後對 `sc().menu.list[0]` 連 `emit("pointerdown")`＋`ff(0.5)` 十二次。假存檔的旅程紀錄會顯示「首次討伐 —」，是拍法的副作用。
+- 還沒做、看過覺得還礙眼的（依序）：①怪打主角的數字要不要合併（這輪看一群棘背狼咬主角：同時通常只有一個紅字，不急）②地區名稱細字疊在怪身上 ③飄走的數字穿過還在累計的 ④「第一章・完」的 `camera.flash` 與序章字卡沒逐幀看 ⑤右上方向箭頭（橘色實心三角）在目標在北邊時擠在祝福圖示下面。
+- 上一輪留下的仍在：行商「買」、拍賣所「買到」、強化失敗沒逐幀看；光門換圖、競技場勝負。
+- 再來：先看 Jacky 對蓋著的牌、數字合併、字幕條的回饋。
+
 **第 190 輪注意（說明句的字幕條 D-388）**：
 - 位置：`fx/feel.ts` 的 `CAPTION_MAX_SIZE`／`isCaption`／`captionStyle`／`CAPTION_POP`；`bigText` 字級 ≤30 自動走字幕條。**新增畫面中央的字：喊的用 32 以上、說明用 30 以下。** 地區說明在 `RtBattleScene` 的 `captionStyle(z.danger ? …, 26)`（加了底條後比較寬，會更常走「在・換行」那一支）。
 - 測試要 import `fx/feel` 得先 `vi.mock('phaser', …)` 和 `vi.mock('../src/game/settings', …)`（照 `tests/level-up-fx.test.ts`）。
