@@ -56,6 +56,9 @@ export function edgeShadeTexture(scene: Phaser.Scene, stageId: string): string {
   return key;
 }
 
+/** 零星岩塊的顏色（第 196 輪）：[側面底色, 頂面, 受光邊的細亮線]。森林＝偏冷的暗灰、荊棘谷＝跟乾土同一個色系的褐灰 */
+const LONE_ROCK = { forest: [0x3c4244, 0x596164, 0x9aa4a8], thorn: [0x3e302c, 0x5a4840, 0x927466] } as const;
+
 /** 格線淡一點（A6，第 152 輪）：以前 1.0，地面一格一格的感覺太重 */
 const GRID_ALPHA = 0.55;
 
@@ -394,35 +397,32 @@ export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string,
           g.fillStyle(0xd8e0ff, 0.8).fillTriangle(x + c * 0.48, y + c * 0.9, x + c * 0.6, y + c * 0.9, x + c * (0.5 + j), y - c * 0.1);
           continue;
         }
-        if (ember) {
-          // 燼岩的零星岩塊（第 196 輪改）：以前是一塊圓角方形＋每顆都有一道亮橘斜線，像一顆顆按鈕；現在和岩壁同一種有稜角的岩塊，只有一部分帶裂紋
+        {
+          // 零星的岩塊（第 196 輪改）：以前森林／荊棘谷是藍灰色的圓角方塊＋亮面（一顆顆鍵帽，荊棘谷裡比主角還亮），
+          // 燼紅裂谷是圓角方形＋每顆一道亮橘斜線。現在三張圖都是有稜角的岩塊（和燼岩岩壁同一個 emberRock），顏色跟著地圖走、亮度壓低
           const mx = x + c * 0.5;
           const my = y + c * 0.46;
           const r = c * (0.5 + j);
           const rk = emberRock((i) => hr(cx, cy, 50 + i));
+          const [rb, rt, rr] = ember ? [P.crownB, tone(P.crownHi, 1.08), P.crownTop] : tv ? LONE_ROCK.thorn : LONE_ROCK.forest;
           const poly = (pts: number[]): Phaser.Math.Vector2[] => {
             const out: Phaser.Math.Vector2[] = [];
             for (let t = 0; t < pts.length; t += 2) out.push(new Phaser.Math.Vector2(mx + pts[t]! * r, my + pts[t + 1]! * r));
             return out;
           };
           g.fillStyle(0x050303, 0.6).fillEllipse(x + c * 0.56, y + c * 0.84, c * 1.15, c * 0.42);
-          for (const f of rk.sides) g.fillStyle(tone(P.crownB, f.tone), 1).fillPoints(poly(f.pts), true);
-          g.fillStyle(tone(P.crownHi, rk.top.tone + 0.08), 1).fillPoints(poly(rk.top.pts), true);
-          g.lineStyle(EMBER_ROCK.rimW, P.crownTop, EMBER_ROCK.rimA + 0.1);
+          for (const f of rk.sides) g.fillStyle(tone(rb, f.tone), 1).fillPoints(poly(f.pts), true);
+          g.fillStyle(tone(rt, rk.top.tone), 1).fillPoints(poly(rk.top.pts), true);
+          g.lineStyle(EMBER_ROCK.rimW, rr, EMBER_ROCK.rimA + 0.1);
           for (const e of rk.rims) g.lineBetween(mx + e[0]! * r, my + e[1]! * r, mx + e[2]! * r, my + e[3]! * r);
-          if (hr(cx, cy, 20) < 0.4) {
+          if (ember && hr(cx, cy, 20) < 0.4) {
             const hot = hr(cx, cy, 20) < 0.12;
             g.lineStyle(hot ? 4 : 3, hot ? 0xc8401a : 0x6a1e0c, 0.55).lineBetween(x + c * 0.36, y + c * 0.3, x + c * 0.56, y + c * 0.68);
             g.lineStyle(hot ? 2 : 1.5, hot ? 0xffb04a : 0xc85a1e, hot ? 0.9 : 0.6).lineBetween(x + c * 0.36, y + c * 0.3, x + c * 0.56, y + c * 0.68);
           }
-          continue;
+          // 森林的石頭腳邊長一點青苔
+          if (!ember && !tv && hr(cx, cy, 6) < 0.5) g.fillStyle(0x3f6b3a, 0.85).fillEllipse(x + c * (0.25 + hr(cx, cy, 7) * 0.5), y + c * 0.9, c * 0.3, c * 0.1);
         }
-        g.fillStyle(0x050a07, 0.55).fillEllipse(x + c * 0.55, y + c * 0.78, c * 1.05, c * 0.42);
-        g.fillStyle(0x4a4f52, 1).fillRoundedRect(x + c * (0.04 + j), y + c * 0.06, c * (0.92 - j), c * 0.86, c * 0.28);
-        g.fillStyle(0x6c7378, 1).fillRoundedRect(x + c * (0.12 + j), y + c * 0.1, c * (0.7 - j), c * 0.46, c * 0.22);
-        g.fillStyle(0x8d959a, 0.8).fillEllipse(x + c * 0.36, y + c * 0.24, c * 0.3, c * 0.12);
-        g.lineStyle(2, 0x2c3033, 0.9).lineBetween(x + c * (0.3 + j), y + c * 0.5, x + c * 0.5, y + c * 0.68);
-        if (hr(cx, cy, 6) < 0.5) g.fillStyle(0x3f6b3a, 0.85).fillEllipse(x + c * (0.2 + hr(cx, cy, 7) * 0.5), y + c * 0.84, c * 0.28, c * 0.1);
       }
     }
     g.lineStyle(10, 0x0a120d, 1).strokeRect(-5, -5, W + 10, H + 10);
