@@ -8,7 +8,7 @@ import { ENEMIES } from '../../core/battle/rt/data';
 import { enemiesOf, playerOf } from '../../core/battle/rt/engine';
 import { RARITY_COLOR } from '../../core/battle/rt/gear';
 import { UNIT, type BattleState } from '../../core/battle/rt/types';
-import { belowBlessHud, inViewForArrow, showOffscreenArrow } from '../arrowRules';
+import { belowBlessHud, goalMargin, inViewForArrow, showOffscreenArrow } from '../arrowRules';
 import { GAME_HEIGHT, GAME_WIDTH, TALL } from '../config';
 import { UI_FONT } from '../fx/feel';
 
@@ -92,7 +92,9 @@ export class OffscreenArrows {
       // 上緣中間的「目標：…」字條（第 44 輪：以前大箭頭蓋在字條上，「打倒霧角狼王」看不清楚）→ 箭頭挪到字條下面
       let top = this.h.viewTop + M;
       const gy = gb ? gb.bottom + (elite ? 36 : 22) : 0; // 大箭頭尖端離中心約 31px
-      if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = top = gy;
+      // 第 193 輪：大箭頭尖端離中心 31px，用 30 的邊界會剛好戳進字條左端、距離字整個壓在「目標：」上（360 寬、被小地圖推過來又錯開一格的第二個箭頭）→ 大箭頭用自己的半徑
+      const gm = goalMargin(elite);
+      if (gb && cx > gb.left - gm && cx < gb.right + gm && cy < gy) cy = top = gy;
       // 第 57 輪：剛走進一區的地區名稱（「— 熔渣坡 —」，y 約 235～290）被上緣的 Boss 大箭頭與距離字壓住 → 箭頭挪到字的旁邊
       for (const z of this.h.zoneTexts()) {
         if (!z.active || z.alpha < 0.05) continue;
@@ -125,7 +127,9 @@ export class OffscreenArrows {
           if (onTop) {
             cx = Math.min(GAME_WIDTH - M, cx + 60);
             // 第 61 輪：錯開後滑進「目標：…」字條底下（第二個箭頭和距離字蓋在字條上）→ 一樣挪到字條下面
-            if (gb && cx > gb.left - M && cx < gb.right + M && cy < gy) cy = gy;
+            if (gb && cx > gb.left - gm && cx < gb.right + gm && cy < gy) cy = gy;
+            // 第 193 輪：挪到字條下面後正好蓋在前一個箭頭的距離字上（「40m」被第二個箭頭壓住）→ 再往右讓一格
+            if (placed.some((q) => Math.abs(q.x - cx) < 48 && Math.abs(q.y - cy) < 34)) cx = Math.min(GAME_WIDTH - M, cx + 56);
           } else cy = Math.min(yMax, cy + 60);
         }
       }
@@ -152,6 +156,8 @@ export class OffscreenArrows {
         let ly = cy - sn * 40;
         // 第 84 輪：箭頭被推到小地圖／懸賞板右邊後，距離字放在「箭頭內側」＝又回到板子上（360×640「44m」壓小地圖、「21m」壓「懸賞」）→ 改放箭頭外側
         lx = Math.max(26, Math.min(GAME_WIDTH - 26, this.h.clearOfHudPanels(lx, ly, cx)));
+        // 第 193 輪：字條左邊的箭頭往左指時，「箭頭內側」的距離字正好落在字條上 → 放到字條下面
+        if (gb && lx > gb.left - 24 && lx < gb.right + 24 && ly > gb.top - 12 && ly < gb.bottom + 12) ly = gb.bottom + 15;
         for (let k = 0; k < 4 && placed.some((q) => Math.abs(q.x - lx) < 46 && Math.abs(q.y - ly) < 22); k++) ly += 24;
         placed.push({ x: lx, y: ly, ax: cx, ay: cy });
         tx.setVisible(true).setText(`${Math.round(Math.hypot(e.x - p.x, e.y - p.y) / UNIT)}m`).setPosition(lx, ly);

@@ -90,7 +90,7 @@ import { openChoice } from '../ui/choicePanel';
 import { claimThanks, ENCOUNTER_RADIUS, ESCORT_RADIUS, ESCORT_SCARED_TILES, encountersOf, leftMapsExcept, loadEncounters, markMetThisVisit, meet, openEncounters, pendingThanks, saveEncounters, type Encounter } from '../encounters';
 import { openWeaponPick, weaponChosen } from '../ui/weaponPick';
 import { OffscreenArrows } from '../rt/offscreenArrows';
-import { blessHudRect } from '../arrowRules';
+import { aboveBottomRow, blessHudRect } from '../arrowRules';
 import { mergePickup, pickupRow, pickupSize } from '../pickupMerge';
 import { buildMemoryBook } from '../ui/memoryBook';
 import { shopOps } from '../shopOps';
@@ -5423,6 +5423,8 @@ export class RtBattleScene extends Phaser.Scene {
       let lx = cx;
       const lw = gt.label.width;
       const lh = gt.label.height;
+      // 第 193 輪：門在畫面最下緣時（星隕高原／燼紅裂谷的出生點）字掉進底部那一排——貼著自動技能的小圓圈、壓在「WASD 移動」上、被畫面下緣切掉 → 字留在那一排上面
+      ly = aboveBottomRow(ly, GAME_HEIGHT);
       // 第 63 輪：往左讓開後可能又壓到已經檢查過的按鈕（荊棘谷 360×640 的「▼ 回霧語森林」被重斬蓋住）→ 重檢到沒有再移動
       for (let pass = 0, moved = true; moved && pass < 4; pass++) {
         moved = false;

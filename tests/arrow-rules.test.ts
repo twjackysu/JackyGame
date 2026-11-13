@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ELITE_ARROW_M, belowBlessHud, blessHudRect, inViewForArrow, showOffscreenArrow } from '../src/game/arrowRules';
+import { BOTTOM_ROW_H, ELITE_ARROW_M, aboveBottomRow, belowBlessHud, goalMargin, blessHudRect, inViewForArrow, showOffscreenArrow } from '../src/game/arrowRules';
 
 describe('畫面外箭頭（D-176）', () => {
   const base = { mini: true, elite: true, boss: false, combat: false, distM: 10 };
@@ -56,5 +56,20 @@ describe('看得到的怪不畫箭頭：下緣照按鈕實際位置算（第 173
     expect(inViewForArrow(600, 1140, o)).toBe(false);
     expect(inViewForArrow(540, 1150, o)).toBe(false); // 貼著鍵的邊緣（pad 內）
     expect(inViewForArrow(300, 1200, o)).toBe(false);
+  });
+});
+
+describe('第 193 輪：門上的字不進底部那一排；大箭頭離目標字條遠一點', () => {
+  it('字的下緣落在底部那一排裡就往上收到那一排上面，其他位置不動', () => {
+    const H = 1560;
+    expect(aboveBottomRow(H - 10, H)).toBe(H - BOTTOM_ROW_H);
+    expect(aboveBottomRow(H + 200, H)).toBe(H - BOTTOM_ROW_H);
+    expect(aboveBottomRow(600, H)).toBe(600);
+    // 那一排的小圓圈中心在 H-44、半徑 25：字的下緣要在圓圈上緣之上
+    expect(H - BOTTOM_ROW_H).toBeLessThan(H - 44 - 25);
+  });
+  it('大箭頭的邊界比尖端（31px）大，小箭頭維持 30', () => {
+    expect(goalMargin(true)).toBeGreaterThan(31 + 8);
+    expect(goalMargin(false)).toBe(30);
   });
 });

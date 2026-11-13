@@ -39,3 +39,15 @@ export function inViewForArrow(px: number, py: number, o: { W: number; top: numb
   const pad = o.pad ?? 24;
   return !o.buttons.some((b) => (px - b.x) ** 2 + (py - b.y) ** 2 < (b.r + pad) ** 2);
 }
+
+/** 底部那一排（自動技能的小圓圈、搖桿下的按鍵小標）的上緣再留一點空：世界裡的字（門上的「▼ 回燼紅裂谷」）不進這一帶。
+ *  ly＝字的下緣；回新的下緣。第 193 輪。 */
+export const BOTTOM_ROW_H = 92;
+export function aboveBottomRow(ly: number, H: number): number {
+  return Math.min(ly, H - BOTTOM_ROW_H);
+}
+
+/** 畫面外箭頭和上緣「目標：…」字條左右要隔多遠（px）：大箭頭（精英／Boss）尖端離中心 31px、外加光圈，小箭頭 18px。第 193 輪。 */
+export function goalMargin(big: boolean): number {
+  return big ? 46 : 30;
+}
