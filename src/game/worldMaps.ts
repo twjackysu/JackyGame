@@ -65,7 +65,7 @@ export const WORLD_MAPS: readonly WorldMap[] = [
     boss: '棘冠狼后', bw: '狼后', mw: '山谷', lord: '荊棘谷之主', color: '#c8ff8a',
     firstKill: '首次討伐！山谷的荊棘枯萎了一些…', bossTip: '（記得……狼后衝鋒撞到岩壁會暈很久！）', phase2: ['狼后怒放・荊棘綻放！', '#c8ff8a'], blink: ['狼后鑽進荊棘——小心背後！', '#c8ff8a'], blinkFx: [0x9adf5a, 0x6ac04a, 0xc8ff8a],
     firstGoal: '沿著山谷往北，打倒棘冠狼后', next: 'emberrift', recLevel: 6, bossLv: 6,
-    palette: { ground: 0x2a1d19, spotA: 0x31221c, spotB: 0x241814, grass: 0x6a5232, grid: 0x382720, under: 0x160b10, crownA: 0x3a1828, crownB: 0x45202f, crownHi: 0x6a2c3e, crownTop: 0x9a4a55, edge: 0x8a5a48, mini: 0x3a2a22, miniSolid: 0x5a2838 }, decor: 'thorn',
+    palette: { ground: 0x2a1d19, spotA: 0x31221c, spotB: 0x241814, grass: 0x6a5232, grid: 0x382720, under: 0x160b10, crownA: 0x33182a, crownB: 0x3e1e2e, crownHi: 0x532638, crownTop: 0x9a4a55, edge: 0x8a5a48, mini: 0x3a2a22, miniSolid: 0x5a2838 }, decor: 'thorn',
   },
   {
     id: 'emberrift', name: '燼紅裂谷', make: makeEmberriftStage, bossAt: EMBERRIFT_COLOSSUS,

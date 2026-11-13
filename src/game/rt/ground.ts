@@ -1,5 +1,6 @@
 // 冒險地圖的地面（第 150 輪，Q5 拆場景）：深色地面＋斑點草叢＋牆＋上下緣漸層，畫成分塊材質放進一個 container。
 // 從 RtBattleScene 原封不動搬出來（純畫面、固定種子，不碰戰鬥 PRNG）。
+import { THORN_BUSH, thornLobes } from './thornBush';
 import { EMBER_CRACK_HALF, emberCrack } from './emberCrack';
 import Phaser from 'phaser';
 import { STAGES } from '../../core/battle/rt/data';
@@ -298,18 +299,24 @@ export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string,
           const r = c * (0.62 + hr(cx, cy, 3) * 0.18);
           g.fillStyle(0x050a06, 0.5).fillEllipse(x + c / 2 + ox + c * 0.12, y + c * 0.75 + oy, r * 2.1, r * 1.1);
           g.fillStyle(hr(cx, cy, 4) < 0.5 ? P.crownA : P.crownB, 1).fillCircle(x + c / 2 + ox, y + c / 2 + oy, r);
-          g.fillStyle(P.crownHi, 1).fillCircle(x + c / 2 + ox - r * 0.2, y + c / 2 + oy - r * 0.25, r * 0.62);
-          g.fillStyle(P.crownTop, 0.7).fillCircle(x + c / 2 + ox - r * 0.35, y + c / 2 + oy - r * 0.4, r * 0.28);
           if (tv) {
-            // 荊棘叢：放射狀的刺＋偶爾一顆紅漿果
-            g.lineStyle(2, 0xd8c09a, 0.75);
-            for (let t = 0; t < 4; t++) {
+            // 荊棘叢（第 195 輪改）：以前和樹冠同一招（大圓＋亮面＋高光）配上紫紅色，看起來是一顆顆發亮的氣球，鋪滿畫面時比主角和怪還搶眼。
+            // 現在是幾團深色的葉簇＋短刺，沒有高光；漿果變小變暗、變少（以前的亮紅點像掉落物）
+            const mx = x + c / 2 + ox;
+            const my = y + c / 2 + oy;
+            for (const L of thornLobes(hr(cx, cy, 5), hr(cx, cy, 6), hr(cx, cy, 7))) g.fillStyle(L.hi ? P.crownHi : P.crownB, 1).fillCircle(mx + L.x * r, my + L.y * r, L.r * r);
+            g.lineStyle(THORN_BUSH.thornW, THORN_BUSH.thornColor, THORN_BUSH.thornA);
+            for (let t = 0; t < THORN_BUSH.thorns; t++) {
               const ang = hr(cx, cy, 10 + t) * Math.PI * 2;
-              const bx = x + c / 2 + ox + Math.cos(ang) * r * 0.7;
-              const by = y + c / 2 + oy + Math.sin(ang) * r * 0.7;
-              g.lineBetween(bx, by, bx + Math.cos(ang) * r * 0.45, by + Math.sin(ang) * r * 0.45);
+              const d0 = r * (0.35 + hr(cx, cy, 40 + t) * 0.5);
+              const bx = mx + Math.cos(ang) * d0;
+              const by = my + Math.sin(ang) * d0;
+              g.lineBetween(bx, by, bx + Math.cos(ang) * r * THORN_BUSH.thornLen, by + Math.sin(ang) * r * THORN_BUSH.thornLen);
             }
-            if (hr(cx, cy, 15) < 0.25) g.fillStyle(0xff4a5a, 0.9).fillCircle(x + c / 2 + ox + r * 0.25, y + c / 2 + oy + r * 0.1, r * 0.12);
+            if (hr(cx, cy, 15) < THORN_BUSH.berryRate) g.fillStyle(THORN_BUSH.berryColor, 0.9).fillCircle(mx + r * 0.25, my + r * 0.1, r * THORN_BUSH.berryR);
+          } else {
+            g.fillStyle(P.crownHi, 1).fillCircle(x + c / 2 + ox - r * 0.2, y + c / 2 + oy - r * 0.25, r * 0.62);
+            g.fillStyle(P.crownTop, 0.7).fillCircle(x + c / 2 + ox - r * 0.35, y + c / 2 + oy - r * 0.4, r * 0.28);
           }
           if (starD && hr(cx, cy, 30) < 0.85) {
             // 星晶（D-138）：樹冠位置長出一簇藍紫色晶柱（亮面＋白色稜線）
