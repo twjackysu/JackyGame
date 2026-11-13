@@ -24,6 +24,11 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 198 輪注意（墜星預告 D-397）**：
+- `fx/starWarn.ts`（`STAR_WARN`：星星起點 `minF`、亮度 `minA`、細光 `guideA`、刻度數量與速度）；畫在 `RtBattleScene.starWarnAt`（地圖落星 `area=true` 畫整套；Boss 召喚的只加刻度與星星）。`fieldFx.fallingStar(g,x,y,f,a?,guide?)` 後兩個是選用的。
+- 拍法：`sh scripts/shot-star.sh [tag] [W H]`（`NIGHT=1 LOWFX=1` 可加；`STAGE=emberrift` 拍熔岩口）；Boss 的＝`PHASE2=1 DIST=8 ONLY=sentinel_meteor2 node scripts/shot-boss-attacks.mjs starfall tag`（一階段的 `sentinel_meteor` 叫不出來）。
+- 看過覺得還礙眼、沒做的（依序）：①護盾罩是一條硬線圈，像選取圈；和鎖定弧、腳下藍圈疊在一起（可改柔光罩）②杖貼身時主角身上四五個數字疊在一起 ③第 197 輪列的 ②③④。
+
 **第 197 輪注意（字幕位置、護盾字 D-396）**：
 - 畫面中央的說明句（30px 以下）原位一律用 `TIP_Y`（主角腳下 250）；還留在 560／600 的只有營火旁才出的（祝福消散／休息詢問）與打倒 Boss 後的（新地圖開放、討伐副標），那些時候沒有怪。470／490 的警告（噴發、暴動）在主角上方 220，沒動。
 - 「護盾 +N」：`fx/shieldText.ts`；計數 `RtBattleScene.shieldTexts`（`create` 歸零）。
