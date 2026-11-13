@@ -383,12 +383,26 @@ export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string,
           continue;
         }
         if (ember) {
-          // 燼岩的零星岩柱：黑色玄武岩＋一道熔岩裂紋（不長青苔）
-          g.fillStyle(0x050303, 0.6).fillEllipse(x + c * 0.55, y + c * 0.8, c * 1.05, c * 0.4);
-          g.fillStyle(0x221c1a, 1).fillRoundedRect(x + c * (0.06 + j), y + c * 0.04, c * (0.88 - j), c * 0.88, c * 0.2);
-          g.fillStyle(0x3a302c, 1).fillRoundedRect(x + c * (0.14 + j), y + c * 0.08, c * (0.6 - j), c * 0.4, c * 0.16);
-          g.lineStyle(4, 0xc8401a, 0.6).lineBetween(x + c * 0.3, y + c * 0.3, x + c * 0.55, y + c * 0.75);
-          g.lineStyle(2, 0xffb04a, 0.95).lineBetween(x + c * 0.3, y + c * 0.3, x + c * 0.55, y + c * 0.75);
+          // 燼岩的零星岩塊（第 196 輪改）：以前是一塊圓角方形＋每顆都有一道亮橘斜線，像一顆顆按鈕；現在和岩壁同一種有稜角的岩塊，只有一部分帶裂紋
+          const mx = x + c * 0.5;
+          const my = y + c * 0.46;
+          const r = c * (0.5 + j);
+          const rk = emberRock((i) => hr(cx, cy, 50 + i));
+          const poly = (pts: number[]): Phaser.Math.Vector2[] => {
+            const out: Phaser.Math.Vector2[] = [];
+            for (let t = 0; t < pts.length; t += 2) out.push(new Phaser.Math.Vector2(mx + pts[t]! * r, my + pts[t + 1]! * r));
+            return out;
+          };
+          g.fillStyle(0x050303, 0.6).fillEllipse(x + c * 0.56, y + c * 0.84, c * 1.15, c * 0.42);
+          for (const f of rk.sides) g.fillStyle(tone(P.crownB, f.tone), 1).fillPoints(poly(f.pts), true);
+          g.fillStyle(tone(P.crownHi, rk.top.tone + 0.08), 1).fillPoints(poly(rk.top.pts), true);
+          g.lineStyle(EMBER_ROCK.rimW, P.crownTop, EMBER_ROCK.rimA + 0.1);
+          for (const e of rk.rims) g.lineBetween(mx + e[0]! * r, my + e[1]! * r, mx + e[2]! * r, my + e[3]! * r);
+          if (hr(cx, cy, 20) < 0.4) {
+            const hot = hr(cx, cy, 20) < 0.12;
+            g.lineStyle(hot ? 4 : 3, hot ? 0xc8401a : 0x6a1e0c, 0.55).lineBetween(x + c * 0.36, y + c * 0.3, x + c * 0.56, y + c * 0.68);
+            g.lineStyle(hot ? 2 : 1.5, hot ? 0xffb04a : 0xc85a1e, hot ? 0.9 : 0.6).lineBetween(x + c * 0.36, y + c * 0.3, x + c * 0.56, y + c * 0.68);
+          }
           continue;
         }
         g.fillStyle(0x050a07, 0.55).fillEllipse(x + c * 0.55, y + c * 0.78, c * 1.05, c * 0.42);
