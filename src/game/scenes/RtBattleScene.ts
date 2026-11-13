@@ -81,6 +81,7 @@ import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, crowdCounts, crowdFill, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
 import { STAR_WARN, rimTicks, starFall } from '../fx/starWarn';
 import { DOME_SIZE, domeLook } from '../fx/shieldDome';
+import { ICE_CASE, iceShards, thawBlink } from '../fx/iceCase';
 import { areaLook, type AreaLook } from '../fx/areaLook';
 import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
 import { HERO_PARTS } from '../fx/heroParts.gen';
@@ -2828,6 +2829,8 @@ export class RtBattleScene extends Phaser.Scene {
   teleCrowd = true;
   /** 護盾罩用玻璃罩畫法（第 198 輪，D-398）；設成 false 回到舊的硬線圈（拍對照圖用） */
   shieldDome = true;
+  /** 被冰住的怪：染成冰藍＋腳邊冰晶（false＝舊的橢圓泡泡，拍對照圖用；第 199 輪） */
+  iceCase = true;
   private sx(x: number): number {
     return this.ox + x * this.k;
   }
@@ -3895,6 +3898,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (e.minute < 5) bigText(this, GAME_WIDTH / 2, 470, `第 ${e.minute} 分鐘・狼群越來越兇了（+${e.pct}%）`, '#ff9a6a', 30, 1100);
       } else if (e.type === 'fury') {
         // 暴怒版開關：舊的 Boss 單位被換掉（文字提示由選單顯示；進森林時套用不提示）
+        (this.sprites.get(e.old)?.getData('frost') as Phaser.GameObjects.Image | undefined)?.destroy();
         this.sprites.get(e.old)?.destroy();
         this.sprites.delete(e.old);
         const d = u(e.id);
@@ -4568,6 +4572,7 @@ export class RtBattleScene extends Phaser.Scene {
     if (!sp) return;
     this.sprites.delete(id);
     (sp.getData('rim') as Phaser.GameObjects.Image | undefined)?.destroy(); // 倒下的演出不帶亮邊
+    (sp.getData('frost') as Phaser.GameObjects.Image | undefined)?.destroy();
     if (defId) {
       playDeath(this, sp, defId, { dir: dx ?? (sp.flipX ? -1 : 1), tint: SPRITE[defId]?.tint, boss: !!ENEMIES[defId]?.boss });
       return;
@@ -4967,8 +4972,18 @@ export class RtBattleScene extends Phaser.Scene {
           this.occDepth = Math.max(this.occDepth, sp.depth);
         }
         sp.setAlpha((inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' || x.mode === 'dormant' ? 0.85 : 1) * occ);
+        // 被冰住（第 199 輪，fx/iceCase.ts）：染成冰藍，身上再疊一層淡淡的霜白剪影（乘色只會變暗，深色的怪要靠這層才看得出結霜）
+        const frzQ = !isP && this.iceCase ? x.statuses.find((q) => q.id === 'freeze' && q.until > s.tick) : undefined;
+        const iced = !!frzQ && !x.dead;
+        let frost = sp.getData('frost') as Phaser.GameObjects.Image | undefined;
+        if (iced && !frost?.active) {
+          frost = this.add.image(0, 0, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setTintFill(ICE_CASE.frost);
+          sp.setData('frost', frost);
+        }
+        if (frost?.active) frost.setPosition(sp.x, sp.y).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setAngle(sp.angle).setDepth(sp.depth + 0.004).setAlpha(iced ? sp.alpha * ICE_CASE.frostA * thawBlink(frzQ!.until - s.tick, now) : 0).setVisible(iced && sp.visible);
         if ((this.flashUntil.get(x.id) ?? 0) > now) sp.setTintFill(0xffffff);
         else if (winding) sp.setTint(Math.floor(now / 90) % 2 ? 0xff9a9a : (cfg.tint ?? 0xffffff));
+        else if (iced) sp.setTint(ICE_CASE.tint); // 被冰住：整隻染成冰藍（第 199 輪）
         else if (x.fury) sp.setTint(Math.floor(now / 500) % 2 ? 0xff6050 : 0xff8a70); // 暴怒版：紅色脈動
         else if (cfg.tint) sp.setTint(cfg.tint);
         else sp.clearTint();
@@ -5140,7 +5155,7 @@ export class RtBattleScene extends Phaser.Scene {
       const ay = py + r * 0.15 + fy * r * 0.6;
       g.fillStyle(isP ? 0x7dc8ff : 0xd0d0e0, 0.85).fillTriangle(ax + fx * 10, ay + fy * 5, ax - fy * 7, ay + fx * 4, ax + fy * 7, ay - fx * 4);
       // 狀態
-      if (x.statuses.some((q) => (q.id === 'stun' || q.id === 'freeze') && q.until > s.tick)) {
+      if (x.statuses.some((q) => (q.id === 'stun' || (q.id === 'freeze' && (isP || !this.iceCase))) && q.until > s.tick)) {
         for (let k = 0; k < 3; k++) {
           const an = now / 200 + (k * Math.PI * 2) / 3;
           top.fillStyle(0xffe066, 1).fillCircle(px + Math.cos(an) * r * 0.8, headY - 8 + Math.sin(an) * 5, 5);
@@ -5169,7 +5184,22 @@ export class RtBattleScene extends Phaser.Scene {
             top.fillStyle(0x9aff5a, 0.8 * (1 - t)).fillCircle(px + Math.sin(q * 2.3 + x.id) * r * 0.6, py - Math.max(r, py - headY) * (0.3 + 0.6 * t), 4 + 4 * (1 - t));
           }
         }
-        if (x.statuses.some((q) => q.id === 'freeze' && q.until > s.tick)) {
+        const frz = x.statuses.find((q) => q.id === 'freeze' && q.until > s.tick);
+        if (frz && this.iceCase) {
+          // 腳邊一簇冰晶（fx/iceCase.ts）：兩側高、正面矮；每根＝暗面＋亮面兩片三角形＋細描邊
+          const bl = thawBlink(frz.until - s.tick, now);
+          const fy0 = py + r * 0.1;
+          for (const q of iceShards(x.id)) {
+            const bx = px + q.x * r;
+            const by = fy0 + q.y * r;
+            const tx = bx + q.lean * r;
+            const ty = by - q.h * r;
+            const hw = q.hw * r;
+            top.fillStyle(ICE_CASE.shade, 0.8 * bl).fillTriangle(bx - hw, by, bx + hw, by, tx, ty);
+            top.fillStyle(ICE_CASE.body, 0.85 * bl).fillTriangle(bx - hw, by, bx + hw * 0.15, by, tx, ty);
+            top.fillStyle(ICE_CASE.lit, 0.75 * bl).fillTriangle(bx - hw, by, bx - hw * 0.45, by, tx, ty);
+          }
+        } else if (frz) {
           top.fillStyle(0xbff4ff, 0.28).fillEllipse(px, py - r * 0.4, r * 2.6, r * 2.2);
           top.lineStyle(2, 0xe8fcff, 0.85).strokeEllipse(px, py - r * 0.4, r * 2.6, r * 2.2);
         }
