@@ -27,7 +27,7 @@
 **第 194 輪注意（目標字條收起來、主角分件補看）**：
 - 位置：`rt/goalFade.ts`（`GOAL_FADE.vetMs` 8 秒、`firstKillMs` 25 秒）；`RtBattleScene` 的 `goalVet`（進圖時是不是老玩家，第一次算 `goalBefore` 時定下來）、`goalShown`／`goalShownAt`（字換了重算）、`goalFire`（走回營火再亮）；`setVisible(!boss && alpha > 0)`——收起來時 `goalBounds()` 回 null，箭頭會用那一塊。
 - `play.mjs` 會把時間跳到 100 秒，老玩家存檔拍不到字條；要拍就 `EVAL` 裡設 `goalShownAt = time.now`。
-- 主角分件：`node scripts/shot-walk-fight.mjs sword|bow|staff [地圖] [tag]`，`PLAN=attack,circle:skill,hit,dodge`（一次一兩項，多了會超時；`dead` 等不到）。劍看過沒脫節；弓／杖、省電、倒下還沒看。
+- 主角分件：`node scripts/shot-walk-fight.mjs sword|bow|staff [地圖] [tag]`，`PLAN=attack,circle:skill,hit,dodge`（一次一兩項，多了會超時；`dead` 等不到）。劍、弓（省電）、杖各看過幾幀沒脫節；倒下還沒看。
 - 第 192 輪候選還剩：②底部自動技能那排冷卻中分不出哪顆是哪招 ③右上方向箭頭擠在祝福圖示下面（字條收起來後有改善，沒重看）④地區名稱細字疊在怪身上 ⑤飄走的數字穿過還在累計的。
 
 **第 193 輪注意（門上的字、360 寬箭頭）**：
