@@ -28,7 +28,8 @@
 - 地形都在 `rt/ground.ts` 的障礙那一段：成片的（`dense`）分 `forest`（`rt/treeCrown.ts` 的 `crownLobes`）／`ember`（`rt/emberRock.ts`）／`tv`（荊棘叢，第 195 輪）／其他（星隕：圓＋晶柱）；零星的三張圖共用 `emberRock`＋`LONE_ROCK` 色票。參數都在各檔最上面的常數（`EMBER_ROCK`、`TREE_CROWN`）。**地面是分塊材質、只畫一次**：改了要重開遊戲才看得到；亂數一律用 `hr(cx, cy, i)`（每塊重畫要一致），岩塊用 50 起、樹冠用 60 起的索引。
 - 大招閃光：`feel.ts` 的 `ultFlashLayers`（底光比例、柔光大小）、`ultFlash(scene, color, ms, at?)`；新的大招演出記得給 `at`（畫面座標）。競技場沒給。
 - 拍法：地形＝`LEVEL=14 DSF=2 node scripts/play.mjs staff emberrift tag 6 4`（第 5 張在岩壁邊）、`LEVEL=5 DSF=2 … sword mistwood tag 4 9`、`LEVEL=9 DSF=2 … sword thornvale tag 3 7`；大招出手後連續幾幀＝`UNTIL='(()=>{const s=sc().s;return s.events.slice(-20).some(e=>e.type==="cast"&&e.skill==="blade_storm"&&e.tick>=s.tick-1)})()' LEVEL=20 node scripts/play.mjs staff starfall tag 10 90`（三把武器的大招 id 都是 `blade_storm`）。同一條指令兩次跑出來的時間點不一定一樣，對照圖要挑位置相同的。
-- 看過覺得還礙眼、沒做的（依序）：①弓／杖被一群怪同時瞄準時，幾塊紅色預告疊成一片實心紅（`RtBattleScene` 畫預告那一段，底色透明度會累加）——要動的話只能淡底色，外框、箭頭、前緣不能淡 ②怪擠成一團時血條互相蓋住 ③說明字幕條常落在主角頭上那一帶 ④競技場的大招閃光沒拍過。
+- 成群預告：`telegraphLook.ts` 的 `crowdCounts`／`crowdFill`（同一群 n 個、每塊填色 ×1/√n；只淡填色）；`RtBattleScene.teleCrowd=false` 可以切回舊樣子拍對照（`PAIR='sc().teleCrowd=false; draw=true; __game.step(T,0); 1'`）。競技場沒套。
+- 看過覺得還礙眼、沒做的（依序）：①怪擠成一團時血條互相蓋住 ②說明字幕條常落在主角頭上那一帶 ③成群預告的外框還是幾圈疊在一起（填色已經淡了）④競技場的大招閃光沒拍過。
 
 **第 195 輪注意（小圖示記號 D-392、荊棘叢 D-393、熔岩口火柱）**：
 - 小圖示：`fx/skillGlyph.ts`（`skillGlyph` 照資料分類、`drawSkillGlyph` 畫法、`COMPACT_ICON` 透明度與「幾 tick 以上才寫秒數」、`compactLabel`）；`RtBattleScene` 的 `showGlyph`／`glyphImgs`（depth 49.7：按鈕底 49.5 上面、`ui` 畫筆 50 下面，所以冷卻扇形蓋在記號上）；技能樹在 `rtSkillPanel.ts` 的 `gi`。想要秒數回來把 `COMPACT_ICON.longTicks` 改成 0。
