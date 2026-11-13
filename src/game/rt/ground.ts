@@ -3,6 +3,7 @@
 import { THORN_BUSH, thornLobes } from './thornBush';
 import { EMBER_CRACK_HALF, emberCrack } from './emberCrack';
 import { EMBER_ROCK, emberRock } from './emberRock';
+import { TREE_CROWN, crownLobes } from './treeCrown';
 import Phaser from 'phaser';
 import { STAGES } from '../../core/battle/rt/data';
 import { activeHazards } from '../../core/battle/rt/engine';
@@ -299,8 +300,19 @@ export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string,
           const oy = (hr(cx, cy, 2) - 0.5) * c * 0.3;
           const r = c * (0.62 + hr(cx, cy, 3) * 0.18);
           g.fillStyle(0x050a06, 0.5).fillEllipse(x + c / 2 + ox + c * 0.12, y + c * 0.75 + oy, r * 2.1, r * 1.1);
-          if (!ember) g.fillStyle(hr(cx, cy, 4) < 0.5 ? P.crownA : P.crownB, 1).fillCircle(x + c / 2 + ox, y + c / 2 + oy, r);
-          if (ember) {
+          const forest = wmp.decor === 'forest';
+          if (!ember && !forest) g.fillStyle(hr(cx, cy, 4) < 0.5 ? P.crownA : P.crownB, 1).fillCircle(x + c / 2 + ox, y + c / 2 + oy, r);
+          if (forest) {
+            // 樹冠（第 196 輪改）：以前是三個同心圓（深綠＋淺綠＋高光點），像一排排綠色鈕扣。現在是一團葉簇：輪廓有起伏、右下暗、左上亮
+            const mx = x + c / 2 + ox;
+            const my = y + c / 2 + oy;
+            const base = hr(cx, cy, 4) < 0.5 ? P.crownA : P.crownB;
+            for (const L of crownLobes((i) => hr(cx, cy, 60 + i))) {
+              if (L.tone === 3) g.fillStyle(P.crownTop, TREE_CROWN.tipA);
+              else g.fillStyle(L.tone === 2 ? P.crownHi : L.tone === 1 ? tone(base, TREE_CROWN.shadeTone) : base, 1);
+              g.fillCircle(mx + L.x * r, my + L.y * r, L.r * r);
+            }
+          } else if (ember) {
             // 燼岩（第 196 輪改）：以前是灰色大圓＋亮面＋高光點，鋪滿畫面像一池鐵球。現在是有稜角的岩塊：側面照受光方向分明暗、頂面一階亮、沒有圓形高光
             const mx = x + c / 2 + ox;
             const my = y + c / 2 + oy;
