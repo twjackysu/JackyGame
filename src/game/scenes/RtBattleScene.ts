@@ -3696,7 +3696,7 @@ export class RtBattleScene extends Phaser.Scene {
           const p = playerOf(this.s);
           SFX.perfect();
           SFX.hitHeavy();
-          ultFlash(this, 0xff8cdc); // 第 177 輪：以前是 camera.flash（整個畫面連 HUD 全白）
+          ultFlash(this, 0xff8cdc, 220, { x: this.sx(p.x), y: this.sy(p.y) }); // 第 177 輪：以前是 camera.flash（整個畫面連 HUD 全白）；第 196 輪：光從主角身上散開
           this.cameras.main.shake(160, 0.006);
           shockRing(this, this.sx(p.x), this.sy(p.y), 0xff7ad0, 260, 520, 10);
           this.nightLight?.flash(this.sx(p.x), this.sy(p.y), 900 * this.k * 1.5, 700);

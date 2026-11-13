@@ -270,7 +270,7 @@ export class RangedFx {
       for (let i = 0; i < 4; i++) this.sc.time.delayedCall(300 + i * 450, () => sparks(this.sc, vx + (Math.random() - 0.5) * R, vy + (Math.random() - 0.5) * R * 0.5, 4, 'ember', 0xff8a3a, 600));
       sparks(this.sc, vx, vy, 26, 'ember', 0xff8a3a, 820);
       this.sc.cameras.main.shake(260, 0.012);
-      ultFlash(this.sc, 0xffe6c8);
+      ultFlash(this.sc, 0xffe6c8, 220, { x: vx, y: vy });
       this.h.hitStop(150);
       return;
     }
@@ -534,7 +534,7 @@ export class RangedFx {
       }
       if (ult && brk) {
         this.skyLance(x, y, ang, hs.len, hs.width);
-        ultFlash(this.sc, 0xffb4f0);
+        ultFlash(this.sc, 0xffb4f0, 220, { x: this.h.sx(x), y: this.h.sy(y) });
         this.h.hitStop(120);
       }
       return;
@@ -684,6 +684,6 @@ export class RangedFx {
     this.sc.tweens.add({ targets: g, alpha: 0, duration: 420, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
     shockRing(this.sc, px, py, c.wide, r * this.h.k() * 1.3, 520, 14);
     sparks(this.sc, px, py, 28, 'spark', c.spark, 620);
-    ultFlash(this.sc, fire ? 0xffe6c8 : 0xffc8f0);
+    ultFlash(this.sc, fire ? 0xffe6c8 : 0xffc8f0, 220, { x: px, y: py });
   }
 }

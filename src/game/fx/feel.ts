@@ -326,20 +326,53 @@ export function ultFlashPeak(lowFx: boolean): number {
   return lowFx ? 0.24 : 0.4;
 }
 
-const ultFlashRect = new WeakMap<Phaser.Scene, Phaser.GameObjects.Rectangle>();
+/**
+ * 大招閃光分兩層（第 196 輪）：以前是一整片平的顏色（峰值四成），畫面每個角落一樣亮——截圖看起來是「整個畫面蒙上一層粉紫色」，
+ * 看不出光從哪裡來。現在是薄薄一層全畫面底光＋一團以出招／落點為中心的柔光：中心比以前亮、畫面邊緣只剩以前的三成左右。
+ * flat＝全畫面那層的不透明度、glow＝柔光中心的不透明度、sizeK＝柔光直徑是畫面長邊的幾倍。
+ */
+export function ultFlashLayers(peak: number): { flat: number; glow: number; sizeK: number } {
+  return { flat: peak * 0.25, glow: peak, sizeK: 1.0 };
+}
+
+function ultGlowKey(scene: Phaser.Scene): string {
+  const key = 'fx_ult_glow';
+  if (!scene.textures.exists(key)) {
+    const S = 128;
+    const tex = scene.textures.createCanvas(key, S, S);
+    if (tex) {
+      const ctx = tex.getContext();
+      const gr = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+      gr.addColorStop(0, 'rgba(255,255,255,1)');
+      gr.addColorStop(0.25, 'rgba(255,255,255,0.7)');
+      gr.addColorStop(0.6, 'rgba(255,255,255,0.22)');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(0, 0, S, S);
+      tex.refresh();
+    }
+  }
+  return key;
+}
+
+const ultFlashObjs = new WeakMap<Phaser.Scene, Phaser.GameObjects.GameObject[]>();
 /**
  * 大招出手／落地的全畫面閃光（第 177 輪，D-372）。以前用 camera.flash：第一幀整個畫面（連 HUD、Boss 的紅圈預告）幾乎全白，
  * 要七八幀才退完，出手一次、落地再一次。大招改成自動之後，這是玩家沒按任何鍵、每四十幾秒自己來兩次的全白。
- * 改成疊一層加亮的顏色（峰值四成），深度 47＝壓在 HUD 與按鍵下面：畫面照樣「亮一下」，但紅圈、血條、按鍵一直看得到。
+ * 改成疊一層加亮的顏色，深度 47＝壓在 HUD 與按鍵下面：畫面照樣「亮一下」，但紅圈、血條、按鍵一直看得到。
  * 上一道還沒退完就接著來（出手後很快落地）時換掉舊的，不會疊成全白。
+ * at＝光的中心（畫面座標；不給＝畫面正中）：第 196 輪起光是從那裡散開的，不再整個畫面一樣亮（見 ultFlashLayers）。
  */
-export function ultFlash(scene: Phaser.Scene, color: number, ms = 220): void {
-  ultFlashRect.get(scene)?.destroy();
+export function ultFlash(scene: Phaser.Scene, color: number, ms = 220, at?: { x: number; y: number }): void {
+  for (const o of ultFlashObjs.get(scene) ?? []) o.destroy();
   const w = scene.scale.width;
   const h = scene.scale.height;
-  const r = scene.add.rectangle(w / 2, h / 2, w, h, color, ultFlashPeak(getSettings().lowFx)).setScrollFactor(0).setDepth(47).setBlendMode(Phaser.BlendModes.ADD);
-  ultFlashRect.set(scene, r);
-  scene.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => r.destroy() });
+  const L = ultFlashLayers(ultFlashPeak(getSettings().lowFx));
+  const r = scene.add.rectangle(w / 2, h / 2, w, h, color, L.flat).setScrollFactor(0).setDepth(47).setBlendMode(Phaser.BlendModes.ADD);
+  const d = Math.max(w, h) * L.sizeK;
+  const gl = scene.add.image(at?.x ?? w / 2, at?.y ?? h / 2, ultGlowKey(scene)).setDisplaySize(d, d).setTint(color).setAlpha(L.glow).setScrollFactor(0).setDepth(47).setBlendMode(Phaser.BlendModes.ADD);
+  ultFlashObjs.set(scene, [r, gl]);
+  scene.tweens.add({ targets: [r, gl], alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => { r.destroy(); gl.destroy(); } });
 }
 
 /**
