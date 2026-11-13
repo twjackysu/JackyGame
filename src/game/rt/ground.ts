@@ -1,5 +1,6 @@
 // 冒險地圖的地面（第 150 輪，Q5 拆場景）：深色地面＋斑點草叢＋牆＋上下緣漸層，畫成分塊材質放進一個 container。
 // 從 RtBattleScene 原封不動搬出來（純畫面、固定種子，不碰戰鬥 PRNG）。
+import { EMBER_CRACK_HALF, emberCrack } from './emberCrack';
 import Phaser from 'phaser';
 import { STAGES } from '../../core/battle/rt/data';
 import { activeHazards } from '../../core/battle/rt/engine';
@@ -323,17 +324,28 @@ export function makeGround(scene: Phaser.Scene, s: BattleState, stageId: string,
               g.fillStyle(0xc8d4ff, 0.75).fillTriangle(px - ww * 0.2, by, px + ww * 0.5, by, px + lean, by - hh);
             }
           }
-          if (ember && hr(cx, cy, 20) < 0.4) {
-            // 燼岩（D-125）：玄武岩上發光的熔岩裂紋（外層暗橘、內層亮黃）
+          const ek = ember ? emberCrack(hr(cx, cy, 20)) : 'none';
+          if (ek !== 'none') {
+            // 燼岩（D-125；第 191 輪改）：大部分是短而暗的餘燼縫、少數是亮的熔岩裂紋（外層暗橘、內層亮黃＋一圈暖光）
+            const hot = ek === 'hot';
+            const half = r * EMBER_CRACK_HALF[ek];
             const ang = hr(cx, cy, 21) * Math.PI;
-            const x0 = x + c / 2 + ox - Math.cos(ang) * r * 0.7;
-            const y0 = y + c / 2 + oy - Math.sin(ang) * r * 0.7;
-            const xm = x + c / 2 + ox + (hr(cx, cy, 22) - 0.5) * r * 0.5;
-            const ym = y + c / 2 + oy + (hr(cx, cy, 23) - 0.5) * r * 0.5;
-            const x1 = x + c / 2 + ox + Math.cos(ang) * r * 0.7;
-            const y1 = y + c / 2 + oy + Math.sin(ang) * r * 0.7;
-            g.lineStyle(5, 0xc8401a, 0.55).lineBetween(x0, y0, xm, ym).lineBetween(xm, ym, x1, y1);
-            g.lineStyle(2, 0xffb04a, 0.9).lineBetween(x0, y0, xm, ym).lineBetween(xm, ym, x1, y1);
+            const mx = x + c / 2 + ox + (hot ? 0 : r * 0.18);
+            const my = y + c / 2 + oy + (hot ? 0 : r * 0.22);
+            const x0 = mx - Math.cos(ang) * half;
+            const y0 = my - Math.sin(ang) * half;
+            const xm = mx + (hr(cx, cy, 22) - 0.5) * r * 0.4;
+            const ym = my + (hr(cx, cy, 23) - 0.5) * r * 0.4;
+            const x1 = mx + Math.cos(ang) * half;
+            const y1 = my + Math.sin(ang) * half;
+            if (hot) {
+              g.fillStyle(0xff6a1a, 0.1).fillCircle(mx, my, r * 0.85);
+              g.lineStyle(5, 0xc8401a, 0.5).lineBetween(x0, y0, xm, ym).lineBetween(xm, ym, x1, y1);
+              g.lineStyle(2, 0xffb04a, 0.9).lineBetween(x0, y0, xm, ym).lineBetween(xm, ym, x1, y1);
+            } else {
+              g.lineStyle(4, 0x6a1e0c, 0.5).lineBetween(x0, y0, xm, ym).lineBetween(xm, ym, x1, y1);
+              g.lineStyle(1.5, 0xc85a1e, 0.6).lineBetween(x0, y0, xm, ym).lineBetween(xm, ym, x1, y1);
+            }
           }
           continue;
         }
