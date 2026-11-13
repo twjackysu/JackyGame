@@ -80,6 +80,8 @@ import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
 import { areaLook, type AreaLook } from '../fx/areaLook';
 import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
+import { HERO_PARTS } from '../fx/heroParts.gen';
+import { bodyPose, easeAmt, footfall, footPose, HERO_WALK } from '../fx/heroWalk';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
 import { coversHero, heroGhostAlpha, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
@@ -314,6 +316,9 @@ export class RtBattleScene extends Phaser.Scene {
   private calmText!: Phaser.GameObjects.Text;
   /** 上一 tick 的座標（60 FPS 插值用） */
   private prev = new Map<number, { x: number; y: number }>();
+  /** 主角的步態（fx/heroWalk）：phase＝弧度、amt＝幅度 0～1、fall＝這一幀落地的腳 */
+  private heroWalk = { phase: 0, amt: 0, at: 0, fall: -1 as 0 | 1 | -1 };
+  private stepDust: { x: number; y: number; at: number }[] = [];
   private sprites = new Map<number, Phaser.GameObjects.Image>();
   /** 點地移動的路徑預覽（世界座標）；玩家換格或目的地改變才重算 */
   private pathPreview: { key: string; pts: [number, number][] } | null = null;
@@ -4528,7 +4533,18 @@ export class RtBattleScene extends Phaser.Scene {
     if (!this.textures.exists(key)) return null;
     let sp = this.sprites.get(x.id);
     if (!sp) {
-      sp = this.add.image(0, 0, key).setOrigin(0.5, 0.92);
+      // 主角走路（第 193 輪，fx/heroWalk）：有分件就用「身體」那張（同尺寸、靴子挖掉），兩隻靴子另外擺
+      const parts = x.side === 'player' && HERO_WALK.on ? HERO_PARTS[key.replace('hero_', '')] : undefined;
+      const split = !!parts && ['body', 'foot_l', 'foot_r'].every((q) => this.textures.exists(`${key}_${q}`));
+      sp = this.add.image(0, 0, split ? `${key}_body` : key).setOrigin(0.5, 0.92);
+      if (split && parts) {
+        const feet = (['l', 'r'] as const).map((sd) => {
+          const f = parts.feet[sd];
+          return this.add.image(0, 0, `${key}_foot_${sd}`).setOrigin((f.px - f.x) / f.w, (f.py - f.y) / f.h).setData('part', f);
+        });
+        sp.setData('feet', feet).setData('parts', parts);
+        sp.once('destroy', () => feet.forEach((f) => f.destroy()));
+      }
       const hPx = x.r * cfg.h * this.k * (x.fury ? 1.15 : 1);
       sp.setScale(hPx / sp.height);
       sp.setData('base', sp.scaleX);
@@ -4537,11 +4553,19 @@ export class RtBattleScene extends Phaser.Scene {
       if (x.side === 'player' || cfg.rim !== undefined) {
         // 主角墊一圈冷白亮邊；太暗的怪墊一圈比較窄、比較淡的（fx/heroRim，D-371）：深色立繪在深色地面上找得到
         const foe = x.side !== 'player';
-        const L = ensureRim(this, key, sp.scaleX, 0.5, 0.92, foe ? FOE_RIM_SCREEN_PX : RIM_SCREEN_PX);
+        const L = ensureRim(this, sp.texture.key, sp.scaleX, 0.5, 0.92, foe ? FOE_RIM_SCREEN_PX : RIM_SCREEN_PX);
         if (L) {
           const rim = this.add.image(0, 0, L.key).setOrigin(L.originX, L.originY).setAlpha(0).setTint(foe ? cfg.rim! : RIM_COLOR);
           sp.setData('rim', rim);
           sp.once('destroy', () => rim.destroy());
+        }
+        // 靴子各自墊自己的亮邊（跟著腳走；用整張立繪的亮邊會在原地留一雙白色的靴子影）
+        for (const f of (sp.getData('feet') as Phaser.GameObjects.Image[] | undefined) ?? []) {
+          const FL = ensureRim(this, f.texture.key, sp.scaleX, f.originX, f.originY, RIM_SCREEN_PX);
+          if (!FL) continue;
+          const fr = this.add.image(0, 0, FL.key).setOrigin(FL.originX, FL.originY).setAlpha(0).setTint(RIM_COLOR);
+          f.setData('rim', fr);
+          f.once('destroy', () => fr.destroy());
         }
       }
       // 出場：從地面長出來
@@ -4858,7 +4882,25 @@ export class RtBattleScene extends Phaser.Scene {
           const gh = this.add.image(sp.x, sp.y, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setDepth(sp.depth - 1).setTint(0xff6a5a).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD);
           this.tweens.add({ targets: gh, alpha: 0, duration: 320, onComplete: () => gh.destroy() });
         }
-        sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - bob + ky + (fy0(x) * lunge)).setDepth(10 + Math.min(30, (pos.y / Math.max(1, s.arena.h)) * 30)); // 大地圖也不會蓋過 HUD／選單（深度 45 以上）
+        // 主角有分件：身體的起伏跟著步伐（兩腳交會時最高）、走的時候往前傾；靴子在下面另外擺
+        const feet = isP ? (sp.getData('feet') as Phaser.GameObjects.Image[] | undefined) : undefined;
+        let walkUp = bob;
+        if (feet) {
+          const w = this.heroWalk;
+          const dt = Math.min(100, now - w.at);
+          const pv = this.prev.get(x.id);
+          const stepping = !x.dead && !!pv && Math.abs(pos.x - pv.x) + Math.abs(pos.y - pv.y) > 0.5 && x.action?.kind !== 'dodge';
+          w.amt = easeAmt(w.amt, stepping, dt);
+          const ph0 = w.phase;
+          if (w.amt > 0) w.phase += (dt / HERO_WALK.cycleMs) * Math.PI * 2;
+          else w.phase = 0;
+          w.at = now;
+          w.fall = stepping ? footfall(ph0, w.phase) : -1;
+          const bp = bodyPose(w.phase, w.amt);
+          walkUp = bp.up * base + (w.amt > 0 ? 0 : bob);
+          sp.setAngle((sp.flipX ? -1 : 1) * bp.lean);
+        }
+        sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - walkUp + ky + (fy0(x) * lunge)).setDepth(10 + Math.min(30, (pos.y / Math.max(1, s.arena.h)) * 30)); // 大地圖也不會蓋過 HUD／選單（深度 45 以上）
         if (sp.scaleY !== 0 && !this.tweens.isTweening(sp)) sp.setScale(base * squash, base / squash);
         if (cfg.flip && x.facingX !== 0) sp.setFlipX(x.facingX < 0);
         // 脫戰返回中半透明（打不到）；待機的怪稍暗
@@ -4877,6 +4919,30 @@ export class RtBattleScene extends Phaser.Scene {
         else sp.clearTint();
         const rim = sp.getData('rim') as Phaser.GameObjects.Image | undefined;
         rim?.setPosition(sp.x, sp.y).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setAngle(sp.angle).setDepth(sp.depth - 0.01).setAlpha(x.dead ? 0 : sp.alpha * (isP ? RIM_ALPHA : FOE_RIM_ALPHA)).setVisible(sp.visible);
+        if (feet) {
+          const parts = sp.getData('parts') as (typeof HERO_PARTS)[string];
+          const dir = sp.flipX ? -1 : 1;
+          const k0 = sp.scaleX / base; // 出場、倒下的縮放跟著身體
+          const gx = px + kx;
+          const gy = py + r * 0.15 + ky;
+          feet.forEach((f, i) => {
+            const pt = f.getData('part') as (typeof parts)['feet']['l'];
+            const fp = footPose(this.heroWalk.phase, i as 0 | 1, this.heroWalk.amt);
+            f.setPosition(gx + dir * (pt.px - parts.w * 0.5 + fp.dx) * base * k0, gy + (pt.py - parts.h * 0.92 - fp.lift) * base * k0)
+              .setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setAngle(dir * fp.rot).setDepth(sp.depth - 0.005).setAlpha(sp.alpha).setVisible(sp.visible);
+            if (sp.isTinted) { f.setTint(sp.tintTopLeft); f.tintFill = sp.tintFill; } else f.clearTint();
+            const mainRim = sp.getData('rim') as Phaser.GameObjects.Image | undefined;
+            (f.getData('rim') as Phaser.GameObjects.Image | undefined)?.setPosition(f.x, f.y).setScale(f.scaleX, f.scaleY).setFlipX(f.flipX).setAngle(f.angle).setDepth(sp.depth - 0.01).setAlpha(mainRim?.active ? mainRim.alpha : 0).setVisible(f.visible);
+          });
+          // 腳落地揚一點塵（省電畫質不畫）
+          const fall = this.heroWalk.fall;
+          if (fall >= 0 && !getSettings().lowFx) this.stepDust.push({ x: feet[fall]!.x - this.ox, y: gy - this.oy, at: now });
+          this.stepDust = this.stepDust.filter((d) => now - d.at < 300);
+          for (const d of this.stepDust) {
+            const t = (now - d.at) / 300;
+            g.fillStyle(0xe8e0d0, 0.22 * (1 - t)).fillEllipse(d.x + this.ox, d.y + this.oy - t * 5, r * (0.35 + 0.5 * t), r * (0.14 + 0.16 * t));
+          }
+        }
         headY = sp.y - sp.displayHeight * 0.92;
         if (FLAME_MANE.has(x.defId) && cfg.key === 'enemy_mist_wolf' && !x.dead) {
           // 燼紅裂谷的狼（D-125）：背上搖曳的火焰鬃毛（染色立繪的程式加料，純畫面）
@@ -4921,7 +4987,7 @@ export class RtBattleScene extends Phaser.Scene {
             const pull = x.action && (x.action.kind === 'attack' || x.action.kind === 'skill') ? Math.min(1, (s.tick - x.action.start) / 6) * R * 0.35 : 0;
             const a0 = dir > 0 ? -1.1 : Math.PI - 1.1;
             // 主角圖本身已經拿著弓（hero_bow，R-019）：不畫程式弓，只在拉弓時讓圖上的箭尖發光
-            const art = sp.texture.key === 'hero_bow';
+            const art = sp.texture.key.startsWith('hero_bow');
             const tx = bx - dir * R * 0.55 + Math.cos(a0) * R;
             const ty1 = by + Math.sin(a0) * R;
             const ty2 = by - Math.sin(a0) * R;
@@ -4959,7 +5025,7 @@ export class RtBattleScene extends Phaser.Scene {
             const bx = sp.x + dir * r * 0.75;
             const by0 = sp.y - H * 0.12;
             // 主角圖本身已經拿著法杖（hero_staff，R-019）：不畫程式木杖，光暈與符文改繞著圖上的星晶（材質座標 0.89／0.15；origin 0.5／0.92）
-            const art = sp.texture.key === 'hero_staff';
+            const art = sp.texture.key.startsWith('hero_staff');
             const tx = art ? sp.x + dir * sp.displayWidth * 0.39 : bx + dir * H * 0.06;
             const ty = art ? sp.y - H * 0.77 : sp.y - H * 0.78;
             if (!art) {

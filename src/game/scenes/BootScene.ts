@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { makeEmberColossus, makeSlagSlime } from '../fx/emberArt';
 import { makeCrystalGolem, makeStarSentinel } from '../fx/starArt';
 import { HAND_ART } from '../../data/handArt';
+import { HERO_PARTS } from '../fx/heroParts.gen';
 
 /**
  * Generates every texture procedurally (no image assets), then starts the title.
@@ -14,6 +15,8 @@ export class BootScene extends Phaser.Scene {
   /** 手繪立繪（art-inbox → scripts/import-art.mjs → public/art）：有就先載入，程式立繪會自動跳過同名材質 */
   preload(): void {
     for (const key of HAND_ART) this.load.image(key, `art/${key}.webp`);
+    // 主角走路用的分件（scripts/cut-hero.py）：身體＋兩隻靴子；缺了就退回整張立繪
+    for (const w of Object.keys(HERO_PARTS)) for (const part of ['body', 'foot_l', 'foot_r']) this.load.image(`hero_${w}_${part}`, `art/hero_${w}_${part}.webp`);
     this.load.on('loaderror', (f: Phaser.Loader.File) => console.warn(`hand art missing: ${f.key}`));
   }
 
