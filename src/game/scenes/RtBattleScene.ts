@@ -72,7 +72,7 @@ import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard'
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { bossSlainFlashPeak, levelUpFlash, levelUpPillar } from '../fx/levelUp';
-import { TITLE_FONT, UI_FONT, bannerBusy, bigText, captionStyle, clearBattleTexts, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, ceilingZone, fxOffTop, setFxCeiling, bannerBusy, bigText, captionStyle, clearBattleTexts, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
 import { comboAdd, comboContinues, comboSize, comboText, type Combo } from '../fx/comboNumber';
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
@@ -724,6 +724,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.stormView = null;
     this.ringG = this.add.graphics().setDepth(46); // 巢穴邊界（D-185）：要蓋過樹冠與霧
     this.ui = this.add.graphics().setDepth(50);
+    setFxCeiling(this, VIEW_TOP); // 第 195 輪：火花不飄進頂端標題列（血條、等級）
     this.discs = new DiscLayer(this, 49.5); // 按鈕底（第 154 輪）：在 ui 畫筆底下，冷卻扇形／MP 環畫在它上面
     // 頂部標題列（蓋在世界之上；底部漸層避免硬切）
     const hdr = this.add.graphics().setDepth(48);
@@ -4291,7 +4292,9 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 灼燒每跳一次：身上往上竄幾顆火星（第 35 輪；純畫面） */
   private emberPuff(x: number, y: number): void {
+    if (fxOffTop(this, y)) return;
     const p = this.add.particles(x, y, 'ember', {
+      ...ceilingZone(this),
       speed: { min: 40, max: 110 }, angle: { min: 245, max: 295 }, gravityY: -120,
       scale: { start: 0.9, end: 0 }, lifespan: { min: 380, max: 700 }, blendMode: Phaser.BlendModes.ADD, emitting: false,
     });

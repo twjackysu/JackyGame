@@ -1,4 +1,5 @@
 // Game feel 工具（05 §4）：hit-stop、慢動作、傷害數字、火花、衝擊環、大字。
+import { ceilingRect, fxBlocked } from './fxCeiling';
 import { getSettings, highFx } from '../settings';
 import Phaser from 'phaser';
 import { pinY, stackY, type Band } from './bannerStack';
@@ -155,11 +156,30 @@ export function floatNumber(scene: Phaser.Scene, x: number, y0: number, text: st
   return t;
 }
 
+const fxCeil = new WeakMap<Phaser.Scene, number>();
+/** 這個場景的戰鬥粒子不准飄進畫面上緣 y 以上（頂端標題列）；見 fxCeiling.ts。沒設＝不擋（競技場、標題畫面） */
+export function setFxCeiling(scene: Phaser.Scene, y: number): void {
+  fxCeil.set(scene, y);
+}
+/** 粒子設定裡的 deathZone（沒設天花板＝undefined） */
+export function ceilingZone(scene: Phaser.Scene): { deathZone?: { type: 'onEnter'; source: Phaser.Geom.Rectangle } } {
+  const c = fxCeil.get(scene);
+  if (c === undefined) return {};
+  const r = ceilingRect(c);
+  return { deathZone: { type: 'onEnter', source: new Phaser.Geom.Rectangle(r.x, r.y, r.w, r.h) } };
+}
+/** 發射點在標題列裡＝不放 */
+export function fxOffTop(scene: Phaser.Scene, y: number): boolean {
+  return fxBlocked(fxCeil.get(scene), y);
+}
+
 /** 放射火花 */
 export function sparks(
   scene: Phaser.Scene, x: number, y: number, n: number, tex = 'spark', tint?: number, speed = 480,
 ): void {
+  if (fxOffTop(scene, y)) return;
   const p = scene.add.particles(x, y, tex, {
+    ...ceilingZone(scene),
     speed: { min: speed * 0.3, max: speed },
     angle: { min: 0, max: 360 },
     scale: { start: 1.2, end: 0 },
@@ -187,9 +207,11 @@ export function hitSparks(scene: Phaser.Scene, x: number, y: number, ang: number
   let b = hitBudget.get(scene);
   if (!b || now - b.at > HIT_WINDOW_MS) { b = { at: now, n: 0 }; hitBudget.set(scene, b); }
   if (b.n >= (getSettings().lowFx ? 3 : HIT_MAX)) return false;
+  if (fxOffTop(scene, y)) return false;
   b.n++;
   const deg = Phaser.Math.RadToDeg(ang);
   const p = scene.add.particles(x, y, tex, {
+    ...ceilingZone(scene),
     speed: { min: speed * 0.35, max: speed },
     angle: { min: deg - spread, max: deg + spread },
     scale: { start: tex === 'ember' ? 0.7 : 1.3, end: 0 },
