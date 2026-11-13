@@ -71,7 +71,7 @@ import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard'
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { bossSlainFlashPeak, levelUpFlash, levelUpPillar } from '../fx/levelUp';
-import { TITLE_FONT, UI_FONT, bannerBusy, bigText, clearBattleTexts, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
+import { TITLE_FONT, UI_FONT, bannerBusy, bigText, captionStyle, clearBattleTexts, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
 import { comboAdd, comboContinues, comboSize, comboText, type Combo } from '../fx/comboNumber';
 import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
@@ -2726,8 +2726,7 @@ export class RtBattleScene extends Phaser.Scene {
     // 第 86 輪（D-221）：開場大字還在、而且講的是同一件事（「咬傷會中毒」）→ 地區說明不再講一次，只報地名
     if (this.introLive() && hintRepeats(z.hint, this.introStr)) return;
     // 第 73 輪：危險說明（紅字）壓在噴發中的熔岩口／毒沼上很難讀 → 加半透明黑底（像目標字條），四張圖共用
-    const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, { fontFamily: TITLE_FONT, fontSize: '26px', color: z.danger ? '#ff8a7a' : '#d8e8ff', stroke: '#000', strokeThickness: 5, align: 'center', ...(z.danger ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}) }).setOrigin(0.5).setDepth(66).setAlpha(0);
-    if (z.danger) h.setPadding(12, 4, 12, 4);
+    const h = this.add.text(GAME_WIDTH / 2, 292 + dy, z.hint, captionStyle(z.danger ? '#ff8a7a' : '#d8e8ff', 26)).setOrigin(0.5).setDepth(66).setAlpha(0); // 第 190 輪：一般說明也有底條、改內文字體（以前細白字疊在樹牆和怪身上）
     // 第 61 輪：長的地區說明（「危險：狼群首領出沒・東邊有荊棘母樹・西側有巡守巡邏」）比兩側小地圖之間還寬，左端壓在小地圖上
     // → 在最靠近中間的「・」換行，兩行字從地區名稱下方往下排
     let hy = 284 + dy;

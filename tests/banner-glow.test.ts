@@ -13,7 +13,7 @@ describe('大字公告的光暈', () => {
     expect(body).not.toMatch(/\.postFX|\.preFX|addGlow\(/);
   });
   it('光暈是墊在下面的一層同字，只在高畫質出現，本體消失時一起清掉', () => {
-    expect(body).toMatch(/highFx\(\) \? scene\.add\.text\(x, y, text, bannerGlowStyle\(color, size\)\)/);
+    expect(body).toMatch(/caption \? null : highFx\(\) \? scene\.add\.text\(x, y, text, bannerGlowStyle\(color, size\)\)/);
     expect(body).toMatch(/DESTROY[\s\S]{0,160}glow\.destroy\(\)/);
     expect(body).toMatch(/events\.off\(Phaser\.Scenes\.Events\.POST_UPDATE, follow\)/);
   });

@@ -360,6 +360,25 @@ export function bannerGlowStyle(color: string, size: number): Phaser.Types.GameO
   };
 }
 
+/** 這個字級以下的「大字」其實是一整句說明／旁白（教學、相遇結語、記憶、營火提示…）——用字幕條的樣子畫（第 190 輪，D-388） */
+export const CAPTION_MAX_SIZE = 30;
+/** 是不是說明句：照字級分（喊出來的公告都是 32 以上） */
+export function isCaption(size: number): boolean {
+  return size <= CAPTION_MAX_SIZE;
+}
+/** 字幕條的起始倍率：只比原大小大一點（說明句不用「砸」出來） */
+export const CAPTION_POP = 1.06;
+/**
+ * 說明句的樣式：內文字體、細描邊、半透明深色底條（和頂端的目標字條、「休息中」同一種長相）。
+ * 以前和公告共用標題字體 900＋10px 粗描邊＋光暈：26～30px 的字筆畫整個糊在一起，一長條蓋在怪身上又讀不出來。
+ */
+export function captionStyle(color: string, size: number): Phaser.Types.GameObjects.Text.TextStyle {
+  return {
+    fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '700', color, stroke: '#0a0604', strokeThickness: 4, align: 'center',
+    backgroundColor: 'rgba(8,6,10,0.62)', padding: { x: 18, y: 9 },
+  };
+}
+
 /** 大字彈出時的起始倍率：短字照舊 2.2 倍，長句子壓到不超出畫面寬（最少 1.12，仍看得出是彈出來的） */
 export function popScale(textW: number, screenW: number): number {
   return Math.max(1.12, Math.min(2.2, (screenW - 24) / Math.max(1, textW)));
@@ -372,9 +391,11 @@ export function bigText(
 ): Phaser.GameObjects.Text {
   // 光暈（第 180 輪，D-376）：以前用 postFX 的 Glow——那個著色器是「整個畫面每個像素取樣 96 次」，大字在畫面上的每一幀都要付；
   // 改成墊在下面的一層同字：亮邊＋陰影模糊只在建立時畫一次，之後每幀只是多一張貼圖。省電畫質照舊沒有光暈。
-  const glow = highFx() ? scene.add.text(x, y, text, bannerGlowStyle(color, size)).setOrigin(0.5).setDepth(BANNER_DEPTH).setAlpha(0) : null;
+  // 第 190 輪（D-388）：30px 以下的是一整句說明 → 字幕條（沒有光暈、不從兩倍大砸下來）
+  const caption = isCaption(size);
+  const glow = caption ? null : highFx() ? scene.add.text(x, y, text, bannerGlowStyle(color, size)).setOrigin(0.5).setDepth(BANNER_DEPTH).setAlpha(0) : null;
   const t = scene.add
-    .text(x, y, text, {
+    .text(x, y, text, caption ? captionStyle(color, size) : {
       fontFamily: TITLE_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: '#140a04', strokeThickness: 10, align: 'center', // 第 43 輪：多行大字以前靠左（第二行短的時候歪一邊）
     })
     .setOrigin(0.5)
@@ -382,7 +403,7 @@ export function bigText(
     .setScale(2.2)
     .setAlpha(0);
   // 第 186 輪：長句子從 2.2 倍縮回來的那幾幀會比畫面還寬（兩頭被切掉、整行蓋在戰場上）→ 起跳的倍率壓到不超出畫面
-  t.setScale(popScale(t.width, scene.scale.width));
+  t.setScale(caption ? CAPTION_POP : popScale(t.width, scene.scale.width));
   if (hold >= 0) trackText(scene, t); // 常駐的（hold < 0，呼叫端自己管）不收
   if (glow) {
     // 光暈跟著本體（位置、縮放、透明度、深度、文字都由呼叫端改本體；這裡每幀照抄），本體消失就一起消失
@@ -396,10 +417,10 @@ export function bigText(
   let entry: { fading: boolean } | null = null;
   const show = (): void => {
     if (!t.active) return;
-    scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 180, ease: 'Back.Out' });
+    scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 180, ease: caption ? 'Cubic.Out' : 'Back.Out' });
     if (hold >= 0) {
       // 開始淡出就讓出位置（用補間自己的時鐘：掉幀時補間會比 scene.time 慢）
-      scene.tweens.add({ targets: t, alpha: 0, scale: 1.15, delay: 180 + hold, duration: 260, onStart: () => { if (entry) entry.fading = true; }, onComplete: () => t.destroy() });
+      scene.tweens.add({ targets: t, alpha: 0, scale: caption ? 1 : 1.15, delay: 180 + hold, duration: 260, onStart: () => { if (entry) entry.fading = true; }, onComplete: () => t.destroy() });
     }
   };
   // 置中的公告大字互相避開（D-162）：只看同一個場景、水平置中、還沒開始淡出的；
