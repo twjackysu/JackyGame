@@ -24,6 +24,12 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 199 輪注意（冰凍 D-399、競技場狀態 D-400）**：
+- 冰凍：`fx/iceCase.ts`（`ICE_CASE` 顏色與霜的濃度 `frostA`、`iceShards` 幾根／多高、`thawBlink`、`drawIceShards`）；霜白剪影是掛在怪 sprite 上的另一張圖（`sp.getData('frost')`，`killSprite` 會收掉）。`RtBattleScene.iceCase=false` 回舊畫法。Boss 不會被冰（引擎改成緩速）。
+- 競技場狀態：`PvpScene` 的 `top` 畫筆（depth 46）＋`statusFx` 開關；護盾罩 `drawDome(g, px, 腳下y, r, 顏色, 剩幾成, domeBlink)` 兩個場景共用。
+- 拍法：冰凍＝`sh scripts/shot-ice.sh tag [W H]`（`STAGE=mistwood|thornvale|starfall`、`DIST=100`、`MIN=2`、`NIGHT=1 LOWFX=1`；會印 `PAGE [[x,y,…]]`＝遊戲座標，乘 `寬/720×DSF` 才是圖上的像素；`-x` 那張是舊畫法）。競技場＝`WEAPON=sword PRESS=parry STATUS=shield PAIR='sc().statusFx=false; 1' DSF=3 node scripts/shot-pvp.mjs tag`；冰凍等對手的法杖（`WEAPON=bow INJECT=freeze STATUS=freeze`）；暈眩等不到，用 `INJECT=stun STATUS=stun` 直接塞。
+- **還沒做（依序）**：①競技場的灼燒／中毒／緩速還是看不到（冒險地圖的火苗、泡泡只畫在怪身上，要搬就照 `drawIceShards` 的做法抽出來）②杖貼身時主角頭上受傷紅字＋打怪白字＋護盾字疊成一團 ③冰霜新星出手那圈粗白環（`shockRing … 10`）像呼拉圈 ④第 197、198 輪列的其餘候選。
+
 **第 198 輪注意（墜星預告 D-397、護盾罩 D-398）**：
 - `fx/starWarn.ts`（`STAR_WARN`：星星起點 `minF`、亮度 `minA`、細光 `guideA`、刻度數量與速度）；畫在 `RtBattleScene.starWarnAt`（地圖落星 `area=true` 畫整套；Boss 召喚的只加刻度與星星）。`fieldFx.fallingStar(g,x,y,f,a?,guide?)` 後兩個是選用的。
 - 拍法：`sh scripts/shot-star.sh [tag] [W H]`（`NIGHT=1 LOWFX=1` 可加；`STAGE=emberrift` 拍熔岩口）；Boss 的＝`PHASE2=1 DIST=8 ONLY=sentinel_meteor2 node scripts/shot-boss-attacks.mjs starfall tag`（一階段的 `sentinel_meteor` 叫不出來）。
