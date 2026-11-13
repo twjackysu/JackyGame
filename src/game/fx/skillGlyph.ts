@@ -35,7 +35,7 @@ export function glyphColor(rim: number): number {
 }
 
 /** 小圖示的數值：冷卻中記號的透明度、冷卻扇形的深度、正在放那一招時整顆亮起來的程度（都要留得住記號） */
-export const COMPACT_ICON = { dimA: 0.85, sweepA: 0.55, castA: 0.22, longTicks: 360 } as const;
+export const COMPACT_ICON = { dimA: 0.85, sweepA: 0.55, castA: 0.12, longTicks: 360 } as const;
 
 /**
  * 小圖示上的字。自動施放的招幾乎永遠在冷卻，以前五顆上面永遠蓋著「1.3」「7」「4」——把記號蓋掉、又沒有人在讀（不用自己按）。
