@@ -22,6 +22,8 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
+
 **第 193 輪注意（門上的字、360 寬箭頭）**：
 - 世界裡的字不要進底部那一排：`arrowRules.aboveBottomRow`（`BOTTOM_ROW_H` 92）；目前只有門上的字用。大箭頭對目標字條的邊界 `goalMargin`；排位置的主體還在 `rt/offscreenArrows.ts` 一條一條接。
 - **沒看過**：省電、左手模式、技能切回手動時門上字的位置；荊棘谷的回程門。
