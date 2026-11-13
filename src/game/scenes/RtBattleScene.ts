@@ -113,6 +113,7 @@ import { GroundHazards, LAVA_ATTACKS, METEOR_ATTACKS } from '../fx/groundHazards
 import { CAMP_FOLK, drawCardRival, drawMerchant } from '../fx/merchant';
 import { drawEncounterNpc } from '../fx/encounterNpc';
 import { CachedDraw, type DrawBox } from '../fx/cachedDraw';
+import { COMPACT_ICON, compactLabel, glyphColor, glyphPips, skillGlyph, skillGlyphTexture } from '../fx/skillGlyph';
 import { DiscLayer } from '../rt/uiDisc';
 
 // D-332：小貼圖的範圍（腳底為原點的設計單位；第 154 輪把每個人物每種樣子 10 秒內畫過的範圍量出來，再留 6～16 的邊）
@@ -897,6 +898,15 @@ export class RtBattleScene extends Phaser.Scene {
     return this.autoSlots().length;
   }
   private compactSig = '';
+  /** 小圖示上的記號（第 195 輪）：第 i 顆按鈕一張，烤好的貼圖；在按鈕底上面、冷卻扇形下面 */
+  private glyphImgs: (Phaser.GameObjects.Image | undefined)[] = [];
+  private showGlyph(i: number, x: number, y: number, r: number, slot: string, def: Parameters<typeof skillGlyph>[0], dim: boolean): void {
+    const key = skillGlyphTexture(this, skillGlyph(def), r, glyphColor(skillBadge(slot, def).rim), glyphPips(def));
+    let im = this.glyphImgs[i];
+    if (!im) im = this.glyphImgs[i] = this.add.image(x, y, key).setDepth(49.7);
+    else if (im.texture.key !== key) im.setTexture(key);
+    im.setPosition(x, y).setAlpha(dim ? COMPACT_ICON.dimA : 1).setVisible(true);
+  }
   /** 上一次「閃開！」大字的場景時間（同一次翻滾連閃幾下只演一次） */
   private dodgedAt = -1e9;
   private slotSkill(i: number): string {
@@ -916,7 +926,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.compactSig = cl.join(',');
     this.btnText = names.map((n, i) => {
       const { x, y } = this.btnPos(i);
-      return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((cl.includes(i) ? 14 : i === 4 ? (this.autoCount() >= 4 ? 26 : 22) : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
+      return this.add.text(x, y, n, { fontFamily: UI_FONT, fontSize: `${Math.round((cl.includes(i) ? 19 : i === 4 ? (this.autoCount() >= 4 ? 26 : 22) : i === 6 ? 17 : 20) * sc)}px`, fontStyle: '700', color: '#ffffff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(60);
     });
     for (const b of this.autoBadges) b?.destroy();
     this.autoBadges = names.map((_, i) => (i < 4 || i === 5 ? this.add.text(0, 0, tr('auto.badge'), { fontFamily: UI_FONT, fontSize: `${Math.round(14 * sc)}px`, fontStyle: '700', color: '#0a2a14', backgroundColor: '#7dffb0' }).setOrigin(0.5).setPadding(5, 1, 5, 1).setDepth(61).setVisible(false) : null));
@@ -5775,7 +5785,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.discs.show(i, x, y, { r: R, fill: bl ? bl.fill : i === 4 ? 0x2a4a6a : 0x3a2a14, fillA: 0.95, lw: 3, stroke: bl ? (left ? bl.dim : bl.rim) : left ? 0x555566 : i === 4 ? 0x9fd8ff : 0xffd27a, strokeA: 1 });
       if (this.editing?.pick === i) g.lineStyle(5, 0x7dffb0, 0.6 + 0.4 * Math.sin(this.time.now / 120)).strokeCircle(x, y, R + 8);
       if (left > 0) {
-        g.fillStyle(0x000000, 0.6);
+        g.fillStyle(0x000000, small ? COMPACT_ICON.sweepA : 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / cd), false).fillPath();
       }
       // 冷卻剛轉好（Q5）：外框往外亮一圈（0.35 秒）＋招式名彈一下，只在轉好的那一刻
@@ -5790,14 +5800,16 @@ export class RtBattleScene extends Phaser.Scene {
       // 冷卻中也留著招式名（第 45 輪：以前冷卻時只剩數字，新手打一陣子五顆鍵全是「4.8」「2.3」，記不住哪顆是哪招）
       const nm = i === 4 ? '閃避' : skillDef(this.s, id)!.name;
       const bt = this.btnText[i]!;
-      bt.setText(small ? (left > 0 ? cdText(left) : nm.slice(0, 2)) : left > 0 ? `${nm}\n${cdText(left)}` : nm);
-      const bc = left > 0 ? '#a8a090' : '#ffffff';
+      bt.setText(small ? compactLabel(left, cdText(left)) : left > 0 ? `${nm}\n${cdText(left)}` : nm);
+      if (small) this.showGlyph(i, x, y, R, id, skillDef(this.s, id), left > 0);
+      else this.glyphImgs[i]?.setVisible(false);
+      const bc = left > 0 ? (small ? '#ffffff' : '#a8a090') : '#ffffff';
       textColor(bt, bc);
       this.autoBadges[i]?.setPosition(x, y + R - 2).setVisible(!small && i < 4 && !!s.autoSkills?.includes(id));
       if (small) {
         // 小圖示：下面一顆綠點＝自動；正在放這一招時整顆亮起來
         g.fillStyle(0x7dffb0, 0.9).fillCircle(x, y + R + 7, 3);
-        if ((p.action?.kind === 'skill' && p.action.id === id) || p.casts?.some((c) => c.id === id)) g.fillStyle(0xffe08a, 0.45).fillCircle(x, y, R + 5).lineStyle(3, 0xfff2c0, 1).strokeCircle(x, y, R + 5);
+        if ((p.action?.kind === 'skill' && p.action.id === id) || p.casts?.some((c) => c.id === id)) g.fillStyle(0xffe08a, COMPACT_ICON.castA).fillCircle(x, y, R + 5).lineStyle(3, 0xfff2c0, 1).strokeCircle(x, y, R + 5);
       }
     });
     const ultSmall = cl.includes(5);
@@ -5820,15 +5832,17 @@ export class RtBattleScene extends Phaser.Scene {
       g.beginPath().arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p.mp / need), false).strokePath();
       if (ok) g.lineStyle(3, 0xffd0f0, 0.4 + 0.4 * Math.sin(now / 120)).strokeCircle(x, y, R + 6 + 3 * Math.sin(now / 160));
       if (left > 0) {
-        g.fillStyle(0x000000, 0.6);
+        g.fillStyle(0x000000, ultSmall ? COMPACT_ICON.sweepA : 0.6);
         g.slice(x, y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / ult.cooldownTicks), false).fillPath();
       }
-      this.btnText[5]!.setText(ultSmall ? (left > 0 ? cdText(left) : ok ? ult.name.slice(0, 2) : `${p.mp}`) : left > 0 ? cdText(left) : ok ? ultLabel(skillDef(s, 'blade_storm')!.name) : `MP\n${p.mp}/${need}`);
+      this.btnText[5]!.setText(ultSmall ? compactLabel(left, cdText(left)) : left > 0 ? cdText(left) : ok ? ultLabel(skillDef(s, 'blade_storm')!.name) : `MP\n${p.mp}/${need}`);
+      if (ultSmall) this.showGlyph(5, x, y, R, 'blade_storm', ult, !ok);
+      else this.glyphImgs[5]?.setVisible(false);
       if (ultSmall) {
         g.fillStyle(0x7dffb0, 0.9).fillCircle(x, y + R + 7, 3);
-        if ((p.action?.kind === 'skill' && p.action.id === 'blade_storm') || p.casts?.some((c) => c.id === 'blade_storm')) g.fillStyle(0xff9ae0, 0.45).fillCircle(x, y, R + 5).lineStyle(3, 0xffd0f0, 1).strokeCircle(x, y, R + 5);
+        if ((p.action?.kind === 'skill' && p.action.id === 'blade_storm') || p.casts?.some((c) => c.id === 'blade_storm')) g.fillStyle(0xff9ae0, COMPACT_ICON.castA).fillCircle(x, y, R + 5).lineStyle(3, 0xffd0f0, 1).strokeCircle(x, y, R + 5);
       }
-      textColor(this.btnText[5]!, ok ? '#ffffff' : '#c890b0');
+      textColor(this.btnText[5]!, ok || ultSmall ? '#ffffff' : '#c890b0');
     }
     // 藥水：剩餘數量＋冷卻；血少於 40% 時閃爍提醒
     {

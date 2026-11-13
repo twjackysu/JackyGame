@@ -9,6 +9,8 @@ import { TITLE_FONT, UI_FONT } from '../fx/feel';
 import { WEAPONS, type WeaponKind } from '../../core/battle/rt/data';
 import { AUTO_SKILL_IDS } from '../../core/battle/rt/auto';
 import { t as tr } from '../../i18n';
+import { skillBadge } from '../fx/hitTint';
+import { drawSkillGlyph, glyphColor, glyphPips, skillGlyph } from '../fx/skillGlyph';
 import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, dotOf, rankTotalText, setVariant, skillPoints, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
 
 const COL_X = [-276, -138, 0, 138, 276];
@@ -83,6 +85,9 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     const pulses: Phaser.GameObjects.GameObject[] = [];
     /** 要畫在樹幹上面的東西（開關藥丸） */
     const late: Phaser.GameObjects.GameObject[] = [];
+    // 第 195 輪：節點左上角畫戰鬥畫面底部那顆小圖示（同顏色、同記號），玩家才對得起來哪顆是哪招；換打法會跟著變
+    const gi = scene.add.graphics();
+    late.push(gi);
     SKILL_TREE.forEach((t, col) => {
       const x = COL_X[col]!;
       const rank = r[t.id] ?? 0;
@@ -104,6 +109,15 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
         render();
       });
       items.push(node);
+      {
+        const def = vi === 0 ? W.skills[t.id] : altOf(t.id, vi as 1 | 2) ?? W.skills[t.id];
+        const bl = skillBadge(t.id, def);
+        const bx = x - 42; const by = NODE_Y - 44; const br = 19;
+        gi.fillStyle(0x0c0806, 1).fillCircle(bx, by, br + 3);
+        gi.fillStyle(bl.fill, 1).fillCircle(bx, by, br);
+        gi.lineStyle(3, bl.rim, 1).strokeCircle(bx, by, br);
+        drawSkillGlyph(gi, bx, by, br, skillGlyph(def), glyphColor(bl.rim), glyphPips(def));
+      }
       const nm = skillName(t.id, t.name);
       items.push(scene.add.text(x, NODE_Y - 10, nm, { fontFamily: UI_FONT, fontSize: nm.length > 3 ? '21px' : '25px', fontStyle: '700', color: rank ? '#ffffff' : '#b0a890' }).setOrigin(0.5));
       items.push(scene.add.text(x, NODE_Y + 22, `${rank}/${SKILL_MAX_RANK}`, { fontFamily: UI_FONT, fontSize: '19px', color: full ? '#ffd27a' : '#c8c0a8' }).setOrigin(0.5));
