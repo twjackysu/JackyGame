@@ -80,6 +80,7 @@ import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPal
 import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, crowdCounts, crowdFill, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
 import { STAR_WARN, rimTicks, starFall } from '../fx/starWarn';
+import { DOME_SIZE, domeLook } from '../fx/shieldDome';
 import { areaLook, type AreaLook } from '../fx/areaLook';
 import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
 import { HERO_PARTS } from '../fx/heroParts.gen';
@@ -2825,6 +2826,8 @@ export class RtBattleScene extends Phaser.Scene {
 
   /** 截圖對照用：設成 false 就回到「底色照疊」的舊樣子（第 196 輪） */
   teleCrowd = true;
+  /** 護盾罩用玻璃罩畫法（第 198 輪，D-398）；設成 false 回到舊的硬線圈（拍對照圖用） */
+  shieldDome = true;
   private sx(x: number): number {
     return this.ox + x * this.k;
   }
@@ -5229,11 +5232,22 @@ export class RtBattleScene extends Phaser.Scene {
           const full = Math.min(1, sh.value / Math.max(1, x.maxHp * 0.14));
           const R0 = r * 1.9;
           const cy0 = py - r * 0.6;
-          top.fillStyle(col, (0.06 + 0.08 * full) * blink).fillCircle(px, cy0, R0);
-          top.lineStyle(3 + 2 * full, col, (0.45 + 0.35 * full) * blink).strokeCircle(px, cy0, R0);
-          // 三段轉動的亮弧：靜止截圖也看得出是「罩子」不是選取圈
-          top.lineStyle(3, 0xffffff, 0.75 * blink);
-          for (let q = 0; q < 3; q++) top.beginPath().arc(px, cy0, R0, now / 260 + (q * Math.PI * 2) / 3, now / 260 + (q * Math.PI * 2) / 3 + 0.5).strokePath();
+          if (this.shieldDome) {
+            // 第 198 輪（D-398）：玻璃罩——邊緣往內暈開、左上高光、腳下落地的橢圓（以前是一條硬線圈＋三段轉動的白弧，像選取圈）
+            const dl = domeLook(full, blink);
+            // 罩子比舊的線圈大一點、高一點：把頭也罩進去（舊的圈切在脖子上）
+            const R1 = r * DOME_SIZE.r;
+            const cy1 = py - r * DOME_SIZE.up;
+            top.fillStyle(col, dl.fillA).fillCircle(px, cy1, R1);
+            for (const q of dl.rim) top.lineStyle(q.w, col, q.a).strokeCircle(px, cy1, R1 - q.inset);
+            top.lineStyle(dl.shine.w, 0xffffff, dl.shine.a).beginPath().arc(px, cy1, R1 * dl.shine.k, dl.shine.a0, dl.shine.a1).strokePath();
+            top.fillStyle(0xffffff, dl.shine.a).fillCircle(px + Math.cos(dl.shine.a1 + 0.3) * R1 * dl.shine.k, cy1 + Math.sin(dl.shine.a1 + 0.3) * R1 * dl.shine.k, 2.5);
+          } else {
+            top.fillStyle(col, (0.06 + 0.08 * full) * blink).fillCircle(px, cy0, R0);
+            top.lineStyle(3 + 2 * full, col, (0.45 + 0.35 * full) * blink).strokeCircle(px, cy0, R0);
+            top.lineStyle(3, 0xffffff, 0.75 * blink);
+            for (let q = 0; q < 3; q++) top.beginPath().arc(px, cy0, R0, now / 260 + (q * Math.PI * 2) / 3, now / 260 + (q * Math.PI * 2) / 3 + 0.5).strokePath();
+          }
         }
       }
       // 玩家施放中：畫技能範圍
