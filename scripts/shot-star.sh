@@ -1,0 +1,5 @@
+#!/bin/sh
+# 墜星預告的連續幾格（第 198 輪）：把主角放在墜星原第一個落點旁邊，拍預告進度 10%／40%／70%／90%／98%／落地後。先 `npx vite --port 5173`。
+# 用法：sh scripts/shot-star.sh [tag] [W H]   環境變數照 play.mjs（LOWFX=1、NIGHT=1、DSF=2）；STAGE=emberrift 拍熔岩口
+STAGE=${STAGE:-starfall}
+EVAL='(async()=>{if(!window.__v){const m=await import("/src/core/battle/rt/data.ts");window.__v=m.STAGES[sc().stageId].vents[0];window.__k=-1;sc().commands=()=>[{type:"stop"}];}const v=__v;__k++;const f=[0.1,0.4,0.7,0.9,0.98,2][__k]??2;const s=sc().s;for(let i=0;i<3000;i++){const p=s.units[0];p.x=v.x-v.r-140;p.y=v.y+60;p.hp=p.maxHp;for(const u of s.units)if(u.side==="enemy"&&!u.dead){u.x=v.x+2500;u.y=v.y-2500;}draw=false;T+=16.667;off+=16.667;__game.step(T,16.667);const per=s.night&&v.nightEveryTicks?v.nightEveryTicks:v.everyTicks;const t0=(s.tick+(v.offsetTicks??0))%per;const left=t0===0?0:per-t0;const t=1-left/v.warnTicks;if(f<=1?(left<=v.warnTicks&&t>=f):(t0>=4&&t0<=6))break;}draw=true;ff(1/60);return __k+" tick "+s.tick})()' LEVEL=${LEVEL:-20} DSF=${DSF:-2} node scripts/play.mjs sword $STAGE ${1:-star} 6 0.05 ${2:-390} ${3:-844}

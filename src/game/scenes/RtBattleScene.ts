@@ -79,6 +79,7 @@ import { playDeath } from '../fx/deathFx';
 import { bowLineLook, dangerAlpha, dodgeFeedback, enemyImpact, fxLead, groundPalette, hitLook, skillBadge } from '../fx/hitTint';
 import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, crowdCounts, crowdFill, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
+import { STAR_WARN, rimTicks, starFall } from '../fx/starWarn';
 import { areaLook, type AreaLook } from '../fx/areaLook';
 import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
 import { HERO_PARTS } from '../fx/heroParts.gen';
@@ -4278,15 +4279,36 @@ export class RtBattleScene extends Phaser.Scene {
       }
       if (left > v.warnTicks) continue;
       const t = 1 - left / v.warnTicks; // 0 → 1
+      if (this.starMap) {
+        this.starWarnAt(g, vx, vy, vr, t, now, true);
+        continue;
+      }
       g.fillStyle(C[1]!, 0.12 + 0.3 * t).fillCircle(vx, vy, vr);
       g.fillStyle(C[2]!, 0.1 + 0.35 * t * t).fillCircle(vx, vy, vr * (0.3 + 0.5 * t));
       g.lineStyle(3, C[3]!, 0.5 + 0.5 * t).strokeCircle(vx, vy, vr);
       g.lineStyle(2, C[4]!, 0.8).strokeCircle(vx, vy, vr * (1.6 - 0.6 * t));
-      if (this.starMap) {
-        // 星星從右上方的夜空落下：越接近落地越靠近、越亮（最後 0.5 秒才看得到）
-        this.ffx.fallingStar(g, vx, vy, Math.max(0, (t - 0.5) / 0.5));
-      }
     }
+  }
+
+  /** 墜星預告（第 198 輪，D-397；`fx/starWarn.ts`）：地圖的落星畫整套（填滿、閃白外框、收進來的刻度）；Boss 召喚的墜星範圍已經由一般預告畫了，只加刻度與星星。
+   *  星星和細光畫在上層（depth 45：單位和深夜暈影上面），整段預告都看得到。 */
+  private starWarnAt(g: Phaser.GameObjects.Graphics, vx: number, vy: number, vr: number, t: number, now: number, area: boolean): void {
+    const look = telegraphLook('meteor', true, t, now);
+    if (area) {
+      g.fillStyle(look.fill, look.baseA).fillCircle(vx, vy, vr);
+      g.fillStyle(look.fill, look.growA).fillCircle(vx, vy, vr * Math.max(0.05, t));
+      g.lineStyle(2, look.edge, 0.9).strokeCircle(vx, vy, vr * Math.max(0.05, t));
+      g.lineStyle(look.edgeW, look.blink ? 0xffffff : look.edge, 0.95).strokeCircle(vx, vy, vr);
+    }
+    for (const q of vr > 0 ? rimTicks(now, t) : []) {
+      const cx = Math.cos(q.ang);
+      const cy = Math.sin(q.ang);
+      const r0 = vr * q.k;
+      // 往圓心收的短刻度（像準星收攏）
+      g.lineStyle(5, look.blink ? 0xffffff : look.edge, q.a).lineBetween(vx + cx * r0, vy + cy * r0, vx + cx * (r0 + 18), vy + cy * (r0 + 18));
+    }
+    const sf = starFall(t);
+    this.ffx.fallingStar(this.top, vx, vy, sf.f, sf.a, STAR_WARN.guideA * sf.a);
   }
 
   /** 世界座標在不在畫面裡（含一點邊界；短命特效用，畫面外就不產生粒子） */
@@ -4811,13 +4833,13 @@ export class RtBattleScene extends Phaser.Scene {
         this.shapePath(t.shape, t.ox, t.oy, t.dirX, t.dirY, top, false);
       }
       if (meteor) {
-        // 召喚墜星：中央白色十字星閃爍，最後 45% 星星從夜空落下（畫在上層，暈影蓋不住）
+        // 召喚墜星：中央白色十字星閃爍；星星整段預告都在往下落（第 198 輪，以前只有最後 45%；畫在上層，暈影蓋不住）
         const vx = this.sx(t.ox);
         const vy = this.sy(t.oy);
         const tw = 10 + 4 * Math.sin(now / 90);
         g.fillStyle(0xffffff, 0.5 + 0.4 * prog).fillPoints([new Phaser.Math.Vector2(vx, vy - tw * 1.6), new Phaser.Math.Vector2(vx + tw * 0.4, vy), new Phaser.Math.Vector2(vx, vy + tw * 1.6), new Phaser.Math.Vector2(vx - tw * 0.4, vy)], true);
         g.fillPoints([new Phaser.Math.Vector2(vx - tw * 1.6, vy), new Phaser.Math.Vector2(vx, vy - tw * 0.4), new Phaser.Math.Vector2(vx + tw * 1.6, vy), new Phaser.Math.Vector2(vx, vy + tw * 0.4)], true);
-        this.ffx.fallingStar(top, vx, vy, Math.max(0, (prog - 0.55) / 0.45));
+        this.starWarnAt(g, vx, vy, (t.shape.type === 'circle' ? t.shape.r : 0) * this.k, prog, now, false);
       }
     }
     if (this.impacts.length) {

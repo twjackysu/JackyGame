@@ -127,16 +127,18 @@ export class FieldFx {
   }
 
   /** 從右上方夜空落下的星星（f：0 → 1，1＝落地）；墜星與守望者的召喚墜星共用 */
-  fallingStar(g: Phaser.GameObjects.Graphics, vx: number, vy: number, f: number): void {
+  fallingStar(g: Phaser.GameObjects.Graphics, vx: number, vy: number, f: number, a = f, guide = 0): void {
     if (f <= 0) return;
     const d = (1 - f * f) * 560;
     const hx = vx + d * 0.55;
     const hy = vy - d;
-    g.lineStyle(18, 0x6a86ff, 0.3 * f).lineBetween(hx, hy, hx + 110, hy - 200);
-    g.lineStyle(8, 0xa8c0ff, 0.6 * f).lineBetween(hx, hy, hx + 80, hy - 145);
-    g.lineStyle(3, 0xffffff, 0.95 * f).lineBetween(hx, hy, hx + 50, hy - 90);
-    g.fillStyle(0x8aa8ff, 0.35 * f).fillCircle(hx, hy, 22 + 10 * f);
-    g.fillStyle(0xffffff, f).fillCircle(hx, hy, 9 + 6 * f);
+    // 第 198 輪：a＝亮度（預設跟 f 一樣）、guide＝星星到落點那條細光（看得出它要砸在哪）
+    if (guide > 0 && d > 24) g.lineStyle(2, 0xc4d6ff, guide).lineBetween(hx, hy, vx, vy);
+    g.lineStyle(18, 0x6a86ff, 0.3 * a).lineBetween(hx, hy, hx + 110, hy - 200);
+    g.lineStyle(8, 0xa8c0ff, 0.6 * a).lineBetween(hx, hy, hx + 80, hy - 145);
+    g.lineStyle(3, 0xffffff, 0.95 * a).lineBetween(hx, hy, hx + 50, hy - 90);
+    g.fillStyle(0x8aa8ff, 0.35 * a).fillCircle(hx, hy, 22 + 10 * f);
+    g.fillStyle(0xffffff, a).fillCircle(hx, hy, 9 + 6 * f);
   }
 
   /** 墜星落地的爆開（閃光＋衝擊環＋碎星）。tone：star＝藍白（敵人的墜星）、fire＝橘紅（玩家的隕星術）。
