@@ -34,6 +34,7 @@ import { agoText, recentLook, seasonLines, streakLine } from '../pvpRecent';
 import type { PvpRecentView } from '../../net/views';
 import { DiscLayer } from '../rt/uiDisc';
 import { domeBlink, drawDome } from '../fx/shieldDome';
+import { drawBreak, drawBurn, drawPoison, drawSlow, drawWeak } from '../fx/statusMarks';
 import { drawIceShards, ICE_CASE, thawBlink } from '../fx/iceCase';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
@@ -67,6 +68,8 @@ export class PvpScene extends Phaser.Scene {
   private top!: Phaser.GameObjects.Graphics;
   /** 畫不畫狀態（護盾罩、冰凍、暈眩）；false＝以前的樣子，拍對照圖用（第 199 輪） */
   statusFx = true;
+  /** 第 200 輪：灼燒／中毒／緩速／破甲／虛弱的記號（false＝以前，拍對照圖用） */
+  dotFx = true;
   private hud!: Phaser.GameObjects.Graphics;
   private discs!: DiscLayer;
   private hpBars: [Phaser.GameObjects.Image, Phaser.GameObjects.Image][] = [];
@@ -541,6 +544,18 @@ export class PvpScene extends Phaser.Scene {
           const an = now / 200 + (k * Math.PI * 2) / 3;
           top.fillStyle(0xffe066, 1).fillCircle(px + Math.cos(an) * r * 0.8, headY - 22 + Math.sin(an) * 5, 5);
         }
+      }
+      if (this.statusFx && this.dotFx) {
+        // 第 200 輪（D-401）：灼燒／中毒／緩速／破甲／虛弱——以前只看得到血在掉、突然走不快。和冒險地圖共用 fx/statusMarks
+        const has = (id: string): boolean => u.statuses.some((q) => q.id === id && q.until > s.tick);
+        const bodyH = Math.max(r, py - headY);
+        if (has('burn')) drawBurn(top, u.id, px, py, bodyH, now);
+        if (has('poison')) drawPoison(top, u.id, px, py, r, bodyH, now);
+        // 競技場的 r 是碰撞半徑（比立繪窄很多）：腳邊與頭旁的記號照立繪的寬度排，不然全藏在身體後面
+        const mr = Math.max(r, sp.displayWidth * 0.46);
+        if (has('slow') && !frz) drawSlow(top, u.id, px, py + mr * 0.3, mr, now);
+        if (has('break')) drawBreak(top, px, mr, headY + 4);
+        if (has('weak')) drawWeak(top, px, mr, headY + 20);
       }
       const sh = this.statusFx ? u.statuses.find((q) => q.id === 'shield' && q.until > s.tick && q.value > 0) : undefined;
       if (sh) drawDome(top, px, py, r, u.pid ? 0xff9a8a : 0x9fd0ff, Math.min(1, sh.value / Math.max(1, u.maxHp * 0.14)), domeBlink(sh.until - s.tick, now));

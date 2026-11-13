@@ -81,6 +81,7 @@ import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, crowdCounts, crowdFill, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
 import { STAR_WARN, rimTicks, starFall } from '../fx/starWarn';
 import { domeBlink, drawDome } from '../fx/shieldDome';
+import { drawBreak, drawBurn, drawPoison, drawSlow, drawWeak } from '../fx/statusMarks';
 import { drawIceShards, ICE_CASE, thawBlink } from '../fx/iceCase';
 import { areaLook, type AreaLook } from '../fx/areaLook';
 import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
@@ -344,6 +345,8 @@ export class RtBattleScene extends Phaser.Scene {
   private hitStop = 0;
   /** Boss 倒下的慢動作（第 29 輪）：剩餘毫秒，期間戰鬥以 0.3 倍速前進 */
   private slowMs = 0;
+  /** 第 200 輪：緩速的腳邊記號（false＝以前沒有記號，拍對照圖用） */
+  slowMark = true;
   /** 鏡頭（世界座標，鏡頭中心） */
   private camX = 0;
   private drawnOnce = false;
@@ -5165,25 +5168,8 @@ export class RtBattleScene extends Phaser.Scene {
       // 變化二的狀態（D-121）：冰凍＝淡藍冰殼、破甲＝紅色裂盾、虛弱＝灰紫向下箭頭
       if (!isP) {
         // 長弓變化二（D-149）：灼燒＝身上竄著小火苗、中毒＝往上冒的綠色泡泡
-        if (x.statuses.some((q) => q.id === 'burn' && q.until > s.tick)) {
-          const bodyH = Math.max(r, py - headY);
-          // 第 35 輪：火苗後面一層會閃的橘光、火苗 3 → 5 根（星焰彈命中後一眼看得出「著火了」）
-          top.fillStyle(0xff7a2a, 0.16 + 0.08 * Math.sin(now / 70 + x.id)).fillEllipse(px, py - bodyH * 0.45, bodyH * 1.1, bodyH * 1.2);
-          for (let q = 0; q < 5; q++) {
-            const fx1 = px + (q - 2) * bodyH * 0.15;
-            const fy1 = py - bodyH * (0.28 + 0.12 * (q % 2));
-            const hh = bodyH * (0.32 + 0.12 * Math.sin(now / 80 + q * 2 + x.id));
-            const w0 = bodyH * 0.09;
-            top.fillStyle(0xff6a1a, 0.8).fillTriangle(fx1 - w0, fy1, fx1 + w0, fy1, fx1 + Math.sin(now / 120 + q) * w0 * 0.6, fy1 - hh);
-            top.fillStyle(0xffd04a, 0.95).fillTriangle(fx1 - w0 * 0.45, fy1, fx1 + w0 * 0.45, fy1, fx1, fy1 - hh * 0.55);
-          }
-        }
-        if (x.statuses.some((q) => q.id === 'poison' && q.until > s.tick)) {
-          for (let q = 0; q < 4; q++) {
-            const t = ((now / 900 + q / 4 + x.id * 0.13) % 1);
-            top.fillStyle(0x9aff5a, 0.8 * (1 - t)).fillCircle(px + Math.sin(q * 2.3 + x.id) * r * 0.6, py - Math.max(r, py - headY) * (0.3 + 0.6 * t), 4 + 4 * (1 - t));
-          }
-        }
+        if (x.statuses.some((q) => q.id === 'burn' && q.until > s.tick)) drawBurn(top, x.id, px, py, Math.max(r, py - headY), now);
+        if (x.statuses.some((q) => q.id === 'poison' && q.until > s.tick)) drawPoison(top, x.id, px, py, r, Math.max(r, py - headY), now);
         const frz = x.statuses.find((q) => q.id === 'freeze' && q.until > s.tick);
         if (frz && this.iceCase) {
           // 腳邊一簇冰晶（fx/iceCase.ts）：兩側高、正面矮
@@ -5198,19 +5184,11 @@ export class RtBattleScene extends Phaser.Scene {
           if ((this.breakSeen.get(x.id) ?? -1) < s.tick) this.ffx.shatter(px, py - r * 0.5, r);
           this.breakSeen.set(x.id, brk.until);
         }
-        if (brk) {
-          const bx = px - r - 4;
-          const by = headY + 10;
-          top.fillStyle(0xff5a3a, 1).fillTriangle(bx - 7, by - 7, bx + 7, by - 7, bx, by + 9);
-          top.lineStyle(2, 0x2a0a00, 1).lineBetween(bx - 2, by - 7, bx + 2, by + 1);
-        }
-        if (x.statuses.some((q) => q.id === 'weak' && q.until > s.tick)) {
-          const wx = px + r + 4;
-          const wy = headY - 6;
-          top.fillStyle(0xb08aff, 1).fillTriangle(wx - 6, wy, wx + 6, wy, wx, wy + 9);
-          top.fillRect(wx - 2, wy - 7, 4, 7);
-        }
+        if (brk) drawBreak(top, px, r, headY);
+        if (x.statuses.some((q) => q.id === 'weak' && q.until > s.tick)) drawWeak(top, px, r, headY);
       }
+      // 第 200 輪（D-401）：緩速以前完全沒有記號（十七招會上）——腳兩側往下沉的藍紫色小箭頭；冰住的不畫（冰雕已經說明了）。主角被緩也畫
+      if (this.slowMark && !x.dead && x.statuses.some((q) => q.id === 'slow' && q.until > s.tick) && !x.statuses.some((q) => q.id === 'freeze' && q.until > s.tick)) drawSlow(top, x.id, px, py + r * 0.2, r, now);
       // HP 條（Boss 用畫面上方大條）
       if (!boss) {
         const w = Math.max(56, r * 2.4);

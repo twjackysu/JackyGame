@@ -8,6 +8,7 @@ const [tag = 'x', W = '390', H = '844'] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const pg = await b.newPage({ viewport: { width: +W, height: +H }, deviceScaleFactor: +(process.env.DSF || 1) });
 pg.on('pageerror', (e) => console.log('PAGEERR', e.message));
+pg.on('console', (m) => { if (m.text().startsWith('DBG')) console.log(m.text()); }); // 第 200 輪：頁面裡 console.log('DBG …') 會印出來
 await pg.goto('http://localhost:5173/?debug');
 await pg.evaluate(([low, w]) => {
   localStorage.clear(); localStorage.setItem('jg_prologue_seen', '1'); localStorage.setItem('jg_weapon', w);
