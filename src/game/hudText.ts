@@ -35,8 +35,14 @@ export interface HudLineView {
   tick: number;
 }
 
-export function hudLine(v: HudLineView): string {
-  const lv = v.lv !== undefined ? `Lv ${v.lv}　` : '';
-  const mid = v.loot ? `${v.loot.enh ? `武器 +${v.loot.enh}　` : ''}金 ${v.loot.coin}　粉塵 ${v.loot.dust}` : `敵人 ${v.enemies}`;
-  return `${lv}HP ${v.hp}/${v.maxHp}　MP ${v.mp}　${mid}　${hudClock(v.tick)}`;
+/** 右邊兩行：金幣／粉塵（沒有掉落的關卡寫敵人數）、武器強化＋時間（第 192 輪：等級、HP、MP 改成左邊的條，不再排成一行字） */
+export function hudSide(v: HudLineView): string {
+  const top = v.loot ? `金 ${v.loot.coin}　粉塵 ${v.loot.dust}` : `敵人 ${v.enemies}`;
+  const enh = v.loot?.enh ? `武器 +${v.loot.enh}　` : '';
+  return `${top}\n${enh}${hudClock(v.tick)}`;
+}
+
+/** 血條裡的字 */
+export function hudHp(hp: number, maxHp: number): string {
+  return `${Math.max(0, Math.ceil(hp))} / ${maxHp}`;
 }

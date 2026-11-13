@@ -3,7 +3,8 @@
 import { playBlessProc } from '../fx/blessFx';
 import { onlineLoot } from '../onlineLoot';
 import Phaser from 'phaser';
-import { cdText, hudLine, textColor } from '../hudText';
+import { cdText, hudHp, hudSide, textColor } from '../hudText';
+import { HUD_BAR, dangerPulse, fillW, hpColor, lagStep } from '../rt/hudBars';
 import { SFX } from '../../audio/sfx';
 import { SKILLS, STAGES } from '../../core/battle/rt/data';
 import { activeHazards, inHazard, attacksOf, chosenVariants, createBattle, setAutoSkills, enemiesOf, isSolidAt, playerDef, playerOf, setBossFury, setEffects, setGearBonus, LAIR_GRACE_TICKS, setSkillMods, setSkillVariants, skillDef, skillShape, step, ventLeft, xpToNext } from '../../core/battle/rt/engine';
@@ -301,6 +302,10 @@ export class RtBattleScene extends Phaser.Scene {
   private runSalt = 1;
   private ended = false;
   private hud!: Phaser.GameObjects.Text;
+  /** 第 192 輪：頂端血條（等級、血條裡的數字、掉血殘影） */
+  private hudLv!: Phaser.GameObjects.Text;
+  private hudHpTxt!: Phaser.GameObjects.Text;
+  private hpLag = 0;
   /** 單位圖層（HP 條等疊在 sprite 上方） */
   private top!: Phaser.GameObjects.Graphics;
   private ringG!: Phaser.GameObjects.Graphics;
@@ -721,7 +726,12 @@ export class RtBattleScene extends Phaser.Scene {
     this.ambient = amb ? new Ambient(this, amb.decor, getSettings().lowFx, !!this.s.night, { x: 0, y: VIEW_TOP, w: GAME_WIDTH, h: VIEW_BOTTOM - VIEW_TOP }) : null;
     this.add.text(GAME_WIDTH / 2, 40, this.tracked || worldMap(this.stageId) ? `${STAGES[this.stageId]!.name}${this.s.night ? '・深夜' : ''}` : `即時戰鬥試玩・${STAGES[this.stageId]!.name}`, { fontFamily: TITLE_FONT, fontSize: '30px', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
     this.calmText = this.add.text(GAME_WIDTH / 2 - 50, 850, '', { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '700', color: '#ffd27a', stroke: '#000', strokeThickness: 4, backgroundColor: '#00000088' }).setPadding(14, 6, 14, 6).setOrigin(0.5).setDepth(65);
-    this.hud = this.add.text(GAME_WIDTH / 2, 82, '', { fontFamily: UI_FONT, fontSize: '18px', color: '#c8d0f0' }).setOrigin(0.5).setDepth(49);
+    // 第 192 輪：等級＋血條／MP／經驗條在左，金幣／粉塵／時間兩行小字在右（以前全部擠成一行 18px 灰字，HP 只有數字）
+    this.hud = this.add.text(HUD_BAR.sideX, HUD_BAR.sideY, '', { fontFamily: UI_FONT, fontSize: '17px', color: '#c8d0f0', align: 'right', lineSpacing: 3 }).setOrigin(1, 0.5).setDepth(49);
+    this.add.text(HUD_BAR.lvX, HUD_BAR.lvY - 15, 'Lv', { fontFamily: UI_FONT, fontSize: '15px', fontStyle: '700', color: '#b9a36a' }).setOrigin(0.5).setDepth(49).setVisible(!!this.s.prog);
+    this.hudLv = this.add.text(HUD_BAR.lvX, HUD_BAR.lvY + 7, '', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: '#ffd27a' }).setOrigin(0.5).setDepth(49);
+    this.hudHpTxt = this.add.text(HUD_BAR.x + HUD_BAR.w / 2, HUD_BAR.hpY + HUD_BAR.hpH / 2, '', { fontFamily: UI_FONT, fontSize: '17px', fontStyle: '700', color: '#ffffff', stroke: '#0b1410', strokeThickness: 4 }).setOrigin(0.5).setDepth(50.5);
+    this.hpLag = 0;
     // 大地圖（有 Boss 又有重生點）：HUD 下方的目標列
     const stG = STAGES[this.stageId];
     if (this.s.night && this.tracked && STAGES[this.stageId]?.chests?.some((c) => c.nightOnly)) {
@@ -3434,7 +3444,7 @@ export class RtBattleScene extends Phaser.Scene {
         const ay = d ? this.sy(d.y) - 60 : 0;
         const onZone = this.zoneTexts.some((z) => z.active && z.alpha > 0.05 && z.getBounds().contains(ax, ay));
         // 第 68 輪：怪躲在左上小地圖／懸賞板底下時，紅「!」以前浮在小地圖和懸賞字上 → 不畫
-        if (d && ay > VIEW_TOP + 20 && !onZone && !this.overHudPanel(ax, ay)) floatNumber(this, ax, ay, '!', { color: '#ff5a5a', size: 40 });
+        if (d && ay > VIEW_TOP + 95 && !onZone && !this.overHudPanel(ax, ay)) floatNumber(this, ax, ay, '!', { color: '#ff5a5a', size: 40 });
         // 巡邏的精英發現你（D-117）：橘色衝擊環＋警告音＋「被發現了！」
         if (d?.patrol && !this.bot) {
           // 第 73 輪：巡邏精英在畫面上緣外發現你時，「被發現了！」以前浮在 HUD（等級／HP 那行）上 → 夾回戰場範圍內（目標字條下面），衝擊環只在看得到時畫
@@ -3752,10 +3762,12 @@ export class RtBattleScene extends Phaser.Scene {
         const vy = this.sy(e.y);
         const pl = playerOf(this.s);
         const near = Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 8;
-        if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14 && this.starMap) {
+        // 第 192 輪：落點在頂端標題列後面（畫面外）就不放——粒子與閃光的 depth 比標題列高，以前會整團蓋在血量／金幣那一行上
+        const seen = vy > VIEW_TOP;
+        if (seen && Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14 && this.starMap) {
           // 墜星落地（D-138）：白色閃光＋藍色衝擊環＋碎星四濺
           this.ffx.starImpact(vx, vy, e.r * this.k);
-        } else if (Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) ventEruptCue(this, vx, vy, e.r * this.k);
+        } else if (seen && Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) ventEruptCue(this, vx, vy, e.r * this.k);
         if (near) {
           this.cameras.main.shake(110, 0.004);
           SFX.hitHeavy();
@@ -5560,7 +5572,9 @@ export class RtBattleScene extends Phaser.Scene {
           dust: oc ? (oc.wallet.dust ?? 0) : this.coinBase >= 0 ? this.dustBase + Math.max(0, (s.loot.dust ?? 0) - this.saved.dust) : s.loot.dust ?? 0,
         }
       : undefined;
-    this.hud.setText(hudLine({ ...(lv !== undefined ? { lv } : {}), hp: p.hp, maxHp: p.maxHp, mp: p.mp, ...(loot ? { loot } : {}), enemies: es.length, tick: s.tick }));
+    this.hud.setText(hudSide({ hp: p.hp, maxHp: p.maxHp, mp: p.mp, ...(loot ? { loot } : {}), enemies: es.length, tick: s.tick }));
+    this.hudLv.setText(lv !== undefined ? String(lv) : '');
+    this.hudHpTxt.setText(hudHp(p.hp, p.maxHp));
     if (this.goal) {
       const st = STAGES[this.stageId]!;
       const bossDef = st.enemies.map((e) => ENEMIES[e.enemyId]).find((d) => d?.boss);
@@ -5749,16 +5763,37 @@ export class RtBattleScene extends Phaser.Scene {
       // 第 59 輪：冷卻中以前只剩一個數字「5」，看不出還剩幾瓶 → 秒數＋瓶數
       this.btnText[6]!.setText(left > 0 ? `${Math.ceil(left / TICKS_PER_SEC)} 秒\n×${s.potions}` : `藥水\n×${s.potions}`);
     }
-    // MP 條（HP 文字下方）
+    // 第 192 輪：血條（數字在條裡、掉血殘影、護盾、低血變色）＋MP 條＋經驗條
     {
-      const w = 220;
-      const x0 = (GAME_WIDTH - w) / 2;
-      g.fillStyle(0x000000, 0.6).fillRect(x0 - 2, 96, w + 4, 8);
-      g.fillStyle(0xff7ad0, 1).fillRect(x0, 98, (w * p.mp) / playerDef(this.s).mp, 4);
+      const B = HUD_BAR;
+      const frac = p.maxHp > 0 ? p.hp / p.maxHp : 0;
+      this.hpLag = lagStep(this.hpLag, p.hp, p.maxHp, this.game.loop.delta);
+      g.fillStyle(0x000000, 0.7).fillRoundedRect(B.x - 3, B.hpY - 3, B.w + 6, B.hpH + 6, 6);
+      g.fillStyle(0x24302b, 1).fillRect(B.x, B.hpY, B.w, B.hpH);
+      const lw = fillW(B.w, this.hpLag, p.maxHp);
+      const hw = fillW(B.w, p.hp, p.maxHp);
+      if (lw > hw) g.fillStyle(0xffffff, 0.85).fillRect(B.x, B.hpY, lw, B.hpH);
+      if (hw > 0) {
+        g.fillStyle(hpColor(frac), 1).fillRect(B.x, B.hpY, hw, B.hpH);
+        g.fillStyle(0xffffff, 0.2).fillRect(B.x, B.hpY, hw, 8);
+        g.fillStyle(0x000000, 0.18).fillRect(B.x, B.hpY + B.hpH - 5, hw, 5);
+      }
+      g.fillStyle(0x000000, 0.28);
+      for (let q = 1; q < 4; q++) g.fillRect(B.x + Math.round((B.w * q) / 4) - 1, B.hpY, 2, B.hpH);
+      const sh = p.statuses.find((q) => q.id === 'shield' && q.until > s.tick && q.value > 0);
+      if (sh) {
+        g.fillStyle(0x8fe0ff, 0.95).fillRect(B.x, B.hpY, fillW(B.w, sh.value, p.maxHp), 6);
+        g.lineStyle(2, 0x8fe0ff, 0.9).strokeRoundedRect(B.x - 3, B.hpY - 3, B.w + 6, B.hpH + 6, 6);
+      }
+      const pulse = dangerPulse(frac, this.time.now);
+      if (pulse > 0) g.lineStyle(3, 0xff5a50, 0.35 + 0.65 * pulse).strokeRoundedRect(B.x - 4, B.hpY - 4, B.w + 8, B.hpH + 8, 7);
+      g.fillStyle(0x000000, 0.7).fillRect(B.x - 2, B.mpY - 2, B.w + 4, B.mpH + 4);
+      g.fillStyle(0xff7ad0, 1).fillRect(B.x, B.mpY, fillW(B.w, p.mp, playerDef(this.s).mp), B.mpH);
+      g.fillStyle(0xffffff, 0.25).fillRect(B.x, B.mpY, fillW(B.w, p.mp, playerDef(this.s).mp), 3);
       // 經驗條（D-090）：MP 條正下方，金色
       if (s.prog) {
-        g.fillStyle(0x000000, 0.6).fillRect(x0 - 2, 104, w + 4, 6);
-        g.fillStyle(0xffe08a, 1).fillRect(x0, 105, Math.min(w, (w * s.prog.xp) / xpToNext(s.prog.level)), 3);
+        g.fillStyle(0x000000, 0.6).fillRect(B.x - 2, B.xpY - 1, B.w + 4, B.xpH + 2);
+        g.fillStyle(0xffe08a, 1).fillRect(B.x, B.xpY, Math.min(B.w, (B.w * s.prog.xp) / xpToNext(s.prog.level)), B.xpH);
       }
     }
   }
