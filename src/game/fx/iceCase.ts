@@ -68,3 +68,23 @@ export function thawBlink(left: number, now: number): number {
   if (left >= ICE_CASE.thawTicks) return 1;
   return Math.floor(now / 70) % 2 ? 1 : 0.35;
 }
+
+/** 畫得出冰晶的最小畫筆（Phaser.GameObjects.Graphics 符合） */
+export interface IcePen {
+  fillStyle(color: number, alpha?: number): this;
+  fillTriangle(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number): this;
+}
+
+/** 畫腳邊那一簇冰晶：px／footY＝單位腳下的畫面座標、r＝單位半徑（畫面像素）、bl＝thawBlink。冒險地圖與競技場共用 */
+export function drawIceShards(g: IcePen, id: number, px: number, footY: number, r: number, bl: number): void {
+  for (const q of iceShards(id)) {
+    const bx = px + q.x * r;
+    const by = footY + q.y * r;
+    const tx = bx + q.lean * r;
+    const ty = by - q.h * r;
+    const hw = q.hw * r;
+    g.fillStyle(ICE_CASE.shade, 0.8 * bl).fillTriangle(bx - hw, by, bx + hw, by, tx, ty);
+    g.fillStyle(ICE_CASE.body, 0.85 * bl).fillTriangle(bx - hw, by, bx + hw * 0.15, by, tx, ty);
+    g.fillStyle(ICE_CASE.lit, 0.75 * bl).fillTriangle(bx - hw, by, bx - hw * 0.45, by, tx, ty);
+  }
+}

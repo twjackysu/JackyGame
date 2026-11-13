@@ -32,3 +32,22 @@ describe('被冰住的怪的長相（第 199 輪）', () => {
     expect(Math.min(...seen)).toBeGreaterThan(0.2);
   });
 });
+
+describe('冰晶的畫法（冒險地圖與競技場共用）', () => {
+  it('每根冰晶三片三角形，尖端都在腳下的上方；快解凍時整簇變淡', async () => {
+    const { drawIceShards } = await import('../src/game/fx/iceCase');
+    const calls: { a: number; tri: number[] }[] = [];
+    let a = 1;
+    const pen = {
+      fillStyle(_c: number, al = 1) { a = al; return this; },
+      fillTriangle(...t: number[]) { calls.push({ a, tri: t }); return this; },
+    };
+    drawIceShards(pen, 5, 100, 200, 20, 1);
+    expect(calls.length).toBe(iceShards(5).length * 3);
+    for (const c of calls) expect(c.tri[5]!).toBeLessThan(200 + 20 * 0.6);
+    const solid = Math.max(...calls.map((c) => c.a));
+    calls.length = 0;
+    drawIceShards(pen, 5, 100, 200, 20, 0.35);
+    expect(Math.max(...calls.map((c) => c.a))).toBeLessThan(solid * 0.5);
+  });
+});

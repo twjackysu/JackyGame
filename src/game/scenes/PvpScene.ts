@@ -33,6 +33,8 @@ import { heroKey, WEAPON_NAME } from '../weapon';
 import { agoText, recentLook, seasonLines, streakLine } from '../pvpRecent';
 import type { PvpRecentView } from '../../net/views';
 import { DiscLayer } from '../rt/uiDisc';
+import { domeBlink, drawDome } from '../fx/shieldDome';
+import { drawIceShards, ICE_CASE, thawBlink } from '../fx/iceCase';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
 const DIR = 1000;
@@ -62,6 +64,9 @@ export class PvpScene extends Phaser.Scene {
   private ox = 0;
   private oy = 0;
   private g!: Phaser.GameObjects.Graphics;
+  private top!: Phaser.GameObjects.Graphics;
+  /** 畫不畫狀態（護盾罩、冰凍、暈眩）；false＝以前的樣子，拍對照圖用（第 199 輪） */
+  statusFx = true;
   private hud!: Phaser.GameObjects.Graphics;
   private discs!: DiscLayer;
   private hpBars: [Phaser.GameObjects.Image, Phaser.GameObjects.Image][] = [];
@@ -133,6 +138,7 @@ export class PvpScene extends Phaser.Scene {
     this.oy = 150 + Math.round(TALL / 2);
     this.drawArena();
     this.g = this.add.graphics().setDepth(20);
+    this.top = this.add.graphics().setDepth(46); // 立繪上面、HUD 下面：護盾罩、冰晶、暈眩星（第 199 輪）
     this.danger = dangerVignette(this);
     this.heroHitAt = -1e9;
     this.hud = this.add.graphics().setDepth(60);
@@ -452,6 +458,7 @@ export class PvpScene extends Phaser.Scene {
 
   private draw(): void {
     const g = this.g.clear();
+    const top = this.top.clear();
     const now = this.time.now;
     const s = this.s;
     if (this.danger) {
@@ -484,6 +491,7 @@ export class PvpScene extends Phaser.Scene {
       if (u.dead) {
         sp.setAlpha(Math.max(0, sp.alpha - 0.03)).setAngle(u.pid ? -80 : 80);
         (sp.getData('rim') as Phaser.GameObjects.Image | undefined)?.setVisible(false);
+        (sp.getData('frost') as Phaser.GameObjects.Image | undefined)?.setVisible(false);
         nm.setVisible(false);
         return;
       }
@@ -512,17 +520,37 @@ export class PvpScene extends Phaser.Scene {
       sp.setPosition(px + kx, py + r * 0.15 - bob + ky).setScale(base).setAngle(lean).setDepth(30 + pos.y / 100);
       if (u.facingX !== 0) sp.setFlipX(u.facingX < 0);
       sp.setAlpha(u.invulnUntil >= s.tick ? 0.5 : 1);
+      // 第 199 輪：競技場以前完全不畫狀態——被冰住／暈住只會「突然不能動」，護盾也看不到。和冒險地圖共用同一套畫法（fx/iceCase、fx/shieldDome）
+      const frz = this.statusFx ? u.statuses.find((q) => q.id === 'freeze' && q.until > s.tick) : undefined;
       if ((this.flashUntil.get(u.id) ?? 0) > now) sp.setTintFill(0xffffff);
+      else if (frz) sp.setTint(ICE_CASE.tint);
       else if (u.pid) sp.setTint(0xffa8a0);
       else sp.clearTint();
       (sp.getData('rim') as Phaser.GameObjects.Image | undefined)?.setPosition(sp.x, sp.y).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setAngle(sp.angle).setDepth(sp.depth - 0.01).setAlpha(sp.alpha * RIM_ALPHA).setVisible(true);
-      const top = sp.y - sp.displayHeight * 0.95;
+      let frost = sp.getData('frost') as Phaser.GameObjects.Image | undefined;
+      if (frz && !frost?.active) {
+        frost = this.add.image(0, 0, sp.texture.key, sp.frame.name).setOrigin(sp.originX, sp.originY).setTintFill(ICE_CASE.frost);
+        sp.setData('frost', frost);
+      }
+      if (frost?.active) frost.setPosition(sp.x, sp.y).setScale(sp.scaleX, sp.scaleY).setFlipX(sp.flipX).setAngle(sp.angle).setDepth(sp.depth + 0.004).setAlpha(frz ? sp.alpha * ICE_CASE.frostA * thawBlink(frz.until - s.tick, now) : 0).setVisible(!!frz);
+      if (frz) drawIceShards(top, u.id, px, py + r * 0.1, r, thawBlink(frz.until - s.tick, now));
+      const headY = sp.y - sp.displayHeight * 0.95;
+      if (this.statusFx && !frz && u.statuses.some((q) => q.id === 'stun' && q.until > s.tick)) {
+        // 暈眩：頭上繞圈的三顆黃星（和冒險地圖一樣）；畫在血條與名字上面一點
+        for (let k = 0; k < 3; k++) {
+          const an = now / 200 + (k * Math.PI * 2) / 3;
+          top.fillStyle(0xffe066, 1).fillCircle(px + Math.cos(an) * r * 0.8, headY - 22 + Math.sin(an) * 5, 5);
+        }
+      }
+      const sh = this.statusFx ? u.statuses.find((q) => q.id === 'shield' && q.until > s.tick && q.value > 0) : undefined;
+      if (sh) drawDome(top, px, py, r, u.pid ? 0xff9a8a : 0x9fd0ff, Math.min(1, sh.value / Math.max(1, u.maxHp * 0.14)), domeBlink(sh.until - s.tick, now));
+      const top0 = headY;
       // 頭上血條
       const bw = 70;
-      g.fillStyle(0x000000, 0.7).fillRect(px - bw / 2 - 2, top - 10, bw + 4, 10);
-      g.fillStyle(0xffffff, 0.9).fillRect(px - bw / 2, top - 8, bw * this.ghostHp(u.id, Math.max(0, u.hp) / u.maxHp), 6);
-      g.fillStyle(col, 1).fillRect(px - bw / 2, top - 8, (bw * Math.max(0, u.hp)) / u.maxHp, 6);
-      nm.setPosition(px, top - 26).setAlpha(nameA);
+      g.fillStyle(0x000000, 0.7).fillRect(px - bw / 2 - 2, top0 - 10, bw + 4, 10);
+      g.fillStyle(0xffffff, 0.9).fillRect(px - bw / 2, top0 - 8, bw * this.ghostHp(u.id, Math.max(0, u.hp) / u.maxHp), 6);
+      g.fillStyle(col, 1).fillRect(px - bw / 2, top0 - 8, (bw * Math.max(0, u.hp)) / u.maxHp, 6);
+      nm.setPosition(px, top0 - 26).setAlpha(nameA);
     });
     this.drawHud();
     const bg = this.statusBg.clear();

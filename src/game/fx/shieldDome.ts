@@ -34,3 +34,30 @@ export function domeLook(full: number, blink: number): DomeLook {
     shine: { a0: -2.55, a1: -1.85, k: 0.78, w: 5, a: 0.9 * s },
   };
 }
+
+/** 畫得出罩子的最小畫筆（Phaser.GameObjects.Graphics 符合；這個檔不 import Phaser，測試才跑得動） */
+export interface DomePen {
+  fillStyle(color: number, alpha?: number): this;
+  lineStyle(width: number, color: number, alpha?: number): this;
+  fillCircle(x: number, y: number, r: number): this;
+  strokeCircle(x: number, y: number, r: number): this;
+  beginPath(): this;
+  arc(x: number, y: number, r: number, a0: number, a1: number): this;
+  strokePath(): this;
+}
+
+/** 畫一顆護盾罩：px／footY＝單位腳下的畫面座標、r＝單位半徑（畫面像素）。冒險地圖與競技場共用（第 199 輪） */
+export function drawDome(g: DomePen, px: number, footY: number, r: number, col: number, full: number, blink: number): void {
+  const dl = domeLook(full, blink);
+  const R1 = r * DOME_SIZE.r;
+  const cy1 = footY - r * DOME_SIZE.up;
+  g.fillStyle(col, dl.fillA).fillCircle(px, cy1, R1);
+  for (const q of dl.rim) g.lineStyle(q.w, col, q.a).strokeCircle(px, cy1, R1 - q.inset);
+  g.lineStyle(dl.shine.w, 0xffffff, dl.shine.a).beginPath().arc(px, cy1, R1 * dl.shine.k, dl.shine.a0, dl.shine.a1).strokePath();
+  g.fillStyle(0xffffff, dl.shine.a).fillCircle(px + Math.cos(dl.shine.a1 + 0.3) * R1 * dl.shine.k, cy1 + Math.sin(dl.shine.a1 + 0.3) * R1 * dl.shine.k, 2.5);
+}
+
+/** 護盾快消失時的閃爍係數（剩不到 1 秒開始閃） */
+export function domeBlink(leftTicks: number, now: number): number {
+  return leftTicks < 30 ? 0.5 + 0.5 * Math.sin(now / 45) : 1;
+}
