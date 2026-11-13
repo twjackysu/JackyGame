@@ -24,6 +24,12 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 194 輪注意（目標字條收起來、主角分件補看）**：
+- 位置：`rt/goalFade.ts`（`GOAL_FADE.vetMs` 8 秒、`firstKillMs` 25 秒）；`RtBattleScene` 的 `goalVet`（進圖時是不是老玩家，第一次算 `goalBefore` 時定下來）、`goalShown`／`goalShownAt`（字換了重算）、`goalFire`（走回營火再亮）；`setVisible(!boss && alpha > 0)`——收起來時 `goalBounds()` 回 null，箭頭會用那一塊。
+- `play.mjs` 會把時間跳到 100 秒，老玩家存檔拍不到字條；要拍就 `EVAL` 裡設 `goalShownAt = time.now`。
+- 主角分件：`node scripts/shot-walk-fight.mjs sword|bow|staff [地圖] [tag]`，`PLAN=attack,circle:skill,hit,dodge`（一次一兩項，多了會超時；`dead` 等不到）。劍看過沒脫節；弓／杖、省電、倒下還沒看。
+- 第 192 輪候選還剩：②底部自動技能那排冷卻中分不出哪顆是哪招 ③右上方向箭頭擠在祝福圖示下面（字條收起來後有改善，沒重看）④地區名稱細字疊在怪身上 ⑤飄走的數字穿過還在累計的。
+
 **第 193 輪注意（門上的字、360 寬箭頭）**：
 - 世界裡的字不要進底部那一排：`arrowRules.aboveBottomRow`（`BOTTOM_ROW_H` 92）；目前只有門上的字用。大箭頭對目標字條的邊界 `goalMargin`；排位置的主體還在 `rt/offscreenArrows.ts` 一條一條接。
 - **沒看過**：省電、左手模式、技能切回手動時門上字的位置；荊棘谷的回程門。
