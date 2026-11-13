@@ -347,6 +347,7 @@ export class RtBattleScene extends Phaser.Scene {
   private slowMs = 0;
   /** 第 200 輪：緩速的腳邊記號（false＝以前沒有記號，拍對照圖用） */
   slowMark = true;
+  poisonDot = false;
   /** 鏡頭（世界座標，鏡頭中心） */
   private camX = 0;
   private drawnOnce = false;
@@ -5164,7 +5165,11 @@ export class RtBattleScene extends Phaser.Scene {
           top.fillStyle(0xffe066, 1).fillCircle(px + Math.cos(an) * r * 0.8, headY - 8 + Math.sin(an) * 5, 5);
         }
       }
-      if (isP && x.statuses.some((q) => q.id === 'poison' && q.until > s.tick)) top.fillStyle(0xb060ff, 1).fillCircle(px + r, headY + 10, 7);
+      // 第 200 輪：主角中毒以前是頭旁一顆紫色圓點（看不出是什麼），改成和怪一樣往上冒的綠泡泡（poisonDot=true 回舊畫法）
+      if (isP && x.statuses.some((q) => q.id === 'poison' && q.until > s.tick)) {
+        if (this.poisonDot) top.fillStyle(0xb060ff, 1).fillCircle(px + r, headY + 10, 7);
+        else drawPoison(top, x.id, px, py, r * 1.3, Math.max(r, py - headY), now);
+      }
       // 變化二的狀態（D-121）：冰凍＝淡藍冰殼、破甲＝紅色裂盾、虛弱＝灰紫向下箭頭
       if (!isP) {
         // 長弓變化二（D-149）：灼燒＝身上竄著小火苗、中毒＝往上冒的綠色泡泡
