@@ -72,6 +72,7 @@ import { BOUNTY_LABEL, bountyBoardText, stageEnemyIds } from '../rt/BountyBoard'
 import type { BountyDoneView, LootDropView } from '../../net/views';
 import { EMPTY_SNAP, FURY_UNLOCK, cleanBag, fmtSec, furyUnlocked, loadRecord, nightUnlocked, mergeRun, recordBoss, saveRecord, spend, mapOpen, nextGoal, levelTip, bossKillsOf, frontierAfter, returnIntro, nightIntro, walletOf, type RtRecord, type RunSnap } from '../rtRecord';
 import { bossSlainFlashPeak, levelUpFlash, levelUpPillar } from '../fx/levelUp';
+import { showShieldText } from '../fx/shieldText';
 import { TITLE_FONT, UI_FONT, ceilingZone, fxOffTop, setFxCeiling, bannerBusy, bigText, captionStyle, clearBattleTexts, dangerVignette, floatNumber, hitSparks, pinBanner, reserveBanner, setBannerAvoid, shockRing, softFlash, sparks, ultFlash } from '../fx/feel';
 import { comboAdd, comboContinues, comboSize, comboText, type Combo } from '../fx/comboNumber';
 import { playDeath } from '../fx/deathFx';
@@ -460,6 +461,8 @@ export class RtBattleScene extends Phaser.Scene {
   private danger!: Phaser.GameObjects.Image;
   private heroHitAt = -1e9;
   private heroHitBig = false;
+  /** 這次進地圖架過幾次護盾（「護盾 +N」只說前幾次，D-396） */
+  private shieldTexts = 0;
   private lowTipAt = -Infinity;
   private dustBase = 0;
   private goalAt = 0;
@@ -694,6 +697,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.introText = null;
     this.introStr = '';
     this.streakHinted = false;
+    this.shieldTexts = 0;
     const p0 = playerOf(this.s);
     this.camX = p0.x;
     this.camY = p0.y;
@@ -3554,7 +3558,7 @@ export class RtBattleScene extends Phaser.Scene {
           if (this.s.weapon === 'staff') this.ffx.hexShield(d.x, d.y);
           shockRing(this, this.sx(d.x), this.sy(d.y) - 30, col, 95, 320, 7);
           sparks(this, this.sx(d.x), this.sy(d.y) - 30, 10, 'spark', col, 380);
-          floatNumber(this, this.sx(d.x), this.sy(d.y) - 96, `護盾 +${e.amount}`, { color: this.s.weapon === 'staff' ? '#bfe0ff' : this.s.weapon === 'bow' ? '#b8ffd8' : '#ffe08a', size: 22 });
+          if (showShieldText(this.shieldTexts++)) floatNumber(this, this.sx(d.x), this.sy(d.y) - 96, `護盾 +${e.amount}`, { color: this.s.weapon === 'staff' ? '#bfe0ff' : this.s.weapon === 'bow' ? '#b8ffd8' : '#ffe08a', size: 22 });
         }
       } else if (e.type === 'block') {
         SFX.parry();
