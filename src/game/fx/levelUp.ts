@@ -33,7 +33,8 @@ export function pillarAlong(v: number): number {
   return v >= 1 ? 0 : (1 - v) * (1 - v * 0.5);
 }
 
-function pillarKey(scene: Phaser.Scene): string {
+/** 柔光光柱的貼圖（白色；用的人自己上色）。熔岩口的火柱也用這一張（第 195 輪） */
+export function softPillarKey(scene: Phaser.Scene): string {
   const key = 'fx_level_pillar';
   if (!scene.textures.exists(key)) {
     const W = 64;
@@ -57,7 +58,8 @@ function pillarKey(scene: Phaser.Scene): string {
   return key;
 }
 
-function glowKey(scene: Phaser.Scene): string {
+/** 一團圓形柔光的貼圖（白色） */
+export function softGlowKey(scene: Phaser.Scene): string {
   const key = 'fx_level_glow';
   if (!scene.textures.exists(key)) {
     const S = 96;
@@ -95,7 +97,7 @@ export function levelUpPillar(scene: Phaser.Scene, x: number, y: number, k: numb
   const c = scene.add.container(x, y).setDepth(44);
   const layers = pillarLayers(k, low);
   for (const l of layers) {
-    const im = scene.add.image(0, 10, pillarKey(scene)).setOrigin(0.5, 1).setDisplaySize(l.w * 0.35, l.h * 0.5).setTint(l.color).setAlpha(l.alpha).setBlendMode(Phaser.BlendModes.ADD);
+    const im = scene.add.image(0, 10, softPillarKey(scene)).setOrigin(0.5, 1).setDisplaySize(l.w * 0.35, l.h * 0.5).setTint(l.color).setAlpha(l.alpha).setBlendMode(Phaser.BlendModes.ADD);
     c.add(im);
     // 先竄高（0.14 秒），再收細淡掉
     scene.tweens.add({ targets: im, displayWidth: l.w, displayHeight: l.h, duration: 140, ease: 'Cubic.easeOut' });
@@ -103,7 +105,7 @@ export function levelUpPillar(scene: Phaser.Scene, x: number, y: number, k: numb
   }
   // 腳下一灘光（壓扁的柔光）
   const s = Math.max(0.7, Math.min(1.4, k));
-  const pool = scene.add.image(0, 0, glowKey(scene)).setDisplaySize(120 * s, 50 * s).setTint(0xffd27a).setAlpha(0.6).setBlendMode(Phaser.BlendModes.ADD);
+  const pool = scene.add.image(0, 0, softGlowKey(scene)).setDisplaySize(120 * s, 50 * s).setTint(0xffd27a).setAlpha(0.6).setBlendMode(Phaser.BlendModes.ADD);
   c.add(pool);
   scene.tweens.add({ targets: pool, displayWidth: 380 * s, displayHeight: 150 * s, alpha: 0, duration: 800, ease: 'Cubic.easeOut' });
   // 往上飄的光點（省電畫質少一半）
@@ -111,7 +113,7 @@ export function levelUpPillar(scene: Phaser.Scene, x: number, y: number, k: numb
   for (let i = 0; i < n; i++) {
     const dx = (Math.random() - 0.5) * 110 * s;
     const sz = (10 + Math.random() * 14) * s;
-    const m = scene.add.image(dx, -Math.random() * 60 * s, glowKey(scene)).setDisplaySize(sz, sz).setTint(i % 3 === 0 ? 0xffffff : 0xffe08a).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
+    const m = scene.add.image(dx, -Math.random() * 60 * s, softGlowKey(scene)).setDisplaySize(sz, sz).setTint(i % 3 === 0 ? 0xffffff : 0xffe08a).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
     c.add(m);
     const delay = Math.random() * 350;
     scene.tweens.add({ targets: m, alpha: { from: 0, to: 1 }, delay, duration: 120 });

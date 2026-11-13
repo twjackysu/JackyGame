@@ -3789,7 +3789,7 @@ export class RtBattleScene extends Phaser.Scene {
         if (seen && Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14 && this.starMap) {
           // 墜星落地（D-138）：白色閃光＋藍色衝擊環＋碎星四濺
           this.ffx.starImpact(vx, vy, e.r * this.k);
-        } else if (seen && Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) ventEruptCue(this, vx, vy, e.r * this.k);
+        } else if (seen && Math.hypot(pl.x - e.x, pl.y - e.y) < UNIT * 14) ventEruptCue(this, vx, vy, e.r * this.k, VIEW_TOP);
         if (near) {
           this.cameras.main.shake(110, 0.004);
           SFX.hitHeavy();
