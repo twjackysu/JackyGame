@@ -22,6 +22,14 @@
 | P1-c3 | 五欄全自動（`AUTO_SKILL_VERSION` 4） | 測試 | **verified**（第 162 輪；`tests/settings-auto-migrate.test.ts`、`docs/screenshots/p1c2-all-auto.jpg`） |
 | P1-d | 戰鬥畫面收掉技能鍵區塊 | 390／360 寬截圖；手動的鍵還按得到 | **verified**（第 160 輪；`docs/screenshots/p1d-compact-skill-row.jpg`）：自動的技能縮成底部一排小冷卻圖示、切回手動才是大鍵、閃避放大。**還沒做**：操作設定面板裡的說明字沒改（調位置時照舊顯示七顆大鍵）、營火捷徑列仍照舊的大鍵位置避讓（保守，沒有重疊）、小圖示只有兩個字（要不要畫圖示等 Jacky 看過）。位移欄還是手動，所以現在右下還有一顆大鍵（衝鋒／後躍射擊／閃現），P1-c2 上了就沒有 |
 
+**第 192 輪注意（頂端血條 D-390）**：
+- 位置：`rt/hudBars.ts`（`HUD_BAR` 座標、`hpColor` 門檻、`lagStep` 殘影速度、`dangerPulse`）；`hudText.ts` 的 `hudSide`／`hudHp`；`RtBattleScene` 建立處（`hudLv`、`hudHpTxt` depth 50.5＝要在 `ui` 畫筆上面）與 `draw` 最後一段。**標題列（y<110）現在左邊是 Lv＋三條、右邊兩行字，中間沒有空位了**；要再加東西先看 360 寬。
+- 會飄進標題列的東西：落點在 `VIEW_TOP` 以上的墜星／噴發不放特效（`seen`）；「!」要在 `VIEW_TOP+95` 以下才出。之後看到別的東西蓋在標題列上，照這樣在來源擋，不要去調 depth。
+- 拍低血：`HP=0.2 LOWFX=1 LEVEL=8 node scripts/play.mjs sword thornvale d 5 6 360 640`（很慢，五張約兩分鐘；放背景跑時要等它寫完再組圖）。
+- 還沒做、看過覺得還礙眼的（依序）：①老玩家的目標字條常駐兩行長字（「…可以再挑戰／▶ 刷深夜的高原、把裝備強化到 +10、挑戰最快討伐」），蓋住畫面上緣的怪——可以考慮幾秒後收成一行或淡掉 ②底部自動技能那排冷卻中只剩數字，分不出哪顆是哪招（Jacky 還沒回要不要畫圖示）③右上方向箭頭擠在祝福圖示下面 ④地區名稱細字疊在怪身上 ⑤飄走的數字穿過還在累計的。
+- 上一輪留下的仍在：行商「買」、拍賣所「買到」、強化失敗沒逐幀看；光門換圖、競技場勝負、「第一章・完」的 `camera.flash`。
+- 再來：先看 Jacky 對蓋著的牌、數字合併、字幕條、血條的回饋。
+
 **第 191 輪注意（燼紅裂谷岩壁 D-389、結局最後一頁）**：
 - 位置：`rt/emberCrack.ts`（比例、長度；`ground.ts` 照著畫，地面是分塊材質、只畫一次）；`ui/finale.ts` 第 5 段（字條 `finale.unique`；檔案裡 `t` 常被拿來當 Text 變數名，i18n 用 `tr`）。
 - 拍通關演出：`LEVEL=14 EVAL='(()=>{if(!window.__f){window.__f=1;window.KEEP_MENU=1;sc().showFinale();}return 1})()' node scripts/play.mjs sword emberrift fin 30 2`（每 2 秒一張）；直接跳到最後一頁：EVAL 裡 `ff(1.6)` 後對 `sc().menu.list[0]` 連 `emit("pointerdown")`＋`ff(0.5)` 十二次。假存檔的旅程紀錄會顯示「首次討伐 —」，是拍法的副作用。
