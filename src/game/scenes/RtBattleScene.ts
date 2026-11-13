@@ -82,6 +82,7 @@ import { areaLook, type AreaLook } from '../fx/areaLook';
 import { drawSoftLane, drawSoftRound, drawSoftSector } from '../fx/areaDraw';
 import { HERO_PARTS } from '../fx/heroParts.gen';
 import { bodyPose, easeAmt, footfall, footPose, HERO_WALK } from '../fx/heroWalk';
+import { goalAlpha } from '../rt/goalFade';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
 import { coversHero, heroGhostAlpha, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
@@ -465,6 +466,11 @@ export class RtBattleScene extends Phaser.Scene {
   private gateAhead = '';
   /** 這張圖以前就打倒過 Boss（舊玩家回來）：目標字條改寫「下一個目標」，不再寫「打倒○○」（第 58 輪） */
   private goalBefore = false;
+  /** 目標字條的收起（rt/goalFade）：進圖時是不是老玩家、目前這段字是什麼、從什麼時候開始顯示 */
+  private goalVet: boolean | null = null;
+  private goalShown = '';
+  private goalShownAt = 0;
+  private goalFire = true;
   /** 霜旋（D-121）的冰晶與結霜圈畫在這層 */
   private frostG!: Phaser.GameObjects.Graphics;
   private stormLo!: Phaser.GameObjects.Graphics;
@@ -757,6 +763,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.refreshBounty();
     this.ptsLeft = this.tracked ? this.skillPointsLeft() : 0;
     this.goalDone = false; this.goalAt = 0; this.goalNext = ''; this.goalBefore = false;
+    this.goalVet = null; this.goalShown = ''; this.goalShownAt = 0; this.goalFire = true;
     this.coinBase = this.tracked ? coinOf(loadRecord(this.stageId)) : -1;
     this.leftFire = false;
     this.fireHinted = false;
@@ -5653,6 +5660,7 @@ export class RtBattleScene extends Phaser.Scene {
         this.goalAt = this.time.now;
         const rec0 = loadRecord(this.stageId);
         this.goalBefore = (rec0.bossKills ?? 0) > 0;
+        if (this.goalVet === null) this.goalVet = this.goalBefore;
         this.goalNext = nextGoal(this.stageId, loadRecord(this.stageId), s.prog?.level ?? 1, bossKillsOf(worldMap(this.stageId)?.next ?? ''), frontierAfter(this.stageId));
       }
       this.goalDone = done;
@@ -5662,9 +5670,15 @@ export class RtBattleScene extends Phaser.Scene {
       this.gateAhead = fwd ? worldMap(fwd.to)?.name ?? '' : '';
       this.goal.setText(bossDef ? (done ? `✔ ${bossDef.name} 已討伐${this.gateWaits ? '' : big && this.goalNext ? `\n▶ ${this.goalNext}` : '・離開巢穴可再挑戰'}` : this.goalBefore && this.goalNext ? `${this.gateAhead ? `光門通往${this.gateAhead}・` : ''}${bossDef.name}可以再挑戰\n▶ ${this.goalNext}` : this.gateAhead ? `目標：打倒${bossDef.name}・光門通往${this.gateAhead}` : `目標：往北，打倒${bossDef.name}`) : '');
       textColor(this.goal, done ? '#9fe8a0' : '#ffd27a');
+      // 老玩家的兩行長字講幾秒就收（rt/goalFade）；字換了重新亮
+      if (this.goal.text !== this.goalShown) { this.goalShown = this.goal.text; this.goalShownAt = this.time.now; }
+      this.goal.setAlpha(goalAlpha({ veteran: !!this.goalVet, done, ageMs: this.time.now - this.goalShownAt }));
     }
     const fires = STAGES[this.stageId]?.campfires ?? [];
     const atFire = fires.some((c) => Math.hypot(c.x - p.x, c.y - p.y) <= CAMPFIRE_RULES.safeUnits * UNIT);
+    // 走回營火＝在想下一步的時候：收起來的目標字條再亮一次
+    if (atFire && !this.goalFire) this.goalShownAt = this.time.now;
+    this.goalFire = atFire;
     // 第 97 輪（D-242）：老玩家低血走回營火的路上字條會一直閃 30 秒 → 每次低血只講 8 秒（新玩家照舊一直提醒）
     const lowHp = !atFire && p.hp * 2 < p.maxHp;
     if (!lowHp) this.lowHpAt = 0;
@@ -5700,7 +5714,7 @@ export class RtBattleScene extends Phaser.Scene {
     // Boss 大血條（畫面上方）
     // 地圖怪關卡：Boss 交戰中才顯示（在遠處待機時不擋畫面）
     const boss = enemiesOf(s).find((e) => ENEMIES[e.defId]?.boss && (!STAGES[this.stageId]?.mapAi || e.mode === 'combat'));
-    this.goal?.setVisible(!boss);
+    this.goal?.setVisible(!boss && this.goal.alpha > 0);
     if (this.bossTxt) {
       this.bossTxt.setVisible(!!boss && !this.menu?.active);
       // 第 73 輪：等級不夠的建議等級從攻略提示（三行，360×640 疊上別的提示會蓋住主角）搬到 Boss 血條字的後面，打的時候一直看得到
