@@ -229,6 +229,16 @@ export function openBlessList(scene: Phaser.Scene, have: readonly EffectDef[], m
     g.lineStyle(3, L.color, 0.9).strokeRoundedRect(cx - 320, y - ROW / 2 + 5, 640, ROW - 10, 12);
     drawEffectIcon(g, cx - 262, y, 34, d.element, false, d.glyph);
     root.add(scene.add.text(cx - 206, y - 22, d.name, { fontFamily: TITLE_FONT, fontSize: '30px', color: L.css, stroke: '#140a04', strokeThickness: 4 }).setOrigin(0, 0.5));
+    if (BLESS_CARD.on) {
+      // 名字那一行的右邊：觸發方式的小標；和身上另一個祝福（或獨特效果裝備）會互相帶動時，前面寫出是哪一個
+      const chip = scene.add.text(cx + 306, y - 24, t(`bless.trig.${blessTrigger(d)}`), { fontFamily: UI_FONT, fontSize: '18px', fontStyle: '700', color: L.css }).setOrigin(1, 0.5).setPadding(10, 3, 10, 3);
+      const cb = chip.getBounds();
+      g.fillStyle(0x0c0806, 0.85).fillRoundedRect(cb.x, cb.y, cb.width, cb.height, cb.height / 2);
+      g.lineStyle(2, L.color, 0.8).strokeRoundedRect(cb.x, cb.y, cb.width, cb.height, cb.height / 2);
+      root.add(chip);
+      const syn = blessSynergy(d, [...have, ...gearFx]);
+      if (syn) root.add(scene.add.text(cb.x - 12, y - 24, `✦ ${t('bless.syn.short', { name: syn.with.name })}`, { fontFamily: UI_FONT, fontSize: '19px', fontStyle: '700', color: '#ffe08a' }).setOrigin(1, 0.5));
+    }
     root.add(scene.add.text(cx - 206, y + 20, d.desc, { fontFamily: UI_FONT, fontSize: d.desc.length > 26 ? '18px' : '21px', color: '#f4ecd8', wordWrap: { width: 500, useAdvancedWrap: true } }).setOrigin(0, 0.5));
   });
   const foot = `${full ? t('bless.listFull') : t('bless.listNext', { n: Math.max(0, need - meter) })}\n${t('bless.listRule')}${gearFx.length ? `\n${t('unique.listLine', { names: gearFx.map((d) => d.name).join('、') })}` : ''}`;

@@ -61,6 +61,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   'bless.trig.cooldown': 'Cooldown',
   'bless.trig.boost': 'Boost',
   'bless.trig.variant': 'Try-out',
+  'bless.syn.short': 'Combo: {name}',
   'bless.syn.pre': 'Combo',
   'bless.syn.crit': "{name}'s sure crit sets it off",
   'bless.syn.crit.lead': 'Its sure crit sets off {name}',
