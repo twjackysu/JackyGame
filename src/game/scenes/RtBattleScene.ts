@@ -90,6 +90,7 @@ import { HERO_PARTS } from '../fx/heroParts.gen';
 import { bodyPose, easeAmt, footfall, footPose, HERO_WALK } from '../fx/heroWalk';
 import { goalAlpha } from '../rt/goalFade';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
+import { introY } from '../fx/introLane';
 import { BAR_OVER_HERO_ALPHA, barOverHero, coversHero, crowdCoversHero, crowdStep, ghostAlpha, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
@@ -2239,7 +2240,7 @@ export class RtBattleScene extends Phaser.Scene {
         return;
       }
       this.introStr = intro;
-      this.time.delayedCall(400, () => (this.introText = bigText(this, GAME_WIDTH / 2, 760 - Math.max(0, nl - 2) * 14, intro, '#ffd27a', nl >= 4 ? 28 : 30, tipMs(intro, 2600))).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
+      this.time.delayedCall(400, () => (this.introText = bigText(this, GAME_WIDTH / 2, this.introLow ? introY(TIP_Y, nl) : 760 - Math.max(0, nl - 2) * 14, intro, '#ffd27a', nl >= 4 ? 28 : 30, tipMs(intro, 2600))).once('destroy', () => { if (run === this.openRun && this.scene.isActive()) this.time.delayedCall(200, after); }));
       this.time.delayedCall(6000, after);
     } else if (!this.bot) this.showHint();
   }
@@ -3986,6 +3987,8 @@ export class RtBattleScene extends Phaser.Scene {
   private occDepth = 0;
   /** 這一幀有沒有小怪蓋住主角（第 202 輪）、蓋住的進度（0～1，慢慢進出）、上一次蓋住時的深度（淡出時沿用） */
   private crowdCover = false;
+  /** 進地圖的開場說明排到主角下方那條字幕帶（TIP_Y；第 202 輪），不再貼在主角腳邊；false＝照舊（760） */
+  introLow = true;
   /** 小怪血條壓到主角頭／胸口時畫淡（第 202 輪）；false＝照舊 */
   barFade = true;
   private crowdT = 0;

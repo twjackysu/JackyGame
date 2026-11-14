@@ -1,12 +1,12 @@
 // 自然打鬥的整頁巡看（第 202 輪）：主角追最近的怪，每隔幾幀截一張整頁，用來挑「最礙眼的地方」。先 `npx vite --port 5173`。
-// 用法：node scripts/shot-survey.mjs sword|bow|staff [地圖] [tag]   環境變數 W=390、LEVEL=14、N=8（張數）、GAP=45（每張隔幾幀）、WARM=240、OUT=screenshots、LOWFX=1
+// 用法：node scripts/shot-survey.mjs sword|bow|staff [地圖] [tag]   環境變數 W=390、H=844、LEVEL=14、N=8（張數）、GAP=45（每張隔幾幀）、WARM=240、OUT=screenshots、LOWFX=1、INTRO_OFF=1（開場說明回舊位置）
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 const OUT = process.env.OUT || 'screenshots';
 mkdirSync(OUT, { recursive: true });
 const [weapon = 'sword', stage = 'mistwood', tag = 'sv'] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const pg = await b.newPage({ viewport: { width: +(process.env.W || 390), height: 844 }, deviceScaleFactor: 2 });
+const pg = await b.newPage({ viewport: { width: +(process.env.W || 390), height: +(process.env.H || 844) }, deviceScaleFactor: 2 });
 pg.on('pageerror', (e) => console.log('PAGEERR', e.message));
 await pg.goto('http://localhost:5173/?debug');
 await pg.evaluate(([w, low, lv]) => {
@@ -17,7 +17,7 @@ await pg.evaluate(([w, low, lv]) => {
 }, [weapon, !!process.env.LOWFX, +(process.env.LEVEL || 14)]);
 await pg.reload();
 await pg.waitForFunction(() => window.__game?.scene?.getScene('Title')?.sys?.isActive(), null, { timeout: 60000 });
-await pg.evaluate((stage) => __game.scene.getScene('Title').scene.start('RtBattle', { stage, bot: '' }), stage);
+await pg.evaluate(([stage, off]) => { if (off) __game.scene.getScene('RtBattle').introLow = false; __game.scene.getScene('Title').scene.start('RtBattle', { stage, bot: '' }); }, [stage, !!process.env.INTRO_OFF]);
 await pg.waitForTimeout(3500);
 await pg.evaluate(() => {
   window.sc = () => __game.scene.getScene('RtBattle');
