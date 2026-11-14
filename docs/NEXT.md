@@ -24,10 +24,15 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 201 輪注意（法杖護盾晶片 D-402、受傷紅字 D-403）**：
+- `fx/hexPlates.ts`（`HEX_PLATES`：圈的大小 `ring`、晶片大小 `plate`、起始比例 `from`）；畫在 `fieldFx.hexShield`，開關 `sc().ffx.plates`。`fx/hurtLane.ts`（`HURT_LANE.side`／`up`），開關 `RtBattleScene.hurtLane`。
+- 拍法：護盾＝`UNTIL='(()=>{const s=sc().s;return s.tick>300&&s.events.slice(-30).some(e=>e.type==="guard"&&e.tick>=s.tick-1)&&s.units.some(u=>u.side==="enemy"&&!u.dead&&Math.hypot(u.x-s.units[0].x,u.y-s.units[0].y)<200)})()' LEVEL=14 DSF=2 node scripts/play.mjs staff emberrift tag 16 90`；紅字＝UNTIL 等 `e.type==="damage"&&e.dst===s.units[0].id`，**開關寫在 UNTIL 最前面**（`sc().hurtLane=false;`）跑兩次，同一條指令兩次的畫面一樣，可以直接上下對照。主角在 `(W/2, H/2)` 附近。
+- **還沒做（依序）**：①「護盾 +N」在頭頂正上方，怪站在主角上方時壓到怪 ②選定祝福的大字（「祝福：斬首」）壓在主角上方的怪身上 ③緩速箭頭在紫色的怪身上不突出 ④冰霜新星出手那圈粗白環（兩輪都沒拍到；要用 `REC` 選到冰的打法）⑤競技場的受傷數字沒走身邊 ⑥第 197、198 輪列的其餘候選。
+
 **第 200 輪注意（狀態記號 D-401）**：
 - `fx/statusMarks.ts`（`STATUS_MARK` 顏色與緩速箭頭的速度／下沉量／支數；`drawSlow` 裡的 `w` 是箭頭大小）。開關：`RtBattleScene.slowMark`、`poisonDot`；`PvpScene.dotFx`。競技場的 `r` 是碰撞半徑（約 18px），記號用 `mr`（立繪寬 ×0.46）排。
 - 拍法：競技場＝`INJECT=slow STATUS=slow NSTAT=1 PAIR='sc().dotFx=false; 1' DSF=3 node scripts/shot-pvp.mjs tag`（`INJECT` 可以是 burn／poison／slow／break／weak；頁面裡 `console.log('DBG …')` 會印出來）；冒險地圖＝`play.mjs` 的 `UNTIL` 等怪身上有 `slow`、`PAIR='sc().slowMark=false; draw=true; __game.step(T,0); 1'`。**PAIR 改的開關不會自己復原**，第二張起兩邊都是舊畫法——一次只拍一張（N=1）。
-- **還沒做（依序）**：①法杖放護盾時的六角晶體＋圓把主角整個蓋住十幾幀（`LEVEL=14 … staff emberrift` 等 `cast` `whirlwind` 後連拍 20 幀看得到）②杖貼身時主角頭上受傷紅字＋打怪白字＋護盾字疊成一團 ③冰霜新星出手那圈粗白環（這輪沒拍到）④緩速箭頭在紫色的怪身上不突出（可以加深色底或換亮一點）⑤第 197、198 輪列的其餘候選。
+- **還沒做**：①②（第 201 輪做了，D-402／D-403）③冰霜新星出手那圈粗白環（這輪沒拍到）④緩速箭頭在紫色的怪身上不突出（可以加深色底或換亮一點）⑤第 197、198 輪列的其餘候選。
 
 **第 199 輪注意（冰凍 D-399、競技場狀態 D-400）**：
 - 冰凍：`fx/iceCase.ts`（`ICE_CASE` 顏色與霜的濃度 `frostA`、`iceShards` 幾根／多高、`thawBlink`、`drawIceShards`）；霜白剪影是掛在怪 sprite 上的另一張圖（`sp.getData('frost')`，`killSprite` 會收掉）。`RtBattleScene.iceCase=false` 回舊畫法。Boss 不會被冰（引擎改成緩速）。
