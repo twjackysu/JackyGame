@@ -24,6 +24,11 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 205 輪注意（祝福卡的小標與搭配 D-410）**：
+- `ui/blessCard.ts`（`blessTrigger`、`blessSynergy`＋`pair` 裡的七條規則與優先序 `ORDER`、`BLESS_CARD`：圓角、色帶、字級、沒選的淡到多少）；畫在 `ui/blessPanel.ts`（卡片、清單）與 `RtBattleScene` 的 `blessPick` 演出（「搭配成形」）。文字 `bless.trig.*`／`bless.syn.*`。**新增效果時**：`blessTrigger` 沒對上的會落到「強化」；有新的連動要在 `pair` 加一條並補 `tests/bless-card.test.ts`。
+- 拍法：`OFFER=crit_bloom,frost_touch,try:whirlwind:1 TAKEN=shadow_step,quick_hands DARK=1 node scripts/shot-bless.mjs 武器 地圖 輸出.png [W H]`（`LIST=1` 拍清單、`CLICK=0 AFTER=0.9` 點第一張後等 0.9 秒、`LOWFX=1`）。**點了之後的截圖一次只開一個瀏覽器**（兩個並行會逾時）。
+- **還沒做（依序，等 Jacky 對提示的反應再決定）**：①抽選時讓「能和身上搭配」的效果稍微常出（玩法規則，要記 DECISIONS、跑 Bot）②獨特效果裝備的詳情／效果圖鑑也標出「和哪些祝福搭配」③HUD 右上角那排祝福圖示，搭配的兩顆之間沒有任何記號 ④第 204 輪列的 ①～③。
+
 **第 204 輪注意（技能樹的打法格 D-409）**：
 - `ui/branchCell.ts`（`BRANCH_CELL`：格子大小、圖示位置、記號位置；`branchLook`／`branchFont`）；畫在 `rtSkillPanel.ts` 的分支那段（格子畫進 `g`、圖示畫進 `gi`／沒解鎖的畫進整層變淡的 `gLock`，點擊用一塊透明的 Rectangle）。
 - 拍法：`REC='{"variants":["heavy_slash","whirlwind:b"]}' STEPS='["sc().openSkills()"]' node scripts/shot-panels.mjs 武器 地圖 tag [W H]`；點某一格＝`sc().menu.list.filter(o=>o.type==="Rectangle"&&o.width===128)[n].emit("pointerdown",{},0,0,{stopPropagation(){}})`（n＝欄×3＋第幾排）。行囊有裝備＝`scripts/shot-unique.mjs`。**`shot-survey.mjs` 的 `WARM=400` 也會逾時**，用預設值。
