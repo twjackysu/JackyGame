@@ -11,6 +11,7 @@ import { AUTO_SKILL_IDS } from '../../core/battle/rt/auto';
 import { t as tr } from '../../i18n';
 import { skillBadge } from '../fx/hitTint';
 import { drawSkillGlyph, glyphColor, glyphPips, skillGlyph } from '../fx/skillGlyph';
+import { BRANCH_CELL, branchFont, branchLook, branchState } from './branchCell';
 import { SKILL_MAX_RANK, SKILL_TREE, addRank, cleanVariants, dotOf, rankTotalText, setVariant, skillPoints, usedPoints, variantIndex, type SkillRanks } from '../rtSkills';
 
 const COL_X = [-276, -138, 0, 138, 276];
@@ -88,6 +89,9 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
     // 第 195 輪：節點左上角畫戰鬥畫面底部那顆小圖示（同顏色、同記號），玩家才對得起來哪顆是哪招；換打法會跟著變
     const gi = scene.add.graphics();
     late.push(gi);
+    // 第 204 輪：打法格的圖示（沒解鎖的畫在另一層、整層變淡）與右上角的鎖／勾
+    const gLock = scene.add.graphics().setAlpha(BRANCH_CELL.lockedIconA);
+    late.push(gLock);
     SKILL_TREE.forEach((t, col) => {
       const x = COL_X[col]!;
       const rank = r[t.id] ?? 0;
@@ -155,17 +159,57 @@ export function openRtSkillPanel(scene: Phaser.Scene, start: SkillRanks, startVa
         const alt = k === 0 ? null : altOf(t.id, k);
         if (k > 0 && !alt) return;
         const on = full && vi === k;
-        const box = scene.add.rectangle(x, by, 128, 60, on ? 0x4a1a40 : full ? 0x241a10 : 0x141008, 1).setStrokeStyle(on ? 4 : 2, on ? 0xffb6f0 : full ? 0xc8a060 : 0x3a3020, 1);
-        if (sel.col === col && sel.node === k) g.fillStyle(0xffb6f0, 0.2).fillRoundedRect(x - 72, by - 38, 144, 76, 12);
-        tap(box, () => {
-          sel = { col, node: k };
-          pickBranch(col, k);
-          render();
-        });
-        items.push(box);
-        const label = k === 0 ? '原招' : alt!.variantName;
-        items.push(scene.add.text(x, by, label, { fontFamily: UI_FONT, fontSize: label.length > 3 ? '20px' : '22px', fontStyle: on ? '700' : 'normal', color: on ? '#ffb6f0' : full ? '#e8dcc0' : '#6a604c' }).setOrigin(0.5));
-        if (!full) items.push(scene.add.text(x + 52, by - 22, '🔒', { fontSize: '14px' }).setOrigin(0.5).setAlpha(0.7));
+        if (BRANCH_CELL.on) {
+          const C = BRANCH_CELL;
+          const L = branchLook(branchState(full, on));
+          if (sel.col === col && sel.node === k) g.fillStyle(0xffb6f0, 0.2).fillRoundedRect(x - 72, by - 38, 144, 76, 14);
+          g.fillStyle(0x0c0806, 1).fillRoundedRect(x - C.w / 2, by - C.h / 2, C.w, C.h, C.radius); // 蓋掉後面的樹幹
+          g.fillStyle(L.fill, 1).fillRoundedRect(x - C.w / 2, by - C.h / 2, C.w, C.h, C.radius);
+          g.fillStyle(0xffffff, full ? 0.06 : 0.02).fillRoundedRect(x - C.w / 2 + 3, by - C.h / 2 + 3, C.w - 6, C.h / 2 - 3, { tl: C.radius - 3, tr: C.radius - 3, bl: 0, br: 0 });
+          g.lineStyle(L.strokeW, L.stroke, 1).strokeRoundedRect(x - C.w / 2, by - C.h / 2, C.w, C.h, C.radius);
+          const box = scene.add.rectangle(x, by, C.w, C.h, 0x000000, 0);
+          tap(box, () => {
+            sel = { col, node: k };
+            pickBranch(col, k);
+            render();
+          });
+          items.push(box);
+          // 左邊：這種打法的小圖示（和戰鬥畫面底部那顆同色同記號）
+          const def = k === 0 ? W.skills[t.id] : alt!;
+          const bl = skillBadge(t.id, def);
+          const gg = full ? gi : gLock;
+          const ix = x + C.iconDx;
+          gg.fillStyle(bl.fill, 1).fillCircle(ix, by, C.iconR);
+          gg.lineStyle(2.5, bl.rim, 1).strokeCircle(ix, by, C.iconR);
+          drawSkillGlyph(gg, ix, by, C.iconR, skillGlyph(def), glyphColor(bl.rim), glyphPips(def));
+          const label = k === 0 ? '原招' : alt!.variantName;
+          items.push(scene.add.text(x + C.textDx, by, label, { fontFamily: UI_FONT, fontSize: `${branchFont(label)}px`, fontStyle: L.bold ? '700' : 'normal', color: L.text }).setOrigin(0.5));
+          // 右上角：鎖（畫的，不用 emoji）／使用中的勾
+          const mx = x + C.markDx; const my = by + C.markDy; const mr = C.markR;
+          if (L.mark === 'lock') {
+            gi.fillStyle(0x0c0806, 1).fillCircle(mx, my, mr + 2);
+            gi.fillStyle(0x2a2218, 1).fillCircle(mx, my, mr);
+            gi.lineStyle(1.5, 0x6a5c40, 1).strokeCircle(mx, my, mr);
+            gi.lineStyle(2.5, 0xb8a880, 1).beginPath().arc(mx, my - 2, 4, Math.PI, 0).strokePath();
+            gi.fillStyle(0xb8a880, 1).fillRoundedRect(mx - 6, my - 2, 12, 8.5, 2);
+          } else if (L.mark === 'check') {
+            gi.fillStyle(0x0c0806, 1).fillCircle(mx, my, mr + 2);
+            gi.fillStyle(0xffb6f0, 1).fillCircle(mx, my, mr);
+            gi.lineStyle(3.5, 0x3a0a30, 1).beginPath().moveTo(mx - 5.5, my).lineTo(mx - 1.5, my + 4.5).lineTo(mx + 6, my - 4.5).strokePath();
+          }
+        } else {
+          const box = scene.add.rectangle(x, by, 128, 60, on ? 0x4a1a40 : full ? 0x241a10 : 0x141008, 1).setStrokeStyle(on ? 4 : 2, on ? 0xffb6f0 : full ? 0xc8a060 : 0x3a3020, 1);
+          if (sel.col === col && sel.node === k) g.fillStyle(0xffb6f0, 0.2).fillRoundedRect(x - 72, by - 38, 144, 76, 12);
+          tap(box, () => {
+            sel = { col, node: k };
+            pickBranch(col, k);
+            render();
+          });
+          items.push(box);
+          const label = k === 0 ? '原招' : alt!.variantName;
+          items.push(scene.add.text(x, by, label, { fontFamily: UI_FONT, fontSize: label.length > 3 ? '20px' : '22px', fontStyle: on ? '700' : 'normal', color: on ? '#ffb6f0' : full ? '#e8dcc0' : '#6a604c' }).setOrigin(0.5));
+          if (!full) items.push(scene.add.text(x + 52, by - 22, '🔒', { fontSize: '14px' }).setOrigin(0.5).setAlpha(0.7));
+        }
         if (justUnlocked === col) {
           const flash = scene.add.rectangle(x, by, 128, 60, 0xffb6f0, 0.5).setBlendMode(Phaser.BlendModes.ADD);
           items.push(flash);
