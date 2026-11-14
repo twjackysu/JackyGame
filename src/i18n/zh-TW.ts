@@ -60,6 +60,7 @@ export const zhTW = {
   'bless.trig.boost': '強化',
   'bless.trig.variant': '試招',
   'bless.syn.short': '搭配「{name}」',
+  'bless.syn.formed': '✦ 搭配成形｜{a} × {b}',
   'bless.syn.pre': '搭配',
   'bless.syn.crit': '「{name}」的必暴會引爆它',
   'bless.syn.crit.lead': '這一下必暴會引爆「{name}」',

@@ -23,6 +23,7 @@ import { AFFIX_COLOR, drawMinimap } from '../rt/MinimapSystem';
 import { marketOps, type MarketOps, type MarketPage } from '../marketOps';
 import { coinOf, spendCoin } from '../rtShop';
 import { openBlessList, openBlessPanel, openGambleReveal } from '../ui/blessPanel';
+import { BLESS_CARD, blessSynergy } from '../ui/blessCard';
 import { BLESS_GAMBLE, BLESS_RULES, blessNeed, effectDef, gambleCursePct, type EffectDef } from '../../core/battle/rt/effects';
 import { ELEMENT_LOOK, drawEffectIcon } from '../fx/effectIcon';
 import { addWithAutoSalvage } from '../rtBag';
@@ -1409,6 +1410,9 @@ export class RtBattleScene extends Phaser.Scene {
       sparks(this, px, py - 30, getSettings().lowFx ? 10 : 22, 'ember', L.light, 520);
       this.nightLight?.flash(px, py, 700 * this.k * 1.5, 900);
       if (!flipped) bigText(this, px, py - 120, tr('bless.got', { name: d.name }), L.css, 34, 900);
+      // 這一個和身上的另一個會互相帶動（D-410）：上面多一行金字，選到「成形」的那一下有感
+      const syn = !flipped && BLESS_CARD.on ? blessSynergy(d, this.blessDefs([...(this.s.bless?.taken ?? []), ...(this.s.bless?.perm ?? [])])) : undefined;
+      if (syn) this.time.delayedCall(160, () => bigText(this, this.sx(p.x), this.sy(p.y) - 166, tr('bless.syn.formed', { a: syn.with.name, b: d.name }), '#ffe08a', 26, 1200));
       this.tipOnce('jg_tip_bless', tr('bless.tip'), '#ffd27a');
     } else if (e.type === 'blessClear') {
       if (e.count > 0) bigText(this, GAME_WIDTH / 2, 600, tr('bless.gone'), '#b8a888', 30, 1100, true);
