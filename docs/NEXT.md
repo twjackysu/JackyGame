@@ -24,6 +24,11 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 202 輪注意（被圍住看得到主角 D-404、開場說明的位置 D-405）**：
+- `fx/occlude.ts`：`crowdCoversHero`（重疊面積 ≥ `CROWD_COVER_MIN`）、`OCCLUDE.crowdGhost`（疊畫的主角多實）、`barOverHero`／`BAR_OVER_HERO_ALPHA`；`fx/introLane.ts`。開關 `OCCLUDE.crowd`、`sc().barFade`、`sc().introLow`。
+- 拍法：`node scripts/shot-cover.mjs staff starfall tag`（`N=3` 三隻小怪、`ELITE=1` 精英、`OFF=1` 舊樣子；**改過 `occlude.ts` 要重開 vite**，不然 `OFF` 動到的是另一份模組）；`node scripts/shot-survey.mjs 武器 地圖 tag`＝自然打鬥整頁巡看（`INTRO_OFF=1`、`W=360 H=640`）。一次開超過三個瀏覽器會被砍。
+- **還沒做（依序）**：①精英的金框血條和傷害數字還是會壓在主角臉上（這輪沒動）②「找到隱藏寶箱！」＋獎勵字條壓在主角頭上的怪身上（星隕出生點旁的寶箱）③兩隻晶殼魔像的紅圈預告疊在一起時中間一塊很實的紅 ④第 201 輪列的 ①～⑤。
+
 **第 201 輪注意（法杖護盾晶片 D-402、受傷紅字 D-403）**：
 - `fx/hexPlates.ts`（`HEX_PLATES`：圈的大小 `ring`、晶片大小 `plate`、起始比例 `from`）；畫在 `fieldFx.hexShield`，開關 `sc().ffx.plates`。`fx/hurtLane.ts`（`HURT_LANE.side`／`up`），開關 `RtBattleScene.hurtLane`。
 - 拍法：護盾＝`UNTIL='(()=>{const s=sc().s;return s.tick>300&&s.events.slice(-30).some(e=>e.type==="guard"&&e.tick>=s.tick-1)&&s.units.some(u=>u.side==="enemy"&&!u.dead&&Math.hypot(u.x-s.units[0].x,u.y-s.units[0].y)<200)})()' LEVEL=14 DSF=2 node scripts/play.mjs staff emberrift tag 16 90`；紅字＝UNTIL 等 `e.type==="damage"&&e.dst===s.units[0].id`，**開關寫在 UNTIL 最前面**（`sc().hurtLane=false;`）跑兩次，同一條指令兩次的畫面一樣，可以直接上下對照。主角在 `(W/2, H/2)` 附近。
