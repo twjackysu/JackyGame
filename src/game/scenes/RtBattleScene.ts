@@ -53,6 +53,7 @@ export function ultLabel(name: string): string {
   return name.length >= 4 ? name.replace(/^(..)/, '$1\n') : name;
 }
 
+import { CAMP_BTN, campPlateKey, drawCampPlate } from '../ui/campBtn';
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES } from '../../core/battle/rt/data';
 import { eliteFighting, gateSealed } from '../gateRules';
@@ -1653,7 +1654,10 @@ export class RtBattleScene extends Phaser.Scene {
     this.fireBtn = null;
     this.shopBtn = null;
     if (!this.tracked) return;
-    const b = this.add.text(GAME_WIDTH / 2 - 95, 960 + TALL, '行囊・強化', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#ffd27a' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    // 第 203 輪：亮色長方形 → 深色底板＋有顏色的框與字＋小圖示（ui/campBtn.ts）；CAMP_BTN.on=false 回舊樣子
+    const cb = CAMP_BTN.on;
+    const padL = cb ? 20 + CAMP_BTN.iconW : 20;
+    const b = this.add.text(GAME_WIDTH / 2 - 95, 960 + TALL, '行囊・強化', cb ? { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: CAMP_BTN.bag.text } : { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: CAMP_BTN.bag.old }).setOrigin(0.5).setPadding(padL, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
     b.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
       if (this.menu || this.editing || this.ended) return;
@@ -1663,7 +1667,7 @@ export class RtBattleScene extends Phaser.Scene {
     });
     this.fireBtn = b;
     // 營火行商（D-116）
-    const sb = this.add.text(GAME_WIDTH / 2 + 125, 960 + TALL, '行商', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: '#9fe8a0' }).setOrigin(0.5).setPadding(20, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
+    const sb = this.add.text(GAME_WIDTH / 2 + 125, 960 + TALL, '行商', cb ? { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: CAMP_BTN.shop.text } : { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '700', color: '#1a0f08', backgroundColor: CAMP_BTN.shop.old }).setOrigin(0.5).setPadding(padL, 10, 20, 10).setDepth(62).setVisible(false).setInteractive({ useHandCursor: true });
     sb.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev.stopPropagation();
       if (this.menu || this.editing || this.ended) return;
@@ -1673,6 +1677,26 @@ export class RtBattleScene extends Phaser.Scene {
     });
     this.shopBtn = sb;
     this.placeFireBtns();
+    if (cb) {
+      // 底板跟著兩顆按鈕（顯示／隱藏散在好幾處，所以每幀比一次、有變才重畫）
+      const g = this.add.graphics().setDepth(61);
+      let key = '';
+      const sync = (): void => {
+        const hot = b.text.endsWith('▲');
+        const rs = [b, sb].map((t) => ({ x: t.x - t.width / 2, y: t.y - t.height / 2, w: t.width, h: t.height, visible: t.active && t.visible }));
+        const k = campPlateKey(rs, hot);
+        if (k === key) return;
+        key = k;
+        g.clear();
+        drawCampPlate(g, rs[0]!, 'bag', hot);
+        drawCampPlate(g, rs[1]!, 'shop', false);
+        if (b.active) b.setColor(hot ? '#b8ffd0' : CAMP_BTN.bag.text);
+      };
+      this.events.on(Phaser.Scenes.Events.POST_UPDATE, sync);
+      const off = (): void => { this.events.off(Phaser.Scenes.Events.POST_UPDATE, sync); };
+      g.once(Phaser.GameObjects.Events.DESTROY, off);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
+    }
   }
 
   /** 營火捷徑避開技能鍵／搖桿（第 43 輪：左手模式、按鈕放大時以前會蓋在技能鍵上） */
