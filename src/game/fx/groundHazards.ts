@@ -6,7 +6,25 @@ import { playerOf } from '../../core/battle/rt/engine';
 import { UNIT, type BattleState, type Telegraph } from '../../core/battle/rt/types';
 import { GAME_WIDTH } from '../config';
 import type { FieldFx } from './fieldFx';
+import { FROST_GROUND, frostCracks, frostRimArcs } from './frostGround';
 import { shockRing, sparks } from './feel';
+
+/** 結霜圈的放射漸層貼圖（D-412）：只建一次 */
+function frostTexture(scene: Phaser.Scene): string {
+  const key = 'fx_frost_ground';
+  if (scene.textures.exists(key)) return key;
+  const S = 256;
+  const tex = scene.textures.createCanvas(key, S, S);
+  if (!tex) return key;
+  const ctx = tex.getContext();
+  const c = FROST_GROUND.color;
+  const grad = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  for (const [at, a] of FROST_GROUND.stops) grad.addColorStop(at, `rgba(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255},${a})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, S, S);
+  tex.refresh();
+  return key;
+}
 
 /** 燼心岩王與黑曜首領（D-125）：命中那一刻地上裂出熔岩（走 queue，命中時改呼叫 spawnLava） */
 export const LAVA_ATTACKS = new Set(['colossus_fissure', 'colossus_fissure2', 'colossus_stomp', 'colossus_quake', 'obs_slam', 'slime_splash', 'magma_burst', 'magma_charge', 'colossus_core_burst']);
@@ -32,7 +50,7 @@ export class GroundHazards {
   /** 地面長出的荊棘（狼后／母樹的毒刺、根系環、綻放命中時；只是畫面） */
   private thorns: { x: number; y: number; born: number; size: number; seed: number; wither?: number }[] = [];
   /** 霜旋（D-121）在地上留下的冰晶與結霜圈（純畫面，世界座標） */
-  private frost: { x: number; y: number; born: number; size: number; seed: number; ring?: number }[] = [];
+  private frost: { x: number; y: number; born: number; size: number; seed: number; ring?: number; img?: Phaser.GameObjects.Image }[] = [];
   /** 還沒命中的預告（荊棘／熔岩／墜星；命中那一刻才長出來） */
   private pending: Telegraph[] = [];
 
@@ -45,6 +63,7 @@ export class GroundHazards {
   reset(): void {
     this.thorns = [];
     this.pending = [];
+    for (const f of this.frost) if (f.img?.active) f.img.destroy();
     this.frost = [];
   }
 
@@ -219,13 +238,13 @@ export class GroundHazards {
   /** 霜旋（D-121）：腳下一圈結霜＋十幾根冰晶，1.5 秒後融化（純畫面，Math.random） */
   spawnFrost(x: number, y: number, r: number): void {
     const now = this.sc.time.now;
-    this.frost.push({ x, y, born: now, size: r, seed: 0, ring: 1 });
+    this.frost.push({ x, y, born: now, size: r, seed: 1 + Math.floor(Math.random() * 1e6), ring: 1 });
     for (let i = 0; i < 16; i++) {
       const a = Math.random() * Math.PI * 2;
       const d = r * Math.sqrt(0.1 + Math.random() * 0.85);
       this.frost.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, born: now + i * 10, size: 0.35 + Math.random() * 0.3, seed: Math.random() * 1000 });
     }
-    if (this.frost.length > 90) this.frost.splice(0, this.frost.length - 90);
+    if (this.frost.length > 90) for (const f of this.frost.splice(0, this.frost.length - 90)) if (f.img?.active) f.img.destroy();
   }
 
   drawFrost(g: Phaser.GameObjects.Graphics, now: number): void {
@@ -235,7 +254,10 @@ export class GroundHazards {
     this.frost = this.frost.filter((f) => {
       const age = now - f.born;
       if (age < 0) return true;
-      if (age > LIFE + 400) return false;
+      if (age > LIFE + 400) {
+        if (f.img?.active) f.img.destroy();
+        return false;
+      }
       const melt = Math.max(0, (age - LIFE) / 400);
       const px = this.h.sx(f.x);
       const py = this.h.sy(f.y);
@@ -243,8 +265,35 @@ export class GroundHazards {
         // 結霜圈：淡藍圓＋白色細邊，從中心擴開
         const grow = Math.min(1, age / 200);
         const R = f.size * k * grow;
-        g.fillStyle(0xbff4ff, 0.16 * (1 - melt)).fillEllipse(px, py, R * 2, R * 1.4);
-        g.lineStyle(2, 0xe8fcff, 0.45 * (1 - melt)).strokeEllipse(px, py, R * 2, R * 1.4);
+        if (!FROST_GROUND.on) {
+          f.img?.setVisible(false);
+          g.fillStyle(0xbff4ff, 0.16 * (1 - melt)).fillEllipse(px, py, R * 2, R * 1.4);
+          g.lineStyle(2, 0xe8fcff, 0.45 * (1 - melt)).strokeEllipse(px, py, R * 2, R * 1.4);
+          return true;
+        }
+        // D-412：中間透、邊緣濃的霜（一圈圈粗線疊出來）＋從中心裂出去的霜紋＋一段一段的碎冰邊
+        const F = FROST_GROUND;
+        const fade = 1 - melt;
+        const q = F.squash;
+        f.img ??= this.sc.add.image(px, py, frostTexture(this.sc)).setDepth(8.9);
+        f.img.setVisible(true).setPosition(px, py).setDisplaySize(R * 2, R * 2 * q).setAlpha(fade);
+        for (const line of frostCracks(f.seed)) {
+          g.lineStyle(1.5, F.rim, F.crackA * fade * grow).beginPath();
+          line.forEach((p, i) => (i ? g.lineTo(px + p.x * R, py + p.y * R * q) : g.moveTo(px + p.x * R, py + p.y * R * q)));
+          g.strokePath();
+        }
+        for (const [a0, a1] of frostRimArcs(f.seed)) {
+          g.lineStyle(2.5, F.rim, F.rimA * fade).beginPath();
+          const n = 6;
+          for (let i = 0; i <= n; i++) {
+            const a = a0 + ((a1 - a0) * i) / n;
+            const x = px + Math.cos(a) * R;
+            const y = py + Math.sin(a) * R * q;
+            if (i) g.lineTo(x, y);
+            else g.moveTo(x, y);
+          }
+          g.strokePath();
+        }
         return true;
       }
       // 冰晶：細長的菱形，長出來時一閃
