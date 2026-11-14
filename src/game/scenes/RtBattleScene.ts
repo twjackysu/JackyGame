@@ -86,6 +86,7 @@ import { STAR_WARN, rimTicks, starFall } from '../fx/starWarn';
 import { domeBlink, drawDome } from '../fx/shieldDome';
 import { hurtNumberPos } from '../fx/hurtLane';
 import { CHEST_LOOT_COLOR, CHEST_POP, chestPopLayout } from '../fx/chestPop';
+import { CHEST_ART, CHEST_DAY, CHEST_NIGHT, chestCoins, chestPose, drawChest } from '../fx/chestArt';
 import { FROST_GROUND } from '../fx/frostGround';
 import { drawBreak, drawBurn, drawPoison, drawSlow, drawWeak } from '../fx/statusMarks';
 import { drawIceShards, ICE_CASE, thawBlink } from '../fx/iceCase';
@@ -522,6 +523,8 @@ export class RtBattleScene extends Phaser.Scene {
   private bossMemo = false;
   /** 已經提示過「有點熟悉」的寶箱 */
   private chestHinted = new Set<string>();
+  /** 這次進圖才打開的寶箱：什麼時候開的（開蓋演出用，fx/chestArt；進圖前就開過的不在裡面＝直接畫成開著） */
+  private chestOpenAt = new Map<string, number>();
   /** 前世的記憶（D-137）：這張圖還沒想起來的記憶點 */
   private memLeft: Memory[] = [];
   /** 走到了、但開場大字還在 → 先記著，大字收掉再想起（第 61 輪：星隕高原從光門抵達，記憶卡和開場大字同時出現） */
@@ -708,6 +711,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.topCard = null;
     this.zoneTexts = [];
     this.chestHinted = new Set();
+    this.chestOpenAt = new Map();
     this.bossMemo = false;
     this.cameras.main.setZoom(1); // 保險：舊版 Boss 登場會推鏡頭
     this.blinkHinted = new Set(); // 場景重開不會重跑欄位初始值
@@ -4026,6 +4030,7 @@ export class RtBattleScene extends Phaser.Scene {
             if (this.scene.isActive()) this.announce('夜光寶箱的光還沒恢復・這次沒有東西（約 5 分鐘後再來）', '#bfe0ff');
           });
         const c = STAGES[this.stageId]?.chests?.find((q) => q.id === e.chest);
+        this.chestOpenAt.set(e.chest, this.time.now);
         const x = c ? this.sx(c.x) : GAME_WIDTH / 2;
         const y = c ? this.sy(c.y) : 600;
         this.nightLight?.flash(x, y, 420 * this.k * 1.5, 1600); // 深夜：寶箱打開的光
@@ -4836,6 +4841,20 @@ export class RtBattleScene extends Phaser.Scene {
       const cx = this.sx(c.x);
       const cy = this.sy(c.y);
       const k = this.k * 1.4;
+      if (CHEST_ART.on) {
+        // 第 207 輪（D-415）：有木板、鐵箍、鎖片的箱子；打開時蓋子往後掀、箱口噴金光與金幣；開過的留著掀開的空箱
+        if (c.nightOnly && !opened) {
+          const pulse = 0.5 + 0.5 * Math.sin(now / 260);
+          top.fillStyle(0x7ab8ff, 0.12 + 0.08 * pulse).fillEllipse(cx, cy + 6 * k, 120 * k, 40 * k);
+          top.fillStyle(0x9fd0ff, 0.1 + 0.06 * pulse).fillRect(cx - 10 * k, cy - 140 * k, 20 * k, 140 * k);
+          top.lineStyle(2, 0xbfe0ff, 0.5 + 0.4 * pulse).strokeEllipse(cx, cy + 6 * k, 80 * k, 26 * k);
+        }
+        const at = this.chestOpenAt.get(c.id);
+        const age = opened ? (at === undefined ? 1e9 : now - at) : -1;
+        const settle = opened ? Math.min(1, age / CHEST_ART.glowMs) : 0;
+        drawChest(c.nightOnly && !opened ? top : g, top, cx, cy, k, c.nightOnly ? CHEST_NIGHT : CHEST_DAY, opened ? 1 - (1 - CHEST_ART.openedA) * settle : a, chestPose(age), opened ? chestCoins(c.x * 31 + c.y, age, getSettings().lowFx ? CHEST_ART.coinsLow : CHEST_ART.coins) : [], !opened && (now / 500) % 2 < 0.25);
+        continue;
+      }
       if (c.nightOnly && !opened) {
         // 夜光寶箱：畫在暈影上面的藍色光柱＋光圈（遠處也看得到，D-108）
         const pulse = 0.5 + 0.5 * Math.sin(now / 260);

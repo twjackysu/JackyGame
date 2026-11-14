@@ -1,5 +1,5 @@
 // 開隱藏寶箱那一刻的整頁截圖（第 206 輪）：主角直直走向最近、還沒開的寶箱，開到之後每隔幾幀截一張。先 `npx vite --port 5173`。
-// 用法：node scripts/shot-chest.mjs sword|bow|staff [地圖] [tag]   環境變數 W=390、H=844、LEVEL=14、AT=20,50,90（開箱後第幾幀各截一張）、OUT=screenshots、OFF=1（舊的置中大字）、LOWFX=1、NTH=0（第幾近的寶箱）
+// 用法：node scripts/shot-chest.mjs sword|bow|staff [地圖] [tag]   環境變數 W=390、H=844、LEVEL=14、AT=20,50,90（開箱後第幾幀各截一張）、OUT=screenshots、OFF=1（舊的置中大字）、CLOSED=1（先在旁邊拍一張蓋著的箱子 `-closed`）、LOWFX=1、NTH=0（第幾近的寶箱）
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 const OUT = process.env.OUT || 'screenshots';
@@ -37,6 +37,11 @@ const ok = await pg.evaluate(async ([stage, off, nth]) => {
   return true;
 }, [stage, !!process.env.OFF, +(process.env.NTH || 0)]);
 if (!ok) { console.log('這張圖沒有白天的寶箱'); await b.close(); process.exit(1); }
+// 第 207 輪：先站在旁邊（還不會開的距離）拍一張蓋著的箱子
+if (process.env.CLOSED) {
+  await pg.evaluate(() => { const sn = sc(); const u = sn.s.units[0]; const keep = sn.commands; sn.commands = () => []; u.x = CH.x + 210; u.y = CH.y + 30; ff(40); sn.commands = keep; });
+  await pg.screenshot({ path: `${OUT}/${tag}-closed.png` });
+}
 let n = -1;
 for (let k = 0; k < 40 && n < 0; k++) n = await pg.evaluate(() => toChest(120));
 console.log('opened', n >= 0);
