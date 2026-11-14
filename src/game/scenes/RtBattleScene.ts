@@ -53,6 +53,7 @@ export function ultLabel(name: string): string {
   return name.length >= 4 ? name.replace(/^(..)/, '$1\n') : name;
 }
 
+import { MENU_GRID, menuCol, menuPad } from '../ui/menuGrid';
 import { CAMP_BTN, campPlateKey, drawCampPlate } from '../ui/campBtn';
 import { cellIndex, findPath, gridOf } from '../../core/battle/rt/path';
 import { ENEMIES } from '../../core/battle/rt/data';
@@ -2993,7 +2994,7 @@ export class RtBattleScene extends Phaser.Scene {
   private nightButton(mk: (y: number, label: string, fn: () => void, hi?: boolean) => void, items: Phaser.GameObjects.GameObject[], y: number): void {
     const rec = loadRecord(this.stageId);
     if (!nightUnlocked(rec)) {
-      items.push(this.add.text(0, y, `🔒 深夜的${this.mw}（打倒暴怒${this.bw}解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
+      { const lk = this.add.text(0, y, `🔒 深夜的${this.mw}（打倒暴怒${this.bw}解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12); if (MENU_GRID.on) this.menuFit(lk, 0); items.push(lk); }
       return;
     }
     const on = !!this.s.night;
@@ -3014,7 +3015,7 @@ export class RtBattleScene extends Phaser.Scene {
     const rec = loadRecord(this.stageId);
     const lv = this.s.prog?.level ?? 1;
     if (!furyUnlocked(rec, lv)) {
-      items.push(this.add.text(0, y, (rec.bossKills ?? 0) < 1 ? `🔒 ${this.bw}暴怒（先打倒${this.bw}一次）` : `🔒 ${this.bw}暴怒（Lv${FURY_UNLOCK.level} 或討伐 ${FURY_UNLOCK.kills} 次解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12));
+      { const lk = this.add.text(0, y, (rec.bossKills ?? 0) < 1 ? `🔒 ${this.bw}暴怒（先打倒${this.bw}一次）` : `🔒 ${this.bw}暴怒（Lv${FURY_UNLOCK.level} 或討伐 ${FURY_UNLOCK.kills} 次解鎖）`, { fontFamily: UI_FONT, fontSize: '22px', color: '#9a8a7a', backgroundColor: '#2a2018' }).setOrigin(0.5).setPadding(18, 12, 18, 12); if (MENU_GRID.on) this.menuFit(lk, 0); items.push(lk); }
       return;
     }
     const on = !!this.s.bossFury;
@@ -3036,6 +3037,17 @@ export class RtBattleScene extends Phaser.Scene {
     } catch {
       /* 不支援 */
     }
+  }
+
+  /** 暫停選單的按鈕撐成一欄寬（x<0 左欄、x>0 右欄、0＝整列）。字太長先縮字 */
+  private menuFit(t: Phaser.GameObjects.Text, x: number): void {
+    const col = menuCol(x);
+    const W = col ? MENU_GRID.colW : MENU_GRID.fullW;
+    t.setPadding(0, 12, 0, 12);
+    if (t.width > W - MENU_GRID.minPad * 2) t.setFontSize(MENU_GRID.smallFont);
+    const pad = menuPad(t.width, W);
+    t.setPadding(pad, 12, pad, 12);
+    if (col) t.setX(col * MENU_GRID.colX);
   }
 
   private toggleMenu(): void {
@@ -3061,13 +3073,16 @@ export class RtBattleScene extends Phaser.Scene {
     items.push(this.add.text(0, -440, '暫停', { fontFamily: TITLE_FONT, fontSize: '44px', color: '#ffd27a' }).setOrigin(0.5));
     const mk = (y: number, label: string, fn: () => void, hi = false, x = 0) => {
       const t = this.add.text(x, y, label, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '700', color: hi ? '#1a0f08' : '#ffffff', backgroundColor: hi ? '#ffd27a' : '#3a2a14' }).setOrigin(0.5).setPadding(24, 12, 24, 12).setInteractive({ useHandCursor: true });
+      if (grid) this.menuFit(t, x);
       t.on('pointerdown', () => {
         SFX.confirm();
         fn();
       });
       items.push(t);
     };
-    mk(-350, '繼續', () => this.toggleMenu(), true);
+    // 第 203 輪：正式地圖的選單排成整齊的兩欄（ui/menuGrid.ts）；試玩關那份（一欄）照舊
+    const grid = MENU_GRID.on && !!(this.tracked || worldMap(this.stageId));
+    mk(-350, '繼續', () => this.toggleMenu(), true, grid ? -MENU_GRID.colX : 0);
     // 第 73 輪：遊戲中也能調音量（以前只能回標題的設定，手機外放太大聲只能關掉）
     const volLabel = (): string => `音量 ${getSettings().sfx || getSettings().bgm ? `${Math.round(getSettings().volume * 100)}%` : '關'}`;
     mk(-350, volLabel(), () => {
@@ -3075,7 +3090,8 @@ export class RtBattleScene extends Phaser.Scene {
       const order = [1, 0.75, 0.5, 0.25];
       updateSettings({ volume: order[(order.indexOf(v) + 1) % order.length] ?? 1 });
       volTxt.setText(volLabel());
-    }, false, 235);
+      if (grid) this.menuFit(volTxt, MENU_GRID.colX);
+    }, false, grid ? MENU_GRID.colX : 235);
     const volTxt = items[items.length - 1] as Phaser.GameObjects.Text;
     const ctlBtn = (y: number, x = 0) => mk(y, '操作設定', () => {
       this.menu?.destroy();
