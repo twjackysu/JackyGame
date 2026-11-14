@@ -85,6 +85,7 @@ import { chevronAlpha, crowdCounts, crowdFill, lineChevrons, teleKind, telegraph
 import { STAR_WARN, rimTicks, starFall } from '../fx/starWarn';
 import { domeBlink, drawDome } from '../fx/shieldDome';
 import { hurtNumberPos } from '../fx/hurtLane';
+import { CHEST_LOOT_COLOR, CHEST_POP, chestPopLayout } from '../fx/chestPop';
 import { drawBreak, drawBurn, drawPoison, drawSlow, drawWeak } from '../fx/statusMarks';
 import { drawIceShards, ICE_CASE, thawBlink } from '../fx/iceCase';
 import { areaLook, type AreaLook } from '../fx/areaLook';
@@ -2733,6 +2734,30 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   /** 隱藏寶箱附近第一次靠近：「這個地方似乎有點熟悉……」（design/20 C2，只提示不指路） */
+  /** 開寶箱的字從寶箱旁邊跳出來（D-411）；false＝舊的置中大字 */
+  chestPop = true;
+  /** 標題＋每樣戰利品各一行，排在寶箱背對主角的那一側，跟著寶箱（世界座標）走 */
+  private popChest(c: { x: number; y: number }, loot: Readonly<Record<string, number>>, night: boolean): void {
+    const P = CHEST_POP;
+    const rows: [string, string, number][] = [[tr(night ? 'chest.night' : 'chest.found'), night ? '#bfe0ff' : '#ffd27a', P.headSize]];
+    for (const [k, n] of Object.entries(loot)) rows.push([`${LOOT_NAMES[k] ?? k} ×${n}`, CHEST_LOOT_COLOR[k] ?? '#f4e6c0', P.lootSize]);
+    const box = this.add.container(this.sx(c.x), this.sy(c.y)).setDepth(900);
+    const texts = rows.map(([text, color, size], i) => this.add.text(0, 0, text, { fontFamily: i ? UI_FONT : TITLE_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: '#140a04', strokeThickness: i ? 5 : 7 }).setAlpha(0));
+    box.add(texts);
+    const lay = chestPopLayout(box.x, box.y, this.sx(playerOf(this.s).x), Math.max(...texts.map((t) => t.width)), rows.length, GAME_WIDTH);
+    const follow = (): void => { box.setPosition(this.sx(c.x), this.sy(c.y)); };
+    this.events.on(Phaser.Scenes.Events.POST_UPDATE, follow);
+    box.once(Phaser.GameObjects.Events.DESTROY, () => this.events.off(Phaser.Scenes.Events.POST_UPDATE, follow));
+    const last = (rows.length - 1) * P.stagger + 260;
+    texts.forEach((t, i) => {
+      // 從箱口跳出來：起點在寶箱上、先衝過頭再落到自己那一行
+      t.setOrigin(lay.originX, 0.5).setPosition(0, -14).setScale(0.3);
+      this.tweens.add({ targets: t, x: lay.dx, y: lay.dys[i]!, scale: 1, alpha: 1, delay: i * P.stagger, duration: 260, ease: 'Back.Out' });
+      this.tweens.add({ targets: t, alpha: 0, y: lay.dys[i]! - 18, delay: last + P.hold + i * 60, duration: 320 });
+    });
+    this.time.delayedCall(last + P.hold + rows.length * 60 + 360, () => box.destroy());
+  }
+
   private chestHint(): void {
     const list = STAGES[this.stageId]?.chests;
     if (!list?.length || this.bot) return;
@@ -4001,11 +4026,15 @@ export class RtBattleScene extends Phaser.Scene {
         levelUpFlash(this, 0xffe08a, 200); // 第 186 輪：開寶箱也不再把整個畫面連 HUD 刷白
         shockRing(this, x, y, 0xffd27a, 160, 520, 7);
         sparks(this, x, y - 20, 30, 'ember', 0xffe08a, 620);
-        const got = Object.entries(e.loot).map(([k, n]) => `${LOOT_NAMES[k] ?? k} ×${n}`).join('　');
-        const head = bigText(this, GAME_WIDTH / 2, 390, c?.nightOnly ? '夜光寶箱！' : '找到隱藏寶箱！', c?.nightOnly ? '#bfe0ff' : '#ffd27a', 46, 1000);
-        // 第 88 輪（D-227）：標題被別的東西（記憶卡、大字）推到主角下方時，內容以前還是排在原位 446 → 「結晶 ×3…」跑到「夜光寶箱！」上面，順序顛倒 → 內容跟著標題排
-        const below = (dy: number, y0: number): number => (head.active && Math.abs(head.y - 390) > 1 ? head.y + dy : y0);
-        this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, below(56, 446), got, '#f4e6c0', 30, 1400));
+        if (this.chestPop && CHEST_POP.on && c) {
+          this.popChest(c, e.loot, !!c.nightOnly);
+        } else {
+          const got = Object.entries(e.loot).map(([k, n]) => `${LOOT_NAMES[k] ?? k} ×${n}`).join('　');
+          const head = bigText(this, GAME_WIDTH / 2, 390, c?.nightOnly ? '夜光寶箱！' : '找到隱藏寶箱！', c?.nightOnly ? '#bfe0ff' : '#ffd27a', 46, 1000);
+          // 第 88 輪（D-227）：標題被別的東西（記憶卡、大字）推到主角下方時，內容以前還是排在原位 446 → 「結晶 ×3…」跑到「夜光寶箱！」上面，順序顛倒 → 內容跟著標題排
+          const below = (dy: number, y0: number): number => (head.active && Math.abs(head.y - 390) > 1 ? head.y + dy : y0);
+          this.time.delayedCall(500, () => bigText(this, GAME_WIDTH / 2, below(56, 446), got, '#f4e6c0', 30, 1400));
+        }
       } else if (e.type === 'blessPick' || e.type === 'blessClear' || e.type === 'blessProc' || e.type === 'blessGamble') {
         this.playBlessEvent(e);
       } else if (e.type === 'rest') {

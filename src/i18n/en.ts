@@ -83,6 +83,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   'fx.interrupt': 'Interrupted!',
   'calm.swamp': 'Standing in the mire keeps poisoning you — step out',
   'lair.warn': 'You left the red ring! Get back within {s}s\nor {name} resets to full health',
+  'chest.found': 'Hidden chest!',
+  'chest.night': 'Moonlit chest!',
   'lair.count': 'Back in the ring {s}',
   'leash.near': 'Any farther and it resets',
   'tip.leash': 'Elites dragged too far from home\ndisengage and heal to full',
