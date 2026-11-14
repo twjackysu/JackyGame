@@ -24,6 +24,11 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 203 輪注意（介面：營火捷徑 D-406、按鈕的底 D-407、暫停選單兩欄 D-408、競技場大廳說明）**：
+- `ui/campBtn.ts`（`CAMP_BTN`：顏色、圖示寬度；底板是墊在兩顆 Text 下面的 Graphics，每幀比 `campPlateKey`、有變才重畫）；`fx/btnSkin.ts`＋`fx/btnSkinRules.ts`（`BTN_SKIN`：圓角、亮暗、邊；**改的是 `Phaser.GameObjects.Text.prototype.updateText`**，`main.ts` 在建立遊戲前 `installBtnSkin()`；只認不透明的 `#rrggbb` 底色）；`ui/menuGrid.ts`（`MENU_GRID`；`RtBattleScene.menuFit`）；`ui/lobbyNote.ts`。四個都有 `on`／回舊樣子的開關。
+- 拍法：營火捷徑＝`OUT=… node scripts/shot-camp.mjs 武器 地圖 tag`（`HOT=1` 裝成有 ▲、`W=360 H=640 LOWFX=1`）；競技場大廳＝`node scripts/shot-lobby.mjs 輸出.png [W H]`；面板＝這輪是臨時腳本（`shot-camp.mjs` 開頭那段＋`sc().menu?.destroy(); sc().menu=null; sc().openBag()`／`openShop`／`openSkills`／`openCodex`／`toggleMenu`／`openMemoryBook`／`openBlessList`，`ff(20)` 後截圖）。**`shot-survey.mjs` 的 `WARM` 給到 600 會卡死（這輪白等 5 分鐘）**，一律包 `timeout 120`。
+- **還沒做（依序）**：①行囊有裝備時的面板、強化、拍賣所、交易、倒下／結算畫面沒巡（這輪只拍了空行囊）②技能樹下面三排打法格（原招／變化）是暗色直角方塊，鎖頭很小 ③暫停選單下面的紀錄字是一整塊置中小字 ④荊棘谷成片的荊棘叢放大看還是一顆顆紫色圓球（D-393 已經改過一次、問過 Jacky 沒回；他說醜再動，或寫美術需求）⑤地區名底下的怪和 NPC（世界裡的東西）會從大字後面透出來。
+
 **第 202 輪注意（被圍住看得到主角 D-404、開場說明的位置 D-405）**：
 - `fx/occlude.ts`：`crowdCoversHero`（重疊面積 ≥ `CROWD_COVER_MIN`）、`OCCLUDE.crowdGhost`（疊畫的主角多實）、`barOverHero`／`BAR_OVER_HERO_ALPHA`；`fx/introLane.ts`。開關 `OCCLUDE.crowd`、`sc().barFade`、`sc().introLow`。
 - 拍法：`node scripts/shot-cover.mjs staff starfall tag`（`N=3` 三隻小怪、`ELITE=1` 精英、`OFF=1` 舊樣子；**改過 `occlude.ts` 要重開 vite**，不然 `OFF` 動到的是另一份模組）；`node scripts/shot-survey.mjs 武器 地圖 tag`＝自然打鬥整頁巡看（`INTRO_OFF=1`、`W=360 H=640`）。一次開超過三個瀏覽器會被砍。

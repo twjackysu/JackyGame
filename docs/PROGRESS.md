@@ -1,16 +1,24 @@
 # 進度紀錄（新的在最上面）
 
-## 2026-11-14 10:12–11:17（台北）第 202 輪 — 被怪圍住時看得到主角了；開場說明不再蓋住腳邊的怪
-**基準** e783b5c → **結果** ecf5229（程式三個 commit：5f9d187、ec6a46e、ecf5229）。FOR_JACKY「回覆」空；沒有 Issue、art-inbox 空、沒有 Jacky 的新 commit；開工時 CI 綠（db41c6d 的 CI、Pages、APK 都 success）。第 0 項、RF、P1～P3 都已 verified，照順序做「看得見的打磨」：先用新的巡看腳本拍三把武器×三張圖的自然打鬥，挑最礙眼的。
-- **目標｜玩家感覺**：①被精英狼或兩三隻狼圍住時，以前主角只剩一撮頭髮、臉上還橫著三條紅血條——**找不到自己**；現在主角會透出來、壓在臉上的血條變淡。②一進燼紅裂谷／星隕高原就被怪貼上來時，開場的兩行說明不再蓋在腳邊的怪身上。
-- **改了什麼**：5f9d187＋ecf5229（D-404）`fx/occlude.ts`——畫在主角前面的怪蓋住主角身體一半以上就疊畫主角（小怪本身不變淡）、非精英的血條壓到主角頭胸就畫淡；ec6a46e（D-405）`fx/introLane.ts`——開場說明改放主角下方的字幕帶。
-- **驗證（本次）**：每個 commit 前都跑 typecheck、lint、build、`npx vitest run`；最後一次 **178 檔過 1 跳過、1233 項過 3 跳過**。`build:online`、`build:server` **沒跑**（只動 `src/game/fx` 與場景的畫面段）。純畫面：core、golden hash、campaign、PvP 都沒動。新測試 `occlude-crowd`（9）、`intro-lane`（2）。
-- **截圖**（390 寬）：`docs/screenshots/hero-crowd-before-after.jpg`（上＝以前、下＝現在；星隕精英狼、荊棘谷、燼紅裂谷、霧語森林各三隻怪釘在主角南邊）、`intro-lane-before-after.jpg`（左＝以前、右＝現在；星隕高原）。360×640 的開場說明前後一樣（拍過）。
-- **狀態**：`verified`（靜態）。疊畫的主角會不會像「浮在怪身上」、淡掉的血條還看不看得出剩多少——要 Jacky 實機看。
-- **已知限制**：圍住的圖是把怪釘在主角南邊拍的（比實際貼得近一點）；改成面積規則（ecf5229）後自然打鬥重拍沒有再拍到同一個畫面，靠純函式測試；深夜、省電沒另外拍（只改透明度與位置，不吃畫質設定）；精英的金框血條和傷害數字仍會壓在主角臉上；競技場沒動。
-- **走過的冤枉路**：想量「主角被蓋住的幀數比例」的腳本一直卡死，花了約 15 分鐘後放棄，改用釘住的截圖。
-- **下一項**：看 Jacky 的回饋；沒有就看 NEXT「第 202 輪注意」列的 ①～③。
-- **CI**（收尾前查過）：ecf5229 的 CI（含 mssql）**success**；前兩個 commit 的 CI、以及 Pages／APK 沒另外查。
+## 2026-11-14 12:12–13:02（台北）第 203 輪 — 介面看起來「做完了」：按鈕不再是直角色塊、暫停選單對齊、營火捷徑、競技場大廳的說明
+**基準** 75716c5 → **結果** 8c4007e（程式五個 commit：b1caf23、ca532a2、a477c1f、4ead66e、8c4007e）。FOR_JACKY「回覆」空；沒有 Issue、art-inbox 空、沒有 Jacky 的新 commit；開工時 CI 綠（ecf5229 的 CI、Pages、APK 都 success）。第 0 項、RF、P1～P3 都已 verified，照順序做「看得見的打磨」：巡看四張圖的自然打鬥＋這輪第一次把面板（行囊、行商、技能樹、圖鑑、暫停、競技場大廳）也拍了一遍，最礙眼的不在戰場上，在介面。
+- **目標｜玩家感覺**：以前每個面板的按鈕都是平的直角色塊（亮黃「完成／關閉」、深褐次要鈕），營火旁兩顆捷徑是整個畫面最亮的兩塊長方形，暫停選單每列按鈕寬度不一、邊緣鋸齒——**像還沒做完的佔位介面**。現在按鈕有圓角和一點厚度、同欄對齊，營火捷徑和祝福卡同一種長相。
+- **改了什麼**：
+  - b1caf23（D-406）營火捷徑「行囊・強化」「行商」：深色底板＋有顏色的框與字＋小圖示（袋子／錢幣）；有更好的裝備（▲）時變亮綠。`ui/campBtn.ts`。
+  - a477c1f（D-407）全遊戲的文字按鈕：`fx/btnSkin.ts` 在一個地方把「有底色的 Text」的直角底換成圓角＋上亮下暗＋細邊；大小、位置、點擊範圍都沒變。
+  - 4ead66e（D-408）暫停選單排成整齊的兩欄（`ui/menuGrid.ts`）。
+  - 8c4007e 競技場大廳的四行規則說明從「壓在場框和觀眾席花紋上」移到下面的空位（`ui/lobbyNote.ts`；360×640 放不下，留原位＋深色底）。
+  - ca532a2 「技能會自己放了」的提示以前左右貼到螢幕邊（22 字寬）→ 改短；Boss 大箭頭不再壓到地區名的「—」。
+- **驗證（本次）**：每個 commit 前都跑 typecheck、lint、build、`npx vitest run`；最後一次 **182 檔過 1 跳過、1250 項過 3 跳過**。`build:online` 跑了兩次（動到 `main.ts`、`PvpScene`）都過；`build:server` **沒跑**（沒動 core／server）。純畫面：core、golden hash、campaign、PvP 契約都沒動。新測試 `camp-btn`（2）、`btn-skin`（3）、`menu-grid`（3）、`lobby-note`（2）、`tip-text` 加 2 項（所有 tip 每行 ≤ 21 字寬；改之前會失敗）。
+- **截圖**（390 寬）：`docs/screenshots/camp-btn-before-after.jpg`（上＝以前、下＝現在）、`btn-skin-before-after.jpg`、`pause-grid-before-after.jpg`、`pvp-lobby-note-before-after.jpg`（都是左＝以前、右＝現在）。另外看過沒壞：標題選單、祝福三選一、記憶書、祝福清單、圖鑑；360×640 看過營火捷徑（省電）、暫停選單、競技場大廳。
+- **狀態**：`verified`（靜態）。按鈕按下去的回饋（縮一下＋亮光）沒重拍，靠「底色字串沒變、pressFx 照舊認得」。
+- **已知限制**：`btnSkin` 是改 Phaser Text 的 `updateText`（攔第一個 fillRect），**只在瀏覽器（Chromium）看過，Android WebView／iOS Safari 沒有實機**——壞掉的話按鈕會變回直角或沒有底，`BTN_SKIN.on=false` 一行退回；有行囊內容時的面板（裝備列、強化）沒拍；深夜沒另外拍（面板不吃日夜）；「技能會自己放了」改短後的實際畫面沒重拍（靠寬度測試）。
+- **下一項**：看 Jacky 的回饋；沒有就繼續巡面板（行囊有裝備時、強化、拍賣所、結算／倒下）再回戰場上 NEXT「第 202 輪注意」列的 ①～③。
+- **CI**（收尾前查過）：ca532a2、a477c1f、4ead66e、8c4007e 的 CI（含 mssql 與 headless 冒煙測試）都 **success**；b1caf23 那次和 Pages／APK 沒另外查。
+
+## 2026-11-14 10:12–11:17（台北）第 202 輪：摘要（第 203 輪合併；細節看 git log 與 DECISIONS D-404、D-405）
+- 被精英狼或兩三隻狼圍住時主角會半透明地透出來、壓在主角臉上的小怪血條變淡（5f9d187、ecf5229；`fx/occlude.ts`、`tests/occlude-crowd.test.ts` 9 項）；進地圖的開場說明排到主角下方的字幕帶（ec6a46e；`fx/introLane.ts`、2 項）。
+- 圖 `hero-crowd-before-after.jpg`、`intro-lane-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1233 項）、CI 綠。已知限制：圍住的圖是把怪釘在主角南邊拍的；精英的金框血條和傷害數字仍會壓在主角臉上；競技場沒動。
 
 ## 2026-11-14 08:11–08:30（台北）第 201 輪：摘要（第 202 輪合併；細節看 git log 與 DECISIONS D-402、D-403）
 - 法杖架護盾不再把主角蓋住：六角線框改成身邊張開的六片晶片（7bde38b；`fx/hexPlates.ts`、`tests/hex-plates.test.ts` 4 項）；主角的受傷紅字改跳在身邊、往攻擊者的反方向（db41c6d；`fx/hurtLane.ts`、`tests/hurt-lane.test.ts` 3 項）。
@@ -32,32 +40,15 @@
 - 相遇結語、連殺的回想、深夜提示從主角頭上（560／600）改排到腳下的 `TIP_Y`（2d29562）；「護盾 +N」每次進地圖只冒前三次（6fbe43b；`fx/shieldText.ts`、`tests/shield-text.test.ts` 2 項）。
 - 圖 `caption-lane-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1193 項）、CI 綠。已知限制：深夜提示在出生點會落在營火旅人身上；弓／杖時怪在主角下方，字幕條一樣會蓋到。
 
-## 2026-11-13 22:16–23:05（台北）第 196 輪：摘要（第 197 輪合併；細節看 git log 與 DECISIONS D-394、D-395）
-- 三張圖的地形重畫（還是程式畫）：燼紅裂谷岩壁＝有稜角的玄武岩塊（6f5423d、ce6acf3；`rt/emberRock.ts`）、霧語森林的樹＝葉簇（f07ecee；`rt/treeCrown.ts`）、零星石頭跟著地圖上色（8d08e9e）；大招閃光改成以出招／落點為中心的柔光（3f4371a）；成群預告的填色 ×1/√n（cc65f4d）。
-- 圖 `ember-rock-before-after.jpg`、`tree-crown-before-after.jpg`、`lone-rock-before-after.jpg`、`ult-glow-before-after.jpg`、`tele-crowd-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1190 項）、CI 綠。地形好不好看、大招感夠不夠等 Jacky 實機；競技場的大招閃光沒拍。
-
-## 2026-11-13 20:11–20:56（台北）第 195 輪：摘要（第 196 輪合併；細節看 git log 與 DECISIONS D-392、D-393）
-- 底部自動技能小圓圈畫出「這招怎麼打」的記號（82df74c、94a6bbf；`fx/skillGlyph.ts`）；荊棘谷的荊棘叢從紫紅色氣球改成暗色葉簇（2a92f37；`rt/thornBush.ts`）；熔岩口火柱改柔光、不蓋 HUD（b3be5a4）；火花不飄到頂端血條上（feff178；`fx/fxCeiling.ts`）。
-- 圖 `skill-glyph-before-after.jpg`、`thorn-bush-before-after.jpg`、`vent-column-before-after.jpg`、`fx-ceiling-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1177 項）、CI 綠（b3be5a4 那次被下一個 push 取消）。已知限制：衝擊環與傷害數字仍可能畫到標題列上；粒子還會蓋到小地圖和右上祝福圖示。
-
-## 2026-11-13 16:11–16:45（台北）第 194 輪：摘要（第 195 輪合併；細節看 git log）
-- 打過的地圖，頂端兩行金色目標字講 8 秒就淡掉（5172c49；`rt/goalFade.ts`、`tests/goal-fade.test.ts` 3 項）；新角色的「目標：往北…」照舊。補看主角分件走路在出手／被打／翻滾時沒有脫節（`scripts/shot-walk-fight.mjs`；倒下那一幀沒拍到）。
-- 圖 `goal-strip-fade-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1160 項）、CI 綠。沒看淡出中途、走回營火再亮、360 寬、省電。
-
-## 2026-11-13 15:29–15:50（台北）第 193 輪追加：摘要（第 196 輪合併；細節看 git log 與 DECISIONS D-391）
-- Jacky 在對話裡問「主角像貼紙」：主角立繪切成身體＋兩隻靴子，走路時輪流邁步、身體起伏前傾（5edc6b4 → 425c5ad；`fx/heroWalk.ts`、`scripts/cut-hero.py`、`tests/hero-walk.test.ts` 6 項）。圖 `hero-walk-before-after.jpg`。純畫面；當輪檢查全過（1156 項）。`awaiting_visual`：動起來像不像走路要 Jacky 實機看；競技場的主角沒改、圍巾衣襬不會飄。
-
-## 2026-11-13 14:11–14:30（台北）第 193 輪：摘要（第 194 輪合併；細節看 git log）
-- 星隕／燼紅出生點回程門上的「▼ 回…」不再掉進底部技能列；360 寬的大箭頭不再戳進「目標」字條、距離字不壓字條（a5a873b；`arrowRules.aboveBottomRow`／`goalMargin`、`tests/arrow-rules.test.ts` 多 2 項）。
-- 圖 `gate-label-arrows-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1148 項）、CI 綠。沒看省電、左手模式、荊棘谷的門。
-
-## 2026-11-13 12:11–12:38（台北）第 192 輪：摘要（第 193 輪合併；細節看 git log 與 DECISIONS D-390）
-- 頂端 HUD 從一行灰字改成血條（25205a4）：等級大字＋血條（數字在條裡、變色、掉血殘影、護盾藍邊、低血紅框閃）＋MP／經驗條，金幣／粉塵／時間收到右邊（`rt/hudBars.ts`、`tests/hud-bars.test.ts` 5 項）；落點在標題列後面的墜星／噴發不放粒子、「!」不飄進標題列。
-- 圖 `hud-hp-bar-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1146 項）、CI 綠（Pages／APK 事後確認 success）。殘影與紅框閃的手感等 Jacky 實機；「!」那一條改完沒重拍。
-
-## 2026-11-13 10:11–10:26（台北）第 191 輪：摘要（第 192 輪合併；細節看 git log 與 DECISIONS D-389）
-- 燼紅裂谷的岩壁熔岩裂紋變少、變短、變暗，只留少數幾顆亮的（87b5fd4；`rt/emberCrack.ts`、`tests/ember-crack.test.ts` 2 項）；結局最後一頁「冒險還沒結束」補一行獨特效果裝備與效果圖鑑（e1e719b；`finale.unique`）。
-- 圖 `ember-wall-before-after.jpg`、`finale-next-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1140 項）、CI 綠。岩壁會不會太素等 Jacky 實機。
+## 2026-11-13 10:11–23:05（台北）第 191～196 輪：每日摘要（第 203 輪合併；細節看 git log 與 DECISIONS D-389～D-395；圖都在 `docs/screenshots/`）
+- **第 196 輪**：三張圖的地形重畫（還是程式畫）：燼紅裂谷岩壁＝有稜角的玄武岩塊（6f5423d、ce6acf3；`rt/emberRock.ts`）、霧語森林的樹＝葉簇（f07ecee；`rt/treeCrown.ts`）、零星石頭跟著地圖上色（8d08e9e）；大招閃光改成以出招／落點為中心的柔光（3f4371a）；成群預告的填色 ×1/√n（cc65f4d）。
+- **第 195 輪**：底部自動技能小圓圈畫出「這招怎麼打」的記號（82df74c、94a6bbf；`fx/skillGlyph.ts`）；荊棘谷的荊棘叢從紫紅色氣球改成暗色葉簇（2a92f37；`rt/thornBush.ts`）；熔岩口火柱改柔光、不蓋 HUD（b3be5a4）；火花不飄到頂端血條上（feff178；`fx/fxCeiling.ts`）。
+- **第 194 輪**：打過的地圖，頂端兩行金色目標字講 8 秒就淡掉（5172c49；`rt/goalFade.ts`、`tests/goal-fade.test.ts` 3 項）；新角色的「目標：往北…」照舊。補看主角分件走路在出手／被打／翻滾時沒有脫節（`scripts/shot-walk-fight.mjs`；倒下那一幀沒拍到）。
+- **第 193 輪追加**：Jacky 在對話裡問「主角像貼紙」：主角立繪切成身體＋兩隻靴子，走路時輪流邁步、身體起伏前傾（5edc6b4 → 425c5ad；`fx/heroWalk.ts`、`scripts/cut-hero.py`、`tests/hero-walk.test.ts` 6 項）。圖 `hero-walk-before-after.jpg`。純畫面；當輪檢查全過（1156 項）。`awaiting_visual`：動起來像不像走路要 Jacky 實機看；競技場的主角沒改、圍巾衣襬不會飄。
+- **第 193 輪**：星隕／燼紅出生點回程門上的「▼ 回…」不再掉進底部技能列；360 寬的大箭頭不再戳進「目標」字條、距離字不壓字條（a5a873b；`arrowRules.aboveBottomRow`／`goalMargin`、`tests/arrow-rules.test.ts` 多 2 項）。
+- **第 192 輪**：頂端 HUD 從一行灰字改成血條（25205a4）：等級大字＋血條（數字在條裡、變色、掉血殘影、護盾藍邊、低血紅框閃）＋MP／經驗條，金幣／粉塵／時間收到右邊（`rt/hudBars.ts`、`tests/hud-bars.test.ts` 5 項）；落點在標題列後面的墜星／噴發不放粒子、「!」不飄進標題列。
+- **第 191 輪**：燼紅裂谷的岩壁熔岩裂紋變少、變短、變暗，只留少數幾顆亮的（87b5fd4；`rt/emberCrack.ts`、`tests/ember-crack.test.ts` 2 項）；結局最後一頁「冒險還沒結束」補一行獨特效果裝備與效果圖鑑（e1e719b；`finale.unique`）。
+- 這六輪都是純畫面，hash 沒變；每輪四項檢查全過、CI 綠。
 
 ## 2026-11-13 00:11–08:23（台北）第 186～190 輪：每日摘要（第 195 輪合併；細節看 git log 與 DECISIONS D-386～388）
 - **186**（b2925e8、022988d、c232041）：升級／打倒 Boss／想起記憶不再整個畫面刷亮、升級光柱改柔光；倒下醒來時收掉舊的招式名與數字。圖 `levelup-before-after.jpg`、`boss-slain-flash-before-after.jpg`、`revive-clean-before-after.jpg`。
