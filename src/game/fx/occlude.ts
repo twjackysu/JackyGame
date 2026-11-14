@@ -36,17 +36,24 @@ export const OCCLUDE_MIN_RATIO = 1.5;
  */
 export const OCCLUDE = { crowd: true, crowdGhost: 0.6, crowdMs: 110 };
 
+/** 主角的身體（腳底往上 10%～85%、左右各 30%）被蓋住多少比例以上才算 */
+export const CROWD_COVER_MIN = 0.5;
+
 /**
- * 小怪（比主角高不到 OCCLUDE_MIN_RATIO 倍）蓋住主角：畫在前面、主角的身體中心落在牠立繪的實心部分裡。
- * foe.y 傳立繪真正的下緣（不是腳底的格子位置：狼的立繪原點在腳上面一點，用腳底算會漏掉一半）；front＝牠畫在主角前面（照深度）。
+ * 畫在主角前面的怪蓋住主角：主角的身體有一半以上落在牠立繪的實心部分裡（左右各縮 14%、頭頂縮 10%）。大小不限——
+ * 大隻的本來有 coversHero（看「身體中心點」），但主角站在大精英狼的頭旁邊這種偏一點的位置會漏掉，這裡用面積補上。
+ * foe.y 傳立繪真正的下緣（不是腳底的格子位置：狼的立繪原點在腳上面一點）；front＝牠畫在主角前面（照深度）。
  */
 export function crowdCoversHero(foe: Box, hero: Box, front: boolean = foe.y > hero.y): boolean {
-  if (!OCCLUDE.crowd) return false;
-  if (!front) return false;
-  if (foe.h >= hero.h * OCCLUDE_MIN_RATIO) return false; // 大隻的走 coversHero
-  const cx = hero.x;
-  const cy = hero.y - hero.h * 0.45;
-  return Math.abs(cx - foe.x) <= foe.w * 0.34 && cy >= foe.y - foe.h * 0.9 && cy <= foe.y;
+  if (!OCCLUDE.crowd || !front) return false;
+  const hl = hero.x - hero.w * 0.3;
+  const hr = hero.x + hero.w * 0.3;
+  const ht = hero.y - hero.h * 0.85;
+  const hb = hero.y - hero.h * 0.1;
+  const ox = Math.min(hr, foe.x + foe.w * 0.36) - Math.max(hl, foe.x - foe.w * 0.36);
+  const oy = Math.min(hb, foe.y) - Math.max(ht, foe.y - foe.h * 0.9);
+  if (ox <= 0 || oy <= 0) return false;
+  return (ox * oy) / ((hr - hl) * (hb - ht)) >= CROWD_COVER_MIN;
 }
 
 /** 被小怪蓋住的進度（0～1），慢慢進慢慢出：怪在身邊繞來繞去時不要一閃一閃 */

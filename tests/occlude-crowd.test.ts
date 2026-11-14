@@ -19,8 +19,8 @@ describe('小怪蓋住主角', () => {
     expect(crowdCoversHero(foe(362, 760, 60), hero, true)).toBe(false);
     expect(crowdCoversHero(foe(430, 760, 106), hero, true)).toBe(false);
   });
-  it('大隻的（1.5 倍以上）交給原本的規則，不重複算', () => {
-    expect(crowdCoversHero(foe(362, 800, 240), hero, true)).toBe(false);
+  it('大精英狼的頭蓋住主角大半個身體、但主角不在牠正中間（舊規則漏掉的位置）→ 也算', () => {
+    expect(crowdCoversHero(foe(395, 790, 140), hero, true)).toBe(true);
   });
   it('開關關掉就完全不算', () => {
     OCCLUDE.crowd = false;
