@@ -3567,8 +3567,11 @@ export class RtBattleScene extends Phaser.Scene {
           const col = this.s.weapon === 'staff' ? 0x9fd0ff : this.s.weapon === 'bow' ? 0x9dffc8 : 0xffd27a;
           SFX.parry();
           if (this.s.weapon === 'staff') this.ffx.hexShield(d.x, d.y);
-          shockRing(this, this.sx(d.x), this.sy(d.y) - 30, col, 95, 320, 7);
-          sparks(this, this.sx(d.x), this.sy(d.y) - 30, 10, 'spark', col, 380);
+          // D-402：法杖已經有六片晶片往外張開，不再疊一圈粗光環和第二把火花（主角會被蓋住）
+          if (this.s.weapon !== 'staff' || !this.ffx.plates) {
+            shockRing(this, this.sx(d.x), this.sy(d.y) - 30, col, 95, 320, 7);
+            sparks(this, this.sx(d.x), this.sy(d.y) - 30, 10, 'spark', col, 380);
+          }
           if (showShieldText(this.shieldTexts++)) floatNumber(this, this.sx(d.x), this.sy(d.y) - 96, `護盾 +${e.amount}`, { color: this.s.weapon === 'staff' ? '#bfe0ff' : this.s.weapon === 'bow' ? '#b8ffd8' : '#ffe08a', size: 22 });
         }
       } else if (e.type === 'block') {

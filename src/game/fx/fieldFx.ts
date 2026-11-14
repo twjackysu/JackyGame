@@ -1,5 +1,6 @@
 // 戰場上的共用小特效（第 150 輪，Q5 拆場景）：刀光、墜星／星落衝擊、冰碎、弧月、地裂、六角護盾。
 // 從 RtBattleScene 原封不動搬出來（純畫面）；長劍技能、Boss 招式與遠程特效（rangedFx.ts）都會用到。
+import { HEX_PLATES, hexPlates, hexPoints } from './hexPlates';
 import Phaser from 'phaser';
 import { floatNumber, shockRing, sparks } from './feel';
 import { groundPalette } from './hitTint';
@@ -177,10 +178,29 @@ export class FieldFx {
     floatNumber(this.sc, x, y - r * 0.8, '破甲', { color: '#ff8a6a', size: 22 });
   }
 
+  /** false＝回到舊的六角線框（罩在身上；拍對照用） */
+  plates = true;
+
   hexShield(x: number, y: number): void {
     const cx = this.h.sx(x);
     const cy = this.h.sy(y) - 40;
     const g = this.sc.add.graphics().setDepth(700).setBlendMode(Phaser.BlendModes.ADD).setPosition(cx, cy);
+    if (this.plates) {
+      // D-402：六片晶片排在身邊一圈往外張開，不蓋住主角（位置規則在 fx/hexPlates.ts）
+      const P = HEX_PLATES;
+      for (const p of hexPlates()) {
+        const pts = hexPoints(p.r).map((v) => ({ x: p.x + v.x, y: p.y + v.y }));
+        g.fillStyle(P.fill, P.fillA).fillPoints(pts, true);
+        g.lineStyle(2.5, P.edge, P.edgeA).strokePoints(pts, true);
+        const inner = hexPoints(p.r * 0.5).map((v) => ({ x: p.x + v.x, y: p.y + v.y }));
+        g.lineStyle(1.2, 0xffffff, 0.55).strokePoints(inner, true);
+      }
+      g.setScale(P.from);
+      this.sc.tweens.add({ targets: g, scale: 1, duration: 150, ease: 'Back.easeOut' });
+      this.sc.tweens.add({ targets: g, scale: 1.16, alpha: 0, delay: 240, duration: 260, onComplete: () => g.destroy() });
+      sparks(this.sc, cx, cy, 10, 'spark', P.edge, 420);
+      return;
+    }
     const R = 78;
     const hex = (r: number) => Array.from({ length: 6 }, (_, i) => ({ x: Math.cos((i / 6) * Math.PI * 2 + Math.PI / 6) * r, y: Math.sin((i / 6) * Math.PI * 2 + Math.PI / 6) * r }));
     g.fillStyle(0xc89aff, 0.18).fillPoints(hex(R), true);
