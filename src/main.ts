@@ -5,6 +5,7 @@ import { applySettings } from './game/settings';
 import { installFpsGuard } from './game/perf/fpsGuard';
 import { installBackButton } from './game/backButton';
 import { installPressFx } from './game/fx/pressFx';
+import { installBtnSkin } from './game/fx/btnSkin';
 import { installOrientationGuard } from './game/orientation';
 import { browserSwEnv, installSwUpdates } from './swUpdate';
 import { installVersionCheck } from './versionCheck';
@@ -18,6 +19,7 @@ for (const evt of ['gesturestart', 'gesturechange', 'dblclick'] as const) {
   document.addEventListener(evt, (e) => e.preventDefault(), { passive: false });
 }
 
+installBtnSkin(); // 要在第一個 Text 建立之前
 const game = new Phaser.Game(createGameConfig('game'));
 installFpsGuard(game);
 installPressFx(game);
