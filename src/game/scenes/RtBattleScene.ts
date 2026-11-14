@@ -81,6 +81,7 @@ import type { EnemyImpact } from '../fx/hitTint';
 import { chevronAlpha, crowdCounts, crowdFill, lineChevrons, teleKind, telegraphLook } from '../fx/telegraphLook';
 import { STAR_WARN, rimTicks, starFall } from '../fx/starWarn';
 import { domeBlink, drawDome } from '../fx/shieldDome';
+import { hurtNumberPos } from '../fx/hurtLane';
 import { drawBreak, drawBurn, drawPoison, drawSlow, drawWeak } from '../fx/statusMarks';
 import { drawIceShards, ICE_CASE, thawBlink } from '../fx/iceCase';
 import { areaLook, type AreaLook } from '../fx/areaLook';
@@ -347,6 +348,8 @@ export class RtBattleScene extends Phaser.Scene {
   private slowMs = 0;
   /** 第 200 輪：緩速的腳邊記號（false＝以前沒有記號，拍對照圖用） */
   slowMark = true;
+  /** false＝主角被打的紅字回到胸口（D-403 以前的位置；拍對照用） */
+  hurtLane = true;
   poisonDot = false;
   /** 鏡頭（世界座標，鏡頭中心） */
   private camX = 0;
@@ -3438,8 +3441,11 @@ export class RtBattleScene extends Phaser.Scene {
           const t = floatNumber(this, live ? live.x : this.sx(d.x), live ? live.y : this.sy(d.y) - 30, comboText(c), { color: c.crit ? '#ffd05a' : counter ? '#7dffb0' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: comboSize(c), tier: c.ult ? 'ult' : c.crit ? 'crit' : undefined, fixed: !!live });
           this.hitNum.set(d.id, { t, c, x: t.x, y: t.y, counter });
           if (this.hitNum.size > 64) for (const [id, h] of this.hitNum) if (!h.t.active) this.hitNum.delete(id);
-        } else
-        floatNumber(this, this.sx(d.x), this.sy(d.y) - 30, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit ? 34 : e.origin === 'dot' ? 22 : 26 });
+        } else {
+          // D-403：主角被打的紅字往「打過來的反方向」那一側跳，不從胸口穿過臉（hurtLane=false 回舊位置）
+          const at = toPlayer && this.hurtLane ? hurtNumberPos(this.sx(d.x), this.sy(d.y), src ? src.x - d.x : 0) : { x: this.sx(d.x), y: this.sy(d.y) - 30 };
+          floatNumber(this, at.x, at.y, `${e.amount}${e.crit ? '!' : ''}`, { color: toPlayer ? '#ff8a8a' : e.skill === 'burn' ? '#ffa850' : e.skill === 'poison' ? '#b8ff7a' : '#ffffff', size: e.crit ? 34 : e.origin === 'dot' ? 22 : 26 });
+        }
         // 縛足箭射中（第 166 輪）：怪腳下一圈收緊的繩環，看得出「這隻被綁住了」
         if (!toPlayer && e.origin === 'skill' && this.s.weapon === 'bow' && src?.side === 'player' && this.onScreen(d.x, d.y)) {
           const sd = skillDef(this.s, e.skill);
