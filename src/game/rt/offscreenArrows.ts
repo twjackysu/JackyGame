@@ -99,9 +99,10 @@ export class OffscreenArrows {
       for (const z of this.h.zoneTexts()) {
         if (!z.active || z.alpha < 0.05) continue;
         const zb = z.getBounds();
-        if (cx > zb.left - M && cx < zb.right + M && cy > zb.top - M - 30 && cy < zb.bottom + M + 30) {
+        // 第 203 輪：大箭頭（尖端離中心 31px＋光圈）用 30 的邊界讓開後，左半邊還壓在地區名的「—」上（燼紅裂谷「— 熔渣坡 —」）→ 和目標字條一樣用大箭頭自己的邊界
+        if (cx > zb.left - gm && cx < zb.right + gm && cy > zb.top - M - 30 && cy < zb.bottom + M + 30) {
           const cx0 = cx;
-          cx = cx < zb.centerX ? Math.max(M, zb.left - M) : Math.min(GAME_WIDTH - M, zb.right + M);
+          cx = cx < zb.centerX ? Math.max(M, zb.left - gm) : Math.min(GAME_WIDTH - M, zb.right + gm);
           // 第 84 輪：往左讓開又躲回小地圖／懸賞板底下（360×640 深夜裂谷「岔路：…」字從畫面左邊開始）→ 箭頭被板子蓋住、只剩距離字 → 改成留在原處、讓到字的下面
           const underMini = mm && cx < mm.x + mm.w + M && cy < mm.y + mm.h + M;
           const underBounty = bb && cx < bb.right + M && cy > bb.top - M && cy < bb.bottom + M;

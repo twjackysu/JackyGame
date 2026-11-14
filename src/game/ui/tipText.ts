@@ -85,3 +85,14 @@ export function leashNear(distHome: number, chaseDist: number, start = 0.72): nu
   const r = distHome / chaseDist;
   return r <= start ? 0 : Math.min(1, (r - start) / (1 - start));
 }
+
+/**
+ * 提示一行有多寬（第 203 輪），單位＝一個全形字（半形英數約 0.56）。30px 的字幕條在 720 寬的畫面上，
+ * 扣掉底條左右各 18 的內距與一點邊，一行最多約 21 個全形字；再寬底條就貼到畫面兩邊（「…（MENU→技能樹可以改回手動）」22.2）。
+ */
+export function tipLineUnits(line: string): number {
+  let w = 0;
+  for (const c of line) w += c.charCodeAt(0) < 0x2000 ? 0.56 : 1;
+  return w;
+}
+export const TIP_LINE_UNITS_MAX = 21.2;

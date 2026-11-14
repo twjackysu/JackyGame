@@ -90,3 +90,19 @@ describe('精英快脫戰的預告（第 177 輪）', () => {
     expect(leashNear(100, 0)).toBe(0);
   });
 });
+
+describe('提示不會寬到貼住畫面兩邊（第 203 輪）', () => {
+  it('zh-TW 裡所有 tip 字串換行後，每一行都在 21 個全形字以內', async () => {
+    const { wrapTip, tipLineUnits, TIP_LINE_UNITS_MAX } = await import('../src/game/ui/tipText');
+    const { default: fs } = await import('node:fs');
+    const src = fs.readFileSync('src/i18n/zh-TW.ts', 'utf8');
+    const tips = [...src.matchAll(/'((?:[a-zA-Z0-9]+\.)*tip(?:\.[a-zA-Z0-9]+)*)':\s*'([^'\n]+)'/g)].map((m) => [m[1]!, m[2]!.replace(/\\n/g, '\n')] as const);
+    expect(tips.length).toBeGreaterThan(3);
+    for (const [k, t] of tips) for (const line of wrapTip(t).split('\n')) expect(tipLineUnits(line), `${k}：${line}`).toBeLessThanOrEqual(TIP_LINE_UNITS_MAX);
+  });
+  it('半形字算半個多一點', async () => {
+    const { tipLineUnits } = await import('../src/game/ui/tipText');
+    expect(tipLineUnits('閃避')).toBe(2);
+    expect(tipLineUnits('MENU')).toBeCloseTo(2.24);
+  });
+});
