@@ -142,6 +142,7 @@ import { chapterLabel, chapterSeen, markChapterSeen, playChapterCard, postGameEn
 import { drawRankAura } from '../fx/rankAura';
 import { pveRankAura, refreshRank } from '../rankCache';
 import { pvpOps } from '../pvpOps';
+import { animSheet } from '../../data/animArt';
 
 const STEP_MS = 1000 / TICKS_PER_SEC;
 /** 兩則教學提示之間至少安靜多久（D-176） */
@@ -171,20 +172,23 @@ const TOP_EXTRA = 150;
  *  黃框格擋提示一出來就把正在打你的狼蓋住。改排在主角下方 250，下排操作鍵上面。 */
 const TIP_Y = Math.round(Math.min(VIEW_TOP + (GAME_HEIGHT - VIEW_TOP) * FOCUS_Y + 250, GAME_HEIGHT - 545)); // 360×640（高 1280）不壓到 MP 球；第 72 輪 470→545：兩行提示（巡守、大招充滿）的下緣以前壓到大招鍵
 /** 立繪對應（D-067；沒有圖就退回程式圓形） */
-/** rim：立繪太暗、在這張圖的地面上看不清楚的怪，墊一圈這個顏色的淡邊（fx/heroRim，D-371） */
-const SPRITE: Record<string, { key: string; h: number; flip: boolean; tint?: number; rim?: number }> = {
+/** rim：立繪太暗、在這張圖的地面上看不清楚的怪，墊一圈這個顏色的淡邊（fx/heroRim，D-371）
+ *  fallback：key 的圖沒載到時改用這組（走路影格表 data/animArt.ts 缺檔時退回原本的染色立繪） */
+type SpriteCfg = { key: string; h: number; flip: boolean; tint?: number; rim?: number; fallback?: SpriteCfg };
+const SPRITE: Record<string, SpriteCfg> = {
   swordsman: { key: 'hero_lian', h: 3.6, flip: true },
   wolf: { key: 'enemy_mist_wolf', h: 2.9, flip: true },
   wolf_pup: { key: 'enemy_mist_wolf', h: 2.9, flip: true, tint: 0xc8e0ff },
   alpha_wolf: { key: 'enemy_mist_wolf', h: 2.8, flip: true, tint: 0xffb080 },
-  shade_wolf: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xa88aff },
+  // 11/14：霧影狼、夜棘首領改用 Jacky 的 Tripo 瘴氣狼（3D 渲染成 10 格走路影格，data/animArt.ts）；以前是霧狼染紫
+  shade_wolf: { key: 'enemy_miasma_wolf_walk', h: 3.0, flip: true, fallback: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xa88aff } },
   thorn_shooter: { key: 'enemy_thorn_shroom', h: 2.9, flip: false },
   thorn_mother: { key: 'enemy_thorn_mother', h: 2.6, flip: false },
   wolf_king: { key: 'enemy_boss_wolfking', h: 3.0, flip: false },
   // 荊棘谷（D-114）：棘背狼、棘冠狼后、荊棘巡獵者用 AI 圖（R-013～R-015），其他先用現有立繪染色
   thorn_wolf: { key: 'enemy_thorn_wolf', h: 2.9, flip: true, rim: 0xd2e68c },
   thorn_queen: { key: 'enemy_boss_thornqueen', h: 3.2, flip: false },
-  night_thorn_alpha: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xc890ff },
+  night_thorn_alpha: { key: 'enemy_miasma_wolf_walk', h: 3.4, flip: true, tint: 0xe8d8ff, fallback: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0xc890ff } },
   thorn_stalker: { key: 'enemy_thorn_stalker', h: 3.1, flip: true },
   mist_warden: { key: 'enemy_mist_wolf', h: 3.0, flip: true, tint: 0x7ae8d8 },
   // 燼紅裂谷（D-125）：史萊姆與岩王用 AI 圖（R-016、R-017；沒有圖時退回 fx/emberArt.ts 的程式美術）；三種狼 11/11 換成 AI 圖（R-021）
@@ -585,6 +589,8 @@ export class RtBattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    // 立繪缺檔（例如走路影格表沒載到）→ 換成備援那組（只換一次；SPRITE 是整個模組共用的表）
+    for (const [id, c] of Object.entries(SPRITE)) if (c.fallback && !this.textures.exists(c.key)) SPRITE[id] = c.fallback;
     refreshRank(() => pvpOps.ladder());
     // Bot 示範也帶著玩家的等級與裝備（只讀、不存）
     const big = !!STAGES[this.stageId]?.bossZone && !!STAGES[this.stageId]?.spawnGroups?.length && !!worldMap(this.stageId);
@@ -2373,6 +2379,7 @@ export class RtBattleScene extends Phaser.Scene {
       const wy = sp.y - H * (0.45 + t * 0.45);
       top.fillStyle(q % 2 ? 0x2a1a4a : 0x6a4aaa, (1 - t) * 0.45).fillCircle(wx, wy, r * (0.38 - t * 0.18));
     }
+    if (animSheet(sp.texture.key)) return; // 瘴氣狼的圖自己有發光的眼睛，程式畫的眼睛會點在背上
     const ex = sp.x + dir * r * 0.95;
     const ey = sp.y - H * 0.66;
     const pulse = 0.6 + 0.4 * Math.sin(now / 300 + x.id);
@@ -4693,7 +4700,8 @@ export class RtBattleScene extends Phaser.Scene {
       // 主角走路（第 193 輪，fx/heroWalk）：有分件就用「身體」那張（同尺寸、靴子挖掉），兩隻靴子另外擺
       const parts = x.side === 'player' && HERO_WALK.on ? HERO_PARTS[key.replace('hero_', '')] : undefined;
       const split = !!parts && ['body', 'foot_l', 'foot_r'].every((q) => this.textures.exists(`${key}_${q}`));
-      sp = this.add.image(0, 0, split ? `${key}_body` : key).setOrigin(0.5, 0.92);
+      // 走路影格表：一開始停在第 0 格（不指定的話會拿到整張表）
+      sp = this.add.image(0, 0, split ? `${key}_body` : key, animSheet(key) ? 0 : undefined).setOrigin(0.5, 0.92);
       if (split && parts) {
         const feet = (['l', 'r'] as const).map((sd) => {
           const f = parts.feet[sd];
@@ -5022,7 +5030,9 @@ export class RtBattleScene extends Phaser.Scene {
         const cfg = SPRITE[isP ? 'swordsman' : x.defId]!;
         const base = sp.getData('base') as number;
         const moving = Math.abs(pos.x - (this.prev.get(x.id)?.x ?? pos.x)) + Math.abs(pos.y - (this.prev.get(x.id)?.y ?? pos.y)) > 0.5 || !!x.action;
-        const bob = moving ? Math.abs(Math.sin(now / 90 + x.id)) * r * 0.12 : Math.sin(now / 400 + x.id) * r * 0.03;
+        const sheet = isP ? undefined : animSheet(sp.texture.key);
+        // 有走路影格的怪：腳自己會走，整隻只輕輕起伏（整張圖一起彈＝像貼紙）
+        const bob = moving ? Math.abs(Math.sin(now / 90 + x.id)) * r * (sheet ? 0.025 : 0.12) : Math.sin(now / 400 + x.id) * r * 0.03;
         // 蓄力：往後縮、放大一點點（敵人出招前的身體語言）
         const squash = winding ? 1 + 0.06 * Math.sin(now / 40) : 1;
         // 受擊：位移與後仰隨時間收回（以前是固定位移、時間到瞬間彈回）
@@ -5064,6 +5074,20 @@ export class RtBattleScene extends Phaser.Scene {
         sp.setPosition(px + kx + (fx0(x) * lunge), py + r * 0.15 - walkUp + ky + (fy0(x) * lunge)).setDepth(10 + Math.min(30, (pos.y / Math.max(1, s.arena.h)) * 30)); // 大地圖也不會蓋過 HUD／選單（深度 45 以上）
         if (sp.scaleY !== 0 && !this.tweens.isTweening(sp)) sp.setScale(base * squash, base / squash);
         if (cfg.flip && x.facingX !== 0) sp.setFlipX(x.facingX < 0);
+        if (sheet) {
+          // 只看位置有沒有真的在變（站著出招、蓄力不踏步）；停下後 0.15 秒內走完這一步再收腳
+          const lx = sp.getData('lx') as number | undefined;
+          const ly = sp.getData('ly') as number | undefined;
+          if (lx === undefined || Math.abs(pos.x - lx) + Math.abs(pos.y - (ly ?? pos.y)) > 0.05) sp.setData('walkUntil', lx === undefined ? 0 : now + 150);
+          sp.setData('lx', pos.x).setData('ly', pos.y);
+          let ph = (sp.getData('wph') as number | undefined) ?? 0;
+          const at = (sp.getData('wAt') as number | undefined) ?? now;
+          if (!x.dead && now < ((sp.getData('walkUntil') as number | undefined) ?? 0)) ph += Math.min(100, now - at) / sheet.ms;
+          else ph = 0;
+          sp.setData('wph', ph).setData('wAt', now);
+          const fr = Math.floor(ph) % sheet.frames;
+          if (Number(sp.frame.name) !== fr) sp.setFrame(fr, false, false);
+        }
         // 脫戰返回中半透明（打不到）；待機的怪稍暗
         // 大隻的怪擋住主角 → 牠變半透明（第 174 輪；規則在 fx/occlude.ts）。主角倒下、怪還沒醒就不用
         const occ = isP ? 1 : occludeStep((sp.getData('occ') as number | undefined) ?? 1, !!heroBox && x.mode !== 'idle' && x.mode !== 'dormant' && coversHero({ x: sp.x, y: sp.y, w: sp.displayWidth, h: sp.displayHeight }, heroBox), this.game.loop.delta);

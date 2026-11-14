@@ -84,6 +84,9 @@ function draw(g: Phaser.GameObjects.Graphics, slot: GearSlot, w: WeaponId = 'swo
 /** 取得（必要時產生）某部位的圖示材質 key */
 export function gearIconKey(scene: Phaser.Scene, slot: GearSlot): string {
   const w = slot === 'weapon' ? loadWeapon() : 'sword';
+  // 武器欄有彩色圖（11/14：Jacky 的 Tripo 武器模型渲染成圖示，public/art/gear_weapon_*.webp）就用它
+  const art = `gear_weapon_${w}`;
+  if (slot === 'weapon' && scene.textures.exists(art)) return art;
   const key = w === 'sword' ? `gear_icon_${slot}` : `gear_icon_${slot}_${w}`;
   if (!scene.textures.exists(key)) {
     const g = scene.make.graphics({ x: 0, y: 0 }, false);
@@ -110,7 +113,11 @@ export function gearIcon(scene: Phaser.Scene, x: number, y: number, slot: GearSl
     }
     out.push(glow);
   }
-  const img = scene.add.image(x, y, gearIconKey(scene, slot)).setDisplaySize(size, size).setTint(col);
+  const key = gearIconKey(scene, slot);
+  const img = scene.add.image(x, y, key).setDisplaySize(size, size);
+  // 程式剪影是白色的，用稀有度顏色上色；彩色圖不染（染了會發髒），稀有度看底光，空欄位染灰變淡
+  if (!key.startsWith('gear_weapon_')) img.setTint(col);
+  else if (!rarity) img.setTint(0x8a8a99);
   if (!rarity) img.setAlpha(0.45);
   out.push(img);
   return out;
