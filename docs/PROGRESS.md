@@ -1,16 +1,23 @@
 # 進度紀錄（新的在最上面）
 
-## 2026-11-14 16:12–16:57（台北）第 205 輪 — 祝福三選一：看得出這張靠什麼觸發、和身上的合不合
-**基準** 9794368 → **結果** 118addf（程式三個 commit：9fa68ef、a8d91aa、118addf）。FOR_JACKY「回覆」空；沒有 Issue、art-inbox 空、沒有 Jacky 的新 commit；開工時 CI 綠（4f5f1bf 的 CI、Pages、APK 都 success）。第 0 項、RF、P1～P3 都已 verified。
-- **巡看（本次拍的）**：Lv1 長劍霧語森林、Lv14 長弓燼紅裂谷各一輪自然打鬥。戰場沒有比前幾輪列的更礙眼的；**這輪挑的是祝福三選一面板**——它是 P2 的核心時刻（每幾十秒一次的選擇），但三張卡只有名字＋說明，身上有什麼只有一行小灰字，看不出「這張和我已經有的合不合」，選擇很難變成「組打法」。
-- **目標｜玩家感覺**：選卡時一眼知道這張改的是哪一種打法；身上已經有會互相帶動的祝福時，卡片直接告訴你，選下去那一刻也有回饋——**覺得自己在組一套東西，不是每次挑一個獨立的加成**。
-- **改了什麼（D-410）**：①每張卡右上角有觸發方式的小標（普攻／技能命中／閃避／擊殺／暴擊／護盾／殘血／冷卻／強化／試招）②和身上的祝福或獨特效果裝備**真的會連動**時，卡片下緣掛一條金色的籤，例：「搭配｜『影步』的必暴會引爆它」（七種連動，都是 engine 裡實際會發生的）③卡片改圓角＋左邊一段元素色，點下去時沒選的淡掉；蓋著的牌也改圓角 ④「身上的祝福」清單每列也有小標與「✦ 搭配『綻光』」⑤選到湊成搭配的那一個時，多跳一行「✦ 搭配成形｜影步 × 綻光」。規則在 `ui/blessCard.ts`（純資料）；結算、抽選、機率都沒動。`BLESS_CARD.on=false` 回舊樣子。
-- **驗證（本次）**：typecheck、lint、build、`npm test` **184 檔過 1 跳過、1259 項過 3 跳過**；`build:online` 過；`build:server` **沒跑**（沒動 core／server）。純畫面：golden hash、campaign、PvP 契約都沒動。新測試 `tests/bless-card.test.ts` 4 項（每個效果含試招／獨特都有小標且中英文有字；七種搭配的方向與「沒有連動不硬湊」；好幾個對得上時的優先序；三把武器所有配對的字放得進籤）。連動本身的行為沿用 `tests/rt-bless.test.ts` 既有的測試（影步的必暴觸發綻光、燼爆連鎖、疾雷縮短冷卻…）。
-- **截圖**：`docs/screenshots/bless-card-before-after.jpg`、`bless-list-before-after.jpg`（左＝以前、右＝現在；390 寬長劍）、`bless-combo-formed.jpg`。另外看過：沒有任何搭配的第一手、360×640 法杖帶 7 個、長弓省電畫質含三行說明的試招卡、點下去那一瞬間。
-- **狀態**：`verified`（靜態）。**好不好玩——有沒有因此想湊搭配——需要 Jacky 實機確認。**
-- **已知限制**：只提示「會互相帶動」，沒有改抽選（不會因為你有影步就比較常出綻光）；試招卡與「廣域」這類單純加成不列搭配；小標在 390 寬約 11px，偏小；深夜沒另外拍（面板蓋在暗幕上，不受影響）。
-- **下一項**：看 Jacky 的回饋；沒有就 NEXT「第 205 輪注意」的候選。
-- **CI**（收尾前查過）：118addf 的 CI（check 含 headless 冒煙測試、mssql 契約）**success**；9fa68ef、a8d91aa 的 CI 也是 success。Pages／APK 沒另外查。
+## 2026-11-14 18:11–19:17（台北）第 206 輪 — 開寶箱的字回到寶箱旁、圖鑑寫出搭配祝福、冰霜新星的地面不再是灰盤子
+**基準** 32838f1 → **結果** f552f0b（程式四個 commit：2aeefb9、403e524、9973692、f552f0b）。FOR_JACKY「回覆」空；沒有 Issue、art-inbox 空、沒有 Jacky 的新 commit；開工時 CI 綠（118addf 的 CI、Pages、APK 都 success）。第 0 項、RF、P1～P3 都已 verified，這輪是第 3 項「看得見的打磨」。
+- **巡看（本次拍的）**：Lv8 法杖荊棘谷、Lv14 長劍星隕高原各一輪自然打鬥。挑了三個：①星隕出生點旁開寶箱，「找到隱藏寶箱！」＋戰利品兩行置中大字離寶箱很遠、蓋在狼和牠的血條上、和地區名疊成三層（第 202 輪列過沒做）②法杖冰霜新星在地上留一塊灰色圓盤 1.5 秒，出手時還有兩圈站著的正圓（第 199 輪列過沒做）③第 205 輪留下的「圖鑑也標搭配」。
+- **目標｜玩家感覺**：開寶箱＝東西從箱子裡跳出來，不是畫面中央跳公告；冰霜新星＝地面真的結了一層霜；看圖鑑時知道「刷到這件之後這趟要湊哪個祝福」。
+- **改了什麼**：
+  - **寶箱（D-411）**：標題「隱藏寶箱！」和每樣戰利品（金幣金、粉塵藍、結晶紫、藥水綠，和怪掉的同一組顏色）一行一行從箱口跳出來，排在寶箱**背對主角**的那一側、跟著寶箱走；放不下換邊、不頂到 HUD。`fx/chestPop.ts`；`CHEST_POP.on=false` 回舊的置中大字。
+  - **圖鑑（D-413）**：每條獨特效果的掉落那一行右邊多一句「✦ 搭配祝福：綻光、殘影」（放不下少列幾個加「…」）。規則是第 205 輪那一份（`blessCard.ts` 的 `pair`，新增 `blessPartners`）；`CODEX_SYN.on=false` 不列。
+  - **結霜（D-412）**：平圓盤＋硬線 → 放射漸層貼圖（中間幾乎透明、邊緣最濃、柔邊）＋種子決定的霜紋＋一段一段的碎冰邊；出手那圈正圓（法杖 `rangedFx`、劍的霜旋兩處）改成結霜圈裡貼地往外推的寒氣波；往內收的蓄力圈壓扁成同一個平面、出手後不再留著。`fx/frostGround.ts`；`FROST_GROUND.on=false` 回舊樣子。
+- **驗證（本次）**：typecheck、lint、build、`npm test` **186 檔過 1 跳過、1274 項過 3 跳過**；`build:online` 過；`build:server` **沒跑**（沒動 core／server）。三項都是純畫面：golden hash、campaign、PvP 契約都沒動。新測試：`tests/chest-pop.test.ts` 5 項、`tests/frost-ground.test.ts` 5 項、`tests/bless-card.test.ts` 多 3 項（搭配清單的優先序、兩邊對得上、名字太多時截斷）。
+- **截圖**（左／上＝以前）：`docs/screenshots/chest-pop-before-after.jpg`（390 寬長劍星隕）、`codex-syn-before-after.jpg`、`frost-ground-before-after.jpg`（荊棘谷、星隕）、`frost-wave-before-after.jpg`（出手後 60ms／180ms）。另外看過：寶箱在 360×640 省電畫質法杖、荊棘谷長弓、主角在寶箱右邊與下面；圖鑑 360×640 法杖；結霜在燼紅裂谷 360×640 省電畫質。**沒看**：夜光寶箱、深夜的結霜、劍的霜旋（同一段畫法，沒另外拍）、英文介面。
+- **狀態**：三項 `verified`（靜態）。寶箱的字跳出來的節奏、寒氣波的動態——**需要 Jacky 實機確認**。
+- **已知限制**：寶箱打開後箱子本身還是一小塊暗褐色（沒有開蓋的演出）；戰利品的字在星隕的晶簇背景上稍微花；結霜圈裡的魔法陣線條和霜紋疊在一起那 0.5 秒有點密；`frost-wave` 的對照圖不是同一個亂數瞬間（右上那張剛好同時放了護盾）。
+- **工具**：`scripts/shot-chest.mjs`（走去開最近的寶箱，`NTH`、`OFF=1`、`AT=`）、`scripts/shot-frost.mjs`（結霜圈出現後 `AGE` 毫秒，同時拍舊畫法 `-x`）。**這個環境 vite 不會自己偵測檔案變更——改了程式要重開 vite 再拍**（這輪因此白拍了三次）。
+- **下一項**：看 Jacky 的回饋；沒有就 NEXT「第 206 輪注意」的候選。
+- **CI**（收尾前查過）：四個程式 commit（2aeefb9、403e524、9973692、f552f0b）的 CI（check 含 headless 冒煙測試、mssql 契約）都 **success**。Pages／APK 沒另外查。
+
+## 2026-11-14 16:12–16:57（台北）第 205 輪：摘要（第 206 輪合併；細節看 git log 與 DECISIONS D-410）
+- 祝福三選一的卡片寫出觸發方式的小標；和身上的祝福／獨特裝備真的會連動時掛「搭配」的籤，清單與選定那一刻（「搭配成形」）也提示（9fa68ef、a8d91aa、118addf；`ui/blessCard.ts`、`tests/bless-card.test.ts` 4 項）。圖 `bless-card-before-after.jpg`、`bless-list-before-after.jpg`、`bless-combo-formed.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1259 項）、CI 綠。已知限制：沒有改抽選；小標在 390 寬偏小。
 
 ## 2026-11-14 14:11–14:40（台北）第 204 輪：摘要（第 205 輪合併；細節看 git log 與 DECISIONS D-409）
 - 技能樹下面三排打法格每格畫出那種打法的小圖示、鎖與「使用中」用畫的（4f5f1bf；`ui/branchCell.ts`、`tests/branch-cell.test.ts` 3 項）。圖 `skill-branch-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1254 項）、CI 綠。已知限制：剛滿級的閃光還是直角；說明框沒有圖示。
@@ -27,19 +34,13 @@
 - 法杖架護盾不再把主角蓋住：六角線框改成身邊張開的六片晶片（7bde38b；`fx/hexPlates.ts`、`tests/hex-plates.test.ts` 4 項）；主角的受傷紅字改跳在身邊、往攻擊者的反方向（db41c6d；`fx/hurtLane.ts`、`tests/hurt-lane.test.ts` 3 項）。
 - 圖 `staff-guard-plates-before-after.jpg`、`hurt-lane-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1221 項）、CI 綠。已知限制：360 寬、深夜、省電沒拍；「護盾 +N」仍在頭頂正上方；競技場的受傷數字沒動。
 
-## 2026-11-14 06:11–06:40（台北）第 200 輪：摘要（第 201 輪合併；細節看 git log 與 DECISIONS D-401）
+## 2026-11-14 00:11–06:40（台北）第 197～200 輪：每日摘要（第 206 輪合併；細節看 git log 與 DECISIONS D-396～D-401）
 - 緩速有記號了：被緩的怪／對手／主角腳邊往下沉的藍紫色小箭頭（e6d9028；`fx/statusMarks.ts`、`tests/status-marks.test.ts` 4 項）；競技場補上灼燒、中毒、破甲、虛弱；主角中毒改成綠泡泡（b95aa57）。
 - 圖 `status-marks-before-after.jpg`、`hero-poison-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1212 項）、CI 綠。已知限制：競技場的狀態是直接塞進去拍的；箭頭偏小、紫色的棘背狼身上不突出。
-
-## 2026-11-14 04:11–04:50（台北）第 199 輪：摘要（第 200 輪合併；細節看 git log 與 DECISIONS D-399、D-400）
 - 被冰住的怪變成冰雕：整隻結霜變白＋腳邊冰晶，不畫圈、不畫暈眩星（9b22343；`fx/iceCase.ts`、`tests/ice-case.test.ts` 5 項）；競技場畫出護盾罩、冰凍、暈眩（3f5acd1；`drawDome`／`drawIceShards` 兩個場景共用）。
 - 圖 `ice-case-before-after.jpg`、`pvp-status-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1207 項）、CI 綠。已知限制：精英被冰、快解凍的閃爍沒拍；競技場對手的護盾沒拍到。
-
-## 2026-11-14 02:11–02:40（台北）第 198 輪：摘要（第 199 輪合併；細節看 git log 與 DECISIONS D-397、D-398）
 - 星隕高原的墜星預告整段看得到星星往下掉、落點有收攏的刻度與閃白（d372d67；`fx/starWarn.ts`、`tests/star-warn.test.ts` 2 項）；護盾罩從硬線圈改成玻璃罩（3ec99ed；`fx/shieldDome.ts`、`tests/shield-dome.test.ts` 3 項）。
 - 圖 `star-warn-before-after.jpg`、`shield-dome-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1200 項）、CI 綠。已知限制：守望者一階段的 `sentinel_meteor` 沒拍到；護盾罩定案後只重拍了劍、高光很小；動起來夠不夠警覺／會不會太淡等 Jacky 實機。
-
-## 2026-11-14 00:11–00:30（台北）第 197 輪：摘要（第 198 輪合併；細節看 git log 與 DECISIONS D-396）
 - 相遇結語、連殺的回想、深夜提示從主角頭上（560／600）改排到腳下的 `TIP_Y`（2d29562）；「護盾 +N」每次進地圖只冒前三次（6fbe43b；`fx/shieldText.ts`、`tests/shield-text.test.ts` 2 項）。
 - 圖 `caption-lane-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1193 項）、CI 綠。已知限制：深夜提示在出生點會落在營火旅人身上；弓／杖時怪在主角下方，字幕條一樣會蓋到。
 

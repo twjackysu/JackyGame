@@ -24,10 +24,15 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 206 輪注意（寶箱的字 D-411、結霜 D-412、圖鑑搭配 D-413）**：
+- `fx/chestPop.ts`（`CHEST_POP`：離寶箱多遠 `side`、行距、每樣晚多久跳出來 `stagger`、停多久 `hold`；`chestPopLayout` 決定排哪一側）；畫在 `RtBattleScene.popChest`（一個跟著寶箱世界座標的 Container）。`fx/frostGround.ts`（`FROST_GROUND`：漸層 `stops`、霜紋條數、碎冰邊幾段、寒氣波 `waveReach`／`waveMs`）；畫在 `groundHazards.drawFrost`（漸層是一張 `fx_frost_ground` 貼圖，每個結霜圈一個 Image、融化時收掉）；正圓的 `shockRing` 在 `rangedFx.staffFx` 最後那段與 `RtBattleScene` 劍的兩處被跳過。圖鑑的搭配＝`blessCard.ts` 的 `blessPartners`／`CODEX_SYN`。
+- 拍法：`OUT=… node scripts/shot-chest.mjs 武器 地圖 tag`（`NTH=1` 第二近的寶箱、`OFF=1` 舊畫法、`AT=12,40,90` 開箱後第幾幀）；`OUT=… AGE=450 node scripts/shot-frost.mjs 地圖 tag`（同時拍 `-x` 舊畫法；`AGE=60` 看出手那一下；每次的亂數瞬間不一樣）。圖鑑＝`STEPS='["sc().openCodex()"]' DSF=2 node scripts/shot-panels.mjs 武器 地圖 tag [W H]`。**這個環境 vite 不會偵測檔案變更：改了 `src/` 一定要重開 vite 再拍**，不然拍到的是舊程式。
+- **還沒做（依序）**：①寶箱打開後箱子本身沒有開蓋／金光的演出（現在只有一圈衝擊環＋火花）②結霜圈出現的前 0.5 秒和魔法陣的六芒星線條疊在一起有點密（可以讓冰凍的招不畫六芒星）③法杖雷暴／隕星的圓形招出手仍是正圓的 `shockRing`（同樣的「呼拉圈」問題，這輪只處理冰凍）④背包裡獨特裝備的詳情還沒有「搭配祝福」⑤第 205 輪列的 ①③、第 202 輪列的 ①③。
+
 **第 205 輪注意（祝福卡的小標與搭配 D-410）**：
 - `ui/blessCard.ts`（`blessTrigger`、`blessSynergy`＋`pair` 裡的七條規則與優先序 `ORDER`、`BLESS_CARD`：圓角、色帶、字級、沒選的淡到多少）；畫在 `ui/blessPanel.ts`（卡片、清單）與 `RtBattleScene` 的 `blessPick` 演出（「搭配成形」）。文字 `bless.trig.*`／`bless.syn.*`。**新增效果時**：`blessTrigger` 沒對上的會落到「強化」；有新的連動要在 `pair` 加一條並補 `tests/bless-card.test.ts`。
 - 拍法：`OFFER=crit_bloom,frost_touch,try:whirlwind:1 TAKEN=shadow_step,quick_hands DARK=1 node scripts/shot-bless.mjs 武器 地圖 輸出.png [W H]`（`LIST=1` 拍清單、`CLICK=0 AFTER=0.9` 點第一張後等 0.9 秒、`LOWFX=1`）。**點了之後的截圖一次只開一個瀏覽器**（兩個並行會逾時）。
-- **還沒做（依序，等 Jacky 對提示的反應再決定）**：①抽選時讓「能和身上搭配」的效果稍微常出（玩法規則，要記 DECISIONS、跑 Bot）②獨特效果裝備的詳情／效果圖鑑也標出「和哪些祝福搭配」③HUD 右上角那排祝福圖示，搭配的兩顆之間沒有任何記號 ④第 204 輪列的 ①～③。
+- **還沒做（依序，等 Jacky 對提示的反應再決定）**：①抽選時讓「能和身上搭配」的效果稍微常出（玩法規則，要記 DECISIONS、跑 Bot）②（第 206 輪做了圖鑑，D-413；裝備詳情還沒）獨特效果裝備的詳情／效果圖鑑也標出「和哪些祝福搭配」③HUD 右上角那排祝福圖示，搭配的兩顆之間沒有任何記號 ④第 204 輪列的 ①～③。
 
 **第 204 輪注意（技能樹的打法格 D-409）**：
 - `ui/branchCell.ts`（`BRANCH_CELL`：格子大小、圖示位置、記號位置；`branchLook`／`branchFont`）；畫在 `rtSkillPanel.ts` 的分支那段（格子畫進 `g`、圖示畫進 `gi`／沒解鎖的畫進整層變淡的 `gLock`，點擊用一塊透明的 Rectangle）。
