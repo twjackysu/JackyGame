@@ -90,7 +90,7 @@ import { HERO_PARTS } from '../fx/heroParts.gen';
 import { bodyPose, easeAmt, footfall, footPose, HERO_WALK } from '../fx/heroWalk';
 import { goalAlpha } from '../rt/goalFade';
 import { ensureRim, FOE_RIM_ALPHA, FOE_RIM_SCREEN_PX, RIM_ALPHA, RIM_COLOR, RIM_SCREEN_PX } from '../fx/heroRim';
-import { coversHero, heroGhostAlpha, occludeStep } from '../fx/occlude';
+import { BAR_OVER_HERO_ALPHA, barOverHero, coversHero, crowdCoversHero, crowdStep, ghostAlpha, occludeStep } from '../fx/occlude';
 import { Ambient } from '../fx/ambient';
 import { NightLight, fireGlowTexture, nightShadeTexture, type LightSpot } from '../fx/nightLight';
 import { loadFinaleStats, playFinale, playPrologue, prologueSeen } from '../ui/finale';
@@ -3984,16 +3984,25 @@ export class RtBattleScene extends Phaser.Scene {
   /** 這一幀擋住主角的怪：最淡的不透明度、最前面的深度（畫單位時累計，下一幀 syncHeroGhost 用掉後歸零） */
   private occMin = 1;
   private occDepth = 0;
+  /** 這一幀有沒有小怪蓋住主角（第 202 輪）、蓋住的進度（0～1，慢慢進出）、上一次蓋住時的深度（淡出時沿用） */
+  private crowdCover = false;
+  /** 小怪血條壓到主角頭／胸口時畫淡（第 202 輪）；false＝照舊 */
+  barFade = true;
+  private crowdT = 0;
+  private crowdDepth = 0;
 
   /**
    * 主角被大隻的怪擋住時，把主角再畫一份疊在那隻怪身上（第 185 輪；多實由 fx/occlude 的 heroGhostAlpha 決定）。
    * 以前只靠把怪變成三成透明：深色地圖上正在打的精英變成鬼影。用的是上一幀的遮擋結果（差一幀，看不出來）。純畫面。
    */
   private syncHeroGhost(heroSp: Phaser.GameObjects.Image | undefined): void {
-    const a = heroSp ? heroGhostAlpha(this.occMin) : 0;
-    const depth = this.occDepth;
+    this.crowdT = crowdStep(this.crowdT, this.crowdCover, this.game.loop.delta);
+    const a = heroSp ? ghostAlpha(this.occMin, this.crowdT) : 0;
+    if (this.occDepth > 0) this.crowdDepth = this.occDepth;
+    const depth = this.occDepth || this.crowdDepth;
     this.occMin = 1;
     this.occDepth = 0;
+    this.crowdCover = false;
     let gh = heroSp?.getData('ghost') as Phaser.GameObjects.Image | undefined;
     if (!heroSp || a <= 0.01) {
       gh?.setVisible(false);
@@ -4984,6 +4993,11 @@ export class RtBattleScene extends Phaser.Scene {
           this.occMin = Math.min(this.occMin, occ);
           this.occDepth = Math.max(this.occDepth, sp.depth);
         }
+        // 小怪蓋住主角（第 202 輪）：牠不變淡，只記下來讓 syncHeroGhost 把主角疊畫在牠身上
+        if (!isP && heroBox && !x.dead && x.side !== 'player' && crowdCoversHero({ x: sp.x, y: sp.y + (1 - sp.originY) * sp.displayHeight, w: sp.displayWidth, h: sp.displayHeight }, heroBox, !!heroSp && sp.depth > heroSp.depth)) {
+          this.crowdCover = true;
+          this.occDepth = Math.max(this.occDepth, sp.depth);
+        }
         sp.setAlpha((inv || x.mode === 'returning' ? 0.45 : x.mode === 'idle' || x.mode === 'dormant' ? 0.85 : 1) * occ);
         // 被冰住（第 199 輪，fx/iceCase.ts）：染成冰藍，身上再疊一層淡淡的霜白剪影（乘色只會變暗，深色的怪要靠這層才看得出結霜）
         const frzQ = !isP && this.iceCase ? x.statuses.find((q) => q.id === 'freeze' && q.until > s.tick) : undefined;
@@ -5214,11 +5228,13 @@ export class RtBattleScene extends Phaser.Scene {
           top.fillStyle(0x2a1a06, 1).fillRect(px - w / 2 - 4, by - 4, w + 8, bh + 8);
           top.fillStyle(0xffd27a, 1).fillRect(px - w / 2 - 2, by - 2, w + 4, bh + 4);
         }
-        top.fillStyle(0x000000, elite ? 1 : 0.7).fillRect(px - w / 2, by, w, bh);
+        // 小怪的血條壓在主角頭／胸口上就畫淡（第 202 輪，fx/occlude.ts）：被圍時三條紅條不再橫在主角臉上
+        const ba = !isP && !elite && this.barFade && heroBox && barOverHero({ x: px - w / 2, y: by, w, h: bh }, heroBox) ? BAR_OVER_HERO_ALPHA : 1;
+        top.fillStyle(0x000000, (elite ? 1 : 0.7) * ba).fillRect(px - w / 2, by, w, bh);
         const hr = Math.max(0, x.hp / x.maxHp);
         const gr = this.ghostHp(x.id, hr);
-        if (gr > hr) top.fillStyle(isP ? 0xff8a8a : 0xffffff, 0.9).fillRect(px - w / 2 + w * hr, by, w * (gr - hr), bh);
-        top.fillStyle(isP ? 0x7dffb0 : elite ? 0xff5a4a : 0xff6a6a, 1).fillRect(px - w / 2, by, w * hr, bh);
+        if (gr > hr) top.fillStyle(isP ? 0xff8a8a : 0xffffff, 0.9 * ba).fillRect(px - w / 2 + w * hr, by, w * (gr - hr), bh);
+        top.fillStyle(isP ? 0x7dffb0 : elite ? 0xff5a4a : 0xff6a6a, ba).fillRect(px - w / 2, by, w * hr, bh);
         if (elite) {
           const dx = px - w / 2 - 4;
           const dy = by + bh / 2;
