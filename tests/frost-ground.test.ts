@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FROST_GROUND, frostCracks, frostRimArcs } from '../src/game/fx/frostGround';
+import { FROST_GROUND, frostCracks, frostRimArcs, frostWave } from '../src/game/fx/frostGround';
 
 // 結霜圈的長相（D-412）：純資料——裂紋不出圈、同一個種子畫出同一組、邊緣是斷開的
 describe('frostGround', () => {
@@ -45,5 +45,18 @@ describe('frostGround', () => {
         expect(a1 - a0).toBeLessThan(step);
       });
     }
+  });
+  it('寒氣波：從裡面往外推過結霜圈的邊、越推越淡，時間到就沒了', () => {
+    expect(frostWave(-1)).toBeNull();
+    expect(frostWave(FROST_GROUND.waveMs)).toBeNull();
+    const a = frostWave(0)!;
+    const b = frostWave(FROST_GROUND.waveMs / 2)!;
+    const c = frostWave(FROST_GROUND.waveMs - 1)!;
+    expect(a.r).toBeLessThan(b.r);
+    expect(b.r).toBeLessThan(c.r);
+    expect(c.r).toBeGreaterThan(1);
+    expect(c.r).toBeLessThanOrEqual(FROST_GROUND.waveReach);
+    expect(a.a).toBeGreaterThan(b.a);
+    expect(c.a).toBeLessThan(0.05);
   });
 });

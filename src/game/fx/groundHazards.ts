@@ -6,7 +6,7 @@ import { playerOf } from '../../core/battle/rt/engine';
 import { UNIT, type BattleState, type Telegraph } from '../../core/battle/rt/types';
 import { GAME_WIDTH } from '../config';
 import type { FieldFx } from './fieldFx';
-import { FROST_GROUND, frostCracks, frostRimArcs } from './frostGround';
+import { FROST_GROUND, frostCracks, frostRimArcs, frostWave } from './frostGround';
 import { shockRing, sparks } from './feel';
 
 /** 結霜圈的放射漸層貼圖（D-412）：只建一次 */
@@ -277,6 +277,8 @@ export class GroundHazards {
         const q = F.squash;
         f.img ??= this.sc.add.image(px, py, frostTexture(this.sc)).setDepth(8.9);
         f.img.setVisible(true).setPosition(px, py).setDisplaySize(R * 2, R * 2 * q).setAlpha(fade);
+        const wv = frostWave(age);
+        if (wv) g.lineStyle(F.waveW * wv.a + 1, F.rim, 0.85 * wv.a).strokeEllipse(px, py, f.size * k * 2 * wv.r, f.size * k * 2 * wv.r * q);
         for (const line of frostCracks(f.seed)) {
           g.lineStyle(1.5, F.rim, F.crackA * fade * grow).beginPath();
           line.forEach((p, i) => (i ? g.lineTo(px + p.x * R, py + p.y * R * q) : g.moveTo(px + p.x * R, py + p.y * R * q)));

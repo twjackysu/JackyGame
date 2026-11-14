@@ -5,6 +5,7 @@ import { SFX } from '../../audio/sfx';
 import { UNIT, type Shape } from '../../core/battle/rt/types';
 import { getSettings } from '../settings';
 import { shockRing, softFlash, sparks, ultFlash } from './feel';
+import { FROST_GROUND } from './frostGround';
 import { stormStrikes } from './hitTint';
 
 /** 場景提供給遠程特效的東西 */
@@ -361,7 +362,8 @@ export class RangedFx {
       g.lineStyle(2, col, 0.7).lineBetween(Math.cos(a1) * R * 0.8, Math.sin(a1) * R * 0.48, Math.cos(a2) * R * 0.8, Math.sin(a2) * R * 0.48);
     }
     this.sc.tweens.add({ targets: g, alpha: 0, scaleX: 1.15, scaleY: 1.15, duration: 520, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
-    shockRing(this.sc, vx, vy, col, R * 1.1, 360, 9);
+    // 第 206 輪（D-412）：冰凍的招（冰霜新星）不畫這圈正圓——地上的魔法陣和結霜圈都是壓扁的橢圓，正圓疊上去像一個站著的呼拉圈；改成結霜圈裡貼地的寒氣波
+    if (!(st === 'freeze' && FROST_GROUND.on)) shockRing(this.sc, vx, vy, col, R * 1.1, 360, 9);
     sparks(this.sc, vx, vy, 16, st === 'burn' ? 'ember' : 'spark', col, 520);
     if (st === 'freeze' && blink === 0 && single && R >= 4 * UNIT * this.h.k() - 1) this.timeClock(x, y, hs.r); // 時間凝滯（4 格冰凍反擊）
     if (st === 'freeze') {

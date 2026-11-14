@@ -16,6 +16,10 @@ export const FROST_GROUND = {
   cracks: 7,
   crackSteps: 4,
   crackA: 0.4,
+  /** 出手那一下貼著地面往外推的寒氣波（取代以前那圈站著的粗白圓——地上的霜是壓扁的橢圓，它卻是正圓，像一個呼拉圈）：推到半徑的幾倍、幾毫秒、線多粗 */
+  waveReach: 1.18,
+  waveMs: 420,
+  waveW: 5,
   /** 橢圓壓扁的比例（和以前一樣，像躺在地上） */
   squash: 0.7,
 };
@@ -29,6 +33,15 @@ function rng(seed: number): () => number {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** 寒氣波在 age 毫秒時的樣子：半徑比例（相對結霜圈）與濃淡 0～1；結束後回傳 null */
+export function frostWave(age: number): { r: number; a: number } | null {
+  const F = FROST_GROUND;
+  if (age < 0 || age >= F.waveMs) return null;
+  const t = age / F.waveMs;
+  const e = 1 - (1 - t) ** 3;
+  return { r: 0.25 + (F.waveReach - 0.25) * e, a: 1 - t };
 }
 
 export type FrostPt = { x: number; y: number };

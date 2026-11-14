@@ -86,6 +86,7 @@ import { STAR_WARN, rimTicks, starFall } from '../fx/starWarn';
 import { domeBlink, drawDome } from '../fx/shieldDome';
 import { hurtNumberPos } from '../fx/hurtLane';
 import { CHEST_LOOT_COLOR, CHEST_POP, chestPopLayout } from '../fx/chestPop';
+import { FROST_GROUND } from '../fx/frostGround';
 import { drawBreak, drawBurn, drawPoison, drawSlow, drawWeak } from '../fx/statusMarks';
 import { drawIceShards, ICE_CASE, thawBlink } from '../fx/iceCase';
 import { areaLook, type AreaLook } from '../fx/areaLook';
@@ -4293,7 +4294,8 @@ export class RtBattleScene extends Phaser.Scene {
         this.tweens.add({ targets: g, alpha: 0, duration: 320, onComplete: () => g.destroy() });
         // 流星衝（D-112）：衝到底的落地爆炸（非 oncePerTarget 的圓）
         if (hs.type === 'circle' && !h.oncePerTarget) {
-          shockRing(this, this.sx(p.x), this.sy(p.y), 0x9fd8ff, hs.r * this.k * 1.2, 380, 10);
+          // 第 206 輪（D-412）：冰凍的圓形招（冰霜新星）不畫這圈正圓——改成結霜圈裡貼地的寒氣波
+          if (!(FROST_GROUND.on && h.status?.id === 'freeze')) shockRing(this, this.sx(p.x), this.sy(p.y), 0x9fd8ff, hs.r * this.k * 1.2, 380, 10);
           sparks(this, this.sx(p.x), this.sy(p.y), 18, 'spark', 0xd8f0ff, 520);
           this.cameras.main.shake(140, 0.007);
         }
@@ -4331,7 +4333,8 @@ export class RtBattleScene extends Phaser.Scene {
       const st = h.status?.id;
       if (st === 'freeze') {
         this.hz.spawnFrost(p.x, p.y, hs.type === 'circle' ? hs.r : UNIT * 2);
-        shockRing(this, this.sx(p.x), this.sy(p.y), 0xbff4ff, (hs.type === 'circle' ? hs.r : UNIT * 2) * this.k * 1.15, 520, 10);
+        // 第 206 輪（D-412）：那圈站著的粗白圓改成貼地的寒氣波（畫在結霜圈裡，fx/frostGround.ts）
+        if (!FROST_GROUND.on) shockRing(this, this.sx(p.x), this.sy(p.y), 0xbff4ff, (hs.type === 'circle' ? hs.r : UNIT * 2) * this.k * 1.15, 520, 10);
         sparks(this, this.sx(p.x), this.sy(p.y), 26, 'spark', 0xd8fbff, 700);
         softFlash(this, 0xbfe8ff);
       } else if (st === 'break' && big) {
@@ -5401,17 +5404,20 @@ export class RtBattleScene extends Phaser.Scene {
         }
         // 第 71 輪：蓄力型的單發圓（霜旋、冰霜新星）蓄力中＝寒氣從外圈往內收、冰晶繞圈（以前只有平平的藍圈）
         const frostCharge = !!h && sk?.role === 'aoe' && sk.hits.length === 1 && h.shape.type === 'circle' && h.status?.id === 'freeze' && h.atTick >= 8;
-        if (frostCharge && h && h.shape.type === 'circle') {
+        // 第 206 輪（D-412）：只畫到出手那一刻——以前收招那幾幀這圈正圓還留在主角身邊，和地上壓扁的結霜圈疊在一起像呼拉圈
+        if (frostCharge && h && h.shape.type === 'circle' && (!FROST_GROUND.on || s.tick - x.action.start <= h.atTick)) {
           const fs = skillShape(this.s, x.action.id, h.shape);
           const R = (fs.type === 'circle' ? fs.r : h.shape.r) * this.k;
           const t = Math.min(1, (s.tick - x.action.start) / h.atTick);
           const rr = R * (1 - 0.55 * t);
-          top.lineStyle(8, 0xbff4ff, 0.18 + 0.3 * t).strokeCircle(px, py, rr);
-          top.lineStyle(2, 0xffffff, 0.5 + 0.4 * t).strokeCircle(px, py, rr);
+          // 第 206 輪（D-412）：往內收的寒氣圈也壓扁成貼地的橢圓（和魔法陣、結霜圈同一個平面；以前是正圓，像套在主角身上的呼拉圈）
+          const fq = FROST_GROUND.on ? FROST_GROUND.squash : 1;
+          top.lineStyle(fq < 1 ? 5 : 8, 0xbff4ff, 0.18 + 0.3 * t).strokeEllipse(px, py, rr * 2, rr * 2 * fq);
+          top.lineStyle(2, 0xffffff, 0.5 + 0.4 * t).strokeEllipse(px, py, rr * 2, rr * 2 * fq);
           for (let q = 0; q < 10; q++) {
             const a = (q / 10) * Math.PI * 2 - t * 2.4;
             const sx0 = px + Math.cos(a) * rr;
-            const sy0 = py + Math.sin(a) * rr;
+            const sy0 = py + Math.sin(a) * rr * fq;
             top.fillStyle(0xe8fcff, 0.85).fillTriangle(sx0 + Math.cos(a) * 10, sy0 + Math.sin(a) * 10, sx0 - Math.sin(a) * 4, sy0 + Math.cos(a) * 4, sx0 + Math.sin(a) * 4, sy0 - Math.cos(a) * 4);
           }
         }

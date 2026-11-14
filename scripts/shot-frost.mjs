@@ -41,5 +41,5 @@ console.log('frost', ok);
 await pg.screenshot({ path: `${OUT}/${tag}.png` });
 await pg.evaluate(() => { FG.on = false; __game.step(T, 0); });
 await pg.screenshot({ path: `${OUT}/${tag}-x.png` });
-console.log(await pg.evaluate(() => { const S = sc(); const r = S.hz.frost.find((f) => f.ring); return JSON.stringify({ tick: S.s.tick, at: r && [Math.round(S.sx(r.x)), Math.round(S.sy(r.y)), Math.round(r.size * S.k)] }); }));
+console.log(await pg.evaluate(() => { const S = sc(); const r = S.hz.frost.find((f) => f.ring); const u = S.s.units[0]; return JSON.stringify({ tick: S.s.tick, at: r && [Math.round(S.sx(r.x)), Math.round(S.sy(r.y)), Math.round(r.size * S.k)], action: u.action && [u.action.kind, u.action.id, u.action.start], rings: S.children.list.filter((o) => o.type === "Graphics" && o.depth === 790).length }); }));
 await b.close();
