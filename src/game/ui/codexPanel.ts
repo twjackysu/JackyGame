@@ -2,7 +2,8 @@
 // 只有顯示：效果資料、掉落表與機率都讀 core（effects.ts、loot.ts），這裡不放任何規則。
 import Phaser from 'phaser';
 import { SFX } from '../../audio/sfx';
-import { effectDef } from '../../core/battle/rt/effects';
+import { EFFECT_IDS, effectDef, type EffectDef } from '../../core/battle/rt/effects';
+import { CODEX_SYN, blessPartners, codexSynNames } from './blessCard';
 import { UNIQUE_COLOR, UNIQUE_IDS, UNIQUE_TITLES } from '../../core/battle/rt/gear';
 import { UNIQUE_DROP, uniqueSources } from '../../core/battle/rt/loot';
 import type { WeaponKind } from '../../core/battle/rt/data';
@@ -31,6 +32,7 @@ export function openCodexPanel(scene: Phaser.Scene, weapon: WeaponKind, owned: r
   const g = scene.add.graphics();
   root.add(g);
   const mapName = (id: string): string => WORLD_MAPS.find((m) => m.id === id)?.name ?? id;
+  const pool = EFFECT_IDS.map((id) => effectDef(id, weapon)).filter((d): d is EffectDef => !!d);
   UNIQUE_IDS.forEach((id, i) => {
     const d = effectDef(id, weapon);
     if (!d) return;
@@ -47,7 +49,19 @@ export function openCodexPanel(scene: Phaser.Scene, weapon: WeaponKind, owned: r
     root.add(scene.add.text(cx - 240, y + 2 * k, d.desc, { fontFamily: UI_FONT, fontSize: f(d.desc.length > 24 ? 17 : 19), color: has ? '#f4ecd8' : '#c8c0ac' }).setOrigin(0, 0.5));
     // 掉落地圖：這張圖會掉的用橘色標出來（不只靠顏色：前面加「▶」）
     const src = uniqueSources(id).map((s) => (s === stageId ? `▶${mapName(s)}` : mapName(s))).join('、');
-    root.add(scene.add.text(cx - 240, y + 28 * k, t('codex.from', { maps: src }), { fontFamily: UI_FONT, fontSize: f(17), fontStyle: here ? '700' : '400', color: here ? '#ffb070' : '#9a927e' }).setOrigin(0, 0.5));
+    const from = scene.add.text(cx - 240, y + 28 * k, t('codex.from', { maps: src }), { fontFamily: UI_FONT, fontSize: f(17), fontStyle: here ? '700' : '400', color: here ? '#ffb070' : '#9a927e' }).setOrigin(0, 0.5);
+    root.add(from);
+    // 第 206 輪：這條效果和哪些燼火祝福會互相帶動（規則和三選一卡片上的「搭配」同一份）→ 知道刷到之後要湊什麼。
+    // 排在掉落那一行的右邊；放不下就少列幾個、後面加「…」
+    const mates = CODEX_SYN.on ? blessPartners(d, pool) : [];
+    if (mates.length) {
+      const st = scene.add.text(cx + 322, y + 28 * k, '', { fontFamily: UI_FONT, fontSize: f(17), fontStyle: '700', color: has ? '#ffe08a' : '#b8a878' }).setOrigin(1, 0.5);
+      for (let n = Math.min(CODEX_SYN.max, mates.length); n >= 1; n--) {
+        st.setText(t('codex.syn', { names: codexSynNames(mates, n) }));
+        if (st.x - st.width >= from.x + from.width + 14) break;
+      }
+      root.add(st);
+    }
   });
   const foot = `${t('codex.rates', { elite: UNIQUE_DROP.elite, boss: UNIQUE_DROP.boss, hidden: UNIQUE_DROP.hidden, fury: UNIQUE_DROP.fury, night: UNIQUE_DROP.nightPlus })}\n${t('codex.rule')}`;
   root.add(scene.add.text(cx, top + total + 12, foot, { fontFamily: UI_FONT, fontSize: '19px', color: '#b8a888', align: 'center', lineSpacing: 4 }).setOrigin(0.5, 0));

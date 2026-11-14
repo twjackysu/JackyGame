@@ -74,6 +74,25 @@ export function blessSynergy(offer: EffectDef, have: readonly EffectDef[]): Bles
 }
 const ORDER: readonly SynergyKind[] = ['crit', 'cooldown', 'finish', 'dodge', 'kill', 'skillHit', 'attack'];
 
+/**
+ * 這個效果和 `pool` 裡的哪些會互相帶動（第 206 輪，效果圖鑑用）：照 ORDER 的優先序排，同一級照 pool 的順序；不含自己。
+ * 規則和三選一卡片上的「搭配」同一份（pair）。
+ */
+export function blessPartners(d: EffectDef, pool: readonly EffectDef[]): EffectDef[] {
+  const hit: { r: number; i: number; d: EffectDef }[] = [];
+  pool.forEach((o, i) => {
+    if (o.id === d.id) return;
+    const p = pair(d, o);
+    if (p) hit.push({ r: ORDER.indexOf(p.kind), i, d: o });
+  });
+  return hit.sort((x, y) => x.r - y.r || x.i - y.i).map((h) => h.d);
+}
+
+/** 圖鑑每列右下的「搭配祝福」；on＝false 不列，max＝最多列幾個名字 */
+export const CODEX_SYN = { on: true, max: 3 };
+/** 前 n 個名字用頓號接起來，還有沒列的就加「…」 */
+export const codexSynNames = (mates: readonly { name: string }[], n: number): string => mates.slice(0, n).map((m) => m.name).join('、') + (mates.length > n ? '…' : '');
+
 /** i18n 的 key：`bless.syn.<kind>`，帶動的那一邊多一個 `.lead` */
 export const synergyKey = (s: BlessSynergy): string => `bless.syn.${s.kind}${s.lead ? '.lead' : ''}`;
 

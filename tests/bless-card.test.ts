@@ -77,3 +77,28 @@ describe('祝福卡的小標與搭配（D-410）', () => {
     expect(seen).toBeGreaterThan(30);
   });
 });
+
+// 第 206 輪：效果圖鑑每條獨特效果列出「搭配祝福」——同一份 pair 規則
+describe('效果圖鑑的搭配祝福（blessPartners）', async () => {
+  const { CODEX_SYN, blessPartners, codexSynNames } = await import('../src/game/ui/blessCard');
+  const pool = EFFECT_IDS.map((id) => def(id));
+  const ids = (id: string) => blessPartners(def(id), pool).map((d) => d.id);
+  it('列出真的會連動的、不含自己，最要緊的排前面', () => {
+    expect(ids('shadow_step')[0]).toBe('crit_bloom'); // 必暴引爆綻光排在「同一下閃避」的殘影前面
+    expect(ids('shadow_step')).toContain('after_image');
+    expect(ids('executioner')).toEqual(expect.arrayContaining(['ember_burst', 'vital_ember']));
+    expect(ids('guard_pulse')).toEqual(['quick_hands']);
+    for (const id of EFFECT_IDS) expect(ids(id), id).not.toContain(id);
+  });
+  it('兩邊對得上：A 的清單有 B，B 的清單就有 A', () => {
+    for (const a of EFFECT_IDS) for (const b of ids(a)) expect(ids(b), `${b}←${a}`).toContain(a);
+  });
+  it('名字太多時只列前幾個、後面加「…」', () => {
+    const m = [{ name: '甲' }, { name: '乙' }, { name: '丙' }];
+    expect(codexSynNames(m, 3)).toBe('甲、乙、丙');
+    expect(codexSynNames(m, 2)).toBe('甲、乙…');
+    expect(CODEX_SYN.max).toBeGreaterThanOrEqual(1);
+    expect((zhTW as Record<string, string>)['codex.syn']).toContain('{names}');
+    expect((en as Record<string, string>)['codex.syn']).toContain('{names}');
+  });
+});

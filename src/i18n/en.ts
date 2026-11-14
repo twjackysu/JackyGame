@@ -94,6 +94,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   'codex.has': '✔ Owned',
   'codex.none': 'Not owned',
   'codex.from': 'Drops in: {maps}',
+  'codex.syn': '✦ Pairs with: {names}',
   'codex.rates': 'Chance per rare item: elite {elite}% · boss {boss}%\nhidden elite {hidden}% · enraged boss {fury}% (+{night}% at deep night)',
   'codex.rule': 'First boss kill on each map guarantees one\n▶ = drops on this map · inactive in the arena',
   'codex.menu': 'Effects {n}/{max}',

@@ -2733,7 +2733,6 @@ export class RtBattleScene extends Phaser.Scene {
     });
   }
 
-  /** 隱藏寶箱附近第一次靠近：「這個地方似乎有點熟悉……」（design/20 C2，只提示不指路） */
   /** 開寶箱的字從寶箱旁邊跳出來（D-411）；false＝舊的置中大字 */
   chestPop = true;
   /** 標題＋每樣戰利品各一行，排在寶箱背對主角的那一側，跟著寶箱（世界座標）走 */
@@ -2758,6 +2757,7 @@ export class RtBattleScene extends Phaser.Scene {
     this.time.delayedCall(last + P.hold + rows.length * 60 + 360, () => box.destroy());
   }
 
+  /** 隱藏寶箱附近第一次靠近：「這個地方似乎有點熟悉……」（design/20 C2，只提示不指路） */
   private chestHint(): void {
     const list = STAGES[this.stageId]?.chests;
     if (!list?.length || this.bot) return;
