@@ -2,6 +2,7 @@
 // 伺服器 pvp.start 發種子與雙方配裝 → 這裡用同一份引擎在本機打（對手由 PlayerBot 操作，跟伺服器重跑時一模一樣）→
 // 記下自己的指令 → pvp.finish 交給伺服器重跑判勝負、改段位分。畫面只送意圖，勝負以伺服器為準（26-security）。
 // 跟大地圖的 RtBattleScene 分開：競技場整塊放得進一個畫面（不用鏡頭）、沒有掉落與存檔，畫面全部程式美術。
+import { lobbyNoteY } from '../ui/lobbyNote';
 import Phaser from 'phaser';
 import { STAGES, WEAPONS } from '../../core/battle/rt/data';
 import { playerDef, playerOf, skillDef, skillShape, step } from '../../core/battle/rt/engine';
@@ -238,7 +239,12 @@ export class PvpScene extends Phaser.Scene {
           this.add.text(W - 76, y, `${rankName(r.rating)} ${r.rating}`, { fontFamily: UI_FONT, fontSize: '24px', color: r.me ? col : auraCss(r.rating) }).setOrigin(1, 0.5),
         ]);
       });
-      box.add(this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n你的等級、裝備、技能點與選的打法都會帶進場\n（HP ×3、傷害減半、裝備等級差距縮小；獨特效果★與祝福不生效）\n競技場的第 3 招是位移招（衝鋒／後躍射擊／閃現），要自己按', { fontFamily: UI_FONT, fontSize: '20px', color: '#8a92a6', align: 'center', stroke: '#0b0e18', strokeThickness: 6 }).setOrigin(0.5));
+      const note = this.add.text(W / 2, this.oy + 16 * UNIT * K + 44, '點 ⚔ 的名字指名挑戰（段位分差 200 內）・電腦操作\n你的等級、裝備、技能點與選的打法都會帶進場\n（HP ×3、傷害減半、裝備等級差距縮小；獨特效果★與祝福不生效）\n競技場的第 3 招是位移招（衝鋒／後躍射擊／閃現），要自己按', { fontFamily: UI_FONT, fontSize: '20px', color: '#8a92a6', align: 'center', stroke: '#0b0e18', strokeThickness: 6 }).setOrigin(0.5);
+      // 第 203 輪：放到觀眾席花紋下面的空位（ui/lobbyNote.ts）；矮螢幕放不下就留原位＋深色底
+      const ny = lobbyNoteY(this.oy + 16 * UNIT * K, GAME_HEIGHT - 260, note.height);
+      note.setY(ny.y);
+      if (ny.backed) note.setBackgroundColor('rgba(8,10,20,0.8)').setPadding(14, 6, 14, 6);
+      box.add(note);
     });
   }
 
