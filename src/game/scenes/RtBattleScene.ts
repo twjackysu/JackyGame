@@ -1277,7 +1277,7 @@ export class RtBattleScene extends Phaser.Scene {
       this.blessRoot = null;
       if (this.menu === root) this.menu = null;
     };
-    const root = openBlessPanel(this, this.blessDefs(offer), this.blessDefs(b.taken), b.rerolls, (i) => send({ type: 'bless', pick: i }), () => send({ type: 'bless', reroll: true }), b.dark ? () => send({ type: 'bless', gamble: true }) : undefined);
+    const root = openBlessPanel(this, this.blessDefs(offer), this.blessDefs(b.taken), b.rerolls, (i) => send({ type: 'bless', pick: i }), () => send({ type: 'bless', reroll: true }), b.dark ? () => send({ type: 'bless', gamble: true }) : undefined, this.blessDefs(b.perm ?? []));
     this.blessRoot = root;
     this.menu = root;
   }
