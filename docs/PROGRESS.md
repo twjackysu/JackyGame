@@ -1,20 +1,20 @@
 # 進度紀錄（新的在最上面）
 
-## 2026-11-14 12:12–13:02（台北）第 203 輪 — 介面看起來「做完了」：按鈕不再是直角色塊、暫停選單對齊、營火捷徑、競技場大廳的說明
-**基準** 75716c5 → **結果** 8c4007e（程式五個 commit：b1caf23、ca532a2、a477c1f、4ead66e、8c4007e）。FOR_JACKY「回覆」空；沒有 Issue、art-inbox 空、沒有 Jacky 的新 commit；開工時 CI 綠（ecf5229 的 CI、Pages、APK 都 success）。第 0 項、RF、P1～P3 都已 verified，照順序做「看得見的打磨」：巡看四張圖的自然打鬥＋這輪第一次把面板（行囊、行商、技能樹、圖鑑、暫停、競技場大廳）也拍了一遍，最礙眼的不在戰場上，在介面。
-- **目標｜玩家感覺**：以前每個面板的按鈕都是平的直角色塊（亮黃「完成／關閉」、深褐次要鈕），營火旁兩顆捷徑是整個畫面最亮的兩塊長方形，暫停選單每列按鈕寬度不一、邊緣鋸齒——**像還沒做完的佔位介面**。現在按鈕有圓角和一點厚度、同欄對齊，營火捷徑和祝福卡同一種長相。
-- **改了什麼**：
-  - b1caf23（D-406）營火捷徑「行囊・強化」「行商」：深色底板＋有顏色的框與字＋小圖示（袋子／錢幣）；有更好的裝備（▲）時變亮綠。`ui/campBtn.ts`。
-  - a477c1f（D-407）全遊戲的文字按鈕：`fx/btnSkin.ts` 在一個地方把「有底色的 Text」的直角底換成圓角＋上亮下暗＋細邊；大小、位置、點擊範圍都沒變。
-  - 4ead66e（D-408）暫停選單排成整齊的兩欄（`ui/menuGrid.ts`）。
-  - 8c4007e 競技場大廳的四行規則說明從「壓在場框和觀眾席花紋上」移到下面的空位（`ui/lobbyNote.ts`；360×640 放不下，留原位＋深色底）。
-  - ca532a2 「技能會自己放了」的提示以前左右貼到螢幕邊（22 字寬）→ 改短；Boss 大箭頭不再壓到地區名的「—」。
-- **驗證（本次）**：每個 commit 前都跑 typecheck、lint、build、`npx vitest run`；最後一次 **182 檔過 1 跳過、1250 項過 3 跳過**。`build:online` 跑了兩次（動到 `main.ts`、`PvpScene`）都過；`build:server` **沒跑**（沒動 core／server）。純畫面：core、golden hash、campaign、PvP 契約都沒動。新測試 `camp-btn`（2）、`btn-skin`（3）、`menu-grid`（3）、`lobby-note`（2）、`tip-text` 加 2 項（所有 tip 每行 ≤ 21 字寬；改之前會失敗）。
-- **截圖**（390 寬）：`docs/screenshots/camp-btn-before-after.jpg`（上＝以前、下＝現在）、`btn-skin-before-after.jpg`、`pause-grid-before-after.jpg`、`pvp-lobby-note-before-after.jpg`（都是左＝以前、右＝現在）。另外看過沒壞：標題選單、祝福三選一、記憶書、祝福清單、圖鑑；360×640 看過營火捷徑（省電）、暫停選單、競技場大廳。
-- **狀態**：`verified`（靜態）。按鈕按下去的回饋（縮一下＋亮光）沒重拍，靠「底色字串沒變、pressFx 照舊認得」。
-- **已知限制**：`btnSkin` 是改 Phaser Text 的 `updateText`（攔第一個 fillRect），**只在瀏覽器（Chromium）看過，Android WebView／iOS Safari 沒有實機**——壞掉的話按鈕會變回直角或沒有底，`BTN_SKIN.on=false` 一行退回；有行囊內容時的面板（裝備列、強化）沒拍；深夜沒另外拍（面板不吃日夜）；「技能會自己放了」改短後的實際畫面沒重拍（靠寬度測試）。
-- **下一項**：看 Jacky 的回饋；沒有就繼續巡面板（行囊有裝備時、強化、拍賣所、結算／倒下）再回戰場上 NEXT「第 202 輪注意」列的 ①～③。
-- **CI**（收尾前查過）：ca532a2、a477c1f、4ead66e、8c4007e 的 CI（含 mssql 與 headless 冒煙測試）都 **success**；b1caf23 那次和 Pages／APK 沒另外查。
+## 2026-11-14 14:11–14:40（台北）第 204 輪 — 技能樹的「打法」格看得出三種打法差在哪
+**基準** 9a7bc83 → **結果** 4f5f1bf（程式一個 commit）。FOR_JACKY「回覆」空；沒有 Issue、art-inbox 空、沒有 Jacky 的新 commit；開工時 CI 綠（8c4007e 的 CI、Pages、APK 都 success）。第 0 項、RF、P1～P3 都已 verified，接第 203 輪列的「面板還沒巡的部分」。
+- **巡看（本次拍的）**：行囊有裝備（三件獨特＋四件一般）、裝備詳情＋強化列、營火行商、Lv14 的技能樹、暫停選單；荊棘谷長弓自然打鬥一輪。行囊／詳情／行商都整齊，沒動。**最礙眼的是技能樹下面三排打法格**（第 203 輪列的 ②）。倒下在大地圖是直接回營火醒來，沒有結算畫面可巡。
+- **目標｜玩家感覺**：以前三排都是暗色直角方塊＋兩三個字，「原招／裂地斬／碎甲斬」看起來一樣，選中的是一整塊洋紅，沒解鎖只有一顆 14px 的 emoji 鎖。現在每格左邊是那種打法在戰鬥畫面底部的小圖示（同色同記號：火橘、冰青、毒綠…），**一眼看出三種打法不一樣、還沒解鎖的也看得到「之後會拿到什麼」**；使用中＝粉框＋打勾。
+- **改了什麼**：`ui/branchCell.ts`（長相規則、字級，純資料）＋`rtSkillPanel.ts` 畫法（D-409）。點擊範圍、選打法的規則、存檔都沒動；`BRANCH_CELL.on=false` 回舊樣子。新增 `scripts/shot-panels.mjs`（Lv14 存檔＋STEPS 逐步截面板）。
+- **驗證（本次）**：typecheck、lint、build、`npx vitest run` **183 檔過 1 跳過、1254 項過 3 跳過**。純畫面：core、golden hash、campaign、PvP 契約都沒動；`build:online`／`build:server` **沒跑**（只動技能面板，沒動 main／core／server）。新測試 `tests/branch-cell.test.ts` 3 項（三種狀態分得開；圖示和字不重疊；三把武器所有打法名放得進格子且不小於 19px）。
+- **截圖**：`docs/screenshots/skill-branch-before-after.jpg`（左＝以前、右＝現在；390 寬長劍）。另外看過：長弓、法杖的整棵樹；360×640；點一格換打法後的勾與說明框；點沒解鎖的格子。
+- **狀態**：`verified`（靜態）。
+- **已知限制**：剛滿級那一下的閃光還是直角長方形（沒拍）；說明框沒有跟著放圖示；省電畫質沒另外拍（面板不吃）；實機字夠不夠大等 Jacky 看。這輪第二次巡戰場（燼紅裂谷長劍，`WARM=400`）逾時沒拍到，沒有重試。
+- **下一項**：看 Jacky 的回饋；沒有就回戰場，NEXT「第 202 輪注意」的 ①～③（精英血條／數字壓主角、寶箱字條、兩個紅圈疊色）。
+- **CI**（收尾前查過）：4f5f1bf 的 CI（含 mssql 與 headless 冒煙測試）**success**；Pages／APK 沒另外查。
+
+## 2026-11-14 12:12–13:02（台北）第 203 輪：摘要（第 204 輪合併；細節看 git log 與 DECISIONS D-406～D-408）
+- 介面不再像佔位用的：營火捷徑改成深色底板＋色框＋小圖示（b1caf23；`ui/campBtn.ts`）、全遊戲文字按鈕圓角＋厚度（a477c1f；`fx/btnSkin.ts`，改 Phaser Text 的 `updateText`）、暫停選單兩欄對齊（4ead66e；`ui/menuGrid.ts`）、競技場大廳說明移到空位（8c4007e；`ui/lobbyNote.ts`）、「技能會自己放了」提示改短（ca532a2）。
+- 圖 `camp-btn-before-after.jpg`、`btn-skin-before-after.jpg`、`pause-grid-before-after.jpg`、`pvp-lobby-note-before-after.jpg`。純畫面，hash 沒變；當輪四項檢查全過（1250 項）、CI 綠。已知限制：`btnSkin` 只在 Chromium 看過，Android WebView／iOS 沒有實機（`BTN_SKIN.on=false` 退回）。
 
 ## 2026-11-14 10:12–11:17（台北）第 202 輪：摘要（第 203 輪合併；細節看 git log 與 DECISIONS D-404、D-405）
 - 被精英狼或兩三隻狼圍住時主角會半透明地透出來、壓在主角臉上的小怪血條變淡（5f9d187、ecf5229；`fx/occlude.ts`、`tests/occlude-crowd.test.ts` 9 項）；進地圖的開場說明排到主角下方的字幕帶（ec6a46e；`fx/introLane.ts`、2 項）。
