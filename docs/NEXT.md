@@ -24,6 +24,13 @@
 
 **主角走路（D-391，`awaiting_visual`，等 Jacky 實機）**：參數都在 `fx/heroWalk.ts` 的 `HERO_WALK`；他回了就照他的調。候選的下一步（他說還不夠才做）：①圍巾／衣襬飄動 ②競技場的主角也分件 ③怪（狼）的腳——同一招要先看圖切不切得開。
 
+**第 207 輪注意（寶箱重畫 D-415）**：
+- `fx/chestArt.ts`（`CHEST_ART`：`scale`、`lidMs`、`glowMs`、`coins`／`coinsLow`、`openedA`；`chestPose(age)`、`chestCoins(seed, age, n)`、`drawChest`；配色 `CHEST_DAY`／`CHEST_NIGHT`）；畫在 `RtBattleScene.draw` 的寶箱那段，開箱時間記在 `chestOpenAt`（`chest` 事件寫入；進圖前就開過的不在裡面＝直接全開）。
+- 拍法：`CLOSED=1 OUT=… AT=4,9,16,30,100 node scripts/shot-chest.mjs 武器 地圖 tag`。夜光寶箱＝把腳本裡的 `!c.nightOnly` 改成 `c.nightOnly`、`sn.s.night = true` 的臨時副本。
+- 47af93c（D-414，Tripo 狼與武器圖示）這輪補驗過：四項檢查全過、兩隻狼各拍一張正常。
+- `shot-survey.mjs` 的自然巡看打到第一次祝福三選一就停住（之後每張都是面板）；要巡久一點得讓腳本真的點卡片（直接 `inp.push` 再 `destroy` 面板會留下變暗的遮罩，不能用）。
+- **還沒做（依序）**：①法杖隕星術／虛空奇點／劍與弓的圓形招，範圍圈是正圓、地上的魔法陣與結霜是壓扁的橢圓，兩套透視混在一起（命中判定是正圓，所以範圍圈不能壓扁——要動的話是把裝飾也改回正圓，或只留一種；先問 Jacky 覺不覺得怪）②地上掉落物（裝備是黑圓＋十字、結晶是菱形、藥水是紅圓）也還是佔位等級的畫法，可以照寶箱這次的做法重畫 ③第 206 輪列的 ②④、第 205 輪列的 ①③。
+
 **第 206 輪注意（寶箱的字 D-411、結霜 D-412、圖鑑搭配 D-413）**：
 - `fx/chestPop.ts`（`CHEST_POP`：離寶箱多遠 `side`、行距、每樣晚多久跳出來 `stagger`、停多久 `hold`；`chestPopLayout` 決定排哪一側）；畫在 `RtBattleScene.popChest`（一個跟著寶箱世界座標的 Container）。`fx/frostGround.ts`（`FROST_GROUND`：漸層 `stops`、霜紋條數、碎冰邊幾段、寒氣波 `waveReach`／`waveMs`）；畫在 `groundHazards.drawFrost`（漸層是一張 `fx_frost_ground` 貼圖，每個結霜圈一個 Image、融化時收掉）；正圓的 `shockRing` 在 `rangedFx.staffFx` 最後那段與 `RtBattleScene` 劍的兩處被跳過。圖鑑的搭配＝`blessCard.ts` 的 `blessPartners`／`CODEX_SYN`。
 - 拍法：`OUT=… node scripts/shot-chest.mjs 武器 地圖 tag`（`NTH=1` 第二近的寶箱、`OFF=1` 舊畫法、`AT=12,40,90` 開箱後第幾幀）；`OUT=… AGE=450 node scripts/shot-frost.mjs 地圖 tag`（同時拍 `-x` 舊畫法；`AGE=60` 看出手那一下；每次的亂數瞬間不一樣）。圖鑑＝`STEPS='["sc().openCodex()"]' DSF=2 node scripts/shot-panels.mjs 武器 地圖 tag [W H]`。**這個環境 vite 不會偵測檔案變更：改了 `src/` 一定要重開 vite 再拍**，不然拍到的是舊程式。
